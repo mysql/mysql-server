@@ -1,0 +1,39 @@
+---------------------------------------------------------------------------
+Open Mapping Issues
+---------------------------------------------------------------------------
+
+NdbBlob.java:    // MMM! support variable-width type non-const references or check if needed: public final native void getVersion(int[]/*_int &_*/ version);
+NdbBlob.java:    // MMM! support variable-width type non-const references or check if needed: public final native int getNull(int[]/*_int &_*/ isNull);
+
+---------------------------------------------------------------------------
+
+NdbDictionary.java:        // MMM! support <in:String[]>: public final native int addColumnNames(int/*_unsigned_*/ noOfNames, String[]/*_const char * *_*/ names);
+NdbDictionary.java:        // MMM! support <in:String[]>: public final native void addEventColumns(int n, String[]/*_const char * *_*/ columnNames);
+
+---------------------------------------------------------------------------
+
+Ndb.java:        // MMM! support <out:BB> or check if needed: ByteBuffer/*_const void *_*/ ptr();
+Ndb.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_const void *_*/ ptr();
+// MMM! support mapping <union> or check if needed
+
+NdbDictionary.java:    // MMM! support <out:BB> or check if needed: static public final native char * getValuePtr(NdbRecordConst/*_const NdbRecord *_*/ record, char * row, int/*_Uint32_*/ attrId);
+
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: ByteBuffer/*_void *_*/ appStorage();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_void *_*/ appStorage();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native void appStorage(ByteBuffer/*_void *_*/ p0);
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: ByteBuffer/*_const void *_*/ value();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_const void *_*/ value();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native void value(ByteBuffer/*_const void *_*/ p0);
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_void *_*/ customData();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native public final native void customData(ByteBuffer/*_void *_*/ p0);
+
+NdbRecAttr.java:    // MMM! support <out:BB> or check if needed: public final native char * aRef() /*_const_*/;
+NdbRecAttrConst.java:    // MMM! support <out:BB> or check if needed: char * aRef() /*_const_*/;
+
+NdbScanOperation.java:        // MMM! support <out:BB> or check if needed: ByteBuffer/*_void *_*/ customData();
+NdbScanOperation.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_void *_*/ customData();
+NdbScanOperation.java:        // MMM! support <out:BB> or check if needed: public final native void customData(ByteBuffer/*_void *_*/ p0);
+
+NdbScanOperation.java:    // MMM! support <out:char *> or check if needed: public final native int nextResult(const char * * out_row_ptr, boolean fetchAllowed, boolean forceSend);
+
+---------------------------------------------------------------------------

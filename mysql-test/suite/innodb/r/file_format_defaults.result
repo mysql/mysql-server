@@ -1,0 +1,60 @@
+SELECT @@innodb_strict_mode;
+@@innodb_strict_mode
+1
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+SET GLOBAL innodb_large_prefix=ON;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+CREATE TABLE tab0 (c1 VARCHAR(65530), KEY(c1(3073))) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+CREATE TABLE tab0 (c1 VARCHAR(65530), KEY(c1(3073))) ENGINE=InnoDB KEY_BLOCK_SIZE=2;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+CREATE TABLE tab0 (c1 VARCHAR(65530), KEY(c1(3072))) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+DROP table tab0;
+SET GLOBAL innodb_file_format=Antelope;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+CREATE TABLE tab0(c1 INT,c2 LONGBLOB ) ENGINE=InnoDB ROW_FORMAT=Dynamic;
+DROP TABLE tab0;
+SET GLOBAL innodb_file_format=Default;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+SELECT @@innodb_file_format;
+@@innodb_file_format
+Barracuda
+SET GLOBAL innodb_strict_mode=OFF;
+SET GLOBAL innodb_strict_mode=Default;
+SELECT @@innodb_strict_mode;
+@@innodb_strict_mode
+1
+SET GLOBAL innodb_large_prefix=OFF;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+SELECT @@innodb_large_prefix;
+@@innodb_large_prefix
+0
+SET GLOBAL innodb_large_prefix=Default;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+SELECT @@innodb_large_prefix;
+@@innodb_large_prefix
+1
+SET GLOBAL innodb_file_format_max=Default;
+Warnings:
+Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+SELECT @@innodb_file_format_max;
+@@innodb_file_format_max
+Antelope
+CREATE TABLE tab1(c1 int ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+SELECT @@innodb_file_format_max;
+@@innodb_file_format_max
+Barracuda
+SET GLOBAL innodb_file_format_max=Default;
+Warnings:
+Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+SET GLOBAL innodb_large_prefix=off;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+DROP TABLE tab1;

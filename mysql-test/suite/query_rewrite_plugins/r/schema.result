@@ -1,0 +1,124 @@
+#
+# Test of rewrites of queries where the database (a.k.a. schema) is not
+# specified in the pattern.
+#
+# MySQL behaves in the most peculiar way in this respect. Some
+# explanation is order here: When a query is parsed, the
+# parser injects the current database when parsing a table name, i.e.
+# 'table' is _parsed_ as '<current database>.table'.
+#
+# The session that loads the rules has no current database, so the rule
+# has to specify it if there are unqualified table names in the pattern.
+#
+CALL mtr.add_suppression("Plugin rewriter reported: 'Some rules failed to load.'");
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE t1 ( a VARCHAR(23) );
+INSERT INTO t1 VALUES ( 'This was not rewritten.' );
+# Query rewrite plugin was installed.
+INSERT
+INTO query_rewrite.rewrite_rules ( pattern, pattern_database, replacement )
+VALUES ( 'SELECT * FROM db1.nonexistent_table1', NULL, 'SELECT "Rule #1"' ),
+( 'SELECT * FROM db2.nonexistent_table2', NULL, 'SELECT "Rule #2"' ),
+( 'SELECT * FROM nonexistent_table_db1', 'db1', 'SELECT "Rule #3"' ),
+( 'SELECT * FROM nonexistent_table_db2', 'db2', 'SELECT "Rule #4"' ),
+( 'SELECT * FROM nonexistent_table',      NULL, 'SELECT "Rule #5"' ),
+( 'SELECT * FROM test.t1',              'test', 'SELECT "Rule #6"' ),
+( 'SELECT 1 FROM t1',                   'test', 'SELECT 4 FROM t1' ),
+( 'SELECT 2 FROM t1',                     NULL, 'SELECT 5 FROM t1' ),
+( 'SELECT 3 FROM test.t1',                NULL, 'SELECT 6 FROM t1' );
+CALL query_rewrite.flush_rewrite_rules();
+ERROR 45000: Loading of some rule(s) failed.
+SELECT * FROM query_rewrite.rewrite_rules;
+id	pattern	pattern_database	replacement	enabled	message
+1	SELECT * FROM db1.nonexistent_table1	NULL	SELECT "Rule #1"	YES	NULL
+2	SELECT * FROM db2.nonexistent_table2	NULL	SELECT "Rule #2"	YES	NULL
+3	SELECT * FROM nonexistent_table_db1	db1	SELECT "Rule #3"	YES	NULL
+4	SELECT * FROM nonexistent_table_db2	db2	SELECT "Rule #4"	YES	NULL
+5	SELECT * FROM nonexistent_table	NULL	SELECT "Rule #5"	YES	Parse error in pattern: >>No database selected<<
+6	SELECT * FROM test.t1	test	SELECT "Rule #6"	YES	NULL
+7	SELECT 1 FROM t1	test	SELECT 4 FROM t1	YES	NULL
+8	SELECT 2 FROM t1	NULL	SELECT 5 FROM t1	YES	Parse error in pattern: >>No database selected<<
+9	SELECT 3 FROM test.t1	NULL	SELECT 6 FROM t1	YES	Parse error in replacement: >>No database selected<<
+USE test;
+SELECT * FROM db1.nonexistent_table1;
+Rule #1
+Rule #1
+Warnings:
+Note	1105	Query 'SELECT * FROM db1.nonexistent_table1' rewritten to 'SELECT "Rule #1"' by a query rewrite plugin
+SELECT * FROM db2.nonexistent_table2;
+Rule #2
+Rule #2
+Warnings:
+Note	1105	Query 'SELECT * FROM db2.nonexistent_table2' rewritten to 'SELECT "Rule #2"' by a query rewrite plugin
+SELECT * FROM nonexistent_table_db1;
+ERROR 42S02: Table 'test.nonexistent_table_db1' doesn't exist
+SELECT * FROM nonexistent_table_db2;
+ERROR 42S02: Table 'test.nonexistent_table_db2' doesn't exist
+SELECT * FROM test.t1;
+Rule #6
+Rule #6
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "Rule #6"' by a query rewrite plugin
+SELECT 1 FROM t1;
+4
+4
+Warnings:
+Note	1105	Query 'SELECT 1 FROM t1' rewritten to 'SELECT 4 FROM t1' by a query rewrite plugin
+USE db1;
+SELECT * FROM db1.nonexistent_table1;
+Rule #1
+Rule #1
+Warnings:
+Note	1105	Query 'SELECT * FROM db1.nonexistent_table1' rewritten to 'SELECT "Rule #1"' by a query rewrite plugin
+SELECT * FROM db2.nonexistent_table2;
+Rule #2
+Rule #2
+Warnings:
+Note	1105	Query 'SELECT * FROM db2.nonexistent_table2' rewritten to 'SELECT "Rule #2"' by a query rewrite plugin
+SELECT * FROM nonexistent_table_db1;
+Rule #3
+Rule #3
+Warnings:
+Note	1105	Query 'SELECT * FROM nonexistent_table_db1' rewritten to 'SELECT "Rule #3"' by a query rewrite plugin
+SELECT * FROM nonexistent_table_db2;
+ERROR 42S02: Table 'db1.nonexistent_table_db2' doesn't exist
+SELECT * FROM test.t1;
+Rule #6
+Rule #6
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "Rule #6"' by a query rewrite plugin
+SELECT 1 FROM t1;
+ERROR 42S02: Table 'db1.t1' doesn't exist
+USE db2;
+SELECT * FROM db1.nonexistent_table1;
+Rule #1
+Rule #1
+Warnings:
+Note	1105	Query 'SELECT * FROM db1.nonexistent_table1' rewritten to 'SELECT "Rule #1"' by a query rewrite plugin
+SELECT * FROM db2.nonexistent_table2;
+Rule #2
+Rule #2
+Warnings:
+Note	1105	Query 'SELECT * FROM db2.nonexistent_table2' rewritten to 'SELECT "Rule #2"' by a query rewrite plugin
+SELECT * FROM nonexistent_table_db1;
+ERROR 42S02: Table 'db2.nonexistent_table_db1' doesn't exist
+SELECT * FROM nonexistent_table_db2;
+Rule #4
+Rule #4
+Warnings:
+Note	1105	Query 'SELECT * FROM nonexistent_table_db2' rewritten to 'SELECT "Rule #4"' by a query rewrite plugin
+SELECT * FROM test.t1;
+Rule #6
+Rule #6
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "Rule #6"' by a query rewrite plugin
+SELECT 1 FROM t1;
+ERROR 42S02: Table 'db2.t1' doesn't exist
+DROP DATABASE db1;
+DROP DATABASE db2;
+USE test;
+DROP TABLE t1;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

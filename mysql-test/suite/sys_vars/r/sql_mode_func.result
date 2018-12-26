@@ -1,0 +1,107 @@
+** Setup **
+
+SET @sql_mode_session = @@SESSION.sql_mode;
+SET @sql_mode_global = @@GLOBAL.sql_mode;
+CREATE TEMPORARY TABLE t1(a varchar(20) not null, b varchar(20));
+CREATE TEMPORARY TABLE t2(a varchar(20) null, b varchar(20));
+'#--------------------FN_DYNVARS_153_01-------------------------#'
+ANSI mode
+SET SESSION sql_mode = ANSI;
+SELECT @@SESSION.sql_mode;
+@@SESSION.sql_mode
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+INSERT INTO t1 VALUES('t1a1','t1b1');
+INSERT INTO t1 VALUES('t1a2','t1b2');
+INSERT INTO t1 VALUES('t1a3','t1b3');
+INSERT INTO t1 VALUES('t1a4','t1b4');
+INSERT INTO t2 VALUES('t2a1','t2b1');
+INSERT INTO t2 VALUES('t2a2','t2b2');
+INSERT INTO t2 VALUES('t2a3','t2b3');
+INSERT INTO t2 VALUES('t2a4','t2b4');
+SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+ERROR HY000: Invalid use of group function
+Expected error for invalid group function
+SET SESSION sql_mode = @sql_mode_session;
+SET GLOBAL sql_mode = @sql_mode_global;
+'#--------------------FN_DYNVARS_153_02-------------------------#'
+STRICT_TRANS_TABLES mode
+DELETE FROM t1;
+DELETE FROM t2;
+SET SESSION sql_mode = STRICT_TRANS_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT @@SESSION.sql_mode;
+@@SESSION.sql_mode
+STRICT_TRANS_TABLES
+INSERT INTO t1 VALUES('t1a1','t1b1');
+INSERT INTO t1 VALUES('t1a2','t1b2');
+INSERT INTO t1 VALUES('t1a3','t1b3');
+INSERT INTO t1 VALUES('t1a4','t1b4');
+INSERT INTO t2 VALUES(NULL,'t2b1');
+INSERT INTO t2 VALUES('t2a2','t2b2');
+INSERT INTO t2 VALUES('t2a3','t2b3');
+INSERT INTO t2 VALUES('t2a4','t2b4');
+INSERT INTO t1 SELECT * FROM t2;
+ERROR 23000: Column 'a' cannot be null
+Expected error Bad NULL value
+SELECT * FROM t1 WHERE a = 't2a2';
+a	b
+Should return no rows in columns a,b;
+SET SESSION sql_mode = @sql_mode_session;
+SET GLOBAL sql_mode = @sql_mode_global;
+'#--------------------FN_DYNVARS_153_03-------------------------#'
+TRADITIONAL  mode
+SET SESSION sql_mode = TRADITIONAL;
+SELECT @@SESSION.sql_mode;
+@@SESSION.sql_mode
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
+INSERT INTO t1 VALUES('t1a1','t1b1');
+INSERT INTO t1 VALUES('t1a2','t1b2');
+INSERT INTO t1 VALUES('t1a3','t1b3');
+INSERT INTO t1 VALUES('t1a4','t1b4');
+INSERT INTO t2 VALUES(NULL,'t2b1');
+INSERT INTO t2 VALUES('t2a2','t2b2');
+INSERT INTO t2 VALUES('t2a3','t2b3');
+INSERT INTO t2 VALUES('t2a4','t2b4');
+INSERT INTO t1 SELECT * FROM t2;
+ERROR 23000: Column 'a' cannot be null
+Expected error Bad NULL value
+SELECT * FROM t1 WHERE a = 't2a2';
+a	b
+Should return no rows in columns a,b;
+'#-------------------FN_DYNVARS_153_04-------------------------#'
+SET GLOBAL sql_mode = '';
+** Connecting con_int1 using root **
+** Connection con_int1 **
+SELECT @@SESSION.sql_mode;
+@@SESSION.sql_mode
+
+'' Expected
+SET SESSION sql_mode = 'TRADITIONAL';
+** Connecting con_int2 using root **
+** Connection con_int2 **
+SELECT @@SESSION.sql_mode;
+@@SESSION.sql_mode
+
+'' Expected
+SET SESSION sql_mode = 'ANSI';
+** Connection con_int2 **
+SELECT @@SESSION.sql_mode;
+@@SESSION.sql_mode
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+'REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ANSI' Expected
+** Connection con_int1 **
+SELECT @@SESSION.sql_mode;
+@@SESSION.sql_mode
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
+'STRICT_TRANS_TABLES, STRICT_ALL_TABLES, NO_ZERO_IN_DATE, NO_ZERO_DATE, ERROR_FOR_DIVISION_BY_ZERO, TRADITIONAL' Expected
+SELECT @@GLOBAL.sql_mode;
+@@GLOBAL.sql_mode
+
+'' Expected
+** Connection default **
+Disconnecting Connections con_int1, con_int2
+SET SESSION sql_mode = @sql_mode_session;
+SET GLOBAL sql_mode = @sql_mode_global;
+DROP TABLE t1;
+DROP TABLE t2;

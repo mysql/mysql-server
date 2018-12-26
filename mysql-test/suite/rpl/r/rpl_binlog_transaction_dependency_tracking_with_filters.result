@@ -1,0 +1,109 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
+SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET GLOBAL transaction_write_set_extraction = XXHASH64;
+SET LOCAL transaction_write_set_extraction = XXHASH64;
+[connection slave]
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2)),
+REPLICATE_IGNORE_DB=(nodb);
+include/start_slave.inc
+SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
+SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET GLOBAL transaction_write_set_extraction = XXHASH64;
+SET LOCAL transaction_write_set_extraction = XXHASH64;
+[connection master]
+#
+# 1. Add transactions with different dependency tracking and empty transaction
+#    on master.
+#
+CREATE DATABASE nodb;
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+USE nodb;
+CREATE TABLE nodbt1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT);
+USE db1;
+CREATE TABLE db1t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT);
+USE test;
+CREATE TABLE t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT);
+USE db1;
+INSERT INTO db1t1 VALUES (NULL);
+INSERT INTO db1t1 VALUES (NULL);
+SET GLOBAL binlog_transaction_dependency_tracking= WRITESET_SESSION;
+INSERT INTO db1t1 VALUES (NULL);
+INSERT INTO db1t1 VALUES (NULL);
+USE nodb;
+INSERT INTO nodbt1 VALUES (NULL);
+INSERT INTO nodbt1 VALUES (NULL);
+SET GLOBAL binlog_transaction_dependency_tracking= WRITESET;
+INSERT INTO nodbt1 VALUES (NULL);
+INSERT INTO nodbt1 VALUES (NULL);
+USE test;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (NULL);
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (NULL);
+DROP DATABASE nodb;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP TABLE test.t1;
+SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	COMMIT_ORDER
+include/include/assert_logical_timestamps.inc
+#
+# 2. Test timestamps order with filtered and non-filtered transactions on Slave.
+#
+include/sync_slave_sql_with_master.inc
+[On Slave]
+######## 2.1. COMMIT_ORDER with SLAVE ########
+SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	COMMIT_ORDER
+include/include/assert_logical_timestamps.inc
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+
+######## 2.2. WRITESET with SLAVE ########
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+include/start_slave.inc
+include/sync_slave_sql_with_master.inc
+SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	WRITESET
+include/include/assert_logical_timestamps.inc
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+
+######## 2.3. WRITESET_SESSION with SLAVE ########
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+include/start_slave.inc
+include/sync_slave_sql_with_master.inc
+SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	WRITESET_SESSION
+include/include/assert_logical_timestamps.inc
+
+# 3. Clean up.
+[connection master]
+SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+include/sync_slave_sql_with_master.inc
+[On Slave]
+SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(), REPLICATE_IGNORE_DB=();
+include/start_slave.inc
+include/rpl_end.inc

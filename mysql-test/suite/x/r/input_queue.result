@@ -1,0 +1,309 @@
+call mtr.add_suppression("Message of size .* received, exceeding the limit of");
+Setup
+USE `test`;
+SET GLOBAL Mysqlx_max_allowed_packet=1024;
+CREATE TABLE IF NOT EXISTS `first_table`(`column_name` INTEGER DEFAULT 0 NOT NULL);
+Test case
+RUN USE test
+
+0 rows affected
+Limits are less then page size
+switched to session default
+RUN SET GLOBAL Mysqlx_max_allowed_packet=1024
+
+0 rows affected
+switched to session default
+RUN LOCK TABLES `first_table` WRITE
+
+0 rows affected
+connecting...
+active session is now 'test1'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "LOCK TABLES `first_table` READ;"
+  namespace: "sql"
+}
+
+Test sends 4 messages
+LOCK TABLE stops processing of following commands 
+switched to session default
+RUN UNLOCK TABLES
+
+0 rows affected
+switched to session test1
+
+0 rows affected
+First query
+1
+0 rows affected
+Second query
+2
+0 rows affected
+Third query
+3
+0 rows affected
+Fourth query
+4
+0 rows affected
+Bug 21811192 (fixed)
+Lets try if plugin is processing new data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+closing session test1
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Multiple messages fill the buffer (last one uses extra page)
+switched to session default
+RUN SET GLOBAL Mysqlx_max_allowed_packet=4094
+
+0 rows affected
+switched to session default
+RUN LOCK TABLES `first_table` WRITE
+
+0 rows affected
+connecting...
+active session is now 'test2'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "LOCK TABLES `first_table` READ;"
+  namespace: "sql"
+}
+
+Test sends 4 messages
+LOCK TABLE stops processing of following commands 
+switched to session default
+RUN UNLOCK TABLES
+
+0 rows affected
+switched to session test2
+
+0 rows affected
+First query
+1
+0 rows affected
+Second query
+2
+0 rows affected
+Third query
+3
+0 rows affected
+Fourth query
+4
+0 rows affected
+Bug 21811192 (fixed)
+Lets try if plugin is processing new data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+closing session test2
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+switched to session default
+RUN LOCK TABLES `first_table` WRITE
+
+0 rows affected
+connecting...
+active session is now 'test3'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "LOCK TABLES `first_table` READ;"
+  namespace: "sql"
+}
+
+Test sends 4 messages
+LOCK TABLE stops processing of following commands 
+switched to session default
+RUN UNLOCK TABLES
+
+0 rows affected
+switched to session test3
+
+0 rows affected
+First query
+1
+0 rows affected
+Second query
+2
+0 rows affected
+Third query
+3
+0 rows affected
+Fourth query
+4
+0 rows affected
+Bug 21811192 (fixed)
+Lets try if plugin is processing new data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+closing session test3
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+switched to session default
+RUN LOCK TABLES `first_table` WRITE
+
+0 rows affected
+connecting...
+active session is now 'test4'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "LOCK TABLES `first_table` READ;"
+  namespace: "sql"
+}
+
+Test sends 4 messages
+LOCK TABLE stops processing of following commands 
+switched to session default
+RUN UNLOCK TABLES
+
+0 rows affected
+switched to session test4
+
+0 rows affected
+First query
+1
+0 rows affected
+Second query
+2
+0 rows affected
+Third query
+3
+0 rows affected
+Fourth query
+4
+0 rows affected
+Bug 21811192 (fixed)
+Lets try if plugin is processing new data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+closing session test4
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Use 2 page for single message, while receiving second packet wait for first to be processed
+Extra page is used in case of not full loaded first page
+switched to session default
+RUN SET GLOBAL Mysqlx_max_allowed_packet=8188
+
+0 rows affected
+switched to session default
+RUN LOCK TABLES `first_table` WRITE
+
+0 rows affected
+connecting...
+active session is now 'test5'
+send Mysqlx.Sql.StmtExecute {
+  stmt: "LOCK TABLES `first_table` READ;"
+  namespace: "sql"
+}
+
+Test sends 4 messages
+LOCK TABLE stops processing of following commands 
+switched to session default
+RUN UNLOCK TABLES
+
+0 rows affected
+switched to session test5
+
+0 rows affected
+First query
+1
+0 rows affected
+Second query
+2
+0 rows affected
+Third query
+3
+0 rows affected
+Fourth query
+4
+0 rows affected
+Bug 21811192 (fixed)
+Lets try if plugin is processing new data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+closing session test5
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+switched to session default
+RUN SET GLOBAL Mysqlx_max_allowed_packet=2024
+
+0 rows affected
+connecting...
+active session is now 'test6'
+Sending 1115 bytes raw data...
+wait for first
+First query
+1
+0 rows affected
+wait for second
+Second query
+2
+0 rows affected
+Bug 21811192 (fixed)
+Lets try if plugin is processing new data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+closing session test6
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Bug 21839782 (fixed) - no data in buffer for incoming message (infinite loop)
+connecting...
+active session is now 'invalid_1'
+RUN SET GLOBAL mysqlx_max_allowed_packet=1048597
+
+0 rows affected
+While sending client could receive CR_BROKEN_PIPE network which could occur
+because xplugin stopped read ops
+Got expected error (one of: 0 2007 )
+1
+1
+0 rows affected
+closing session invalid_1
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL Mysqlx_max_allowed_packet=DEFAULT;
+DROP TABLE `first_table`;

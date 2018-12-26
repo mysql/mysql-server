@@ -1,0 +1,7 @@
+# TBF - difference in row level logging
+-- source include/have_binlog_format_mixed.inc
+-- source include/master-slave.inc
+
+-- source extra/rpl_tests/rpl_rewrt_db.test
+
+-- source include/rpl_end.inc

@@ -1,0 +1,31 @@
+
+--source include/master-slave.inc
+
+--echo #
+--echo # New --dump-slave, --apply-slave-statements functionality
+--echo #
+
+# There is a gap between when START SLAVE returns and when MASTER_LOG_FILE and
+# MASTER_LOG_POS are set.  Ensure that we don't call SHOW SLAVE STATUS during
+# that gap.
+--sync_slave_with_master
+
+connection master;
+use test;
+
+connection slave;
+
+# Execute mysqldump with --dump-slave
+--replace_regex /MASTER_LOG_POS=[0-9]+/MASTER_LOG_POS=BINLOG_START/
+--exec $MYSQL_DUMP_SLAVE --compact --dump-slave test
+
+# Execute mysqldump with --dump-slave and --apply-slave-statements 
+--replace_regex /MASTER_LOG_POS=[0-9]+/MASTER_LOG_POS=BINLOG_START/
+--exec $MYSQL_DUMP_SLAVE --compact --dump-slave --apply-slave-statements test
+
+--replace_regex /MASTER_LOG_POS=[0-9]+/MASTER_LOG_POS=BINLOG_START/
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+# Execute mysqldump with --dump-slave ,--apply-slave-statements and --include-master-host-port
+--exec $MYSQL_DUMP_SLAVE --compact --dump-slave --apply-slave-statements --include-master-host-port test
+
+--source include/rpl_end.inc

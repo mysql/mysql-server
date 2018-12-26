@@ -1,0 +1,60 @@
+SET @start_global_value = @@global.old_alter_table;
+SELECT @start_global_value;
+@start_global_value
+0
+select @@global.old_alter_table;
+@@global.old_alter_table
+0
+select @@session.old_alter_table;
+@@session.old_alter_table
+0
+show global variables like 'old_alter_table';
+Variable_name	Value
+old_alter_table	OFF
+show session variables like 'old_alter_table';
+Variable_name	Value
+old_alter_table	OFF
+select * from performance_schema.global_variables where variable_name='old_alter_table';
+VARIABLE_NAME	VARIABLE_VALUE
+old_alter_table	OFF
+select * from performance_schema.session_variables where variable_name='old_alter_table';
+VARIABLE_NAME	VARIABLE_VALUE
+old_alter_table	OFF
+set global old_alter_table=1;
+set session old_alter_table=ON;
+select @@global.old_alter_table;
+@@global.old_alter_table
+1
+select @@session.old_alter_table;
+@@session.old_alter_table
+1
+show global variables like 'old_alter_table';
+Variable_name	Value
+old_alter_table	ON
+show session variables like 'old_alter_table';
+Variable_name	Value
+old_alter_table	ON
+select * from performance_schema.global_variables where variable_name='old_alter_table';
+VARIABLE_NAME	VARIABLE_VALUE
+old_alter_table	ON
+select * from performance_schema.session_variables where variable_name='old_alter_table';
+VARIABLE_NAME	VARIABLE_VALUE
+old_alter_table	ON
+SET @@global.old_alter_table=DEFAULT;
+SELECT @@global.old_alter_table;
+@@global.old_alter_table
+0
+SET @@session.old_alter_table=DEFAULT;
+SELECT  @@session.old_alter_table;
+@@session.old_alter_table
+0
+set global old_alter_table=1.1;
+ERROR 42000: Incorrect argument type to variable 'old_alter_table'
+set global old_alter_table=1e1;
+ERROR 42000: Incorrect argument type to variable 'old_alter_table'
+set global old_alter_table="foo";
+ERROR 42000: Variable 'old_alter_table' can't be set to the value of 'foo'
+SET @@global.old_alter_table = @start_global_value;
+SELECT @@global.old_alter_table;
+@@global.old_alter_table
+0

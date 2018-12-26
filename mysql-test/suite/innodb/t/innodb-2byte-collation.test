@@ -1,0 +1,83 @@
+# Test for InnoDB support of 2 bytes (15 bits) collation ID
+# Some of the example and test setup are adopted from ctype_ldml.test
+
+--source include/have_debug.inc
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+show variables like 'character_sets_dir%';
+
+set names utf8;
+
+# Test that the "ID" column in I_S and SHOW queries can handle two bytes
+select collation_name, character_set_name, id from information_schema.collations where id>256 order by id;
+show collation like '%test%';
+
+# Test that two-byte collation ID is correctly transfered to the client side.
+show collation like 'ucs2_vn_ci';
+create table 2byte_collation (c1 char(1) character set ucs2 collate ucs2_vn_ci)
+engine = InnoDB;
+
+insert into 2byte_collation values (0x0061);
+--enable_metadata
+set @@character_set_results=NULL;
+select hex(c1) from 2byte_collation;
+--disable_metadata
+drop table 2byte_collation;
+
+#
+# Check maximum collation ID (2047 as of MySQL-6.0.9)
+#
+CREATE TABLE 2byte_collation (s1 char(10) character set utf8 collate utf8_maxuserid_ci) engine = innodb;
+INSERT INTO 2byte_collation VALUES ('a'),('b');
+SELECT * FROM 2byte_collation WHERE s1='a' ORDER BY BINARY s1;
+DROP TABLE 2byte_collation;
+
+# Excercise some change buffer code with the help of
+# "innodb_change_buffering_debug"
+-- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
+SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
+-- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL innodb_change_buffering_debug = 1;
+
+-- enable_query_log
+
+set names utf8;
+
+show collation like 'utf8_maxuserid_ci';
+
+CREATE TABLE 2byte_collation(
+       a INT AUTO_INCREMENT PRIMARY KEY,
+       b CHAR(100) character set utf8 collate utf8_maxuserid_ci,
+       c INT,
+       z INT,
+       INDEX(b))
+ENGINE=InnoDB STATS_PERSISTENT=0;
+
+INSERT INTO 2byte_collation VALUES(0,'x',1, 1);
+
+CREATE UNIQUE INDEX idx3 ON 2byte_collation(c, b);
+
+INSERT INTO 2byte_collation SELECT 0,b,c+1,z+1 FROM 2byte_collation;
+INSERT INTO 2byte_collation SELECT 0,b,c+10,z+10 FROM 2byte_collation;
+INSERT INTO 2byte_collation SELECT 0,b,c+20,z+20 FROM 2byte_collation;
+INSERT INTO 2byte_collation SELECT 0,b,c+50,z+50 FROM 2byte_collation;
+INSERT INTO 2byte_collation SELECT 0,b,c+100,z+100 FROM 2byte_collation;
+INSERT INTO 2byte_collation SELECT 0,b,c+200,z+200 FROM 2byte_collation;
+INSERT INTO 2byte_collation SELECT 0,b,c+400,z+400 FROM 2byte_collation;
+INSERT INTO 2byte_collation SELECT 0,b,c+800,z+800 FROM 2byte_collation;
+INSERT INTO 2byte_collation SELECT 0,b,c+1600,z+1600 FROM 2byte_collation;
+INSERT INTO 2byte_collation SELECT 0,b,c+4000,z+4000 FROM 2byte_collation;
+
+CREATE INDEX idx5 ON 2byte_collation(b, c);
+
+SELECT b FROM 2byte_collation LIMIT 10;
+
+INSERT INTO 2byte_collation VALUES (10001, "a", 20001, 20001);
+
+UPDATE 2byte_collation set b = "aaa" where c = 20001;
+
+DROP TABLE 2byte_collation;
+
+-- error 0, ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL innodb_change_buffering_debug = 0;
+

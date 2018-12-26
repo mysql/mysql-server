@@ -1,0 +1,242 @@
+# *****************************************************************
+# Test spatial index with isolation level Repeatable Read on DML
+# This will also test the no phantom rows happens 
+# Check the COUNT(*) and SELECT results before & after COMMIT in
+# the last con1 statment
+# Test at con1: Global Repeatable Read con2 : Sess Read Committed
+# Test at con1: Sess Repeatable Read   con2 : Sess Read Committed
+# *****************************************************************
+
+# Test Repeatable Read & Read committed at Global, Session levels
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
+ENGINE=InnoDB;
+
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
+
+--error ER_WRONG_USAGE
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
+
+INSERT INTO tab(c1,c2,c3,c4,c5) 
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+
+# 1 record is expected
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_AsText(c4),ST_AsText(c5) FROM tab;
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+--echo "In connection 1"
+connect (con1,localhost,root,,);
+connection con1;
+
+SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+SELECT @@transaction_isolation;
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+# 1 record is expected
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_AsText(c4),ST_AsText(c5) FROM tab;
+
+--echo "In connection 2"
+connect (con2,localhost,root,,);
+connection con2;
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+SELECT @@transaction_isolation;
+
+START TRANSACTION;
+
+INSERT INTO tab(c1,c2,c3,c4,c5) 
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+
+SET @g1 = ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+SET @g2 = ST_GeomFromText('POINT(10 10)');
+
+# Record should be updated
+UPDATE tab SET C5 = ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))')
+WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c2, @g2);
+
+--echo "In connection 1"
+connection con1;
+
+SET @g3 = ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))');
+
+# No record is expected (No phantom row)
+SELECT c1,ST_AsText(c2),ST_AsText(c4),ST_AsText(c5) FROM tab WHERE MBREquals(tab.c5, @g3);
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+START TRANSACTION;
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+--echo "In connection 2"
+connection con2;
+
+# Record count should be 2
+SELECT COUNT(*) FROM tab;
+
+COMMIT;
+
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+--echo "In connection 1"
+connection con1;
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+SET @g4 = ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))');
+
+# No records are expected (No phantom row)
+SELECT ST_AsText(c5) FROM tab  WHERE MBREquals(tab.c5, @g4);
+
+COMMIT;
+
+# The updated record is expected 
+SELECT ST_AsText(c5) FROM tab  WHERE MBREquals(tab.c5, @g4);
+
+# Record count should be 2
+SELECT COUNT(*) FROM tab;
+
+# 2 records are expected
+SELECT c1,ST_AsText(c2),ST_AsText(c4),ST_AsText(c5) FROM tab;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP TABLE tab; 
+
+# Test Repeatable Read & Read committed at Session levels
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
+ENGINE=InnoDB;
+
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
+
+--error ER_WRONG_USAGE
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
+
+INSERT INTO tab(c1,c2,c3,c4,c5) 
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+
+# 1 record is expected
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_AsText(c4),ST_AsText(c5) FROM tab;
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+--echo "In connection 1"
+connect (con1,localhost,root,,);
+connection con1;
+
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+SELECT @@transaction_isolation;
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+# 1 record is expected
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_AsText(c4),ST_AsText(c5) FROM tab;
+
+--echo "In connection 2"
+connect (con2,localhost,root,,);
+connection con2;
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+SELECT @@transaction_isolation;
+
+START TRANSACTION;
+
+INSERT INTO tab(c1,c2,c3,c4,c5) 
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+
+SET @g1 = ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+SET @g2 = ST_GeomFromText('POINT(10 10)');
+
+# Record should be updated
+UPDATE tab SET C5 = ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))')
+WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c2, @g2);
+
+--echo "In connection 1"
+connection con1;
+
+SET @g3 = ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))');
+
+# No record is expected (No phantom row)
+SELECT c1,ST_AsText(c2),ST_AsText(c4),ST_AsText(c5) FROM tab WHERE MBREquals(tab.c5, @g3);
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+START TRANSACTION;
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+--echo "In connection 2"
+connection con2;
+
+# Record count should be 2
+SELECT COUNT(*) FROM tab;
+
+COMMIT;
+
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+--echo "In connection 1"
+connection con1;
+
+# Record count should be 1
+SELECT COUNT(*) FROM tab;
+
+SET @g4 = ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))');
+
+# No records are expected (No phantom row)
+SELECT ST_AsText(c5) FROM tab  WHERE MBREquals(tab.c5, @g4);
+
+COMMIT;
+
+# The updated record is expected 
+SELECT ST_AsText(c5) FROM tab  WHERE MBREquals(tab.c5, @g4);
+
+# Record count should be 2
+SELECT COUNT(*) FROM tab;
+
+# 2 records are expected
+SELECT c1,ST_AsText(c2),ST_AsText(c4),ST_AsText(c5) FROM tab;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP TABLE tab; 

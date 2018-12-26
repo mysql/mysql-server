@@ -1,0 +1,31 @@
+#
+# WL#8960  Partial Fetch and Update of BLOB
+#
+CREATE TABLE t1 (f1 int, f2 longblob ) engine=innodb;
+insert into t1 values (1, repeat('+', 1048576));
+set debug = '+d,lob_insert_noindex';
+insert into t1 values (2, repeat('~', 1048576));
+set debug = '-d,lob_insert_noindex';
+select f1, right(f2, 40) from t1;
+f1	right(f2, 40)
+1	++++++++++++++++++++++++++++++++++++++++
+2	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+drop table t1;
+CREATE TABLE t1 (f1 int, f2 longblob ) engine=innodb;
+insert into t1 values (1, repeat('+', 1048576));
+set debug = '+d,lob_insert_noindex';
+select f1, right(f2, 40) from t1;
+f1	right(f2, 40)
+1	++++++++++++++++++++++++++++++++++++++++
+start transaction;
+insert into t1 values (2, repeat('~', 1048576));
+select f1, right(f2, 40) from t1;
+f1	right(f2, 40)
+1	++++++++++++++++++++++++++++++++++++++++
+2	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rollback;
+set debug = '-d,lob_insert_noindex';
+select f1, right(f2, 40) from t1;
+f1	right(f2, 40)
+1	++++++++++++++++++++++++++++++++++++++++
+drop table t1;

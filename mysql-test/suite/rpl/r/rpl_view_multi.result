@@ -1,0 +1,94 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Bug #25144 "replication / binlog with view breaks".
+# Statements that used views didn't ensure that view were not modified
+# during their execution. Indeed this led to incorrect binary log with
+# statement based logging and as result to broken replication.
+#
+drop tables if exists t1, t2;
+drop view if exists v1;
+# Syncing slave with master and switching to connection 'slave'
+include/sync_slave_sql_with_master.inc
+# Switching to connection 'master'
+create table t1 (i int);
+create table t2 (i int);
+create view v1 as select * from t1;
+# First we try to concurrently execute statement that uses view
+# and statement that drops it. We use "user" locks as means to
+# suspend execution of first statement once it opens our view.
+select get_lock("lock_bg25144", 1);
+get_lock("lock_bg25144", 1)
+1
+# Switching to connection 'master1'
+insert into v1 values (get_lock("lock_bg25144", 100));
+# Switching to connection 'master2'
+drop view v1;
+# Switching to connection 'master'
+select release_lock("lock_bg25144");
+release_lock("lock_bg25144")
+1
+# Switching to connection 'master1'
+select release_lock("lock_bg25144");
+release_lock("lock_bg25144")
+1
+# Switching to connection 'master2'
+# Switching to connection 'master'
+# Check that insertion through view did happen.
+select * from t1;
+i
+1
+# Syncing slave with master and switching to connection 'slave'
+include/sync_slave_sql_with_master.inc
+# Check that slave was able to replicate this sequence
+# which means that we got correct binlog order.
+select * from t1;
+i
+1
+# Switching to connection 'master'
+# Now we will repeat the test by trying concurrently execute
+# statement that uses a view and statement that alters it.
+create view v1 as select * from t1;
+select get_lock("lock_bg25144", 1);
+get_lock("lock_bg25144", 1)
+1
+# Switching to connection 'master1'
+insert into v1 values (get_lock("lock_bg25144", 100));
+# Switching to connection 'master2'
+alter view v1 as select * from t2;
+# Switching to connection 'master'
+select release_lock("lock_bg25144");
+release_lock("lock_bg25144")
+1
+# Switching to connection 'master1'
+select release_lock("lock_bg25144");
+release_lock("lock_bg25144")
+1
+# Switching to connection 'master2'
+# Switching to connection 'master'
+# Second insertion should go to t1 as well.
+select * from t1;
+i
+1
+1
+select * from t2;
+i
+# Syncing slave with master and switching to connection 'slave'
+include/sync_slave_sql_with_master.inc
+# Now let us check that statements were logged in proper order
+# So we have same result on slave.
+select * from t1;
+i
+1
+1
+select * from t2;
+i
+# Switching to connection 'master'
+drop table t1, t2;
+drop view v1;
+# Syncing slave with master and switching to connection 'slave'
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

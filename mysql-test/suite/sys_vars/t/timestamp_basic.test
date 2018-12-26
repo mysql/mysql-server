@@ -1,0 +1,152 @@
+################## mysql-test/t/timestamp_basic.test ##########################
+#                                                                             #
+# Variable Name: timestamp                                                    #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value:                                                              #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable timestamp                #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference:                                                                  #
+# http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html         #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+#######################################################################
+#                    START OF timestamp TESTS                         #
+#######################################################################
+
+
+#######################################################################
+#      Saving initial value of timestamp in a temporary variable      #
+#######################################################################
+
+SET @session_start_value = @@session.timestamp;
+
+--echo '#--------------------FN_DYNVARS_001_01------------------------#'
+########################################################################
+#                    Display the DEFAULT value of timestamp            #
+########################################################################
+
+
+SET @@timestamp = DEFAULT;
+SELECT FLOOR(@@timestamp) = UNIX_TIMESTAMP();
+
+--echo '#---------------------FN_DYNVARS_001_02-------------------------#'
+##############################################################
+#     see if accessable using global scope                   #
+##############################################################
+
+--Error ER_LOCAL_VARIABLE
+SET @@global.timestamp = "1000";
+
+--echo '#--------------------FN_DYNVARS_001_03------------------------#'
+######################################################################## 
+#              Change the value of timestamp to a valid value          #
+######################################################################## 
+
+SET @@timestamp = 0;
+SELECT FLOOR(@@timestamp) = UNIX_TIMESTAMP();
+
+--echo 'Setting 0 resets timestamp to session default timestamp'
+
+SET @@timestamp = -1000000000;
+SELECT FLOOR(@@timestamp) = UNIX_TIMESTAMP();
+
+SET @temp_ts = @@timestamp - @@timestamp;
+SELECT @temp_ts;
+
+--echo '#--------------------FN_DYNVARS_001_04-------------------------#'
+########################################################################### 
+#               Change the value of timestamp to invalid value            #
+########################################################################### 
+
+# for session scope
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@timestamp = "100";
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@timestamp = " ";
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@timestamp = 9999999999999999999999;
+
+
+
+--echo '#----------------------FN_DYNVARS_001_06------------------------#'
+######################################################################### 
+#     Check if the value in SESSION Table matches value in variable     #
+#########################################################################
+
+# disabled due to bug#41584
+#SELECT @@timestamp = VARIABLE_VALUE 
+#FROM performance_schema.session_variables 
+#WHERE VARIABLE_NAME='timestamp';
+
+--echo '#---------------------FN_DYNVARS_001_08-------------------------#'
+############################################################################# 
+#        Check if ON, OFF, TRUE and FALSE values can be used on variable    #
+############################################################################# 
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@timestamp = OFF;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@timestamp = ON;
+
+SET @@timestamp = TRUE;
+SELECT @@timestamp;
+
+SET @@timestamp = FALSE;
+#SELECT @@timestamp;
+
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+#############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points
+#    to same session variable
+#############################################################################
+
+SET @@timestamp = 123456;
+SELECT @@timestamp = @@local.timestamp and @@timestamp = @@session.timestamp;
+SET @@timestamp = 654321;
+SELECT @@timestamp = @@local.timestamp and @@timestamp = @@session.timestamp;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+#####################################################################  
+#   Check if timestamp can be accessed with and without @@ sign    #
+#####################################################################
+
+SET timestamp = 1;
+SELECT @@timestamp;
+--Error ER_UNKNOWN_TABLE
+SELECT local.timestamp;
+--Error ER_UNKNOWN_TABLE
+SELECT session.timestamp;
+--Error ER_BAD_FIELD_ERROR
+SELECT timestamp = @@session.timestamp;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@timestamp = @session_start_value;
+
+#######################################################################
+#                    END OF timestamp TESTS                           #
+#######################################################################
+

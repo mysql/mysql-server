@@ -1,0 +1,83 @@
+## XPLUGIN: Test case for triggering interactive timeout while using a SSL connection
+
+--echo Preamble
+--source include/not_windows.inc
+--source include/have_ssl.inc
+--source ../include/have_performance_schema_threads.inc
+--source include/xplugin_preamble.inc
+
+###################################################################
+
+--write_file $MYSQL_TMP_DIR/mysqlx-timeouting-interactive.tmp
+-->import assert_variable.macro
+
+-->callmacro Assert_session_variable	mysqlx_wait_timeout	5
+-->callmacro Assert_global_variable	mysqlx_wait_timeout	10
+
+-->sql
+SHOW SESSION VARIABLES LIKE 'mysqlx_wait_timeout';
+SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+SELECT USER();
+SHOW STATUS LIKE 'Mysqlx_ssl_active';
+-->endsql
+
+-->echo # Hanging 'receive' command will cause interactive_timeout
+-->recvtype Mysqlx.Notice.Frame
+-->echo # We do no expect any message to be received here,
+-->echo # verification is done by comparing with 'result' file.
+-->recvuntildisc show-received
+EOF
+
+###################################################################
+
+SET GLOBAL mysqlx_interactive_timeout = 5;
+SET GLOBAL mysqlx_wait_timeout = 10;
+
+eval CREATE USER temp_user@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+
+GRANT ALL ON *.* TO temp_user@localhost;
+
+let $wait_condition=
+    SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
+         like "Mysqlx_aborted_clients" and VARIABLE_VALUE=0;
+--source include/wait_condition_or_abort.inc
+
+--echo #
+--echo # Run the test without SSL
+--echo #
+--replace_regex /(.*IO Read error:).*(read_timeout exceeded)/\1 \2/
+exec $MYSQLXTEST
+  --user temp_user
+  --password='auth_string'
+  --client-interactive
+  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-interactive.tmp 2>&1;
+
+let $wait_condition=
+    SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
+         like "Mysqlx_aborted_clients" and VARIABLE_VALUE=1;
+--source include/wait_condition_or_abort.inc
+
+--echo #
+--echo # Run the test with SSL
+--echo #
+--replace_regex /(.*IO Read error:).*(read_timeout exceeded)/\1 \2/
+exec $MYSQLXTEST
+  --user temp_user
+  --password='auth_string'
+  --ssl-mode=REQUIRED
+  --client-interactive
+  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-interactive.tmp 2>&1;
+
+let $wait_condition=
+    SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
+         like "Mysqlx_aborted_clients" and VARIABLE_VALUE=2;
+--source include/wait_condition_or_abort.inc
+
+
+# Cleanup
+SET GLOBAL mysqlx_interactive_timeout = DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
+--remove_file $MYSQL_TMP_DIR/mysqlx-timeouting-interactive.tmp
+
+DROP USER temp_user@localhost;

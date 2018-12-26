@@ -1,0 +1,70 @@
+
+# Test of ipv4 (127.0.0.1) in ipv6 format
+# Options: --skip-name-resolve, --bind-address=0.0.0.0 (see corresponding opt file).
+#
+
+--source include/have_ipv4_mapped.inc
+--source include/add_extra_root_users.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+echo =============Test of '127.0.0.1' (IPv4) ===========================;
+let $IPv6= 127.0.0.1;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+--source include/ipv6_func.inc
+
+echo =============Test of '0:0:0:0:0:FFFF:127.0.0.1' ===================;
+let $IPv6= 0:0:0:0:0:FFFF:127.0.0.1;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+--source include/ipv6_func.inc
+
+echo =============Test of '0000:0000:0000:0000:0000:FFFF:127.0.0.1' ====;
+let $IPv6= 0000:0000:0000:0000:0000:FFFF:127.0.0.1;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+--source include/ipv6_func.inc
+
+echo =============Test of '0:0000:0000:0:0000:FFFF:127.0.0.1' ====;
+let $IPv6= 0:0000:0000:0:0000:FFFF:127.0.0.1;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+--source include/ipv6_func.inc
+
+echo =============Test of '0::0000:FFFF:127.0.0.1' ====;
+let $IPv6= 0::0000:FFFF:127.0.0.1;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+--source include/ipv6_func.inc
+
+echo =============Test of '0:0:0:0:0:FFFF:127.0.0.1/96' ================;
+let $IPv6= 0:0:0:0:0:FFFF:127.0.0.1/96;
+#--source include/ipv6_clients.inc
+#--source include/ipv6.inc
+--source include/ipv6_func.inc
+
+echo =============Test of '::FFFF:127.0.0.1' ===========================;
+let $IPv6= ::FFFF:127.0.0.1;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+
+echo =============Test of '::FFFF:127.0.0.1/96' ========================;
+let $IPv6= ::FFFF:127.0.0.1/96;
+#--source include/ipv6_clients.inc
+#--source include/ipv6.inc
+--source include/ipv6_func.inc
+
+echo =============Test of '::1' ========================;
+let $IPv6= ::1;
+--echo connect (con1, $IPv6, root, , test, MASTER_MYPORT,);
+--disable_query_log
+--error 2003,2006
+connect (con1, $IPv6, root, , test, $MASTER_MYPORT,);
+--enable_query_log
+
+--source include/remove_extra_root_users.inc
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

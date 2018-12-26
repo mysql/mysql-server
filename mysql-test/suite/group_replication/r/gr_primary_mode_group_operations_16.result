@@ -1,0 +1,54 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. server1 start group replication and server2 join
+set session sql_log_bin=0;
+call mtr.add_suppression("Can't start slave IO THREAD when group replication is running a group configuration operation.");
+call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
+call mtr.add_suppression("Slave I/O for channel 'ch3_1': Fatal error: Failed to run 'thread_start' hook, Error_code:*");
+call mtr.add_suppression("Can't start slave SQL THREAD when group replication is running a group configuration operation.");
+call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
+call mtr.add_suppression("Slave SQL for channel 'ch3_1': Fatal error: Failed to run 'applier_start' hook, Error_code:*");
+set session sql_log_bin=1;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Activate debug point that will block the group action when changing
+#    to single primary mode
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+
+# 3. Execute action to change group to single primary mode
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+
+# 4. Start a slave connection on server1 to server3. Should fail, action
+#    is ongoing
+[connection server1]
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE FOR CHANNEL 'ch3_1';
+include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_1']
+include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_1']
+
+# 5. Verify occurrence of error message
+include/assert_grep.inc [Found the expected error about failure to start slave IO THREAD.]
+include/assert_grep.inc [Found the expected error about failure to start slave SQL THREAD.]
+
+# 6. Unlock the action
+[connection server_2]
+SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
+[connection server2]
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+
+# 7. Clean up
+[connection server1]
+RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
+include/group_replication_end.inc

@@ -1,0 +1,98 @@
+Lock master DICT against schema operations
+
+Implementation
+--------------
+
+[ see comments in Dbdict.hpp ]
+
+Use case: Node startup INR / NR
+-------------------------------
+
+Master DICT (like any block) keeps list of alive nodes (c_aliveNodes).
+These are participants in schema ops.
+
+(1) c_aliveNodes is initialized when DICT starts
+    in sp3 in READ_NODESCONF from CNTR
+
+(2) when slave node fails (in any sp of the slave node)
+    it is removed from c_aliveNodes in NODE_FAILREP
+
+(3) when slave starts, it is added to c_aliveNodes
+    in sp4 of the starting node in INCL_NODEREQ
+
+Slave DIH locks master DICT in sp2 and releases the lock when started.
+Based on the constraints:
+
+- the lock is taken when master DICT is known
+  DIH reads this in sp2 in READ_NODESCONF
+
+- the lock is taken before (3)
+
+- the lock is taken before copying starts and held until it is done
+  in sp4 DIH meta, DICT meta, tuple data
+
+- on INR in sp2 in START_PERMREQ the LCP info of the slave is erased
+  in all DIH in invalidateNodeLCP() - not safe under schema ops
+
+Signals:
+
+All but DICT_LOCK are standard v5.0 signals.
+s=starting node, m=master, a=all participants, l=local block.
+
+* sp2 - DICT_LOCK and START_PERM
+
+DIH/s
+    DICT_LOCK_REQ
+        DICT/m
+    DICT_LOCK_CONF
+DIH/s
+    START_PERMREQ
+        DIH/m
+            START_INFOREQ
+                DIH/a
+                    invalidateNodeLCP() if INR
+                DIH/a
+            START_INFOCONF
+        DIH/m
+    START_PERMCONF
+DIH/s
+
+* sp4 - START_ME (copy metadata, no changes)
+
+DIH/s
+    START_MEREQ
+        DIH/m
+            COPY_TABREQ
+                DIH/s
+            COPY_TABCONF
+        DIH/m
+            DICTSTARTREQ
+                DICT/s
+                    GET_SCHEMA_INFOREQ
+                        DICT/m
+                    SCHEMA_INFO
+                DICT/s
+            DICTSTARTCONF
+        DIH/m
+            INCL_NODEREQ
+                DIH/a
+                    INCL_NODEREQ
+                        ANY/l
+                    INCL_NODECONF
+                DIH/a
+            INCL_NODECONF
+        DIH/m
+    START_MECONF
+DIH/s
+
+* (copy data, omitted)
+
+* SL_STARTED - release DICT lock
+
+CNTR/s
+    NODE_START_REP
+        DIH/s
+            DICT_UNLOCK_ORD
+                DICT/m
+
+# vim: set et sw=4:

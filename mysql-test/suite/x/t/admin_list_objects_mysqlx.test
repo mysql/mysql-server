@@ -1,0 +1,110 @@
+## Simple list objects
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+CREATE TABLE xtest.mytable (a INT);
+CREATE TABLE xtest.mytable2 (a INT, doc JSON);
+CREATE VIEW xtest.myview AS SELECT 1;
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_mysqlx.tmp
+--write_file $xtest_file
+-->quiet
+## Test data
+
+-->stmtadmin create_collection	{"schema":"xtest", "name":"books"}
+-->recvresult
+
+
+-->sql
+CREATE VIEW xtest.fakecoll AS SELECT * FROM xtest.books;
+CREATE VIEW xtest.xdoc AS SELECT doc FROM xtest.mytable2;
+CREATE VIEW xtest.fakexview AS SELECT doc, a AS _id FROM xtest.mytable2;
+
+-->endsql
+
+
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvresult
+
+
+-->stmtadmin list_objects	{"schema":"invalid"}
+-->expecterror 1049
+-->recvresult
+
+
+-->stmtadmin list_objects	{"schema":"xtest","pattern":"myt%"}
+-->recvresult
+
+## empty resultset
+-->stmtadmin list_objects	{"schema":"xtest","pattern":"bla%"}
+-->recvresult
+
+
+-->stmtadmin list_objects
+-->expecterror 1046
+-->recvresult
+
+
+-->sql
+USE xtest
+-->endsql
+
+-->stmtadmin list_objects
+-->recvresult
+
+
+-->stmtadmin list_objects	{"pattern":"fa%"}
+-->recvresult
+
+
+-->stmtsql ALTER TABLE xtest.books ADD COLUMN (nothing INT)
+-->recvresult
+
+-->stmtsql show columns from xtest.books
+-->recvresult
+
+-->stmtadmin list_objects	{"pattern":"books"}
+-->recvresult
+
+
+-->stmtadmin list_objects
+-->recvresult
+-->stmtsql DROP TABLE xtest.books
+-->recvresult
+-->stmtadmin list_objects
+-->recvresult
+
+
+-->stmtadmin list_objects	{"schema":"sys", "pattern":"processlist"}
+-->recvresult
+
+-->title -Collection with index
+-->stmtadmin create_collection	{"schema":"xtest", "name":"fruit"}
+-->recvresult
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fruit", "name": "fruit_name", "unique": true, "constraint":{"member": "$.name", "type": "text(20)", "required": false}}
+-->recvresult
+-->stmtadmin list_objects	{"schema":"xtest", "pattern":"fruit"}
+-->recvresult
+
+-->title -Removing `_id` from collection
+-->stmtsql ALTER TABLE xtest.fruit DROP COLUMN _id;
+-->recvresult
+-->stmtadmin list_objects	{"schema":"xtest", "pattern":"fruit"}
+-->recvresult
+
+-->title -Removing `_id` and index from collection
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"fruit", "name": "fruit_name"}
+-->recvresult
+-->stmtadmin list_objects	{"schema":"xtest", "pattern":"fruit"}
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

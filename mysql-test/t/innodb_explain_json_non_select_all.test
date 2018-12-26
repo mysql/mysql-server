@@ -1,0 +1,32 @@
+-- source include/big_test.inc
+
+# There are expected differences in Handler_update output when run with and
+# without log-bin. Thus, test is updated to run with binary logging ON.
+# Testcase is skipped for binlog_format=STATEMENT due to unsafe statements:
+# LIMIT clause, REPLACE... SELECT.
+# Testcase is also skipped for binlog_format=MIXED, since it mismatches result
+# file for used_columns output (Bug#22472365).
+--source include/have_binlog_format_row.inc
+
+#
+# Run explain_non_select.inc on InnoDB with all of the so-called 6.0 features.
+#
+
+--source include/have_64bit.inc
+--source include/have_innodb_max_16k.inc
+
+set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
+
+set @save_storage_engine= @@session.default_storage_engine;
+set session default_storage_engine = InnoDB;
+--let $innodb = 1
+
+# Next variable controls the JSON format output in explain_utils.
+# 1 = enable, 0 = disable
+--let $json   = 1
+--file_exists $MYSQL_TEST_DIR/suite/opt_trace/validate_json.pl
+
+--source include/explain_non_select.inc
+set default_storage_engine= @save_storage_engine;
+
+set optimizer_switch=default;

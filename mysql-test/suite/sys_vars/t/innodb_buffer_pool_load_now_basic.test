@@ -1,0 +1,62 @@
+#
+# Basic test for innodb_buffer_pool_load_now
+#
+
+
+# Restart mysqld to ensure that the status variables below do not contain
+# stale value from previous executions of this or other tests. The following
+# race could happen without this restart:
+# 0. innodb_buffer_pool_load_status is 'Buffer pool(s) load completed ...'
+# 1. SET innodb_buffer_pool_load_now = ON
+# (1. does not start executing yet)
+# 2. Wait for innodb_buffer_pool_load_status to become '... completed ...',
+#    the condition is satisfied immediately
+# (1. starts executing now)
+# 3. Query innodb_buffer_pool_load_status, expecting 'completed', but it
+#    contains something like 'Loading page 100/150'
+
+
+# Check the default value
+SET @orig = @@global.innodb_buffer_pool_load_now;
+SELECT @orig;
+
+# Do the dump
+SET GLOBAL innodb_buffer_pool_dump_now = ON;
+
+# Wait for the dump to complete
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--disable_warnings
+-- source include/wait_condition.inc
+--enable_warnings
+
+# Confirm the file is really created
+-- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
+-- file_exists $file
+
+SET GLOBAL innodb_fast_shutdown=0;
+-- source include/restart_mysqld.inc
+
+# Load the dump
+SET GLOBAL innodb_buffer_pool_load_now = ON;
+
+# Wait for the load to complete
+let $wait_timeout= 900;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--disable_warnings
+-- source include/wait_condition.inc
+--enable_warnings
+
+# Show the status, interesting if the above timed out
+--disable_warnings
+-- replace_regex /^Buffer pool\(s\) load completed.*|^Loading buffer pool\(s\) from.*|^Loaded .*pages.*/Buffer pool load completed or still running/
+SELECT variable_value
+FROM performance_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--enable_warnings
+

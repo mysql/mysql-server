@@ -1,0 +1,208 @@
+### This test checks whether limiting the number of           ###
+### concurrent immediate trigger operations is executed       ###
+### correctly and it eases the resource usage like job buffer ###
+
+-- source include/have_ndb.inc
+
+### Test a table with many immediate triggers in breadth
+
+create table t1(
+  c1 int not null primary key,
+  c2 int not null,
+  c3 int not null,
+  c4 int not null,
+  c5 int not null,
+  c6 int not null,
+  c7 int not null,
+  c8 int not null,
+  c9 int not null,
+  c10 int not null,
+  c11 int not null,
+  c12 int not null,
+  c13 int not null,
+  c14 int not null,
+  c15 int not null,
+  c16 int not null,
+  c17 int not null,
+  c18 int not null,
+  c19 int not null,
+  c20 int not null,
+  c21 int not null,
+  c22 int not null,
+  c23 int not null,
+  c24 int not null,
+  c25 int not null,
+  c26 int not null,
+  c27 int not null,
+  c28 int not null,
+  c29 int not null,
+  c30 int not null,
+  c31 int not null,
+  c32 int not null,
+  unique key uk2(c2),
+  unique key uk3(c3),
+  unique key uk4(c4),
+  unique key uk5(c5),
+  unique key uk6(c6),
+  unique key uk7(c7),
+  unique key uk8(c8),
+  unique key uk9(c9),
+  unique key uk10(c10),
+  unique key uk11(c11),
+  unique key uk12(c12),
+  unique key uk13(c13),
+  unique key uk14(c14),
+  unique key uk15(c15),
+  unique key uk16(c16),
+  unique key uk17(c17),
+  unique key uk18(c18),
+  unique key uk19(c19),
+  unique key uk20(c20),
+  unique key uk21(c21),
+  unique key uk22(c22),
+  unique key uk23(c23),
+  unique key uk24(c24)
+) engine=ndbcluster;
+
+let $max_rows = 1000;
+
+--disable_query_log
+let $loops = $max_rows;
+while ($loops)
+{
+  eval insert into t1 values
+  ($loops, $loops, $loops, $loops, $loops, $loops, $loops, $loops,
+   $loops, $loops, $loops, $loops, $loops, $loops, $loops, $loops,
+   $loops, $loops, $loops, $loops, $loops, $loops, $loops, $loops,
+   $loops, $loops, $loops, $loops, $loops, $loops, $loops, $loops);
+  dec $loops;
+}
+--enable_query_log
+
+--error 0,ER_GET_TEMPORARY_ERRMSG
+eval update t1 set c2=$max_rows+c2, c3=$max_rows+c3, c4=$max_rows+c4,
+  c5=$max_rows+c5, c6=$max_rows+c6, c7=$max_rows+c7, c8=$max_rows+c8,
+  c9=$max_rows+c9, c10=$max_rows+c10, c11=$max_rows+c11, c12=$max_rows+c12,
+  c13=$max_rows+c13, c14=$max_rows+c14, c15=$max_rows+c15, c16=$max_rows+c16,
+  c17=$max_rows+c17, c18=$max_rows+c18, c19=$max_rows+c19, c20=$max_rows+c20,
+  c21=$max_rows+c21, c22=$max_rows+c22, c23=$max_rows+c23, c24=$max_rows+c24,
+  c25=$max_rows+c25, c26=$max_rows+c26, c27=$max_rows+c27, c28=$max_rows+c28,
+  c29=$max_rows+c29, c30=$max_rows+c30, c31=$max_rows+c31, c32=$max_rows+c32;
+show warnings;
+
+eval update t1 set c2=$max_rows+c2, c3=$max_rows+c3, c4=$max_rows+c4,
+  c5=$max_rows+c5, c6=$max_rows+c6, c7=$max_rows+c7, c8=$max_rows+c8,
+  c9=$max_rows+c9, c10=$max_rows+c10, c11=$max_rows+c11, c12=$max_rows+c12,
+  c13=$max_rows+c13, c14=$max_rows+c14, c15=$max_rows+c15, c16=$max_rows+c16,
+  c17=$max_rows+c17, c18=$max_rows+c18, c19=$max_rows+c19, c20=$max_rows+c20,
+  c21=$max_rows+c21, c22=$max_rows+c22, c23=$max_rows+c23, c24=$max_rows+c24,
+  c25=$max_rows+c25, c26=$max_rows+c26, c27=$max_rows+c27, c28=$max_rows+c28,
+  c29=$max_rows+c29, c30=$max_rows+c30, c31=$max_rows+c31, c32=$max_rows+c32
+  where c1 < 500;
+
+--error 0,ER_GET_TEMPORARY_ERRMSG
+delete from t1;
+delete from t1 where c1 < 100;
+drop table t1;
+
+
+### Test a table with many immediate triggers in breadth and depth
+
+create table parent(
+  c1 int not null primary key,
+  c2 int not null,
+  c3 int not null,
+  c4 int not null,
+  c5 int not null,
+  unique key uk2(c2),
+  unique key uk3(c3),
+  unique key uk4(c4),
+  unique key uk5(c5)
+) engine=ndbcluster;
+
+create table child(
+  c1 int not null primary key,
+  c2 int not null,
+  c3 int not null,
+  c4 int,
+  c5 int,
+  unique key uk2(c2),
+  unique key uk3(c3),
+  key k4(c4),
+  key k5(c5),
+  foreign key fk2(c2) references parent(c1) on update restrict on delete cascade,
+  foreign key fk3(c3) references parent(c1) on update restrict on delete cascade
+) comment='NDB_TABLE=FULLY_REPLICATED=1' engine=ndbcluster;
+
+create table grandchild(
+  c1 int not null primary key,
+  c2 int,
+  c3 int,
+  c4 int,
+  c5 int not null,
+  unique key uk2(c2),
+  unique key uk3(c3),
+  key k4(c4),
+  key k5(c5),
+  foreign key fk4(c2) references child(c2) on update restrict on delete cascade,
+  foreign key fk5(c3) references child(c3) on update restrict on delete cascade
+) engine=ndbcluster;
+
+
+--disable_query_log
+let $loops = $max_rows;
+while ($loops)
+{
+  eval insert into parent values ($loops, $loops, $loops, $loops, $loops);
+  dec $loops;
+}
+
+let $loops = $max_rows;
+while ($loops)
+{
+  eval insert into child values ($loops, $loops, $loops, $loops, $loops);
+  dec $loops;
+}
+
+let $loops = $max_rows;
+while ($loops)
+{
+  eval insert into grandchild values ($loops, $loops, $loops, $loops, $loops);
+  dec $loops;
+}
+--enable_query_log
+
+# Immediate triggers
+set ndb_deferred_constraints = 0;
+
+eval update parent set c2=$max_rows+c2, c3=$max_rows+c3,
+  c4=$max_rows+c4, c5=$max_rows+c5
+  where c1 < 500;
+
+select * from parent where c1=1;
+select * from child where c1=1;
+
+# It is not possible to delete many rows because trigger ops
+# running in parallel are limited.
+begin;
+--error 0,ER_LOCK_WAIT_TIMEOUT,ER_GET_TEMPORARY_ERRMSG
+eval delete from parent;
+rollback;
+
+select count(*) from parent;
+select count(*) from child;
+select count(*) from grandchild;
+
+# Split the table delete into batches
+
+eval delete from parent where c1<500;
+eval delete from parent where c1<1001;
+
+select count(*) from parent;
+select count(*) from child;
+select count(*) from grandchild;
+
+
+drop table grandchild;
+drop table child;
+drop table parent;

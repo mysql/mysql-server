@@ -1,0 +1,251 @@
+#
+# WL#6797 Method for clearing session state
+#
+CREATE DATABASE wl6797;
+USE wl6797;
+CREATE TABLE t1 (a int);
+
+#CASE1: cleanup prepare statements
+
+PREPARE x FROM 'INSERT INTO t1 VALUES (1), (2)';
+EXECUTE x;
+SELECT * FROM t1 ORDER BY 1;
+a
+1
+2
+resetconnection;
+EXECUTE x;
+ERROR HY000: Unknown prepared statement handler (x) given to EXECUTE
+
+#CASE2: cleanup temporary tables
+
+CREATE TEMPORARY TABLE temp1(a int);
+INSERT INTO temp1 VALUES (1),(2),(3),(4);
+SELECT * FROM temp1 ORDER BY 1;
+a
+1
+2
+3
+4
+resetconnection;
+SELECT * FROM temp1 ORDER BY 1;
+ERROR 42S02: Table 'wl6797.temp1' doesn't exist
+
+#CASE3: cleanup user variables
+
+set @a:=1;
+SELECT @a;
+@a
+1
+resetconnection;
+SELECT @a;
+@a
+NULL
+
+#CASE4: cleanup session variables
+
+SHOW SESSION VARIABLES like 'autocommit';
+Variable_name	Value
+autocommit	ON
+SHOW SESSION VARIABLES like 'transaction_isolation';
+Variable_name	Value
+transaction_isolation	REPEATABLE-READ
+SHOW SESSION VARIABLES like 'character_set_client';
+Variable_name	Value
+character_set_client	utf8mb4
+SHOW SESSION VARIABLES like 'character_set_connection';
+Variable_name	Value
+character_set_connection	utf8mb4
+SHOW SESSION VARIABLES like 'max_join_size';
+Variable_name	Value
+max_join_size	18446744073709551615
+set autocommit=0;
+set transaction_isolation='SERIALIZABLE';
+set names 'big5';
+set max_join_size=100;
+set max_join_size=1000;
+SHOW SESSION VARIABLES like 'autocommit';
+Variable_name	Value
+autocommit	OFF
+SHOW SESSION VARIABLES like 'transaction_isolation';
+Variable_name	Value
+transaction_isolation	SERIALIZABLE
+SHOW SESSION VARIABLES like 'character_set_client';
+Variable_name	Value
+character_set_client	big5
+SHOW SESSION VARIABLES like 'character_set_connection';
+Variable_name	Value
+character_set_connection	big5
+SHOW SESSION VARIABLES like 'max_join_size';
+Variable_name	Value
+max_join_size	1000
+set max_join_size=100;
+resetconnection;
+SHOW SESSION VARIABLES like 'autocommit';
+Variable_name	Value
+autocommit	ON
+SHOW SESSION VARIABLES like 'transaction_isolation';
+Variable_name	Value
+transaction_isolation	REPEATABLE-READ
+SHOW SESSION VARIABLES like 'character_set_client';
+Variable_name	Value
+character_set_client	utf8mb4
+SHOW SESSION VARIABLES like 'character_set_connection';
+Variable_name	Value
+character_set_connection	utf8mb4
+SHOW SESSION VARIABLES like 'max_join_size';
+Variable_name	Value
+max_join_size	18446744073709551615
+
+#CASE5: cleanup table cache and close open tables
+
+FLUSH TABLES;
+FLUSH STATUS;
+SHOW STATUS like 'Table_open_cache_hits';
+Variable_name	Value
+Table_open_cache_hits	0
+SHOW STATUS like 'Opened_tables';
+Variable_name	Value
+Opened_tables	0
+CREATE TABLE newt( a int );
+INSERT INTO newt VALUES (1),(2);
+SELECT * FROM newt ORDER BY 1;
+a
+1
+2
+DELETE FROM newt;
+DROP TABLE newt;
+SHOW STATUS like 'Table_open_cache_hits';
+Variable_name	Value
+Table_open_cache_hits	>0
+SHOW STATUS like 'Opened_tables';
+Variable_name	Value
+Opened_tables	>0
+resetconnection;
+SHOW STATUS like 'Table_open_cache_hits';
+Variable_name	Value
+Table_open_cache_hits	0
+SHOW STATUS like 'Opened_tables';
+Variable_name	Value
+Opened_tables	0
+
+#CASE6: check in debug mode
+
+LOCK TABLE t1 WRITE;
+SELECT * FROM t1 ORDER BY 1;
+a
+1
+2
+SET GLOBAL DEBUG='d,debug_test_cleanup_connection';
+resetconnection;
+SET GLOBAL DEBUG='';
+
+Bug #17653288 MYSQL_RESET_CONNECTION DOES NOT RESET LAST_INSERT_ID
+
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SHOW SESSION VARIABLES like 'last_insert_id';
+Variable_name	Value
+last_insert_id	0
+INSERT INTO t2 VALUES (NULL);
+INSERT INTO t2 VALUES (NULL);
+SHOW SESSION VARIABLES like 'last_insert_id';
+Variable_name	Value
+last_insert_id	2
+resetconnection;
+SHOW SESSION VARIABLES like 'last_insert_id';
+Variable_name	Value
+last_insert_id	0
+INSERT INTO t2 VALUES (NULL), (NULL);
+SHOW SESSION VARIABLES like 'last_insert_id';
+Variable_name	Value
+last_insert_id	3
+resetconnection;
+SHOW SESSION VARIABLES like 'last_insert_id';
+Variable_name	Value
+last_insert_id	0
+DROP TABLE t2;
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SET INSERT_ID=12;
+INSERT INTO t2 VALUES (NULL);
+SELECT * FROM t2;
+a
+12
+DROP TABLE t2;
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SET INSERT_ID=12;
+resetconnection
+INSERT INTO t2 VALUES (NULL);
+SELECT * FROM t2;
+a
+1
+DROP TABLE t2;
+DROP TABLE IF EXISTS t1;
+DROP DATABASE wl6797;
+
+# Bug 17772561 RESET CONNECTION ERROR HANDLING CAN BE MORE INFORMATIVE
+# FOR ERROR CASES
+
+create user 'user_wl6797'@'localhost';
+grant all privileges on *.* to  'user_wl6797'@'localhost';
+ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
+mysqltest: At line 1: reset connection failed: You must reset your password using ALTER USER statement before executing this statement.
+DROP USER user_wl6797@localhost;
+
+Bug #18329348 RESETCONNECTION DOESN'T CLEAR TIMESTAMP
+Bug #18329560 RESETCONNECTION DOESN'T CLEAR RAND SEED
+Bug #18328396 RESETCONNECTION DOESN'T CLEAR WARNINGS
+Bug #18329452 RESETCONNECTION DOESN'T CLEAR PROFILING
+
+SET TIMESTAMP=200;
+SELECT @@TIMESTAMP;
+@@TIMESTAMP
+200.000000
+resetconnection
+SELECT @@TIMESTAMP=200;
+@@TIMESTAMP=200
+0
+CREATE DATABASE T18329560;
+USE T18329560;
+CREATE TABLE T(a DOUBLE);
+SET SESSION RAND_SEED1=1;
+SET SESSION RAND_SEED2=1;
+INSERT INTO T VALUES(rand());
+SET SESSION RAND_SEED1=1;
+SET SESSION RAND_SEED2=1;
+resetconnection
+SELECT IF(a=rand(),'1','0') FROM T;
+IF(a=rand(),'1','0')
+0
+DROP TABLE T;
+DROP DATABASE T18329560;
+SET SESSION SORT_BUFFER_SIZE= 1;
+Warnings:
+Warning	1292	Truncated incorrect sort_buffer_size value: '1'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1292	Truncated incorrect sort_buffer_size value: '1'
+resetconnection
+SHOW WARNINGS;
+Level	Code	Message
+SET PROFILING=1;
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
+SELECT 1;
+1
+1
+SHOW PROFILES;
+Query_ID	Duration	Query
+1	#	SHOW WARNINGS
+2	#	SELECT 1
+Warnings:
+Warning	#	'SHOW PROFILES' is deprecated and will be removed in a future release. Please use Performance Schema instead
+resetconnection
+SELECT 2;
+2
+2
+SHOW PROFILES;
+Query_ID	Duration	Query
+Warnings:
+Warning	#	'SHOW PROFILES' is deprecated and will be removed in a future release. Please use Performance Schema instead
+
+End of tests

@@ -1,0 +1,115 @@
+# BUG#13684: 
+#   SP: DROP PROCEDURE|FUNCTION IF EXISTS not binlogged if routine 
+#   does not exist
+#   
+#   There is an inconsistency with DROP DATABASE IF EXISTS, DROP
+#   TABLE IF EXISTS and DROP VIEW IF EXISTS: those are binlogged even
+#   if the DB or TABLE does not exist, whereas DROP PROCEDURE IF
+#   EXISTS does not. It would be nice or at least consistent if DROP
+#   PROCEDURE/STATEMENT worked the same too.
+#
+# Description: 
+#   DROP PROCEDURE|FUNCTION IF EXISTS does not get binlogged whereas DROP
+#   DATABASE|TABLE|TRIGGER|... IF EXISTS do.
+#
+#   Fixed DROP PROCEDURE|FUNCTION IF EXISTS by adding a call to
+#   write_bin_log in mysql_execute_command. Checked also if all
+#   documented "DROP (...) IF EXISTS" get binlogged. Left out DROP
+#   SERVER IF EXISTS because it seems that it only gets binlogged when
+#   using row event (see BUG#25705).
+#
+#   TODO: add DROP SERVER IF EXISTS to the test case when its
+#   binlogging procedure gets fixed (BUG#25705). Furthermore, when
+#   logging in RBR format the events that get logged are effectively in
+#   RBR format and not in STATEMENT format meaning that one must needs
+#   to be extra careful when writing a test for it, or change the CREATE
+#   SERVER logging to always log as STATEMENT. You can quickly check this
+#   by enabling the flag below $fixed_bug_25705=1 and watch the diff on
+#   the STDOUT. More detail may be found on the generated reject file.
+#   
+#   Test is implemented as follows:
+#
+#       i) test each "drop if exists" (DDL), found in MySQL 5.1 manual, 
+#          on inexistent objects (except for DROP SERVER);
+#      ii) show binlog events;
+#     iii) create an object for each drop if exists statement;
+#      iv) issue "drop if exists" in existent objects.
+#       v) show binlog events;
+#
+# References:
+#  http://dev.mysql.com/doc/refman/5.1/en/sql-syntax-data-definition.html
+#
+--source include/have_log_bin.inc
+RESET MASTER;
+
+disable_warnings;
+
+# test all "drop if exists" in manual with inexistent objects
+DROP PROCEDURE IF EXISTS db_bug_13684.p;
+DROP FUNCTION IF EXISTS db_bug_13684.f;
+DROP TRIGGER IF EXISTS db_bug_13684.tr;
+DROP VIEW IF EXISTS db_bug_13684.v;
+DROP EVENT IF EXISTS db_bug_13684.e;
+DROP TABLE IF EXISTS db_bug_13684.t;
+DROP DATABASE IF EXISTS db_bug_13684;
+
+let $fixed_bug_25705 = 0;
+
+if($fixed_bug_25705)
+{
+  DROP SERVER IF EXISTS s_bug_13684;
+}
+--source include/show_binlog_events.inc
+
+# test drop with existing values
+
+# create 
+CREATE DATABASE db_bug_13684;
+
+CREATE TABLE db_bug_13684.t (a int);
+
+CREATE EVENT db_bug_13684.e
+  ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
+  DO
+    UPDATE db_bug_13684.t SET a = a + 1;
+
+CREATE VIEW db_bug_13684.v 
+  AS SELECT * FROM db_bug_13684.t;
+
+CREATE TRIGGER db_bug_13684.tr BEFORE INSERT ON db_bug_13684.t
+  FOR EACH ROW BEGIN
+  END;
+
+CREATE PROCEDURE db_bug_13684.p (OUT p1 INT)
+  BEGIN
+  END;
+
+CREATE FUNCTION db_bug_13684.f (s CHAR(20))
+  RETURNS CHAR(50) DETERMINISTIC
+  RETURN s;
+
+if($fixed_bug_25705)
+{
+  CREATE SERVER s_bug_13684
+    FOREIGN DATA WRAPPER mysql
+    OPTIONS (USER 'Remote', HOST '192.168.1.106', DATABASE 'test');
+}
+
+--source include/show_binlog_events.inc
+
+# drop existing 
+DROP PROCEDURE IF EXISTS db_bug_13684.p;
+DROP FUNCTION IF EXISTS db_bug_13684.f;
+DROP TRIGGER IF EXISTS db_bug_13684.tr;
+DROP VIEW IF EXISTS db_bug_13684.v;
+DROP EVENT IF EXISTS db_bug_13684.e;
+DROP TABLE IF EXISTS db_bug_13684.t;
+DROP DATABASE IF EXISTS db_bug_13684;
+if($fixed_bug_25705)
+{
+  DROP SERVER IF EXISTS s_bug_13684;
+}
+
+--source include/show_binlog_events.inc
+
+enable_warnings;

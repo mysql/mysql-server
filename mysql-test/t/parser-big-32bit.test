@@ -1,0 +1,6 @@
+--source include/big_test.inc
+--source include/have_32bit.inc
+
+let $min20087571=630000;
+let $max20087571=630000;
+--source include/parser-big.inc

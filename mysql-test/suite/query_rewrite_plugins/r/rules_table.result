@@ -1,0 +1,33 @@
+#
+# Test of a rules table with columns in different order.
+#
+# Here we create a rules table with columns in different order.
+CREATE DATABASE query_rewrite;
+CREATE TABLE IF NOT EXISTS query_rewrite.rewrite_rules (
+pattern_database VARCHAR(20),
+enabled ENUM('YES', 'NO') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
+DEFAULT 'YES',
+replacement VARCHAR(1000),
+message VARCHAR(100),
+pattern VARCHAR(1000)
+);
+Warnings:
+Note	1007	Can't create database 'query_rewrite'; database exists
+Warnings:
+Note	1050	Table 'rewrite_rules' already exists
+# Query rewrite plugin was installed.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "rewrite me"', 'SELECT "rewritten"' );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT pattern, pattern_database, replacement, message
+FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	message
+SELECT "rewrite me"	NULL	SELECT "rewritten"	NULL
+SELECT "rewrite me";
+rewritten
+rewritten
+Warnings:
+Note	1105	Query 'SELECT "rewrite me"' rewritten to 'SELECT "rewritten"' by a query rewrite plugin
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

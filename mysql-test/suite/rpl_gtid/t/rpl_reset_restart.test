@@ -1,0 +1,46 @@
+# ==== Purpose ====
+#
+# This test will check if reset slave is generating correct Previous_gtids
+# event in first relay log file after a RESET SLAVE.
+#
+# It will:
+# 1) generate some workload at the master;
+# 2) sync the slave with the master;
+# 3) stop slave replication threads;
+# 4) do RESET MASTER on the master;
+# 5) do RESET MASTER on the slave;
+# 6) do RESET SLAVE on the slave;
+# 7) restart the slave.
+#
+# Slave shall be able to sync with master without issues.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#27636289 RPL BREAKS WITH RESTART AFTER RESET SLAVE IF --RELAY-LOG-PURGE=0
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (c1 INT);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+RESET MASTER;
+
+--source include/rpl_connection_slave.inc
+RESET MASTER;
+RESET SLAVE;
+--source include/start_slave.inc
+
+--source include/kill_and_restart_mysqld.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

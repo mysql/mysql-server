@@ -1,0 +1,384 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+Setup circular replication
+RESET MASTER;
+SLAVE_SERVER_ID: 3
+CHANGE MASTER TO master_host="127.0.0.1",master_port=SLAVE_PORT,master_user="root";
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE;
+MASTER_SERVER_ID: 1
+Setup ndb_replication and exceptions tables
+Populate ndb_replication table as necessary
+replace into mysql.ndb_replication values
+("test", "t1", 3, 7, NULL),
+("test", "t1", 1, 7, "NDB$EPOCH()"),
+("test", "t2", 3, 7, NULL),
+("test", "t2", 1, 7, "NDB$EPOCH_TRANS()");
+call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
+call mtr.add_suppression("Exceptions table *");
+create table test.t1$EX
+(SERVER_ID             int unsigned,
+NDB$MASTER_SERVER_ID  int unsigned,
+NDB$MASTER_EPOCH      bigint unsigned,
+NDB$COUNT             int unsigned,
+a                     int not null,
+NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW', 'DELETE_ROW') NOT NULL,
+NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
+primary key(SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
+ENGINE=NDB;
+create table test.t1 (
+a int not null,
+b int not null,
+c varchar(2000),
+primary key (a,b)) engine=ndb;
+MySQLD error output for server 1.1 matching pattern %Exceptions table %
+relevant
+[warning] ndb slave: exceptions table t1$ex has wrong definition (column 1): 
+drop table test.t1$EX, test.t1;
+create table test.t1$EX
+(NDB$SERVER_ID         int unsigned,
+NDB$MASTER_SERVER_ID  int unsigned,
+NDB$MASTER_EPOCH      bigint unsigned,
+NDB$COUNT             int unsigned,
+a$old                 int,
+a$new                 int,
+NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW', 'DELETE_ROW') NOT NULL,
+NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
+primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
+ENGINE=NDB;
+create table test.t1 (
+a int not null,
+b int not null,
+c varchar(2000),
+primary key (a,b)) engine=ndb;
+MySQLD error output for server 1.1 matching pattern %Exceptions table %
+relevant
+[warning] ndb slave: exceptions table t1$ex has wrong definition (column 5): old or new values of primary key columns cannot be referenced since primary keys cannot be updated, column a$new in table t1$ex
+drop table test.t1$EX, test.t1;
+create table test.t1$EX
+(NDB$SERVER_ID         int unsigned,
+NDB$MASTER_SERVER_ID  int unsigned,
+NDB$MASTER_EPOCH      bigint unsigned,
+NDB$COUNT             int unsigned,
+c$old                 varchar(2000) not null,
+c$new                 varchar(2000) not null,
+NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW', 'DELETE_ROW') NOT NULL,
+NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
+primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
+ENGINE=NDB CHARACTER SET latin1;
+create table test.t1 (
+a int not null,
+b int not null,
+c varchar(2000),
+primary key (a,b)) engine=ndb CHARACTER SET latin1;
+MySQLD error output for server 1.1 matching pattern %Exceptions table %
+relevant
+[warning] ndb slave: exceptions table t1$ex has wrong definition (column 5): old or new column reference c$new in table t1$ex is not nullable and doesn't have a default value
+drop table test.t1$EX, test.t1;
+create table test.t1$EX
+(NDB$SERVER_ID         int unsigned,
+NDB$MASTER_SERVER_ID  int unsigned,
+NDB$MASTER_EPOCH      bigint unsigned,
+NDB$COUNT             int unsigned,
+a                     int not null,
+NDB$OP_TYPE               ENUM('WRITE_ROW','UPDATE_ROW', 'DELETE_ROW') NOT NULL,
+NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
+primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
+ENGINE=NDB;
+create table test.t1 (
+a int not null,
+b int not null,
+c varchar(2000),
+primary key (a,b)) engine=ndb;
+create table test.t2$ex
+(ndb$server_id         int unsigned,
+ndb$master_server_id  int unsigned,
+ndb$master_epoch      bigint unsigned,
+ndb$count             int unsigned,
+d                     varchar(2000),
+c                     int not null default 99, 
+b                     int not null,
+a                     int not null,
+d$old                 varchar(2000),
+d$new                 varchar(2000),
+ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
+ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
+ndb$orig_transid      bigint unsigned not null,
+e                     int,
+primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
+engine=ndb CHARACTER SET latin1;
+create table test.t2 (
+x int default 21,
+a int not null,
+b int not null,
+c int,
+d varchar(2000),
+e int,
+primary key(a,b)) engine=ndb CHARACTER SET latin1;
+Add some data
+stop slave;
+Slave contents
+select * from t1 order by a;
+a	b	c
+1	2	Initial data 1
+2	3	Initial data 2
+3	4	Initial data 3
+4	5	Initial data 4
+5	6	Initial data 5
+6	7	Initial data 6
+7	8	Initial data 7
+8	9	Initial data 8
+9	10	Initial data 9
+10	11	Initial data 10
+select * from test.t2 order by a;
+x	a	b	c	d	e
+21	1	2	3	Initial data 1	17
+21	2	3	4	Initial data 2	17
+21	3	4	5	Initial data 3	17
+21	4	5	6	Initial data 4	17
+21	5	6	7	Initial data 5	17
+21	6	7	8	Initial data 6	17
+21	7	8	9	Initial data 7	17
+21	8	9	10	Initial data 8	17
+21	9	10	11	Initial data 9	17
+21	10	11	12	Initial data 10	17
+Master contents
+select * from test.t1 order by a;
+a	b	c
+1	2	Master updated data 1
+2	3	Master updated data 2
+3	4	Master updated data 3
+4	5	Master updated data 4
+5	6	Master updated data 5
+6	7	Master updated data 6
+7	8	Master updated data 7
+8	9	Master updated data 8
+9	10	Master updated data 9
+10	11	Master updated data 10
+select * from test.t2 order by a;
+x	a	b	c	d	e
+21	1	2	3	Master updated data 1	17
+21	2	3	4	Master updated data 2	17
+21	3	4	5	Master updated data 3	17
+21	4	5	6	Master updated data 4	17
+21	5	6	7	Master updated data 5	17
+21	6	7	8	Master updated data 6	17
+21	7	8	9	Master updated data 7	17
+21	8	9	10	Master updated data 8	17
+21	9	10	11	Master updated data 9	17
+21	10	11	12	Master updated data 10	17
+Slave contents
+select * from test.t1 order by a;
+a	b	c
+1	2	Slave updated data 1
+2	3	Slave updated data 2
+3	4	Slave updated data 3
+4	5	Slave updated data 4
+5	6	Slave updated data 5
+6	7	Slave updated data 6
+7	8	Slave updated data 7
+8	9	Slave updated data 8
+9	10	Slave updated data 9
+10	11	Slave updated data 10
+select * from test.t2 order by a;
+x	a	b	c	d	e
+21	1	2	3	Slave updated data 1	17
+21	2	3	4	Slave updated data 2	17
+21	3	4	5	Slave updated data 3	17
+21	4	5	6	Slave updated data 4	17
+21	5	6	7	Slave updated data 5	17
+21	6	7	8	Slave updated data 6	17
+21	7	8	9	Slave updated data 7	17
+21	8	9	10	Slave updated data 8	17
+21	9	10	11	Slave updated data 9	17
+21	10	11	12	Slave updated data 10	17
+Primary should have rejected change from Secondary, keeping its value
+select * from t1 order by a;
+a	b	c
+1	2	Master updated data 1
+2	3	Master updated data 2
+3	4	Master updated data 3
+4	5	Master updated data 4
+5	6	Master updated data 5
+6	7	Master updated data 6
+7	8	Master updated data 7
+8	9	Master updated data 8
+9	10	Master updated data 9
+10	11	Master updated data 10
+select * from t2 order by a;
+x	a	b	c	d	e
+21	1	2	3	Master updated data 1	17
+21	2	3	4	Master updated data 2	17
+21	3	4	5	Master updated data 3	17
+21	4	5	6	Master updated data 4	17
+21	5	6	7	Master updated data 5	17
+21	6	7	8	Master updated data 6	17
+21	7	8	9	Master updated data 7	17
+21	8	9	10	Master updated data 8	17
+21	9	10	11	Master updated data 9	17
+21	10	11	12	Master updated data 10	17
+start slave;
+Secondary should have been realigned to Primary
+Slave contents
+select * from t1 order by a;
+a	b	c
+1	2	Master updated data 1
+2	3	Master updated data 2
+3	4	Master updated data 3
+4	5	Master updated data 4
+5	6	Master updated data 5
+6	7	Master updated data 6
+7	8	Master updated data 7
+8	9	Master updated data 8
+9	10	Master updated data 9
+10	11	Master updated data 10
+select * from t2 order by a;
+x	a	b	c	d	e
+21	1	2	3	Master updated data 1	17
+21	2	3	4	Master updated data 2	17
+21	3	4	5	Master updated data 3	17
+21	4	5	6	Master updated data 4	17
+21	5	6	7	Master updated data 5	17
+21	6	7	8	Master updated data 6	17
+21	7	8	9	Master updated data 7	17
+21	8	9	10	Master updated data 8	17
+21	9	10	11	Master updated data 9	17
+21	10	11	12	Master updated data 10	17
+Show rollback of whole secondary transaction
+--------------------------------------------
+flush logs;
+Slave contents
+select * from t1 order by a;
+a	b	c
+1	2	Master updated data 1
+2	3	Master updated data 2
+3	4	Master updated data 3
+4	5	Master updated data 4
+5	6	Master updated data 5
+6	7	Master updated data 6
+7	8	Master updated data 7
+8	9	Master updated data 8
+9	10	Master updated data 9
+10	11	Master updated data 10
+select * from t2 order by a;
+x	a	b	c	d	e
+21	1	2	3	Master updated data 1	17
+21	2	3	4	Master updated data 2	17
+21	3	4	5	Master updated data 3	17
+21	4	5	6	Master updated data 4	17
+21	5	6	7	Master updated data 5	17
+21	6	7	8	Master updated data 6	17
+21	7	8	9	Master updated data 7	17
+21	8	9	10	Master updated data 8	17
+21	9	10	11	Master updated data 9	17
+21	10	11	12	Master updated data 10	17
+select count(*) from t1$EX;
+count(*)
+10
+select NDB$OP_TYPE,NDB$CFT_CAUSE from t1$EX
+order by a;
+NDB$OP_TYPE	NDB$CFT_CAUSE
+UPDATE_ROW	DATA_IN_CONFLICT
+UPDATE_ROW	DATA_IN_CONFLICT
+UPDATE_ROW	DATA_IN_CONFLICT
+UPDATE_ROW	DATA_IN_CONFLICT
+UPDATE_ROW	DATA_IN_CONFLICT
+UPDATE_ROW	DATA_IN_CONFLICT
+UPDATE_ROW	DATA_IN_CONFLICT
+UPDATE_ROW	DATA_IN_CONFLICT
+UPDATE_ROW	DATA_IN_CONFLICT
+UPDATE_ROW	DATA_IN_CONFLICT
+select count(*) from t2$ex;
+count(*)
+10
+select a, b, c, d, d$old, d$new, e, ndb$count > 0,ndb$op_type,ndb$cft_cause, ndb$orig_transid > 0 from t2$ex order by a;
+a	b	c	d	d$old	d$new	e	ndb$count > 0	ndb$op_type	ndb$cft_cause	ndb$orig_transid > 0
+1	2	3	Slave updated data 1	Initial data 1	Slave updated data 1	17	1	update_row	trans_in_conflict	1
+2	3	4	Slave updated data 2	Initial data 2	Slave updated data 2	17	1	update_row	trans_in_conflict	1
+3	4	5	Slave updated data 3	Initial data 3	Slave updated data 3	17	1	update_row	trans_in_conflict	1
+4	5	6	Slave updated data 4	Initial data 4	Slave updated data 4	17	1	update_row	trans_in_conflict	1
+5	6	7	Slave updated data 5	Initial data 5	Slave updated data 5	17	1	update_row	trans_in_conflict	1
+6	7	8	Slave updated data 6	Initial data 6	Slave updated data 6	17	1	update_row	trans_in_conflict	1
+7	8	9	Slave updated data 7	Initial data 7	Slave updated data 7	17	1	update_row	trans_in_conflict	1
+8	9	10	Slave updated data 8	Initial data 8	Slave updated data 8	17	1	update_row	trans_in_conflict	1
+9	10	11	Slave updated data 9	Initial data 9	Slave updated data 9	17	1	update_row	trans_in_conflict	1
+10	11	12	Slave updated data 10	Initial data 10	Slave updated data 10	17	1	update_row	trans_in_conflict	1
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+replace into mysql.ndb_replication values
+("test", "ｱｱｱ", 3, 7, NULL),
+("test", "ｱｱｱ", 1, 7, "NDB$EPOCH_TRANS()");
+create table test.`ｱｱｱ$ex`
+ (ndb$server_id         int unsigned,
+ndb$master_server_id  int unsigned,
+ndb$master_epoch      bigint unsigned,
+ndb$count             int unsigned,
+`ｷｷｷ`                  varchar(2000) charset utf8,
+`ｶｶｶ`                  int not null,
+ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
+ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
+ndb$orig_transid      bigint unsigned not null,
+primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
+engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create table test.`ｱｱｱ` (
+`ｶｶｶ` int primary key,
+`ｷｷｷ` varchar(2000) charset utf8) engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SET NAMES latin1;
+MySQLD error output for server 1.1 matching pattern %suspicious % column op_type %
+relevant
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+drop table test.`ｱｱｱ`,test.`ｱｱｱ$ex`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+replace into mysql.ndb_replication values
+("test", "ｱｱｱ", 3, 7, NULL),
+("test", "ｱｱｱ", 1, 7, "NDB$EPOCH_TRANS()");
+create table test.`ｱｱｱ$ex`
+ (ndb$server_id         int unsigned,
+ndb$master_server_id  int unsigned,
+ndb$master_epoch      bigint unsigned,
+ndb$count             int unsigned,
+`ｷｷｷ$old`              varchar(2000) charset utf8,
+`ｷｷｷ$new`              varchar(2000) charset utf8,
+`ｶｶｶ`                  int not null,
+ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
+ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
+ndb$orig_transid      bigint unsigned not null,
+primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
+engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create table test.`ｱｱｱ` (
+`ｶｶｶ` int primary key,
+`ｷｷｷ` varchar(2000) charset utf8) engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SET NAMES latin1;
+MySQLD error output for server 1.1 matching pattern %suspicious % column op_type %
+relevant
+flush logs;
+drop table test.t1$EX, test.t1, test.t2$ex, test.t2;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+drop table test.`ｱｱｱ`, test.`ｱｱｱ$ex`;
+SET NAMES latin1;
+flush logs;
+drop table mysql.ndb_replication;
+stop slave;
+reset slave;
+include/rpl_end.inc

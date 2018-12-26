@@ -1,0 +1,47 @@
+# Check that mysql.ndb_schema does not show up in SHOW TABLES
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+Tables_in_mysql (ndb_schema)
+# Check that mysql.ndb_schema does not show up in
+# information_schema queries
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+TABLE_SCHEMA	TABLE_NAME
+# Check that table does not exist in SHOW CREATE TABLE
+SHOW CREATE TABLE mysql.ndb_schema;
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+#
+# Check that table is not availble in DML queries
+#
+SELECT * FROM mysql.ndb_schema;
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+INSERT INTO mysql.ndb_schema (db, name)
+VALUES("","");
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+REPLACE INTO mysql.ndb_schema (db, name)
+VALUES("","");
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+UPDATE mysql.ndb_schema SET node_id = 0
+WHERE db="" AND name="";
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+DELETE FROM mysql.ndb_schema
+WHERE db="" AND name="";
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+TRUNCATE mysql.ndb_schema;
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+#
+# Check that table is not availble in DDL queries
+#
+# It's not possible to create mysql.ndb_schema in NDB
+# (error is slightly confusing)
+CREATE TABLE mysql.ndb_schema(a int primary key) engine = NDB;
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+# It's not possible to create mysql.ndb_schema in other engine
+# (error is slightly confusing)
+CREATE TABLE mysql.ndb_schema(a int primary key);
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+ALTER TABLE mysql.ndb_schema ALGORITHM=copy, add column b int null;
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+ALTER TABLE mysql.ndb_schema ALGORITHM=inplace, add column b int null;
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+DROP TABLE mysql.ndb_schema;
+ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist

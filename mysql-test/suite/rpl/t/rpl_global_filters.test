@@ -1,0 +1,267 @@
+# ==== Purpose ====
+#
+# Verify that global replication filters can be configured with startup
+# options: --replicate-* without specifying channel_name and a followed
+# 'colon' in filter variable and CHANGE REPLICATION FILTER with no FOR
+# CHANNEL clause. And a new channel would copy the global replication
+# filters to its own per-channel replication filters on configuration and
+# these per-channel replication filters work well. We also verify that
+# SHOW SLAVE STATUS FOR CHANNEL '' and P_S.replication_applier_filters
+# display correct per-channel replication filters on default channel,
+# and P_S.replication_applier_global_filters table displays correct
+# global replication filters.
+#
+# ==== Implementation ====
+#
+# 0. Verify that global replication filters can be configured with startup
+#    options: --replicate-* without specifying channel_name and a followed
+#    'colon' in filter variable and P_S.replication_applier_global_filters
+#    can display them correctly.
+#
+# 1. Verify that the new channel with channel_name '' would copy the
+#    global replication filters to its own per-channel replication
+#    filters on configuration by CHANGE MASTER TO. SHOW SLAVE STATUS
+#    FOR CHANNEL '' displays correct per-channel replication filters.
+#
+# 2. Verify that performance_schema.replication_applier_filters can
+#    display correct per-channel replication filters with
+#    CONFIGURED_BY 'STARTUP_OPTIONS' on default channel.
+#
+# 3. Check that database test is replicated and both db1 and db11 are
+#    filtered out on default channel with the the following global
+#    replication filters setting:
+#    --replicate-do-db=test
+#    --replicate-do-db=my_db2
+#    --replicate-do-db=my_db3
+#    --replicate-ignore-db=db1
+#    --replicate-ignore-db=db11
+#    --replicate-ignore-db=my_db6
+#
+# 4. Verify that CHANGE REPLICATION FILTER with no FOR CHANNEL
+#    clause shall change both the per-channel replication filters
+#    for each channel, and all global replication filters.
+#    SHOW SLAVE STATUS FOR CHANNEL '' displays correct
+#    replication filters.
+#
+# 5. Verify that SHOW SLAVE STATUS FOR CHANNEL '' displays correct
+#    per-channel replication filters.
+#
+# 6. Verify that performance_schema.replication_applier_filters can
+#    display correct per-channel replication filters on default
+#    channel after executing CHANGE REPLICATION FILTER with no
+#    FOR CHANNEL clause.
+#
+# 7. Verify that performance_schema.replication_applier_global_filters
+#    and performance_schema.replication_applier_filters are equal on
+#    on columns FILTER_NAME, FILTER_RULE and CONFIGURED_BY after
+#    executing CHANGE REPLICATION FILTER with no FOR CHANNEL clause.
+#
+# 8. Verify that the "channel_2" channel would copy the global
+#    replication filters to its own per-channel replication
+#    filters with the same values of CONFIGURED_BY when it
+#    is created by CHANGE MASTER TO ... FOR CHANNEL.
+#    Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
+#    will be removed from the P_S table.
+#
+# 9. Verify that if the user specifies a per-channel replication filter
+#    through a command-line option (or in a configuration file) for a
+#    channel which does not exist as of now (i.e not present in slave
+#    info tables yet), then the per-channel replication filter is
+#    discarded with a warning.
+#
+# ==== References ====
+#
+# WL#7361 MSR: per-channel replication filters
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
+# Clean all configuration changes after running the test.
+--source include/force_restart.inc
+
+--source include/rpl_connection_slave.inc
+
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel 'channel_1' which does not exist. The filter.s. have been discarded.");
+--echo #
+--echo # 0. Verify that global replication filters can be configured with
+--echo # startup options: --replicate-* without specifying channel_name
+--echo # and a followed 'colon' in filter variable and
+--echo # P_S.replication_applier_global_filters can display them
+--echo # correctly. See below.
+--echo # Replicate_Do_DB = 'test,my_db2,my_db3'
+--echo # Replicate_Ignore_DB = 'db1,db11,my_db6'
+--echo # Replicate_Do_Table = 'test.t1,test.t2'
+--echo # Replicate_Ignore_Table = 'test.t9,test.t8'
+--echo # Replicate_Wild_Do_Table = 'test.t%,test.s%'
+--echo # Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+--echo # Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+--echo #
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+
+--echo #
+--echo # 1. Verify that the new channel with channel_name '' would copy
+--echo # global replication filters to its own per-channel replication
+--echo # filters on configuration by CHANGE MASTER TO. SHOW SLAVE STATUS
+--echo # FOR CHANNEL '' displays the following per-channel replication
+--echo # filters:
+--echo # Replicate_Do_DB = 'test,my_db2,my_db3'
+--echo # Replicate_Ignore_DB = 'db1,db11,my_db6'
+--echo # Replicate_Do_Table = 'test.t1,test.t2'
+--echo # Replicate_Ignore_Table = 'test.t8,test.t9'
+--echo # Replicate_Wild_Do_Table = 'test.t%,test.s%'
+--echo # Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+--echo # Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+--echo #
+--let $channel_name= ''
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 2. Verify that performance_schema.replication_applier_filters
+--echo # can display correct per-channel replication filters with
+--echo # CONFIGURED_BY 'STARTUP_OPTIONS' on default channel.
+--echo #
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+
+--source include/rpl_connection_master.inc
+
+use test;
+CREATE TABLE test.t1 (c1 INT);
+CREATE TABLE test.t2 (c1 INT);
+INSERT INTO test.t1 VALUES (1);
+INSERT INTO test.t2 VALUES (1);
+CREATE DATABASE db1;
+CREATE DATABASE db11;
+
+# --connection slave and sync with master
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 3. Check that database test is replicated and both db1 and db11
+--echo # are filtered out on default channel with the the following
+--echo # global replication filters setting:
+--echo # --replicate-do-db=test
+--echo # --replicate-do-db=my_db2
+--echo # --replicate-do-db=my_db3
+--echo # --replicate-ignore-db=db1
+--echo # --replicate-ignore-db=db11
+--echo # --replicate-ignore-db=my_db6
+--echo # --replicate-do-table=test.t1
+--echo # --replicate-do-table=test.t2
+--echo # --replicate-ignore-table=test.t8
+--echo # --replicate-ignore-table=test.t9
+--echo # --replicate-wild-do-table=test.t%
+--echo # --replicate-wild-do-table=test.s%
+--echo # --replicate-wild-ignore-table=test.m%
+--echo # --replicate-wild-ignore-table=test.n%
+--echo # --replicate-rewrite-db=my_db7->rewrite_db7
+--echo # --replicate-rewrite-db=my_db8->rewrite_db8
+--echo #
+SHOW DATABASES;
+
+--echo #
+--echo # Stop slave.
+--echo #
+--source include/stop_slave.inc
+
+--echo #
+--echo # 4. CHANGE REPLICATION FILTER filter [, filter...] with no FOR CHANNEL
+--echo # clause does the following, both for every channel's per-channel
+--echo # filter and for the global filters: For every filter type, if
+--echo # the filter type is listed in the statement, then any existing
+--echo # filter rules of that type are replaced by the filter rules
+--echo # specified in the statement, otherwise the old value of the
+--echo # type is retained.
+--echo #
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3);
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('te%.t%');
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`,`db,3`),
+REPLICATE_DO_DB = (`:test`,my_db3,my_db4),
+REPLICATE_IGNORE_DB = (my_initfiledb3);
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(test.t3);
+--echo #
+--echo # 5. Verify that SHOW SLAVE STATUS FOR CHANNEL '' displays
+--echo # the following per-channel replication filters:
+--echo # Replicate_Do_DB = ':test,my_db3,my_db4'
+--echo # Replicate_Ignore_DB = 'my_initfiledb3'
+--echo # Replicate_Do_Table = 'test.t3'
+--echo # Replicate_Ignore_Table = 'db3.initfilet3'
+--echo # Replicate_Wild_Do_Table = 'te%.t%'
+--echo # Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+--echo # Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+--echo #
+#--let $channel_name= ''
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 6. Verify that performance_schema.replication_applier_filters can
+--echo # display correct per-channel replication filters on default
+--echo # channel after executing CHANGE REPLICATION FILTER with no
+--echo # FOR CHANNEL clause.
+--echo #
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--echo #
+--echo # 7. Verify that performance_schema.replication_applier_global_filters
+--echo # and performance_schema.replication_applier_filters are equal on
+--echo # on columns FILTER_NAME, FILTER_RULE and CONFIGURED_BY after
+--echo # executing CHANGE REPLICATION FILTER with no FOR CHANNEL clause.
+--echo #
+CREATE VIEW test.v1 AS SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_filters;
+CREATE VIEW test.v2 AS SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+--let $diff_tables= slave:test.v1, slave:test.v2
+--source include/diff_tables.inc
+
+--echo #
+--echo # 8. Verify that the "channel_2" channel would copy the global
+--echo # replication filters to its own per-channel replication
+--echo # filters with the same values of CONFIGURED_BY when it
+--echo # is created by CHANGE MASTER TO ... FOR CHANNEL.
+--echo # Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
+--echo # will be removed from the P_S table.
+--echo #
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "channel_2";
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+RESET SLAVE ALL FOR CHANNEL 'channel_2';
+
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--source include/start_slave.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP DATABASE db1;
+DROP DATABASE db11;
+#--connection slave and sync with master
+--source include/sync_slave_sql_with_master.inc
+--echo #
+--echo # 9. Verify that if the user specifies a per-channel replication filter
+--echo # through a command-line option (or in a configuration file) for a
+--echo # channel which does not exist as of now (i.e not present in slave
+--echo # info tables yet), then the per-channel replication filter is
+--echo # discarded with a warning.
+--echo #
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: rpl.rpl_global_filters
+--let $assert_count = 1
+--let $assert_select = There are per-channel replication filter.s. configured for channel 'channel_1' which does not exist. The filter.s. have been discarded.
+--let $assert_text = Found the expected warning "There are per-channel replication filter(s) configured for channel 'channel_1' which does not exist. The filter(s) have been discarded.
+--source include/assert_grep.inc
+
+--source include/rpl_end.inc

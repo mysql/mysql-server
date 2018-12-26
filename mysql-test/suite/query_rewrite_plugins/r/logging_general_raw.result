@@ -1,0 +1,35 @@
+#
+# Test of how rewritten queries are logged with --log-raw logging.
+#
+# Query rewrite plugin was installed.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement  )
+VALUES ( 'SELECT"The_original_query"', 'SELECT"The_rewritten_query"' );
+CALL query_rewrite.flush_rewrite_rules();
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+SET GLOBAL general_log_file = '.../log/rewrite_general.log';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+SELECT 'The_original_query';
+The_rewritten_query
+The_rewritten_query
+Warnings:
+Note	1105	Query 'SELECT 'The_original_query'' rewritten to 'SELECT"The_rewritten_query"' by a query rewrite plugin
+CREATE TABLE test_log ( line TEXT );
+LOAD DATA LOCAL INFILE '.../log/rewrite_general.log'
+     INTO TABLE test_log FIELDS TERMINATED BY '\n'
+     IGNORE 3 LINES;
+SELECT substring_index( line, ' ', -1 ) AS incoming_query
+FROM test_log
+WHERE line LIKE ( '%SELECT%' );
+incoming_query
+'The_original_query'
+DROP TABLE test_log;
+SET GLOBAL general_log = DEFAULT;
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

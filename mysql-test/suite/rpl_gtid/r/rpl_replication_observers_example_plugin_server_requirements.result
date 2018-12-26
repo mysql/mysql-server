@@ -1,0 +1,14 @@
+include/have_replication_observers_example_plugin.inc
+include/install_replication_observers_example.inc
+RESET MASTER;
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_server_requirements';
+ROLLBACK;
+SET @@GLOBAL.DEBUG= @debug_saved;
+include/uninstall_replication_observers_example.inc
+#
+# Verify that plugin server requirements were validated.
+#
+Matching lines are:
+replication_observers_example_plugin:validate_plugin_server_requirements=5'
+Occurrences of 'replication_observers_example_plugin:validate_plugin_server_requirements=5' in the input file: 1

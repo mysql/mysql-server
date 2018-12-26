@@ -1,0 +1,11 @@
+drop table if exists t1;
+CREATE TABLE t1 (a int, unique (a), b int not null, unique(b), c int not null, index(c));
+replace into t1 values (1,1,1),(2,2,2),(3,1,3);
+select * from t1;
+a	b	c
+3	1	3
+2	2	2
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

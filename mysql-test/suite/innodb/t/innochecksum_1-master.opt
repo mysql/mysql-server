@@ -1,0 +1,2 @@
+--skip-stack-trace --skip-core-file
+--innodb_buffer_pool_load_at_startup=OFF

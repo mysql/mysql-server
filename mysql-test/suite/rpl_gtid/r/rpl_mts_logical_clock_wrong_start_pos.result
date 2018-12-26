@@ -1,0 +1,34 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+call mtr.add_suppression("Either event.*is from an old master");
+call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
+call mtr.add_suppression("QUERY.* is not expected in an event stream");
+include/stop_slave.inc
+SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET @save_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET GLOBAL slave_parallel_type = LOGICAL_CLOCK;
+SET GLOBAL slave_parallel_workers = 2;
+SET GLOBAL slave_transaction_retries = 0;
+include/start_slave.inc
+[connection master]
+CREATE TABLE t1(a INT);
+INSERT INTO t1 SET a=1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_LOG_POS=QUERY_POS, MASTER_AUTO_POSITION=0;
+include/start_slave_io.inc
+START SLAVE SQL_THREAD;
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET GLOBAL slave_parallel_workers = @save_slave_parallel_workers;
+SET GLOBAL slave_parallel_type = @save_slave_parallel_type;
+SET GLOBAL slave_transaction_retries = @save_slave_transaction_retries;
+include/start_slave.inc
+include/rpl_end.inc

@@ -1,0 +1,2 @@
+let $extended_exceptions_table=1;
+--source suite/ndb_rpl/t/ndb_rpl_conflict_epoch.inc

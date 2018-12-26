@@ -1,0 +1,2 @@
+--no-console
+--log-error=$MYSQLTEST_VARDIR/tmp/gr_persisted_variables_without_plugin.err

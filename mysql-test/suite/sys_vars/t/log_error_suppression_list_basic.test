@@ -1,0 +1,193 @@
+###### mysql-test\suite\sys_vars\t\log_error_suppression_list_basic.test ######
+#                                                                             #
+# Variable Name: log_error_suppresion_list                                    #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2018-04-09, 2018-04-11                                       #
+# Author : Azundris (tnuernbe)                                                #
+#                                                                             #
+# Description: Testing the parsing of the list.                               #
+#              The corresponding command-line option is tested in             #
+#              log_options_cmdline.test                                       #
+#                                                                             #
+###############################################################################
+
+SELECT @@global.log_error_suppression_list INTO @old_sl;
+
+--echo # empty list: allowed
+SET @@global.log_error_suppression_list="";
+--echo # NULL: forbidden
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list=NULL;
+--echo # client-range: forbidden
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list="1234";
+SET @@global.log_error_suppression_list=DEFAULT;
+SELECT @@global.log_error_suppression_list;
+--echo # various legal values
+SET @@global.log_error_suppression_list="10000";
+SET @@global.log_error_suppression_list="MY-10000";
+SET @@global.log_error_suppression_list="MY-010000";
+--echo # list of legal values
+SET @@global.log_error_suppression_list="10000,10001,MY-10002";
+--echo # lists containing illegal values. warning should flag first problem.
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list="-10000,10001,MY-10002";
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list="10000,-10001,MY-10002";
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list="10000,10001,-MY-10002";
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list=",10000,10001,MY-10002";
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list="10000,,10001,MY-10002";
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list="10000,10001,MY-10002,";
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list=",";
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list="10000 10001";
+SHOW WARNINGS;
+
+# too many items
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 2), "11111");
+# 508 repeated + 1 tail + 2 automatic rules == 511 total
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",508),"ER_PARSER_TRACE");
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",509),"ER_PARSER_TRACE");
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 508), "11111");
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 509), "11111");
+
+# Bug#28145616: PARSER ACCEPTS GARBAGE VALUES IF PREFIXED BY VALID ERROR CODES
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list='10000.123';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list='MY-10000#$%';
+
+# Bug#28145555: LOG_ERROR_SUPPRESSION_LIST DOESN'T ACCEPT ERROR NO'S IN GLOBERRS RANGE
+SET @@global.log_error_suppression_list='31';
+SET @@global.log_error_suppression_list='MY-31';
+
+# nominally in range, but not actually in use yet, and therefore invalid
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list='999';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list='MY-999';
+
+# check validation when the internal filter service is not included
+SET @save_log_services=@@global.log_error_services;
+SET GLOBAL log_error_services="log_sink_internal";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_suppression_list='25000';
+SET GLOBAL log_error_services=@save_log_services;
+
+# scope check
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_error_suppression_list='10000';
+SELECT @@log_error_suppression_list;
+
+--error ER_GLOBAL_VARIABLE
+SET @@log_error_suppression_list='10000';
+SELECT @@log_error_suppression_list;
+
+# variable visibility
+SET GLOBAL log_error_suppression_list="10000,10001,10002";
+SHOW VARIABLES LIKE 'log%suppress%';
+SELECT * FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME = 'log_error_suppression_list';
+--replace_column 6 #
+SELECT * FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME = 'log_error_suppression_list';
+
+# list specification with/without quotes
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_error_suppression_list=10000;
+SELECT @@global.log_error_suppression_list;
+
+SET GLOBAL log_error_suppression_list=ER_PARSER_TRACE;
+SELECT @@global.log_error_suppression_list;
+
+--error ER_PARSE_ERROR
+SET GLOBAL log_error_suppression_list=ER_PARSER_TRACE,ER_SERVER_SHUTDOWN_INFO;
+SELECT @@global.log_error_suppression_list;
+
+SET GLOBAL log_error_suppression_list=`10000,10001,10002`;
+SELECT @@global.log_error_suppression_list;
+
+SET GLOBAL log_error_suppression_list='ER_PARSER_TRACE, ER_SERVER_TEST_MESSAGE';
+SELECT @@global.log_error_suppression_list;
+
+SET GLOBAL log_error_suppression_list=" ER_PARSER_TRACE  ,  10001  ,  ER_SERVER_TEST_MESSAGE ";
+SELECT @@global.log_error_suppression_list;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_error_suppression_list=12345.124;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list='12345.124';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list='12345e5';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list=abcd;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list='abcd';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list=',';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list=',10000,';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list='10000,';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list=',10000';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list='10000,,10001';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list="'10000'";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list=CONCAT("'",CONCAT('10000',"'"));
+
+SET GLOBAL log_error_suppression_list='0000000000000010000';
+SELECT @@global.log_error_suppression_list;
+
+SET GLOBAL log_error_suppression_list='MY-010000';
+SELECT @@global.log_error_suppression_list;
+
+SET GLOBAL log_error_suppression_list='MY-000010000';
+SELECT @@global.log_error_suppression_list;
+
+SET GLOBAL log_error_suppression_list='MY-010000';
+SELECT @@global.log_error_suppression_list;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_error_suppression_list="MY-0100000";
+
+# clean up
+SET @@global.log_error_suppression_list=@old_sl;

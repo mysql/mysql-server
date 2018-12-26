@@ -1,0 +1,78 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for CREATE ROLE
+
+CREATE USER userX;
+CREATE ROLE roleX;
+--source include/save_binlog_position.inc
+
+--echo # Case 1 : Execute CREATE ROLE for existing users
+
+--error ER_CANNOT_USER
+CREATE ROLE userZ, roleZ, userX, roleX;
+
+--echo # Must not show entries for userZ and roleZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+SELECT user FROM mysql.user WHERE user LIKE 'role%';
+
+--let $invert= 1
+--let $event= !Q(CREATE ROLE.*userZ.*roleZ.*userX.*roleX.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+--source include/save_binlog_position.inc
+
+--echo # Case 2 : Execute CREATE ROLE for non-existing users
+
+CREATE ROLE roleZ, roleA;
+
+--echo # Must show entry for roleZ, roleA
+SELECT user FROM mysql.user WHERE user LIKE 'role%';
+
+--let $event= !Q(CREATE ROLE.*roleZ.*roleA.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+DROP USER userX;
+DROP ROLE roleX, roleZ, roleA;
+--source include/save_binlog_position.inc
+
+--echo # End : Tests for CREATE ROLE
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for CREATE ROLE IF NOT EXISTS
+
+CREATE ROLE roleX;
+--source include/save_binlog_position.inc
+
+--echo # Case 1 : Execute CREATE ROLE IF NOT EXISTS for exising and non-existing users
+
+CREATE ROLE IF NOT EXISTS roleX, roleY, roleZ;
+
+--echo # Must show entry for roleY and roleZ
+SELECT user FROM mysql.user WHERE user LIKE 'role%';
+
+--let $event= !Q(CREATE ROLE IF NOT EXISTS.*roleX.*roleY.*roleZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # case 2 : Execute CREATE ROLE IF NOT EXISTS for existing users
+
+CREATE ROLE IF NOT EXISTS roleX, roleY, roleZ;
+
+--let $event= !Q(CREATE ROLE IF NOT EXISTS.*roleX.*roleY.*roleZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+DROP ROLE roleX, roleY, roleZ;
+--source include/save_binlog_position.inc
+--echo # End : Tests for CREATE ROLE IF NOT EXISTS
+
+--echo # ----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

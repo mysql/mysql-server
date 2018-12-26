@@ -1,0 +1,70 @@
+drop table if exists t1, t2;
+CREATE TABLE t1 (
+id int(10) unsigned NOT NULL auto_increment,
+q varchar(255) default NULL,
+PRIMARY KEY (id)
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,'aaaaaaaaa dsaass de');
+INSERT INTO t1 VALUES (2,'ssde df s fsda sad er');
+CREATE TABLE t2 (
+id int(10) unsigned NOT NULL auto_increment,
+id2 int(10) unsigned default NULL,
+item varchar(255) default NULL,
+PRIMARY KEY (id),
+FULLTEXT KEY item(item)
+) ENGINE = InnoDB;
+INSERT INTO t2 VALUES (1,1,'sushi');
+INSERT INTO t2 VALUES (2,1,'Bolo de Chocolate');
+INSERT INTO t2 VALUES (3,1,'Feijoada');
+INSERT INTO t2 VALUES (4,1,'Mousse de Chocolate');
+INSERT INTO t2 VALUES (5,2,'um copo de Vodka');
+INSERT INTO t2 VALUES (6,2,'um chocolate Snickers');
+INSERT INTO t2 VALUES (7,1,'Bife');
+INSERT INTO t2 VALUES (8,1,'Pizza de Salmao');
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+SELECT t1.q, t2.item, t2.id, round(MATCH t2.item AGAINST ('sushi'),6)
+as x FROM t1, t2 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
+q	item	id	x
+aaaaaaaaa dsaass de	sushi	1	0.815572
+aaaaaaaaa dsaass de	Bolo de Chocolate	2	0.000000
+aaaaaaaaa dsaass de	Feijoada	3	0.000000
+aaaaaaaaa dsaass de	Mousse de Chocolate	4	0.000000
+ssde df s fsda sad er	um copo de Vodka	5	0.000000
+ssde df s fsda sad er	um chocolate Snickers	6	0.000000
+aaaaaaaaa dsaass de	Bife	7	0.000000
+aaaaaaaaa dsaass de	Pizza de Salmao	8	0.000000
+SELECT t1.q, t2.item, t2.id, MATCH t2.item AGAINST ('sushi' IN BOOLEAN MODE)
+as x FROM t1, t2 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
+q	item	id	x
+aaaaaaaaa dsaass de	sushi	1	0.8155715465545654
+aaaaaaaaa dsaass de	Bolo de Chocolate	2	0
+aaaaaaaaa dsaass de	Feijoada	3	0
+aaaaaaaaa dsaass de	Mousse de Chocolate	4	0
+ssde df s fsda sad er	um copo de Vodka	5	0
+ssde df s fsda sad er	um chocolate Snickers	6	0
+aaaaaaaaa dsaass de	Bife	7	0
+aaaaaaaaa dsaass de	Pizza de Salmao	8	0
+SELECT t1.q, t2.item, t2.id, round(MATCH t2.item AGAINST ('sushi'),6)
+as x FROM t2, t1 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
+q	item	id	x
+aaaaaaaaa dsaass de	sushi	1	0.815572
+aaaaaaaaa dsaass de	Bolo de Chocolate	2	0.000000
+aaaaaaaaa dsaass de	Feijoada	3	0.000000
+aaaaaaaaa dsaass de	Mousse de Chocolate	4	0.000000
+ssde df s fsda sad er	um copo de Vodka	5	0.000000
+ssde df s fsda sad er	um chocolate Snickers	6	0.000000
+aaaaaaaaa dsaass de	Bife	7	0.000000
+aaaaaaaaa dsaass de	Pizza de Salmao	8	0.000000
+SELECT t1.q, t2.item, t2.id, MATCH t2.item AGAINST ('sushi' IN BOOLEAN MODE)
+as x FROM t2, t1 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
+q	item	id	x
+aaaaaaaaa dsaass de	sushi	1	0.8155715465545654
+aaaaaaaaa dsaass de	Bolo de Chocolate	2	0
+aaaaaaaaa dsaass de	Feijoada	3	0
+aaaaaaaaa dsaass de	Mousse de Chocolate	4	0
+ssde df s fsda sad er	um copo de Vodka	5	0
+ssde df s fsda sad er	um chocolate Snickers	6	0
+aaaaaaaaa dsaass de	Bife	7	0
+aaaaaaaaa dsaass de	Pizza de Salmao	8	0
+drop table t1, t2;

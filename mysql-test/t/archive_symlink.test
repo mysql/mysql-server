@@ -1,0 +1,69 @@
+# Test archive engine when symbolic links are available.
+--source include/not_windows.inc
+
+--source include/have_archive.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $data_directory = DATA DIRECTORY = '$MYSQL_TMP_DIR/archive';
+let $index_directory = INDEX DIRECTORY = '$MYSQL_TMP_DIR/archive';
+
+--echo # 
+--echo # Archive can only use an existing directory for DATA DIRECTORY.
+--echo # 
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_FILE_NOT_FOUND
+eval CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
+     ENGINE archive $data_directory $index_directory;
+
+--echo # 
+--echo # mkdir MYSQL_TMP_DIR/archive and try again... 
+--echo # Archive will use a symlink for DATA DIRECTORY but ignore INDEX DIRECTORY.
+--echo # 
+--mkdir $MYSQL_TMP_DIR/archive
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
+     ENGINE archive $data_directory $index_directory;
+INSERT INTO t1 VALUES (NULL, "blue");
+INSERT INTO t1 VALUES (NULL, "red");
+INSERT INTO t1 VALUES (NULL, "yellow");
+--echo # Checking if archive file exists where we specified in DATA DIRECTORY
+--file_exists $MYSQL_TMP_DIR/archive/t1.ARZ
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # 
+--echo # Be sure SQL MODE "NO_DIR_IN_CREATE" prevents the use of DATA DIRECTORY
+--echo # 
+SET @org_mode=@@sql_mode;
+SET @@sql_mode='NO_DIR_IN_CREATE';
+SELECT @@sql_mode;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
+     ENGINE archive $data_directory;
+INSERT INTO t1 VALUES (NULL, "blue");
+INSERT INTO t1 VALUES (NULL, "red");
+INSERT INTO t1 VALUES (NULL, "yellow");
+--echo # Checking if archive file exists in --datadir since DATA DIRECTORY was ignored.
+--file_exists $MYSQLD_DATADIR/test/t1.ARZ
+DROP TABLE t1;
+set @@sql_mode=@org_mode;
+
+--echo # 
+--echo # MySQL engine does not allow DATA DIRECTORY to be
+--echo # within --datadir for any engine, including Archive
+--echo # 
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--error ER_WRONG_ARGUMENTS
+eval CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
+     ENGINE archive DATA DIRECTORY '$MYSQLD_DATADIR/test';
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--error ER_WRONG_ARGUMENTS
+eval CREATE TABLE t1 (c1 int(10), PRIMARY KEY (c1))
+ENGINE archive INDEX DIRECTORY '$MYSQLD_DATADIR/test';
+
+--echo # 
+--echo # Cleanup
+--echo # 
+--rmdir $MYSQL_TMP_DIR/archive

@@ -1,0 +1,48 @@
+# Get available drive letters on this host (must be at least two).
+# Create the target directories. This will fail e.g.
+# if the directories exist already.
+CREATE TABLE t1 (
+c1 int(10) unsigned NOT NULL AUTO_INCREMENT,
+c2 varchar(30) NOT NULL,
+c3 smallint(5) unsigned DEFAULT NULL,
+PRIMARY KEY (c1)
+)
+PARTITION BY HASH(c1)(
+PARTITION p0
+DATA DIRECTORY = 'PATH_1',
+PARTITION p1,
+PARTITION p2
+DATA DIRECTORY = 'PATH_2'
+);
+INSERT INTO t1 VALUES (NULL, "first", 1);
+INSERT INTO t1 VALUES (NULL, "second", 2);
+INSERT INTO t1 VALUES (NULL, "third", 3);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `c2` varchar(30) NOT NULL,
+  `c3` smallint(5) unsigned DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+(PARTITION p0 DATA DIRECTORY = 'PATH_1/' ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB,
+ PARTITION p2 DATA DIRECTORY = 'PATH_2/' ENGINE = InnoDB) */
+ALTER TABLE t1 ADD PARTITION (PARTITION p3 DATA DIRECTORY = 'PATH_3');
+INSERT INTO t1 VALUES (NULL, "last", 4);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `c2` varchar(30) NOT NULL,
+  `c3` smallint(5) unsigned DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+(PARTITION p0 DATA DIRECTORY = 'PATH_1/' ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB,
+ PARTITION p2 DATA DIRECTORY = 'PATH_2/' ENGINE = InnoDB,
+ PARTITION p3 DATA DIRECTORY = 'PATH_3' ENGINE = InnoDB) */
+DROP TABLE t1;
+# Clean up: Delete target directories.

@@ -1,0 +1,38 @@
+#
+# Bug 11933790 - INNODB ASSERTS TRX->IN_MYSQL_TRX_LIST IN ANALYZE WITH
+# PERSISTENT STATS
+#
+
+
+# we are only interested that the below commands do not crash the server
+-- disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot save table statistics for table `test`\.`bug11933790`: Lock wait timeout");
+-- disable_result_log
+
+CREATE TABLE bug11933790 (c INT) ENGINE=INNODB STATS_PERSISTENT=1;
+
+# add some records to mysql.innodb_table_stats
+ANALYZE TABLE bug11933790;
+
+SET autocommit=0;
+
+# lock the records in mysql.innodb_table_stats
+SELECT * FROM mysql.innodb_table_stats FOR UPDATE;
+
+-- connect (con1,localhost,root,,)
+
+-- connection con1
+
+# this will fail with lock wait timeout; if the bug is present then mysqld
+# crashes here
+-- enable_query_log
+-- enable_result_log
+ANALYZE TABLE bug11933790;
+
+-- connection default
+
+-- disconnect con1
+
+COMMIT;
+
+DROP TABLE bug11933790;

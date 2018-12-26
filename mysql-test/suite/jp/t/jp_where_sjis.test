@@ -1,0 +1,91 @@
+--character_set sjis
+--disable_warnings
+drop table if exists `ÇsÇP`;
+drop table if exists `ÇsÇQ`;
+drop table if exists `ÇsÇR`;
+drop table if exists `ÇsÇS`;
+drop table if exists `ÇsÇT`;
+drop table if exists `ÇsÇU`;
+drop table if exists `ÇsÇV`;
+drop table if exists `ÇsÇW`;
+drop table if exists `ÇsÇX`;
+--enable_warnings
+
+#
+# Test Displaying Japanese charact using WHERE condtion in sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+CREATE TABLE `ÇsÇP` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇQ` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇR` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇS` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇT` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇU` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+
+#Load the following data in each table
+# jisx0201 hankaku-katakana data
+# jisx0208 data
+# jisx0212 supplemental character data
+
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `ÇsÇP`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `ÇsÇQ`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `ÇsÇR`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `ÇsÇS`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `ÇsÇT`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `ÇsÇU`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `ÇsÇV`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `ÇsÇW`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `ÇsÇX`;
+
+#InnoDB
+SELECT * FROM `ÇsÇP` WHERE `ÇbÇP` = '∞±≤≥¥µ∂∑∏π∫ªºΩæø';
+SELECT * FROM `ÇsÇQ` WHERE `ÇbÇP` = 'ÅEÇüÇ†Ç°Ç¢Ç£Ç§Ç•Ç¶ÇßÇ®Ç©Ç™Ç´Ç¨Ç≠ÇÆÇØÇ∞Ç±';
+SELECT * FROM `ÇsÇR` WHERE `ÇbÇP` = 'É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\';
+
+#MyISAM
+SELECT * FROM `ÇsÇS` WHERE `ÇbÇP` = '∞±≤≥¥µ∂∑∏π∫ªºΩæø';
+SELECT * FROM `ÇsÇT` WHERE `ÇbÇP` = 'ÅEÇüÇ†Ç°Ç¢Ç£Ç§Ç•Ç¶ÇßÇ®Ç©Ç™Ç´Ç¨Ç≠ÇÆÇØÇ∞Ç±';
+SELECT * FROM `ÇsÇU` WHERE `ÇbÇP` = 'É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\';
+
+#MEMORY
+SELECT * FROM `ÇsÇV` WHERE `ÇbÇP` = '∞±≤≥¥µ∂∑∏π∫ªºΩæø';
+SELECT * FROM `ÇsÇW` WHERE `ÇbÇP` = 'ÅEÇüÇ†Ç°Ç¢Ç£Ç§Ç•Ç¶ÇßÇ®Ç©Ç™Ç´Ç¨Ç≠ÇÆÇØÇ∞Ç±';
+SELECT * FROM `ÇsÇX` WHERE `ÇbÇP` = 'É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\';
+
+#Test to distinguish 0x9353 and 0x9373
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+CREATE TABLE t1(c1 char(1)) default charset = sjis engine=innodb;
+CREATE TABLE t2(c1 char(1)) default charset = sjis engine=myisam;
+CREATE TABLE t3(c1 char(1)) default charset = sjis engine=MEMORY;
+INSERT INTO t1 VALUES('ìS'),('ìs');
+INSERT INTO t2 VALUES('ìS'),('ìs');
+INSERT INTO t3 VALUES('ìS'),('ìs');
+SELECT * FROM t1 WHERE c1 = 'ìS';
+SELECT * FROM t2 WHERE c1 = 'ìS';
+SELECT * FROM t3 WHERE c1 = 'ìS';
+SELECT * FROM t1 WHERE c1 = 'ìs';
+SELECT * FROM t2 WHERE c1 = 'ìs';
+SELECT * FROM t3 WHERE c1 = 'ìs';
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+DROP TABLE `ÇsÇP`;
+DROP TABLE `ÇsÇQ`;
+DROP TABLE `ÇsÇR`;
+DROP TABLE `ÇsÇS`;
+DROP TABLE `ÇsÇT`;
+DROP TABLE `ÇsÇU`;
+DROP TABLE `ÇsÇV`;
+DROP TABLE `ÇsÇW`;
+DROP TABLE `ÇsÇX`;

@@ -1,0 +1,55 @@
+select 1;
+1
+1
+SHOW STATUS LIKE 'Last_query_partial_plans';
+Variable_name	Value
+Last_query_partial_plans	0
+select 2;
+2
+2
+SHOW STATUS LIKE 'Last_query_cost';
+Variable_name	Value
+Last_query_cost	0.000000
+flush status;
+SHOW STATUS LIKE 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	0
+
+================================================================================
+Bug#21789221 SHOW STATUS FAILS WITH LOCK TABLES AND SHOW_COMPATIBILITY_56=OFF
+================================================================================
+Verify that SHOW STATUS and SHOW VARIABLES works under LOCK TABLES mode
+
+CREATE TABLE test.t1 (s1 INT);
+LOCK TABLE test.t1 READ;
+
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+UNLOCK TABLES;
+
+LOCK TABLE test.t1 WRITE;
+
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+UNLOCK TABLES;
+DROP TABLE test.t1;

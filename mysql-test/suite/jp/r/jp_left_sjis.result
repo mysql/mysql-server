@@ -1,0 +1,472 @@
+drop table if exists `Ｔ１`;
+drop table if exists `Ｔ２`;
+drop table if exists `Ｔ３`;
+drop table if exists `Ｔ４`;
+drop table if exists `Ｔ５`;
+drop table if exists `Ｔ６`;
+drop table if exists `Ｔ７`;
+drop table if exists `Ｔ８`;
+drop table if exists `Ｔ９`;
+SET NAMES sjis;
+SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `Ｔ１` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `Ｔ２` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `Ｔ３` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `Ｔ４` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `Ｔ５` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `Ｔ６` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `Ｔ７` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `Ｔ８` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `Ｔ９` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = sjis engine = MEMORY;
+INSERT INTO `Ｔ１` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ２` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ３` VALUES ('ソ十表予構'),('ソ十表予'),('ソ十表'),('ソ十'),('ソ'),('');
+INSERT INTO `Ｔ４` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ５` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ６` VALUES ('ソ十表予構'),('ソ十表予'),('ソ十表'),('ソ十'),('ソ'),('');
+INSERT INTO `Ｔ７` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ８` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ９` VALUES ('ソ十表予構'),('ソ十表予'),('ソ十表'),('ソ十'),('ソ'),('');
+SELECT `Ｃ１`, LEFT(`Ｃ１`,0) FROM `Ｔ１`;
+Ｃ１	LEFT(`Ｃ１`,0)
+	
+ｱ	
+ｱｲ	
+ｱｲｳ	
+ｱｲｳｴ	
+ｱｲｳｴｵ	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,1) FROM `Ｔ１`;
+Ｃ１	LEFT(`Ｃ１`,1)
+	
+ｱ	ｱ
+ｱｲ	ｱ
+ｱｲｳ	ｱ
+ｱｲｳｴ	ｱ
+ｱｲｳｴｵ	ｱ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,2) FROM `Ｔ１`;
+Ｃ１	LEFT(`Ｃ１`,2)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲ
+ｱｲｳｴ	ｱｲ
+ｱｲｳｴｵ	ｱｲ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,3) FROM `Ｔ１`;
+Ｃ１	LEFT(`Ｃ１`,3)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳ
+ｱｲｳｴｵ	ｱｲｳ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,4) FROM `Ｔ１`;
+Ｃ１	LEFT(`Ｃ１`,4)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳｴｵ	ｱｲｳｴ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,5) FROM `Ｔ１`;
+Ｃ１	LEFT(`Ｃ１`,5)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳｴｵ	ｱｲｳｴｵ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,0) FROM `Ｔ２`;
+Ｃ１	LEFT(`Ｃ１`,0)
+	
+あ	
+あい	
+あいう	
+あいうえ	
+あいうえお	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,1) FROM `Ｔ２`;
+Ｃ１	LEFT(`Ｃ１`,1)
+	
+あ	あ
+あい	あ
+あいう	あ
+あいうえ	あ
+あいうえお	あ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,2) FROM `Ｔ２`;
+Ｃ１	LEFT(`Ｃ１`,2)
+	
+あ	あ
+あい	あい
+あいう	あい
+あいうえ	あい
+あいうえお	あい
+SELECT `Ｃ１`, LEFT(`Ｃ１`,3) FROM `Ｔ２`;
+Ｃ１	LEFT(`Ｃ１`,3)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいう
+あいうえお	あいう
+SELECT `Ｃ１`, LEFT(`Ｃ１`,4) FROM `Ｔ２`;
+Ｃ１	LEFT(`Ｃ１`,4)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいうえ
+あいうえお	あいうえ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,5) FROM `Ｔ２`;
+Ｃ１	LEFT(`Ｃ１`,5)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいうえ
+あいうえお	あいうえお
+SELECT `Ｃ１`, LEFT(`Ｃ１`,0) FROM `Ｔ３`;
+Ｃ１	LEFT(`Ｃ１`,0)
+	
+ソ	
+ソ十	
+ソ十表	
+ソ十表予	
+ソ十表予構	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,1) FROM `Ｔ３`;
+Ｃ１	LEFT(`Ｃ１`,1)
+	
+ソ	ソ
+ソ十	ソ
+ソ十表	ソ
+ソ十表予	ソ
+ソ十表予構	ソ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,2) FROM `Ｔ３`;
+Ｃ１	LEFT(`Ｃ１`,2)
+	
+ソ	ソ
+ソ十	ソ十
+ソ十表	ソ十
+ソ十表予	ソ十
+ソ十表予構	ソ十
+SELECT `Ｃ１`, LEFT(`Ｃ１`,3) FROM `Ｔ３`;
+Ｃ１	LEFT(`Ｃ１`,3)
+	
+ソ	ソ
+ソ十	ソ十
+ソ十表	ソ十表
+ソ十表予	ソ十表
+ソ十表予構	ソ十表
+SELECT `Ｃ１`, LEFT(`Ｃ１`,4) FROM `Ｔ３`;
+Ｃ１	LEFT(`Ｃ１`,4)
+	
+ソ	ソ
+ソ十	ソ十
+ソ十表	ソ十表
+ソ十表予	ソ十表予
+ソ十表予構	ソ十表予
+SELECT `Ｃ１`, LEFT(`Ｃ１`,5) FROM `Ｔ３`;
+Ｃ１	LEFT(`Ｃ１`,5)
+	
+ソ	ソ
+ソ十	ソ十
+ソ十表	ソ十表
+ソ十表予	ソ十表予
+ソ十表予構	ソ十表予構
+SELECT `Ｃ１`, LEFT(`Ｃ１`,0) FROM `Ｔ４`;
+Ｃ１	LEFT(`Ｃ１`,0)
+	
+ｱ	
+ｱｲ	
+ｱｲｳ	
+ｱｲｳｴ	
+ｱｲｳｴｵ	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,1) FROM `Ｔ４`;
+Ｃ１	LEFT(`Ｃ１`,1)
+	
+ｱ	ｱ
+ｱｲ	ｱ
+ｱｲｳ	ｱ
+ｱｲｳｴ	ｱ
+ｱｲｳｴｵ	ｱ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,2) FROM `Ｔ４`;
+Ｃ１	LEFT(`Ｃ１`,2)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲ
+ｱｲｳｴ	ｱｲ
+ｱｲｳｴｵ	ｱｲ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,3) FROM `Ｔ４`;
+Ｃ１	LEFT(`Ｃ１`,3)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳ
+ｱｲｳｴｵ	ｱｲｳ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,4) FROM `Ｔ４`;
+Ｃ１	LEFT(`Ｃ１`,4)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳｴｵ	ｱｲｳｴ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,5) FROM `Ｔ４`;
+Ｃ１	LEFT(`Ｃ１`,5)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳｴｵ	ｱｲｳｴｵ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,0) FROM `Ｔ５`;
+Ｃ１	LEFT(`Ｃ１`,0)
+	
+あ	
+あい	
+あいう	
+あいうえ	
+あいうえお	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,1) FROM `Ｔ５`;
+Ｃ１	LEFT(`Ｃ１`,1)
+	
+あ	あ
+あい	あ
+あいう	あ
+あいうえ	あ
+あいうえお	あ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,2) FROM `Ｔ５`;
+Ｃ１	LEFT(`Ｃ１`,2)
+	
+あ	あ
+あい	あい
+あいう	あい
+あいうえ	あい
+あいうえお	あい
+SELECT `Ｃ１`, LEFT(`Ｃ１`,3) FROM `Ｔ５`;
+Ｃ１	LEFT(`Ｃ１`,3)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいう
+あいうえお	あいう
+SELECT `Ｃ１`, LEFT(`Ｃ１`,4) FROM `Ｔ５`;
+Ｃ１	LEFT(`Ｃ１`,4)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいうえ
+あいうえお	あいうえ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,5) FROM `Ｔ５`;
+Ｃ１	LEFT(`Ｃ１`,5)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいうえ
+あいうえお	あいうえお
+SELECT `Ｃ１`, LEFT(`Ｃ１`,0) FROM `Ｔ６`;
+Ｃ１	LEFT(`Ｃ１`,0)
+	
+ソ	
+ソ十	
+ソ十表	
+ソ十表予	
+ソ十表予構	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,1) FROM `Ｔ６`;
+Ｃ１	LEFT(`Ｃ１`,1)
+	
+ソ	ソ
+ソ十	ソ
+ソ十表	ソ
+ソ十表予	ソ
+ソ十表予構	ソ
+SELECT `Ｃ１`, LEFT(`Ｃ１`,2) FROM `Ｔ６`;
+Ｃ１	LEFT(`Ｃ１`,2)
+	
+ソ	ソ
+ソ十	ソ十
+ソ十表	ソ十
+ソ十表予	ソ十
+ソ十表予構	ソ十
+SELECT `Ｃ１`, LEFT(`Ｃ１`,3) FROM `Ｔ６`;
+Ｃ１	LEFT(`Ｃ１`,3)
+	
+ソ	ソ
+ソ十	ソ十
+ソ十表	ソ十表
+ソ十表予	ソ十表
+ソ十表予構	ソ十表
+SELECT `Ｃ１`, LEFT(`Ｃ１`,4) FROM `Ｔ６`;
+Ｃ１	LEFT(`Ｃ１`,4)
+	
+ソ	ソ
+ソ十	ソ十
+ソ十表	ソ十表
+ソ十表予	ソ十表予
+ソ十表予構	ソ十表予
+SELECT `Ｃ１`, LEFT(`Ｃ１`,5) FROM `Ｔ６`;
+Ｃ１	LEFT(`Ｃ１`,5)
+	
+ソ	ソ
+ソ十	ソ十
+ソ十表	ソ十表
+ソ十表予	ソ十表予
+ソ十表予構	ソ十表予構
+SELECT `Ｃ１`, LEFT(`Ｃ１`,0) FROM `Ｔ７`;
+Ｃ１	LEFT(`Ｃ１`,0)
+ｱｲｳｴｵ	
+ｱｲｳｴ	
+ｱｲｳ	
+ｱｲ	
+ｱ	
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,1) FROM `Ｔ７`;
+Ｃ１	LEFT(`Ｃ１`,1)
+ｱｲｳｴｵ	ｱ
+ｱｲｳｴ	ｱ
+ｱｲｳ	ｱ
+ｱｲ	ｱ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,2) FROM `Ｔ７`;
+Ｃ１	LEFT(`Ｃ１`,2)
+ｱｲｳｴｵ	ｱｲ
+ｱｲｳｴ	ｱｲ
+ｱｲｳ	ｱｲ
+ｱｲ	ｱｲ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,3) FROM `Ｔ７`;
+Ｃ１	LEFT(`Ｃ１`,3)
+ｱｲｳｴｵ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳ
+ｱｲｳ	ｱｲｳ
+ｱｲ	ｱｲ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,4) FROM `Ｔ７`;
+Ｃ１	LEFT(`Ｃ１`,4)
+ｱｲｳｴｵ	ｱｲｳｴ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳ	ｱｲｳ
+ｱｲ	ｱｲ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,5) FROM `Ｔ７`;
+Ｃ１	LEFT(`Ｃ１`,5)
+ｱｲｳｴｵ	ｱｲｳｴｵ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳ	ｱｲｳ
+ｱｲ	ｱｲ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,0) FROM `Ｔ８`;
+Ｃ１	LEFT(`Ｃ１`,0)
+あいうえお	
+あいうえ	
+あいう	
+あい	
+あ	
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,1) FROM `Ｔ８`;
+Ｃ１	LEFT(`Ｃ１`,1)
+あいうえお	あ
+あいうえ	あ
+あいう	あ
+あい	あ
+あ	あ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,2) FROM `Ｔ８`;
+Ｃ１	LEFT(`Ｃ１`,2)
+あいうえお	あい
+あいうえ	あい
+あいう	あい
+あい	あい
+あ	あ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,3) FROM `Ｔ８`;
+Ｃ１	LEFT(`Ｃ１`,3)
+あいうえお	あいう
+あいうえ	あいう
+あいう	あいう
+あい	あい
+あ	あ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,4) FROM `Ｔ８`;
+Ｃ１	LEFT(`Ｃ１`,4)
+あいうえお	あいうえ
+あいうえ	あいうえ
+あいう	あいう
+あい	あい
+あ	あ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,5) FROM `Ｔ８`;
+Ｃ１	LEFT(`Ｃ１`,5)
+あいうえお	あいうえお
+あいうえ	あいうえ
+あいう	あいう
+あい	あい
+あ	あ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,0) FROM `Ｔ９`;
+Ｃ１	LEFT(`Ｃ１`,0)
+ソ十表予構	
+ソ十表予	
+ソ十表	
+ソ十	
+ソ	
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,1) FROM `Ｔ９`;
+Ｃ１	LEFT(`Ｃ１`,1)
+ソ十表予構	ソ
+ソ十表予	ソ
+ソ十表	ソ
+ソ十	ソ
+ソ	ソ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,2) FROM `Ｔ９`;
+Ｃ１	LEFT(`Ｃ１`,2)
+ソ十表予構	ソ十
+ソ十表予	ソ十
+ソ十表	ソ十
+ソ十	ソ十
+ソ	ソ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,3) FROM `Ｔ９`;
+Ｃ１	LEFT(`Ｃ１`,3)
+ソ十表予構	ソ十表
+ソ十表予	ソ十表
+ソ十表	ソ十表
+ソ十	ソ十
+ソ	ソ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,4) FROM `Ｔ９`;
+Ｃ１	LEFT(`Ｃ１`,4)
+ソ十表予構	ソ十表予
+ソ十表予	ソ十表予
+ソ十表	ソ十表
+ソ十	ソ十
+ソ	ソ
+	
+SELECT `Ｃ１`, LEFT(`Ｃ１`,5) FROM `Ｔ９`;
+Ｃ１	LEFT(`Ｃ１`,5)
+ソ十表予構	ソ十表予構
+ソ十表予	ソ十表予
+ソ十表	ソ十表
+ソ十	ソ十
+ソ	ソ
+	
+DROP TABLE `Ｔ１`;
+DROP TABLE `Ｔ２`;
+DROP TABLE `Ｔ３`;
+DROP TABLE `Ｔ４`;
+DROP TABLE `Ｔ５`;
+DROP TABLE `Ｔ６`;
+DROP TABLE `Ｔ７`;
+DROP TABLE `Ｔ８`;
+DROP TABLE `Ｔ９`;

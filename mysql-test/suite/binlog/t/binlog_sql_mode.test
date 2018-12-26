@@ -1,0 +1,177 @@
+
+# ==== Purpose ====
+#
+# Test that sql_mode can correct restore before generating the binlog event
+#    when creating CREATEable objects.
+#
+# ==== Method ====
+#
+# Scan binlog file to check if the sql_mode is still set to 0 before generating binlog event
+#
+
+-- source include/have_log_bin.inc
+
+# BUG#39526 sql_mode not retained in binary log for CREATE PROCEDURE
+
+SET @old_sql_mode=  @@global.sql_mode;
+SET @old_binlog_format=@@session.binlog_format;
+let $MYSQLD_DATADIR= `select @@datadir`;
+SET SESSION sql_mode=8;
+
+--echo Initialization 
+
+RESET MASTER;
+CREATE TABLE t1 (id INT);
+
+CREATE PROCEDURE testProc() SELECT * FROM t1;
+CREATE VIEW testView as SELECT * from t1;
+
+DELIMITER |;
+CREATE FUNCTION testFunc()
+  RETURNS INT
+  BEGIN
+    return 1;
+  END;|
+DELIMITER ;|
+
+DELIMITER |;
+CREATE TRIGGER testTrig BEFORE INSERT ON t1
+  FOR EACH ROW BEGIN
+    UPDATE t1 SET id = id +1;
+  END;|
+DELIMITER ;|
+
+DELIMITER |;
+CREATE EVENT testEvent ON SCHEDULE
+  EVERY 1 DAY
+  DO
+    BEGIN
+      UPDATE t1 SET id = id +1;
+    END;|
+DELIMITER ;|
+
+--echo Check Result
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))
+is not null AS Loaded;
+let $s_mode_unsigned= `select @a like "%@@session.sql_mode=0%" /* must return 0 */`;
+echo *** String sql_mode=0 is found: $s_mode_unsigned ***;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog
+
+--echo Clean Up
+
+DROP PROCEDURE testProc;
+DROP FUNCTION testFunc;
+DROP TRIGGER testTrig;
+DROP EVENT testEvent;
+DROP VIEW testView;
+DROP TABLE t1;
+
+SET @@global.sql_mode= @old_sql_mode;
+SET @@session.binlog_format=@old_binlog_format;
+
+--echo 
+--echo #
+--echo # Test for Bug#12601974 - STORED PROCEDURE SQL_MODE=NO_BACKSLASH_ESCAPES
+--echo # IGNORED AND BREAKS REPLICATION
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db;
+DROP TABLE IF EXISTS test_table;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db;
+USE mysqltest_db;
+CREATE TABLE test_table (c1 CHAR(50));
+
+SET @org_mode=@@sql_mode;
+
+SET @@sql_mode='';
+DELIMITER $;
+CREATE PROCEDURE proc_without_sql_mode (IN param1 CHAR(50), IN param2 CHAR(50))
+BEGIN
+  DECLARE var1 CHAR(50) DEFAULT param1;
+  DECLARE var2 CHAR(50) DEFAULT param2;
+  DECLARE var3 CHAR(50) DEFAULT 'abcd\bef';
+  DECLARE var4 CHAR(50) DEFAULT 'abcd\nef';
+  DECLARE var5 CHAR(50) DEFAULT 'abcd\ref';
+  DECLARE var6 CHAR(50) DEFAULT 'abcd\tef';
+  DECLARE var7 CHAR(50) DEFAULT 'abcd\\ef';
+  DECLARE var8 CHAR(50) DEFAULT 'abcd\%ef';
+  DECLARE var9 CHAR(50) DEFAULT 'abcd\_ef';
+
+  INSERT INTO test_table VALUES (var1);
+  INSERT INTO test_table VALUES (var2);
+  INSERT INTO test_table VALUES (var3);
+  INSERT INTO test_table VALUES (var4);
+  INSERT INTO test_table VALUES (var5);
+  INSERT INTO test_table VALUES (var6);
+  INSERT INTO test_table VALUES (var7);
+  INSERT INTO test_table VALUES (var8);
+  INSERT INTO test_table VALUES (var9);
+END
+$
+
+SET @@sql_mode='NO_BACKSLASH_ESCAPES'$
+CREATE PROCEDURE proc_with_sql_mode (IN param1 CHAR(50), IN param2 CHAR(50))
+BEGIN
+  DECLARE var1 CHAR(50) DEFAULT param1;
+  DECLARE var2 CHAR(50) DEFAULT param2;
+  DECLARE var3 CHAR(50) DEFAULT 'wxyz\bef';
+  DECLARE var4 CHAR(50) DEFAULT 'wxyz\nef';
+  DECLARE var5 CHAR(50) DEFAULT 'wxyz\ref';
+  DECLARE var6 CHAR(50) DEFAULT 'wxyz\tef';
+  DECLARE var7 CHAR(50) DEFAULT 'wxyz\\ef';
+  DECLARE var8 CHAR(50) DEFAULT 'wxyz\%ef';
+  DECLARE var9 CHAR(50) DEFAULT 'wxyz\_ef';
+
+  INSERT INTO test_table VALUES (var1);
+  INSERT INTO test_table VALUES (var2);
+  INSERT INTO test_table VALUES (var3);
+  INSERT INTO test_table VALUES (var4);
+  INSERT INTO test_table VALUES (var5);
+  INSERT INTO test_table VALUES (var6);
+  INSERT INTO test_table VALUES (var7);
+  INSERT INTO test_table VALUES (var8);
+  INSERT INTO test_table VALUES (var9);
+END
+$
+
+DELIMITER ;$
+SET @@sql_mode='';
+CALL proc_without_sql_mode('abcd\'ef', 'abcd\"ef');
+CALL proc_with_sql_mode('wxyz\'ef', 'wxyz\"ef');
+SELECT * FROM test_table;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYSQL_BINLOG --force-if-open -d mysqltest_db $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug12601974.binlog
+
+--echo "Dropping table test_table"
+DROP TABLE test_table;
+# We need to reset master (and purge GTID_EXECUTED) to avoid
+# transactions skip when we replay mysqlbinlog_bug12601974.binlog
+# with gtid-mode=ON.
+RESET MASTER;
+
+--exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug12601974.binlog"
+
+--echo #"test_table" content after replaying the binlog
+SELECT * FROM test_table;
+
+--echo #Clean up
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug12601974.binlog
+DROP DATABASE mysqltest_db;
+SET @@sql_mode= @org_mode;
+use test;
+
+RESET MASTER;
+--echo 
+--echo #End of Test for Bug#12601974 
+
+

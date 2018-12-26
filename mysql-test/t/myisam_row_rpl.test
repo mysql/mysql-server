@@ -1,0 +1,70 @@
+# Test needs myisam for bug#11940249 
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Bug#11940249: RBR: MYISAM TABLE CORRUPTION AFTER FIRST LARGE INSERT
+--echo #               ON SLAVE
+--echo #
+
+--echo # Must have > 100 rows in the first rpl event (to trigger bulk_insert
+--echo # optimization for insert into an empty table, by disable all non-unique
+--echo # indexes and recreate them afterwards.)
+--echo # and then it must be a second rpl event for the same insert (i.e.
+--echo # during the same lock).
+--echo # Note that --binlog-row-event-max-size=1024 is set in the .opt files
+--echo # to enforce the default size.
+
+CREATE TABLE tmp (a VARCHAR(10), b INT) ENGINE=Memory;
+INSERT INTO tmp VALUES ('aZa', 1), ('zAz', 2), ('M', 3);
+# 6 rows
+INSERT INTO tmp SELECT * FROM tmp;
+# 12 rows
+INSERT INTO tmp SELECT * FROM tmp;
+# 24
+INSERT INTO tmp SELECT * FROM tmp;
+# 48
+INSERT INTO tmp SELECT * FROM tmp;
+# 96
+INSERT INTO tmp SELECT * FROM tmp;
+# 192 rows
+INSERT INTO tmp SELECT * FROM tmp;
+
+CREATE TABLE t
+(a VARCHAR(10),
+ b INT,
+ KEY a (a))
+ENGINE = MyISAM;
+
+--let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_start=query_get_value(SHOW MASTER STATUS, Position, 1)
+INSERT INTO t SELECT * FROM tmp;
+
+--sync_slave_with_master
+--connection slave
+--echo # on slave:
+SELECT COUNT(*) FROM t WHERE b > -1;
+--connection master
+--echo # on master:
+--source include/show_binlog_events.inc
+
+RENAME TABLE t to t_2;
+RENAME TABLE t_2 to t;
+
+--sync_slave_with_master
+--connection slave
+--echo # on slave:
+SELECT COUNT(*) FROM t WHERE b > -1;
+CHECK TABLE t;
+REPAIR TABLE t;
+SELECT COUNT(*) FROM t WHERE b > -1;
+--let $diff_tables= master:t, slave:t
+--source include/diff_tables.inc
+
+--connection master
+DROP TABLE t, tmp;
+--sync_slave_with_master
+
+--source include/rpl_end.inc

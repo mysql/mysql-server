@@ -1,0 +1,35 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+create table t1(n int);
+insert into t1 values(get_lock("lock",2));
+select get_lock("lock",2);
+get_lock("lock",2)
+1
+select release_lock("lock");
+release_lock("lock")
+1
+include/sync_slave_sql_with_master.inc
+select get_lock("lock",3);
+get_lock("lock",3)
+1
+select * from t1;
+n
+1
+select is_free_lock("lock"), is_used_lock("lock") = connection_id();
+is_free_lock("lock")	is_used_lock("lock") = connection_id()
+0	1
+explain select is_free_lock("lock"), is_used_lock("lock");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select is_free_lock('lock') AS `is_free_lock("lock")`,is_used_lock('lock') AS `is_used_lock("lock")`
+select is_free_lock("lock2");
+is_free_lock("lock2")
+1
+drop table t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

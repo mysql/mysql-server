@@ -1,0 +1,114 @@
+#Want to skip this test from daily Valgrind execution
+--source include/force_myisam_default.inc
+--source include/no_valgrind_without_big.inc
+############## mysql-test\t\myisam_data_pointer_size_func.test  ################
+#                                                                              #
+# Variable Name: myisam_data_pointer_size                                      #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 1                                                             #
+# Range: 1 - 65536                                                             #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-08                                                    #
+# Author:  Rizwan Maredia                                                      #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable myisam_data_pointer_size  #
+#              that checks the behavior of this variable                       #
+#                                                                              #
+# Reference:                                                                   #
+#  http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html         #
+#                                                                              #
+################################################################################
+
+call mtr.add_suppression("The table 't1' is full");
+
+--echo '#--------------------FN_DYNVARS_093_01-------------------------#'
+###############################################################################
+# Check if setting myisam_data_pointer_size is changed in every new connection#
+###############################################################################
+
+SET @start_value= @@global.myisam_data_pointer_size;
+SET @@global.myisam_data_pointer_size = 2;
+# con1 will be default connection from now on
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+--echo 'connection con1'
+connection con1;
+SELECT @@global.myisam_data_pointer_size;
+SET @@global.myisam_data_pointer_size = 3;
+--echo 'connect (con2,localhost,root,,,,)'
+connect (con2,localhost,root,,,,);
+--echo 'connection con2'
+connection con2;
+SELECT @@global.myisam_data_pointer_size;
+disconnect con2;
+
+
+--echo '#--------------------FN_DYNVARS_093_02-------------------------#'
+#################################################################
+# Begin the functionality Testing of myisam_data_pointer_size   #
+#################################################################
+
+--echo 'connection con1'
+connection con1;
+
+#===========================================================
+# Checking myisam_data_pointer_size is 2
+#===========================================================
+
+# create sp to add 'count' records
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp_addRec;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+DELIMITER //;
+CREATE PROCEDURE sp_addRec(IN count INT)
+BEGIN
+   WHILE (count>0) DO
+      INSERT INTO t1 value(1);
+      SET count = count -1;
+   END WHILE;
+END //
+DELIMITER ;//
+
+# setting 2 will allow data pointer to access files with size < 65536
+SET @@global.myisam_data_pointer_size = 2;
+
+CREATE TABLE t1(a INT);
+
+CALL sp_addRec(65535);
+
+--Error ER_RECORD_FILE_FULL
+CALL sp_addRec(1);
+
+SELECT count(*) from t1;
+
+#=======================================================================
+--echo '--Checking myisam_data_pointer_size with MAX_ROWS table option--'
+#=======================================================================
+
+# specifying MAX_ROWS table option renders pointer size useless
+SET @@global.myisam_data_pointer_size = 2;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT)MAX_ROWS=70000;
+
+CALL sp_addRec(65536);
+
+SELECT count(*) from t1;
+
+DROP PROCEDURE  sp_addRec;
+DROP TABLE t1;
+
+connection default;
+SET @@global.myisam_data_pointer_size= @start_value;
+################################################################
+# End of functionality Testing for myisam_data_pointer_size    #
+################################################################
+

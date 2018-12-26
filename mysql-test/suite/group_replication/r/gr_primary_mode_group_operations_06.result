@@ -1,0 +1,88 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap the group with server1 and create table test.t1 and test.t2
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+CREATE TABLE test.t2 (a INT PRIMARY KEY);
+
+# 2. Start server2 and lock writes to table t1
+[connection server2]
+include/start_group_replication.inc
+LOCK TABLE t1 READ;
+
+# 3. Insert values on table t1 on server 1
+[connection server1]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+# 4. Set server2 as primary
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+[connection server_1]
+include/assert.inc [The super_read_only mode should be 0 here.]
+
+# 5. Consult stages to guarantee that server2 is
+#    waiting on the execution of serve 1 transactions.
+#    Server2 must be in read mode
+[connection server2]
+include/assert.inc [stage/group_rpl/Primary Election: applying buffered transactions]
+include/assert.inc [The value of received_transaction_set must contain the 2 creates and 2 inserts]
+include/assert.inc [The super_read_only mode should be 1 here.]
+
+# 6. Send a transaction to table2 on server1.
+#    Block it on sending
+[connection server_1]
+SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
+[connection server_1_1]
+INSERT INTO t2 VALUES (1);
+[connection server_1]
+
+# 7. Unlock the table1 on server2
+#    The member shall unset the read mode
+#    The member shall now wait for server1 to be in read mode
+[connection server2]
+UNLOCK TABLES;
+include/assert.inc [stage/group_rpl/Primary Election: waiting for members to enable super_read_only]
+include/assert.inc [The super_read_only mode should be 0 here.]
+
+# 8. Send a transaction to table2 on server2.
+#    Block it on sending
+[connection server_2]
+SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
+[connection server_2_1]
+INSERT INTO t2 VALUES (1);
+[connection server_2]
+
+# 9. Unblock the transaction on server1
+[connection server_1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
+[connection server_1_1]
+
+# 10. Check the status of server2 transaction.
+#     It should have failed
+[connection server_2]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
+[connection server_2_1]
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+
+# 11. The group_replication_set_as_primary will succeed
+[connection server1]
+group_replication_set_as_primary("MEMBER2_UUID")
+Primary server switched to: MEMBER2_UUID
+
+# 12. Server2 is the new primary
+[connection server2]
+include/gr_assert_primary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+
+# 13. Cleanup
+[connection server2]
+DROP TABLE t1;
+DROP TABLE t2;
+include/group_replication_end.inc

@@ -1,0 +1,62 @@
+#
+# Verify that the configuration file defaults were processed correctly
+#
+SELECT * FROM performance_schema.setup_instruments
+WHERE name IN (
+'wait/synch/mutex/sql/LOCK_user_conn',
+'wait/synch/mutex/sql/LOCK_uuid_generator',
+'wait/synch/mutex/sql/LOCK_transaction_cache',
+'stage/sql/creating table')
+AND enabled = 'yes' AND timed = 'no'
+ORDER BY name;
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+stage/sql/creating table	YES	NO		0	NULL
+wait/synch/mutex/sql/LOCK_transaction_cache	YES	NO	singleton	0	NULL
+wait/synch/mutex/sql/LOCK_user_conn	YES	NO	singleton	0	NULL
+wait/synch/mutex/sql/LOCK_uuid_generator	YES	NO	singleton	0	NULL
+SELECT * FROM performance_schema.setup_instruments
+WHERE name = 'wait/synch/mutex/sql/LOCK_thd_list'
+AND enabled = 'no' AND timed = 'no';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+SELECT * FROM performance_schema.setup_instruments
+WHERE name IN (
+'wait/synch/mutex/sql/LOG_INFO::lock',
+'wait/synch/mutex/sql/THD::LOCK_thd_list')
+AND enabled = 'yes' AND timed = 'yes'
+ORDER BY name;
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+SELECT * FROM performance_schema.setup_instruments
+WHERE name = 'wait/synch/mutex/sql/hash_filo::lock'
+AND enabled = 'no' AND timed = 'no'
+ORDER BY name;
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/sql/hash_filo::lock	NO	NO		0	NULL
+#
+# Verify that the memory instruments are never timed
+#
+SELECT * FROM performance_schema.setup_instruments
+WHERE name like 'memory/%'
+AND timed = 'YES';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+#
+# Verify that the memory/performance_schema instruments are never disabled
+#
+SELECT * FROM performance_schema.setup_instruments
+WHERE name like 'memory/performance_schema/%'
+AND enabled = 'NO';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+#
+# Verify that the instrument startup settings are not not visible.
+#
+SHOW VARIABLES LIKE "%/wait/synch/mutex%";
+Variable_name	Value
+#
+# Verify command line options are processed correctly
+#
+#
+# Verify that wait/io/table/sql/handler is enabled and timed
+#
+SELECT * FROM performance_schema.setup_instruments
+WHERE name like "%wait/io/table/sql/handler%";
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/io/table/sql/handler	YES	YES		0	NULL

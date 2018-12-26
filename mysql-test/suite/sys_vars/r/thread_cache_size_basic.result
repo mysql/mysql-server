@@ -1,0 +1,91 @@
+SET @start_global_value = @@global.thread_cache_size;
+SELECT @start_global_value;
+@start_global_value
+9
+select @@global.thread_cache_size;
+@@global.thread_cache_size
+9
+select @@session.thread_cache_size;
+ERROR HY000: Variable 'thread_cache_size' is a GLOBAL variable
+show global variables like 'thread_cache_size';
+Variable_name	Value
+thread_cache_size	9
+show session variables like 'thread_cache_size';
+Variable_name	Value
+thread_cache_size	9
+select * from performance_schema.global_variables where variable_name='thread_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+thread_cache_size	9
+select * from performance_schema.session_variables where variable_name='thread_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+thread_cache_size	9
+set global thread_cache_size=1;
+select @@global.thread_cache_size;
+@@global.thread_cache_size
+1
+select * from performance_schema.global_variables where variable_name='thread_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+thread_cache_size	1
+select * from performance_schema.session_variables where variable_name='thread_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+thread_cache_size	1
+set session thread_cache_size=1;
+ERROR HY000: Variable 'thread_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.thread_cache_size = DEFAULT;
+SELECT @@global.thread_cache_size ;
+@@global.thread_cache_size
+9
+SET @@global.thread_cache_size=-1;
+Warnings:
+Warning	1292	Truncated incorrect thread_cache_size value: '-1'
+SELECT @@global.thread_cache_size;
+@@global.thread_cache_size
+0
+SET @@global.thread_cache_size=16385;
+Warnings:
+Warning	1292	Truncated incorrect thread_cache_size value: '16385'
+SELECT @@global.thread_cache_size;
+@@global.thread_cache_size
+16384
+SET @@global.thread_cache_size=163856;
+Warnings:
+Warning	1292	Truncated incorrect thread_cache_size value: '163856'
+SELECT @@global.thread_cache_size;
+@@global.thread_cache_size
+16384
+SET @@global.thread_cache_size=-1635;
+Warnings:
+Warning	1292	Truncated incorrect thread_cache_size value: '-1635'
+SELECT @@global.thread_cache_size;
+@@global.thread_cache_size
+0
+SET @@global.thread_cache_size=' ';
+ERROR 42000: Incorrect argument type to variable 'thread_cache_size'
+SELECT @@global.thread_cache_size;
+@@global.thread_cache_size
+0
+SET @@global.thread_cache_size=255.2;
+ERROR 42000: Incorrect argument type to variable 'thread_cache_size'
+SELECT @@global.thread_cache_size;
+@@global.thread_cache_size
+0
+set global thread_cache_size=1.1;
+ERROR 42000: Incorrect argument type to variable 'thread_cache_size'
+set global thread_cache_size=1e1;
+ERROR 42000: Incorrect argument type to variable 'thread_cache_size'
+set global thread_cache_size="foo";
+ERROR 42000: Incorrect argument type to variable 'thread_cache_size'
+set global thread_cache_size=0;
+select @@global.thread_cache_size;
+@@global.thread_cache_size
+0
+set global thread_cache_size=cast(-1 as unsigned int);
+Warnings:
+Warning	1292	Truncated incorrect thread_cache_size value: '18446744073709551615'
+select @@global.thread_cache_size;
+@@global.thread_cache_size
+16384
+SET @@global.thread_cache_size = @start_global_value;
+SELECT @@global.thread_cache_size;
+@@global.thread_cache_size
+9

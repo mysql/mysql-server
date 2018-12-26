@@ -1,0 +1,287 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+create table t1 (a int) engine = innodb;
+SET GLOBAL log_bin_trust_function_creators = 1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create procedure p1()
+begin
+declare spv int default 0;
+while spv < 5 do
+insert into t1 values(spv+1);
+set spv=spv+1;
+end while;
+end//
+call p1();
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
+create procedure p2()
+begin
+declare a int default 4;
+create table t2 engine = innodb as select a;
+end//
+call p2();
+SELECT * FROM t2 ORDER BY a;
+a
+4
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY a;
+a
+4
+drop procedure p1;
+drop procedure p2;
+drop table t2;
+create function f1(x int) returns int
+begin
+insert into t1 values(x);
+return x+1;
+end//
+create procedure p1(a int, b int)
+begin
+declare v int default f1(5);
+if (f1(6)) then
+select 'yes';
+end if;
+set v = f1(7);
+while f1(8) < 1 do 
+select 'this cant be';
+end while;
+end//
+call p1(f1(1), f1(2));
+yes
+yes
+SELECT * FROM t1 ORDER BY a;
+a
+1
+1
+2
+2
+3
+4
+5
+5
+6
+7
+8
+create table t2(a int) engine = innodb;
+insert into t2 values (10),(11);
+SELECT a,f1(a) FROM t2 ORDER BY a;
+a	f1(a)
+10	11
+11	12
+insert into t2 select f1(3);
+SELECT 'master:',a FROM t1 ORDER BY a;
+master:	a
+master:	1
+master:	1
+master:	2
+master:	2
+master:	3
+master:	3
+master:	4
+master:	5
+master:	5
+master:	6
+master:	7
+master:	8
+master:	10
+master:	11
+include/sync_slave_sql_with_master.inc
+SELECT 'slave:',a FROM t1 ORDER BY a;
+slave:	a
+slave:	1
+slave:	1
+slave:	2
+slave:	2
+slave:	3
+slave:	3
+slave:	4
+slave:	5
+slave:	5
+slave:	6
+slave:	7
+slave:	8
+slave:	10
+slave:	11
+drop procedure p1;
+delete from t1;
+delete from t2;
+delete from t1;
+insert into t2 values(1),(2);
+create view v1 as select f1(a) as f from t2;
+select * from v1 order by f;
+f
+2
+3
+SELECT 'master:',a FROM t1 ORDER BY a;
+master:	a
+master:	1
+master:	2
+include/sync_slave_sql_with_master.inc
+SELECT 'slave:',a FROM t1 ORDER BY a;
+slave:	a
+slave:	1
+slave:	2
+drop view v1;
+delete from t1;
+prepare s1 from 'select f1(?)';
+set @xx=123;
+execute s1 using @xx;
+f1(?)
+124
+SELECT 'master:',a FROM t1 ORDER BY a;
+master:	a
+master:	123
+include/sync_slave_sql_with_master.inc
+SELECT 'slave:',a FROM t1 ORDER BY a;
+slave:	a
+slave:	123
+delete from t1;
+create procedure p1(spv int)
+begin
+declare c cursor for select f1(spv) from t2;
+while (spv > 2) do
+open c;
+fetch c into spv;
+close c;
+set spv= spv - 10;
+end while;
+end//
+call p1(15);
+SELECT 'master:',a FROM t1 ORDER BY a;
+master:	a
+master:	6
+master:	6
+master:	15
+master:	15
+include/sync_slave_sql_with_master.inc
+SELECT 'slave:',a FROM t1 ORDER BY a;
+slave:	a
+slave:	6
+slave:	6
+slave:	15
+slave:	15
+drop procedure p1;
+drop function f1;
+drop table t1,t2;
+create table t1 (a int);
+create procedure p1()
+begin
+insert into t1 values(@x);
+set @x=@x+1;
+insert into t1 values(@x);
+if (f2()) then
+insert into t1 values(1243);
+end if;
+end//
+create function f2() returns int
+begin
+insert into t1 values(@z);
+set @z=@z+1;
+insert into t1 values(@z);
+return 0;
+end//
+create function f1() returns int
+begin
+insert into t1 values(@y);
+call p1();
+return 0;
+end//
+set @x=10;
+set @y=20;
+set @z=100;
+select f1();
+f1()
+0
+set @x=30;
+call p1();
+SELECT 'master', a FROM t1 ORDER BY a;
+master	a
+master	10
+master	11
+master	20
+master	30
+master	31
+master	100
+master	101
+master	101
+master	102
+include/sync_slave_sql_with_master.inc
+SELECT 'slave', a FROM t1 ORDER BY a;
+slave	a
+slave	10
+slave	11
+slave	20
+slave	30
+slave	31
+slave	100
+slave	101
+slave	101
+slave	102
+drop table t1;
+drop function f1;
+drop function f2;
+drop procedure p1;
+include/sync_slave_sql_with_master.inc
+create table t2 (b BIT(7));
+create procedure sp_bug26199(bitvalue BIT(7))
+begin
+insert into t2 set b = bitvalue;
+end //
+create function sf_bug26199(b BIT(7)) returns int
+begin
+insert ignore into t2 values(b);
+return 0;
+end//
+call   sp_bug26199(b'1110');
+call   sp_bug26199('\0');
+select sf_bug26199(b'1111111');
+sf_bug26199(b'1111111')
+0
+select sf_bug26199(b'101111111');
+sf_bug26199(b'101111111')
+0
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+select sf_bug26199('\'');
+sf_bug26199('\'')
+0
+select hex(b) from t2;
+hex(b)
+E
+0
+7F
+7F
+27
+include/sync_slave_sql_with_master.inc
+select hex(b) from t2;
+hex(b)
+E
+0
+7F
+7F
+27
+drop table t2;
+drop procedure sp_bug26199;
+drop function sf_bug26199;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+SET sql_mode = default;
+include/sync_slave_sql_with_master.inc
+end of the tests
+include/rpl_end.inc

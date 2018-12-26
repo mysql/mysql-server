@@ -1,0 +1,169 @@
+-- source include/have_debug.inc
+-- source include/count_sessions.inc
+-- source include/have_debug_sync.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+#########################
+#  how to record this test JSON result content mismatch
+#  If required fix regex patterns in mysql-test/include/ibd2sdi.pl
+#  and mysql-test/suite/innodb/include/ibd2sdi_replace_pattern.inc,
+#  then run the test with --record option.
+#########################
+
+#
+# Test for BUG# 12739098, check whether trx->error_status is reset on error.
+#
+CREATE TABLE t1(c1 INT NOT NULL, c2 INT, PRIMARY KEY(c1)) Engine=InnoDB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+
+SET SESSION DEBUG='+d,ib_build_indexes_too_many_concurrent_trxs, ib_rename_indexes_too_many_concurrent_trxs, ib_drop_index_too_many_concurrent_trxs';
+--error ER_TOO_MANY_CONCURRENT_TRXS
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+SET SESSION DEBUG=DEFAULT;
+
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+#
+# Test for Bug#13861218 Records are not fully sorted during index creation
+#
+CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT NOT NULL, INDEX(c2))
+ENGINE=InnoDB;
+INSERT INTO bug13861218 VALUES (8, 0), (4, 0), (0, 0);
+SET DEBUG='+d,ib_row_merge_buf_add_two';
+# Force creation of a PRIMARY KEY on c1 to see what happens on the index(c2).
+# No crash here, because n_uniq for c2 includes the clustered index fields
+CREATE UNIQUE INDEX ui ON bug13861218(c1);
+SET DEBUG='-d,ib_row_merge_buf_add_two';
+DROP TABLE bug13861218;
+
+CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT UNIQUE) ENGINE=InnoDB;
+INSERT INTO bug13861218 VALUES (8, NULL), (4, NULL), (0, NULL);
+SET DEBUG='+d,ib_row_merge_buf_add_two';
+# Force creation of a PRIMARY KEY on c1 to see what happens on the index(c2).
+# assertion failure: ut_ad(cmp_dtuple_rec(dtuple, rec, rec_offsets) > 0)
+CREATE UNIQUE INDEX ui ON bug13861218(c1);
+SET DEBUG='-d,ib_row_merge_buf_add_two';
+DROP TABLE bug13861218;
+
+--echo #
+--echo # Bug #17657223	EXCESSIVE TEMPORARY FILE USAGE IN ALTER TABLE
+--echo #
+
+# Error during file creation in alter operation
+create table t480(a serial)engine=innodb;
+insert into t480
+values(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),
+(),(),(),(),(),(),(),();
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+
+# Error during file write in alter operation.
+create table t1(f1 int auto_increment not null,
+		f2 char(200) not null, f3 char(200) not null,
+		primary key(f1,f2,f3), key(f1))engine=innodb charset latin1;
+insert into t1 select NULL,'aaa','bbb' from t480;
+insert into t1 select NULL,'aaaa','bbbb' from t480;
+insert into t1 select NULL,'aaaaa','bbbbb' from t480;
+insert into t1 select NULL,'aaaaaa','bbbbbb' from t480;
+SET DEBUG = '+d,row_merge_write_failure';
+--error ER_TEMP_FILE_WRITE_FAILURE
+alter table t1 drop primary key,add primary key(f2,f1);
+SET DEBUG = '-d,row_merge_write_failure';
+drop table t1;
+
+# Optimize table via inplace algorithm
+connect (con1,localhost,root);
+create table t1(k1 int auto_increment primary key,
+k2 char(200),k3 char(200))engine=innodb;
+insert into t1 values(NULL,'a','b'), (NULL,'aa','bb');
+SET DEBUG_SYNC= 'row_merge_after_scan
+SIGNAL opened WAIT_FOR flushed';
+send optimize table t1;
+connection default;
+--echo connection default
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+INSERT INTO t1 select NULL,'aaa','bbb' from t480;
+SET DEBUG_SYNC= 'now SIGNAL flushed';
+connection con1;
+--enable_info
+--echo /*con1 reap*/ Optimize table t1;
+reap;
+--disable_info
+SELECT COUNT(k1),k2,k3 FROM t1 GROUP BY k2,k3;
+drop table t1;
+
+# Log file creation failure.
+create table t1(k1 int auto_increment primary key,
+k2 char(200),k3 char(200))engine=innodb;
+SET DEBUG_SYNC= 'row_merge_after_scan
+SIGNAL opened WAIT_FOR flushed';
+send ALTER TABLE t1 ADD COLUMN k4 int, ALGORITHM=INPLACE;
+connection default;
+--echo connection default
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+SET debug = '+d,row_log_tmpfile_fail';
+INSERT INTO t1 select NULL,'aaa','bbb' from t480;
+INSERT INTO t1 select NULL,'aaaa','bbbb' from t480;
+SET DEBUG_SYNC= 'now SIGNAL flushed';
+SET debug = '-d,row_log_tmpfile_fail';
+connection con1;
+--echo /*con1 reap*/ ALTER TABLE t1 ADD COLUMN k4 int, ALGORITHM=INPLACE;
+--error ER_OUT_OF_RESOURCES
+reap;
+SELECT COUNT(k1),k2,k3 FROM t1 GROUP BY k2,k3;
+disconnect con1;
+connection default;
+show create table t1;
+
+SET DEBUG_SYNC='RESET';
+--source include/wait_until_count_sessions.inc
+--source include/shutdown_mysqld.inc
+
+--echo # SDI output shouldn't show new column "k4" because
+--echo # ALTER failed
+
+--let $SRC_DIR=$MYSQL_TEST_DIR/std_data/dd/sdi/innodb_index_debug
+
+# Create a directory to store json generated
+--let $DEST_DIR=$MYSQL_TMP_DIR/sdi_dest/
+--error 0,1
+--force-rmdir $DEST_DIR
+--mkdir $DEST_DIR
+
+--let JSON_FILE_PATH = $DEST_DIR/t1.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($MTR_RECORD == 0) {
+--diff_files $SRC_DIR/t1.json $JSON_FILE_PATH
+}
+
+# If --record is used, save the json files created in the $DEST_DIR
+# back to the $SRC_DIR.
+if ($MTR_RECORD == 1) {
+--copy_files_wildcard $DEST_DIR $SRC_DIR *.json
+}
+
+--echo # Remove json files
+--force-rmdir $DEST_DIR
+
+--source include/start_mysqld.inc
+drop table t1;
+drop table t480;
+SET DEBUG_SYNC='RESET';
+--source include/wait_until_count_sessions.inc
+
+--echo #
+--echo #  BUG#21612714 ALTER TABLE SORTING SKIPPED WHEN CHANGE PK AND DROP
+--echo #                LAST COLUMN OF OLD PK
+--echo #
+
+SET debug="+d,innodb_alter_table_pk_assert_no_sort";
+
+--source suite/innodb/include/alter_table_pk_no_sort.inc
+
+SET debug="-d,innodb_alter_table_pk_assert_no_sort";

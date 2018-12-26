@@ -1,0 +1,2 @@
+--force-restart
+--loose-performance_schema_accounts_size=0

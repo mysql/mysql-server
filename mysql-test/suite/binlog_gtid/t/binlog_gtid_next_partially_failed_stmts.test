@@ -1,0 +1,234 @@
+# ==== Purpose ====
+#
+# Verify that a partially failed statement saves its gtid into
+# @@GLOBAL.GTID_EXECUTED and is binlogged when binlog is enabled.
+#
+# ==== Implementation ====
+#
+# 1) Execute a partially failed statement.
+# 2) When binlog is enabled, verify that the partially failed statement
+#    saves its gtid into @@GLOBAL.GTID_EXECUTED if it is binlogged, or
+#    does not save its gtid into @@GLOBAL.GTID_EXECUTED if it is not
+#    binlogged.
+# 3) Execute above two steps for all different types of statements.
+#
+# ==== References ====
+#
+# Bug#21686749  PARTIALLY FAILED DROP OR ACL STMT FAILS TO CONSUME GTID ON BINLOGLESS SLAVE
+# See mysql-test/t/no_binlog_gtid_next_partially_failed_stmts.test
+# See mysql-test/t/no_binlog_gtid_next_partially_failed_stmts_error.test
+# See mysql-test/suite/binlog/t/binlog_gtid_next_partially_failed_grant.test
+# See mysql-test/t/no_binlog_gtid_next_partially_failed_stmts_anonymous.test
+#
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+
+# Make sure the test is repeatable
+RESET MASTER;
+
+call mtr.add_suppression("Did not write failed .* into binary log while storing table level and column level grants in the privilege tables");
+
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+CREATE TABLE t1(a INT, b INT);
+CREATE USER u1@h;
+--echo #
+--echo # Verify that u1 is added into mysql.user.
+--echo #
+SELECT user FROM mysql.user where user='u1';
+
+# Check-1: GRANT
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--replace_result $master_uuid MASTER_UUID
+--error ER_BAD_FIELD_ERROR
+GRANT SELECT(a), SELECT(c) ON t1 TO u1@h;
+--echo #
+--echo # The SELECT privilege on column a is not granted to u1@h,
+--echo # which means that GRANT can not be failed partially when
+--echo # granting an available privilege and a non-available
+--echo # privilege to an existent user.
+--echo #
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+--echo #
+--echo # Verify that the failed GRANT statement does not generate
+--echo # a gtid and save the gtid into @@GLOBAL.GTID_EXECUTED.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:3 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
+--source include/assert.inc
+--echo #
+--echo # Verify that the failed GRANT statement is not binlogged
+--echo #
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+
+GRANT SELECT(a) ON t1 TO u1@h;
+--echo #
+--echo # Verify that the grant info is added into mysql.columns_priv.
+--echo #
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+# Check-2: REVOKE
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--error ER_NONEXISTING_TABLE_GRANT
+REVOKE SELECT(a), SELECT(b) ON t1 FROM u1@h;
+--echo #
+--echo # The SELECT privilege is removed on column a from user u1,
+--echo # which means that REVOKE statement can be failed partially
+--echo # when revoking multiple privileges from a user.
+--echo #
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+--echo #
+--echo # Verify that the partially failed REVOKE statement does not generate
+--echo # a gtid master_uuid:5 and save the gtid into @@GLOBAL.GTID_EXECUTED.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:4 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
+--source include/assert.inc
+--echo #
+--echo # Verify that the partially failed REVOKE statement is not binlogged
+--echo #
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+# Check-3: DROP USER
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--error ER_CANNOT_USER
+DROP USER u1@h, u2@h;
+--echo #
+--echo # u1@h should not have been dropped.
+--echo #
+SELECT user FROM mysql.user where user='u1';
+--echo #
+--echo # Verify that the failed DROP USER statement does not generate
+--echo # a gtid and save it into @@GLOBAL.GTID_EXECUTED.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Does not generate MASTER_UUID:5 and commit it into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
+--source include/assert.inc
+--echo #
+--echo # Verify failed DROP USER statement is not binlogged
+--echo #
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+# Check-4: RENAME TABLE
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--error ER_NO_SUCH_TABLE
+RENAME TABLE t1 TO t2, t3 TO t4;
+--echo #
+--echo # The table t1 was not renamed, which means RENAME TABLE
+--echo # can not be failed partially.
+--echo #
+SHOW CREATE TABLE t1;
+--echo #
+--echo # Verify that the failed RENAME TABLE statement does not generate
+--echo # a new GTID MASTER_UUID:7 and save it into @@GLOBAL.GTID_EXECUTED.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Does not generate MASTER_UUID:6 and commit it into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
+--source include/assert.inc
+--echo #
+--echo # Verify that the failed RENAME TABLE statement is not binlogged
+--echo #
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+# Check-5: OPTIMIZE TABLE
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--echo #
+--echo # The OPTIMIZE TABLE statement can be failed partially when optimizing
+--echo # multiple tables, which contain a non-existent table.
+--echo #
+OPTIMIZE TABLE t1, t_non_existent;
+--echo #
+--echo # When optimizing a non-existent table, verify that the OPTIMIZE TABLE
+--echo # statement generates a gtid and save it into @@GLOBAL.GTID_EXECUTED.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5"
+--source include/assert.inc
+--echo #
+--echo # When optimizing a non-existent table, verify that the OPTIMIZE TABLE
+--echo # statement is binlogged.
+--echo #
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+# Check-6: ANALYZE TABLE
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--echo #
+--echo # The ANALYZE TABLE statement can be failed partially when analyzing
+--echo # multiple tables, which contain a non-existent table.
+--echo #
+ANALYZE TABLE t1, t_non_existent;
+--echo #
+--echo # When analyzing a non-existent table, verify that the ANALYZE TABLE
+--echo # statement generates a gtid and save it into @@GLOBAL.GTID_EXECUTED.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:8 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
+--source include/assert.inc
+--echo #
+--echo # When analyzing a non-existent table, verify that the ANALYZE TABLE
+--echo # statement is binlogged.
+--echo #
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+# Check-7: REPARE TABLE
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--echo #
+--echo # The REPAIR TABLE statement can be failed partially when repairing
+--echo # multiple tables, which contain a non-existent table.
+--echo #
+REPAIR TABLE t1, t_non_existent;
+--echo #
+--echo # When repairing a non-existent table, verify that the REPAIR TABLE
+--echo # statement generates a gtid and save it into @@GLOBAL.GTID_EXECUTED.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:9 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
+--source include/assert.inc
+--echo #
+--echo # When repairing a non-existent table, verify that the REPAIR TABLE
+--echo # statement is binlogged.
+--echo #
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+# Check-8: CHECKSUM TABLE
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--echo #
+--echo # The CHECKSUM TABLE statement can be failed partially when checksuming
+--echo # multiple tables, which contain a non-existent table.
+--echo #
+CHECKSUM TABLE t1, t_non_existent;
+--echo #
+--echo # When checksuming a non-existent table, verify that the CHECKSUM TABLE
+--echo # statement generates a gtid and save it into @@GLOBAL.GTID_EXECUTED.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Does not generate MASTER_UUID:10 and commit it into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
+--source include/assert.inc
+--echo #
+--echo # When checksuming a non-existent table, verify that the CHECKSUM TABLE
+--echo # statement is not binlogged.
+--echo #
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+# Clean up
+DROP TABLE t1;
+DROP USER u1@h;

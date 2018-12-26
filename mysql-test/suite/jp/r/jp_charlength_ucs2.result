@@ -1,0 +1,113 @@
+drop table if exists `£Τ£±`;
+drop table if exists `£Τ£²`;
+drop table if exists `£Τ£³`;
+drop table if exists `£Τ£΄`;
+drop table if exists `£Τ£µ`;
+drop table if exists `£Τ£¶`;
+drop table if exists `£Τ£·`;
+drop table if exists `£Τ£Έ`;
+drop table if exists `£Τ£Ή`;
+SET NAMES ujis;
+SET character_set_database = ucs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET collation_connection = ucs2_general_ci;
+CREATE TABLE `£Τ£±` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£³` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£΄` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£µ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£¶` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+INSERT INTO `£Τ£±` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
+INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
+INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
+INSERT INTO `£Τ£΄` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
+INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
+INSERT INTO `£Τ£·` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
+INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
+SELECT `£Γ£±`, CHAR_LENGTH(`£Γ£±`) FROM `£Τ£±`;
+£Γ£±	CHAR_LENGTH(`£Γ£±`)
+	0
+±	1
+±²	2
+±²³	3
+±²³΄	4
+±²³΄µ	5
+SELECT `£Γ£±`, CHAR_LENGTH(`£Γ£±`) FROM `£Τ£²`;
+£Γ£±	CHAR_LENGTH(`£Γ£±`)
+	0
+¤Ά	1
+¤Ά¤¤	2
+¤Ά¤¤¤¦	3
+¤Ά¤¤¤¦¤¨	4
+¤Ά¤¤¤¦¤¨¤ª	5
+SELECT `£Γ£±`, CHAR_LENGTH(`£Γ£±`) FROM `£Τ£³`;
+£Γ£±	CHAR_LENGTH(`£Γ£±`)
+	0
+νά	1
+νάνέ	2
+νάνένή	3
+νάνένήνί	4
+νάνένήνίνΰ	5
+SELECT `£Γ£±`, CHAR_LENGTH(`£Γ£±`) FROM `£Τ£΄`;
+£Γ£±	CHAR_LENGTH(`£Γ£±`)
+	0
+±	1
+±²	2
+±²³	3
+±²³΄	4
+±²³΄µ	5
+SELECT `£Γ£±`, CHAR_LENGTH(`£Γ£±`) FROM `£Τ£µ`;
+£Γ£±	CHAR_LENGTH(`£Γ£±`)
+	0
+¤Ά	1
+¤Ά¤¤	2
+¤Ά¤¤¤¦	3
+¤Ά¤¤¤¦¤¨	4
+¤Ά¤¤¤¦¤¨¤ª	5
+SELECT `£Γ£±`, CHAR_LENGTH(`£Γ£±`) FROM `£Τ£¶`;
+£Γ£±	CHAR_LENGTH(`£Γ£±`)
+	0
+νά	1
+νάνέ	2
+νάνένή	3
+νάνένήνί	4
+νάνένήνίνΰ	5
+SELECT `£Γ£±`, CHAR_LENGTH(`£Γ£±`) FROM `£Τ£·`;
+£Γ£±	CHAR_LENGTH(`£Γ£±`)
+±²³΄µ	5
+±²³΄	4
+±²³	3
+±²	2
+±	1
+	0
+SELECT `£Γ£±`, CHAR_LENGTH(`£Γ£±`) FROM `£Τ£Έ`;
+£Γ£±	CHAR_LENGTH(`£Γ£±`)
+¤Ά¤¤¤¦¤¨¤ª	5
+¤Ά¤¤¤¦¤¨	4
+¤Ά¤¤¤¦	3
+¤Ά¤¤	2
+¤Ά	1
+	0
+SELECT `£Γ£±`, CHAR_LENGTH(`£Γ£±`) FROM `£Τ£Ή`;
+£Γ£±	CHAR_LENGTH(`£Γ£±`)
+νάνένήνίνΰ	5
+νάνένήνί	4
+νάνένή	3
+νάνέ	2
+νά	1
+	0
+DROP TABLE `£Τ£±`;
+DROP TABLE `£Τ£²`;
+DROP TABLE `£Τ£³`;
+DROP TABLE `£Τ£΄`;
+DROP TABLE `£Τ£µ`;
+DROP TABLE `£Τ£¶`;
+DROP TABLE `£Τ£·`;
+DROP TABLE `£Τ£Έ`;
+DROP TABLE `£Τ£Ή`;

@@ -1,0 +1,37 @@
+# Tests for PERFORMANCE_SCHEMA
+
+select * from performance_schema.setup_consumers;
+
+select * from performance_schema.setup_consumers
+  where name='events_waits_current';
+
+select * from performance_schema.setup_consumers
+  where enabled='YES';
+
+select * from performance_schema.setup_consumers
+  where enabled='NO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.setup_consumers
+  set name='FOO', enabled='YES';
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.setup_consumers
+  set name='FOO';
+
+update performance_schema.setup_consumers
+  set enabled='YES';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.setup_consumers;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.setup_consumers
+  where name='events_waits_current';
+
+LOCK TABLES performance_schema.setup_consumers READ;
+UNLOCK TABLES;
+
+LOCK TABLES performance_schema.setup_consumers WRITE;
+UNLOCK TABLES;
+

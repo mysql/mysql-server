@@ -1,0 +1,108 @@
+--source include/have_ndb.inc
+
+# ----------------------------------------
+# Test 1
+# DEMONSTRATE CASCADING UPDATE WITH NDB
+
+create table purchase_order_v1 (
+  id int not null primary key,
+  sequence_no int not null,
+  user varchar(30),
+  unique index (sequence_no)
+) engine = ndb;  
+
+create table order_item_v1  (
+  id int not null auto_increment primary key,
+  order_seq_no int not null, 
+  description varchar(40),
+  quantity int not null,
+  unit_cost decimal(6, 2),
+  foreign key (order_seq_no) references purchase_order_v1 (sequence_no) 
+              on delete cascade on update cascade
+) engine = ndb;
+
+
+# CREATE AN ORDER WITH ONE ITEM
+insert into purchase_order_v1 values (1,1,"jdd");
+insert into order_item_v1 values(default, 1, "10mm hex nut", 1000, .04);
+
+# UPDATE THE SEQUENCE NUMBER.
+# NDB CORRECTLY SHOWS THE CASCADING UPDATE.
+update purchase_order_v1 set sequence_no = 2 where id = 1;
+select * from order_item_v1 ;
+
+
+
+# ----------------------------------------
+# Test 2
+# DEMONSTRATE (BUGGY) CASCADING UPDATE WITH gcol as source of cascade 
+
+
+create table purchase_order_v2 (
+  id int not null primary key,
+  sequence_no int as (id) stored unique,
+  user varchar(30)
+) engine = ndb;
+
+create table order_item_v2  (
+  id int not null auto_increment primary key,
+  order_seq_no int not null, 
+  description varchar(40),
+  quantity int not null,
+  unit_cost decimal(6, 2),
+  foreign key (order_seq_no) references purchase_order_v2 (sequence_no) 
+              on delete cascade on update cascade
+) engine = ndb;
+
+
+# CREATE AN ORDER WITH ONE ITEM
+insert into purchase_order_v2 (id, user) values (1, "jdd");
+insert into order_item_v2 values(default, 1, "10mm hex nut", 1000, .04);
+select * from purchase_order_v2 ;
+select * from order_item_v2; 
+
+# UPDATE THE PRIMARY KEY ==> GCOL ==> CASCADE TO ORDER_ITEM
+#
+#      *** NOTE UNDOCUMENTED BEHAVIOR *** 
+#         RATHER THAN UPDATING THE REFERENCED ROW, NDB DELETES IT.
+#
+update purchase_order_v2 set id = 2 where id = 1;
+select * from order_item_v2 ;
+
+
+
+# ----------------------------------------
+# Test 3
+# DEMONSTRATE (BUGGY) CASCADING UPDATE WHERE gcol depends on target of the cascade 
+# The cascade causes a change to the base column, but its dependent gcol is not updated
+
+create table order_item_v3  (
+  id int not null auto_increment primary key,
+  order_seq_no int not null, 
+  description varchar(40),
+  quantity int not null,
+  unit_cost decimal(6, 2),
+  gcol int as (100 + order_seq_no) stored, 
+  foreign key (order_seq_no) references purchase_order_v1 (sequence_no) 
+              on delete cascade on update cascade
+) engine = ndb;
+
+# CREATE AN ORDER WITH ONE ITEM
+insert into order_item_v3 values(default, 2, "10mm hex nut", 1000, .04, default);
+select * from order_item_v3;
+# UPDATE THE PARENT TABLE 
+#   THIS CAUSES A CASCADING UPDATE TO THE FOREIGN KEY COLUMN
+#
+#      *** NOTE UNDOCUMENTED BEHAVIOR *** 
+#        THE GENERATED COLUMN WHICH DEPENDS ON THE FOREIGN KEY IS NOT UPDATED AFTER THE CASCADE
+#
+update purchase_order_v1 set sequence_no = 3 where id = 1;
+select * from order_item_v3;
+
+
+# CLEAN UP AFTER THIS TEST
+drop table order_item_v3;
+drop table order_item_v2;
+drop table order_item_v1;
+drop table purchase_order_v2;
+drop table purchase_order_v1;

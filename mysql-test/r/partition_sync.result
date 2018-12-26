@@ -1,0 +1,57 @@
+#
+# Bug #43867 ALTER TABLE on a partitioned table 
+#            causes unnecessary deadlocks
+#
+CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (1),
+PARTITION p1 VALUES LESS THAN (2));
+INSERT INTO t1 VALUES (0),(1);
+# Connection 2
+BEGIN;
+SELECT * FROM t1;
+a
+0
+1
+# Connection 1
+ALTER TABLE t1 DROP PARTITION p3;
+ERROR HY000: Error in list of partitions to DROP
+# Connection 2
+# This failed with deadlock and should not do so.
+SELECT * FROM t1;
+a
+0
+1
+# Connection 1
+DROP TABLE t1;
+#
+# Bug #46654 False deadlock on concurrent DML/DDL 
+#            with partitions, inconsistent behavior
+#
+DROP TABLE IF EXISTS tbl_with_partitions;
+CREATE TABLE tbl_with_partitions ( i INT ) 
+PARTITION BY HASH(i);
+INSERT INTO tbl_with_partitions VALUES (1);
+# Connection 3
+LOCK TABLE tbl_with_partitions READ;
+# Connection 1
+# Access table with disabled autocommit
+SET AUTOCOMMIT = 0;
+SELECT * FROM tbl_with_partitions;
+i
+1
+# Connection 2
+# Alter table, abort after prepare
+set session debug="+d,abort_copy_table";
+ALTER TABLE tbl_with_partitions ADD COLUMN f INT, ALGORITHM=COPY;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection 1
+# Try accessing the table after Alter aborted.
+# This used to give ER_LOCK_DEADLOCK.
+SELECT * FROM tbl_with_partitions;
+i
+1
+# Connection 3
+UNLOCK TABLES;
+# Connection 1
+# Cleanup
+DROP TABLE tbl_with_partitions;

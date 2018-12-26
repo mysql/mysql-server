@@ -1,0 +1,143 @@
+#########################################################################
+# START : WITHOUT KEYRING PLUGIN
+#########################################################################
+
+#########
+# SETUP #
+#########
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd'
+	ENGINE=InnoDB ENCRYPTION="N";
+CREATE TABLE t1(c1 char(100)) ENGINE=InnoDB TABLESPACE encrypt_ts;
+set global innodb_buf_flush_list_now = 1;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+#########################################################################
+# RESTART 1 : WITH KEYRING PLUGIN
+#########################################################################
+# Monitoring connection
+UPDATE performance_schema.setup_consumers SET ENABLED='YES';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM performance_schema.setup_consumers
+WHERE NAME LIKE "%stages%";
+NAME	ENABLED
+events_stages_current	YES
+events_stages_history	YES
+events_stages_history_long	YES
+SELECT * FROM performance_schema.setup_instruments
+WHERE NAME LIKE "%encryption%";
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/innodb/resume_encryption_cond_mutex	YES	YES		0	NULL
+wait/synch/cond/innodb/resume_encryption_cond	YES	YES		0	NULL
+stage/innodb/alter tablespace (encryption)	YES	YES	progress	0	NULL
+select count(*) from performance_schema.events_stages_current
+WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+count(*)
+0
+# Default connection
+############################################################
+# ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
+############################################################
+
+# Set Encryption process to wait after page 5 so that we can monitor
+# progress in performance_schema table
+SET DEBUG_SYNC = 'alter_encrypt_tablespace_wait_after_page5 SIGNAL s1 WAIT_FOR s2';
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# Monitoring connection
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+# Wait for Encryption progress monitoring to appear in PFS table
+# Wait for some progress to appear in PFS table
+select WORK_ESTIMATED, WORK_COMPLETED
+FROM performance_schema.events_stages_current
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)';
+WORK_ESTIMATED	WORK_COMPLETED
+6	5
+SET DEBUG_SYNC = 'now SIGNAL s2';
+# Default connection
+# Once done, select count from PFS tables
+SELECT COUNT(*)
+FROM performance_schema.events_stages_current
+WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+COUNT(*)
+0
+SELECT COUNT(*)
+FROM performance_schema.events_stages_history
+WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM performance_schema.events_stages_history_long
+WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM performance_schema.events_stages_summary_global_by_event_name
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+COUNT_STAR>0;
+COUNT(*)
+1
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM performance_schema.events_stages_summary_by_user_by_event_name
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+COUNT_STAR>0;
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM performance_schema.events_stages_summary_by_host_by_event_name
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+COUNT_STAR>0;
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM performance_schema.events_stages_summary_by_account_by_event_name
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+COUNT_STAR>0;
+COUNT(*)
+1
+# Check that Encryption done successfully.
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 2 : WITHOUT KEYRING PLUGIN
+#########################################################################
+SELECT * FROM t1 LIMIT 10;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+###########
+# Cleanup #
+###########
+DROP TABLE t1;
+DROP TABLESPACE encrypt_ts;

@@ -1,0 +1,317 @@
+######### ../t/delete_sql_1.test                         #############
+#                                                                    #
+# This test runs aims to run DELETE xmessage variant                 #
+# with mysqlxtest client.                                            #
+# Test covers                                                        #
+#  - delete with transaction (rollback/commit)                       #
+#  - delete with WHERE,LIMIT,ORDER BY parameters                     #
+#                                                                    #
+######################################################################
+#
+
+
+
+## =============================================
+##
+##     CRUD DELETE SCENARIOS
+##
+## =============================================
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## TEST STARTS HERE
+
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+-->sql
+ DROP SCHEMA if EXISTS dbmysqlxplugintest;
+ CREATE SCHEMA dbmysqlxplugintest DEFAULT CHARSET='utf8';
+ USE dbmysqlxplugintest;
+
+ CREATE TABLE Categories (
+ CategoryID int NOT NULL AUTO_INCREMENT,
+ CategoryName varchar(100),
+ CategoryDescription varchar(200),
+ CategoryIMEI tinyint,	  
+ CategoryDecimal decimal(5,2),
+ PRIMARY key (CategoryID)
+ );
+
+ INSERT INTO Categories(CategoryID, CategoryName, CategoryDescription, CategoryIMEI, CategoryDecimal)
+ VALUES
+ (1,'Sports','Sports related category',1,235.15),
+ (2,'Entertaiment','Entertaiment related category',2,235.15),
+ (3, 'Home','Home related category',3,235.15),
+ (4, 'Kitchen','Kitchen related category',4,235.15),
+ (5, 'Garden','Garden related category',5,535.15),
+ (6, 'Toys','Toys related category',6,635.15);
+
+ CREATE TABLE ExtraCategoryInfo (
+ ExtraCategoryInfoID int NOT NULL AUTO_INCREMENT,
+ CategoryID int NOT NULL,
+ MainParentCategoryName varchar(100),
+ PRIMARY key (ExtraCategoryInfoID)
+ );
+
+ INSERT INTO ExtraCategoryInfo(ExtraCategoryInfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (1,1,'People'),
+ (2,2,'People'),
+ (3,2,'House'),
+ (4,3,'House'),
+ (5,1,'People'),
+ (6,2,'People'),
+ (7,2,'House'),
+ (8,3,'House'),
+ (9,1,'People'),
+ (10,2,'House');
+ 
+-->endsql
+
+-->sql
+SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
+
+-->endsql
+
+-->echo Delete with In, && operators
+Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "ExtraCategoryInfoID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 1
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 3
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "=="
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 2
+            }
+          }
+        }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
+
+#-- "try xmessage within transaction"
+START TRANSACTION;
+-->endsql
+
+-->echo Delete with == operator and rollback operation
+Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "ExtraCategoryInfoID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
+ROLLBACK;
+SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
+-->endsql
+
+-->sql
+START TRANSACTION;
+-->endsql
+-->echo Delete with == operator and commit
+Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "ExtraCategoryInfoID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+COMMIT;
+SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+
+# case 1 : delete with limit with offset
+# Fix result file when bug is fixed
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+-->sql
+ USE dbmysqlxplugintest;
+ SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo; 
+-->endsql
+-->echo Use delete with limit and order parameters
+Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: DOCUMENT
+  limit {
+     row_count:2
+     offset:5
+  }
+}
+# expect error (offset is not valid for Delete)
+-->recv
+-->sql
+ SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo; 
+-->endsql
+
+-->echo Use delete with limit 0 and order parameters
+Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: DOCUMENT
+  limit {
+     row_count:0
+     offset:0
+  }
+}
+# expect OK (offset 0 is OK for Delete)
+-->recvresult
+
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+
+# case 2 : delete with limit and order 
+# Uncomment $MYSQLXTEST call when order message is fixed
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+-->sql
+ USE dbmysqlxplugintest;
+ SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
+-->endsql
+-->echo Use delete with limit and order parameters
+Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: DOCUMENT
+  limit {
+     row_count:1
+  }
+  order {
+     expr {
+        type: IDENT
+        identifier {
+          name: "CategoryID"
+        }
+     }
+   direction:2
+  }
+
+  order {
+     expr {
+        type: IDENT
+        identifier {
+          name: "ExtraCategoryInfoID"
+        }
+     }
+   direction:2
+  }
+
+}
+-->recvresult
+-->sql
+ SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.tmp 2>&1
+
+# Cleanup
+DROP DATABASE IF EXISTS dbmysqlxplugintest;
+--remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--source include/xplugin_drop_user.inc

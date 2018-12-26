@@ -1,0 +1,36 @@
+
+--echo # Creating table t1
+CREATE TABLE t1(c1 INT NOT NULL, c2 INT);
+INSERT INTO t1 VALUES (1,1), (2,2), (3,1), (4,2), (5,1), (6,2), (7,3);
+
+--echo # Creating table t2
+CREATE TABLE t2(c1 INT NOT NULL, c2 INT, PRIMARY KEY(c1));
+INSERT INTO t2 VALUES (1,1), (2,2), (3,1), (4,2), (5,1), (6,2), (7,3);
+
+--echo # Count of elements in table t1
+SELECT COUNT(*) FROM t1;
+
+--echo ###################################################################
+--echo # Run plugin
+--echo ###################################################################
+--replace_result $TEST_SQL_LOCK TEST_SQL_LOCK
+eval INSTALL PLUGIN test_sql_lock SONAME '$TEST_SQL_LOCK';
+
+--echo ###################################################################
+--echo # Stop plugin
+--echo ###################################################################
+UNINSTALL PLUGIN test_sql_lock;
+
+--echo ###################################################################
+--echo # Plugin log
+--echo ###################################################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_lock.log;
+remove_file $MYSQLD_DATADIR/test_sql_lock.log;
+
+SHOW OPEN TABLES FROM test LIKE 't1';
+SHOW OPEN TABLES FROM test LIKE 't2';
+
+--echo # Dropping the created tables
+DROP TABLE t1;
+DROP TABLE t2;

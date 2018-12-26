@@ -1,0 +1,15 @@
+#
+# Basic test for innodb_page_size
+#
+
+
+# Check the default value
+SET @orig = @@global.innodb_page_size;
+--replace_result 65536 {valid_page_size} 32768 {valid_page_size} 16384 {valid_page_size} 8192 {valid_page_size} 4096 {valid_page_size}
+SELECT @orig;
+
+# Confirm that we can not change the value
+-- error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_page_size = 4k;
+-- error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_page_size = 8k;

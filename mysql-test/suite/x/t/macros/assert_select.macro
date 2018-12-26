@@ -1,0 +1,7 @@
+
+-->macro_varg Assert_select	%VARIABLE_NAME%	%EXPECTED_VALUE%
+-->stmtsql %VAR_ARGS%;
+-->recvtovar %VARIABLE_VALUE% %VARIABLE_NAME%
+-->echo Verify ["%VAR_ARGS%" returns in "%VARIABLE_NAME%" column, following value %EXPECTED_VALUE%]
+-->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
+-->endmacro

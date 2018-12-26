@@ -1,0 +1,8 @@
+SELECT * FROM information_schema.engines
+WHERE ENGINE = 'InnoDB';
+ENGINE	InnoDB
+SUPPORT	DEFAULT
+COMMENT	Supports transactions, row-level locking, and foreign keys
+TRANSACTIONS	YES
+XA	YES
+SAVEPOINTS	YES

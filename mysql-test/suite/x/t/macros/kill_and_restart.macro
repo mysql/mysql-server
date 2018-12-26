@@ -1,0 +1,22 @@
+################################################################
+#
+# This file contains following restart-oriented macros:
+#
+# * Kill_and_restart_mysqld - SESSION_NAME MTR_EXPECT_FILE
+#
+
+## Restart server macros
+
+-->macro Kill_and_restart_mysqld	%SESSION_NAME%	%EXPECT_FILE%
+echo [Killing and restarting server associated with %SESSION_NAME%];
+quiet;
+setsession %SESSION_NAME%;
+system echo restart > %EXPECT_FILE%;
+quiet;
+
+#Kill Mysqld server
+shutdown_server 0;
+
+#Wait for the server restart
+reconnect;
+-->endmacro

@@ -1,0 +1,43 @@
+-- source include/not_group_replication_plugin.inc
+# there is no point in running this in more than one binlog format
+-- source include/have_binlog_format_row.inc
+-- source include/have_debug.inc
+-- source include/master-slave.inc
+
+#
+# BUG#44209: MASTER_CONNECT_RETRY and --master-retry-count disconnected from each other
+#
+# BUG#56416
+# The test also verifies that the 'Last_IO_Error' entry of SHOW SLAVE STATUS
+# will display the number of real retries
+#
+
+## Checks that the slave actually gives up after retrying N times, where
+## N was set with CHANGE MASTER TO master_retry_count=N
+
+-- connection slave
+-- source include/stop_slave.inc
+CHANGE MASTER TO master_retry_count=3, master_host='300.1.1.1', master_connect_retry=1;
+START SLAVE io_thread;
+
+# We wait for slave to stop and inspect the number of retries in 
+# the error message. Given that we force the slave to always report
+# the error with the err_count exported in the retries field, we should
+# get 3 retries (one per second) when the IO thread gives up, ie, 
+# when it stops.
+--let $slave_io_errno= 2005
+-- source include/wait_for_slave_io_to_stop.inc
+-- let $error= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
+if (!`SELECT "$error" LIKE "%retries: 3"`)
+{
+  -- echo Unexpected retry count value! Got: $error
+  -- echo Expected number of retries was: 3
+  -- die
+}
+
+# Clear Slave_IO_Error
+RESET SLAVE;
+CHANGE MASTER TO master_host = '127.0.0.1';
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

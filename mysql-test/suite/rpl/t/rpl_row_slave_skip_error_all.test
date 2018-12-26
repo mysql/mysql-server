@@ -1,0 +1,80 @@
+# ==== Purpose ====
+#
+# Check that slave-skip-errors skips following errors like
+# ER_SLAVE_CONVERSION_FAILED and ER_NO_SUCH_TABLE.
+#
+# ==== Implementation ====
+# On slave, set slave_skip_errors=all, so that slave skips all the errors that
+# are reported during application of row based events.
+#
+# On master, create a table t with a varchar filed of length 25. On slave
+# increase the varchar field width to 255, so that updates that are received
+# from master will fail on slave with error ER_SLAVE_CONVERSION_FAILED.
+#
+# Secondly drop the table t on slave and try to the update the table from
+# master. The updates will fail on slave with an error ER_NO_SUCH_TABLE.
+#
+# Verify that slave doesn't break inspite of these errors.
+# ==== References ====
+#
+# Bug#17653275:--SLAVE-SKIP-ERRORS WON'T SKIP MISSING DATABASE/TABLE
+################################################################################
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+# On master create table t which contains a field named 'name' with length
+# varchar(25).
+CREATE TABLE t (name VARCHAR(25) DEFAULT NULL) ENGINE=InnoDB;
+--source include/sync_slave_sql_with_master.inc
+
+# On slave alter the name field length to varchar(255).
+call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
+call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Got error 149 - .Lock deadlock; Retry transaction. during COMMIT");
+ALTER TABLE t CHANGE name name VARCHAR(255);
+
+--source include/rpl_connection_master.inc
+INSERT INTO t VALUE ('Amy');
+--echo # Sync should be successful. Slave should not stop with an error
+--echo # ER_SLAVE_CONVERSION_FAILED. It should be up and running in spite
+--echo # of errors as we have set slave_skip_error=all.
+--source include/sync_slave_sql_with_master.inc
+
+# Drop the table t on slave.
+DROP TABLE t;
+
+--source include/rpl_connection_master.inc
+UPDATE t SET name='New';
+--echo # Sync should be successful. Slave should not stop with an error
+--echo # ER_NO_SUCH_TABLE. It should be up and running in spite of errors
+--echo # as we have set slave_skip_error=all.
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Enable a debug point to simulate failure during rows event cleanup.
+--let $debug_saved= `SELECT @@GLOBAL.DEBUG`
+SET @@GLOBAL.DEBUG= 'd,simulate_rows_event_cleanup_failure';
+
+--source include/rpl_connection_master.inc
+UPDATE t SET name='Old';
+--source include/rpl_connection_slave.inc
+--echo # Since this is not an ignored error slave should stop. We only ignore the
+--echo # errors that are generated during the execution of an event. The other errors
+--echo # that are generated during commit/rollback failure, which takes place during cleanup
+--echo # cannot be ignored.
+--let $slave_sql_errno= convert_error(ER_ERROR_DURING_COMMIT);
+--source include/wait_for_slave_sql_error.inc
+--echo ==== Clean up ====
+SET @@GLOBAL.DEBUG= '$debug_saved';
+--source include/stop_slave_io.inc
+RESET MASTER;
+RESET SLAVE;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/rpl_end.inc

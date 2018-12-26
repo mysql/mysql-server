@@ -1,0 +1,77 @@
+
+#
+# 2010-01-20 OBN - Added check of I_S values after variable value change
+#
+
+SET @start_global_value = @@global.thread_cache_size;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.thread_cache_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.thread_cache_size;
+show global variables like 'thread_cache_size';
+show session variables like 'thread_cache_size';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='thread_cache_size';
+select * from performance_schema.session_variables where variable_name='thread_cache_size';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global thread_cache_size=1;
+select @@global.thread_cache_size;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='thread_cache_size';
+select * from performance_schema.session_variables where variable_name='thread_cache_size';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session thread_cache_size=1;
+#
+#check the default value #
+#
+SET @@global.thread_cache_size = DEFAULT;
+SELECT @@global.thread_cache_size ;
+
+#
+# invalid values
+#
+SET @@global.thread_cache_size=-1;
+SELECT @@global.thread_cache_size;
+SET @@global.thread_cache_size=16385;
+SELECT @@global.thread_cache_size;
+SET @@global.thread_cache_size=163856;
+SELECT @@global.thread_cache_size;
+SET @@global.thread_cache_size=-1635;
+SELECT @@global.thread_cache_size;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.thread_cache_size=' ';
+SELECT @@global.thread_cache_size;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.thread_cache_size=255.2;
+SELECT @@global.thread_cache_size;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global thread_cache_size=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global thread_cache_size=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global thread_cache_size="foo";
+
+#
+# min/max values
+#
+set global thread_cache_size=0;
+select @@global.thread_cache_size;
+set global thread_cache_size=cast(-1 as unsigned int);
+select @@global.thread_cache_size;
+
+SET @@global.thread_cache_size = @start_global_value;
+SELECT @@global.thread_cache_size;

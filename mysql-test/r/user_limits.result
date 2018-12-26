@@ -1,0 +1,98 @@
+set @orig_sql_mode= @@sql_mode;
+drop table if exists t1;
+create table t1 (i int);
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+create user mysqltest_1@localhost with max_queries_per_hour 2;
+flush user_resources;
+select * from t1;
+i
+select * from t1;
+i
+select * from t1;
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_questions' resource (current value: 2)
+select * from t1;
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_questions' resource (current value: 2)
+drop user mysqltest_1@localhost;
+create user mysqltest_1@localhost with max_updates_per_hour 2;
+flush user_resources;
+select * from t1;
+i
+select * from t1;
+i
+select * from t1;
+i
+delete from t1;
+delete from t1;
+delete from t1;
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_updates' resource (current value: 2)
+select * from t1;
+i
+delete from t1;
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_updates' resource (current value: 2)
+select * from t1;
+i
+drop user mysqltest_1@localhost;
+create user mysqltest_1@localhost with max_connections_per_hour 2;
+flush user_resources;
+select * from t1;
+i
+select * from t1;
+i
+connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_connections_per_hour' resource (current value: 2)
+select * from t1;
+i
+connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_connections_per_hour' resource (current value: 2)
+drop user mysqltest_1@localhost;
+flush privileges;
+create user mysqltest_1@localhost with max_user_connections 2;
+flush user_resources;
+select * from t1;
+i
+select * from t1;
+i
+connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_user_connections' resource (current value: 2)
+select * from t1;
+i
+alter user mysqltest_1@localhost with max_user_connections 3;
+flush user_resources;
+select * from t1;
+i
+connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_user_connections' resource (current value: 3)
+drop user mysqltest_1@localhost;
+select @@session.max_user_connections, @@global.max_user_connections;
+@@session.max_user_connections	@@global.max_user_connections
+0	0
+set session max_user_connections= 2;
+ERROR HY000: SESSION variable 'max_user_connections' is read-only. Use SET GLOBAL to assign the value
+set global max_user_connections= 2;
+select @@session.max_user_connections, @@global.max_user_connections;
+@@session.max_user_connections	@@global.max_user_connections
+2	2
+create user mysqltest_1@localhost;
+flush user_resources;
+select @@session.max_user_connections, @@global.max_user_connections;
+@@session.max_user_connections	@@global.max_user_connections
+2	2
+select * from t1;
+i
+connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 42000: User mysqltest_1 already has more than 'max_user_connections' active connections
+alter user mysqltest_1@localhost with max_user_connections 3;
+flush user_resources;
+select @@session.max_user_connections, @@global.max_user_connections;
+@@session.max_user_connections	@@global.max_user_connections
+3	2
+connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 42000: User 'mysqltest_1' has exceeded the 'max_user_connections' resource (current value: 3)
+set global max_user_connections= 0;
+drop user mysqltest_1@localhost;
+drop table t1;
+set sql_mode= @orig_sql_mode;

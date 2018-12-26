@@ -1,0 +1,179 @@
+############## mysql-test\t\super_read_only_basic.test ########################
+#                                                                             #
+# Variable Name: super_read_only                                              #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: BOOLEAN                                                          #
+# Default Value: OFF                                                          #
+#Values:      ON, OFF                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2015-05-20                                                   #
+# Author:  Todd Farmer                                                        #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable super_read_only          #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.7/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+
+######################################################################
+#                    START OF super_read_only TESTS                  #
+######################################################################
+
+
+################################################################
+# Saving initial values of super_read_only and read_only       #
+# variables in a temporary variable                            #
+################################################################
+
+SET @start_read_only = @@global.read_only;
+SET @start_super_read_only = @@global.super_read_only;
+SELECT @start_read_only, @start_super_read_only;
+
+
+--echo '#--------------------FN_DYNVARS_139_01------------------------#'
+################################################################
+#              Display the DEFAULT value of super_read_only    #
+################################################################
+
+SET @@global.super_read_only = 1;
+SET @@global.super_read_only = DEFAULT;
+SELECT @@global.super_read_only;
+
+
+--echo '#---------------------FN_DYNVARS_139_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.super_read_only = @start_super_read_only;
+SELECT @@global.super_read_only = 0;
+
+
+--echo '#--------------------FN_DYNVARS_139_03------------------------#'
+#################################################################
+#        Change the value of super_read_only to a valid value   #
+#################################################################
+
+SET @@global.super_read_only = 0;
+SELECT @@global.super_read_only;
+SET @@global.super_read_only = 1;
+SELECT @@global.super_read_only;
+SET @@global.super_read_only = TRUE;
+SELECT @@global.super_read_only;
+SET @@global.super_read_only = FALSE;
+SELECT @@global.super_read_only;
+SET @@global.super_read_only = ON;
+SELECT @@global.super_read_only;
+SET @@global.super_read_only = OFF;
+SELECT @@global.super_read_only;
+
+--echo '#--------------------FN_DYNVARS_139_04-------------------------#'
+####################################################################
+#         Change the value of super_read_only to invalid value     #
+####################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.super_read_only = -1;
+SELECT @@global.super_read_only;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.super_read_only = 4294967296;
+SELECT @@global.super_read_only;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.super_read_only = 10240022115;
+SELECT @@global.super_read_only;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.super_read_only = 10000.01;
+SELECT @@global.super_read_only;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.super_read_only = -1024;
+SELECT @@global.super_read_only;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.super_read_only = 42949672950;
+SELECT @@global.super_read_only;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.super_read_only = 'test';
+SELECT @@global.super_read_only;
+
+
+--echo '#-------------------FN_DYNVARS_139_05----------------------------#'
+####################################################################
+#       Test if accessing session super_read_only gives error      #
+####################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.super_read_only = 0;
+SELECT @@super_read_only;
+
+
+--echo '#----------------------FN_DYNVARS_139_06------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+--disable_warnings
+SELECT IF(@@global.super_read_only, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='super_read_only';
+
+SELECT IF(@@read_only, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='super_read_only';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_139_07----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@global.super_read_only = 1;
+SELECT @@super_read_only = @@global.super_read_only;
+
+
+--echo '#---------------------FN_DYNVARS_139_08----------------------#'
+#########################################################################
+#   Check if super_read_only can be accessed with and without @@ sign   #
+#########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET super_read_only = 1;
+SELECT @@super_read_only;
+--Error ER_PARSE_ERROR
+SET local.super_read_only = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.super_read_only;
+--Error ER_PARSE_ERROR
+SET global.super_read_only = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT global.super_read_only;
+--Error ER_BAD_FIELD_ERROR
+SELECT super_read_only = @@session.super_read_only;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.read_only = @start_read_only;
+SET @@global.super_read_only = @start_super_read_only;
+
+SELECT @@global.super_read_only;
+SELECT @@global.read_only;
+
+
+#######################################################################
+#              END OF super_read_only TESTS                           #
+#######################################################################
+

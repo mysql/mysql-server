@@ -1,0 +1,431 @@
+-- BACKUP SIGNAL DIAGRAM COMPLEMENT TO BACKUP AMENDMENTS 2003-07-11 --
+
+USER		 MASTER		 MASTER		SLAVE		SLAVE
+---------------------------------------------------------------------
+BACKUP_REQ      
+----------------> 
+                 UTIL_SEQUENCE
+                 --------------->
+                 <---------------
+                 DEFINE_BACKUP
+                 ------------------------------> (Local signals)
+                                                LIST_TABLES
+                                                --------------->
+                                                <---------------
+                                                FSOPEN
+                                                --------------->
+                                                GET_TABINFO
+                                                <---------------
+                                                DI_FCOUNT
+                                                --------------->
+                                                <---------------
+                                                DI_GETPRIM
+                                                --------------->
+                                                <---------------
+                <-------------------------------
+                 START_BACKUP
+                 ------------------------------>
+                                                CREATE_TRIG
+                                                -------------->
+                                                <--------------
+                 <------------------------------
+BACKUP_CONF
+<----------------
+                 WAIT_GCP
+                 -------------->
+                 <--------------
+                 BACKUP_FRAGMENT
+                 ------------------------------>
+                                                SCAN_FRAG
+                                                --------------->
+                                                <---------------
+                 <------------------------------
+                 WAIT_GCP
+                 -------------->
+                 <--------------
+                 STOP_BACKUP
+                 ------------------------------>
+                                                DROP_TRIG
+                                                -------------->
+                                                <--------------
+                 <------------------------------
+BACKUP_COMPLETE_REP
+<----------------
+                 ABORT_BACKUP
+                 ------------------------------>
+
+----------------------------------------------------------------------------
+
+USER				BACKUP-MASTER
+
+1)	BACKUP_REQ -->	
+				
+2)				To all slaves DEFINE_BACKUP_REQ
+				   This signals contains info so that all
+				   slaves can take over as master
+				   Tomas: Except triggerId info...
+
+3)				Wait for conf
+
+4)				For Each Table
+				    PREP_CREATE_TRIG_REQ
+				    Wait for Conf
+
+5)				To all slaves START_BACKUP_REQ
+				    Include trigger ids
+				Wait for conf
+
+6)				For Each Table
+				    CREATE_TRIG_REQ
+				    Wait for conf
+
+7)	<-- BACKUP_CONF *
+
+8)				Wait for GCP
+
+9)				For each table
+				   For each fragment
+				      BACKUP_FRAGMENT_REQ -->
+				      <-- BACKUP_FRAGMENT_CONF
+
+10)				Wait for GCP
+
+11)				To all slaves STOP_BACKUP_REQ
+				   This signal turns off logging
+
+12)				Wait for conf
+
+13)	<-- BACKUP_COMPLETE_REP
+
+* The start is confired after the triggers are defined. 
+  Once the signal is received by client,
+  any further changes will not be included in
+  a 'start backup snapshotstart' backup.
+----
+
+Slave: Master Died
+Wait for master take-over, max 30 sec then abort everything
+
+Slave: Master TakeOver
+
+BACKUP_STATUS_REQ --> To all nodes
+<-- BACKUP_STATUS_CONF
+
+BACKUP_STATUS_CONF
+	BACKUP_DEFINED
+	BACKUP_STARTED
+	BACKUP_FRAGMENT	
+
+Master: Slave died
+
+-- Define Backup Req --
+
+1) Get backup definition
+     Which tables (all)
+
+2) Open files
+     Write table list to CTL - file
+
+3) Get definitions for all tables in backup
+
+4) Get Fragment info
+
+5) Define Backup Conf
+
+-- Define Backup Req --
+
+-- Abort Backup Req --
+
+1) Report to others
+
+2) Stop logging
+3) Stop file(s)
+4) Stop scan
+
+5) If failure/abort
+   Remove files
+
+6) If XXX
+   Report to user
+7) Clean up records/stuff
+
+-- Abort Backup --
+
+Reasons for aborting:
+
+1a) client abort
+
+1b) slave failure
+
+1c) node failure
+
+Resources to be cleaned up:
+
+Slave responsability:
+
+2a) Close and remove files
+
+2b) Free allocated resources
+
+Master responsability:
+
+2c) Drop triggers
+
+USER		 MASTER		 MASTER		SLAVE		SLAVE
+---------------------------------------------------------------------
+                 BACKUP_ABORT_ORD:
+                 -------------------------(ALL)-->
+		 Set Master State ABORTING	Set Slave State ABORTING
+		 Drop Triggers			Close and Remove files
+						CleanupSlaveResources()
+
+                 BACKUP_ABORT_ORD:OkToClean
+                 -------------------------(ALL)-->
+
+
+						CleanupMasterResources()
+
+BACKUP_ABORT_REP      
+<--------------- 
+
+
+
+State descriptions:
+
+Master - INITIAL
+BACKUP_REQ ->
+Master - DEFINING
+DEFINE_BACKUP_CONF ->
+Master - DEFINED
+CREATE_TRIG_CONF ->
+Master - STARTED
+<--->
+Master - SCANNING
+WAIT_GCP_CONF ->
+Master - STOPPING
+(Master - CLEANING)
+--------
+Master - ABORTING
+
+
+Slave - INITIAL
+DEFINE_BACKUP_REQ ->
+Slave - DEFINING
+      - backupId
+      - tables
+DIGETPRIMCONF ->
+Slave - DEFINED
+START_BACKUP_REQ ->
+Slave - STARTED
+Slave - SCANNING
+STOP_BACKUP_REQ ->
+Slave - STOPPING
+FSCLOSECONF ->
+Slave - CLEANING
+-----
+Slave - ABORTING
+
+
+
+Testcases:
+
+2. Master failure at first START_BACKUP_CONF
+
+<masterId> error 10004
+start backup
+
+- Ok
+
+2. Master failure at first CREATE_TRIG_CONF
+
+<masterId> error 10003
+start backup
+
+- Ok
+
+2. Master failure at first ALTER_TRIG_CONF
+
+<masterId> error 10005
+start backup
+
+- Ok
+
+2. Master failure at WAIT_GCP_CONF
+
+<masterId> error 10007
+start backup
+
+- Ok
+
+2. Master failure at WAIT_GCP_CONF, nextFragment
+
+<masterId> error 10008
+start backup
+
+- Ok
+
+2. Master failure at WAIT_GCP_CONF, stopping
+
+<masterId> error 10009
+start backup
+
+- Ok
+
+2. Master failure at BACKUP_FRAGMENT_CONF
+
+<masterId> error 10010
+start backup
+
+- Ok
+
+2. Master failure at first DROP_TRIG_CONF
+
+<masterId> error 10012
+start backup
+
+- Ok
+
+1. Master failure at first STOP_BACKUP_CONF
+
+<masterId> error 10013
+start backup
+
+- Ok
+
+3. Multiple node failiure:
+
+<masterId> error 10001
+<otheId> error 10014
+start backup
+
+- Ok (note, mgmtsrvr does gets BACKUP_ABORT_REP but expects BACKUP_REF, hangs...)
+
+4. Multiple node failiure:
+
+<masterId> error 10007
+<takeover id> error 10002
+start backup
+
+- Ok
+
+
+
+      ndbrequire(!ERROR_INSERTED(10001));
+      ndbrequire(!ERROR_INSERTED(10002));
+    ndbrequire(!ERROR_INSERTED(10021));
+  ndbrequire(!ERROR_INSERTED(10003));
+  ndbrequire(!ERROR_INSERTED(10004));
+  ndbrequire(!ERROR_INSERTED(10005));
+  ndbrequire(!ERROR_INSERTED(10006));
+  ndbrequire(!ERROR_INSERTED(10007));
+    ndbrequire(!ERROR_INSERTED(10008));
+    ndbrequire(!ERROR_INSERTED(10009));
+  ndbrequire(!ERROR_INSERTED(10010));
+  ndbrequire(!ERROR_INSERTED(10011));
+  ndbrequire(!ERROR_INSERTED(10012));
+  ndbrequire(!ERROR_INSERTED(10013));
+  ndbrequire(!ERROR_INSERTED(10014));
+  ndbrequire(!ERROR_INSERTED(10015));
+  ndbrequire(!ERROR_INSERTED(10016));
+  ndbrequire(!ERROR_INSERTED(10017));
+  ndbrequire(!ERROR_INSERTED(10018));
+  ndbrequire(!ERROR_INSERTED(10019));
+  ndbrequire(!ERROR_INSERTED(10020));
+
+  if (ERROR_INSERTED(10023)) {
+  if (ERROR_INSERTED(10023)) {
+  if (ERROR_INSERTED(10024)) {
+  if (ERROR_INSERTED(10025)) {
+  if (ERROR_INSERTED(10026)) {
+  if (ERROR_INSERTED(10028)) {
+    if (ERROR_INSERTED(10027)) {
+       (ERROR_INSERTED(10022))) {
+  if (ERROR_INSERTED(10029)) {
+    if(trigPtr.p->operation->noOfBytes > 123 && ERROR_INSERTED(10030)) {
+
+----- XXX ---
+
+DEFINE_BACKUP_REF ->
+  ABORT_BACKUP_ORD(no reply) when all DEFINE_BACKUP replies has arrived
+
+START_BACKUP_REF
+  ABORT_BACKUP_ORD(no reply) when all START_BACKUP_ replies has arrived
+
+BACKUP_FRAGMENT_REF
+  ABORT_BACKUP_ORD(reply) directly to all nodes running BACKUP_FRAGMENT
+
+  When all nodes has replied BACKUP_FRAGMENT
+    ABORT_BACKUP_ORD(no reply)
+
+STOP_BACKUP_REF
+  ABORT_BACKUP_ORD(no reply) when all STOP_BACKUP_ replies has arrived
+
+NF_COMPLETE_REP
+  slave dies
+    master sends OUTSTANDING_REF to self
+    slave does nothing
+
+  master dies
+    slave elects self as master and sets only itself as participant
+
+
+DATA FORMATS
+------------
+
+Note: api-restore must be able to read all old formats.
+
+Todo: header formats
+
+4.1.x
+-----
+
+Todo
+
+5.0.x
+-----
+
+Producers: backup, Consumers: api-restore
+
+In 5.0
+  1) attrs have fixed size
+  2) external attr id (column_no) is same as internal attr id (attr_id).
+  3) no disk attributes
+
+Format:
+  Part 0: null-bit mask for all nullable rounded to word
+  Part 1: fixed + non-nullable in column_no order
+  Part 2: fixed + nullable in column_no order
+
+Part 1:
+  plain value rounded to words [value]
+
+Part 2:
+  not-null => clear null bit, data words [len_in_words attr_id value]
+  null => set only null bit in null-bit mask
+
+Note: redundancy in null-bit mask vs 2 word header
+
+5.1.x
+-----
+
+Producers: backup, Consumers: api-restore lcp-restore
+
+In 5.1
+  1) attrs can have var size, length encoded in value
+  2) column_no need not equal attr_id
+  3) disk attributes
+
+Null-bit mask (5.0) is dropped.
+Length encoded in value is not used.
+In "lcp backup" disk attributes are replaced by 64-bit DISK_REF.
+
+Format:
+  Part 1: fixed + non-nullable in column_no order
+  Part 2: other attributes
+
+Part 1:
+  plain value rounded to words [value]
+
+Part 2:
+  not-null => data words [len_in_bytes attr_id value]
+  null => not present

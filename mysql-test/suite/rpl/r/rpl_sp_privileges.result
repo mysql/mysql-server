@@ -1,0 +1,65 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CREATE TABLE t1 (f INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (20);
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE USER 'testuser'@'localhost';
+GRANT CREATE ROUTINE ON test.* TO 'testuser'@'localhost';
+GRANT REPLICATION CLIENT ON *.* TO 'testuser'@'localhost';
+FLUSH PRIVILEGES;
+CREATE DEFINER='testuser'@'localhost' PROCEDURE row_cnt()
+BEGIN
+SELECT COUNT(*) as total_rows FROM test.t1;
+END|
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Assert that mysql.procs_priv table is empty]
+[connection slave]
+include/assert.inc [Assert that mysql.procs_priv table is empty]
+[connection master]
+DROP PROCEDURE row_cnt;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE  PROCEDURE row_cnt()
+BEGIN
+SELECT COUNT(*) as total_rows FROM test.t1;
+END|
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Assert that mysql.procs_priv table is empty]
+[connection slave]
+include/assert.inc [Assert that mysql.procs_priv table is empty]
+[connection master]
+DROP PROCEDURE row_cnt;
+include/sync_slave_sql_with_master.inc
+CREATE DEFINER='testuser'@'localhost' PROCEDURE row_cnt()
+BEGIN
+SELECT COUNT(*) as total_rows FROM test.t1;
+END|
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Assert that mysql.procs_priv table has one row for testuser]
+[connection slave]
+include/assert.inc [Assert that mysql.procs_priv table has one row for testuser]
+DROP PROCEDURE row_cnt;
+include/sync_slave_sql_with_master.inc
+CREATE PROCEDURE row_cnt()
+BEGIN
+SELECT COUNT(*) as total_rows FROM test.t1;
+END|
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Assert that mysql.procs_priv table has one row for testuser]
+[connection slave]
+include/assert.inc [Assert that mysql.procs_priv table has one row for testuser]
+[connection master]
+DROP TABLE t1;
+DROP PROCEDURE row_cnt;
+DROP USER 'testuser'@'localhost';
+include/rpl_end.inc

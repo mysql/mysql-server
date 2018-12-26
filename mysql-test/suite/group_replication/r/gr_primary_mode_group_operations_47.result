@@ -1,0 +1,46 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Create a table on group
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+[connection server2]
+
+# 2. Lock tables on server2, this will block the action after insert
+#    data on the group
+LOCK TABLE t1 WRITE;
+[connection server1]
+
+# 3. Insert values and execute action
+INSERT INTO t1 VALUES (1);
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+
+# 4. Confirm group is waiting for members to set read only
+[connection server_1]
+
+# 5. Confirm server1 that is executing action, can't change value of
+#    member weight
+[connection server_1]
+SET @@GLOBAL.group_replication_member_weight= 100;
+ERROR 42000: The member weight for primary elections cannot be changed during group configuration changes.
+
+# 6. Confirm server2 can't change value of member weight, an action is
+#    being executed on the group
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= 100;
+ERROR 42000: The member weight for primary elections cannot be changed during group configuration changes.
+
+# 7. Unlock the tables and to allow action proceed
+UNLOCK TABLES;
+
+# 8. Reap action that will complete successfully
+[connection server1]
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+
+# 9. Cleanup
+DROP TABLE t1;
+include/group_replication_end.inc

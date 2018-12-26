@@ -1,0 +1,131 @@
+# ==== Purpose ====
+#
+# Verify that the positions that are reported by the applier thread during
+# STOP SLAVE are the same as that of the most recent checkpoint in case of
+# Multi Threaded Slave.
+#
+# ==== Implementation ====
+#
+# 1) Create two databases and do some DML operations on these databases.
+# 2) Sync the slave applier with master to insure that a checkpoint is done.
+# 3) Set bigger values for slave_checkpoint_period/group so that no further
+#    checkpoints are done on slave server.
+# 4) Execute few more DMLS on master and wait till they are applied on slave.
+# 5) This is to prove that applier thread has few more committed transactions
+#    after the checkpoint done at step 2.
+# 6) Execute STOP SLAVE command.
+# 7) Assert that the positions that are reported in error log are as per the
+#    latest checkpoint.
+#
+# ==== References ====
+#
+# Bug#27300658: IN MTS SQL THREAD EXITING AND INITIALIZING
+# MESSAGE WITH DIFFERENT POSITION
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/only_mts_slave_parallel_workers.inc
+--source include/master-slave.inc
+
+# Do some DMLs on master and sync with slave to make sure that one checkpoint
+# is done.
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE db1.t1 ( id INT(11) PRIMARY KEY ) ENGINE=INNODB;
+CREATE TABLE db2.t1 ( id INT(11) PRIMARY KEY ) ENGINE=INNODB;
+INSERT INTO db1.t1 VALUES (40);
+INSERT INTO db2.t1 VALUES (40);
+--source include/sync_slave_sql_with_master.inc
+
+# Save the global variables that are being modified. Set bigger values for
+# slave_checkpoint_group/period so that no further checkpoints are done
+# automatically.
+SET @save_debug = @@GLOBAL.debug;
+SET @save_slave_checkpoint_group= @@GLOBAL.slave_checkpoint_group;
+SET @save_slave_checkpoint_period= @@GLOBAL.slave_checkpoint_period;
+SET GLOBAL slave_checkpoint_group=512;
+SET GLOBAL slave_checkpoint_period=3000000;
+
+# Do some DMLs on master.
+--source include/rpl_connection_master.inc
+--let $i=30
+while ($i)
+{
+  --eval insert into db1.t1 values ($i)
+  --eval insert into db2.t1 values ($i)
+  dec $i;
+}
+--source include/sync_slave_io_with_master.inc
+
+# Wait till all the transactions are applied on slave. This will ensure that
+# at the time of STOP SLAVE few more committited transactions are present
+# above the recent LWM.
+--source include/rpl_connection_slave.inc
+--let $table=db1.t1
+--let $count=31
+--source include/wait_until_rows_count.inc
+
+--let $table=db2.t1
+--let $count=31
+--source include/wait_until_rows_count.inc
+--source include/stop_slave_io.inc
+
+# Wait for coordinator to populate worker's queues.
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= = 'Slave has read all relay log; waiting for more updates'
+--source include/wait_show_condition.inc
+
+
+# Initiate one more DML on master. While the DML is being processed by slave
+# applier it will receive a STOP SLAVE due to debug simulation. Applier will
+# execute gracefully after completing the current group in progress and print
+# appropriate exit positions.
+--source include/rpl_connection_master.inc
+BEGIN;
+INSERT INTO db1.t1 VALUES (50);
+COMMIT;
+
+--source include/rpl_connection_slave.inc
+# Debug simulation which will ensure that SLAVE STOPS as a regular exit
+# without an error. This ensures we have the same scenario as that of the bug
+# report.
+SET global debug="d,simulate_stop_when_mts_in_group";
+--source include/start_slave_io.inc
+
+--source include/wait_for_slave_sql_to_stop.inc
+--let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $exec_master_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
+
+# Assert that the positions that are reported by the applier thread during
+# STOP SLAVE are the same as that of the most recent checkpoint in case of
+# Multi Threaded Slave.
+--let $assert_text= Assert that the expected entry is in the error log during STOP SLAVE
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events
+--let $assert_select= Slave SQL thread for channel '' exiting, replication stopped in log '$exec_master_log_file' at position $exec_master_log_pos
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+SET GLOBAL debug=@save_debug;
+SET @@GLOBAL.slave_checkpoint_group= @save_slave_checkpoint_group;
+set @@GLOBAL.slave_checkpoint_period= @save_slave_checkpoint_period;
+--source include/start_slave.inc
+
+# Assert that the positions that are reported by the applier thread during
+# START SLAVE are the same as the positions reported during STOP SLAVE.
+--let $assert_text= Assert that the expected entry is in the error log during START SLAVE
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = Slave SQL thread exiting, replication stopped in log
+--let $assert_select= Slave SQL thread for channel '' initialized, starting replication in log '$exec_master_log_file' at position $exec_master_log_pos
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+DROP DATABASE db1;
+DROP DATABASE db2;
+--source include/rpl_end.inc

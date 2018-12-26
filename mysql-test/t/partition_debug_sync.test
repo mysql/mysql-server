@@ -1,0 +1,195 @@
+#--disable_abort_on_error
+#
+# Test for the partition storage engine which require DEBUG_SYNC feature to
+# Created by Mattias Jonsson
+#
+
+# Skipping the test when log-bin is enabled and binlog_format != ROW, due to
+# Bug#22689960.
+--source include/not_binlog_format_statement.inc
+--source include/not_binlog_format_mixed.inc
+
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+SET DEBUG_SYNC= 'RESET';
+--enable_warnings
+
+--echo #
+--echo # Bug#42438: Crash ha_partition::change_table_ptr
+--echo # Test when remove partitioning is done while drop table is waiting
+--echo # for the table.
+--echo # After MDL was introduced, there is no longer any race, so test is done
+--echo # by adding a small sleep to verify that the delete waits. This happens
+--echo # only until ALTER tries to upgrade its MDL lock, which ends up in MDL
+--echo # deadlock which is correctly reported.
+connect(con1, localhost, root,,);
+--echo # Con 1
+SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t1
+(a INTEGER,
+ b INTEGER NOT NULL,
+ KEY (b))
+/*!50100  PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (2),
+ PARTITION p1 VALUES LESS THAN (20),
+ PARTITION p2 VALUES LESS THAN (100),
+ PARTITION p3 VALUES LESS THAN MAXVALUE ) */;
+SET SESSION debug= "+d,sleep_before_create_table_no_lock";
+SET DEBUG_SYNC= 'alter_table_before_create_table_no_lock SIGNAL removing_partitioning WAIT_FOR waiting_for_alter';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL waiting_for_upgrade';
+--send ALTER TABLE t1 REMOVE PARTITIONING
+connection default;
+--echo # Con default
+SET DEBUG_SYNC= 'now WAIT_FOR removing_partitioning';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL waiting_for_alter';
+SET DEBUG_SYNC= 'rm_table_no_locks_before_delete_table WAIT_FOR waiting_for_upgrade';
+DROP TABLE IF EXISTS t1;
+--echo # Con 1
+connection con1;
+--error ER_LOCK_DEADLOCK
+--reap
+SET SESSION debug= "-d,sleep_before_create_table_no_lock";
+connection default;
+SET DEBUG_SYNC= 'RESET';
+connection con1;
+SET DEBUG_SYNC= 'RESET';
+
+--echo #
+--echo # Bug#42438: Crash ha_partition::change_table_ptr
+--echo # Test when remove partitioning is failing due to drop table is already
+--echo # in progress.
+--echo # After MDL was introduced, there is no longer any race, so test is done
+--echo # by adding a small sleep to verify that the alter waits.
+CREATE TABLE t2
+(a INTEGER,
+ b INTEGER NOT NULL,
+ KEY (b))
+/*!50100  PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (2),
+ PARTITION p1 VALUES LESS THAN (20),
+ PARTITION p2 VALUES LESS THAN (100),
+ PARTITION p3 VALUES LESS THAN MAXVALUE ) */;
+SET DEBUG_SYNC= 'alter_table_before_open_tables SIGNAL removing_partitions WAIT_FOR waiting_for_alter';
+SET DEBUG_SYNC= 'alter_table_before_rename_result_table WAIT_FOR delete_done';
+--send ALTER TABLE t2 REMOVE PARTITIONING
+connection default;
+--echo # Con default
+SET SESSION debug= "+d,sleep_before_no_locks_delete_table";
+SET DEBUG_SYNC= 'now WAIT_FOR removing_partitions';
+SET DEBUG_SYNC= 'rm_table_no_locks_before_delete_table SIGNAL waiting_for_alter';
+SET DEBUG_SYNC= 'rm_table_no_locks_before_binlog SIGNAL delete_done';
+DROP TABLE IF EXISTS t2;
+SET SESSION debug= "-d,sleep_before_no_locks_delete_table";
+--echo # Con 1
+connection con1;
+--error ER_NO_SUCH_TABLE
+--reap
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+--echo # Con default
+SET DEBUG_SYNC= 'RESET';
+
+--echo End of 5.1 tests
+
+--echo #
+--echo # Test Auto increment generation and release of overbooked values.
+--echo #
+CREATE TABLE t1 (a SERIAL) ENGINE = InnoDB
+PARTITION BY KEY ALGORITHM = 1 () PARTITIONS 3;
+INSERT INTO t1 VALUES (10);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release";
+send INSERT INTO t1 VALUES (3), (NULL), (4);
+
+--echo # Con1
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (5);
+--echo # Not really a bug, since no row has been assigned the number between
+--echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SET DEBUG_SYNC="now SIGNAL release";
+
+--echo # Default
+connection default;
+--echo # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
+reap;
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+
+--echo # Test with generating an auto inc value in Con1
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES (10);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release";
+send INSERT INTO t1 VALUES (3), (NULL), (4);
+
+--echo # Con1
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (NULL);
+--echo # Not really a bug, since no row has been assigned the number between
+--echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SET DEBUG_SYNC="now SIGNAL release";
+
+--echo # Default
+connection default;
+--echo # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
+reap;
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+
+--echo #
+--echo # Test with INSERT SELECT
+--echo #
+TRUNCATE TABLE t1;
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t2 VALUES (3), (NULL), (4);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release";
+send INSERT INTO t1 SELECT * FROM t2;
+
+--echo # Con1
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (5);
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SET DEBUG_SYNC="now SIGNAL release";
+
+--echo # Default
+connection default;
+--echo # Reaping: INSERT INTO t1 SELECT * FROM t2;
+reap;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+
+--echo # Test with generating an auto inc value in Con1
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES (10);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release";
+send INSERT INTO t1 SELECT * FROM t2;
+
+--echo # Con1
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (NULL);
+--echo # Not really a bug, since no row has been assigned the number between
+--echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SET DEBUG_SYNC="now SIGNAL release";
+
+--echo # Default
+connection default;
+--echo # Reaping: INSERT INTO t1 SELECT * FROM t2;
+reap;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+
+disconnect con1;
+DROP TABLE t1, t2;

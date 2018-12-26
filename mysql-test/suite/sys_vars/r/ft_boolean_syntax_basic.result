@@ -1,0 +1,99 @@
+SET @global_start_value = @@global.ft_boolean_syntax;
+SELECT @global_start_value;
+@global_start_value
++ -><()~*:""&|
+'#--------------------FN_DYNVARS_033_01------------------#'
+SELECT ft_boolean_syntax;
+ERROR 42S22: Unknown column 'ft_boolean_syntax' in 'field list'
+SELECT @@ft_boolean_syntax;
+@@ft_boolean_syntax
++ -><()~*:""&|
+SET @@global.ft_boolean_syntax='+ -><()~*:""&|';
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
++ -><()~*:""&|
+SET global ft_boolean_syntax='$ -><()`*:""&|';
+SELECT global ft_boolean_syntax;
+ERROR 42S22: Unknown column 'global' in 'field list'
+'#--------------------FN_DYNVARS_033_02-------------------------#'
+SET @@global.ft_boolean_syntax = '# -><()!*:""&|';
+SET @@global.ft_boolean_syntax = DEFAULT;
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
++ -><()~*:""&|
+'#--------------------FN_DYNVARS_033_03-------------------------#'
+SET @@session.ft_boolean_syntax = '# -><()!*:""&|';
+ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@ft_boolean_syntax = '# -><()!*:""&|';
+ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.ft_boolean_syntax;
+ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable
+SELECT @@local.ft_boolean_syntax;
+ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable
+'#--------------------FN_DYNVARS_033_04-------------------------#'
+SET @@global.ft_boolean_syntax='+ -><()~*:""&|';
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
++ -><()~*:""&|
+SET @@global.ft_boolean_syntax=' +-><()~*:""&|';
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
+ +-><()~*:""&|
+SET @@global.ft_boolean_syntax=' -+()<>~*:``&|';
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
+ -+()<>~*:``&|
+SET @@global.ft_boolean_syntax='+ -><()~*:""@!';
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
++ -><()~*:""@!
+SET @@global.ft_boolean_syntax=" +-><()~*:''&|";
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
+ +-><()~*:''&|
+SET @@global.ft_boolean_syntax=' ~/!@#$%^&*()-';
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
+ ~/!@#$%^&*()-
+'#--------------------FN_DYNVARS_033_05-------------------------#'
+SET @@global.ft_boolean_syntax = '+-> <()~*:""&|';
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of '+-> <()~*:""&|'
+SET @@global.ft_boolean_syntax = '0';
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of '0'
+SET @@global.ft_boolean_syntax = '1 -><()~*:11&|';
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of '1 -><()~*:11&|'
+SET @@global.ft_boolean_syntax = '# -><()~*:11&1';
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of '# -><()~*:11&1'
+SET @@global.ft_boolean_syntax = '1234567890ABCD';
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of '1234567890ABCD'
+SET @@global.ft_boolean_syntax = -1;
+ERROR 42000: Incorrect argument type to variable 'ft_boolean_syntax'
+SET @@global.ft_boolean_syntax = '+-> <((~*:".&|';
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of '+-> <((~*:".&|'
+SET @@global.ft_boolean_syntax = ' ';
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of ' '
+SET @@global.ft_boolean_syntax = ON;
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of 'ON'
+SET @@global.ft_boolean_syntax = true;
+ERROR 42000: Incorrect argument type to variable 'ft_boolean_syntax'
+SET @@global.ft_boolean_syntax = + -><()~*:""&|;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-><()~*:""&|' at line 1
+SET @@global.ft_boolean_syntax = ENABLE;
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of 'ENABLE'
+SET @@global.ft_boolean_syntax = 'IGNORE';
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of 'IGNORE'
+'#--------------------FN_DYNVARS_033_06-------------------------#'
+SELECT @@global.ft_boolean_syntax = (SELECT VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='ft_boolean_syntax') AS res;
+res
+1
+'#--------------------FN_DYNVARS_033_07-------------------------#'
+SELECT @global_start_value;
+@global_start_value
++ -><()~*:""&|
+SET @@global.ft_boolean_syntax = @global_start_value;
+SET @@global.ft_boolean_syntax = DEFAULT;
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
++ -><()~*:""&|

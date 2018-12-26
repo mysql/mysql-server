@@ -1,0 +1,170 @@
+--character_set ujis
+--disable_warnings
+drop table if exists `£Τ£±`;
+drop table if exists `£Τ£²`;
+drop table if exists `£Τ£³`;
+drop table if exists `£Τ£΄`;
+drop table if exists `£Τ£µ`;
+drop table if exists `£Τ£¶`;
+drop table if exists `£Τ£·`;
+drop table if exists `£Τ£Έ`;
+drop table if exists `£Τ£Ή`;
+--enable_warnings
+
+#
+# Test TRIM() function with Japanese characters ujis encoding
+#
+
+SET NAMES ujis;
+SET character_set_database = ujis;
+
+CREATE TABLE `£Τ£±` (`£Γ£±` char(12), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(12), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£³` (`£Γ£±` char(12), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£΄` (`£Γ£±` char(12), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£µ` (`£Γ£±` char(12), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£¶` (`£Γ£±` char(12), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(12), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(12), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(12), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+
+# Nothing to trim
+INSERT INTO `£Τ£±` VALUES ('±²³΄µ');
+# Test data for TRIM(TRAILING [remstr] FROM str)
+INSERT INTO `£Τ£±` VALUES ('±²³΄µ¶');
+INSERT INTO `£Τ£±` VALUES ('±²³΄µ¶¶');
+INSERT INTO `£Τ£±` VALUES ('±²³΄µ¶¶¶');
+# Test data for TRIM(LEADING [remstr] FROM str)
+INSERT INTO `£Τ£±` VALUES ('¶±²³΄µ');
+INSERT INTO `£Τ£±` VALUES ('¶¶±²³΄µ');
+INSERT INTO `£Τ£±` VALUES ('¶¶¶±²³΄µ');
+# Test data for TRIM(BOTH [remstr] FROM str)
+INSERT INTO `£Τ£±` VALUES ('¶¶¶±²³΄µ¶¶¶');
+# Test data for TRIM without [remstr] (remove spaces) 
+INSERT INTO `£Τ£±` VALUES ('   ±²³΄µ   ');
+INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª¤«');
+INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª¤«¤«');
+INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª¤«¤«¤«');
+INSERT INTO `£Τ£²` VALUES ('¤«¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£²` VALUES ('¤«¤«¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£²` VALUES ('¤«¤«¤«¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£²` VALUES ('¤«¤«¤«¤Ά¤¤¤¦¤¨¤ª¤«¤«¤«');
+INSERT INTO `£Τ£²` VALUES ('   ¤Ά¤¤¤¦¤¨¤ª   ');
+INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ');
+INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ°΅');
+INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ°΅°΅');
+INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ°΅°΅°΅');
+INSERT INTO `£Τ£³` VALUES ('°΅νάνένήνίνΰ');
+INSERT INTO `£Τ£³` VALUES ('°΅°΅νάνένήνίνΰ');
+INSERT INTO `£Τ£³` VALUES ('°΅°΅°΅νάνένήνίνΰ');
+INSERT INTO `£Τ£³` VALUES ('°΅°΅°΅νάνένήνίνΰ°΅°΅°΅');
+INSERT INTO `£Τ£³` VALUES ('   νάνένήνίνΰ   ');
+
+INSERT INTO `£Τ£΄` VALUES ('±²³΄µ');
+INSERT INTO `£Τ£΄` VALUES ('±²³΄µ¶');
+INSERT INTO `£Τ£΄` VALUES ('±²³΄µ¶¶');
+INSERT INTO `£Τ£΄` VALUES ('±²³΄µ¶¶¶');
+INSERT INTO `£Τ£΄` VALUES ('¶±²³΄µ');
+INSERT INTO `£Τ£΄` VALUES ('¶¶±²³΄µ');
+INSERT INTO `£Τ£΄` VALUES ('¶¶¶±²³΄µ');
+INSERT INTO `£Τ£΄` VALUES ('¶¶¶±²³΄µ¶¶¶');
+INSERT INTO `£Τ£΄` VALUES ('   ±²³΄µ   ');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά¤¤¤¦¤¨¤ª¤«');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά¤¤¤¦¤¨¤ª¤«¤«');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά¤¤¤¦¤¨¤ª¤«¤«¤«');
+INSERT INTO `£Τ£µ` VALUES ('¤«¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£µ` VALUES ('¤«¤«¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£µ` VALUES ('¤«¤«¤«¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£µ` VALUES ('¤«¤«¤«¤Ά¤¤¤¦¤¨¤ª¤«¤«¤«');
+INSERT INTO `£Τ£µ` VALUES ('   ¤Ά¤¤¤¦¤¨¤ª   ');
+INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ');
+INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ°΅');
+INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ°΅°΅');
+INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ°΅°΅°΅');
+INSERT INTO `£Τ£¶` VALUES ('°΅νάνένήνίνΰ');
+INSERT INTO `£Τ£¶` VALUES ('°΅°΅νάνένήνίνΰ');
+INSERT INTO `£Τ£¶` VALUES ('°΅°΅°΅νάνένήνίνΰ');
+INSERT INTO `£Τ£¶` VALUES ('°΅°΅°΅νάνένήνίνΰ°΅°΅°΅');
+INSERT INTO `£Τ£¶` VALUES ('   νάνένήνίνΰ   ');
+
+INSERT INTO `£Τ£·` VALUES ('±²³΄µ');
+INSERT INTO `£Τ£·` VALUES ('±²³΄µ¶');
+INSERT INTO `£Τ£·` VALUES ('±²³΄µ¶¶');
+INSERT INTO `£Τ£·` VALUES ('±²³΄µ¶¶¶');
+INSERT INTO `£Τ£·` VALUES ('¶±²³΄µ');
+INSERT INTO `£Τ£·` VALUES ('¶¶±²³΄µ');
+INSERT INTO `£Τ£·` VALUES ('¶¶¶±²³΄µ');
+INSERT INTO `£Τ£·` VALUES ('¶¶¶±²³΄µ¶¶¶');
+INSERT INTO `£Τ£·` VALUES ('   ±²³΄µ   ');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª¤«');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª¤«¤«');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª¤«¤«¤«');
+INSERT INTO `£Τ£Έ` VALUES ('¤«¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£Έ` VALUES ('¤«¤«¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£Έ` VALUES ('¤«¤«¤«¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£Έ` VALUES ('¤«¤«¤«¤Ά¤¤¤¦¤¨¤ª¤«¤«¤«');
+INSERT INTO `£Τ£Έ` VALUES ('   ¤Ά¤¤¤¦¤¨¤ª   ');
+INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ');
+INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ°΅');
+INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ°΅°΅');
+INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ°΅°΅°΅');
+INSERT INTO `£Τ£Ή` VALUES ('°΅νάνένήνίνΰ');
+INSERT INTO `£Τ£Ή` VALUES ('°΅°΅νάνένήνίνΰ');
+INSERT INTO `£Τ£Ή` VALUES ('°΅°΅°΅νάνένήνίνΰ');
+INSERT INTO `£Τ£Ή` VALUES ('°΅°΅°΅νάνένήνίνΰ°΅°΅°΅');
+INSERT INTO `£Τ£Ή` VALUES ('   νάνένήνίνΰ   ');
+
+#InnoDB
+SELECT `£Γ£±`,TRIM(TRAILING '¶' FROM `£Γ£±`) FROM `£Τ£±`;
+SELECT `£Γ£±`,TRIM(LEADING '¶' FROM `£Γ£±`) FROM `£Τ£±`;
+SELECT `£Γ£±`,TRIM(BOTH '¶' FROM `£Γ£±`) FROM `£Τ£±`;
+SELECT `£Γ£±`,TRIM(`£Γ£±`) FROM `£Τ£±`;
+SELECT `£Γ£±`,TRIM(TRAILING '¤«' FROM `£Γ£±`) FROM `£Τ£²`;
+SELECT `£Γ£±`,TRIM(LEADING '¤«' FROM `£Γ£±`) FROM `£Τ£²`;
+SELECT `£Γ£±`,TRIM(BOTH '¤«' FROM `£Γ£±`) FROM `£Τ£²`;
+SELECT `£Γ£±`,TRIM(`£Γ£±`) FROM `£Τ£²`;
+SELECT `£Γ£±`,TRIM(TRAILING '°΅'FROM `£Γ£±`) FROM `£Τ£³`;
+SELECT `£Γ£±`,TRIM(LEADING '°΅' FROM `£Γ£±`) FROM `£Τ£³`;
+SELECT `£Γ£±`,TRIM(BOTH '°΅' FROM `£Γ£±`) FROM `£Τ£³`;
+SELECT `£Γ£±`,TRIM(`£Γ£±`) FROM `£Τ£³`;
+
+#MyISAM
+SELECT `£Γ£±`,TRIM(TRAILING '¶' FROM `£Γ£±`) FROM `£Τ£΄`;
+SELECT `£Γ£±`,TRIM(LEADING '¶' FROM `£Γ£±`) FROM `£Τ£΄`;
+SELECT `£Γ£±`,TRIM(BOTH '¶' FROM `£Γ£±`) FROM `£Τ£΄`;
+SELECT `£Γ£±`,TRIM(`£Γ£±`) FROM `£Τ£΄`;
+SELECT `£Γ£±`,TRIM(TRAILING '¤«' FROM `£Γ£±`) FROM `£Τ£µ`;
+SELECT `£Γ£±`,TRIM(LEADING '¤«' FROM `£Γ£±`) FROM `£Τ£µ`;
+SELECT `£Γ£±`,TRIM(BOTH '¤«' FROM `£Γ£±`) FROM `£Τ£µ`;
+SELECT `£Γ£±`,TRIM(`£Γ£±`) FROM `£Τ£µ`;
+SELECT `£Γ£±`,TRIM(TRAILING '°΅' FROM `£Γ£±`) FROM `£Τ£¶`;
+SELECT `£Γ£±`,TRIM(LEADING '°΅' FROM `£Γ£±`) FROM `£Τ£¶`;
+SELECT `£Γ£±`,TRIM(BOTH '°΅' FROM `£Γ£±`) FROM `£Τ£¶`;
+SELECT `£Γ£±`,TRIM(`£Γ£±`) FROM `£Τ£¶`;
+
+#MEMORY
+SELECT `£Γ£±`,TRIM(TRAILING '¶' FROM `£Γ£±`) FROM `£Τ£·`;
+SELECT `£Γ£±`,TRIM(LEADING '¶' FROM `£Γ£±`) FROM `£Τ£·`;
+SELECT `£Γ£±`,TRIM(BOTH '¶' FROM `£Γ£±`) FROM `£Τ£·`;
+SELECT `£Γ£±`,TRIM(`£Γ£±`) FROM `£Τ£·`;
+SELECT `£Γ£±`,TRIM(TRAILING '¤«' FROM `£Γ£±`) FROM `£Τ£Έ`;
+SELECT `£Γ£±`,TRIM(LEADING '¤«' FROM `£Γ£±`) FROM `£Τ£Έ`;
+SELECT `£Γ£±`,TRIM(BOTH '¤«' FROM `£Γ£±`) FROM `£Τ£Έ`;
+SELECT `£Γ£±`,TRIM(`£Γ£±`) FROM `£Τ£Έ`;
+SELECT `£Γ£±`,TRIM(TRAILING '°΅' FROM `£Γ£±`) FROM `£Τ£Ή`;
+SELECT `£Γ£±`,TRIM(LEADING '°΅' FROM `£Γ£±`) FROM `£Τ£Ή`;
+SELECT `£Γ£±`,TRIM(BOTH '°΅' FROM `£Γ£±`) FROM `£Τ£Ή`;
+SELECT `£Γ£±`,TRIM(`£Γ£±`) FROM `£Τ£Ή`;
+
+DROP TABLE `£Τ£±`;
+DROP TABLE `£Τ£²`;
+DROP TABLE `£Τ£³`;
+DROP TABLE `£Τ£΄`;
+DROP TABLE `£Τ£µ`;
+DROP TABLE `£Τ£¶`;
+DROP TABLE `£Τ£·`;
+DROP TABLE `£Τ£Έ`;
+DROP TABLE `£Τ£Ή`;

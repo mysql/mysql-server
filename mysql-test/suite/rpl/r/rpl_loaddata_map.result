@@ -1,0 +1,35 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Create a big file ====
+==== Load our big file into a table ====
+create table t2 (id int not null primary key auto_increment);
+select @@session.read_buffer_size - @@session.max_allowed_packet > 0 ;
+@@session.read_buffer_size - @@session.max_allowed_packet > 0
+1
+load data infile 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
+select count(*) from t2 /* 5 000 */;
+count(*)
+5000
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; create table t2 (id int not null primary key auto_increment)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Append_block	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Append_block	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' INTO TABLE `t2` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`id`) ;file_id=#
+master-bin.000001	#	Query	#	#	COMMIT
+==== Verify results on slave ====
+[on slave]
+include/sync_slave_sql_with_master.inc
+select count(*) from t2 /* 5 000 */;
+count(*)
+5000
+==== Clean up ====
+[on master]
+drop table t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

@@ -1,0 +1,44 @@
+# This tests the functionality of the fulltext search of Myisam engine
+# The implementation of the fulltext search is different in InnoDB engine
+# All tests are required to run with Myisam.
+# Hence MTR starts mysqld with MyISAM as default
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+#
+# Fulltext configurable parameters
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# Save ft_boolean_syntax variable
+let $saved_ft_boolean_syntax=`select @@global.ft_boolean_syntax`;
+
+show variables like "ft\_%";
+
+create table t1 (b text not null);
+insert t1 values ('aaaaaa bbbbbb cccccc');
+insert t1 values ('bbbbbb cccccc');
+insert t1 values ('aaaaaa cccccc');
+select * from t1 where match b against ('+aaaaaa bbbbbb' in boolean mode);
+-- error 1229
+set ft_boolean_syntax=' +-><()~*:""&|';
+set global ft_boolean_syntax=' +-><()~*:""&|';
+select * from t1 where match b against ('+aaaaaa bbbbbb' in boolean mode);
+set global ft_boolean_syntax='@ -><()~*:""&|';
+select * from t1 where match b against ('+aaaaaa bbbbbb' in boolean mode);
+select * from t1 where match b against ('+aaaaaa @bbbbbb' in boolean mode);
+-- error 1231
+set global ft_boolean_syntax='@ -><()~*:""@|';
+-- error 1231
+set global ft_boolean_syntax='+ -><()~*:""@!|';
+drop table t1;
+
+# Restore ft_boolean_syntax variable
+--disable_query_log
+eval set global ft_boolean_syntax='$saved_ft_boolean_syntax';
+--enable_query_log
+
+# End of 4.1 tests

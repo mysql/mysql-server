@@ -1,0 +1,8 @@
+Hi!
+
+This is an example of a daemon plugin. These are generic plugins that
+only hook into the startup and shutdown of the database.
+
+Cheers,
+  -Brian
+    Seattle, WA

@@ -1,0 +1,155 @@
+#################
+# INITIAL STATE #
+#################
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+show create table performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+select * from performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+###########
+# INSTALL #
+###########
+INSTALL PLUGIN pfs_example_plugin_employee SONAME 'pfs_example_plugin_employee.xxx';
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	VERSION	TABLE_COMMENT
+performance_schema	pfs_example_employee_name	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_employee_salary	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine_by_employee_by_type	PERFORMANCE_SCHEMA	10	
+describe performance_schema.pfs_example_employee_name;
+Field	Type	Null	Key	Default	Extra
+EMPLOYEE_NUMBER	int(11)	NO	PRI	NULL	
+FIRST_NAME	char(20)	YES	MUL	NULL	
+LAST_NAME	varchar(20)	YES		NULL	
+show create table performance_schema.pfs_example_employee_name;
+Table	Create Table
+pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
+  `EMPLOYEE_NUMBER` int(11) NOT NULL,
+  `FIRST_NAME` char(20) DEFAULT NULL,
+  `LAST_NAME` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`EMPLOYEE_NUMBER`),
+  KEY `FIRST_NAME` (`FIRST_NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+##############
+# UN INSTALL #
+##############
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+show create table performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+select * from performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+insert into performance_schema.pfs_example_employee_name
+values (1, "First", "Last");
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'pfs_example_employee_name'
+update performance_schema.pfs_example_employee_name
+set employee_number = 2 where employee_number = 1;
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'pfs_example_employee_name'
+delete from performance_schema.pfs_example_employee_name;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'pfs_example_employee_name'
+##########################################
+# SERVER RESTART, AFTER PLUGIN UNINSTALL #
+##########################################
+# restart
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+show create table performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+select * from performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+###########
+# INSTALL #
+###########
+INSTALL PLUGIN pfs_example_plugin_employee SONAME 'pfs_example_plugin_employee.xxx';
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	VERSION	TABLE_COMMENT
+performance_schema	pfs_example_employee_name	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_employee_salary	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine_by_employee_by_type	PERFORMANCE_SCHEMA	10	
+describe performance_schema.pfs_example_employee_name;
+Field	Type	Null	Key	Default	Extra
+EMPLOYEE_NUMBER	int(11)	NO	PRI	NULL	
+FIRST_NAME	char(20)	YES	MUL	NULL	
+LAST_NAME	varchar(20)	YES		NULL	
+show create table performance_schema.pfs_example_employee_name;
+Table	Create Table
+pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
+  `EMPLOYEE_NUMBER` int(11) NOT NULL,
+  `FIRST_NAME` char(20) DEFAULT NULL,
+  `LAST_NAME` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`EMPLOYEE_NUMBER`),
+  KEY `FIRST_NAME` (`FIRST_NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+############################################
+# SERVER RESTART, WITHOUT PLUGIN UNINSTALL #
+############################################
+# restart
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	VERSION	TABLE_COMMENT
+performance_schema	pfs_example_employee_name	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_employee_salary	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine_by_employee_by_type	PERFORMANCE_SCHEMA	10	
+describe performance_schema.pfs_example_employee_name;
+Field	Type	Null	Key	Default	Extra
+EMPLOYEE_NUMBER	int(11)	NO	PRI	NULL	
+FIRST_NAME	char(20)	YES	MUL	NULL	
+LAST_NAME	varchar(20)	YES		NULL	
+show create table performance_schema.pfs_example_employee_name;
+Table	Create Table
+pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
+  `EMPLOYEE_NUMBER` int(11) NOT NULL,
+  `FIRST_NAME` char(20) DEFAULT NULL,
+  `LAST_NAME` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`EMPLOYEE_NUMBER`),
+  KEY `FIRST_NAME` (`FIRST_NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+###########
+# CLEANUP #
+###########
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+show create table performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+select * from performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist

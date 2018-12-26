@@ -1,0 +1,456 @@
+###############################################################################
+#                                                                             #
+# ST_IsValid checks whether a geometry is valid.                              #
+# The validity is defined by OGC standard documents.                          #
+#                                                                             #
+# Creation Date: 2014-12-01                                                   #
+# Author : Pavan Naik                                                         #
+#                                                                             #
+###############################################################################
+
+
+############################################################################################
+# Creating the spatial objects                                                             #
+############################################################################################
+
+--echo # Creating the spatial Geometry object
+USE test;
+
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+
+############################################################################################
+# Inserting the values specific to the spatial objects                                     #
+############################################################################################
+
+# Geometric elements constructing a star and some of its elememts as base
+SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center= 'POINT(15 10)';
+SET @star_top= 'POINT(15 25)';
+SET @star_bottom_left= 'POINT(5 0)';
+SET @star_bottom_right= 'POINT(25 0)';
+SET @star_bottom_points= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+
+--echo # INSERT base star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (100,ST_GEOMFROMTEXT(@star)),
+ (101,ST_GEOMFROMTEXT(@star_elem_vertical)),
+ (102,ST_GEOMFROMTEXT(@star_elem_horizontal)),
+ (103,ST_GEOMFROMTEXT(@star_of_elems)),
+ (104,ST_GEOMFROMTEXT(@star_top)),
+ (105,ST_GEOMFROMTEXT(@star_center)),
+ (106,ST_GEOMFROMTEXT(@star_bottom_left)),
+ (107,ST_GEOMFROMTEXT(@star_bottom_right)),
+ (108,ST_GEOMFROMTEXT(@star_bottom_points)),
+ (109,ST_GEOMFROMTEXT(@star_all_points)),
+ (110,ST_GEOMFROMTEXT(@star_line_horizontal)),
+ (111,ST_GEOMFROMTEXT(@star_line_vertical)),
+ (112,ST_GEOMFROMTEXT(@star_top_to_center)),
+ (113,ST_GEOMFROMTEXT(@star_lines_near_horizontal)),
+ (114,ST_GEOMFROMTEXT(@star_lines_near_vertical)),
+ (115,ST_GEOMFROMTEXT(@star_collection_elems)),
+ (116,ST_GEOMFROMTEXT(@star_collection_multilinestr));
+--enable_warnings
+
+--echo # Checking the integrity of the above create/insert statements
+
+--echo # 17 rows.
+SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
+
+--echo #####################################################################################
+--echo # ST_ISVALID(geometry)
+--echo #####################################################################################
+
+--echo #====================================================================================
+--echo # point
+--echo #====================================================================================
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_top));
+
+SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=105;
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(2.34 -2.34)'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(1e308 -1e308)'));
+
+--echo #====================================================================================
+--echo # multipoint
+--echo #====================================================================================
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_bottom_points));
+
+SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=108;
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)'));
+
+--echo #====================================================================================
+--echo # linestring
+--echo #====================================================================================
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_top_to_center));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_line_horizontal));
+
+SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=110;
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(0 0)'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0,0.0 0)'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)'));
+
+--echo #====================================================================================
+--echo # multilinestring
+--echo #====================================================================================
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=114;
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,1 1,2 2),(3 3))'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))'));
+
+--echo #====================================================================================
+--echo # polygon
+--echo #====================================================================================
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=100;
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,0 0))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,-10 0,-10 -10,0 -10,0 0))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(0 0,0 10,10 10,10 0,0 0))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4,4 4),(0 0,0 10,10 10,10 0,0 0))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4,4 4),(8 8,8 10,10 10,10 8,8 8))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,6 4,6 6,4 6,4 4),(4 4,4 6,6 6,6 4,4 4))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,6 4,6 6,4 6,4 4),(6 6,6 8,8 8,8 6,6 6))'));
+
+--echo #====================================================================================
+--echo # multipolygon
+--echo #====================================================================================
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=103;
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 1 1, 1 1, 1 1, 1 1)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0,0 10)),((0 0,10 10,10 0,0 0)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,0 0)),((10 10,10 15,15 15,10 10)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((4 4,4 6,6 6,6 4,4 4,4 4)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4,4 4),(0 0,0 10,10 10,10 0,0 0)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4,4 4),(8 8,8 10,10 10,10 8,8 8)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4,4 4)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0,0 0)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,4 6,6 6,4 4)))'));
+
+--echo #====================================================================================
+--echo # geometrycollection
+--echo #====================================================================================
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_collection_multilinestr));
+
+SELECT ST_ISVALID(g) FROM gis_geometrycollection WHERE fid=115;
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0),POINT(10 10))'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0),GEOMETRYCOLLECTION())'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,1 1,2 2,0 0)),GEOMETRYCOLLECTION())'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),POLYGON((0 0,10 10,100 100,0 0)))'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0),POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
+                                                     'MULTIPOINT(0 0,10 10),'
+                                                     'LINESTRING(1 1,2 2,3 3),'
+                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION('
+                                                           'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)))))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                     'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((10 10,10 15,15 15,15 10,10 10))))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                        'MULTIPOINT(0 0,10 10)),'
+                                                     'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                        'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                        'MULTIPOINT(0 0,10 10)),'
+                                                     'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                        'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
+                                                     'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                        'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((10 10,10 15,15 15,15 10,10 10)))))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                        'MULTIPOINT(0 0,10 10)),'
+                                                     'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                        'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
+                                                     'GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
+                                                     'LINESTRING(1 1,2 2,3 3),'
+                                                     'POLYGON((0 0,0 10,10 10,10 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                     'MULTIPOINT(0 0,10 10),'
+                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)),'
+                                                     'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((10 10,10 15,15 15,15 10,10 10))))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((-7 -2,-9 3,-2 -8),(3 7,5 6,-7 -9,7 -1,-2 -8,2 9,4 6,-5 -5)),'
+                                                     'MULTILINESTRING((2 -2,2 -3,2 -1,-10 7,1 -2,-2 0,-9 -2,10 5,-7 -8,-9 -1,1 -1,-2 3,5 -9,-8 -9,-10 -9)),'
+                                                     'MULTIPOINT(-7 -5,6 9,7 4))'));
+
+--echo #####################################################################################
+--echo # Invalid function calls
+--echo #####################################################################################
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_ISVALID();
+
+SELECT ST_ISVALID(NULL);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT()'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING()'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON(())'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOINT()'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTILINESTRING(())'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('MULTIPOLYGON((()))'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(a 0)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(! 0)'));
+
+--error ER_PARSE_ERROR
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT('!' 0)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(12,34 0)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'));
+
+--error ER_PARSE_ERROR
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'));
+
+--error ER_PARSE_ERROR
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'));
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_lines_near_vertical,4236));
+
+--error ER_SRS_NOT_FOUND
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_of_elems,4294967297));
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
+
+# This is an example of a working wkb, first the SRID, specification it is
+# littleendian, and is a point with coordinates (0,0)
+SELECT ST_ISVALID( x'e6100000010100000000000000000000000000000000000000');
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID( x'e6100000020000000100000000000000000000000000000000');
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID( x'00000000000001000001010000000000000000000000000000');
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID( x'e6100000060100000000000000000000000000000000000000');
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(0x000000000600000001000000000200000002000000);
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ISVALID(0x000000000200000001000000050000000000000000);
+
+--error ER_SRS_NOT_FOUND
+SELECT ST_ISVALID(0x010300000002000000010300000002000000050000);
+
+--error ER_SRS_NOT_FOUND
+SELECT ST_ISVALID(0x010400000002000000010100000000000000000000);
+
+--echo # Clean up
+DROP TABLE gis_geometrycollection;
+
+--echo ########################################################################
+--echo # BUG#21927394 ST_ISVALID() RETURNS FALSE WITH VALID POLYGON GEOMETRY
+--echo ########################################################################
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((72.8714768817168
+-167.0048853643874,9274.40641550926 3433.5957427942167,-58.09039811390054
+187.50989457746405,-81.09039811390053 179.50989457746405,-207.99999999999997
+135.36742435621204,-208 1,-208 0,-208 -276.9111154485375,49.8714768817168
+-176.0048853643874,72.8714768817168 -167.0048853643874))'));
+
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POLYGON((-200 0,-207.99999999999997
+135.36742435621204,-208 1,-208 0,-208 -276.9111154485375,-200 0))'));
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+
+--echo # Projected SRS (should pass)
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+
+--echo # Geographic SRS (shall pass)
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+
+--echo # Verify that ST_IsValid() returns NULL if at least one of its parameters
+--echo # is NULL
+SELECT ST_ISVALID(NULL);
+--echo # Verify that ST_IsValid() doesn't return NULL if its arguments are not
+--echo # NULL
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)',4053));
+--echo # Verify that ST_IsValid() returns ER_GIS_INVALID_DATA error if geometry
+--echo # argument is not syntactically well-formed geometry
+--error ER_GIS_INVALID_DATA
+DO ST_ISVALID(X'FF');
+--echo # Verify that ST_IsValid() returns 1 with empty geometry input
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTY','4326'));
+--echo # Verify that ST_IsValid() returns 1 if the input is geometrically valid
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POINT(1 1)',4053));
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POINT(1 1)'));
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POINT(1 1)',4326));
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,0.75 0.25, 0.25 0.75, 0.25 0.25))',4053));
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,0.75 0.25, 0.25 0.75, 0.25 0.25))',4326));
+--echo # Verify that ST_IsValid() returns 0 if input is geometrically invalid
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4053));
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4326));
+--echo # Verify that ST_IsValid() returns
+--echo # ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE error with a geometry in a
+--echo # geographic SRS and a longitude value is not in the range (-180,180]
+--error ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE
+DO ST_ISVALID(X'D50F0000010100000000000000000070400000000000000000');
+--echo # Verify that ST_IsValid() returns
+--echo # ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE error with a geometry in
+--echo # geographic SRS and a latitude value is not in the range [-90,90]
+--error ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE
+DO ST_ISVALID(X'D50F0000010100000000000000000000000000000000008040');
+--echo # If a multipoint is made up of valid points it should be valid.
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('multipoint((0 0),(1 1))',4053 )) AS RESULT;
+SELECT ST_IsValid(ST_GeomFromText('MULTIPOLYGON(((9 11,14 84,43 54,9 11)),((-144
+-58,-142 -6,-4 -70,-144 -58)))', '4326', 'axis-order=long-lat')) AS RESULT;
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,0.75 0.25, 0.25 0.75, 0.25 0.25)),POINT(1 1))',4053)) as result;
+SELECT ST_IsValid(ST_GeomFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((9 11,14 84,43 54,9 11)),((-144
+-58,-142 -6,-4 -70,-144 -58))), point( 1 1))', '4326', 'axis-order=long-lat')) AS RESULT;

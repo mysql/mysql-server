@@ -1,0 +1,54 @@
+## Drop view
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/create_view.tmp
+--write_file $xtest_file
+-->quiet
+
+-->macro Drop_view	%OPTION%  %ERROR%
+Mysqlx.Crud.DropView {
+  collection { name: "xview" schema: "xtest" }
+  %OPTION%
+}
+-->recvuntil %ERROR%
+-->endmacro
+
+
+-->title -Drop view (success)
+-->callmacro Drop_view	#	Mysqlx.Ok
+
+
+-->title -Drop view (error: view removed)
+-->callmacro Drop_view	#	Mysqlx.Error
+
+
+-->title -Drop view (if exists)
+-->callmacro Drop_view	if_exists: true	Mysqlx.Ok
+
+
+-->stmtsql SHOW STATUS LIKE 'Mysqlx_crud_drop_view'
+-->recvresult
+
+EOF
+
+
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (first INT, second JSON);
+CREATE VIEW xtest.xview AS SELECT first FROM xtest.xtable;
+SHOW CREATE VIEW xtest.xview;
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+--let $assert_text= Global status of 'Mysqlx_crud_drop_view'
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE \'Mysqlx_crud_drop_view\', Value, 1] = 3
+--source include/assert.inc
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

@@ -1,0 +1,26 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+# Expect classes
+show global variables like "performance_schema_max_thread_classes";
+
+# Not observable yet
+# select count(*) > 0 from performance_schema.setup_instruments
+#   where name like "thread/%";
+
+# Expect no class lost
+show global status like "performance_schema_thread_classes_lost";
+
+# Expect no instances
+show global variables like "performance_schema_max_thread_instances";
+
+select count(*) from performance_schema.threads;
+
+# Expect instances lost
+--disable_warnings
+select variable_value > 0 from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_THREAD_INSTANCES_LOST';
+--enable_warnings
+
+

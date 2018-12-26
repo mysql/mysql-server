@@ -1,0 +1,336 @@
+# suite/funcs_1/t/is_schema_privileges.test
+#
+# Check the layout of information_schema.schema_privileges and the impact of
+# CREATE/ALTER/DROP TABLE/VIEW/SCHEMA ... on it.
+#
+# Note:
+#    This test is not intended
+#    - to show information about the all time existing schemas
+#      information_schema and mysql
+#    - for checking storage engine properties
+#      Therefore please do not alter $engine_type and $other_engine_type.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
+
+let $is_table = SCHEMA_PRIVILEGES;
+
+# The table INFORMATION_SCHEMA.SCHEMA_PRIVILEGES must exist
+eval SHOW TABLES FROM information_schema LIKE '$is_table';
+
+--echo #######################################################################
+--echo # Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+--echo #######################################################################
+# Ensure that every INFORMATION_SCHEMA table can be queried with a SELECT
+# statement, just as if it were an ordinary user-defined table.
+#
+--source suite/funcs_1/datadict/is_table_query.inc
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.15.1: INFORMATION_SCHEMA.SCHEMA_PRIVILEGES layout
+--echo #########################################################################
+# Ensure that the INFORMATION_SCHEMA.SCHEMA_PRIVILEGES table has the following
+# columns, in the following order:
+#
+# GRANTEE (shows a user to whom a schema privilege has been granted),
+# TABLE_CATALOG (always shows NULL),
+# TABLE_SCHEMA (shows the name of the database, or schema, on which the
+#          privilege has been granted),
+# PRIVILEGE_TYPE (shows the granted privilege),
+# IS_GRANTABLE (shows whether the privilege was granted WITH GRANT OPTION)
+#
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval DESCRIBE          information_schema.$is_table;
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval SHOW CREATE TABLE information_schema.$is_table;
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval SHOW COLUMNS FROM information_schema.$is_table;
+
+# Note: Retrieval of information within information_schema.columns
+#       about information_schema.schema_privileges is in is_columns_is.test.
+
+# Show that TABLE_CATALOG is always NULL.
+SELECT GRANTEE, TABLE_CATALOG, TABLE_SCHEMA, PRIVILEGE_TYPE
+FROM information_schema.schema_privileges WHERE table_catalog IS NOT NULL;
+
+
+--echo ###############################################################################
+--echo # Testcase 3.2.15.2-3.2.15.4 INFORMATION_SCHEMA.SCHEMA_PRIVILEGES accessibility
+--echo ###############################################################################
+# 3.2.15.2 Ensure that the table shows the relevant information on every
+#          schema-level privilege which has been granted to the current user
+#          or to PUBLIC, or has been granted by the current user.
+# FIXME:   Why is "or has been granted by the current user" invisible?
+# 3.2.15.3 Ensure that the table does not show any information on any
+#          schema-level privileges which have been granted to users
+#          other than the current user or to PUBLIC, or that have been
+#          granted by any user other than the current user.
+# 3.2.15.4 Ensure that the table does not show any information on any
+#          privileges that are not schema-level privileges for the
+#          current user.
+#
+# Note: Check of content within information_schema.schema_privileges about the
+#       databases information_schema, mysql and test is in
+#       is_schema_privileges_is_mysql_test.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict_1;
+DROP DATABASE IF EXISTS db_datadict_2;
+DROP DATABASE IF EXISTS db_datadict_3;
+--enable_warnings
+CREATE DATABASE db_datadict_1;
+CREATE DATABASE db_datadict_2;
+CREATE DATABASE db_datadict_3;
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE db_datadict_2.t1(f1 INT, f2 INT, f3 INT)
+ENGINE = $engine_type;
+
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser2'@'localhost';
+CREATE USER 'testuser2'@'localhost';
+
+GRANT INSERT ON db_datadict_1.*  TO 'testuser1'@'localhost';
+GRANT INSERT ON db_datadict_2.t1 TO 'testuser1'@'localhost';
+GRANT SELECT ON db_datadict_4.*  TO 'testuser1'@'localhost' WITH GRANT OPTION;
+GRANT SELECT ON db_datadict_3.*  TO 'testuser2'@'localhost';
+GRANT SELECT ON db_datadict_1.*  TO 'testuser2'@'localhost';
+
+let $my_select = SELECT * FROM information_schema.schema_privileges
+WHERE table_schema LIKE 'db_datadict%'
+ORDER BY grantee,table_schema,privilege_type;
+let $show_testuser1 = SHOW GRANTS FOR 'testuser1'@'localhost';
+let $show_testuser2 = SHOW GRANTS FOR 'testuser2'@'localhost';
+
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , test);
+GRANT SELECT ON db_datadict_4.*  TO 'testuser2'@'localhost';
+--echo # Root granted INSERT db_datadict_1 to me     -> visible
+--echo # Root granted SELECT db_datadict_1 to testuser2 -> invisible
+--echo # Root granted INSERT db_datadict_2.t1 (no schema-level priv!)
+--echo #          but not db_datadict_2 to me -> invisible
+--echo # Root granted SELECT db_datadict_3. to testuser2 but not to me -> invisible
+--echo # Root granted SELECT db_datadict_4. to me    -> visible
+--echo # I granted SELECT db_datadict_4. to testuser2   -> invisible (reality), visible(requirement)
+--echo # FIXME
+eval $my_select;
+eval $show_testuser1;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $show_testuser2;
+
+--echo # Establish connection testuser2 (user=testuser2)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser2, localhost, testuser2, , test);
+--echo # Root granted SELECT db_datadict_1 to me     -> visible
+--echo # Root granted INSERT db_datadict_1 to testuser1 -> invisible
+--echo # Root granted INSERT db_datadict_2.t1 but not db_datadict_1 to testuser1 -> invisible
+--echo # Root granted SELECT db_datadict_3. to me    -> visible
+--echo # testuser1 granted SELECT db_datadict_4. to me  -> visible
+eval $my_select;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $show_testuser1;
+eval $show_testuser2;
+
+--echo # Switch to connection default and close connections testuser1 and testuser2
+connection default;
+disconnect testuser1;
+disconnect testuser2;
+eval $my_select;
+eval $show_testuser1;
+eval $show_testuser2;
+
+# Cleanup
+DROP USER 'testuser1'@'localhost';
+DROP USER 'testuser2'@'localhost';
+DROP DATABASE db_datadict_1;
+DROP DATABASE db_datadict_2;
+DROP DATABASE db_datadict_3;
+
+
+--echo ################################################################################
+--echo # 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.SCHEMA_PRIVILEGES modifications
+--echo ################################################################################
+# 3.2.1.13: Ensure that the creation of any new database object (e.g. table or
+#           column) automatically inserts all relevant information on that
+#           object into every appropriate INFORMATION_SCHEMA table.
+# 3.2.1.14: Ensure that the alteration of any existing database object
+#           automatically updates all relevant information on that object in
+#           every appropriate INFORMATION_SCHEMA table.
+# 3.2.1.15: Ensure that the dropping of any existing database object
+#           automatically deletes all relevant information on that object from
+#           every appropriate INFORMATION_SCHEMA table.
+#
+# Note (mleich):
+#    The MySQL privilege system allows to GRANT objects before they exist.
+#    (Exception: Grant privileges for columns of not existing tables/views.)
+#    There is also no migration of privileges if objects (tables, views, columns)
+#    are moved to other databases (tables only), renamed or dropped.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+--error 0,ER_CANNOT_USER
+DROP   USER 'the_user'@'localhost';
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT SELECT ON test.* TO 'testuser1'@'localhost';
+
+let $my_select = SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+
+############ Check grant SCHEMA
+eval $my_select;
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , test);
+eval $my_select;
+--echo # Switch to connection default
+connection default;
+GRANT UPDATE ON db_datadict.* TO 'testuser1'@'localhost';
+eval $my_select;
+--echo # Switch to connection testuser1
+eval $my_select;
+############ Check RENAME SCHEMA
+# Implement this if RENAME SCHEMA is again available.
+# Note(mleich): I expect that RENAME has no impact on the result sets, because
+#               the schema_name is not migrated.
+# --echo # Switch to connection default
+# connection default;
+# RENAME SCHEMA db_datadict TO db_datadictx;
+# eval $my_select;
+# --echo # Switch to connection testuser1
+# eval $my_select;
+# RENAME SCHEMA db_datadictx TO db_datadict;
+############ Check extend PRIVILEGES (affects PRIVILEGE_TYPE) on SCHEMA
+--echo # Switch to connection default
+connection default;
+GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
+eval $my_select;
+--echo # Switch to connection testuser1
+eval $my_select;
+############ Check extend PRIVILEGES (affects IS_GRANTABLE) on SCHEMA
+--echo # Switch to connection default
+connection default;
+GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
+eval $my_select;
+--echo # Switch to connection testuser1
+eval $my_select;
+############ Check DROP SCHEMA
+# No impact, because there is no "maintenance" of privileges.
+--echo # Switch to connection default
+connection default;
+DROP SCHEMA db_datadict;
+eval $my_select;
+--echo # Switch to connection testuser1
+eval $my_select;
+############ Check REVOKE PRIVILEGE
+--echo # Switch to connection default
+connection default;
+REVOKE UPDATE ON db_datadict.* FROM 'testuser1'@'localhost';
+eval $my_select;
+--echo # Switch to connection testuser1
+eval $my_select;
+############ Check RENAME USER
+--echo # Switch to connection default
+connection default;
+RENAME USER 'testuser1'@'localhost' TO 'the_user'@'localhost';
+eval $my_select;
+--echo # Switch to connection testuser1
+eval $my_select;
+--echo # Close connection testuser1
+disconnect testuser1;
+--echo # Establish connection the_user (user=the_user)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (the_user, localhost, the_user, , test);
+eval $my_select;
+--echo # Close connection the_user
+disconnect the_user;
+############ Check DROP USER
+--echo # Switch to connection default
+connection default;
+eval $my_select;
+DROP USER 'the_user'@'localhost';
+eval $my_select;
+
+
+--echo ########################################################################
+--echo # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+--echo #           DDL on INFORMATION_SCHEMA table are not supported
+--echo ########################################################################
+# 3.2.1.3:  Ensure that no user may execute an INSERT statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.4:  Ensure that no user may execute an UPDATE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.5:  Ensure that no user may execute a DELETE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.8:  Ensure that no user may create an index on an INFORMATION_SCHEMA table.
+# 3.2.1.9:  Ensure that no user may alter the definition of an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.10: Ensure that no user may drop an INFORMATION_SCHEMA table.
+# 3.2.1.11: Ensure that no user may move an INFORMATION_SCHEMA table to any
+#           other database.
+# 3.2.1.12: Ensure that no user may directly add to, alter, or delete any data
+#           in an INFORMATION_SCHEMA table.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE db_datadict.t1 (f1 BIGINT, f2 BIGINT)
+ENGINE = $engine_type;
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
+
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.schema_privileges
+SELECT * FROM information_schema.schema_privileges;
+
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.schema_privileges SET table_schema = 'test'
+WHERE table_name = 't1';
+
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict';
+--error ER_DBACCESS_DENIED_ERROR
+TRUNCATE information_schema.schema_privileges;
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE INDEX my_idx_on_tables
+ON information_schema.schema_privileges(table_schema);
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.schema_privileges ADD f1 INT;
+
+--error ER_DBACCESS_DENIED_ERROR
+DROP TABLE information_schema.schema_privileges;
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.schema_privileges
+RENAME db_datadict.schema_privileges;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.schema_privileges
+RENAME information_schema.xschema_privileges;
+
+# Cleanup
+DROP DATABASE db_datadict;
+DROP USER 'testuser1'@'localhost';
+

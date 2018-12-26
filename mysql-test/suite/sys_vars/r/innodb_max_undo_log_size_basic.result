@@ -1,0 +1,54 @@
+'#---------------------BS_STVARS_035_01----------------------#'
+SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
+COUNT(@@GLOBAL.innodb_max_undo_log_size)
+1
+1 Expected
+'#---------------------BS_STVARS_035_02----------------------#'
+SET @@GLOBAL.innodb_max_undo_log_size=1073741824;
+SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
+COUNT(@@GLOBAL.innodb_max_undo_log_size)
+1
+1 Expected
+SET @@GLOBAL.innodb_max_undo_log_size=18446744073709551615;
+SELECT @@GLOBAL.innodb_max_undo_log_size;
+@@GLOBAL.innodb_max_undo_log_size
+18446744073709551615
+18446744073709551615 Expected
+SET @@GLOBAL.innodb_max_undo_log_size=1073741824;
+'#---------------------BS_STVARS_035_03----------------------#'
+SELECT @@GLOBAL.innodb_max_undo_log_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_max_undo_log_size';
+@@GLOBAL.innodb_max_undo_log_size = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
+COUNT(@@GLOBAL.innodb_max_undo_log_size)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_max_undo_log_size';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_035_04----------------------#'
+SELECT @@innodb_max_undo_log_size = @@GLOBAL.innodb_max_undo_log_size;
+@@innodb_max_undo_log_size = @@GLOBAL.innodb_max_undo_log_size
+1
+1 Expected
+'#---------------------BS_STVARS_035_05----------------------#'
+SELECT COUNT(@@innodb_max_undo_log_size);
+COUNT(@@innodb_max_undo_log_size)
+1
+1 Expected
+SELECT COUNT(@@local.innodb_max_undo_log_size);
+ERROR HY000: Variable 'innodb_max_undo_log_size' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.innodb_max_undo_log_size);
+ERROR HY000: Variable 'innodb_max_undo_log_size' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
+COUNT(@@GLOBAL.innodb_max_undo_log_size)
+1
+1 Expected

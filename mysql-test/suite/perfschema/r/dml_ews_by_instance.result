@@ -1,0 +1,34 @@
+select * from performance_schema.events_waits_summary_by_instance
+where event_name like 'Wait/Synch/%' limit 1;
+select * from performance_schema.events_waits_summary_by_instance
+where event_name='FOO';
+select * from performance_schema.events_waits_summary_by_instance
+order by count_star limit 1;
+select * from performance_schema.events_waits_summary_by_instance
+order by count_star desc limit 1;
+select * from performance_schema.events_waits_summary_by_instance
+where min_timer_wait > 0 order by count_star limit 1;
+select * from performance_schema.events_waits_summary_by_instance
+where min_timer_wait > 0 order by count_star desc limit 1;
+insert into performance_schema.events_waits_summary_by_instance
+set event_name='FOO', object_instance_begin=0,
+count_star=1, sum_timer_wait=2, min_timer_wait=3,
+avg_timer_wait=4, max_timer_wait=5;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'events_waits_summary_by_instance'
+update performance_schema.events_waits_summary_by_instance
+set count_star=12;
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'events_waits_summary_by_instance'
+update performance_schema.events_waits_summary_by_instance
+set count_star=12 where event_name like "FOO";
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'events_waits_summary_by_instance'
+delete from performance_schema.events_waits_summary_by_instance
+where count_star=1;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'events_waits_summary_by_instance'
+delete from performance_schema.events_waits_summary_by_instance;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'events_waits_summary_by_instance'
+LOCK TABLES performance_schema.events_waits_summary_by_instance READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'events_waits_summary_by_instance'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.events_waits_summary_by_instance WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'events_waits_summary_by_instance'
+UNLOCK TABLES;

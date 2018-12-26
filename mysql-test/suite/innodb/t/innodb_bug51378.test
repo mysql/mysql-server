@@ -1,0 +1,76 @@
+# This is the test for bug 51378. Unique index created
+# through "create index" and "alter table add unique index"
+# interfaces should not be treated as primary index if indexed
+# columns contain one or more column prefix(es) (only prefix/part of
+# the column is indexed)
+# On the other hand, if there is a unique index covers all
+# columns of a table, and they are non-null columns, and
+# full length of the column are indexed, then this index
+# will be created as primary index
+# Following queries test various scenario, no mismatch
+# error message should be printed.
+
+# Create a table contains a BLOB column
+create table bug51378 (
+	col1 int not null,
+	col2 blob not null,
+	col3 time not null) engine = innodb;
+
+# Create following unique indexes on 'col1' and 'col2(31)'
+# of the table, the index should not be treated as primary
+# key because it indexes only first 31 bytes of col2.
+# Thus it contains "column prefix", and will not be
+# upgraded to primary index.
+# There should not be mismatch message printed in the
+# errorlog
+create unique index idx on bug51378(col1, col2(31));
+
+alter table bug51378 add unique index idx2(col1, col2(31));
+
+# Unique index on 'col1' and 'col3' will be created as primary index,
+# since the index does not contain column prefix
+create unique index idx3 on bug51378(col1, col3);
+
+# Show create table would show idx3 created as unique index, internally,
+# idx3 is treated as primary index both by MySQL and Innodb
+SHOW CREATE TABLE bug51378;
+
+# "GEN_CLUST_INDEX" will be re-created as default primary index
+# after idx3 is dropped
+drop index idx3 on bug51378;
+
+SHOW CREATE TABLE bug51378;
+
+# Or we can add the primary key through alter table interfaces
+alter table bug51378 add primary key idx3(col1, col2(31));
+
+SHOW CREATE TABLE bug51378;
+
+drop table bug51378;
+
+# Or we can create such primary key through create table interfaces
+create table bug51378 (
+        col1 int not null,
+        col2 blob not null,
+        col3 time not null, primary key(col1, col2(31))) engine = innodb;
+
+# Unique index on one or more column prefix(es) will be created
+# as non-cluster index
+create unique index idx on bug51378(col1, col2(31));
+
+SHOW CREATE TABLE bug51378;
+
+drop table bug51378;
+
+# If a table has a NULLABLE column, unique index on it will not
+# be treated as primary index.
+create table bug51378 (
+	col1 int not null,
+        col2 int ) engine = innodb;
+
+# This will be created as non-cluster index since col2 is nullable
+create unique index idx on bug51378(col1, col2);
+
+SHOW CREATE TABLE bug51378;
+
+drop table bug51378;

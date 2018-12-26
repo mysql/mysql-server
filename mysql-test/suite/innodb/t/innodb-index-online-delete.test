@@ -1,0 +1,35 @@
+--source include/have_debug_sync.inc
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+
+connection default;
+
+CREATE TABLE t (a INT PRIMARY KEY, b INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t VALUES(1,2),(2,3);
+
+SET DEBUG_SYNC='alter_table_inplace_after_lock_downgrade SIGNAL do WAIT_FOR m';
+SET DEBUG_SYNC='innodb_after_inplace_alter_table SIGNAL scanned WAIT_FOR done';
+--send
+CREATE INDEX tb ON t(b);
+
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR do';
+SET DEBUG_SYNC='row_update_for_mysql_error SIGNAL m WAIT_FOR scanned';
+--error ER_DUP_ENTRY
+UPDATE t SET a=2 WHERE a=1;
+call mtr.add_suppression(' record in index .*tb was not found on rollback, trying to insert');
+SET DEBUG_SYNC='now SIGNAL done';
+
+disconnect con1;
+
+connection default;
+reap;
+SET DEBUG_SYNC='RESET';
+DROP TABLE t;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

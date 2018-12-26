@@ -1,0 +1,30 @@
+ALTER TABLE t1
+algorithm=inplace,
+RENAME TO t1_new_name;
+ALTER TABLE t2
+algorithm=inplace,
+RENAME TO t2;
+ALTER TABLE t3
+algorithm=inplace,
+RENAME TO ndb_ddl_test2.t3;
+ALTER TABLE t4
+algorithm=inplace,
+RENAME TO ndb_ddl_test2.t4_new_name;
+ALTER TABLE t5
+algorithm=inplace,
+RENAME TO t5_new_name;
+ALTER TABLE t6
+algorithm=inplace,
+RENAME TO t6_new_name;
+ALTER TABLE t7
+algorithm=inplace,
+RENAME TO t7_new_name;
+ALTER TABLE t8
+algorithm=inplace,
+RENAME TO t8_new_name;
+ALTER TABLE t9
+algorithm=inplace,
+RENAME TO t9_new_name;
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+== verify_mysql_dd.inc ==

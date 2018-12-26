@@ -1,0 +1,92 @@
+Following are simple steps to get everything started:
+
+1) Build MySQL server. Please note libevent 1.4.12 is linked statically into daemon memcached.
+
+2) Start MySQL server. (make sure libmemcached.so and innodb_engine.so are copied to MySQL plugin directory).
+
+3) Create the configure table and a demo table by running innodb_memcached_config.sql
+
+mysql < scripts/innodb_memcached_config.sql
+
+4) Install the memcached daemon plugin:
+
+mysql> install plugin daemon_memcached soname "libmemcached.so";
+
+5) Test it out
+telnet 127.0.0.1 11211
+
+set a11 0 0 9
+123456789
+STORED
+get a11
+VALUE a11 0 9
+123456789
+END
+
+6) Run memcapable
+Memcapable is part of libmemcached package, it is available at "https://code.launchpad.net/~libmemcached-developers/libmemcached/trunk". If you did not install libevent by yourself, you might need to set LD_LIBRARY_PATH to point libevent.so in the libevent directory.
+
+jy@jy-laptop:~/work2/mysql-5.6-labs-innodb-memcached/bld/mysql-test$ memcapable -v
+ascii quit                              [pass]
+ascii version                           [pass]
+ascii verbosity                         [pass]
+ascii set                               [pass]
+ascii set noreply                       [pass]
+ascii get                               [pass]
+ascii gets                              [pass]
+ascii mget                              [pass]
+ascii flush                             [pass]
+ascii flush noreply                     [pass]
+ascii add                               [pass]
+ascii add noreply                       [pass]
+ascii replace                           [pass]
+ascii replace noreply                   [pass]
+ascii cas                               [pass]
+ascii cas noreply                       [pass]
+ascii delete                            [pass]
+ascii delete noreply                    [pass]
+ascii incr                              [pass]
+ascii incr noreply                      [pass]
+ascii decr                              [pass]
+ascii decr noreply                      [pass]
+ascii append                            [pass]
+ascii append noreply                    [pass]
+ascii prepend                           [pass]
+ascii prepend noreply                   [pass]
+ascii stat                              [pass]
+binary noop                             [pass]
+binary quit                             [pass]
+binary quitq                            [pass]
+binary set                              [pass]
+binary setq                             [pass]
+binary flush                            [pass]
+binary flushq                           [pass]
+binary add                              [pass]
+binary addq                             [pass]
+binary replace                          [pass]
+binary replaceq                         [pass]
+binary delete                           [pass]
+binary deleteq                          [pass]
+binary get                              [pass]
+binary getq                             [pass]
+binary getk                             [pass]
+binary getkq                            [pass]
+binary incr                             [pass]
+binary incrq                            [pass]
+binary decr                             [pass]
+binary decrq                            [pass]
+binary version                          [pass]
+binary append                           [pass]
+binary appendq                          [pass]
+binary prepend                          [pass]
+binary prependq                         [pass]
+binary stat                             [pass]
+All tests passed
+
+7) memcached command line options now can be set by specifying MySQL configure variable "daemon_memcached-option"
+
+8) You can also configure the commit batch size by specifying boot time system variable "daemon_memcached-w_batch_size" and "daemon_memcached-r_batch_size" (--loose-daemon_memcached-w_batch_size=100).
+
+9) To enable binlog, please turn on server configure variable
+"innodb_direct_access_enable_binlog" along with "log-bin" at server boot time:
+msqld ... --log-bin --innodb_direct_access_enable_binlog=1

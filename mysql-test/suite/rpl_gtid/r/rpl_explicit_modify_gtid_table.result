@@ -1,0 +1,77 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Verify that explicit insert into mysql.gtid_executed
+# is causing a warning.
+#
+INSERT INTO mysql.gtid_executed VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 1, 1);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+#
+# Verify that explicit update to mysql.gtid_executed
+# is causing a warning.
+#
+UPDATE mysql.gtid_executed SET interval_end = 2 WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+#
+# Verify that explicit select from mysql.gtid_executed
+# with 'FOR UPDATE' is causing a warning.
+#
+SELECT * FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' FOR UPDATE;
+source_uuid	interval_start	interval_end
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	1	2
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+#
+# Verify that explicit delete from mysql.gtid_executed
+# is causing a warning.
+#
+DELETE FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+#
+# Verify that no warning on explicit select from mysql.gtid_executed
+#
+SELECT * FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+source_uuid	interval_start	interval_end
+include/sync_slave_sql_with_master.inc
+call mtr.add_suppression("You need to use --log-bin to make "
+                         "--binlog-format work");
+call mtr.add_suppression("The transaction owned GTID is already in the "
+                         "gtid_executed table, which is caused by an "
+                         "explicit modifying from user client.");
+INSERT INTO mysql.gtid_executed VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 1, 1);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+#
+# Verify that the GTID is inserted into table, but
+# is not inserted into GLOBAL.GTID_EXECUTED.
+#
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	1	1
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+
+#
+# Verify that the duplicate error is ignored, the transaction
+# is committed successfully, the GTID is inserted into
+# GLOBAL.GTID_EXECUTED, and log a warning in error log.
+#
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+CREATE TABLE t1 (a INT);
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1
+include/assert_grep.inc [Found the expected warning "The transaction owned GTID is already in the gtid_executed table, which is caused by an explicit modifying from user client" in slave's error log.]
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+DROP TABLE t1;
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2
+[connection master]
+include/rpl_end.inc

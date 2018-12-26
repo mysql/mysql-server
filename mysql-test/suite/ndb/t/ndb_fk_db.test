@@ -1,0 +1,145 @@
+-- source include/have_ndb.inc
+
+create database mydb0;
+use mydb0;
+
+create table parent (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create database mydb1;
+use mydb1;
+
+create table child (
+  a int primary key,
+  b int not null,
+  c int not null,
+  constraint fk1 foreign key(a) references mydb0.parent (a),
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+--disable_warnings
+show create table child;
+--enable_warnings
+
+alter table child algorithm=copy, add constraint fk2 foreign key (b)
+  references mydb0.parent(a);
+
+--disable_warnings
+show create table child;
+--enable_warnings
+
+alter table child algorithm=inplace, add constraint fk3 foreign key (c)
+  references mydb0.parent(a);
+
+--disable_warnings
+show create table child;
+--enable_warnings
+
+alter table child algorithm=copy, drop foreign key fk2;
+
+--disable_warnings
+show create table child;
+--enable_warnings
+
+alter table child algorithm=inplace, drop foreign key fk3;
+
+--disable_warnings
+show create table child;
+--enable_warnings
+
+alter table mydb0.parent algorithm=copy, rename mydb1.parent;
+
+--disable_warnings
+show create table child;
+--enable_warnings
+
+alter table mydb1.parent algorithm=inplace, rename mydb0.parent;
+
+--disable_warnings
+show create table child;
+--enable_warnings
+
+use test;
+alter table mydb1.child algorithm=copy, add constraint fk2 foreign key (b)
+  references mydb0.parent(a);
+use mydb1;
+--disable_warnings
+show create table child;
+--enable_warnings
+
+use test;
+alter table mydb1.child algorithm=inplace, add constraint fk3 foreign key (c)
+  references mydb0.parent(a);
+use mydb1;
+--disable_warnings
+show create table child;
+--enable_warnings
+
+# bug#16286164: the fix requires correct DROP order
+use test;
+drop database mydb1;
+drop database mydb0;
+
+#
+#
+#
+let $i=2;
+while ($i)
+{
+	eval set @i=$i;
+	let $engine=`select if(@i=1,'ndb','innodb')`;
+	create database mydb0;
+	use mydb0;
+	eval create table t0 (a int primary key) engine = $engine;
+	eval create table t1 (a int primary key) engine = $engine;
+
+	alter table mydb0.t0 add constraint fk0 foreign key (a)
+	      references mydb0.t1(a);
+
+	alter table mydb0.t1 add constraint fk1 foreign key (a)
+	      references mydb0.t0(a);
+
+	drop database mydb0;
+
+	dec $i;
+}
+
+let $i=2;
+while ($i)
+{
+	eval set @i=$i;
+	let $engine=`select if(@i=1,'ndb','innodb')`;
+	create database mydb0;
+	use mydb0;
+	eval create table t0 (a int primary key) engine = $engine;
+
+	create database mydb1;
+	use mydb1;
+	eval create table t1 (a int primary key) engine = $engine;
+
+	alter table mydb0.t0 add constraint fk0 foreign key (a)
+	      references mydb1.t1(a);
+
+	alter table mydb1.t1 add constraint fk1 foreign key (a)
+	      references mydb0.t0(a);
+
+	--error ER_FK_CANNOT_DROP_PARENT
+	drop database mydb0;
+	--error ER_FK_CANNOT_DROP_PARENT
+	drop database mydb1;
+
+        alter table mydb0.t0 drop foreign key fk0;
+
+	--error ER_FK_CANNOT_DROP_PARENT
+	drop database mydb0;
+
+        # t1 point into mydb0, but this is ok
+	drop database mydb1;
+	drop database mydb0;
+
+	dec $i;
+}

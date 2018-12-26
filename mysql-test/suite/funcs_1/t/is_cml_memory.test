@@ -1,0 +1,33 @@
+# suite/funcs_1/t/is_cml_memory.test
+#
+# Check the content of information_schema.columns about tables using
+# UNICODE columns.
+# Variant for storage engine MEMORY
+#
+# Author:
+# 2008-06-04 mleich Create this script based on older scripts and new code.
+#
+
+
+# --source include/have_memory.inc
+let $engine_type= MEMORY;
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+USE test;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+eval CREATE TABLE t1
+(
+   f1 CHAR         UNICODE,
+   f2 CHAR(0)      UNICODE,
+   f3 CHAR(10)     UNICODE,
+   f5 VARCHAR(0)   UNICODE,
+   f6 VARCHAR(255) UNICODE,
+   f7 VARCHAR(260) UNICODE
+) ENGINE = $engine_type;
+
+# We look only for the tables created here.
+let $my_where = WHERE table_schema LIKE 'test%';
+--source suite/funcs_1/datadict/columns.inc
+
+DROP TABLE t1;

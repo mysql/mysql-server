@@ -1,0 +1,2530 @@
+# Creating the spatial Geometry object
+USE test;
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center= 'POINT(15 10)';
+SET @star_top= 'POINT(15 25)';
+SET @star_bottom_left= 'POINT(5 0)';
+SET @star_bottom_right= 'POINT(25 0)';
+SET @star_bottom_points= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_elem_vertical_1= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_1= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center_1= 'POINT(15 10)';
+SET @star_top_1= 'POINT(15 25)';
+SET @star_bottom_left_1= 'POINT(5 0)';
+SET @star_bottom_right_1= 'POINT(25 0)';
+SET @star_bottom_points_1= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points_1= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal_1= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical_1= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center_1= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal_1= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical_1= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star_1= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val_1= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val_1= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems_1='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems_1='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_elem_vertical_2= 'POLYGON((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_2= 'POLYGON((35 0,10 15,40 15,32 10,35 0))';
+SET @star_center_2= 'POINT(25 10)';
+SET @star_top_2= 'POINT(25 25)';
+SET @star_bottom_left_2= 'POINT(15 0)';
+SET @star_bottom_right_2= 'POINT(35 0)';
+SET @star_bottom_points_2= 'MULTIPOINT(15 0,35 0)';
+SET @star_all_points_2= 'MULTIPOINT(15 0,35 0,35 10,25 25)';
+SET @star_line_horizontal_2= 'LINESTRING(20 15,30 15)';
+SET @star_line_vertical_2= 'LINESTRING(25 5,25 25)';
+SET @star_top_to_center_2= 'LINESTRING(25 25,25 10)';
+SET @star_lines_near_horizontal_2= 'MULTILINESTRING((35 0,10 15,25 30,10 5))';
+SET @star_lines_near_vertical_2= 'MULTILINESTRING((10 5,25 25,10 25))';
+SET @star_2= 'POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0))';
+SET @star_elem_vertical_val_2= '((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_val_2= '((35 0,10 15,40 15,32 10,35 0))';
+SET @star_of_elems_2='MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0)))';
+SET @star_collection_elems_2='GEOMETRYCOLLECTION(MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0))),POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0)),LINESTRING(25 25,25 10),MULTIPOINT(15 0,35 0),POINT(25 25))';
+SET @star_elem_vertical_3= 'POLYGON((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_3= 'POLYGON((85 0,60 15,90 15,82 10,85 0))';
+SET @star_center_3= 'POINT(75 10)';
+SET @star_top_3= 'POINT(75 25)';
+SET @star_bottom_left_3= 'POINT(65 0)';
+SET @star_bottom_right_3= 'POINT(85 0)';
+SET @star_bottom_points_3= 'MULTIPOINT(65 0,85 0)';
+SET @star_all_points_3= 'MULTIPOINT(65 0,85 0,75 10,75 25)';
+SET @star_line_horizontal_3= 'LINESTRING(70 15,80 15)';
+SET @star_line_vertical_3= 'LINESTRING(75 5,75 25)';
+SET @star_top_to_center_3= 'LINESTRING(75 25,75 10)';
+SET @star_lines_near_horizontal_3= 'MULTILINESTRING((85 0,60 15,85 30,60 5))';
+SET @star_lines_near_vertical_3= 'MULTILINESTRING((60 5,75 25,60 25))';
+SET @star_3= 'POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0))';
+SET @star_elem_vertical_val_3= '((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_val_3= '((85 0,60 15,90 15,82 10,85 0))';
+SET @star_of_elems_3='MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0)))';
+SET @star_collection_elems_3='GEOMETRYCOLLECTION(MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))';
+# INSERT base star
+INSERT INTO gis_geometrycollection VALUES
+(100,ST_GEOMFROMTEXT(@star)),
+(101,ST_GEOMFROMTEXT(@star_elem_vertical)),
+(102,ST_GEOMFROMTEXT(@star_elem_horizontal)),
+(103,ST_GEOMFROMTEXT(@star_of_elems)),
+(104,ST_GEOMFROMTEXT(@star_top)),
+(105,ST_GEOMFROMTEXT(@star_center)),
+(106,ST_GEOMFROMTEXT(@star_bottom_left)),
+(107,ST_GEOMFROMTEXT(@star_bottom_right)),
+(108,ST_GEOMFROMTEXT(@star_bottom_points)),
+(109,ST_GEOMFROMTEXT(@star_all_points)),
+(110,ST_GEOMFROMTEXT(@star_line_horizontal)),
+(111,ST_GEOMFROMTEXT(@star_line_vertical)),
+(112,ST_GEOMFROMTEXT(@star_top_to_center)),
+(113,ST_GEOMFROMTEXT(@star_lines_near_horizontal)),
+(114,ST_GEOMFROMTEXT(@star_lines_near_vertical)),
+(115,ST_GEOMFROMTEXT(@star_collection_elems));
+# INSERT identical (to base) star
+INSERT INTO gis_geometrycollection VALUES
+(200,ST_GEOMFROMTEXT(@star_1)),
+(201,ST_GEOMFROMTEXT(@star_elem_vertical_1)),
+(202,ST_GEOMFROMTEXT(@star_elem_horizontal_1)),
+(203,ST_GEOMFROMTEXT(@star_of_elems_1)),
+(204,ST_GEOMFROMTEXT(@star_top_1)),
+(205,ST_GEOMFROMTEXT(@star_center_1)),
+(206,ST_GEOMFROMTEXT(@star_bottom_left_1)),
+(207,ST_GEOMFROMTEXT(@star_bottom_right_1)),
+(208,ST_GEOMFROMTEXT(@star_bottom_points_1)),
+(209,ST_GEOMFROMTEXT(@star_all_points_1)),
+(210,ST_GEOMFROMTEXT(@star_line_horizontal_1)),
+(211,ST_GEOMFROMTEXT(@star_line_vertical_1)),
+(212,ST_GEOMFROMTEXT(@star_top_to_center_1)),
+(213,ST_GEOMFROMTEXT(@star_lines_near_horizontal_1)),
+(214,ST_GEOMFROMTEXT(@star_lines_near_vertical_1)),
+(215,ST_GEOMFROMTEXT(@star_collection_elems_1));
+# INSERT overlapping star
+INSERT INTO gis_geometrycollection VALUES
+(300,ST_GEOMFROMTEXT(@star_2)),
+(301,ST_GEOMFROMTEXT(@star_elem_vertical_2)),
+(302,ST_GEOMFROMTEXT(@star_elem_horizontal_2)),
+(303,ST_GEOMFROMTEXT(@star_of_elems_2)),
+(304,ST_GEOMFROMTEXT(@star_top_2)),
+(305,ST_GEOMFROMTEXT(@star_center_2)),
+(306,ST_GEOMFROMTEXT(@star_bottom_left_2)),
+(307,ST_GEOMFROMTEXT(@star_bottom_right_2)),
+(308,ST_GEOMFROMTEXT(@star_bottom_points_2)),
+(309,ST_GEOMFROMTEXT(@star_all_points_2)),
+(310,ST_GEOMFROMTEXT(@star_line_horizontal_2)),
+(311,ST_GEOMFROMTEXT(@star_line_vertical_2)),
+(312,ST_GEOMFROMTEXT(@star_top_to_center_2)),
+(313,ST_GEOMFROMTEXT(@star_lines_near_horizontal_2)),
+(314,ST_GEOMFROMTEXT(@star_lines_near_vertical_2)),
+(315,ST_GEOMFROMTEXT(@star_collection_elems_2));
+# INSERT seperate star
+INSERT INTO gis_geometrycollection VALUES
+(400,ST_GEOMFROMTEXT(@star_3)),
+(401,ST_GEOMFROMTEXT(@star_elem_vertical_3)),
+(402,ST_GEOMFROMTEXT(@star_elem_horizontal_3)),
+(403,ST_GEOMFROMTEXT(@star_of_elems_3)),
+(404,ST_GEOMFROMTEXT(@star_top_3)),
+(405,ST_GEOMFROMTEXT(@star_center_3)),
+(406,ST_GEOMFROMTEXT(@star_bottom_left_3)),
+(407,ST_GEOMFROMTEXT(@star_bottom_right_3)),
+(408,ST_GEOMFROMTEXT(@star_bottom_points_3)),
+(409,ST_GEOMFROMTEXT(@star_all_points_3)),
+(410,ST_GEOMFROMTEXT(@star_line_horizontal_3)),
+(411,ST_GEOMFROMTEXT(@star_line_vertical_3)),
+(412,ST_GEOMFROMTEXT(@star_top_to_center_3)),
+(413,ST_GEOMFROMTEXT(@star_lines_near_horizontal_3)),
+(414,ST_GEOMFROMTEXT(@star_lines_near_vertical_3)),
+(415,ST_GEOMFROMTEXT(@star_collection_elems_3));
+CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
+# Checking the integrity of the above create/insert statements 
+# 64 rows. 
+SELECT count(ST_AsText(g) != 'NULL') FROM gis_geometrycollection;
+count(ST_AsText(g) != 'NULL')
+64
+# 64 rows. 
+SELECT count(ST_AsText(g2) != 'NULL') FROM gis_geometrycollection_2;
+count(ST_AsText(g2) != 'NULL')
+64
+#####################################################################################
+# ST_DISTANCE(g1,g2)
+#####################################################################################
+#====================================================================================
+# point,point
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center))
+15
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(-0 0.00)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(-0 0.00)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(1e154 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(1e154 0)'))
+1e154
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(-1e154 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(-1e154 0)'))
+1e154
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_center))
+0
+#====================================================================================
+# point,multipoint
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(10 10)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(10 10)'))
+14.142135623730951
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1e154 0)'),ST_GEOMFROMTEXT('MULTIPOINT(1e154 10)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1e154 0)'),ST_GEOMFROMTEXT('MULTIPOINT(1e154 10)'))
+10
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(-0 0.000,-0.000 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(-0 0.000,-0.000 0)'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points))
+0
+#====================================================================================
+# point,linestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(10 10,10 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(10 10,10 0)'))
+10
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(10 10,10 0,0.0000 -0.0000)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(10 10,10 0,0.0000 -0.0000)'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center))
+0
+#====================================================================================
+# point,multilinestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 10,1 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 10,1 0))'))
+1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1e77 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1e77 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'))
+1e77
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
+0
+#====================================================================================
+# point,polygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'))
+1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+14.142135623730951
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=104;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star))
+0
+#====================================================================================
+# point,multipolygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(15 15)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(15 15)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'))
+7.0710678118654755
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(4 4)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(4 4)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),'
+                                                                              '((3 3,3 7,7 7,7 3, 3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),'
+                                                                              '((3 3,3 7,7 7,7 3, 3 3),(4 4,4 6,6 6,6 4,4 4)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                              '((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                              '((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'))
+1
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems))
+0
+#====================================================================================
+# point,geometrycollection
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                     'LINESTRING(1 1,2 2,3 3,4 4,5 5),'
+                                                                     'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                     'LINESTRING(1 1,2 2,3 3,4 4,5 5),'
+                                                                     'P
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                     'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                     'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                     'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                              
+1
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems))
+0
+#====================================================================================
+# multipoint,point
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center))
+14.142135623730951
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 0)'))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 5)'))
+7.0710678118654755
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(10 5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(10 5)'))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(1e154 0)'),ST_GEOMFROMTEXT('POINT(1e154 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(1e154 0)'),ST_GEOMFROMTEXT('POINT(1e154 0)'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_left))
+0
+#====================================================================================
+# multipoint,multipoint
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_bottom_points));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_bottom_points))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(10 0.0001)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(10 0.0001)'))
+0.0001
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(2.5 0.0001)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(2.5 0.0001)'))
+2.500000002
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 -1e154)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 -1e154)'))
+1e154
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_all_points))
+0
+#====================================================================================
+# multipoint,linestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('LINESTRING(2 2,5 0,8 2)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('LINESTRING(2 2,5 0,8 2)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('LINESTRING(2 2,8 2)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('LINESTRING(2 2,8 2)'))
+2
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(1 1,1 4,4 4,4 0.00009)'),ST_GEOMFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(1 1,1 4,4 4,4 0.00009)'),ST_GEOMFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'))
+0.00009
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center))
+0
+#====================================================================================
+# multipoint,multilinestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((2 2,5 0),(1 1,10 10))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((2 2,5 0),(1 1,10 10))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((2 2,2 10,10 10),(10 10,10 2,2 2))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((2 2,2 10,10 10),(10 10,10 2,2 2))'))
+2
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 10,10 10,10 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 10,10 10,10 0,0 0))'))
+4
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+#====================================================================================
+# multipoint,polygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_horizontal))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,11 11)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,11 11)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 -2,11 11)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 -2,11 11)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+1.4142135623730951
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5.5 5.5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5.5 5.5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'))
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_horizontal))
+0
+#====================================================================================
+# multipoint,multipolygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                               '((4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                               '((4 4,4 6,6 6,6 4,
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,15 15.1)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                           '((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,15 15.1)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                           '((10 10,10 20,20 20,20 10
+0.9000000000000004
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems))
+0
+#====================================================================================
+# multipoint,geometrycollection
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_collection_elems))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                'LINESTRING(1 1,2 2,3 3,4 4,5 5),'
+                                                                                'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                'LINESTRING(1 1,2 2,3 3,4 4,5 5),'
+                                                 
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                        
+1
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems))
+0
+#====================================================================================
+# linestring,point
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left))
+14.142135623730951
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 0)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(10 0.00000001)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(10 0.00000001)'))
+0.00000001
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 1000000)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 1000000)'))
+1000000
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
+ST_DISTANCE(g,g2)
+5
+#====================================================================================
+# linestring,multipoint
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 5,5 10)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 5,5 10)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFROMTEXT('MULTIPOINT(10.2 0,10 10.4)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFROMTEXT('MULTIPOINT(10.2 0,10 10.4)'))
+0.1999999999999993
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFROMTEXT('MULTIPOINT(4 4,5 5,7 7)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFROMTEXT('MULTIPOINT(4 4,5 5,7 7)'))
+3
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
+0
+#====================================================================================
+# linestring,linestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_line_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 0)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 19)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 19)'))
+6.689647316224496
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center))
+0
+#====================================================================================
+# linestring,multilinestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal))
+3.4299717028501773
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_vertical))
+2.0000000000000013
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 10,5 5.5),(5 4.6,10 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 10,5 5.5),(5 4.6,10 0))'))
+0.2828427124746193
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 19),(10 0,10 10))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 19),(10 0,10 10))'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))
+3.4299717028501773
+#====================================================================================
+# linestring,polygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10, 11 15))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10, 11 15))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4 4,6 6)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4 4,6 6)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4 4,6 6)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4 4,6 6)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(-11 -11,-11 11)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(-11 -11,-11 11)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+11
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.4)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.4)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'))
+0.5
+#====================================================================================
+# linestring,multipolygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 10,11 15)),((25 0,0 15,25 10,25 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 10,11 15)),((25 0,0 15,25 10,25 0)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,20 20,30 30)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,20 20,30 30)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(-1 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                               '((4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                               '((4 4,4 6,6 6,6 4,
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(5 5,15 15)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                         '((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(5 5,15 15)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                         '((10 10,10 20,20 20,20 10,10 
+0
+#====================================================================================
+# linestring,geometrycollection
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3))
+40
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'))
+3.5355339059327378
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                      'LINESTRING(1 1,2 2,3 3,4 4),'
+                                                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                      'LINESTRING(1 1,2 2,3 3,4 4),'
+                                         
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(5 5,15 15,25 24)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                      'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(5 5,15 15,25 24)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+            
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems_3))
+40
+#====================================================================================
+# multilinestring,point
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center))
+9
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('POINT(5 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('POINT(5 0)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('POINT(5 5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('POINT(5 5)'))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('POINT(5 1000000)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('POINT(5 1000000)'))
+999990
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top))
+0
+#====================================================================================
+# multilinestring,multipoint
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points))
+7.0710678118654755
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 5,5 10)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 5,5 10)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('MULTIPOINT(10.41 0,10 10.4)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('MULTIPOINT(10.41 0,10 10.4)'))
+0.40000000000000036
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('MULTIPOINT(4 4,5 5,6.5 6.5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('MULTIPOINT(4 4,5 5,6.5 6.5)'))
+3.5
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points))
+7.0710678118654755
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
+ST_DISTANCE(g,g2)
+7.0710678118654755
+#====================================================================================
+# multilinestring,linestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal))
+2.0000000000000013
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('LINESTRING(0 5,10 5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('LINESTRING(0 5,10 5)'))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 19)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 19)'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical))
+0
+#====================================================================================
+# multilinestring,multilinestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,14.5 5,14 15,0 15))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,14.5 5,14 15,0 15))'))
+4.244697440230839
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 10,10 0,10 10))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 10,10 0,10 10))'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical))
+0
+#====================================================================================
+# multilinestring,polygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4 4,6 6))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4 4,6 6))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4 4,6 6))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4 4,6 6))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((-11 -11,-11 11))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((-11 -11,-11 11))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+11
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.4))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.4))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'))
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((14 14,14 16),(10 15,10 20,20 20))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),'
+                                                                                                                 '(14 14,14 16,16 16,16 14,14 14))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((14 14,14 16),(10 15,10 20,20 20))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),'
+                                                                                                                 '(14 14
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+#====================================================================================
+# multilinestring,multipolygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,20 20,30 30))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,20 20,30 30))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((10 10,20 20),(30 30))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5),(14.5 14.5,15.4 15.6))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5),(14.5 14.5,15.4 15.6))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'))
+0.40000000000000036
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems))
+0
+#====================================================================================
+# multilinestring,geometrycollection
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'))
+3.5355339059327378
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                             'LINESTRING(1 1,2 2,3 3,4 4),'
+                                                                                             'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                             'LINESTRING(1 1,2 2,3 3,4 4),'
+                           
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((5 5,15 15,25 25))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                             'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                             'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((5 5,15 15,25 25))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                             'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems))
+0
+#====================================================================================
+# polygon,point
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POINT(5 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POINT(5 0)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POINT(20 20)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POINT(20 20)'))
+14.142135623730951
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'))
+1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POINT(6 6)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POINT(6 6)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),ST_GEOMFROMTEXT('POINT(15 15)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),ST_GEOMFROMTEXT('POINT(15 15)'))
+7.0710678118654755
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_center))
+0
+#====================================================================================
+# polygon,multipoint
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,20 20)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,20 20)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOINT(20 20,-9 -9)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOINT(20 20,-9 -9)'))
+12.727922061357855
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'))
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6,8 8,15 15)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6,8 8,15 15)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),ST_GEOMFROMTEXT('MULTIPOINT(15 15)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),ST_GEOMFROMTEXT('MULTIPOINT(15 15)'))
+7.0710678118654755
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_all_points))
+0
+#====================================================================================
+# polygon,linestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(5 0,20 20,100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(5 0,20 20,100 100)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(110 110,-100 50)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(110 110,-100 50)'))
+65.93307069537072
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('LINESTRING(4.3 4.3,5.5 5.5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('LINESTRING(4.3 4.3,5.5 5.5)'))
+0.2999999999999998
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('LINESTRING(4 4,6 6,8 8,15 15)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('LINESTRING(4 4,6 6,8 8,15 15)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('LINESTRING(11 11,14 14,15 15,16 16,20 20)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('LINESTRING(11 11,14 14,15 15,16 16,20 20)'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
+ST_DISTANCE(g,g2)
+0
+#====================================================================================
+# polygon,multilinestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_lines_near_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTILINESTRING((5 0,20 20),(100 100))'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTILINESTRING((110 110,-100 100),(-50 50))'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTILINESTRING((4.3 4.3,5.5 5.5))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTILINESTRING((4.3 4.3,5.5 5.5))'))
+0.2999999999999998
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 2,4 4,6 6),(8 8,10 10,15 15))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 2,4 4,6 6),(8 8,10 10,15 15))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((11 11,14 14),(15 15,16 16,20 20))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((11 11,14 14),(15 15,16 16,20 20))'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
+0
+#====================================================================================
+# polygon,polygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POLYGON((5 0,20 20,100 100,5 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POLYGON((5 0,20 20,100 100,5 0))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POLYGON((110 110,-100 100,-50 50,110 110))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POLYGON((110 110,-100 100,-50 50,110 110))'))
+55.009339182181364
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POLYGON((4.3 4.3,4.5 4.8,5 5.5,4.3 4.3))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POLYGON((4.3 4.3,4.5 4.8,5 5.5,4.3 4.3))'))
+0.2999999999999998
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POLYGON((4 4,6 6,8 8,10 15,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POLYGON((4 4,6 6,8 8,10 15,4 4))'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+#====================================================================================
+# polygon,multipolygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((110 110,-100 100,-50 50,110 110)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((110 110,-100 100,-50 50,110 110)))'))
+55.009339182181364
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((5 0,20 20,100 100,5 0)),((0 0,-10 -10,10 100,0 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((5 0,20 20,100 100,5 0)),((0 0,-10 -10,10 100,0 0)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((4.3 4.3,4.7 5,5 5.6,4.3 4.3)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((4.3 4.3,4.7 5,5 5.6,4.3 4.3)))'))
+0.2999999999999998
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,6 6,8 8,10 15,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,6 6,8 8,10 15,4 4)))'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems))
+0
+#====================================================================================
+# polygon,geometrycollection
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 15)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 15)))'))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                      'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                      'POLYGO
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems))
+0
+#====================================================================================
+# multipolygon,point
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POINT(30 30)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POINT(30 30)'))
+15
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POINT(0 8)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POINT(0 8)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POINT(20 20)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POINT(20 20)'))
+18.027756377319946
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('POINT(5 5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('POINT(5 5)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('POINT(15 15)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('POINT(15 15)'))
+1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('POINT(16.1 16.1)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('POINT(16.1 16.1)'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top))
+0
+#====================================================================================
+# multipolygon,multipoint
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'))
+15
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('MULTIPOINT(0 8,100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('MULTIPOINT(0 8,100 100)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('MULTIPOINT(50 50,-30 50)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('MULTIPOINT(50 50,-30 50)'))
+50
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(15.9 15.9)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(15.9 15.9)'))
+0.09999999999999964
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(19 19,100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(19 19,100 100)'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points))
+0
+#====================================================================================
+# multipolygon,linestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'))
+7.3979544287410794
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('LINESTRING(0 8,100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('LINESTRING(0 8,100 100)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('LINESTRING(50 50,-30 50)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('LINESTRING(50 50,-30 50)'))
+40
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('LINESTRING(14.5 14.5,15.5 15.5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('LINESTRING(14.5 14.5,15.5 15.5)'))
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('LINESTRING(19 19,100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('LINESTRING(19 19,100 100)'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center))
+0
+#====================================================================================
+# multipolygon,multilinestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((0 8,10 10,20 20),(50 50,75 75,100 100))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((0 8,10 10,20 20),(50 50,75 75,100 100))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((50 50,100 50),(-50 50,-40 50))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((50 50,100 50),(-50 50,-40 50))'))
+56.568542494923804
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((14.5 14.5,15.5 15.5))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((14.5 14.5,15.5 15.5))'))
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((-10 -10,50 50,100 100))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((-10 -10,50 50,100 100))'))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
+0
+#====================================================================================
+# multipolygon,polygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POLYGON((10 10,10 -10,-10 -10,-10 10,10 10))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POLYGON((10 10,10 -10,-10 -10,-10 10,10 10))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POLYGON((20 20,20 30,30 30,30 20,20 20))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POLYGON((20 20,20 30,30 30,30 20,20 20))'))
+18.027756377319946
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('POLYGON((14.5 14.5,14.5 15.5,15.5 15.5,14.5 14.5))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('POLYGON((14.5 14.5,14.5 15.5,15.5 15.5,14.5 14.5))'))
+0.5
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+#====================================================================================
+# multipolygon,multipolygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 -10,-10 -10,-10 10,10 10)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 -10,-10 -10,-10 10,10 10)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((20 20,20 30,30 30,30 20,20 20)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((20 20,20 30,30 30,30 20,20 20)))'))
+18.027756377319946
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((14.5 14.5,14.5 15.5,15.5 15.5,14.5 14.5)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((14.5 14.5,14.5 15.5,15.5 15.5,14.5 14.5)))'))
+0.5
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+ST_DISTANCE(g,g2)
+0
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+ST_DISTANCE(g,g2)
+0
+#====================================================================================
+# multipolygon,geometrycollection
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3))
+30
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 55)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 55)))'))
+64.03124237432849
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                      'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)),((10 10,10 20,20 20,20 10,10 10),(14 14,14 16,16 16,16 14,14 14)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=215;
+ST_DISTANCE(g,g2)
+0
+#====================================================================================
+# geometrycollection,point
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POINT(30 30)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POINT(30 30)'))
+15
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('POINT(30 30)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('POINT(30 30)'))
+15
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('POINT(0 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('POINT(0 0)'))
+70.71067811865476
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'))
+127.27922061357856
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'))
+127.27922061357856
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(100 100)'))
+127.27922061357856
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('POINT(20 20)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('POINT(20 20)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('POINT(5 5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('POIN
+1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+ST_GEOMFROMTEXT('POINT(15 15)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4
+7.0710678118654755
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top))
+0
+#====================================================================================
+# geometrycollection,multipoint
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'))
+15
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'))
+14.142135623730951
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,100 100)'))
+70.71067811865476
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 0)'))
+3.5355339059327378
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(20 20,40 40,60 60)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(20 20,40 40,60 60)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULT
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6,8 8)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points))
+0
+#====================================================================================
+# geometrycollection,linestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'))
+7.3979544287410794
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'))
+2.465984809580362
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('LINESTRING(0 0,100 100)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('LINESTRING(0 0,100 100)'))
+0
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))
+0
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))
+0
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('LINESTRING(20 20,40 40,60 60)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('LINESTRING(20 20,40 40,60 60)'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20))'),ST_GEOMFROMTEXT('LINESTRING(5 0,10 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20))'),ST_GEOMFROMTEXT('LINESTRING(5 0,10 0)'))
+3.5355339059327378
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('LINESTRING(5 0,10 0)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('LINESTRING(5 0,10 0)'))
+3.5355339059327378
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('LINE
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+ST_GEOMFROMTEXT('LINESTRING(4 4,6 6,8 8)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center))
+0
+#====================================================================================
+# geometrycollection,multilinestring
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
+5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,100 100))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,100 100))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((20 20,40 40),(60 60))'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULT
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((4 4,6 6),(8 8,10 10))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
+0
+#====================================================================================
+# geometrycollection,polygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('POLYGON((0 0,30 40,90 100, 0 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('POLYGON((0 0,30 40,90 100, 0 0))'))
+3.716470731235831
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('POLYGON((20 20,40 40,50 60,20 20))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('POLYGON((20 20,40 40,50 60,20 20))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('POLYGON((4.2 4.2,5 5,5.7 5.8,4.2 4.2))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('POLY
+0.20000000000000018
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+ST_GEOMFROMTEXT('POLYGON((4 4,6 6,8 8,10 20,4 4))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical))
+0
+#====================================================================================
+# geometrycollection,multipolygon
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,30 40,90 100,0 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,30 40,90 100,0 0)))'))
+3.716470731235831
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((20 20,40 40,50 60,20 20)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((20 20,40 40,50 60,20 20)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((4.2 4.2,5 5,5.7 5.8,4.2 4.2)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('MULT
+0.20000000000000018
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,6 6,8 8,10 20,4 4)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4
+0
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=103;
+ST_DISTANCE(g,g2)
+0
+#====================================================================================
+# geometrycollection,geometrycollection
+#====================================================================================
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3))
+30
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT(@star_collection_elems_3));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT(@star_collection_elems_3))
+30
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,50 0,100 0))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,50 0,100 0))'))
+50
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(4.5 4.5,5.5 5.5))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+ST_GEOMFROMTEXT('GEOM
+0.5
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((40 40,50 50),(5 5)))'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=215;
+ST_DISTANCE(g,g2)
+0
+#####################################################################################
+# ST_DISTANCE() with 2 geometries of same SRID
+#####################################################################################
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
+15
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
+ERROR SR001: There's no spatial reference system with SRID 100.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
+ERROR SR001: There's no spatial reference system with SRID 20000.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
+ERROR SR001: There's no spatial reference system with SRID 123456.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
+ERROR SR001: There's no spatial reference system with SRID 1048575.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
+#####################################################################################
+# Invalid function calls
+#####################################################################################
+SELECT ST_DISTANCE();
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE'
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(10 10)'));
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE'
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(10 10)'),NULL);
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(10 10)'),NULL)
+NULL
+SELECT ST_DISTANCE(NULL,ST_GEOMFROMTEXT('POINT(10 10)'));
+ST_DISTANCE(NULL,ST_GEOMFROMTEXT('POINT(10 10)'))
+NULL
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_distance given two geometries of different srids: 0 and 4326, which should have been identical.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR SR001: There's no spatial reference system with SRID 1048576.
+SELECT ST_DISTANCE(NULL,ST_GEOMFROMTEXT(@star_top));
+ST_DISTANCE(NULL,ST_GEOMFROMTEXT(@star_top))
+NULL
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),NULL);
+ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),NULL)
+NULL
+SELECT ST_DISTANCE(NULL,NULL);
+ST_DISTANCE(NULL,NULL)
+NULL
+SELECT ST_DISTANCE(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+ST_DISTANCE(g,NULL)
+NULL
+SELECT ST_DISTANCE(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+ST_DISTANCE(fid,NULL)
+NULL
+SELECT ST_DISTANCE(fid,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+ERROR 22023: Invalid GIS data provided to function st_distance.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+ERROR 22023: Invalid GIS data provided to function st_distance.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+# Invalid polygon.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('POLYGON((11 11,14 14,15 15,16 16,20 20,11 11))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('POLYGON((11 11,14 14,15 15,16 16,20 20,11 11))'))
+0
+# Invalid polygon.
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((11 11,14 14,15 15,11 11)),((16 16,20 20,30 30,16 16)))'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((11 11,14 14,15 15,11 11)),((16 16,20 20,30 30,16 16)))'))
+0
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
+NULL
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+ST_DISTANCE(ST_GEOMFROMTEXT('POINT(10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
+NULL
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('POINT(10 10)'));
+ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('POINT(10 10)'))
+NULL
+SELECT ST_DISTANCE(,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT ST_DISTANCE(,ST_GEOMFROMTEXT(@star_top));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top))' at line 1
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'));
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE'
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), 200, 300);
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE'
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), 200);
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE'
+# Clean up
+DROP TABLE gis_geometrycollection;
+DROP TABLE gis_geometrycollection_2;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 0),
+ST_GEOMFROMTEXT('POINT(0 0)', 0)
+)
+0
+# Projected SRS (should pass)
+SELECT ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+)
+0
+# Geographic SRS (should pass)
+SELECT ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+)
+0
+# Undefined SRS (should fail)
+SELECT ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 13000000),
+ST_GEOMFROMTEXT('POINT(0 0)', 13000000)
+);
+ERROR SR001: There's no spatial reference system with SRID 13000000.
+#
+# WL#9347 Ellipsoidal ST_Distance for point and multipoint
+#
+# All parameter types (Cartesian)
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)'),
+ST_GEOMFROMTEXT('POINT(1 0)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)'),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)'),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)'),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)'),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)'),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'),
+ST_GEOMFROMTEXT('POINT(1 0)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'),
+ST_GEOMFROMTEXT('POINT(1 0)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))'),
+ST_GEOMFROMTEXT('POINT(1 0)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))'),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))'),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))'),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))'),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'),
+ST_GEOMFROMTEXT('POINT(1 0)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'),
+ST_GEOMFROMTEXT('POINT(1 0)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))'),
+ST_GEOMFROMTEXT('POINT(1 0)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))'),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))'),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))'),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))'),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))'),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))'));
+# All parameter types (Geographic)
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(1 0)', 4326));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
+ERROR 22S00: st_distance(POINT, LINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
+ERROR 22S00: st_distance(POINT, POLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
+ERROR 22S00: st_distance(POINT, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
+ERROR 22S00: st_distance(POINT, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
+);
+ERROR 22S00: st_distance(POINT, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
+ST_GEOMFROMTEXT('POINT(1 0)', 4326));
+ERROR 22S00: st_distance(LINESTRING, POINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
+ERROR 22S00: st_distance(LINESTRING, LINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
+ERROR 22S00: st_distance(LINESTRING, POLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
+ERROR 22S00: st_distance(LINESTRING, MULTIPOINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
+ERROR 22S00: st_distance(LINESTRING, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
+ERROR 22S00: st_distance(LINESTRING, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
+);
+ERROR 22S00: st_distance(LINESTRING, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
+ST_GEOMFROMTEXT('POINT(1 0)', 4326));
+ERROR 22S00: st_distance(POLYGON, POINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
+ERROR 22S00: st_distance(POLYGON, LINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
+ERROR 22S00: st_distance(POLYGON, POLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
+ERROR 22S00: st_distance(POLYGON, MULTIPOINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
+ERROR 22S00: st_distance(POLYGON, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
+ERROR 22S00: st_distance(POLYGON, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
+);
+ERROR 22S00: st_distance(POLYGON, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
+ST_GEOMFROMTEXT('POINT(1 0)', 4326));
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
+ERROR 22S00: st_distance(MULTIPOINT, LINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
+ERROR 22S00: st_distance(MULTIPOINT, POLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
+ERROR 22S00: st_distance(MULTIPOINT, MULTIPOINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
+ERROR 22S00: st_distance(MULTIPOINT, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
+ERROR 22S00: st_distance(MULTIPOINT, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
+);
+ERROR 22S00: st_distance(MULTIPOINT, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
+ST_GEOMFROMTEXT('POINT(1 0)', 4326));
+ERROR 22S00: st_distance(MULTILINESTRING, POINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
+ERROR 22S00: st_distance(MULTILINESTRING, LINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
+ERROR 22S00: st_distance(MULTILINESTRING, POLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
+ERROR 22S00: st_distance(MULTILINESTRING, MULTIPOINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
+ERROR 22S00: st_distance(MULTILINESTRING, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
+ERROR 22S00: st_distance(MULTILINESTRING, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
+);
+ERROR 22S00: st_distance(MULTILINESTRING, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
+ST_GEOMFROMTEXT('POINT(1 0)', 4326));
+ERROR 22S00: st_distance(MULTIPOLYGON, POINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
+ERROR 22S00: st_distance(MULTIPOLYGON, LINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
+ERROR 22S00: st_distance(MULTIPOLYGON, POLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
+ERROR 22S00: st_distance(MULTIPOLYGON, MULTIPOINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
+ERROR 22S00: st_distance(MULTIPOLYGON, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
+ERROR 22S00: st_distance(MULTIPOLYGON, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
+);
+ERROR 22S00: st_distance(MULTIPOLYGON, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
+4326),
+ST_GEOMFROMTEXT('POINT(1 0)', 4326));
+ERROR 22S00: st_distance(GEOMCOLLECTION, POINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
+4326),
+ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
+ERROR 22S00: st_distance(GEOMCOLLECTION, LINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
+4326),
+ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
+ERROR 22S00: st_distance(GEOMCOLLECTION, POLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
+4326),
+ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
+ERROR 22S00: st_distance(GEOMCOLLECTION, MULTIPOINT) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
+4326),
+ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
+ERROR 22S00: st_distance(GEOMCOLLECTION, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
+4326),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
+ERROR 22S00: st_distance(GEOMCOLLECTION, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
+DO ST_DISTANCE(
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
+4326),
+ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326));
+ERROR 22S00: st_distance(GEOMCOLLECTION, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
+# All types in a geometrycollection
+SET @pt = ST_GEOMFROMTEXT('POINT(0 0)');
+SET @ls = ST_GEOMFROMTEXT('LINESTRING(0 0, 10 0, 10 10, 0 10, 0 0)');
+SET @py = ST_GEOMFROMTEXT(
+'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0),(2 2, 8 2, 8 8, 2 8, 2 2))');
+SET @mpt = ST_GEOMFROMTEXT('MULTIPOINT((0 0),(1 1))');
+SET @mls = ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 1 1),(2 2, 3 3))');
+SET @mpy = ST_GEOMFROMTEXT(
+'MULTIPOLYGON(((0 0, 10 0, 10 10, 0 10, 0 0),(2 2, 8 2, 8 8, 2 8, 2 2)))');
+SET @gc = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(
+  POINT(0 0),
+  LINESTRING(0 0, 10 0, 10 10, 0 10, 0 0),
+  POLYGON((0 0, 10 0, 10 10, 0 10, 0 0),(2 2, 8 2, 8 8, 2 8, 2 2)),
+  MULTIPOINT((0 0),(1 1)),
+  MULTILINESTRING((0 0, 1 1),(2 2, 3 3)),
+  MULTIPOLYGON(((0 0, 10 0, 10 10, 0 10, 0 0),(2 2, 8 2, 8 8, 2 8, 2 2))),
+  GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0))),
+  GEOMETRYCOLLECTION())'
+);
+DO ST_DISTANCE(ST_SRID(@pt, 0), ST_SRID(@gc, 0));
+DO ST_DISTANCE(ST_SRID(@pt, 4326), ST_SRID(@gc, 4326));
+ERROR 22S00: st_distance(POINT, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
+# Polygon ring directions
+DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
+'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'
+));
+DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
+'POLYGON((0 0, 0 10, 10 10, 10 0, 0 0))'
+));
+DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
+'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0),(2 2, 8 2, 8 8, 2 2))'
+));
+DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
+'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0),(2 2, 8 8, 8 2, 2 2))'
+));
+# Invalid polygon.
+DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
+'POLYGON((0 0, 0 0, 0 0, 0 0, 0 0))'
+));
+# Invalid polygon.
+DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
+'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0),(2 2, 2 2, 2 2, 2 2, 2 2))'
+));
+CREATE SPATIAL REFERENCE SYSTEM 13001000 NAME 'TEST13001000 Long-Lat WGS 84' DEFINITION 'GEOGCS["Long-Lat WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lon",EAST],AXIS["Lat",NORTH],AUTHORITY["EPSG","4326"]]';
+CREATE SPATIAL REFERENCE SYSTEM 13001001 NAME 'TEST13001001 Gradian WGS 84' DEFINITION 'GEOGCS["Gradian WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["grad",0.01570796326794895,AUTHORITY["EPSG","9105"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
+CREATE SPATIAL REFERENCE SYSTEM 13001002 NAME 'TEST13001002 Tweaked  WGS 84' DEFINITION 'GEOGCS["Tweaked",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["10 E",10,AUTHORITY["EPSG","8901"]],UNIT["grad",0.01570796326794895,AUTHORITY["EPSG","9105"]],AXIS["Lat",SOUTH],AXIS["Lon",WEST],AUTHORITY["EPSG","4326"]]';
+CREATE SPATIAL REFERENCE SYSTEM 13001003 NAME 'TEST13001003 Radian WGS 84' DEFINITION 'GEOGCS["Radian WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["radian",1.0,AUTHORITY["EPSG","9101"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
+# From the Equator to the North Pole along the Greenwich meridian
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(90 0)', 4326)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('MULTIPOINT((90 0))', 4326)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
+ST_GEOMFROMTEXT('POINT(90 0)', 4326)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 13001000),
+ST_GEOMFROMTEXT('POINT(0 90)', 13001000)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 13001000),
+ST_GEOMFROMTEXT('MULTIPOINT((0 90))', 13001000)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 13001000),
+ST_GEOMFROMTEXT('POINT(0 90)', 13001000)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 13001001),
+ST_GEOMFROMTEXT('POINT(100 0)', 13001001)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 13001001),
+ST_GEOMFROMTEXT('MULTIPOINT((100 0))', 13001001)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 13001001),
+ST_GEOMFROMTEXT('POINT(100 0)', 13001001)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 10)', 13001002),
+ST_GEOMFROMTEXT('POINT(-100 10)', 13001002)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 10)', 13001002),
+ST_GEOMFROMTEXT('MULTIPOINT((-100 10))', 13001002)), 3) AS d;
+d
+10001958.678
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 10))', 13001002),
+ST_GEOMFROMTEXT('POINT(-100 10)', 13001002)), 3) AS d;
+d
+10001958.678
+# 45 degrees East along the Equator from the Greenwich meridian
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('POINT(0 45)', 4326)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT('MULTIPOINT((0 45))', 4326)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
+ST_GEOMFROMTEXT('POINT(0 45)', 4326)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 13001000),
+ST_GEOMFROMTEXT('POINT(45 0)', 13001000)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 13001000),
+ST_GEOMFROMTEXT('MULTIPOINT((45 0))', 13001000)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 13001000),
+ST_GEOMFROMTEXT('POINT(45 0)', 13001000)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 13001001),
+ST_GEOMFROMTEXT('POINT(0 50)', 13001001)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 13001001),
+ST_GEOMFROMTEXT('MULTIPOINT((0 50))', 13001001)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 13001001),
+ST_GEOMFROMTEXT('POINT(0 50)', 13001001)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 10)', 13001002),
+ST_GEOMFROMTEXT('POINT(0 -40)', 13001002)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 10)', 13001002),
+ST_GEOMFROMTEXT('MULTIPOINT((0 -40))', 13001002)), 3) AS d;
+d
+5009377.086
+SELECT ROUND(ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 10))', 13001002),
+ST_GEOMFROMTEXT('POINT(0 -40)', 13001002)), 3) AS d;
+d
+5009377.086
+# Trondheim (63.430492N, 10.395046E) - Bangalore (12.976679N, 77.593916E)
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(63.430492 10.395046)', 4326),
+ST_GEOMFROMTEXT('POINT(12.976679 77.593916)', 4326)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(63.430492 10.395046)', 4326),
+ST_GEOMFROMTEXT('MULTIPOINT((12.976679 77.593916))', 4326)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((63.430492 10.395046))', 4326),
+ST_GEOMFROMTEXT('POINT(12.976679 77.593916)', 4326)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(10.395046 63.430492)', 13001000),
+ST_GEOMFROMTEXT('POINT(77.593916 12.976679)', 13001000)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(10.395046 63.430492)', 13001000),
+ST_GEOMFROMTEXT('MULTIPOINT((77.593916 12.976679))', 13001000)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((10.395046 63.430492))', 13001000),
+ST_GEOMFROMTEXT('POINT(77.593916 12.976679)', 13001000)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(70.47832444444444 11.550051111111111)', 13001001),
+ST_GEOMFROMTEXT('POINT(14.418532222222222 86.21546222222221)', 13001001)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(70.47832444444444 11.550051111111111)', 13001001),
+ST_GEOMFROMTEXT('MULTIPOINT((14.418532222222222 86.21546222222221))',
+13001001)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((70.47832444444444 11.550051111111111))',
+13001001),
+ST_GEOMFROMTEXT('POINT(14.418532222222222 86.21546222222221)', 13001001)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(70.47832444444444 -1.550051111111111)', 13001002),
+ST_GEOMFROMTEXT('POINT(14.418532222222222 -76.21546222222221)', 13001002)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(70.47832444444444 -1.550051111111111)', 13001002),
+ST_GEOMFROMTEXT('MULTIPOINT((14.418532222222222 -76.21546222222221))',
+13001002)
+), 3) AS d;
+d
+7595746.771
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('MULTIPOINT((70.47832444444444 -1.550051111111111))',
+13001002),
+ST_GEOMFROMTEXT('POINT(14.418532222222222 -76.21546222222221)', 13001002)
+), 3) AS d;
+d
+7595746.771
+# Longitude out of range
+SET @pt_long_above = x'E6100000010100000023000000008066400000000000000000';
+DO ST_DISTANCE(
+@pt_long_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 4326)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude 180.000000, which is out of range. It must be within (-180.000000, 180.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(0 180)')), 4326),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 4326)
+) AS d;
+SET @pt_long_below = x'E6100000010100000023000000008066C00000000000000000';
+DO ST_DISTANCE(
+@pt_long_below,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 4326)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude -180.000000, which is out of range. It must be within (-180.000000, 180.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(0 -179.999999999999)')), 4326),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 4326)
+) AS d;
+SET @pt_long_above = x'2861C600010100000023000000008066400000000000000000';
+DO ST_DISTANCE(
+@pt_long_above,
+ST_SRID(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'), 13001000)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude 180.000000, which is out of range. It must be within (-180.000000, 180.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_GEOMFROMTEXT('POINT(180 0)'), 13001000),
+ST_SRID(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'), 13001000)
+) AS d;
+SET @pt_long_below = x'2861C600010100000023000000008066C00000000000000000';
+DO ST_DISTANCE(
+@pt_long_below,
+ST_SRID(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'), 13001000)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude -180.000000, which is out of range. It must be within (-180.000000, 180.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_GEOMFROMTEXT('POINT(-179.999999999999 0)'), 13001000),
+ST_SRID(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'), 13001000)
+) AS d;
+SET @pt_long_above = x'2961C600010100000023000000000069400000000000000000';
+DO ST_DISTANCE(
+@pt_long_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001001)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude 200.000000, which is out of range. It must be within (-200.000000, 200.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(0 200)')), 13001001),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001001)
+) AS d;
+SET @pt_long_below = x'2961C600010100000023000000000069C00000000000000000';
+DO ST_DISTANCE(
+@pt_long_below,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001001)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude -200.000000, which is out of range. It must be within (-200.000000, 200.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(0 -199.999999999999)')), 13001001),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001001)
+) AS d;
+SET @pt_long_above = x'2A61C600010100000023000000000069400000000000000000';
+DO ST_DISTANCE(
+@pt_long_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001002)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude 200.000000, which is out of range. It must be within (-200.000000, 200.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(0 200)')), 13001002),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001002)
+) AS d;
+SET @pt_long_below = x'2A61C600010100000023000000000069C00000000000000000';
+DO ST_DISTANCE(
+@pt_long_below,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001002)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude -200.000000, which is out of range. It must be within (-200.000000, 200.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(0 -199.999999999999)')), 13001002),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001002)
+) AS d;
+SET @pt_long_above = x'2B61C60001010000001A2D4454FB2109400000000000000000';
+DO ST_DISTANCE(
+@pt_long_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001003)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude 3.141593, which is out of range. It must be within (-3.141593, 3.141593].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(0 3.141592653589793)')), 13001003),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001003)
+) AS d;
+SET @pt_long_below = x'2B61C6000101000000182D4454FB2109C00000000000000000';
+DO ST_DISTANCE(
+@pt_long_below,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001003)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude -3.141593, which is out of range. It must be within (-3.141593, 3.141593].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(0 -3.141592653589792)')), 13001003),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001003)
+) AS d;
+# Latitude out of range
+SET @pt_lat_above = x'E6100000010100000000000000000000000700000000805640';
+DO ST_DISTANCE(
+@pt_lat_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 4326)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude 90.000000, which is out of range. It must be within [-90.000000, 90.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(90 0)')), 4326),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 4326)
+) AS d;
+SET @pt_lat_below = x'E61000000101000000000000000000000007000000008056C0';
+DO ST_DISTANCE(
+@pt_lat_below,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 4326)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude -90.000000, which is out of range. It must be within [-90.000000, 90.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(-90 0)')), 4326),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 4326)
+) AS d;
+SET @pt_lat_above = x'2861C600010100000000000000000000000700000000805640';
+DO ST_DISTANCE(
+@pt_lat_above,
+ST_SRID(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'), 13001000)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude 90.000000, which is out of range. It must be within [-90.000000, 90.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_GEOMFROMTEXT('POINT(0 90)'), 13001000),
+ST_SRID(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'), 13001000)
+) AS d;
+SET @pt_lat_below = x'2861C6000101000000000000000000000007000000008056C0';
+DO ST_DISTANCE(
+@pt_lat_below,
+ST_SRID(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'), 13001000)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude -90.000000, which is out of range. It must be within [-90.000000, 90.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_GEOMFROMTEXT('POINT(0 -90)'), 13001000),
+ST_SRID(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'), 13001000)
+) AS d;
+SET @pt_lat_above = x'2961C600010100000000000000000000004600000000005940';
+DO ST_DISTANCE(
+@pt_lat_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001001)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude 100.000000, which is out of range. It must be within [-100.000000, 100.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(100 0)')), 13001001),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001001)
+) AS d;
+SET @pt_lat_below = x'2961C6000101000000000000000000000046000000000059C0';
+DO ST_DISTANCE(
+@pt_lat_below,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001001)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude -100.000000, which is out of range. It must be within [-100.000000, 100.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(-100 0)')), 13001001),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001001)
+) AS d;
+SET @pt_lat_above = x'2A61C600010100000000000000000000004600000000005940';
+DO ST_DISTANCE(
+@pt_lat_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001002)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude 100.000000, which is out of range. It must be within [-100.000000, 100.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(100 0)')), 13001002),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001002)
+) AS d;
+SET @pt_lat_below = x'2A61C6000101000000000000000000000046000000000059C0';
+DO ST_DISTANCE(
+@pt_lat_below,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001002)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude -100.000000, which is out of range. It must be within [-100.000000, 100.000000].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(-100 0)')), 13001002),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001002)
+) AS d;
+SET @pt_lat_above = x'2B61C60001010000000000000000000000192D4454FB21F93F';
+DO ST_DISTANCE(
+@pt_lat_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001003)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude 1.570796, which is out of range. It must be within [-1.570796, 1.570796].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(1.5707963267948966 0)')), 13001003),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001003)
+) AS d;
+SET @pt_lat_below = x'2B61C60001010000000000000000000000192D4454FB21F9BF';
+DO ST_DISTANCE(
+@pt_lat_below,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001003)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude -1.570796, which is out of range. It must be within [-1.570796, 1.570796].
+DO ST_DISTANCE(
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(-1.5707963267948965 0)')), 13001003),
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('MULTIPOINT((0 0))')), 13001003)
+) AS d;
+SET @mpt_long_above = x'E6100000010400000002000000010100000000000000000000000000000000000000010100000000000000000069400000000000000000';
+DO ST_DISTANCE(
+@mpt_long_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(1 1)')), 4326)
+) AS d;
+ERROR 22S02: A parameter of function st_distance contains a geometry with longitude 200.000000, which is out of range. It must be within (-180.000000, 180.000000].
+SET @mpt_lat_above = x'E6100000010400000002000000010100000000000000000000000000000000000000010100000000000000000000000000000000005940';
+DO ST_DISTANCE(
+@mpt_lat_above,
+ST_SRID(ST_SWAPXY(ST_GEOMFROMTEXT('POINT(1 1)')), 4326)
+) AS d;
+ERROR 22S03: A parameter of function st_distance contains a geometry with latitude 100.000000, which is out of range. It must be within [-90.000000, 90.000000].
+DROP SPATIAL REFERENCE SYSTEM 13001000;
+DROP SPATIAL REFERENCE SYSTEM 13001001;
+DROP SPATIAL REFERENCE SYSTEM 13001002;
+DROP SPATIAL REFERENCE SYSTEM 13001003;
+# Spherical SRS
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4053),
+ST_GEOMFROMTEXT('POINT(90 0)', 4053)), 3
+) AS d;
+d
+10007901.540
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(0 0)', 4053),
+ST_GEOMFROMTEXT('POINT(0 45)', 4053)), 3
+) AS d;
+d
+5003950.770
+SELECT ROUND(ST_DISTANCE(
+ST_GEOMFROMTEXT('POINT(63.430492 10.395046)', 4053),
+ST_GEOMFROMTEXT('POINT(12.976679 77.593916)', 4053)), 3
+) AS d;
+d
+7594860.655
+# Input parsing
+DO ST_DISTANCE(
+x'E610000001010000000000000000000000FFFFFFFFFFFFFFFF',
+x'E6100000010400000001000000010100000000000000000000000000000000000000'
+);
+ERROR 22023: Invalid GIS data provided to function st_distance.
+DO ST_DISTANCE(
+x'000000000104000000010000000101000000FFFFFFFFFFFFFFFF0000000000000000',
+x'00000000010100000000000000000000000000000000000000'
+);
+ERROR 22023: Invalid GIS data provided to function st_distance.
+DO ST_DISTANCE(POINT(1.7e+308, 1.7e308), POINT(-1.7e308, -1.7e308));
+ERROR 22023: Invalid GIS data provided to function st_distance.

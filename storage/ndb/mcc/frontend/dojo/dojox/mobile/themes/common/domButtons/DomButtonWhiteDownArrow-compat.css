@@ -1,0 +1,8 @@
+
+.mblDomButtonWhiteDownArrow {
+	background-image: url(compat/mblDomButtonWhiteDownArrow.png);
+	background-repeat: no-repeat;
+}
+.mblDomButtonWhiteDownArrow div {
+	display: none;
+}

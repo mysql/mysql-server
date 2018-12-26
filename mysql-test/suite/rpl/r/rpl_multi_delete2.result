@@ -1,0 +1,45 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+set sql_log_bin=0;
+create database mysqltest_from;
+set sql_log_bin=1;
+create database mysqltest_to;
+use mysqltest_from;
+drop table if exists a;
+CREATE TABLE a (i INT);
+INSERT INTO a VALUES(1);
+DELETE alias FROM a alias WHERE alias.i=1;
+SELECT * FROM a;
+i
+insert into a values(2),(3);
+delete alias FROM a alias where alias.i=2;
+select * from a;
+i
+3
+include/sync_slave_sql_with_master.inc
+use mysqltest_to;
+select * from a;
+i
+3
+create table t1 (a int primary key);
+create table t2 (a int);
+insert into t1 values (1);
+insert into t2 values (1);
+delete t1.* from t1, t2 where t1.a = t2.a;
+select * from t1;
+a
+select * from t2;
+a
+1
+select * from t1;
+ERROR 42S02: Table 'mysqltest_to.t1' doesn't exist
+select * from t2;
+ERROR 42S02: Table 'mysqltest_to.t2' doesn't exist
+set sql_log_bin=0;
+drop database mysqltest_from;
+set sql_log_bin=1;
+drop database mysqltest_to;
+include/rpl_end.inc

@@ -1,0 +1,207 @@
+-- source include/big_test.inc
+
+#
+# Tests with the euckr character set
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+SET @test_character_set= 'euckr';
+SET @test_collation= 'euckr_korean_ci';
+-- source include/ctype_common.inc
+
+SET NAMES euckr;
+SET collation_connection='euckr_korean_ci';
+-- source include/ctype_filesort.inc
+-- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
+-- source include/ctype_like_range_f1f2.inc
+SET collation_connection='euckr_bin';
+-- source include/ctype_filesort.inc
+-- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
+-- source include/ctype_like_range_f1f2.inc
+
+#
+# Bug#15377 Valid multibyte sequences are truncated on INSERT
+#
+SET NAMES euckr;
+CREATE TABLE t1 (a text) character set euckr;
+INSERT INTO t1 VALUES (0xA2E6),(0xFEF7);
+SELECT hex(a) FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+# End of 4.1 tests
+
+#
+#Bug #30315 Character sets: insertion of euckr code value 0xa141 fails
+#
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create table t1 (s1 varchar(5) character set euckr);
+# Insert some valid characters
+insert into t1 values (0xA141);
+insert into t1 values (0xA15A);
+insert into t1 values (0xA161);
+insert into t1 values (0xA17A);
+insert into t1 values (0xA181);
+insert into t1 values (0xA1FE);
+# Insert some invalid characters
+insert into t1 values (0xA140);
+insert into t1 values (0xA15B);
+insert into t1 values (0xA160);
+insert into t1 values (0xA17B);
+insert into t1 values (0xA180);
+insert into t1 values (0xA1FF);
+select hex(s1), hex(convert(s1 using utf8)) from t1 order by binary s1;
+drop table t1;
+SET sql_mode = default;
+--echo End of 5.0 tests
+
+
+--echo Start of 5.4 tests
+
+--echo #
+--echo # WL#3997 New euckr characters
+--echo #
+SET NAMES utf8;
+CREATE TABLE t1 (a varchar(10) character set euckr);
+INSERT INTO t1 VALUES (0xA2E6), (0xA2E7);
+SELECT hex(a), hex(@utf8:=convert(a using utf8)), hex(convert(@utf8 using euckr)) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # WL#3332 Korean Enhancements
+--echo # euckr valid codes are now [81..FE][41..5A,61..7A,81..FE]
+--echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (a binary(1), key(a));
+--disable_query_log
+let $1=255;
+while($1)
+{
+  eval INSERT INTO t1 VALUES (unhex(hex($1)));
+  dec $1;
+}
+--enable_query_log
+
+CREATE TABLE t2 (s VARCHAR(4), a VARCHAR(1) CHARACTER SET euckr);
+--disable_warnings
+INSERT INTO t2
+SELECT hex(concat(t11.a, t12.a)), concat(t11.a, t12.a)
+FROM t1 t11, t1 t12
+WHERE t11.a >= 0x81 AND t11.a <= 0xFE
+AND   t12.a >= 0x41 AND t12.a <= 0xFE
+ORDER BY t11.a, t12.a;
+--enable_warnings
+SELECT s as bad_code FROM t2 WHERE a='' ORDER BY s;
+DELETE FROM t2 WHERE a='';
+ALTER TABLE t2 ADD u VARCHAR(1) CHARACTER SET utf8, ADD a2 VARCHAR(1) CHARACTER SET euckr;
+--disable_warnings
+UPDATE t2 SET u=a, a2=u;
+--enable_warnings
+SELECT s as unassigned_code FROM t2 WHERE u='?';
+DELETE FROM t2 WHERE u='?';
+# Make sure there are no euckr->utf8->euckr roundtrip problems
+SELECT count(*) as roundtrip_problem_chars FROM t2 WHERE hex(a) <> hex(a2);
+SELECT s, hex(a), hex(u), hex(a2) FROM t2 ORDER BY s;
+DROP TABLE t1, t2;
+SET sql_mode = default;
+--echo End of 5.4 tests
+
+
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # Testing WL#4583 Case conversion in Asian character sets 
+--echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+#
+# Populate t1 with all hex digits
+#
+SET NAMES utf8;
+SET collation_connection=euckr_korean_ci;
+CREATE TABLE t1 (b VARCHAR(2));
+INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+#
+# Populate tables head and tail with values '00'-'FF'
+#
+CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 b2;
+CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
+DROP TABLE t1;
+#
+# Populate table t1 with all codes [80..FF][20..FF]
+# Expected valid euckr codes: [81..FE][41..5A,61..7A,81..FE]
+#
+CREATE TABLE t1 AS
+SELECT concat(head, tail) AS code, ' ' AS a
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (tail BETWEEN '20' AND 'FF')
+ORDER BY head, tail;
+DROP TEMPORARY TABLE head, tail;
+SHOW CREATE TABLE t1;
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
+UPDATE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = default;
+SELECT COUNT(*) FROM t1 WHERE a<>'';
+#
+# Display all characters that have upper or lower case mapping.
+#
+SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1 WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a));
+#
+# Make sure all possible conversion happened
+#
+# Expect U+212B ANGSTROM SIGN
+#
+SELECT * FROM t1
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+#
+# Expect U+0111 LATIN SMALL LETTER D WITH STROKE
+# Expect U+24D0 to U+24E9 CIRCLED LATIN SMALL LETTER A to Z
+#
+SELECT * FROM t1
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+
+DROP TABLE t1;
+SET sql_mode = default;
+
+
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+set names euckr;
+--source include/weight_string.inc
+--source include/weight_string_A1A1.inc
+
+set collation_connection=euckr_bin;
+--source include/weight_string.inc
+--source include/weight_string_A1A1.inc
+
+#
+# Bugs#12635232: VALGRIND WARNINGS: IS_IPV6, IS_IPV4, INET6_ATON,
+# INET6_NTOA + MULTIBYTE CHARSET.
+#
+
+SET NAMES euckr;
+--source include/ctype_inet.inc
+
+--echo #
+--echo # End of 5.6 tests
+--echo #

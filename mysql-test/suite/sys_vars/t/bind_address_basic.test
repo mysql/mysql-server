@@ -1,0 +1,93 @@
+
+
+################## mysql-test\t\bind_address_basic.test ############################
+#                                                                             #
+# Variable Name: bind_address                                                 #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+###############################################################################
+
+--echo '#---------------------BS_STVARS_001_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.bind_address);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_001_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.bind_address=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.bind_address);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_001_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT VARIABLE_VALUE = ''
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='bind_address';
+--enable_warnings
+--echo 0 Expected
+
+SELECT COUNT(@@GLOBAL.bind_address);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='bind_address';
+--enable_warnings
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_001_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@bind_address is NULL AND @@GLOBAL.bind_address is NULL;
+--echo 0 Expected
+
+SELECT @@bind_address is NOT NULL AND @@GLOBAL.bind_address is NOT NULL;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_001_05----------------------#'
+################################################################################
+#   Check if bind_address can be accessed with and without @@ sign                  #
+################################################################################
+
+SELECT COUNT(@@bind_address);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.bind_address);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.bind_address);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.bind_address);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT bind_address = @@SESSION.bind_address;
+--echo Expected error 'Readonly variable'
+
+

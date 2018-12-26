@@ -1,0 +1,42 @@
+# Tests for SIGNAL and RESIGNAL
+
+-- source include/have_debug.inc
+
+use test;
+
+--disable_warnings
+drop procedure if exists signal_proc;
+drop function if exists signal_func;
+--enable_warnings
+
+delimiter $$;
+
+create procedure signal_proc()
+begin
+  DECLARE foo CONDITION FOR SQLSTATE '12345';
+
+  SIGNAL foo;
+  SIGNAL foo SET MESSAGE_TEXT = "This is an error message";
+  RESIGNAL foo;
+  RESIGNAL foo SET MESSAGE_TEXT = "This is an error message";
+end $$
+
+create function signal_func() returns int
+begin
+  DECLARE foo CONDITION FOR SQLSTATE '12345';
+
+  SIGNAL foo;
+  SIGNAL foo SET MESSAGE_TEXT = "This is an error message";
+  RESIGNAL foo;
+  RESIGNAL foo SET MESSAGE_TEXT = "This is an error message";
+  return 0;
+end $$
+
+delimiter ;$$
+
+show procedure code signal_proc;
+drop procedure signal_proc;
+
+show function code signal_func;
+drop function signal_func;
+

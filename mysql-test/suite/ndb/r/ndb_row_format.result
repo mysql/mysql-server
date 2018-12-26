@@ -1,0 +1,105 @@
+CREATE TABLE t1 (
+a INT KEY,
+b VARCHAR(10)
+)
+ROW_FORMAT=FIXED
+ENGINE=NDB;
+Warnings:
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
+ForceVarPart: 0
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+INSERT INTO t1 values(0,''),(2,"**"),(4,"****"),(6,"******"),(8,"********"),(10,"**********"),(12,"************");
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 7
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	
+2	**
+4	****
+6	******
+8	********
+10	**********
+12	**********
+DROP TABLE t1;
+CREATE TABLE t1 (
+a INT KEY,
+b INT
+)
+ENGINE=NDB;
+ForceVarPart: 1
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT KEY,
+b INT
+)
+ROW_FORMAT=DEFAULT
+ENGINE=NDB;
+ForceVarPart: 1
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT KEY,
+b INT
+)
+ROW_FORMAT=FIXED
+ENGINE=NDB;
+ForceVarPart: 0
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT KEY,
+b INT
+)
+ROW_FORMAT=DYNAMIC
+ENGINE=NDB;
+ForceVarPart: 1
+DROP TABLE t1;
+create table t1 (
+a int auto_increment primary key,
+b varchar(1000) character set latin1
+) engine = ndb;
+insert into t1(b) values ('0123456789');
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+select count(*) from t1;
+count(*)
+1024
+begin;
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+rollback;
+select count(*),b from t1 group by b;
+count(*)	b
+1024	0123456789
+drop table t1;
+CREATE TABLE t1(a int primary key,b int) ROW_FORMAT=DEFAULT engine = NDB;
+CREATE TABLE t2(a int primary key,b int) ROW_FORMAT=DYNAMIC engine = NDB;
+CREATE TABLE t3(a int primary key,b int) ROW_FORMAT=FIXED engine = NDB;
+CREATE TABLE t4(a int primary key,b int) ROW_FORMAT=COMPRESSED engine = NDB;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'ROW_FORMAT=COMPRESSED'
+CREATE TABLE t5(a int primary key,b int) ROW_FORMAT=REDUNDANT engine = NDB;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'ROW_FORMAT=REDUNDANT'
+CREATE TABLE t6(a int primary key,b int) ROW_FORMAT=COMPACT engine = NDB;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'ROW_FORMAT=COMPACT'
+SELECT table_name, row_format FROM information_schema.tables
+WHERE TABLE_SCHEMA = 'test' order by TABLE_NAME;
+TABLE_NAME	ROW_FORMAT
+t1	Dynamic
+t2	Dynamic
+t3	Fixed
+ALTER TABLE t2 ALGORITHM=COPY,ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'ROW_FORMAT=COMPRESSED'
+DROP TABLE t1,t2,t3;

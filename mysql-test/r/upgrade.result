@@ -1,0 +1,68 @@
+drop database if exists `mysqltest1`;
+drop database if exists `mysqltest-1`;
+drop database if exists `#mysql50#mysqltest-1`;
+create database `mysqltest1`;
+create database `#mysql50#mysqltest-1`;
+create table `mysqltest1`.`t1` (a int);
+create table `mysqltest1`.`#mysql50#t-1` (a int);
+create table `#mysql50#mysqltest-1`.`t1` (a int);
+create table `#mysql50#mysqltest-1`.`#mysql50#t-1` (a int);
+show create database `mysqltest1`;
+Database	Create Database
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+show create database `mysqltest-1`;
+ERROR 42000: Unknown database 'mysqltest-1'
+show create database `#mysql50#mysqltest-1`;
+Database	Create Database
+#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+show tables in `mysqltest1`;
+Tables_in_mysqltest1
+#mysql50#t-1
+t1
+show tables in `#mysql50#mysqltest-1`;
+Tables_in_#mysql50#mysqltest-1
+#mysql50#t-1
+t1
+show create database `mysqltest1`;
+Database	Create Database
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+show create database `#mysql50#mysqltest-1`;
+Database	Create Database
+#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+show tables in `mysqltest1`;
+Tables_in_mysqltest1
+#mysql50#t-1
+t1
+show tables in `#mysql50#mysqltest-1`;
+Tables_in_#mysql50#mysqltest-1
+#mysql50#t-1
+t1
+drop database `mysqltest1`;
+drop database `#mysql50#mysqltest-1`;
+drop table if exists `txu@0023p@0023p1`;
+drop table if exists `txu#p#p1`;
+create table `txu#p#p1` (s1 int);
+insert into `txu#p#p1` values (1);
+select * from `txu@0023p@0023p1`;
+ERROR 42S02: Table 'test.txu@0023p@0023p1' doesn't exist
+create table `txu@0023p@0023p1` (s1 int);
+insert into `txu@0023p@0023p1` values (2);
+select * from `txu@0023p@0023p1`;
+s1
+2
+select * from `txu#p#p1`;
+s1
+1
+drop table `txu@0023p@0023p1`;
+drop table `txu#p#p1`;
+use test;
+# End of 5.0 tests
+#
+# Bug #53804: serious flaws in the alter database .. upgrade data
+#             directory name command
+#
+USE `#mysql50#.`;
+ERROR 42000: Unknown database '#mysql50#.'
+USE `#mysql50#../blablabla`;
+ERROR 42000: Unknown database '#mysql50#../blablabla'
+# End of 5.1 tests

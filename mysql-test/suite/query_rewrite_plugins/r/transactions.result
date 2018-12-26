@@ -1,0 +1,178 @@
+#
+# Tests of touching the rules table from different transactions.
+#
+# Query rewrite plugin was installed.
+SET autocommit = 0;
+SELECT @@autocommit;
+@@autocommit
+0
+START TRANSACTION;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me conn 1"', 'SELECT "Rewritten conn 1 rule 1"' );
+COMMIT;
+START TRANSACTION;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me conn 2"', 'SELECT "Rewritten conn 2 rule 1"' );
+COMMIT;
+CALL query_rewrite.flush_rewrite_rules();
+SELECT "Rewrite me conn 1";
+Rewritten conn 1 rule 1
+Rewritten conn 1 rule 1
+Warnings:
+Note	1105	Query 'SELECT "Rewrite me conn 1"' rewritten to 'SELECT "Rewritten conn 1 rule 1"' by a query rewrite plugin
+SELECT "Rewrite me conn 2";
+Rewritten conn 2 rule 1
+Rewritten conn 2 rule 1
+Warnings:
+Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by a query rewrite plugin
+CALL query_rewrite.flush_rewrite_rules();
+SELECT "Rewrite me conn 1";
+Rewritten conn 1 rule 1
+Rewritten conn 1 rule 1
+Warnings:
+Note	1105	Query 'SELECT "Rewrite me conn 1"' rewritten to 'SELECT "Rewritten conn 1 rule 1"' by a query rewrite plugin
+SELECT "Rewrite me conn 2";
+Rewritten conn 2 rule 1
+Rewritten conn 2 rule 1
+Warnings:
+Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by a query rewrite plugin
+SELECT "Rewrite me conn 1";
+Rewritten conn 1 rule 1
+Rewritten conn 1 rule 1
+Warnings:
+Note	1105	Query 'SELECT "Rewrite me conn 1"' rewritten to 'SELECT "Rewritten conn 1 rule 1"' by a query rewrite plugin
+SELECT "Rewrite me conn 2";
+Rewritten conn 2 rule 1
+Rewritten conn 2 rule 1
+Warnings:
+Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by a query rewrite plugin
+# This would cause failed assertion unless the mdl locks are released.
+SELECT xxx(pattern) FROM query_rewrite.rewrite_rules;
+ERROR 42000: FUNCTION test.xxx does not exist
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
+#
+# Now make sure that everything works as long we do as we're supposed
+# to, even with autocommit = 0.
+#
+SET autocommit = 0;
+SELECT @@autocommit;
+@@autocommit
+0
+# Query rewrite plugin was installed.
+START TRANSACTION;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me"', 'SELECT "Rewritten w/rule 1"' );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT 'Rewrite me';
+Rewritten w/rule 1
+Rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 'Rewrite me'' rewritten to 'SELECT "Rewritten w/rule 1"' by a query rewrite plugin
+SHOW STATUS LIKE 'Rewriter_%';
+Variable_name	Value
+Rewriter_number_loaded_rules	1
+Rewriter_number_reloads	2
+Rewriter_number_rewritten_queries	1
+Rewriter_reload_error	OFF
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
+#
+# Now check that we don't fail even if @@autocommit is 0. In this case
+# InnoDB times out waiting for a lock, the plugin can't load the rules,
+# and we expect a message in the error log.
+#
+SET autocommit = 0;
+SELECT @@autocommit;
+@@autocommit
+0
+# Query rewrite plugin was installed.
+CALL mtr.add_suppression("Got error from storage engine while refreshing rewrite rules.");
+# This would cause failed assertion unless the mdl locks are released.
+SELECT xxx(pattern) FROM query_rewrite.rewrite_rules;
+ERROR 42000: FUNCTION test.xxx does not exist
+START TRANSACTION;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me"', 'SELECT "Rewritten w/rule 1"' );
+SET @@global.innodb_lock_wait_timeout = 1;
+SELECT load_rewrite_rules();
+load_rewrite_rules()
+Loading of some rule(s) failed.
+SET @@global.innodb_lock_wait_timeout = DEFAULT;
+SELECT 'Rewrite me';
+Rewrite me
+Rewrite me
+SHOW STATUS LIKE 'Rewriter_%';
+Variable_name	Value
+Rewriter_number_loaded_rules	0
+Rewriter_number_reloads	2
+Rewriter_number_rewritten_queries	0
+Rewriter_reload_error	ON
+COMMIT;
+SELECT 'Rewrite me';
+Rewrite me
+Rewrite me
+SHOW STATUS LIKE 'Rewriter_%';
+Variable_name	Value
+Rewriter_number_loaded_rules	0
+Rewriter_number_reloads	2
+Rewriter_number_rewritten_queries	0
+Rewriter_reload_error	ON
+SELECT load_rewrite_rules();
+load_rewrite_rules()
+NULL
+SELECT 'Rewrite me';
+Rewritten w/rule 1
+Rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 'Rewrite me'' rewritten to 'SELECT "Rewritten w/rule 1"' by a query rewrite plugin
+SHOW STATUS LIKE 'Rewriter_%';
+Variable_name	Value
+Rewriter_number_loaded_rules	1
+Rewriter_number_reloads	3
+Rewriter_number_rewritten_queries	1
+Rewriter_reload_error	OFF
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
+#
+# Now let's make sure that everything works fine if we run with
+# autocommit.
+#
+SET autocommit = 1;
+SELECT @@autocommit;
+@@autocommit
+1
+# Query rewrite plugin was installed.
+# This would cause failed assertion unless the mdl locks are released.
+SELECT xxx(pattern) FROM query_rewrite.rewrite_rules;
+ERROR 42000: FUNCTION test.xxx does not exist
+START TRANSACTION;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me"', 'SELECT "Rewritten w/rule 1"' );
+SET @@global.innodb_lock_wait_timeout = 1;
+SELECT load_rewrite_rules();
+load_rewrite_rules()
+Loading of some rule(s) failed.
+SET @@global.innodb_lock_wait_timeout = DEFAULT;
+SELECT 'Rewrite me';
+Rewrite me
+Rewrite me
+COMMIT;
+SELECT 'Rewrite me';
+Rewrite me
+Rewrite me
+SELECT load_rewrite_rules();
+load_rewrite_rules()
+NULL
+SELECT 'Rewrite me';
+Rewritten w/rule 1
+Rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 'Rewrite me'' rewritten to 'SELECT "Rewritten w/rule 1"' by a query rewrite plugin
+SET autocommit = DEFAULT;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

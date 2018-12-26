@@ -1,0 +1,120 @@
+
+############################################################
+# 0.  Start GR on two servers
+############################################################
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#####################################################################
+# 1.  With both members ONLINE. Execute some transactions on server1.
+#####################################################################
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection server1]
+[connection server2]
+[connection server1]
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 3 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 2 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2']
+[connection server2]
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 3 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 2 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2']
+
+#####################################################################
+# 2.  Testing of column COUNT_TRANSACTIONS_LOCAL_ROLLBACK.
+#####################################################################
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
+[connection server2]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
+[connection server1]
+INSERT INTO t1 VALUES (2);
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+INSERT INTO t1 VALUES (3);
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 0 on server 2']
+include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server 1']
+include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server 2']
+[connection server2]
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 0 on server 2']
+include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server 1']
+include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server 2']
+
+#####################################################################
+# 3.  Testing of column COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE.
+#####################################################################
+[connection server1]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
+[connection server1]
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 10 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2']
+[connection server2]
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 10 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2']
+[connection server1]
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
+include/rpl_sync.inc
+
+#####################################################################
+# 4.  Assert values are correct in table replication_group_member_stats.
+#####################################################################
+[connection server1]
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 10 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 10 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 0 on server 2']
+include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server 1']
+include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server 2']
+[connection server2]
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 10 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 10 on server 2']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1']
+include/assert.inc ['The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 0 on server 2']
+include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server 1']
+include/assert.inc ['The value of COUNT_CONFLICTS_DETECTED should be 1 on server 2']
+[connection server1]
+include/diff_tables.inc [server1:performance_schema.replication_group_member_stats, server2:performance_schema.replication_group_member_stats]
+
+#####################################################################
+# 5.  Clean up(debug flag and tables).
+#####################################################################
+[connection server1]
+SET @@GLOBAL.DEBUG= @debug_saved;
+[connection server2]
+SET @@GLOBAL.DEBUG= @debug_saved;
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

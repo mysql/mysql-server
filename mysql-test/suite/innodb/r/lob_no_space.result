@@ -1,0 +1,22 @@
+#
+# Bug #27852003 LOG::ALLOC_LOB_PAGE MAY FAIL AND RETURN NULLPTR
+# BUT IT IS NOT HANDLED
+#
+create table t1 (f1 int primary key, f2 longblob);
+set debug = '+d,innodb_alloc_lob_page_failed';
+insert into t1 values (1, repeat('x', 81920));
+ERROR HY000: The table 't1' is full
+set debug = '-d,innodb_alloc_lob_page_failed';
+drop table t1;
+create table t2 (f1 int primary key, f2 longblob);
+set debug = '+d,innodb_lob_data_page_alloc_failed';
+insert into t2 values (1, repeat('x', 81920));
+ERROR HY000: The table 't2' is full
+set debug = '-d,innodb_lob_data_page_alloc_failed';
+drop table t2;
+create table t3 (f1 int primary key, f2 longblob);
+set debug = '+d,innodb_lob_alloc_node_page_failed';
+insert into t3 values (1, repeat('x', 163840));
+ERROR HY000: The table 't3' is full
+set debug = '-d,innodb_lob_alloc_node_page_failed';
+drop table t3;

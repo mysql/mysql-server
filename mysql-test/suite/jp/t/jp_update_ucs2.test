@@ -1,0 +1,75 @@
+--character_set ujis
+--disable_warnings
+drop table if exists `£‘£±`;
+drop table if exists `£‘£≤`;
+drop table if exists `£‘£≥`;
+drop table if exists `£‘£¥`;
+drop table if exists `£‘£µ`;
+drop table if exists `£‘£∂`;
+drop table if exists `£‘£∑`;
+drop table if exists `£‘£∏`;
+drop table if exists `£‘£π`;
+--enable_warnings
+
+#
+# Test Updating with Japanese characters in ucs2 encoding
+#
+
+SET NAMES ujis;
+SET character_set_database = ucs2;
+SET collation_connection = ucs2_general_ci;
+
+CREATE TABLE `£‘£±` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£‘£≤` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£‘£≥` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£‘£¥` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£‘£µ` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£‘£∂` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£‘£∑` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£‘£∏` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£‘£π` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+
+INSERT INTO `£‘£±` VALUES ('é±é≤é≥é¥éµ');
+INSERT INTO `£‘£≤` VALUES ('§¢§§§¶§®§™');
+INSERT INTO `£‘£≥` VALUES ('èÌ‹èÌ›èÌﬁèÌﬂèÌ‡');
+INSERT INTO `£‘£¥` VALUES ('é±é≤é≥é¥éµ');
+INSERT INTO `£‘£µ` VALUES ('§¢§§§¶§®§™');
+INSERT INTO `£‘£∂` VALUES ('èÌ‹èÌ›èÌﬁèÌﬂèÌ‡');
+INSERT INTO `£‘£∑` VALUES ('é±é≤é≥é¥éµ');
+INSERT INTO `£‘£∏` VALUES ('§¢§§§¶§®§™');
+INSERT INTO `£‘£π` VALUES ('èÌ‹èÌ›èÌﬁèÌﬂèÌ‡');
+
+UPDATE `£‘£±` SET `£√£±` = ('é∂é∑é∏éπé∫');
+UPDATE `£‘£≤` SET `£√£±` = ('§´§≠§Ø§±§≥');
+UPDATE `£‘£≥` SET `£√£±` = ('èÌ»èÌ…èÌ èÌÀèÌÃ');
+UPDATE `£‘£¥` SET `£√£±` = ('é∂é∑é∏éπé∫');
+UPDATE `£‘£µ` SET `£√£±` = ('§´§≠§Ø§±§≥');
+UPDATE `£‘£∂` SET `£√£±` = ('èÌ»èÌ…èÌ èÌÀèÌÃ');
+UPDATE `£‘£∑` SET `£√£±` = ('é∂é∑é∏éπé∫');
+UPDATE `£‘£∏` SET `£√£±` = ('§´§≠§Ø§±§≥');
+UPDATE `£‘£π` SET `£√£±` = ('èÌ»èÌ…èÌ èÌÀèÌÃ');
+
+#InnoDB
+SELECT * FROM `£‘£±`;
+SELECT * FROM `£‘£≤`;
+SELECT * FROM `£‘£≥`;
+
+#MyISAM
+SELECT * FROM `£‘£¥`;
+SELECT * FROM `£‘£µ`;
+SELECT * FROM `£‘£∂`;
+
+#MEMORY
+SELECT * FROM `£‘£∑`;
+SELECT * FROM `£‘£∏`;
+SELECT * FROM `£‘£π`;
+
+DROP TABLE `£‘£±`;
+DROP TABLE `£‘£≤`;
+DROP TABLE `£‘£≥`;
+DROP TABLE `£‘£¥`;
+DROP TABLE `£‘£µ`;
+DROP TABLE `£‘£∂`;
+DROP TABLE `£‘£∑`;
+DROP TABLE `£‘£∏`;
+DROP TABLE `£‘£π`;

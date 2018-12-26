@@ -1,0 +1,27 @@
+drop database if exists `ﾆﾎﾝｺﾞ`;
+drop database if exists `日本語`;
+drop database if exists `龔龖龗`;
+SET NAMES ujis;
+SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE DATABASE `ﾆﾎﾝｺﾞ`;
+CREATE DATABASE `日本語`;
+CREATE DATABASE `龔龖龗`;
+SELECT schema_name from information_schema.schemata
+where schema_name <> 'mtr' order by schema_name;
+SCHEMA_NAME
+information_schema
+mysql
+performance_schema
+sys
+test
+日本語
+龔龖龗
+ﾆﾎﾝｺﾞ
+USE `ﾆﾎﾝｺﾞ`;
+USE `日本語`;
+USE `龔龖龗`;
+DROP DATABASE `ﾆﾎﾝｺﾞ`;
+DROP DATABASE `日本語`;
+DROP DATABASE `龔龖龗`;

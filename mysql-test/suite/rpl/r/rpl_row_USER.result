@@ -1,0 +1,71 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+CREATE USER tester IDENTIFIED BY 'test', ''@'localhost%';
+GRANT ALL ON mysqltest1.* TO 'tester'@'%';
+GRANT ALL ON mysqltest1.* TO ''@'localhost%';
+FLUSH PRIVILEGES;
+CREATE TABLE mysqltest1.t1 (a INT, users VARCHAR(255), PRIMARY KEY(a));
+INSERT INTO mysqltest1.t1 VALUES(1,USER());
+INSERT INTO mysqltest1.t1 VALUES(2,CURRENT_USER());
+CREATE PROCEDURE mysqltest1.p1()
+BEGIN
+INSERT INTO mysqltest1.t1 VALUES(3,USER());
+INSERT INTO mysqltest1.t1 VALUES(4,CURRENT_USER());
+END|
+CALL mysqltest1.p1();
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+a	users
+1	tester@localhost
+2	@localhost%
+3	tester@localhost
+4	@localhost%
+include/sync_slave_sql_with_master.inc
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+a	users
+1	tester@localhost
+2	@localhost%
+3	tester@localhost
+4	@localhost%
+DROP DATABASE mysqltest1;
+REVOKE ALL ON mysqltest1.* FROM 'tester'@'%';
+REVOKE ALL ON mysqltest1.* FROM ''@'localhost%';
+DROP USER tester@'%';
+DROP USER ''@'localhost%';
+include/sync_slave_sql_with_master.inc
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+CREATE USER 'tester1'@'' IDENTIFIED BY 'test';
+GRANT ALL ON mysqltest1.* TO 'tester1'@'';
+FLUSH PRIVILEGES;
+CREATE TABLE mysqltest1.t1 (a INT, users VARCHAR(255), PRIMARY KEY(a));
+INSERT INTO mysqltest1.t1 VALUES(1,USER());
+INSERT INTO mysqltest1.t1 VALUES(2,CURRENT_USER());
+CREATE PROCEDURE mysqltest1.p1()
+BEGIN
+INSERT INTO mysqltest1.t1 VALUES(3,USER());
+INSERT INTO mysqltest1.t1 VALUES(4,CURRENT_USER());
+END|
+CALL mysqltest1.p1();
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+a	users
+1	tester1@localhost
+2	tester1@
+3	tester1@localhost
+4	tester1@
+include/sync_slave_sql_with_master.inc
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+a	users
+1	tester1@localhost
+2	tester1@
+3	tester1@localhost
+4	tester1@
+DROP DATABASE mysqltest1;
+REVOKE ALL ON mysqltest1.* FROM 'tester1'@'';
+DROP USER tester1@'';
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

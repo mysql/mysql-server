@@ -1,0 +1,497 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# New test case for WL 3686 (which is not until CGE-6.3)
+# but test is committed in 5.1 to verify consistant results.
+#
+# When only constant expressions in update statements and
+# only PK or UK in WHERE clause. No extra WHERE parts are
+# allowed. WL #3687 takes of more advanced variants of
+# avoiding the read before the update/delete
+
+create table t1 (a int not null primary key, b int not null, c int,
+                 unique index_b (b) using hash)
+engine ndb;
+# to see rows found and changed
+--enable_info
+
+insert into t1 values (1,10,1),(2,9,1),(3,8,1),(4,7,1),(5,6,1),(6,5,2),(7,4,2),(8,3,2),
+            (9,2,2),(10,1,2);
+
+# These ones should use optimisation
+
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 1 - read the row
+--echo # 0 - update the row (deferred to commit)
+--echo # 1 - update + commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set c = 111, b = 20 where a = 1;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where a = 1 order by a;
+
+--echo
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows (1 with read before)
+--echo # 0 - delete the row (deferred to commit)
+--echo # 1 - delete + commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+delete from t1 where a = 1;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where a = 1 order by a;
+
+--echo
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows
+--echo # 0 - update the row (deferred to commit)
+--echo # 1 - update + commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set c = 1111 where b = 2;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where b = 2 order by a;
+
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 1 - read the rows
+--echo # 0 - update the row (deferred to commit)
+--echo # 1 - update + commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set c = 12, b = 19 where b = 2;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where b = 2 order by a;
+
+--echo
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows (1 with read before)
+--echo # 0 - delete the row (deferred to commit)
+--echo # 1 - delete and commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+delete from t1 where b = 19;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where b = 19 order by a;
+
+--echo
+--echo # expected result 3 roundtrips
+--echo # 0 - info call
+--echo # 2 - read the rows
+--echo # 0 - update the rows (deferred to commit)
+--echo # 1 - update + commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set c = 22 where a = 10 or a >= 10;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 order by a;
+
+--echo
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows (1 with read before)
+--echo # 0 - update the rows (2 if no bulk update + 1 deferred to commit)
+--echo # 1 - update + commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set c = 23 where a in (8,10);
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 order by a;
+
+--echo
+--echo # expected result 4 roundtrips
+--echo # 0 - info call
+--echo # 3 - read the rows
+--echo # 0 - update the rows (executed during read)
+--echo # 1 - commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set c = 23 where a in (7,8) or a >= 10;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 order by a;
+
+# These ones should not use optimisation
+
+--echo
+--echo # expected result 5 roundtrips
+--echo # 0 - info call
+--echo # 2 - read the rows
+--echo # 2 - pk read in rnd_pos
+--echo # 0 - update the rows (deferred to commit)
+--echo # 1 - update + commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set c = 11 where a = 3 or b = 7;
+### Disable this test, as it's unpredictable...
+### cause scan can get one or two batches...
+#--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where a = 3 or b = 7 order by a;
+
+--echo
+--echo # expected result 4 roundtrips
+--echo # 0 - info call
+--echo # 1 - read complete rows
+--echo # 0 - don't read the row _again_ - included in read above
+--echo # 1 - delete the row (pk update)
+--echo # 1 - insert the row (pk update)
+--echo # 1 - commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set a = 13, b = 20 where a = 3;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where a = 13 order by a;
+
+--echo
+--echo # expected result 4 roundtrips
+--echo # 0 - info call
+--echo # 1 - read complete rows
+--echo # 0 - don't read the row _again_ - included in read above
+--echo # 1 - delete the row (pk update)
+--echo # 1 - insert the row (pk update)
+--echo # 1 - commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set a = 12, b = 19 where b = 7;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where b = 19 order by a;
+
+select * from t1 where b = 7 order by a;
+
+--echo
+--echo # expected result 3 roundtrips
+--echo # 1 - info call
+--echo # 1 - read the rows
+--echo # 0 - update the rows (deferred to commit)
+--echo # 1 - update + commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set c = 12, b = 29 where a = 5 and b = 6;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where b = 19 order by a;
+
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 1 - read the rows
+--echo # 0 - delete the rows (no row found)
+--echo # 1 - commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+delete from t1 where b = 6 and c = 12;
+--source suite/ndb/include/ndb_execute_count.inc
+
+select * from t1 where b = 6 order by a;
+
+--disable_info
+
+drop table t1;
+
+#
+# Bug 37153 Ndb cluster reports affected rows incorrectly
+#
+
+# NOTE! Test intentionally produce warnings which would
+# abort the query in STRICT sql_mode, turn it off
+--source suite/ndb/include/turn_off_strict_sql_mode.inc
+
+create table t1 (a int primary key,
+                 b varchar(4))
+engine=ndb;
+# Show warning and count info
+--enable_info 
+
+insert into t1 values (1, '1'), (2, '2'), (3, '3');
+
+# Autocommit, successful update
+--echo
+--echo # expected result 1 roundtrip
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 0 - update the row
+--echo # 1 - update+commit the row
+--echo # Rows matched=changed=affected=1
+--echo 
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set b='two' where a=2;
+--source suite/ndb/include/ndb_execute_count.inc
+
+
+# Autocommit, unsuccessful update
+--echo
+--echo # expected result 1 roundtrip
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 0 - update the row
+--echo # 1 - update+commit the row
+--echo # Rows matched=changed=affected=0
+--echo 
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set b='lots' where a=2000;
+--source suite/ndb/include/ndb_execute_count.inc
+
+# Autocommit, successful update + warning
+--echo
+--echo # expected result 1 roundtrip
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 0 - update the row
+--echo # 1 - update+commit the row
+--echo # Rows matched=changed=affected=1
+--echo # 1 warning
+--echo 
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set b='one plus one' where a=2;
+--source suite/ndb/include/ndb_execute_count.inc
+
+
+# Autocommit, unsuccessful update + warning
+--echo
+--echo # expected result 1 roundtrip
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 0 - update the row
+--echo # 1 - update+commit the row
+--echo # Rows matched=changed=affected=0
+--echo # 1 warning
+--echo 
+--source suite/ndb/include/ndb_init_execute_count.inc
+update t1 set b='two thousand' where a=2000;
+--source suite/ndb/include/ndb_execute_count.inc
+
+
+# No autocommit, successful update
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 1 - update the row
+--echo # 1 - commit
+--echo # Rows matched=changed=affected=1
+--echo 
+--source suite/ndb/include/ndb_init_execute_count.inc
+begin;
+update t1 set b='two' where a=2;
+commit;
+--source suite/ndb/include/ndb_execute_count.inc
+
+
+# No autocommit, unsuccessful update
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 1 - update the row
+--echo # 1 - commit
+--echo # Rows matched=changed=affected=0
+--echo 
+--source suite/ndb/include/ndb_init_execute_count.inc
+begin;
+update t1 set b='lots' where a=2000;
+commit;
+--source suite/ndb/include/ndb_execute_count.inc
+
+
+# No autocommit, successful update + warning
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 1 - update the row
+--echo # 1 - commit
+--echo # Rows matched=changed=affected=1
+--echo 1 warning
+--echo 
+--source suite/ndb/include/ndb_init_execute_count.inc
+begin;
+update t1 set b='one plus one' where a=2;
+commit;
+--source suite/ndb/include/ndb_execute_count.inc
+
+
+# No autocommit, unsuccessful update + warning
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 1 - update the row
+--echo # 1 - commit
+--echo # Rows matched=changed=affected=0
+--echo # 1 warning
+--echo 
+--source suite/ndb/include/ndb_init_execute_count.inc
+begin;
+update t1 set b='two thousand' where a=2000;
+commit;
+--source suite/ndb/include/ndb_execute_count.inc
+
+--disable_info
+
+--disable_info
+
+drop table t1;
+
+--source suite/ndb/include/restore_sql_mode_after_turn_off_strict.inc
+
+# bug#58040
+
+create table t1
+(a int not null primary key auto_increment, b int, c varchar(256))
+character set latin1
+engine = ndb;
+# Show warning and count info
+--enable_info 
+
+# insert some rows...
+insert into t1(b,c) values (1,'this is a test'),
+(2,'this is a test'),(3,'this is a test'),
+(4,'this is a test'),(5,'this is a test'),(6,'this is a test'),
+(7,'this is a test'),(8,'this is a test'),(9,'this is a test');
+
+insert into t1(b,c) select b,c from t1;
+insert into t1(b,c) select b,c from t1;
+insert into t1(b,c) select b,c from t1;
+insert into t1(b,c) select b,c from t1;
+insert into t1(b,c) select b,c from t1;
+insert into t1(b,c) select b,c from t1;
+insert into t1(b,c) select b,c from t1;
+insert into t1(b,c) select b,c from t1;
+insert into t1(b,c) select b,c from t1;
+analyze table t1;
+
+# looong in list
+let $list =
+(3220,3371,709,363,603,2232,1738,2079,585,1798,2786,2495,1631,2000,59,2137,
+1703,564,1102,868,3934,427,694,2908,2324,2542,1779,1133,1508,3153,2701,2966,
+3687,1551,3395,3157,3914,1096,2755,1433,3096,16,3592,521,1977,1886,441,3285,
+3257,2040,911,403,736,3720,496,1244,3221,1386,2988,1442,2271,3050,148,2355,
+1751,3349,3512,731,3320,244,2462,1141,1410,1815,4007,1140,1236,2824,1323,1843,
+422,3929,182,3064,3603,2798,68,2251,1255,2417,3436,67,1458,1260,1450,1740,3493,
+2043,965,4069,2762,3876,2945,2741,1194,3593,2135,4046,659,1263,2416,2539,921,
+698,1396,2152,2130,3411,1013,2682,703,240,1933,3581,3798,1926,2381,717,361,
+2697,221,3726,2124,1317,89,1413,312,2279,2556,1920,3282,3850,893,2012,1463,
+1032,4044,3448,2116,1743,3761,3145,1760,3351,3462,599,2164,4050,2178,4014,519,
+2898,610,86,2138,1547,3543,3098,3599,376,2854,2408,2506,1846,2732,950,700,2829,
+1724,3989,1644,1700,2706,70,2478,2136,854,1175,3678,2975,1680,471,2508,3069,
+289,1758,2768,2398,131,550,948,3625,1476,2760,1974,648,2664,3706,1497,2111,
+2784,801,1931,3913,1539,205,3686,1253,2101,1229,1466,909,566,2757,1478,2483,
+192,1343,1103,259,3243,2393,547,569,2074,2750,2826,3756,2934,1788,495,410,2797,
+1104,883,2899,3083,337,822,829,2698,2723,2285,3155,328,3111,1663,3652,3174,
+2429,1298,1720,3757,156,1684,2125,169,58,3937,773,2433,2867,3323,650,4087,1775,
+2822,3328,3037,1907,346,3217,1531,1456,3595,3218,2678,762,10,210,2427,2341,75,
+1506,2552,2384,2196,2191,2972,1113,4032,378,2953,1389,1916,3253,1742,42,3550,
+2835,885,3099,555,393,3135,44,3400,251,2896,3640,3712,282,1995,1187,491,3433,
+3968,3176,1459,1126,1088,3534,1634,114,3843,3013,97,2358,1872,1814,1180,3740,
+601,3354,216,677,4067,484,3621,3891,2981,2708,953,1652,2197,1426,1218,3735,
+2269,1300,2523,3627,174,3529,1192,2369,939,3024,1542,3651,1145,3684,1994,2187,
+2498,1546,2418,371,2368,1686,2816,2231,862,3513,3741,1267,389,1615,2096,1636,
+739,3800,2168,1537,942,538,954,1234,3112,1676,2165,2019,3364,1613,4056,2371,
+3079,2484,3417,3580,17,3980,945,1470,2609,2864,2791,3812,1125,832,1861,2158,
+1014,92,2470,1604,1991,903,805,2046,320,1906,1022,2614,1266,2335,3506,3736,
+3168,26,2769,2346,2444,1445,479,3965,819,3010,1029,3318,1687,290,1407,3920,379,
+3885,2892,3377,1210,2262,1580,107,3517,3302,2334,1027,3166,2217,681,2466,928,
+3791,2612,3009,372,2790,2294,2713,3856,2862,2266,2845,2480,1876,3394,1835,735,
+1293,1969,3248,237,419,3352,740,2426,3638,2319,1729,3303,2189,283,1839,1905,
+1165,3971,2696,3258,2221,665,1559,1734,3416,3835,2894,535,3911,611,1453,3649,
+837,2085,1060,3646,4023,2042,1939,1226,2601,2657,967,4059,2035,3556,1529,3845,
+170,3842,1928,3407,150,271,936,1952,2543,446,662,804,1349,654,470,3713,3232,
+2600,2955,2881,1929,2747,2549,1291,2509,2773,3316,3461,2004,2270,674,3334,1947,
+1067,4072,189,2619,122,593,3558,3236,2082,1504,1182,1867,43,2486,3028,4033,448,
+1150,4013,1148,1691,3234,459,3807,2195,4063,869,3962,582,660,600,3925,2166,
+3179,3846,1620,476,2122,2949,2024,3606,2027,3468,1540,1786,1364,1593,1802,411,
+1940,3004,2802,3598,2530,2613,2338,3953,128,1951,4061,3907,2568,2844,2962,2683,
+1471,3554,417,767,1526,1480,118,658,209,2656,3295,2123,3117,465,3005,3246,336,
+604,2442,1283,2579,2795,3484,1997,463,2877,84,3081,2318,3336,818,3583,3245,
+3613,2897,3921,1820,2819,2306,3516,1763,2973,3019,3380,723,19,3444,3795,3065,
+1692,1297,1289,3707,3080,1824,1612,2617,3014,621,3988,2842,3813,2204,2298,3233,
+2738,2548,2914,902,3200,1061,2081,607,3392,3895,2190,789,2865,943,1595,976,
+2863,1666,3496,1896,3568,3249,2200,933,1717,1857,592,467,2770,2663,1560,575,
+605,1196,3238,2558,2375,2859,2667,3106,443,1702,2382,284,4017,307,2492,4002,
+931,1004,397,619,1052,1003,3797,2694,177,1017,3519,1237,1733,3734,2407,109,
+2246,1600,1981,3437,620,1058,530,2112,2449,1381,2403,1198,1062,668,1512,69,
+1822,2283,401,1135,3110,3214,670,2645,3586,3924,4078,4090,2083,1566,1563,2516,
+675,1491,774,1967,3973,3609,872,2893,2535,1123,2623,2562,3793,1503,1968,113,
+2811,3930,1908,447,2419,1117,2471,1051,787,695,1303,146,3633,367,3132,602,1862,
+2127,1306,1285,3564,426,3224,273,1385,2807,3701,4041,865,2690,1697,3960,2684,
+4079,1772,3171,3716,2120,3918,2922,2497,2154,630,3879,3688,2055,2316,155,1220,
+3927,1425,2413,1791,3237,206,3384,1371,3819,4089,94,1404,2343,4031,1144,3034,
+2500,2846,3042,2553,1380,166,3487,646,963,3772,3617,1474,3610,1146,386,2592,
+3421,1887,3589,141,3033,3326,3509,1475,1320,533,2275,1932,3732,2474,1980,49,
+1511,2671,3278,1486,1080,1610,3575,3904,2227,3669,784,1736,3724,729,3818,3825,
+3908,3031,3109,704,685,2448,710,359,3235,1583,2376,2810,1619,64,2635,3032,1412,
+1159,3792,1890,2885,55,1571,3826,744,80,1683,348,3097,1754,2402,2310,2072,831,
+3053,2882,2599,127,2118,3748,2512,844,3376,490,813,2011,2099,3626,1350,3993,
+2207,3553,350,2805,2276,2235,2803,159,1039,2075,576,614,1899,3348,649,218,637,
+2942,270,3422,3775,3873,3239,989,2463,783,3312);
+
+##
+# In ps-protocol, server will adds calls to execute(Commit)
+#   (these are optimized away by ndbapi, since there is nothing to commit)
+#   and these generates a diff in execute-count
+# To not have to investigate problem futher, I simply set autocommit=off
+#   (and back further down where we don't track execute-count any longer)
+# It would probably be good to changes these tests to instead use frazers new
+#   ndbapi counters, and instead measure #round-trips
+set autocommit=off;
+--echo select count(*) from t1 where a in (...)
+--source suite/ndb/include/ndb_init_execute_count.inc
+--disable_query_log
+eval select count(*) from t1 where a in $list;
+--source suite/ndb/include/ndb_execute_count.inc
+set autocommit=on;
+
+--echo update t1 set c = 'kalle' where a in (...)
+--source suite/ndb/include/ndb_init_execute_count.inc
+--disable_query_log
+eval update t1 set c = 'kalle' where a in $list;
+--source suite/ndb/include/ndb_execute_count.inc
+
+--echo delete from t1 where a in (...)
+--source suite/ndb/include/ndb_init_execute_count.inc
+--disable_query_log
+eval delete from t1 where a in $list;
+--source suite/ndb/include/ndb_execute_count.inc
+
+--echo delete from t1 where a in (...)
+--source suite/ndb/include/ndb_init_execute_count.inc
+--disable_query_log
+eval delete from t1 where a in $list;
+--source suite/ndb/include/ndb_execute_count.inc
+
+--echo update t1 set c = 'kalle' where a in (...)
+--source suite/ndb/include/ndb_init_execute_count.inc
+--disable_query_log
+eval update t1 set c = 'kalle' where a in $list;
+--source suite/ndb/include/ndb_execute_count.inc
+
+--echo update t1 set c = 'kalle' where a in (...)
+--source suite/ndb/include/ndb_init_execute_count.inc
+--disable_query_log
+eval update t1 set c = 'kalle' where a in $list;
+--source suite/ndb/include/ndb_execute_count.inc
+
+--enable_query_log
+
+--disable_info
+drop table t1;

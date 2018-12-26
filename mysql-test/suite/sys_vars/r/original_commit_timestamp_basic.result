@@ -1,0 +1,79 @@
+SELECT @@GLOBAL.original_commit_timestamp;
+ERROR HY000: Variable 'original_commit_timestamp' is a SESSION variable
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+36028797018963968
+SHOW VARIABLES LIKE 'original_commit_timestamp';
+Variable_name	Value
+original_commit_timestamp	36028797018963968
+SET @@GLOBAL.original_commit_timestamp=123456;
+ERROR HY000: Variable 'original_commit_timestamp' is a SESSION variable and can't be used with SET GLOBAL
+SET @@SESSION.original_commit_timestamp=123456;
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+123456
+SET @@SESSION.original_commit_timestamp= -123456;
+Warnings:
+Warning	1292	Truncated incorrect original_commit_timestamp value: '-123456'
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+0
+SET @@SESSION.original_commit_timestamp= 0;
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+0
+SET @@SESSION.original_commit_timestamp= 123456789012345678901;
+ERROR 42000: Incorrect argument type to variable 'original_commit_timestamp'
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+0
+SET @@SESSION.original_commit_timestamp= 'xyz';
+ERROR 42000: Incorrect argument type to variable 'original_commit_timestamp'
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+0
+SET @@SESSION.original_commit_timestamp= xyz;
+ERROR 42000: Incorrect argument type to variable 'original_commit_timestamp'
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+0
+SET @@SESSION.original_commit_timestamp= 36028797018963969;
+Warnings:
+Warning	1292	Truncated incorrect original_commit_timestamp value: '36028797018963969'
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+36028797018963968
+SET @@SESSION.original_commit_timestamp= 18446744073709551615;
+Warnings:
+Warning	1292	Truncated incorrect original_commit_timestamp value: '18446744073709551615'
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+36028797018963968
+SET @@SESSION.original_commit_timestamp= 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'original_commit_timestamp'
+SELECT @@SESSION.original_commit_timestamp;
+@@SESSION.original_commit_timestamp
+36028797018963968
+SELECT @@SESSION.original_commit_timestamp = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='original_commit_timestamp';
+@@SESSION.original_commit_timestamp = VARIABLE_VALUE
+1
+SELECT COUNT(@@SESSION.original_commit_timestamp);
+COUNT(@@SESSION.original_commit_timestamp)
+1
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='original_commit_timestamp';
+COUNT(VARIABLE_VALUE)
+1
+SELECT COUNT(@@original_commit_timestamp);
+COUNT(@@original_commit_timestamp)
+1
+SELECT COUNT(@@SESSION.original_commit_timestamp);
+COUNT(@@SESSION.original_commit_timestamp)
+1
+CREATE USER nosuper;
+SET SESSION original_commit_timestamp= 0;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+DROP USER nosuper;

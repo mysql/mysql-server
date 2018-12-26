@@ -1,0 +1,1848 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+######## Running UPDATE tests for INT ########
+
+# Create table
+CREATE TABLE t1(c1 INT UNSIGNED NOT NULL, c2 INT SIGNED NULL, c3 INT, INDEX idx2(c2));
+
+# Insert into tables
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+--sorted_result
+SELECT * FROM t1;
+
+# Update order by limit
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1 WHERE c1=110;
+
+# Update with NULL(null to numbers, numbers to null)
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101; 
+--sorted_result
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=120;
+
+# Update negative value to unsigned col
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+
+# Update range values
+UPDATE t1 SET c1=0,c2=-2147483648 WHERE c1=103 AND c2=-103;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0 AND c2=-2147483648;
+UPDATE t1 SET c1=4294967295,c2=2147483647 WHERE c1=104 OR c2=105;
+--sorted_result
+SELECT * FROM t1 WHERE c1=4294967295 AND c2=2147483647;
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+--sorted_result
+SELECT * FROM t1 WHERE c2=0;
+
+# Update outside range, would be clipped to closest endpoint
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+UPDATE t1 SET c1=4294967296,c2=2147483648 WHERE c2 BETWEEN -108 AND -106;
+SELECT COUNT(*) FROM t1 WHERE c1=4294967296 AND c2=2147483648 /* no rows */;
+--sorted_result
+SELECT * FROM t1 WHERE c1=4294967295 AND c2=2147483647;
+UPDATE t1 SET c2=-2147483649 WHERE c1=109 ORDER BY c1;
+SET SQL_MODE=DEFAULT;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=109;
+ 
+# Update ignore on bad null error
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0;
+
+# Update with multi-range
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1;
+
+# Create table with AUTO_INCREMENT Primary Key
+CREATE TABLE t2(c1 INT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT UNSIGNED NULL, c3 INT);
+
+# Update ignore on duplicate key error
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+--error ER_DUP_ENTRY
+UPDATE t2 SET c1=1 WHERE c1=3;
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+--sorted_result
+SELECT c1 FROM t2;
+
+# Update the auto_incremented value with boundary values to unsigned/signed field
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 INT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+# Update the unsigned auto_increment field
+UPDATE t1 SET c1=4294967295,c2=2147483647 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t2 SET c1=0,c2=-2147483648 WHERE c2=2;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+# Update the signed auto_increment field
+UPDATE t2 SET c1=2147483647,c2=4294967295 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=-2147483648,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+SET SQL_MODE=DEFAULT;
+
+# Multi table update
+CREATE TABLE mt1 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+--sorted_result
+SELECT * FROM mt1;
+--sorted_result
+SELECT * FROM mt2;
+--sorted_result
+SELECT * FROM mt3;
+DROP TABLE mt1,mt2,mt3;
+
+# Update,Select,Delete,Select using various access methods
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 INT UNSIGNED NULL, ADD KEY(c2);  
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+
+# Update using various methods
+
+# Using eq-ref
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1;
+
+ALTER TABLE t2 CHANGE c1 c1 INT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 INT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-2147483648,0,13),(2147483647,4294967295,14),(0,2147483648,15),(2147483647,2147483647,16);
+
+# range access
+UPDATE t2 SET c1=-2147483648 WHERE c2 <> 0 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c2;
+UPDATE t2 SET c1=-2147483648 WHERE c2 >= 0 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 >= 0 ORDER BY c2 DESC; 
+UPDATE t2 SET c1=-2147483648 WHERE c2 <= 3 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <= 3 ORDER BY c2; 
+UPDATE t2 SET c1=-2147483648 WHERE c2 <=> 4 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 <=> 4 ORDER BY c2;
+UPDATE t2 SET c1=-2147483648 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2; 
+UPDATE t2 SET c1=-2147483648 WHERE c2 IN(8,9) ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IN(8,9) ORDER BY c2 DESC;
+UPDATE t2 SET c1=-2147483648 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+UPDATE t2 SET c1=-2147483648 WHERE c2>= 6 AND c2 < 9 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2>= 6 AND c2 < 9 ORDER BY c2;
+
+# Using index-merge
+UPDATE t2 SET c1=-2147483648 WHERE c1=-12 OR c2=1;
+--sorted_result
+SELECT * FROM t2 WHERE c1=-2147483648;
+
+# Select using various access methods
+## Full table scan
+--sorted_result
+SELECT * FROM t2;
+## Forward index scan, covering ##
+--sorted_result
+SELECT c1 FROM t2;
+## Backward index scan, covering ##
+SELECT c1 FROM t2 ORDER BY c1 DESC;
+# ref access
+--sorted_result
+SELECT * FROM t2 WHERE c1=-2147483648;
+## Range access ##
+SELECT * FROM t2 WHERE c1 <> -2147483648 ORDER BY c1,c2;
+SELECT * FROM t2 WHERE c1 <> -2147483648 ORDER BY c1,c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -2147483648 ORDER BY c1,c2 DESC;
+SELECT * FROM t2 WHERE c1 >= -2147483648 ORDER BY c1,c2 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < -2147483648 ORDER BY c1,c2;
+SELECT * FROM t2 WHERE c1 <= -2147483648 ORDER BY c1,c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <=> -2147483648 ORDER BY c1,c2 DESC;
+SELECT * FROM t2 WHERE c1 <=> -2147483648 ORDER BY c1,c2 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -2147483648 AND 2147483647 ORDER BY c1,c2;
+SELECT * FROM t2 WHERE c1 BETWEEN -2147483648 AND 2147483647 ORDER BY c1,c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 IN(-2147483648,2147483647) ORDER BY c1,c2 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2147483648,2147483647) ORDER BY c1,c2 LIMIT 2;
+SELECT * FROM t2 WHERE c1>=-2147483648 AND c1 <= 2147483647 ORDER BY c1,c2 DESC;
+SELECT * FROM t2 WHERE c1>=-2147483648 AND c1 <= 2147483647 ORDER BY c1,c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+
+# Test multi update with different join methods
+CREATE TABLE mt1 (a int not null primary key, b int not null, key (b));
+CREATE TABLE mt2 (a int not null primary key, b int not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+# Full join, without key
+update mt1,mt2 set mt1.a=mt1.a+100;
+--sorted_result
+select * from mt1;
+# unique key
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+--sorted_result
+select * from mt1;
+# ref key
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+--sorted_result
+select * from mt1;
+# Range key (in mt1)
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+--sorted_result
+select * from mt1;
+--sorted_result
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
+# test for non-updating table which is also used in sub-select
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+
+# Testing delete using various access methods
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+
+# Using Index-merge
+SELECT * FROM t2 WHERE c1=127 OR c2=3;
+DELETE FROM t2 WHERE c1=127 OR c2=3;
+SELECT * FROM t2 WHERE c1=127 OR c2=3;
+
+# Range access
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1; 
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+
+# Muti-table delete
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+
+# join (Range checked for each record)
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+--error ER_UPDATE_TABLE_USED
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+
+# eq-ref join
+CREATE TABLE t3(c1 INT UNSIGNED NOT NULL PRIMARY KEY, c2 INT SIGNED NULL, c3 INT); 
+CREATE TABLE t4(c1 INT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+--sorted_result
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2; 
+
+DROP TABLE t1,t2,t3,t4;
+
+# More tests for updates.............
+# Update with ORDER BY 
+create table mt1 (a int not null, b int not null, key (a));
+insert into mt1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
+SET @tmp=0;
+update mt1 set b=(@tmp:=@tmp+1) order by a;
+update mt1 set b=99 where a=1 order by b asc limit 1;
+select * from mt1 order by a,b;
+update mt1 set b=100 where a=1 order by b desc limit 2;
+update mt1 set a=a+10+b where a=1 order by b;
+select * from mt1 order by a,b;
+create table mt2 (a int not null, b int not null);
+insert into mt2 values (1,1),(1,2),(1,3);
+update mt1 set b=(select distinct 1 from (select * from mt2) a);
+drop table mt1,mt2;
+
+# Multi table update
+create table mt1 (f1 int);
+create table mt2 (f2 int);
+insert into mt1 values(1),(2);
+insert into mt2 values(1),(1);
+--enable_info
+update mt1,mt2 set f1=3,f2=3 where f1=f2 and f1=1;
+--disable_info
+update mt2 set f2=1;
+update mt1 set f1=1 where f1=3;
+--enable_info
+update mt2,mt1 set f1=3,f2=3 where f1=f2 and f1=1;
+--disable_info
+--sorted_result
+SELECT * FROM mt1;
+--sorted_result
+SELECT * FROM mt2;
+drop table mt1,mt2;
+
+# Update with subquery
+create table mt1(f1 int, f2 int);
+create table mt2(f3 int, f4 int);
+create index idx on mt2(f3);
+insert into mt1 values(1,0),(2,0);
+insert into mt2 values(1,1),(2,2);
+UPDATE mt1 SET mt1.f2=(SELECT MAX(mt2.f4) FROM mt2 WHERE mt2.f3=mt1.f1);
+select * from mt1;
+drop table mt1,mt2;
+
+# Update and partial key part
+create table mt1 (a int, b char(255), key(a, b(20)));
+insert into mt1 values (0, '1');
+update mt1 set b = b + 1 where a = 0;
+--sorted_result
+select * from mt1;
+drop table mt1;
+
+# Update with subquery with ref built with a key from the updated table
+create table mt1(f1 int, f2 int);
+create table mt2(f3 int, f4 int);
+create index idx on mt2(f3);
+insert into mt1 values(1,0),(2,0);
+insert into mt2 values(1,1),(2,2);
+UPDATE mt1 SET mt1.f2=(SELECT MAX(mt2.f4) FROM mt2 WHERE mt2.f3=mt1.f1);
+--sorted_result
+select * from mt1;
+drop table mt1,mt2;
+
+# Update on last_insert_id()
+create table mt1 (id int not null auto_increment primary key, id_str varchar(32));
+insert into mt1 (id_str) values ("test");
+update mt1 set id_str = concat(id_str, id) where id = last_insert_id();
+--sorted_result
+select * from mt1;
+drop table mt1;
+
+# More updates
+create table mt1 (n int(10) not null primary key, d int(10));
+create table mt2 (n int(10) not null primary key, d int(10));
+insert into mt1 values(1,1), (3,3);
+insert into mt2 values(1,10),(2,20);
+UPDATE mt2 left outer join mt1 on mt1.n=mt2.n  SET mt1.d=mt2.d;
+--sorted_result
+select * from mt1;
+--sorted_result
+select * from mt2; 
+drop table mt1,mt2;
+create table mt1 (n int(10), d int(10));
+create table mt2 (n int(10), d int(10));
+insert into mt1 values(1,1),(1,2);
+insert into mt2 values(1,10),(2,20);
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
+--sorted_result
+select * from mt1;
+--sorted_result
+select * from mt2;
+drop table mt1,mt2;
+create table mt1 (n int(10), d int(10));
+create table mt2 (n int(10), d int(10));
+insert into mt1 values(1,1),(3,2);
+insert into mt2 values(1,10),(1,20);
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
+--sorted_result
+select * from mt1;
+--sorted_result
+select * from mt2;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE mt1 a straight_join mt2 b SET a.d=b.d,b.d=30 WHERE a.n=b.n;
+--sorted_result
+select * from mt1;
+--sorted_result
+select * from mt2;
+DELETE a, b  FROM mt1 a,mt2 b where a.n=b.n;
+--sorted_result
+select * from mt1;
+--sorted_result
+select * from mt2;
+drop table mt1,mt2;
+
+# Multi table UPDATE IGNORE on duplicate keys
+CREATE TABLE mt1 (`colA` int(10) unsigned NOT NULL auto_increment, `colB` int(11) NOT NULL default '0', PRIMARY KEY  (`colA`));
+INSERT INTO mt1 VALUES (4433,5424);
+CREATE TABLE mt2 (`colC` int(10) unsigned NOT NULL default '0', `colA` int(10) unsigned NOT NULL default '0', `colD` int(10) unsigned NOT NULL default '0', `colE` int(10) unsigned NOT NULL default '0', `colF` int(10) unsigned NOT NULL default '0', PRIMARY KEY  (`colC`,`colA`,`colD`,`colE`));
+INSERT INTO mt2 VALUES (3,4433,10005,495,500);
+INSERT INTO mt2 VALUES (3,4433,10005,496,500);
+INSERT INTO mt2 VALUES (3,4433,10009,494,500);
+INSERT INTO mt2 VALUES (3,4433,10011,494,500);
+INSERT INTO mt2 VALUES (3,4433,10005,497,500);
+INSERT INTO mt2 VALUES (3,4433,10013,489,500);
+INSERT INTO mt2 VALUES (3,4433,10005,494,500);
+INSERT INTO mt2 VALUES (3,4433,10005,493,500);
+INSERT INTO mt2 VALUES (3,4433,10005,492,500);
+--sorted_result
+UPDATE IGNORE mt2,mt1 set mt2.colE = mt2.colE + 1,colF=0 WHERE mt1.colA = mt2.colA AND (mt1.colB & 4096) > 0 AND (colE + 1) < colF;
+--sorted_result
+SELECT * FROM mt2;
+DROP TABLE mt1,mt2;
+
+# Test multi-update and multi-delete with impossible where
+create table mt1(id1 smallint(5), field char(5));
+create table mt2(id2 smallint(5), field char(5));
+insert into mt1 values (1, 'a'), (2, 'aa');
+insert into mt2 values (1, 'b'), (2, 'bb');
+--sorted_result
+select * from mt1;
+--sorted_result
+select * from mt2;
+update mt2 inner join mt1 on mt1.id1=mt2.id2 set mt2.field=mt1.field where 0=1;
+update mt2, mt1 set mt2.field=mt1.field where mt1.id1=mt2.id2 and 0=1;
+delete mt1, mt2 from mt2 inner join mt1 on mt1.id1=mt2.id2 where 0=1;
+delete mt1, mt2 from mt2,mt1 where mt1.id1=mt2.id2 and 0=1;
+drop table mt1,mt2;
+
+create table mt1 (n numeric(10));
+create table mt2 (n numeric(10));
+insert into mt2 values (1),(2),(4),(8),(16),(32);
+--sorted_result
+select * from mt2 left outer join mt1  using (n);
+delete  mt1,mt2 from mt2 left outer join mt1  using (n);
+--sorted_result
+select * from mt2 left outer join mt1  using (n);
+drop table mt1,mt2 ;
+
+create table mt1(id1 int not null  primary key, t varchar(100)) pack_keys = 1;
+create table mt2(id2 int not null, t varchar(100), index(id2)) pack_keys = 1;
+disable_query_log;
+let $1 = 1000;
+while ($1)
+{
+let $2 = 5;
+eval insert into mt1 values ($1,'aaaaaaaaaaaaaaaaaaaa');
+while ($2)
+{
+eval insert into mt2(id2,t) values ($1,'bbbbbbbbbbbbbbbbb');
+dec $2;
+}
+dec $1;
+}
+enable_query_log;
+delete mt1  from mt1,mt2 where mt1.id1 = mt2.id2 and mt1.id1 > 500;
+drop table mt1,mt2;
+
+# Test delete with outer join and const tables
+--disable_warnings
+create table mt1 (aclid bigint not null primary key, status tinyint(1) not null);
+create table mt2 (refid bigint not null primary key, aclid bigint, index idx_acl(aclid));
+--enable_warnings
+insert into mt2 values(1,null);
+delete mt2, mt1 from mt2 left join mt1 on (mt2.aclid=mt1.aclid) where mt2.refid='1';
+drop table mt1, mt2;
+
+# multi delete wrong table check
+create table mt1 (a int, primary key (a));
+create table mt2 (a int, primary key (a));
+create table mt3 (a int, primary key (a));
+-- error ER_UNKNOWN_TABLE
+delete mt1,mt3 from mt1,mt2 where mt1.a=mt2.a and mt2.a=(select mt3.a from mt3 where mt1.a=mt3.a);
+drop table mt1, mt2, mt3;
+# multi* unique updating table check
+create table mt1 (col1 int);
+create table mt2 (col1 int);
+-- error ER_UPDATE_TABLE_USED
+update mt1,mt2 set mt1.col1 = (select max(col1) from mt1) where mt1.col1 = mt2.col1;
+-- error ER_UPDATE_TABLE_USED
+delete mt1 from mt1,mt2 where mt1.col1 < (select max(col1) from mt1) and mt1.col1 = mt2.col1;
+drop table mt1,mt2;
+
+# With Foreign Key
+CREATE TABLE IF NOT EXISTS `mt1` (`id` int(11) NOT NULL auto_increment, `tst` text, `tsmt1` text, PRIMARY KEY  (`id`));
+CREATE TABLE IF NOT EXISTS `mt2` (`ID` int(11) NOT NULL auto_increment, `ParId` int(11) default NULL, `tst` text, `tsmt1` text, PRIMARY KEY  (`ID`), KEY `IX_ParId_mt2` (`ParId`),  FOREIGN KEY (`ParId`) REFERENCES `mt1` (`id`));
+INSERT INTO mt1(tst,tsmt1) VALUES("MySQL","MySQL AB"), ("MSSQL","Microsoft"), ("ORACLE","ORACLE");
+INSERT INTO mt2(ParId) VALUES(1), (2), (3);
+--sorted_result
+select * from mt2;
+UPDATE mt2, mt1 SET mt2.tst = mt1.tst, mt2.tsmt1 = mt1.tsmt1 WHERE mt2.ParId = mt1.Id;
+--sorted_result
+select * from mt2;
+drop table mt2,mt1;
+
+# Test alias
+CREATE TABLE mt1 ( a int );
+CREATE TABLE mt2 ( a int );
+DELETE mt1 FROM mt1, mt2 AS t3;
+DELETE t4 FROM mt1, mt1 AS t4;
+DELETE t3 FROM mt1 AS t3, mt1 AS t4;
+--error ER_UNKNOWN_TABLE
+DELETE mt1 FROM mt1 AS t3, mt2 AS t4;
+INSERT INTO mt1 values (1),(2);
+INSERT INTO mt2 values (1),(2);
+DELETE mt1 FROM mt1 AS mt2, mt2 AS mt1 where mt1.a=mt2.a and mt1.a=1;
+SELECT * from mt1;
+SELECT * from mt2;
+DELETE mt2 FROM mt1 AS mt2, mt2 AS mt1 where mt1.a=mt2.a and mt1.a=2;
+SELECT * from mt1;
+SELECT * from mt2;
+DROP TABLE mt1,mt2;
+
+create table mt1(id1 int not null auto_increment primary key, t char(12));
+create table mt2(id2 int not null, t char(12));
+create table mt3(id3 int not null, t char(12), index(id3));
+disable_query_log;
+let $1 = 100;
+while ($1)
+{
+let $2 = 5;
+eval insert into mt1(t) values ('$1');
+while ($2)
+{
+eval insert into mt2(id2,t) values ($1,'$2');
+let $3 = 10;
+while ($3)
+{
+eval insert into mt3(id3,t) values ($1,'$2');
+dec $3;
+}
+dec $2;
+}
+dec $1;
+}
+enable_query_log;
+select count(*) from mt1 where id1 > 95;
+select count(*) from mt2 where id2 > 95;
+select count(*) from mt3 where id3 > 95;
+update mt1,mt2,mt3 set mt1.t="aaa", mt2.t="bbb", mt3.t="cc" where  mt1.id1 = mt2.id2 and mt2.id2 = mt3.id3  and mt1.id1 > 90;
+select count(*) from mt1 where t = "aaa";
+select count(*) from mt1 where id1 > 90;
+select count(*) from mt2 where t = "bbb";
+select count(*) from mt2 where id2 > 90;
+select count(*) from mt3 where t = "cc";
+select count(*) from mt3 where id3 > 90;
+delete mt1.*, mt2.*, mt3.*  from mt1,mt2,mt3 where mt1.id1 = mt2.id2 and mt2.id2 = mt3.id3  and mt1.id1 > 95;
+check table mt1, mt2, mt3;
+select count(*) from mt1 where id1 > 95;
+select count(*) from mt2 where id2 > 95;
+select count(*) from mt3 where id3 > 95;
+delete mt1, mt2, mt3  from mt1,mt2,mt3 where mt1.id1 = mt2.id2 and mt2.id2 = mt3.id3  and mt1.id1 > 5;
+select count(*) from mt1 where id1 > 5;
+select count(*) from mt2 where id2 > 5;
+select count(*) from mt3 where id3 > 5;
+delete from mt1, mt2, mt3  using mt1,mt2,mt3 where mt1.id1 = mt2.id2 and mt2.id2 = mt3.id3  and mt1.id1 > 0;
+# These queries will force a scan of the table
+select count(*) from mt1 where id1;
+select count(*) from mt2 where id2;
+select count(*) from mt3 where id3;
+drop table mt1,mt2,mt3;
+
+######## Running UPDATE tests for TINYINT ########
+
+# Create table
+CREATE TABLE t1(c1 TINYINT UNSIGNED NOT NULL, c2 TINYINT SIGNED NULL, c3 INT, INDEX idx2(c2));
+
+# Insert into tables
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+--sorted_result
+SELECT * FROM t1;
+
+# Update order by limit
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1 WHERE c1=110;
+
+# Update with NULL(null to numbers, numbers to null)
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101; 
+--sorted_result
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=120;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+# Update negative value to unsigned col
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+
+# Update range values
+UPDATE t1 SET c1=0,c2=-128 WHERE c1=103 AND c2=-103;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0 AND c2=-128;
+UPDATE t1 SET c1=255,c2=127 WHERE c1=104 OR c2=105;
+--sorted_result
+SELECT * FROM t1 WHERE c1=255 AND c2=127;
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+--sorted_result
+SELECT * FROM t1 WHERE c2=0;
+
+# Update outside range, would be clipped to closest endpoint
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+UPDATE t1 SET c1=256,c2=128 WHERE c2 BETWEEN -108 AND -106;
+SELECT COUNT(*) FROM t1 WHERE c1=256 AND c2=128 /* no rows */;
+--sorted_result
+SELECT * FROM t1 WHERE c1=255 AND c2=127;
+UPDATE t1 SET c2=-129 WHERE c1=109 ORDER BY c1;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=109;
+SET SQL_MODE=DEFAULT;
+# Update ignore on bad null error
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0;
+
+# Update with multi-range
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1;
+
+# Create table with AUTO_INCREMENT Primary Key
+CREATE TABLE t2(c1 TINYINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 TINYINT UNSIGNED NULL, c3 INT);
+
+# Update ignore on duplicate key error
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+--error ER_DUP_ENTRY
+UPDATE t2 SET c1=1 WHERE c1=3;
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+--sorted_result
+SELECT c1 FROM t2;
+
+# Update the auto_increment value
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 TINYINT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+# Update the unsigned auto_increment field
+UPDATE t1 SET c1=255,c2=127 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t2 SET c1=0,c2=-128 WHERE c2=2;
+SET SQL_MODE=DEFAULT;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+# Update the signed auto_increment field
+UPDATE t2 SET c1=127,c2=255 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=-128,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+
+# Multi table update
+CREATE TABLE mt1 (c1 TINYINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 TINYINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 TINYINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+--sorted_result
+SELECT * FROM mt1;
+--sorted_result
+SELECT * FROM mt2;
+--sorted_result
+SELECT * FROM mt3;
+DROP TABLE mt1,mt2,mt3;
+
+# Update,Select,Delete,Select using various access methods
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 TINYINT UNSIGNED NULL, ADD KEY(c2);
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+
+# Update using various methods
+# eq-ref join
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1; 
+
+ALTER TABLE t2 CHANGE c1 c1 TINYINT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 TINYINT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-128,0,13),(127,255,14),(0,128,15),(127,127,16);
+
+# range access
+UPDATE t2 SET c1=-128 WHERE c2 <> 0 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c2;
+UPDATE t2 SET c1=-128 WHERE c2 >= 0 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 >= 0 ORDER BY c2 DESC; 
+UPDATE t2 SET c1=-128 WHERE c2 <= 3 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <= 3 ORDER BY c2; 
+UPDATE t2 SET c1=-128 WHERE c2 <=> 4 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 <=> 4 ORDER BY c2;
+UPDATE t2 SET c1=-128 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2; 
+UPDATE t2 SET c1=-128 WHERE c2 IN(8,9) ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IN(8,9) ORDER BY c2 DESC;
+UPDATE t2 SET c1=-128 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+UPDATE t2 SET c1=-128 WHERE c2>= 6 AND c2 < 9 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2>= 6 AND c2 < 9 ORDER BY c2;
+
+# Using index-merge
+UPDATE t2 SET c1=-128 WHERE c1=-12 OR c2=1;
+--sorted_result
+SELECT * FROM t2 WHERE c1=-128;
+
+# Select using various access methods
+## Full table scan
+--sorted_result
+SELECT * FROM t2;
+## Forward index scan, covering ##
+--sorted_result
+SELECT c1 FROM t2;
+## Backward index scan, covering ##
+SELECT c1 FROM t2 ORDER BY c1 DESC;
+# ref access
+--sorted_result
+SELECT * FROM t2 WHERE c1=-128;
+## Range access ##
+SELECT * FROM t2 WHERE c1 <> -128 ORDER BY c1,c2;
+SELECT * FROM t2 WHERE c1 <> -128 ORDER BY c1,c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -128 ORDER BY c1,c2 DESC;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1,c2 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < -128 ORDER BY c1,c2;
+SELECT * FROM t2 WHERE c1 <= -128 ORDER BY c1,c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <=> -128 ORDER BY c1,c2 DESC;
+SELECT * FROM t2 WHERE c1 <=> -128 ORDER BY c1,c2 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1,c2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1,c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 IN(-128,127) ORDER BY c1,c2 DESC;
+SELECT * FROM t2 WHERE c1 IN(-128,127) ORDER BY c1,c2 LIMIT 2;
+SELECT * FROM t2 WHERE c1>=-128 AND c1 <= 127 ORDER BY c1,c2 DESC;
+SELECT * FROM t2 WHERE c1>=-128 AND c1 <= 127 ORDER BY c1,c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+
+--sorted_result
+SELECT * FROM t2 WHERE c1=-128 OR c2=3;
+
+# Test multi update with different join methods
+CREATE TABLE mt1 (a tinyint not null primary key, b tinyint not null, key (b));
+CREATE TABLE mt2 (a tinyint not null primary key, b tinyint not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+# Full join, without key
+update mt1,mt2 set mt1.a=mt1.a+100;
+--sorted_result
+select * from mt1;
+# unique key
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+SET SQL_MODE=DEFAULT;
+--sorted_result
+select * from mt1;
+# ref key
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+--sorted_result
+select * from mt1;
+# Range key (in mt1)
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+--sorted_result
+select * from mt1;
+--sorted_result
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
+# test for non-updating table which is also used in sub-select
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+
+# Testing delete using various access methods
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+
+# Using Index-merge
+# explain SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+DELETE FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+
+# Range access
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1; 
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+
+# Muti-table delete
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+
+# join(Range checked for each record)
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+--error ER_UPDATE_TABLE_USED
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+
+# eq-ref join
+CREATE TABLE t3(c1 TINYINT UNSIGNED NOT NULL PRIMARY KEY, c2 TINYINT SIGNED NULL, c3 INT); 
+CREATE TABLE t4(c1 TINYINT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+--sorted_result
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2; 
+DROP TABLE t1,t2,t3,t4;
+
+######## Running UPDATE tests for SMALLINT ########
+
+# Create table
+CREATE TABLE t1(c1 SMALLINT UNSIGNED NOT NULL, c2 SMALLINT SIGNED NULL, c3 INT, INDEX idx2(c2));
+
+# Insert into tables
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+--sorted_result
+SELECT * FROM t1;
+
+# Update order by limit
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1 WHERE c1=110;
+
+# Update with NULL(null to numbers, numbers to null)
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101; 
+--sorted_result
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=120;
+
+# Update negative value to unsigned col
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+SET SQL_MODE=DEFAULT;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+
+# Update range values
+UPDATE t1 SET c1=0,c2=-32768 WHERE c1=103 AND c2=-103;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0 AND c2=-32768;
+UPDATE t1 SET c1=65535,c2=32767 WHERE c1=104 OR c2=105;
+--sorted_result
+SELECT * FROM t1 WHERE c1=65535 AND c2=32767;
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+--sorted_result
+SELECT * FROM t1 WHERE c2=0;
+
+# Update outside range, would be clipped to closest endpoint
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=65536,c2=32768 WHERE c2 BETWEEN -108 AND -106;
+SELECT COUNT(*) FROM t1 WHERE c1=65536 AND c2=32768 /* no rows */;
+--sorted_result
+SELECT * FROM t1 WHERE c1=65535 AND c2=32767;
+UPDATE t1 SET c2=-32769 WHERE c1=109 ORDER BY c1;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=109;
+SET SQL_MODE=DEFAULT;
+# Update ignore on bad null error
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0;
+
+# Update with multi-range
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1;
+
+# Create table with AUTO_INCREMENT Primary Key
+CREATE TABLE t2(c1 SMALLINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 SMALLINT UNSIGNED NULL, c3 INT);
+
+# Update ignore on duplicate key error
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+--error ER_DUP_ENTRY
+UPDATE t2 SET c1=1 WHERE c1=3;
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+--sorted_result
+SELECT c1 FROM t2;
+
+# Update the auto_incremented value with boundary values to unsigned/signed field
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+# Update the unsigned auto_increment field
+UPDATE t1 SET c1=65535,c2=32767 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t2 SET c1=0,c2=-32768 WHERE c2=2;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+# Update the signed auto_increment field
+UPDATE t2 SET c1=32767,c2=65535 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=-32768,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+SET SQL_MODE=DEFAULT;
+
+# Multi table update
+CREATE TABLE mt1 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+--sorted_result
+SELECT * FROM mt1;
+--sorted_result
+SELECT * FROM mt2;
+--sorted_result
+SELECT * FROM mt3;
+DROP TABLE mt1,mt2,mt3;
+
+# Update,Select,Delete,Select using various access methods
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 SMALLINT UNSIGNED NULL, ADD KEY(c2);  
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+
+# Update using various methods
+# eq-ref join
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1; 
+ALTER TABLE t2 CHANGE c1 c1 SMALLINT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 SMALLINT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-32768,0,12),(0,255,13),(32767,65535,14);
+
+# range access
+UPDATE t2 SET c2=65535 WHERE c1 <> 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c1;
+UPDATE t2 SET c2=65535 WHERE c1 >= 0 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= 0 ORDER BY c1 DESC;
+UPDATE t2 SET c2=65535 WHERE c1 <= -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= -9 ORDER BY c1;
+UPDATE t2 SET c2=65535 WHERE c1 <=> -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <=> -3 ORDER BY c1;
+UPDATE t2 SET c2=65535 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1;
+UPDATE t2 SET c2=65535 WHERE c1 IN(-7,-8) ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 IN(-7,-8) ORDER BY c1 DESC;
+UPDATE t2 SET c2=65535 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+UPDATE t2 SET c2=65535 WHERE c1>= -32768 AND c1 < -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1>= -32768 AND c1 < -9 ORDER BY c1;
+
+# Using index-merge
+UPDATE t2 SET c2=65535 WHERE c1=-2 OR c2=1;
+--sorted_result
+SELECT * FROM t2 WHERE c2=65535;
+
+# Select using various access methods
+## Full table scan
+--sorted_result
+SELECT * FROM t2;
+## Forward index scan, covering ##
+--sorted_result
+SELECT c2 FROM t2;
+## Backward index scan, covering ##
+SELECT c2 FROM t2 ORDER BY c2 DESC;
+# ref access
+--sorted_result
+SELECT * FROM t2 WHERE c2=65535;
+## Range access ##
+SELECT * FROM t2 WHERE c2 <> 65535 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 <> 65535 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 > 65535 ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 >= 65535 ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 < 65535 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 <= 65535 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 <=> 65535 ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 <=> 65535 ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 65535 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 65535 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IN(0,65535) ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 IN(0,65535) ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 65535 ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 65535 ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+
+--sorted_result
+SELECT * FROM t2 WHERE c2=65535 OR c1=-4;
+
+# Test multi update with different join methods
+CREATE TABLE mt1 (a smallint not null primary key, b smallint not null, key (b));
+CREATE TABLE mt2 (a smallint not null primary key, b smallint not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+# Full join, without key
+update mt1,mt2 set mt1.a=mt1.a+100;
+--sorted_result
+select * from mt1;
+# unique key
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+--sorted_result
+select * from mt1;
+# ref key
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+--sorted_result
+select * from mt1;
+# Range key (in mt1)
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+--sorted_result
+select * from mt1;
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
+# test for non-updating table which is also used in sub-select
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+
+# Testing delete using various access methods
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+
+# Using Index-merge
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+DELETE FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+
+# Range access
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+DELETE FROM t2 WHERE c1=-3 OR c2=2;
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1; 
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+
+# Muti-table delete
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+
+# join(Range checked for each record)
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+--error ER_UPDATE_TABLE_USED
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+
+# eq-ref join
+CREATE TABLE t3(c1 SMALLINT UNSIGNED NOT NULL PRIMARY KEY, c2 SMALLINT SIGNED NULL, c3 INT); 
+CREATE TABLE t4(c1 SMALLINT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+--sorted_result
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2; 
+DROP TABLE t1,t2,t3,t4;
+
+######## Running UPDATE tests for MEDIUMINT ########
+
+# Create table
+CREATE TABLE t1(c1 MEDIUMINT UNSIGNED NOT NULL, c2 MEDIUMINT SIGNED NULL, c3 INT, INDEX idx2(c2));
+
+# Insert into tables
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+--sorted_result
+SELECT * FROM t1;
+
+# Update order by limit
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1 WHERE c1=110;
+
+# Update with NULL(null to numbers, numbers to null)
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101; 
+--sorted_result
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=120;
+
+# Update negative value to unsigned col
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+
+# Update range values
+UPDATE t1 SET c1=0,c2=-8388608 WHERE c1=103 AND c2=-103;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0 AND c2=-8388608;
+UPDATE t1 SET c1=16777215,c2=8388607 WHERE c1=104 OR c2=105;
+--sorted_result
+SELECT * FROM t1 WHERE c1=16777215 AND c2=8388607;
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+--sorted_result
+SELECT * FROM t1 WHERE c2=0;
+
+# Update outside range, would be clipped to closest endpoint
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+UPDATE t1 SET c1=16777216,c2=8388608 WHERE c2 BETWEEN -108 AND -106;
+SELECT COUNT(*) FROM t1 WHERE c1=16777216 AND c2=8388608 /* no rows */;
+--sorted_result
+SELECT * FROM t1 WHERE c1=16777215 AND c2=8388607;
+UPDATE t1 SET c2=-8388609 WHERE c1=109 ORDER BY c1;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=109;
+SET SQL_MODE=DEFAULT;
+# Update ignore on bad null error
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0;
+
+# Update with multi-range
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1;
+
+# Create table with AUTO_INCREMENT Primary Key
+CREATE TABLE t2(c1 MEDIUMINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 MEDIUMINT UNSIGNED NULL, c3 INT);
+
+# Update ignore on duplicate key error
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+--error ER_DUP_ENTRY
+UPDATE t2 SET c1=1 WHERE c1=3;
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+--sorted_result
+SELECT c1 FROM t2;
+
+# Update the auto_incremented value with boundary values to unsigned/signed field
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+# Update the unsigned auto_increment field
+UPDATE t1 SET c1=16777215,c2=8388607 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t2 SET c1=0,c2=-8388608 WHERE c2=2;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+# Update the signed auto_increment field
+UPDATE t2 SET c1=8388607,c2=16777215 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=-8388608,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+SET SQL_MODE=DEFAULT;
+
+# Multi table update
+CREATE TABLE mt1 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+--sorted_result
+SELECT * FROM mt1;
+--sorted_result
+SELECT * FROM mt2;
+--sorted_result
+SELECT * FROM mt3;
+DROP TABLE mt1,mt2,mt3;
+
+# Update,Select,Delete,Select using various access methods
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 MEDIUMINT UNSIGNED NULL, ADD KEY(c2);  
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+
+# Update using various methods
+# eq-ref join
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1;
+ALTER TABLE t2 CHANGE c1 c1 MEDIUMINT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 MEDIUMINT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-8388608,0,12),(0,255,13),(8388607,16777215,14);
+
+# range access
+UPDATE t2 SET c2=16777215 WHERE c1 <> 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c1;
+UPDATE t2 SET c2=16777215 WHERE c1 >= 0 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= 0 ORDER BY c1 DESC;
+UPDATE t2 SET c2=16777215 WHERE c1 <= -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= -9 ORDER BY c1;
+UPDATE t2 SET c2=16777215 WHERE c1 <=> -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <=> -3 ORDER BY c1;
+UPDATE t2 SET c2=16777215 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1;
+UPDATE t2 SET c2=16777215 WHERE c1 IN(-7,-8) ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 IN(-7,-8) ORDER BY c1 DESC;
+UPDATE t2 SET c2=16777215 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+UPDATE t2 SET c2=16777215 WHERE c1>= -8388608 AND c1 < -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1>= -8388608 AND c1 < -9 ORDER BY c1;
+
+# Using index-merge
+UPDATE t2 SET c2=16777215 WHERE c1=-2 OR c2=1;
+--sorted_result
+SELECT * FROM t2 WHERE c2=16777215;
+
+# Select using various access methods
+## Full table scan
+--sorted_result
+SELECT * FROM t2;
+## Forward index scan, covering ##
+--sorted_result
+SELECT c2 FROM t2;
+## Backward index scan, covering ##
+SELECT c2 FROM t2 ORDER BY c2 DESC;
+# ref access
+--sorted_result
+SELECT * FROM t2 WHERE c2=16777215;
+## Range access ##
+SELECT * FROM t2 WHERE c2 <> 16777215 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 <> 16777215 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 > 16777215 ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 >= 16777215 ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 < 16777215 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 <= 16777215 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 <=> 16777215 ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 <=> 16777215 ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 16777215 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 16777215 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IN(0,16777215) ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 IN(0,16777215) ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 16777215 ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 16777215 ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+
+--sorted_result
+SELECT * FROM t2 WHERE c2=16777215 OR c1=-4;
+
+# Test multi update with different join methods
+CREATE TABLE mt1 (a mediumint not null primary key, b mediumint not null, key (b));
+CREATE TABLE mt2 (a mediumint not null primary key, b mediumint not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+# Full join, without key
+update mt1,mt2 set mt1.a=mt1.a+100;
+--sorted_result
+select * from mt1;
+# unique key
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+--sorted_result
+select * from mt1;
+# ref key
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+--sorted_result
+select * from mt1;
+# Range key (in mt1)
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+--sorted_result
+select * from mt1;
+--sorted_result
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
+# test for non-updating table which is also used in sub-select
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+
+# Testing delete using various access methods
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+
+# Using Index-merge
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+DELETE FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+
+# Range access
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+DELETE FROM t2 WHERE c1=-3 OR c2=2;
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1; 
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+
+# Muti-table delete
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+
+# join(Range checked for each record)
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+--error ER_UPDATE_TABLE_USED
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+
+# eq-ref join
+CREATE TABLE t3(c1 MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, c2 MEDIUMINT SIGNED NULL, c3 INT); 
+CREATE TABLE t4(c1 MEDIUMINT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+--sorted_result
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2; 
+DROP TABLE t1,t2,t3,t4;
+
+######## Running UPDATE tests for BIGINT ########
+
+# Create table
+CREATE TABLE t1(c1 BIGINT UNSIGNED NOT NULL, c2 BIGINT SIGNED NULL, c3 INT, INDEX idx2(c2));
+
+# Insert into tables
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,NULL,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+--sorted_result
+SELECT * FROM t1;
+
+# Update order by limit
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1 WHERE c1=110;
+
+# Update with NULL(null to numbers, numbers to null)
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101; 
+--sorted_result
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=120;
+
+# Update negative value to unsigned col
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+
+# Update range values
+UPDATE t1 SET c1=0,c2=-9223372036854775808 WHERE c1=103 AND c2=-103;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0 AND c2=-9223372036854775808;
+UPDATE t1 SET c1=18446744073709551615,c2=9223372036854775807 WHERE c1=104 OR c2=105;
+--sorted_result
+SELECT * FROM t1 WHERE c1=18446744073709551615 AND c2=9223372036854775807;
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+--sorted_result
+SELECT * FROM t1 WHERE c2=0;
+
+# Update outside range, would be clipped to closest endpoint
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+UPDATE t1 SET c1=18446744073709551616,c2=9223372036854775808 WHERE c2 BETWEEN -108 AND -106;
+SELECT COUNT(*) FROM t1 WHERE c1=18446744073709551616 AND c2=9223372036854775808 /* no rows */;
+--sorted_result
+SELECT * FROM t1 WHERE c1=18446744073709551615 AND c2=9223372036854775807;
+UPDATE t1 SET c2=-9223372036854775809 WHERE c1=109 ORDER BY c1;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c1=109;
+SET SQL_MODE=DEFAULT;
+# Update ignore on bad null error
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+--sorted_result
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
+--sorted_result
+SELECT * FROM t1 WHERE c1=0;
+
+# Update with multi-range
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t1;
+
+# Create table with AUTO_INCREMENT Primary Key
+CREATE TABLE t2(c1 BIGINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 BIGINT UNSIGNED NULL, c3 INT);
+
+# Update ignore on duplicate key error
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+--error ER_DUP_ENTRY
+UPDATE t2 SET c1=1 WHERE c1=3;
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+--sorted_result
+SELECT c1 FROM t2;
+
+# Update the auto_incremented value with boundary values to unsigned/signed field
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+# Update the unsigned auto_increment field
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET c1=18446744073709551615,c2=9223372036854775807 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+UPDATE t2 SET c1=0,c2=-9223372036854775808 WHERE c2=2;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+# Update the signed auto_increment field
+UPDATE t2 SET c1=9223372036854775807,c2=18446744073709551615 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=-9223372036854775808,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+SET SQL_MODE=DEFAULT;
+# Multi table update
+CREATE TABLE mt1 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+--sorted_result
+SELECT * FROM mt1;
+--sorted_result
+SELECT * FROM mt2;
+--sorted_result
+SELECT * FROM mt3;
+DROP TABLE mt1,mt2,mt3;
+
+# Update,Select,Delete,Select using various access methods
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 BIGINT UNSIGNED NULL, ADD KEY(c2);  
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+
+# Update using various methods
+# eq-ref join
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1;
+ALTER TABLE t2 CHANGE c1 c1 BIGINT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 BIGINT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-9223372036854775808,0,12),(0,255,13),(9223372036854775807,18446744073709551615,14);
+
+# range access
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 <> 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c1;
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 >= 0 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= 0 ORDER BY c1 DESC;
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 <= -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= -9 ORDER BY c1;
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 <=> -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <=> -3 ORDER BY c1;
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1;
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 IN(-7,-8) ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 IN(-7,-8) ORDER BY c1 DESC;
+UPDATE t2 SET c2=18446744073709551615 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+UPDATE t2 SET c2=18446744073709551615 WHERE c1>= -9223372036854775808 AND c1 < -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1>= -9223372036854775808 AND c1 < -9 ORDER BY c1;
+
+# Using index-merge
+UPDATE t2 SET c2=18446744073709551615 WHERE c1=-2 OR c2=1;
+--sorted_result
+SELECT * FROM t2 WHERE c2=18446744073709551615;
+
+# Select using various access methods
+## Full table scan
+--sorted_result
+SELECT * FROM t2;
+## Forward index scan, covering ##
+--sorted_result
+SELECT c2 FROM t2;
+## Backward index scan, covering ##
+SELECT c2 FROM t2 ORDER BY c2 DESC;
+# ref access
+--sorted_result
+SELECT * FROM t2 WHERE c2=18446744073709551615;
+## Range access ##
+SELECT * FROM t2 WHERE c2 <> 18446744073709551615 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 <> 18446744073709551615 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 > 18446744073709551615 ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 >= 18446744073709551615 ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 < 18446744073709551615 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 <= 18446744073709551615 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 <=> 18446744073709551615 ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 <=> 18446744073709551615 ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 >= 0 AND c2 <= 18446744073709551615 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 >= 0 AND c2 <= 18446744073709551615 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 18446744073709551615 ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 18446744073709551615 ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IN(0,18446744073709551615) ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 IN(0,18446744073709551615) ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 18446744073709551615 ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 18446744073709551615 ORDER BY c2,c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+
+--sorted_result
+SELECT * FROM t2 WHERE c2=18446744073709551615 OR c1=-4;
+
+# Test multi update with different join methods
+CREATE TABLE mt1 (a bigint not null primary key, b bigint not null, key (b));
+CREATE TABLE mt2 (a bigint not null primary key, b bigint not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+# Full join, without key
+update mt1,mt2 set mt1.a=mt1.a+100;
+--sorted_result
+select * from mt1;
+# unique key
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+--sorted_result
+select * from mt1;
+# ref key
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+--sorted_result
+select * from mt1;
+# Range key (in mt1)
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+--sorted_result
+select * from mt1;
+--sorted_result
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
+# test for non-updating table which is also used in sub-select
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+
+# Testing delete using various access methods
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+
+# Using Index-merge
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+DELETE FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+
+# Range access
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+DELETE FROM t2 WHERE c1=-3 OR c2=2;
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1; 
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+
+# Muti-table delete
+# 
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+
+# join(Range checked for each record)
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+--sorted_result
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+--error ER_UPDATE_TABLE_USED
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+
+# eq-ref join
+CREATE TABLE t3(c1 BIGINT UNSIGNED NOT NULL PRIMARY KEY, c2 BIGINT SIGNED NULL, c3 INT); 
+CREATE TABLE t4(c1 BIGINT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+--sorted_result
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2; 
+DROP TABLE t1,t2,t3,t4;
+

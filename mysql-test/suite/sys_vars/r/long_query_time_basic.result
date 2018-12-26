@@ -1,0 +1,176 @@
+SET @start_global_value = @@global.long_query_time;
+SELECT @start_global_value;
+@start_global_value
+10
+SET @start_session_value = @@session.long_query_time;
+SELECT @start_session_value;
+@start_session_value
+10
+'#--------------------FN_DYNVARS_068_01-------------------------#'
+SET @@global.long_query_time = 100;
+SET @@global.long_query_time = DEFAULT;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+10.000000
+SET @@session.long_query_time = 200;
+SET @@session.long_query_time = DEFAULT;
+SELECT @@session.long_query_time;
+@@session.long_query_time
+10.000000
+'#--------------------FN_DYNVARS_068_02-------------------------#'
+SET @@global.long_query_time = DEFAULT;
+SELECT @@global.long_query_time = 10;
+@@global.long_query_time = 10
+1
+SET @@session.long_query_time = DEFAULT;
+SELECT @@session.long_query_time = 10;
+@@session.long_query_time = 10
+1
+'#--------------------FN_DYNVARS_068_03-------------------------#'
+SET @@global.long_query_time = 0;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+0.000000
+SET @@global.long_query_time = 1;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+1.000000
+SET @@global.long_query_time = 60020;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+60020.000000
+SET @@global.long_query_time = 31536000;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+31536000.000000
+SET @@global.long_query_time = 65536;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+65536.000000
+'#--------------------FN_DYNVARS_068_04-------------------------#'
+SET @@session.long_query_time = 0;
+SELECT @@session.long_query_time;
+@@session.long_query_time
+0.000000
+SET @@session.long_query_time = 1;
+SELECT @@session.long_query_time;
+@@session.long_query_time
+1.000000
+SET @@session.long_query_time = 50050;
+SELECT @@session.long_query_time;
+@@session.long_query_time
+50050.000000
+SET @@session.long_query_time = 31536000;
+SELECT @@session.long_query_time;
+@@session.long_query_time
+31536000.000000
+SET @@session.long_query_time = 65550;
+SELECT @@session.long_query_time;
+@@session.long_query_time
+65550.000000
+'#------------------FN_DYNVARS_068_05-----------------------#'
+SET @@global.long_query_time = 100000000000;
+Warnings:
+Warning	1292	Truncated incorrect long_query_time value: '100000000000'
+SELECT @@global.long_query_time;
+@@global.long_query_time
+31536000.000000
+SET @@global.long_query_time = -1;
+Warnings:
+Warning	1292	Truncated incorrect long_query_time value: '-1'
+SELECT @@global.long_query_time;
+@@global.long_query_time
+0.000000
+SET @@global.long_query_time = 65530.34;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+65530.340000
+SET @@global.long_query_time = test;
+ERROR 42000: Incorrect argument type to variable 'long_query_time'
+SELECT @@global.long_query_time;
+@@global.long_query_time
+65530.340000
+SET @@global.long_query_time = ' ';
+ERROR 42000: Incorrect argument type to variable 'long_query_time'
+SELECT @@global.long_query_time;
+@@global.long_query_time
+65530.340000
+SET @@session.long_query_time = 100000000000;
+Warnings:
+Warning	1292	Truncated incorrect long_query_time value: '100000000000'
+SELECT @@session.long_query_time;
+@@session.long_query_time
+31536000.000000
+SET @@session.long_query_time = -2;
+Warnings:
+Warning	1292	Truncated incorrect long_query_time value: '-2'
+SELECT @@session.long_query_time;
+@@session.long_query_time
+0.000000
+SET @@session.long_query_time = 65530.34;
+SELECT @@session.long_query_time;
+@@session.long_query_time
+65530.340000
+SET @@session.long_query_time = test;
+ERROR 42000: Incorrect argument type to variable 'long_query_time'
+SELECT @@session.long_query_time;
+@@session.long_query_time
+65530.340000
+SET @@session.long_query_time = ' ';
+ERROR 42000: Incorrect argument type to variable 'long_query_time'
+SELECT @@session.long_query_time;
+@@session.long_query_time
+65530.340000
+'#------------------FN_DYNVARS_068_06-----------------------#'
+SELECT @@global.long_query_time = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='long_query_time';
+@@global.long_query_time = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_068_07-----------------------#'
+SELECT @@session.long_query_time = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='long_query_time';
+@@session.long_query_time = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_068_08-----------------------#'
+SET @@global.long_query_time = TRUE;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+1.000000
+SET @@global.long_query_time = FALSE;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+0.000000
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@global.long_query_time = 10;
+SELECT @@long_query_time = @@global.long_query_time;
+@@long_query_time = @@global.long_query_time
+0
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET @@long_query_time = 100;
+SELECT @@long_query_time = @@local.long_query_time;
+@@long_query_time = @@local.long_query_time
+1
+SELECT @@local.long_query_time = @@session.long_query_time;
+@@local.long_query_time = @@session.long_query_time
+1
+'#---------------------FN_DYNVARS_001_11----------------------#'
+SET long_query_time = 1;
+SELECT @@long_query_time;
+@@long_query_time
+1.000000
+SELECT local.long_query_time;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.long_query_time;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT long_query_time = @@session.long_query_time;
+ERROR 42S22: Unknown column 'long_query_time' in 'field list'
+SET @@global.long_query_time = @start_global_value;
+SELECT @@global.long_query_time;
+@@global.long_query_time
+10.000000
+SET @@session.long_query_time = @start_session_value;
+SELECT @@session.long_query_time;
+@@session.long_query_time
+10.000000

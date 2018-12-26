@@ -1,0 +1,199 @@
+SET @start_global_value = @@global.auto_increment_offset;
+SELECT @start_global_value;
+@start_global_value
+1
+SET @start_session_value = @@session.auto_increment_offset;
+SELECT @start_session_value;
+@start_session_value
+1
+'#--------------------FN_DYNVARS_002_01-------------------------#'
+SET @@global.auto_increment_offset = 100;
+SET @@global.auto_increment_offset = DEFAULT;
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+1
+SET @@session.auto_increment_offset = 200;
+SET @@session.auto_increment_offset = DEFAULT;
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+1
+'#--------------------FN_DYNVARS_002_02-------------------------#'
+SET @@global.auto_increment_offset = @start_global_value;
+SELECT @@global.auto_increment_offset = 1;
+@@global.auto_increment_offset = 1
+1
+SET @@session.auto_increment_offset = @start_session_value;
+SELECT @@session.auto_increment_offset = 1;
+@@session.auto_increment_offset = 1
+1
+'#--------------------FN_DYNVARS_002_03-------------------------#'
+SET @@global.auto_increment_offset = 1;
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+1
+SET @@global.auto_increment_offset = 60020;
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+60020
+SET @@global.auto_increment_offset = 65535;
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+65535
+'#--------------------FN_DYNVARS_002_04-------------------------#'
+SET @@session.auto_increment_offset = 1;
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+1
+SET @@session.auto_increment_offset = 50050;
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+50050
+SET @@session.auto_increment_offset = 65535;
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+65535
+'#------------------FN_DYNVARS_002_05-----------------------#'
+SET @@global.auto_increment_offset = 0;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '0'
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+1
+SET @@global.auto_increment_offset = -1024;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '-1024'
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+1
+SET @@global.auto_increment_offset = 65536;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '65536'
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+65535
+SET @@global.auto_increment_offset = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '4294967295'
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+65535
+SET @@global.auto_increment_offset = 65535.4;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_offset'
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+65535
+SET @@global.auto_increment_offset = ON;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_offset'
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+65535
+SET @@global.auto_increment_offset = OFF;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_offset'
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+65535
+SET @@global.auto_increment_offset = test;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_offset'
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+65535
+SET @@session.auto_increment_offset = 0;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '0'
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+1
+SET @@session.auto_increment_offset = -1024;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '-1024'
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+1
+SET @@session.auto_increment_offset = 65536;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '65536'
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+65535
+SET @@session.auto_increment_offset = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '4294967295'
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+65535
+SET @@session.auto_increment_offset = 65535.4;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_offset'
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+65535
+SET @@session.auto_increment_offset = ON;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_offset'
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+65535
+SET @@session.auto_increment_offset = OFF;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_offset'
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+65535
+SET @@session.auto_increment_offset = test;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_offset'
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+65535
+'#------------------FN_DYNVARS_002_06-----------------------#'
+SELECT @@global.auto_increment_offset = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='auto_increment_offset';
+@@global.auto_increment_offset = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_002_07-----------------------#'
+SELECT @@session.auto_increment_offset = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='auto_increment_offset';
+@@session.auto_increment_offset = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_002_08-----------------------#'
+SET @@global.auto_increment_offset = TRUE;
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+1
+SET @@global.auto_increment_offset = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '0'
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+1
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@global.auto_increment_offset = 10;
+SET @@session.auto_increment_offset = 11;
+SELECT @@auto_increment_offset = @@global.auto_increment_offset;
+@@auto_increment_offset = @@global.auto_increment_offset
+0
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET @@auto_increment_offset = 100;
+SELECT @@auto_increment_offset = @@local.auto_increment_offset;
+@@auto_increment_offset = @@local.auto_increment_offset
+1
+SELECT @@local.auto_increment_offset = @@session.auto_increment_offset;
+@@local.auto_increment_offset = @@session.auto_increment_offset
+1
+'#---------------------FN_DYNVARS_001_11----------------------#'
+SET auto_increment_offset = 1;
+SELECT @@auto_increment_offset;
+@@auto_increment_offset
+1
+SELECT local.auto_increment_offset;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.auto_increment_offset;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT auto_increment_offset = @@session.auto_increment_offset;
+ERROR 42S22: Unknown column 'auto_increment_offset' in 'field list'
+SET @@global.auto_increment_offset = @start_global_value;
+SELECT @@global.auto_increment_offset;
+@@global.auto_increment_offset
+1
+SET @@session.auto_increment_offset = @start_session_value;
+SELECT @@session.auto_increment_offset;
+@@session.auto_increment_offset
+1

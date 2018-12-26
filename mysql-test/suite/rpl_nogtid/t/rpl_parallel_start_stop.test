@@ -1,0 +1,417 @@
+#
+# WL#5569/7165 MTS
+#
+# The test checks START and STOP, graceful, killing or
+# due to an error of a Worker.
+# START is considered to be with UNTIL that forces the sequential execution mode
+# and with non-zero @@global.sql_slave_skip_counter that is compatible to
+# the parallel mode.
+# The test is MTS scheduler agnostic.
+#
+
+--source include/have_binlog_format_row.inc
+--source include/have_myisam.inc
+--source include/master-slave.inc
+
+--connection slave
+
+call mtr.add_suppression("Slave SQL for channel '':.* Could not execute Write_rows event on table test.t1");
+call mtr.add_suppression("Slave SQL for channel '':.* Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+create view worker_proc_list as SELECT id  from Information_Schema.processlist
+       where state like 'Waiting for an event from Coordinator';
+create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Slave has read all relay log%';
+
+source include/stop_slave.inc;
+
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @@global.slave_parallel_workers= 4;
+
+source include/start_slave.inc;
+
+let $count= `select @@global.slave_parallel_workers`;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+#
+# KILL of a Worker stops the pool and the Coordinator
+#
+select min(id) from worker_proc_list into @w_id;
+kill query @w_id;
+
+let $count= 0;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+--let $slave_sql_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
+source include/wait_for_slave_sql_to_stop.inc;
+
+#
+# KILL of the Coordinator stops the pool as well
+#
+source include/start_slave.inc;
+
+# testing of the poll is up
+
+let $count= `select @@global.slave_parallel_workers`;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+let $count= 1;
+let $table= coord_proc_list;
+source include/wait_until_rows_count.inc;
+
+select id from coord_proc_list into @c_id;
+
+kill query @c_id;
+
+let $count= 0;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+let $slave_sql_errno= 1756; # ER_MTS_PARALLEL_INCONSISTENT_DATA
+source include/wait_for_slave_sql_error.inc;
+
+source include/start_slave.inc;
+
+##
+# Errored-out Worker stops the pool and the Coordinator
+##
+
+#
+# A. A regular error case
+#
+--connection master
+
+# make some load
+
+CREATE TABLE t1 (a int primary key) engine=innodb;
+
+insert into t1 values (1),(2);
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+
+let $count= 2;
+let $table= t1;
+source include/wait_until_rows_count.inc;
+
+# create an offending record
+insert into t1 values (3);
+
+--connection master
+
+# hit it
+insert into t1 values (3);
+
+--connection slave
+
+let $count= 0;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+source include/wait_for_slave_sql_to_stop.inc;
+delete from t1 where a=3;
+
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @@global.slave_transaction_retries= 10;
+source include/start_slave.inc;
+
+--connection master
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+
+if (`select count(*) != 3 from t1`)
+{
+    query_vertical show slave status;
+    --die Wrong recovery after restart
+}
+
+# cleanup but leaving on t1
+
+--connection master
+delete from t1;
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+
+#
+# B. In a temporary error execution is retried
+#
+
+--connection master
+insert into t1 values (1),(2),(3);
+create table t2m (a int) engine=myisam; # non-trans engine to detect deadlock
+insert into t2m values (1);
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+
+begin;
+# set up a deadlock
+update t1 set a=31 where a=3;
+insert into t1 values (5),(6),(7);
+update t1 set a=a+10;
+
+--connection master
+
+begin;
+update t1 set a=20 where a=2;
+insert into t2m values (2);
+update t1 set a=30 where a=3;
+commit;
+
+
+--connection slave
+
+let $count= 2;
+let $table= t2m;
+source include/wait_until_rows_count.inc;
+
+# must victimize the master trans because of deadlock or timeout
+update t1 set a=21 where a=2;
+
+rollback;
+
+--connection master
+
+# recovery is proved
+#--connection slave
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Skipping works with Parallel slave
+#
+
+--connection slave
+stop slave sql_thread;
+set @@global.sql_slave_skip_counter=7;
+
+--connection master
+
+# the following creates 8 events
+begin;
+select max(a) + 1 from t1 into @a;
+insert into t1 set a=@a;
+commit;
+begin;
+select max(a) + 1 from t1 into @a;
+insert into t1 set a=@a;
+commit;
+
+# which will force to skip the two above transactions by the slave
+# And the third will be executed:
+
+begin;
+select max(a) + 1 from t1 into @a;
+insert into t1 set a=@a;
+commit;
+
+--connection slave
+
+start slave sql_thread;
+
+--connection master
+let $a=`select max(a) from t1`;
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+
+if (`select $a - max(a) from t1`)
+{
+    eval select $a as 'max(a) from t1 on master';
+    eval select max(a) as 'max(a) from t1 on slave' from t1;
+    --die Wrong skipping logics or a flaw in the test
+}
+
+#
+# UNTIL condition other than SQL_AFTER_MTS_GAPS
+# is not supported by Parallel slave to reject
+# with a warning and no Worker thread is started
+#
+
+--connection slave
+source include/stop_slave.inc;
+
+--connection master
+create table t2 (a int);
+
+let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+insert into t2 values (1);
+
+--connection slave
+--replace_regex /master_log_pos=[0-9]+/master_log_pos=MASTER_LOG_POS/
+eval start slave until master_log_file='$master_log_file', master_log_pos=$master_log_pos;
+
+source include/wait_for_slave_sql_to_stop.inc;
+if (`select count(*) from t2`)
+{
+    select count(*) from t2;
+    --die Wrong UNTIL condtion handling or a flaw in the test
+}
+
+source include/start_slave.inc;
+
+##
+# cleanup
+##
+--connection master
+drop table t1;
+drop table t2m;
+drop table t2;
+
+--source include/sync_slave_sql_with_master.inc
+drop view worker_proc_list;
+drop view coord_proc_list;
+
+#
+# START SLAVE UNTIL SQL_AFTER_MTS_GAPS
+#
+# A new UNTIL condition is introduced as a tool to
+# fill gaps in the sequence of executed transaction started
+# at Exec_Master_Log_Pos.
+# The gaps could be caused by the previous slave session stop
+# with an error, or it was killed, or the server crashed.
+#
+
+--connection slave
+
+#
+# Retry is supported now, but the following block of the test is written
+# in assumption that it's not yet.
+#
+set @@global.slave_transaction_retries= 0;
+source include/stop_slave.inc;
+
+# Show SQL_AFTER_MTS_GAPS is meaningless in combination with coordinates
+# related options
+--error 1064
+start slave until sql_after_mts_gaps relay_log_file='dummy';
+--error 1064
+start slave until sql_after_mts_gaps relay_log_pos=0;
+--error 1064
+start slave until sql_after_mts_gaps master_log_file='dummy';
+--error 1064
+start slave until sql_after_mts_gaps master_log_pos=0;
+--error 1064
+start slave until sql_after_mts_gaps SQL_BEFORE_GTIDS='dummy';
+
+call mtr.add_suppression('Slave SQL for channel '': Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock');
+
+# regular start now
+source include/start_slave.inc;
+
+# set up gaps when slave sql errors out
+--connection master
+
+create database d1;
+create database d2;
+create table d1.t1 (a int primary key) engine=innodb;
+create table d2.t1 (a int primary key) engine=innodb;
+create table d1.t2m (a int) engine=myisam; # non-trans engine to detect deadlock
+insert into d1.t1 values (1),(2),(3);
+insert into d2.t1 values (1),(2),(3);
+insert into d1.t2m values (1);
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+begin; # the blocker
+# set up a deadlock at the 1st job
+update d1.t1 set a=31 where a=3;
+insert into d1.t1 values (5),(6),(7);
+
+# create the 1st job to get blocked on the slave
+--connection master
+begin;
+update d1.t1 set a=20 where a=2;
+insert into d1.t2m values (2);
+update d1.t1 set a=30 where a=3;
+insert into d1.t1 values (4);
+
+# create the 2nd job for another worker
+--connection master1
+begin;
+delete from d2.t1;
+
+# the two jobs are parallelizable now regardless of the type of MTS scheduler
+--connection master
+commit;
+--connection master1
+commit;
+
+--connection master
+# create the 3nd job to help UNTIL SQL_AFTER_MTS_GAPS be reached
+# (todo: if the last gap event ends the relay-log SQL thread will
+# hang - to be fixed with MTS support for regular UNTIL:s)
+delete from d1.t1;
+
+# wait till the 2nd job will be done
+connection slave1;
+let $count= 0;
+let $table= d2.t1;
+source include/wait_until_rows_count.inc;
+
+# proceed with 1st job into its middle
+--connection slave
+let $count= 2;
+let $table= d1.t2m;
+source include/wait_until_rows_count.inc;
+
+# must victimize the master trans because of deadlock or timeout
+update d1.t1 set a=21 where a=2;
+
+# slave is stopped
+# setting timeout to be as twice as greater than innodb's.
+--let $slave_timeout=`select 2*@@global.innodb_lock_wait_timeout`
+
+let $slave_sql_errno= 1213, 1205;
+source include/wait_for_slave_sql_error.inc;
+
+rollback; # the blocker
+
+# find out Exec_Master_Log_Pos to store it in Exec_0
+let $exec_pos_0= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+
+start slave until sql_after_mts_gaps;
+
+# Efficiency of UNTIL proof:
+source include/wait_for_slave_sql_to_stop.inc;
+
+# Consistency proof:
+
+if (`select count(*) <> 4 from d1.t1`)
+{
+    --echo *** Something is wrong in recovery ***
+    --die
+}
+
+# Efficiency of gap filling proof:
+# find out Exec_Master_Log_Pos and compare with Exec_0
+let $exec_pos_1= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+
+if (`select $exec_pos_1 - $exec_pos_0 <= 0`)
+{
+    --echo *** No gap transaction is executed as expected ***
+    --connection slave
+    show slave status;
+    --connection master
+    show master status;
+    --die
+}
+
+# UNTIL SQL_AFTER_MTS_GAPS cleanup
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+source include/start_slave.inc;
+--connection master
+drop database d1;
+drop database d2;
+
+--source include/sync_slave_sql_with_master.inc
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+
+--source include/rpl_end.inc

@@ -1,0 +1,224 @@
+include/save_binlog_position.inc
+# ----------------------------------------------------------------------
+# Begin : Tests for CREATE USER
+CREATE USER userX;
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+# Case 1 : Execute CREATE USER for existing user
+CREATE USER userY, userZ, userX;
+ERROR HY000: Operation CREATE USER failed for 'userX'@'%'
+# Must not show entries for userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+# This event sequence pattern MUST be present in binlog: !Q(CREATE USER .userX.*)
+include/assert_binlog_events.inc
+# This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER .*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 2 : Execute CREATE USER for non-existing users
+CREATE USER userY, userZ;
+# Must show entries for userX, userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+userZ
+# This event sequence pattern MUST be present in binlog: !Q(CREATE USER .userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 3 : Try creating anonymous user with expired password
+CREATE USER ''@localhost,
+userA IDENTIFIED BY 'abcd'
+            PASSWORD EXPIRE;
+ERROR HY000: Operation CREATE USER failed for anonymous user
+CREATE USER ''@'' PASSWORD EXPIRE;
+ERROR HY000: Operation CREATE USER failed for anonymous user
+# Must not show ''@localhost or ''@''
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+userZ
+# Case 4 : Try creating user with invalid plugin
+CREATE USER userA IDENTIFIED BY 'abcd', userB IDENTIFIED WITH 'blahblah';
+ERROR HY000: Plugin 'blahblah' is not loaded
+# Case 5 : Try creating user with invalid hash
+CREATE USER userA IDENTIFIED BY 'abcd',
+userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha';
+ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+# Must not show userA, userB
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+userZ
+# Check binlog for Cases 3, 4 and 5 above
+# This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
+include/assert_binlog_events.inc
+# Case 6 : Add a row in mysql.user without FLUSH PRIVILEGES and
+#          execute CREATE USER for same user
+# Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
+CREATE TABLE mysql.tmp_user LIKE mysql.user;
+INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userX';
+UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
+INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
+DROP TABLE mysql.tmp_user;
+include/save_binlog_position.inc
+# Though userW is not present in cache, CREATE USER should fail
+# because we will encounter duplicate key error while inserting entry
+# in mysql.user table for userW.
+CREATE USER userW IDENTIFIED BY 'abcd', userV IDENTIFIED BY 'haha';
+ERROR HY000: Operation CREATE USER failed for 'userW'@'%'
+# Must not show userV
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userW
+userX
+userY
+userZ
+# This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
+include/assert_binlog_events.inc
+FLUSH PRIVILEGES;
+DROP USER userW, userX, userY, userZ;
+include/save_binlog_position.inc
+# End : Tests for CREATE USER
+# ----------------------------------------------------------------------
+# BEGIN : Tests for CREATE USER IF NOT EXISTS
+CALL mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS but they already exist.");
+CREATE USER userX;
+include/save_binlog_position.inc
+# Case 1 : Execute CREATE USER IF NOT EXISTS for existing user
+CREATE USER IF NOT EXISTS userX, userY, userZ;
+Warnings:
+Note	3163	Authorization ID 'userX'@'%' already exists.
+# Must show entries for userX, userY, userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+userZ
+# This event sequence pattern MUST be present in binlog: !Q(CREATE USER IF NOT EXISTS.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Must show warnings about userX, userY and userZ
+CREATE USER IF NOT EXISTS userX, userY, userZ;
+Warnings:
+Note	3163	Authorization ID 'userX'@'%' already exists.
+Note	3163	Authorization ID 'userY'@'%' already exists.
+Note	3163	Authorization ID 'userZ'@'%' already exists.
+# This event sequence pattern MUST be present in binlog: !Q(CREATE USER IF NOT EXISTS.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 2 : Try creating anonymous user with expired password
+#          using CREATE USER IF NOT EXISTS
+CREATE USER IF NOT EXISTS ''@'' PASSWORD EXPIRE;
+ERROR HY000: Operation CREATE USER failed for anonymous user
+CREATE USER IF NOT EXISTS ''@localhost PASSWORD EXPIRE;
+ERROR HY000: Operation CREATE USER failed for anonymous user
+# Case 3 : Try creating user with invalid plugin
+CREATE USER IF NOT EXISTS userA IDENTIFIED BY 'abcd', userB IDENTIFIED WITH 'blahblah', userX;
+ERROR HY000: Plugin 'blahblah' is not loaded
+# Case 4 : Try creating user with invalid hash
+CREATE USER IF NOT EXISTS userA IDENTIFIED BY 'abcd',
+userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha';
+ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+# Must not show userA, userB
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+userZ
+# This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
+include/assert_binlog_events.inc
+# Case 6 : Add a row in mysql.user without FLUSH PRIVILEGES and
+#          execute CREATE USER IF NOT for same user
+# Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
+CREATE TABLE mysql.tmp_user LIKE mysql.user;
+INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userX';
+UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
+INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
+DROP TABLE mysql.tmp_user;
+include/save_binlog_position.inc
+# Though userW is not present in cache, CREATE USER IF NOT EXISTS
+# will skip it because we will encounter duplicate key error while
+# inserting entry in mysql.user table for userW.
+# Must show warning about userW@%.
+CREATE USER IF NOT EXISTS userW IDENTIFIED BY 'abcd',
+userV IDENTIFIED BY 'haha';
+Warnings:
+Note	3163	Authorization ID 'userW'@'%' already exists.
+# Must show userV, userW, userX, userY, userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userV
+userW
+userX
+userY
+userZ
+# This event sequence pattern MUST be present in binlog: !Q(CREATE USER.*userW.*userV.*)
+include/assert_binlog_events.inc
+DROP USER userV, userW, userX, userY, userZ;
+include/save_binlog_position.inc
+# END : Tests for CREATE USER IF NOT EXISTS
+# ----------------------------------------------------------------------
+# Begin : Tests for CREATE USER with DEFAULT ROLE
+CREATE USER userX;
+CREATE ROLE 'roleX', 'roleY', 'roleZ';
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+# Case 1 : Execute CREATE USER for existing user
+CREATE USER userY, userZ, userX DEFAULT ROLE 'roleX';
+ERROR HY000: Operation CREATE USER failed for 'userX'@'%'
+# Must not show entries for userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+SELECT user FROM mysql.default_roles where user LIKE 'user%';
+user
+# This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER .*userY.*userZ.*.userX)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 2 : Execute CREATE USER for non-existing users
+CREATE USER userY, userZ DEFAULT ROLE 'roleX', 'roleY';
+# Must show entries for userX, userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+userZ
+SELECT user FROM mysql.default_roles where user LIKE 'user%';
+user
+userY
+userY
+userZ
+userZ
+# This event sequence pattern MUST be present in binlog: !Q(CREATE USER .userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+# Case 3 : Try creating user with invalid hash
+CREATE USER userA IDENTIFIED BY 'abcd',
+userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha'
+            DEFAULT ROLE roleX;
+ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+# Must not show userA, userB
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+user
+userX
+userY
+userZ
+SELECT user FROM mysql.default_roles WHERE user LIKE 'user%';
+user
+userY
+userY
+userZ
+userZ
+# Check binlog for Cases 3
+# This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
+include/assert_binlog_events.inc
+DROP USER userX, userY, userZ;
+DROP ROLE roleX, roleY, roleZ;
+include/save_binlog_position.inc
+# ----------------------------------------------------------------------

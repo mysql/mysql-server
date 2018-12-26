@@ -1,0 +1,127 @@
+# ==== Purpose ====
+#
+# Check the removal of sql_mode flags from routines' metadata.
+#
+# List of removed modes:
+#
+# - POSTGRESQL                  (0x00100)
+# - ORACLE                      (0x00200)
+# - MSSQL                       (0x00400)
+# - DB2                         (0x00800)
+# - MAXDB                       (0x01000)
+# - NO_KEY_OPTIONS              (0x02000)
+# - NO_TABLE_OPTIONS            (0x04000)
+# - NO_FIELD_OPTIONS            (0x08000)
+# - MYSQL323                    (0x10000)
+# - MYSQL40                     (0x20000)
+# - NO_AUTO_CREAETE_USER        (0x10000000)
+#
+# ==== Implementation ====
+#
+# Setup "fake replication" where the slave only starts the SQL thread,
+# not the IO thread, and reads from an existing relay log that has
+# been prepared so that it contains the error.  This requires some
+# extra server options: see the -master.opt file.
+
+--source include/not_group_replication_plugin.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo ==== Initialize ====
+--connection slave
+
+# The binlog we read does funny things with triggers and causes this warning.
+--disable_query_log
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');
+CALL mtr.add_suppression("Either event.*is from an old master");
+--enable_query_log
+
+# Need to restore this at the end; CHANGE MASTER modifies it (see the
+# manual for CHANGE MASTER).
+SET @old_relay_log_purge= @@global.relay_log_purge;
+
+
+# the relay log contains CREATE SCHEMA db1; CREATE PROCEDURE p_...
+--let $fake_relay_log = $MYSQL_TEST_DIR/std_data/bug27213339-bin.000001
+--source include/setup_fake_relay_log.inc
+
+--echo ==== Test ====
+--source include/start_slave_sql.inc
+--let $slave_param= Exec_Master_Log_Pos
+--let $slave_param_value=11102
+--source include/wait_for_slave_param.inc
+
+--echo ==== Check ====
+
+SHOW CREATE EVENT db1.e_DB2;
+SHOW CREATE EVENT db1.e_MAXDB;
+SHOW CREATE EVENT db1.e_MSSQL;
+SHOW CREATE EVENT db1.e_MYSQL323;
+SHOW CREATE EVENT db1.e_MYSQL40;
+SHOW CREATE EVENT db1.e_NO_FIELD_OPTIONS;
+SHOW CREATE EVENT db1.e_NO_KEY_OPTIONS;
+SHOW CREATE EVENT db1.e_NO_TABLE_OPTIONS;
+SHOW CREATE EVENT db1.e_ORACLE;
+SHOW CREATE EVENT db1.e_POSTGRESQL;
+SHOW CREATE EVENT db1.e1;
+
+
+SHOW CREATE FUNCTION db1.f_DB2;
+SHOW CREATE FUNCTION db1.f_MAXDB;
+SHOW CREATE FUNCTION db1.f_MSSQL;
+SHOW CREATE FUNCTION db1.f_MYSQL323;
+SHOW CREATE FUNCTION db1.f_MYSQL40;
+SHOW CREATE FUNCTION db1.f_NO_FIELD_OPTIONS;
+SHOW CREATE FUNCTION db1.f_NO_KEY_OPTIONS;
+SHOW CREATE FUNCTION db1.f_NO_TABLE_OPTIONS;
+SHOW CREATE FUNCTION db1.f_ORACLE;
+SHOW CREATE FUNCTION db1.f_POSTGRESQL;
+SHOW CREATE FUNCTION db1.f1;
+
+SHOW CREATE PROCEDURE db1.p_DB2;
+SHOW CREATE PROCEDURE db1.p_MAXDB;
+SHOW CREATE PROCEDURE db1.p_MSSQL;
+SHOW CREATE PROCEDURE db1.p_MYSQL323;
+SHOW CREATE PROCEDURE db1.p_MYSQL40;
+SHOW CREATE PROCEDURE db1.p_NO_FIELD_OPTIONS;
+SHOW CREATE PROCEDURE db1.p_NO_KEY_OPTIONS;
+SHOW CREATE PROCEDURE db1.p_NO_TABLE_OPTIONS;
+SHOW CREATE PROCEDURE db1.p_ORACLE;
+SHOW CREATE PROCEDURE db1.p_POSTGRESQL;
+SHOW CREATE PROCEDURE db1.p1;
+
+SHOW CREATE TRIGGER db1.t_DB2;
+SHOW CREATE TRIGGER db1.t_MAXDB;
+SHOW CREATE TRIGGER db1.t_MSSQL;
+SHOW CREATE TRIGGER db1.t_MYSQL323;
+SHOW CREATE TRIGGER db1.t_MYSQL40;
+SHOW CREATE TRIGGER db1.t_NO_FIELD_OPTIONS;
+SHOW CREATE TRIGGER db1.t_NO_KEY_OPTIONS;
+SHOW CREATE TRIGGER db1.t_NO_TABLE_OPTIONS;
+SHOW CREATE TRIGGER db1.t_ORACLE;
+SHOW CREATE TRIGGER db1.t_POSTGRESQL;
+SHOW CREATE TRIGGER db1.t1;
+
+--echo ==== Clean up ====
+
+DROP SCHEMA db1;
+
+--source include/stop_slave_sql.inc
+--source include/cleanup_fake_relay_log.inc
+
+#
+# Dump the relay binlog file using mysqlbinlog to show sql_mode filtering:
+#
+#   SET @@session.sql_mode = ... & /*!80005 &~0x1003ff00*/
+#
+# We should use --short-form everywhere because in other case output will
+# be time dependend. Better than nothing.
+#
+let $MYSQLD_DATADIR= `select @@datadir`;
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQL_TEST_DIR/std_data/bug27213339-bin.000001
+--source include/mysqlbinlog.inc
+
+
+SET @@global.relay_log_purge= @old_relay_log_purge;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

@@ -1,0 +1,8 @@
+#### suite/funcs_1/t/innodb_storedproc_07.test
+#
+# 1. Check if InnoDB is available
+
+# 2. Set $engine_type
+let $engine_type= innodb;
+
+--source suite/funcs_1/storedproc/storedproc_07.inc

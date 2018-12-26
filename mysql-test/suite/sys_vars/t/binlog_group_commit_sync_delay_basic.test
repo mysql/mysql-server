@@ -1,0 +1,39 @@
+###############################################################################
+# WL#7742 : testing the new variable binlog_group_commit_sync_delay                #
+###############################################################################
+
+--let $min_allowed=0
+--let $max_allowed=1000000
+--let $valid_val=`SELECT CAST(RAND() * $max_allowed AS SIGNED INTEGER)`
+
+--let $min_invalid=`SELECT $min_allowed - 1`
+--let $max_invalid=`SELECT $max_allowed + 1`
+
+--echo # Default values
+SELECT @@GLOBAL.binlog_group_commit_sync_delay;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.binlog_group_commit_sync_delay;
+
+--disable_query_log
+SET @saved_value = @@global.binlog_group_commit_sync_delay;
+
+--echo # Valid values
+--eval SET GLOBAL binlog_group_commit_sync_delay = $min_allowed
+--eval SET GLOBAL binlog_group_commit_sync_delay = $valid_val
+--eval SET GLOBAL binlog_group_commit_sync_delay = $max_allowed
+
+--echo # Invalid values: there shall be warnings about truncation
+--eval SET GLOBAL binlog_group_commit_sync_delay = $min_invalid
+--let $val=`SELECT @@GLOBAL.binlog_group_commit_sync_delay`
+--let $assert_text="Assert that binlog_group_commit_sync_delay was truncated to MIN allowed value"
+--let $assert_cond= $val=$min_allowed
+--source include/assert.inc
+
+--eval SET GLOBAL binlog_group_commit_sync_delay = $max_invalid
+--let $val=`SELECT @@GLOBAL.binlog_group_commit_sync_delay`
+--let $assert_text="Assert that binlog_group_commit_sync_delay was truncated to MAX allowed value"
+--let $assert_cond= $val=$max_allowed
+--source include/assert.inc
+
+SET GLOBAL binlog_group_commit_sync_delay = @saved_value;
+--enable_query_log

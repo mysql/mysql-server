@@ -1,0 +1,135 @@
+--source include/have_null_audit_plugin.inc
+--source include/no_protocol.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
+
+--echo #############
+--echo ## PREPARE ##
+--echo #############
+
+--echo # Abort first MYSQL_AUDIT_GENERAL_LOG event
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+PREPARE stmt FROM 'SELECT 1';
+SELECT @@null_audit_event_order_check;
+--error ER_UNKNOWN_STMT_HANDLER
+EXECUTE stmt;
+
+--echo # Abort second MYSQL_AUDIT_GENERAL_LOG event
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="99";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+PREPARE stmt FROM 'SELECT 1';
+SELECT @@null_audit_event_order_check;
+--error ER_UNKNOWN_STMT_HANDLER
+EXECUTE stmt;
+
+--echo #######################################
+--echo ## ABORT GENERAL LOG WITH MY_MESSAGE ##
+--echo #######################################
+
+--echo # Abort first MYSQL_AUDIT_GENERAL_LOG event
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+PREPARE stmt FROM 'SELECT 1';
+SELECT @@null_audit_event_order_check;
+--error ER_UNKNOWN_STMT_HANDLER
+EXECUTE stmt;
+
+--echo # Abort second MYSQL_AUDIT_GENERAL_LOG event
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="99";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+PREPARE stmt FROM 'SELECT 1';
+SELECT @@null_audit_event_order_check;
+--error ER_UNKNOWN_STMT_HANDLER
+EXECUTE stmt;
+
+--echo #############
+--echo ## EXECUTE ##
+--echo #############
+
+PREPARE stmt FROM 'SELECT 2';
+
+--echo # Abort first MYSQL_AUDIT_GENERAL_LOG event
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+EXECUTE stmt;
+SELECT @@null_audit_event_order_check;
+EXECUTE stmt;
+
+# BUG - Aborting 2nd MYSQL_AUDIT_GENERAL_LOG event fails
+#--echo # Abort second MYSQL_AUDIT_GENERAL_LOG event
+#SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+#                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+#                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+#                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+#                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="100";;'
+#                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+#--error ER_AUDIT_API_ABORT
+#EXECUTE stmt;
+#SELECT @@null_audit_event_order_check;
+#EXECUTE stmt;
+
+--echo #######################################
+--echo ## ABORT GENERAL LOG WITH MY_MESSAGE ##
+--echo #######################################
+
+--echo # Abort first MYSQL_AUDIT_GENERAL_LOG event
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+EXECUTE stmt;
+SELECT @@null_audit_event_order_check;
+EXECUTE stmt;
+
+# BUG - Aborting 2nd MYSQL_AUDIT_GENERAL_LOG event fails
+#--echo # Abort second MYSQL_AUDIT_GENERAL_LOG event
+#SET @@null_audit_abort_message = "Abort with my_message.";
+#SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+#                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+#                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+#                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+#                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="100";;'
+#                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+#--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+#--error ER_AUDIT_API_ABORT
+#EXECUTE stmt;
+#SELECT @@null_audit_event_order_check;
+#EXECUTE stmt;
+
+UNINSTALL PLUGIN null_audit;

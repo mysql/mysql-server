@@ -1,0 +1,3 @@
+--innodb_undo_tablespaces=8
+--innodb_rollback_segments=1
+--bootstrap --innodb_page_size=64k

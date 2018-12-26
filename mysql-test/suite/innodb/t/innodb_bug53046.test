@@ -1,0 +1,42 @@
+#
+# http://bugs.mysql.com/53046
+# dict_update_statistics_low can still be run concurrently on same table
+#
+# This is a symbolic test, it would not fail if the bug is present.
+# Rather those SQL commands have been used during manual testing under
+# innodb_sync_debug to test all changed codepaths for locking
+# correctness.
+#
+
+
+CREATE TABLE bug53046_1 (c1 INT PRIMARY KEY) ENGINE=INNODB;
+CREATE TABLE bug53046_2 (c2 INT PRIMARY KEY,
+		 FOREIGN KEY (c2) REFERENCES bug53046_1(c1)
+		 ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=INNODB;
+
+INSERT INTO bug53046_1 VALUES (1);
+let $i = 5;
+while ($i) {
+	eval INSERT INTO bug53046_1 SELECT c1+(SELECT MAX(c1) FROM bug53046_1)
+		FROM bug53046_1;
+	dec $i;
+}
+
+INSERT INTO bug53046_2 VALUES (1), (2);
+ANALYZE TABLE bug53046_1;
+
+# this prints create time and other nondeterministic data
+-- disable_result_log
+SHOW TABLE STATUS LIKE 'bug53046_1';
+-- enable_result_log
+
+UPDATE bug53046_1 SET c1 = c1 - 1;
+
+DELETE FROM bug53046_1;
+
+INSERT INTO bug53046_1 VALUES (1);
+INSERT INTO bug53046_2 VALUES (1);
+TRUNCATE TABLE bug53046_2;
+
+DROP TABLE bug53046_2;
+DROP TABLE bug53046_1;

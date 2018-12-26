@@ -1,0 +1,60 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT, INDEX (a));
+INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),();
+FLUSH STATUS;
+SELECT a FROM t1 ORDER BY a LIMIT 1;
+a
+NULL
+SHOW STATUS LIKE 'HANDLER_READ%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+FLUSH STATUS;
+SELECT a FROM t1 ORDER BY a DESC LIMIT 1;
+a
+NULL
+SHOW STATUS LIKE 'HANDLER_READ%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	1
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+FLUSH STATUS;
+SELECT a FROM t1 ORDER BY a LIMIT 3;
+a
+NULL
+NULL
+NULL
+SHOW STATUS LIKE 'HANDLER_READ%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+FLUSH STATUS;
+SELECT a FROM t1 ORDER BY a DESC LIMIT 3;
+a
+NULL
+NULL
+NULL
+SHOW STATUS LIKE 'HANDLER_READ%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	1
+Handler_read_next	0
+Handler_read_prev	2
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+DROP TABLE t1;

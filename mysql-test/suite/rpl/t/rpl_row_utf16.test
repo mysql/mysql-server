@@ -1,0 +1,28 @@
+--source include/not_group_replication_plugin.inc
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+#
+# BUG#51716: Char column with utf16 character set gives wrong padding on slave
+#
+
+CREATE TABLE t1(c1 CHAR(10) CHARACTER SET utf16 DEFAULT 'ola');
+INSERT INTO t1 VALUES ('abc');  # explicit value is inserted and encoded correctly
+INSERT INTO t1 VALUES ();       # default value is inserted and encoded correctly
+
+-- echo #### ON MASTER
+--query_vertical SELECT c1, hex(c1) from t1
+
+--source include/sync_slave_sql_with_master.inc
+
+-- echo #### ON SLAVE
+--query_vertical SELECT c1, hex(c1) FROM t1
+
+# assertion: tables don't differ
+-- let $diff_tables=master:t1,slave:t1
+-- source include/diff_tables.inc
+
+--connection master
+DROP TABLE t1;
+
+--source include/rpl_end.inc

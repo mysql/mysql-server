@@ -1,0 +1,35 @@
+INSTALL PLUGIN mysql_no_login SONAME 'mysql_no_login.so';
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
+FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'mysql_no_login';
+PLUGIN_NAME	mysql_no_login
+PLUGIN_STATUS	ACTIVE
+PLUGIN_TYPE	AUTHENTICATION
+PLUGIN_DESCRIPTION	No login authentication plugin
+Creating users noauth, otheruser
+Creating view, procedure, function
+# Connect as otheruser - should succeed.
+user()	current_user()	@@proxy_user
+otheruser@localhost	otheruser@localhost	NULL
+a
+2
+noauthdb.f1()
+5
+# Attempt to access underlying tables directly using otheruser - should fail.
+# Connect as noauth - should fail.
+#try to expire password of this plugin user - should warn
+alter user noauth@localhost password expire;
+ERROR HY000: Operation ALTER USER failed for 'noauth'@'localhost'
+#uninstall plugin and try to login with this plugin user - should return error
+uninstall plugin mysql_no_login;
+# Connect as noauth - should fail.
+INSTALL PLUGIN mysql_no_login SONAME 'mysql_no_login.so';
+Creating users noauth, otheruser
+Creating view, procedure, function
+# Connect as otheruser - should succeed.
+user()	current_user()	@@proxy_user
+otheruser@localhost	otheruser@localhost	NULL
+a
+2
+noauthdb.f1()
+5
+# Attempt to access underlying tables directly using otheruser - should fail.

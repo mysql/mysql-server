@@ -1,0 +1,24 @@
+########### suite/sysschema/t/fn_quote_identifier.test #############
+#                                                                  #
+# Testing of of the sys.quote_identifier() function                #
+#                                                                  #
+# Creation:                                                        #
+# 2016-05-23 jkrogh Implement this test as part of bug 22011361    #
+#                                                                  #
+####################################################################
+
+# Tests for sys schema
+# Verify the sys.quote_identifer() function perfoms as expected
+
+# Passing NULL should return NULL
+SELECT sys.quote_identifier(NULL);
+
+# Passing a simple string
+SELECT sys.quote_identifier('abc');
+
+# Passing a string containing backticks (`)
+SELECT sys.quote_identifier('ab`c');
+SELECT sys.quote_identifier('ab``c');
+SELECT sys.quote_identifier('ab```c');
+SELECT sys.quote_identifier('a`b`c');
+SELECT sys.quote_identifier('a`b``c');

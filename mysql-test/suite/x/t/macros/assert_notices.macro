@@ -1,0 +1,124 @@
+################################################################
+#
+# This file contains following notice-assertion macros:
+#
+# * Dont_enable_notice - ARG1_IGNORE ARG2_IGNORE
+# * Enable_notice - NUMBER_OF_SERVERS_TO_ENABLE NOTICE_NAMES_TO_ENABLE
+# * Disable_notice - NUMBER_OF_SERVERS_TO_DISABLE NOTICE_NAMES_TO_DISABLE
+# * CHK_assert_notice_view_changed - SESSION_NAME
+# * CHK_assert_notice_state_changed - SESSION_NAME
+# * CHK_assert_notice_role_changed - SESSION_NAME
+# * CHK_assert_notice_quorum_lost - SESSION_NAME
+# * CHK_assert_notice_none - SESSION_NAME
+# * CHK_assert_notice_none_ignore_args - ARG1_IGNORE SESSION_NAME
+# * CHK_assert_notice - NOTICE_NAME SESSION_NAME
+#
+
+
+#
+## General macros
+#
+-->macro Dont_enable_notice	%SERVER_NUMBER%	%NOTICE_NAMES%
+-->endmacro
+
+
+-->macro Enable_notice	%SERVER_NUMBER%	%NOTICE_NAMES%
+repeat %SERVER_NUMBER%	%ITERATION%;
+varlet %ITERATION_SESSION% %ITERATION%;
+varinc %ITERATION_SESSION% 1;
+callmacro Setsession	verify_%ITERATION_SESSION%;
+echo [Enabling GR notifications];
+noquery_result;
+stmtadmin enable_notices	%NOTICE_NAMES%;
+recvresult;
+query_result;
+endrepeat;
+-->endmacro
+
+
+-->macro Disable_notice	%SERVER_NUMBER%	%NOTICE_NAMES%
+repeat %SERVER_NUMBER%	%ITERATION%;
+varlet %ITERATION_SESSION% %ITERATION%;
+varinc %ITERATION_SESSION% 1;
+callmacro Setsession	verify_%ITERATION_SESSION%;
+echo [Disabling GR notifications];
+noquery_result;
+stmtadmin disable_notices	%NOTICE_NAMES%;
+recvresult;
+query_result;
+endrepeat;
+-->endmacro
+
+
+#
+## Assertion specific macros
+#
+-->macro CHK_assert_notice_view_changed	%NAME%
+echo [ASSERT view_change on '%NAME%' connection];
+quiet;
+setsession %NAME%;
+noquiet;
+noquery_result;
+recvmessage Mysqlx.Notice.Frame {type:4 scope:GLOBAL payload:"type:2"};
+query_result;
+-->endmacro
+
+
+-->macro CHK_assert_notice_role_changed	%NAME%
+echo [ASSERT role_change on '%NAME%' connection];
+quiet;
+setsession %NAME%;
+noquiet;
+noquery_result;
+recvmessage Mysqlx.Notice.Frame {type:4 scope:GLOBAL payload:"type:3"};
+query_result;
+-->endmacro
+
+
+-->macro CHK_assert_notice_state_changed	%NAME%
+echo [ASSERT state_change on '%NAME%' connection];
+quiet;
+setsession %NAME%;
+noquiet;
+noquery_result;
+recvmessage Mysqlx.Notice.Frame {type:4 scope:GLOBAL payload:"type:4"};
+query_result;
+-->endmacro
+
+
+-->macro CHK_assert_notice_quorum_lost	%NAME%
+echo [ASSERT quorum_lost on '%NAME%' connection];
+quiet;
+setsession %NAME%;
+noquiet;
+noquery_result;
+recvmessage Mysqlx.Notice.Frame {type:4 scope:GLOBAL payload:"type:1"};
+query_result;
+-->endmacro
+
+
+-->macro CHK_assert_notice_none	%NAME%
+echo [ASSERT no notices on '%NAME%' connection];
+quiet;
+setsession %NAME%;
+stmtadmin ping;
+noquiet;
+noquery_result;
+recvtype Mysqlx.Sql.StmtExecuteOk;
+query_result;
+-->endmacro
+
+
+-->macro CHK_assert_notice_none_ignore_args	%NAME%	%SESSION_ID%
+callmacro CHK_assert_notice_none	%SESSION_ID%;
+-->endmacro
+
+
+-->macro CHK_assert_notice	%NAME%	%SESSION_ID%
+callmacro CHK_assert_notice_%NAME%	%SESSION_ID%;
+-->endmacro
+
+
+-->macro_varg CHK_assert_ignore
+-->endmacro
+

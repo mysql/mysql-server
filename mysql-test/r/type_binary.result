@@ -1,0 +1,289 @@
+create table t1 (s1 binary(3));
+insert into t1 values (0x61), (0x6120), (0x612020);
+select hex(s1) from t1;
+hex(s1)
+610000
+612000
+612020
+drop table t1;
+create table t1 (s1 binary(2), s2 varbinary(2));
+insert into t1 values (0x4100,0x4100);
+select length(concat('*',s1,'*',s2,'*')) from t1;
+length(concat('*',s1,'*',s2,'*'))
+7
+delete from t1;
+insert into t1 values (0x4120,0x4120);
+select length(concat('*',s1,'*',s2,'*')) from t1;
+length(concat('*',s1,'*',s2,'*'))
+7
+drop table t1;
+create table t1 (s1 varbinary(20), s2 varbinary(20));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `s1` varbinary(20) DEFAULT NULL,
+  `s2` varbinary(20) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t1 values (0x41,0x4100),(0x41,0x4120),(0x4100,0x4120);
+select hex(s1), hex(s2) from t1;
+hex(s1)	hex(s2)
+41	4100
+41	4120
+4100	4120
+select count(*) from t1 where s1 < s2;
+count(*)
+3
+drop table t1;
+create table t1 (s1 varbinary(2), s2 varchar(1));
+insert into t1 values (0x41,'a'), (0x4100,'b'), (0x41,'c'), (0x4100,'d');
+select hex(s1),s2 from t1 order by s1,s2;
+hex(s1)	s2
+41	a
+41	c
+4100	b
+4100	d
+drop table t1;
+create table t1 (s1 binary(2) primary key);
+insert into t1 values (0x01);
+insert into t1 values (0x0120);
+insert into t1 values (0x0100);
+ERROR 23000: Duplicate entry '\x01' for key 'PRIMARY'
+select hex(s1) from t1 order by s1;
+hex(s1)
+0100
+0120
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+2
+alter table t1 drop primary key;
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+2
+drop table t1;
+create table t1 (s1 varbinary(2) primary key);
+insert into t1 values (0x01);
+insert into t1 values (0x0120);
+insert into t1 values (0x0100);
+select hex(s1) from t1 order by s1;
+hex(s1)
+01
+0100
+0120
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+01
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+3
+alter table t1 drop primary key;
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+01
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+3
+drop table t1;
+select hex(cast(0x10 as binary(2)));
+hex(cast(0x10 as binary(2)))
+1000
+create table t1 (b binary(2), vb varbinary(2));
+insert into t1 values(0x4120, 0x4120);
+insert ignore into t1 values(0x412020, 0x412020);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'vb' at row 1
+drop table t1;
+create table t1 (c char(2), vc varchar(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, 0x412020);
+Warnings:
+Note	1265	Data truncated for column 'vc' at row 1
+drop table t1;
+set @old_sql_mode= @@sql_mode, sql_mode= 'traditional';
+create table t1 (b binary(2), vb varbinary(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, NULL);
+ERROR 22001: Data too long for column 'b' at row 1
+insert into t1 values(NULL, 0x412020);
+ERROR 22001: Data too long for column 'vb' at row 1
+drop table t1;
+set @@sql_mode= @old_sql_mode;
+create table t1(f1 int, f2 binary(2) not null, f3 char(2) not null);
+insert ignore into t1 set f1=1;
+Warnings:
+Warning	1364	Field 'f2' doesn't have a default value
+Warning	1364	Field 'f3' doesn't have a default value
+select hex(f2), hex(f3) from t1;
+hex(f2)	hex(f3)
+0000	
+drop table t1;
+End of 5.0 tests
+#
+# Bug#21922414 CAST OF TOO BIG HEX LITERAL TO BIGINT UNSIGNED: BAD RESULT AND NO WARNING
+#
+# Those casts overflow and must send a warning
+select convert(9999999999999999999999999999999999999999999,unsigned);
+convert(9999999999999999999999999999999999999999999,unsigned)
+18446744073709551615
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '9999999999999999999999999999999999999999999'
+select convert('9999999999999999999999999999999999999999999',unsigned);
+convert('9999999999999999999999999999999999999999999',unsigned)
+18446744073709551615
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9999999999999999999999999999999999999999999'
+select convert(0x9999999999999999999999999999999999999999999,unsigned);
+convert(0x9999999999999999999999999999999999999999999,unsigned)
+18446744073709551615
+Warnings:
+Warning	1292	Truncated incorrect BINARY value: 'x'09999999999999999999999999999999999999999999''
+# and an error in strict mode
+create table t1
+select convert(0x9999999999999999999999999999999999999999999,unsigned);
+ERROR 22007: Truncated incorrect BINARY value: 'x'09999999999999999999999999999999999999999999''
+# Same here
+select 9999999999999999999999999999999999999999999 | 0;
+9999999999999999999999999999999999999999999 | 0
+9223372036854775807
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '9999999999999999999999999999999999999999999'
+select '9999999999999999999999999999999999999999999' | 0;
+'9999999999999999999999999999999999999999999' | 0
+18446744073709551615
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9999999999999999999999999999999999999999999'
+select 0x9999999999999999999999999999999999999999999 | 0;
+0x9999999999999999999999999999999999999999999 | 0
+18446744073709551615
+Warnings:
+Warning	1292	Truncated incorrect BINARY value: 'x'09999999999999999999999999999999999999999999''
+# DECIMAL addition, no warning
+select 9999999999999999999999999999999999999999999 + 0;
+9999999999999999999999999999999999999999999 + 0
+9999999999999999999999999999999999999999999
+# DOUBLE addition, no warning
+select '9999999999999999999999999999999999999999999' + 0;
+'9999999999999999999999999999999999999999999' + 0
+1e43
+# BIGINT UNSIGNED addition, warning
+select 0x9999999999999999999999999999999999999999999 + 0;
+0x9999999999999999999999999999999999999999999 + 0
+18446744073709551615
+Warnings:
+Warning	1292	Truncated incorrect BINARY value: 'x'09999999999999999999999999999999999999999999''
+# Test truncation inside error message
+select 0x9999999999999999999999999999999999999999999888888888888888888888888888888888888888888888888888888888888888888888888877777777777777777777777777777777777777777777777777777777777776666666666666666666666666666666666666666 + 0;
+0x9999999999999999999999999999999999999999999888888888888888888888888888888888888888888888888888888888888888888888888877777777777777777777777777777777777777777777777777777777777776666666666666666666666666666666666666666 + 0
+18446744073709551615
+Warnings:
+Warning	1292	Truncated incorrect BINARY value: 'x'099999999999999999999999999999999999999999998888888888888888888888888888888888888888888888888888888888888888888888888777777777'
+create table t1 select 0x9999 + 0;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+0x9999 + 0	int(3) unsigned	NO		0	
+select * from t1;
+0x9999 + 0
+39321
+drop table t1;
+#
+# Bug#11757477 ARITHMETIC ERROR WHEN DEALING WITH BIGINT
+#
+SELECT HEX(0xfffffffffffff+1);
+HEX(0xfffffffffffff+1)
+10000000000000
+SELECT HEX(0xfffffffffffff+2);
+HEX(0xfffffffffffff+2)
+10000000000001
+SELECT 0x20000000000000+0;
+0x20000000000000+0
+9007199254740992
+SELECT 0x20000000000000+1;
+0x20000000000000+1
+9007199254740993
+SELECT 0x20000000000000+2;
+0x20000000000000+2
+9007199254740994
+SELECT 0x20000000000000+3;
+0x20000000000000+3
+9007199254740995
+SELECT 0xfffffffffffff+2;
+0xfffffffffffff+2
+4503599627370497
+SELECT 0xfffffffffffff+1;
+0xfffffffffffff+1
+4503599627370496
+#
+# Bug#22268110 VIEW USING HEXADECIMAL OR BIT LITERAL GIVES WRONG RESULTS
+#
+# Literals with more than 8 bytes.
+CREATE VIEW v1 AS SELECT
+x'7f9d04ae61b34468ac798ffcc984ab68'=x'7f9d04ae61b34468ac798ffcc984ab68'
+AS a,
+x'7f9d04ae61b34468ac798ffcc984ab68'=x'7f9d04ae61b34468ac798ffcc984ab60'
+AS b,
+x'7f9d04ae61b34468ac798ffcc984ab68'=x'0f9d04ae61b34468ac798ffcc984ab68'
+AS c,
+b'111111111111111111111111111111111111111111111111111111111111111111'=
+b'111111111111111111111111111111111111111111111111111111111111111111'
+AS d,
+b'111111111111111111111111111111111111111111111111111111111111111111'=
+b'111111111111111111111111111111111111111111111111111111111111111110'
+AS e,
+b'111111111111111111111111111111111111111111111111111111111111111111'=
+b'011111111111111111111111111111111111111111111111111111111111111111'
+AS f;
+# Both should give same result:
+SELECT
+x'7f9d04ae61b34468ac798ffcc984ab68'=x'7f9d04ae61b34468ac798ffcc984ab68'
+AS a,
+x'7f9d04ae61b34468ac798ffcc984ab68'=x'7f9d04ae61b34468ac798ffcc984ab60'
+AS b,
+x'7f9d04ae61b34468ac798ffcc984ab68'=x'0f9d04ae61b34468ac798ffcc984ab68'
+AS c,
+b'111111111111111111111111111111111111111111111111111111111111111111'=
+b'111111111111111111111111111111111111111111111111111111111111111111'
+AS d,
+b'111111111111111111111111111111111111111111111111111111111111111111'=
+b'111111111111111111111111111111111111111111111111111111111111111110'
+AS e,
+b'111111111111111111111111111111111111111111111111111111111111111111'=
+b'011111111111111111111111111111111111111111111111111111111111111111'
+AS f;
+a	b	c	d	e	f
+1	0	0	1	0	0
+SELECT * FROM v1;
+a	b	c	d	e	f
+1	0	0	1	0	0
+# Literals should be entirely printed:
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (0x7f9d04ae61b34468ac798ffcc984ab68 = 0x7f9d04ae61b34468ac798ffcc984ab68) AS `a`,(0x7f9d04ae61b34468ac798ffcc984ab68 = 0x7f9d04ae61b34468ac798ffcc984ab60) AS `b`,(0x7f9d04ae61b34468ac798ffcc984ab68 = 0x0f9d04ae61b34468ac798ffcc984ab68) AS `c`,(0x03ffffffffffffffff = 0x03ffffffffffffffff) AS `d`,(0x03ffffffffffffffff = 0x03fffffffffffffffe) AS `e`,(0x03ffffffffffffffff = 0x01ffffffffffffffff) AS `f`	utf8mb4	utf8mb4_0900_ai_ci
+DROP VIEW v1;

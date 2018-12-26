@@ -1,0 +1,25 @@
+#
+# only global
+#
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+select @@global.port;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.port;
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+show global variables like 'port';
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+show session variables like 'port';
+--disable_warnings
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+select * from performance_schema.global_variables where variable_name='port';
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+select * from performance_schema.session_variables where variable_name='port';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global port=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session port=1;

@@ -1,0 +1,77 @@
+#
+# Bug #30703  SHOW STATUS LIKE 'Slave_running' is not compatible with `SHOW SLAVE STATUS'
+# The test verifies that  SHOW STATUS LIKE 'Slave_running' displays ON
+# if and only if `SHOW SLAVE STATUS' displays YES for Slave_IO_Running and  Slave_SQL_Running
+#
+--source include/not_group_replication_plugin.inc
+source include/have_debug.inc;
+source include/have_debug_sync.inc;
+source include/master-slave.inc;
+
+connection slave;
+
+SET DEBUG_SYNC= 'RESET';
+source include/stop_slave.inc;
+let $debug_saved= `select @@global.debug`;
+set global debug= 'd,dbug.before_get_running_status_yes'; # to block due-started IO
+
+# Test 1. Slave is stopped
+
+--echo Slave_running, Slave_IO_Running, Slave_SQL_Running, must be OFF, NO, NO in three following queries
+
+select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+
+#  Test 2. The slave IO thread is started but not yet got connected to master
+#          and SQL thread is not started
+
+start slave io_thread;
+
+#
+# Notice a difference between versions in showing p.2: 
+# 5.1 has two OFF,ON IO-thread state running state whereas later versions
+# have three: OFF,Connecting,ON.
+# Hence, 5.1 must display OFF NO NO where as 5.1+ OFF Connecting NO
+# (thank you, Andrei for leaving these comments. -- Andrei repl MC at the moment)
+#
+--echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF Connecting NO in three following queries
+
+select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+
+# Test 3. The slave IO thread is started and got connected to master
+#         and SQL thread is still not started
+
+SET DEBUG_SYNC='now SIGNAL signal.io_thread_let_running'; # unblock IO thread now
+let $slave_param= Slave_IO_Running;
+let $slave_param_value= YES;
+source include/wait_for_slave_param.inc;
+
+--echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF YES NO in three following queries
+
+select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+
+# Test 4. The slave IO thread is started and got connected to master
+#         and SQL thread is started
+
+start slave sql_thread;
+source include/wait_for_slave_sql_to_start.inc;
+
+--echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be ON, YES, YES in three following queries
+
+select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
+
+# cleanup
+
+connection master;
+
+# Bug#11765758 - 58754
+# @@global.debug is read by the slave threads through dbug-interface. 
+# Hence, before a client thread set @@global.debug we have to ensure that:
+# (a) the slave threads are stopped, or (b) the slave threads are in
+# sync and waiting.
+--source include/sync_slave_sql_with_master.inc
+
+eval set global debug= '$debug_saved';
+
+SET DEBUG_SYNC= 'RESET';
+--echo End of tests
+--source include/rpl_end.inc

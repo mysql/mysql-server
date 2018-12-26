@@ -1,0 +1,140 @@
+# Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
+# Create the memcached tables
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+				  'innodb_only', 'innodb_only', 'innodb_only');
+
+INSERT INTO config_options VALUES('separator', '|');
+
+# describe table for memcache
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+
+USE test;
+let MEMCACHED_PORT=11290;
+
+CREATE TABLE t1        (c1 VARCHAR(32),
+			c2 BLOB,
+			primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t1 VALUES ('A', repeat('a',8000));
+INSERT INTO t1 VALUES ('B', 'Berlin');
+INSERT INTO t1 VALUES ('C', 'Cottbus');
+INSERT INTO t1 VALUES ('D', 'Darmstadt');
+INSERT INTO t1 VALUES ('H', 'Hamburg');
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT @@innodb_api_trx_level;
+SELECT @@innodb_api_bk_commit_interval;
+SELECT @@daemon_memcached_r_batch_size;
+SELECT @@daemon_memcached_w_batch_size;
+
+--write_file $MYSQLTEST_VARDIR/tmp/read_committed.pl
+use DBI;
+use Cache::Memcached;
+my $memcached_port=$ENV{'MEMCACHED_PORT'};
+
+if (!$memcached_port) {
+print "memcached port is Empty. The test should set ENV variable
+MEMCACHED_PORT\n";
+exit;
+}
+
+my $memd2 = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:$memcached_port" ],
+  'connect_timeout' => 2000,
+  'select_timeout' => 2000
+};
+print "Here the memcached results with A,B,C,D,E,H\n";
+
+$val = $memd2->get("A");
+if ($val) { print "$val\n"; } else { print "Couldn't get value for A\n"; }
+$val = $memd2->get("B");
+if ($val) { print "$val\n"; } else { print "Couldn't get value for B\n"; }
+$val = $memd2->get("C");
+if ($val) { print "$val\n"; } else { print "Couldn't get value for C\n"; }
+$val = $memd2->get("D");
+if ($val) { print "$val\n"; } else { print "Couldn't get value for D\n"; }
+$val = $memd2->get("E");
+if ($val) { print "$val\n"; } else { print "Couldn't get value for E\n"; }
+$val = $memd2->get("H");
+if ($val) { print "$val\n"; } else { print "Couldn't get value for H\n"; }
+
+$val1 = "h" x 9907;
+$val = $memd2->add("W","W|$val1");
+$val = $memd2->get("W");
+if ($val) { print "$val\n"; }
+
+$memd2->disconnect_all;
+EOF
+
+let MYSQL_DESTDIR=$MYSQLTEST_VARDIR/tmp/;
+
+perl;
+use DBI;
+use Cache::Memcached;
+
+my $memcached_port=$ENV{'MEMCACHED_PORT'} or die;
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:$memcached_port" ],
+  'connect_timeout' => 2000,
+  'select_timeout' => 2000
+};
+
+if (!$memd->set("A","Ant")) {
+  print "Error: A|Ant cannot be inserted.\n";
+}
+if (!$memd->set("B","Buffalo")) {
+  print "Error: B|Buffalo cannot be inserted.\n";
+}
+if (!$memd->set("C","Cat")) {
+  print "Error: C|Cat cannot be inserted.\n";
+}
+if (!$memd->set("D","Dog")) {
+  print "Error: D|Dog cannot be inserted.\n";
+}
+if (!$memd->set("E","Elephant")) {
+  print "Error: E|Elephant cannot be inserted.\n";
+}
+if (!$memd->set("H","Hen")) {
+  print "Error: H|Hen cannot be inserted.\n";
+}
+print "Opening new connection and doing GET\n";
+
+my $destdir = $ENV{'MYSQL_DESTDIR'};
+print "We *shouldn't* see Animal names now\n";
+system("perl $destdir/read_committed.pl");
+$memd->disconnect_all;
+EOF
+
+# Now that the connection is closed & Committed, Read again
+# This time we should see Animal values
+perl;
+my $destdir = $ENV{'MYSQL_DESTDIR'};
+
+print "Connection is closed and transaction is committed\n";
+print "We *should* see Animal Names now\n";
+system("perl $destdir/read_committed.pl");
+EOF
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+remove_file $MYSQL_DESTDIR/read_committed.pl;

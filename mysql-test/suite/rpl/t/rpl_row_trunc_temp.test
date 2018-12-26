@@ -1,0 +1,35 @@
+#
+# Bug#48350 truncate temporary table crashes replication 
+#
+# All statements operating on temporary tables should not be binlogged in RBR.
+# However, before fix of bug#48350, 'TRUNCATE ...' statement on a temporary
+# table was binlogged in RBR.
+#
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+#This statement is not binlogged in RBR.
+CREATE TEMPORARY TABLE t1(c1 INTEGER);
+CREATE TABLE t2(c1 INTEGER);
+--source include/sync_slave_sql_with_master.inc
+
+CREATE TABLE t1(c1 INTEGER);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1), (2);
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+TRUNCATE t1;
+TRUNCATE t2;
+--source include/sync_slave_sql_with_master.inc
+# t1 will have nothing, if 'TRUNCATE t1' has been replicate from master to
+# slave.
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t1;
+connection master;
+DROP TABLE t2;
+--source include/rpl_end.inc

@@ -1,0 +1,27 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SHOW VARIABLES LIKE 'relay_log_space_limit';
+Variable_name	Value
+relay_log_space_limit	0
+CREATE TABLE t1 (name varchar(64), age smallint(3))ENGINE=MyISAM;
+INSERT INTO t1 SET name='Andy', age=31;
+INSERT INTO t1 SET name='Jacob', age=2;
+INSERT INTO t1 SET name='Caleb', age=1;
+ALTER TABLE t1 ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY,
+ALGORITHM=COPY;
+SELECT * FROM t1 ORDER BY id;
+name	age	id
+Andy	31	00000001
+Jacob	2	00000002
+Caleb	1	00000003
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1 ORDER BY id;
+name	age	id
+Andy	31	00000001
+Jacob	2	00000002
+Caleb	1	00000003
+DROP TABLE t1;
+include/rpl_end.inc

@@ -1,0 +1,182 @@
+# ==== Requirements ====
+#
+# R1. The server GTID-violation counters must be kept
+#     consistent when using XA transactions and GTID.
+# R2. The above must occur even if GTID_MODE and
+#     ENSURE_GTID_CONSISTENCY are turned off.
+# R3. Even after processing statements that will increment
+#     the GTID-violation counters while not using GTID
+#     (like 'CREATE TEMPORARY TABLE'), the server
+#     should always arrive to a state where the counters
+#     are consistent with the given state.
+#
+# ==== Implementation ====
+#
+# With GTID_MODE and ENSURE_GTID_CONSISTENCY turned
+# off, test:
+# 1) Start with a GTID_NEXT value of 'AUTOMATIC',
+#    start a XA transaction, create a temporary table,
+#    and end the transaction with:
+#    a) XA PREPARE, change GTID_NEXT to 'ANONYMOUS'
+#       and XA COMMIT
+#    b) XA PREPARE, change GTID_NEXT to 'ANONYMOUS'
+#       and XA ROLLBACK
+#    c) XA COMMIT ONE PHASE, change GTID_NEXT to 'ANONYMOUS'
+# 2) Start with a GTID_NEXT value of 'ANONYMOUS',
+#    start a XA transaction, create a temporary table,
+#    and end the transaction with:
+#    a) XA PREPARE, change GTID_NEXT to 'AUTOMATIC'
+#       and XA COMMIT
+#    b) XA PREPARE, change GTID_NEXT to 'AUTOMATIC'
+#       and XA ROLLBACK
+#    c) XA COMMIT ONE PHASE, change GTID_NEXT to 'AUTOMATIC'
+#
+# ==== References ====
+#
+# Bug#27041402 ASSERTION `NEW_VALUE >= 0' FAILED.
+
+--source include/have_debug.inc
+--let $rpl_gtid_mode= OFF
+--source include/rpl_set_gtid_mode.inc
+
+--connect (verify,127.0.0.1,root,,test,$MASTER_MYPORT,)
+
+--echo [connection default]
+--connection default
+
+--echo # 1) start with GTID_NEXT to 'AUTOMATIC' and
+--echo #    and then change to 'ANONYMOUS'
+--echo #
+
+--let $end_type= 0
+while ($end_type < 3) {
+
+  if ($end_type == 0) {
+    --echo # 1.a) Create transaction, create temporary
+    --echo #      table, end transaction with XA PREPARE
+    --echo #      and XA COMMIT
+    --echo #
+  }
+  if ($end_type == 1) {
+    --echo # 1.b) Create transaction, create temporary
+    --echo #      table, end transaction with XA PREPARE
+    --echo #      and XA ROLLBACK
+    --echo #
+  }
+  if ($end_type == 2) {
+    --echo # 1.c) Create transaction, create temporary
+    --echo #      table, end transaction with XA COMMIT
+    --echo #      ONE PHASE
+    --echo #
+  }
+
+  SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+
+  XA START 'trx1';
+  CREATE TEMPORARY TABLE temp_table_1 (a INT);
+  XA END 'trx1';
+
+  if ($end_type == 0) {
+    XA PREPARE 'trx1';
+    SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+  }
+  if ($end_type == 1) {
+    XA PREPARE 'trx1';
+    SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+  }
+  if ($end_type == 2) {
+    XA COMMIT 'trx1' ONE PHASE;
+    SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+  }
+
+  --echo [connection verify]
+  --connection verify
+  --let $assert_cond= [SHOW STATUS LIKE "ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1] = 0
+  --let $assert_text= There are no AUTOMATIC violating transactions
+  --source include/assert.inc
+  --let $assert_cond= [SHOW STATUS LIKE "ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1] = 0
+  --let $assert_text= There are no ANONYMOUS violating transactions
+  --source include/assert.inc
+
+  --echo [connection default]
+  --connection default
+  if ($end_type == 0) {
+    XA COMMIT 'trx1';
+  }
+  if ($end_type == 1) {
+    XA ROLLBACK 'trx1';
+  }
+  DROP TEMPORARY TABLE IF EXISTS temp_table_1;
+
+  --inc $end_type
+}
+
+--echo [connection default]
+--connection default
+
+--echo # 2) start with GTID_NEXT to 'ANONYMOUS' and
+--echo #    and then change to 'AUTOMATIC'
+--echo #
+
+--let $end_type= 0
+while ($end_type < 3) {
+
+  if ($end_type == 0) {
+    --echo # 2.a) Create transaction, create temporary
+    --echo #      table, end transaction with XA PREPARE
+    --echo #      and XA COMMIT
+    --echo #
+  }
+  if ($end_type == 1) {
+    --echo # 2.b) Create transaction, create temporary
+    --echo #      table, end transaction with XA PREPARE
+    --echo #      and XA ROLLBACK
+    --echo #
+  }
+  if ($end_type == 2) {
+    --echo # 2.c) Create transaction, create temporary
+    --echo #      table, end transaction with XA COMMIT
+    --echo #      ONE PHASE
+    --echo #
+  }
+
+  SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+
+  XA START 'trx1';
+  CREATE TEMPORARY TABLE temp_table_1 (a INT);
+  XA END 'trx1';
+
+  if ($end_type == 0) {
+    XA PREPARE 'trx1';
+    SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+  }
+  if ($end_type == 1) {
+    XA PREPARE 'trx1';
+    SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+  }
+  if ($end_type == 2) {
+    XA COMMIT 'trx1' ONE PHASE;
+    SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+  }
+
+  --echo [connection verify]
+  --connection verify
+  --let $assert_cond= [SHOW STATUS LIKE "ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1] = 0
+  --let $assert_text= There are no AUTOMATIC violating transactions
+  --source include/assert.inc
+  --let $assert_cond= [SHOW STATUS LIKE "ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1] = 0
+  --let $assert_text= There are no ANONYMOUS violating transactions
+  --source include/assert.inc
+
+  --echo [connection default]
+  --connection default
+  if ($end_type == 0) {
+    XA COMMIT 'trx1';
+  }
+  if ($end_type == 1) {
+    XA ROLLBACK 'trx1';
+  }
+  DROP TEMPORARY TABLE IF EXISTS temp_table_1;
+
+  --inc $end_type
+}

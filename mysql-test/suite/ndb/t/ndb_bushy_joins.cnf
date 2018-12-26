@@ -1,0 +1,19 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+######
+# Increase #LDM threads such that tables
+# can be created with many partitions (> 8)
+# Max: #nodes * #LDM * NoOfFragmentLogParts / NoOfReplicas
+######
+ThreadConfig=ldm={count=4}
+
+######
+# Tune some more  configs as test load is 
+# expected to really strain the system.
+######
+MaxNoOfConcurrentOperations=250000
+MaxNoOfConcurrentScans=256
+LongMessageBuffer=64M
+TransactionDeadlockDetectionTimeout=30000
+TimeBetweenEpochs=1000

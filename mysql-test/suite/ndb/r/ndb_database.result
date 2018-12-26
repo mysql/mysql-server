@@ -1,0 +1,63 @@
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.t1 (a int primary key, b int) engine=ndb;
+use mysqltest;
+show tables;
+Tables_in_mysqltest
+t1
+drop database mysqltest;
+create database mysqltest;
+use mysqltest;
+show tables;
+Tables_in_mysqltest
+drop database mysqltest;
+create database `mysqltest.db`;
+create table `mysqltest.db`.t1 (a int primary key, b int) engine=ndb;
+alter table `mysqltest.db`.t1 algorithm=copy, add column c int;
+alter table `mysqltest.db`.t1 algorithm=inplace, add column d int column_format dynamic;
+drop table `mysqltest.db`.t1;
+drop database `mysqltest.db`;
+create database newdb;
+create table newdb.t1 (a int primary key) engine=myisam;
+drop table if exists newdb.t1;
+create table newdb.t1 (a int primary key,
+b1  blob,
+b2  blob,
+b3  blob,
+b4  blob,
+b5  blob,
+b6  blob,
+b7  blob,
+b8  blob,
+b9  blob,
+b10 blob,
+b11 blob,
+b12 blob,
+b13 blob,
+b14 blob,
+b15 blob,
+b16 blob,
+b17 blob,
+b18 blob,
+b19 blob,
+b20 blob,
+b21 blob,
+b22 blob,
+b23 blob,
+b24 blob,
+b25 blob,
+b26 blob,
+b27 blob,
+b28 blob,
+b29 blob) engine = ndb;
+drop database newdb;
+create database newdb;
+use newdb;
+show tables;
+Tables_in_newdb
+create table newdb.t1(a int primary key) engine=ndb;
+show tables;
+Tables_in_newdb
+t1
+drop table t1;
+drop database newdb;

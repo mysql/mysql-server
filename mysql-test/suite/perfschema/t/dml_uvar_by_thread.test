@@ -1,0 +1,45 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log 
+select * from performance_schema.user_variables_by_thread
+  where variable_name like 'foo%' limit 1;
+
+select * from performance_schema.user_variables_by_thread
+  where variable_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.user_variables_by_thread
+  set thread_id=12, variable_name='foo', variable_value='bar';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.user_variables_by_thread
+  set thread_id=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.user_variables_by_thread
+  set thread_id=12 where variable_name like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.user_variables_by_thread
+  where thread_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.user_variables_by_thread;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.user_variables_by_thread READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.user_variables_by_thread WRITE;
+UNLOCK TABLES;
+
+DELIMITER |;
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE TRIGGER test_uvar_trigger
+    AFTER INSERT ON performance_schema.user_variables_by_thread
+     FOR EACH ROW BEGIN
+     set @a='OK';
+END|
+DELIMITER ;|

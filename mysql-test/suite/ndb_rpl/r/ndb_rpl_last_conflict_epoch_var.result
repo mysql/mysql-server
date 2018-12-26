@@ -1,0 +1,54 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+Setup circular replication
+SLAVE_SERVER_ID: 3
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+MASTER_SERVER_ID: 1
+Setup ndb_replication and t1 exceptions table
+Populate ndb_replication table as necessary
+create table test.t1 (
+a int primary key,
+b int,
+c varchar(2000)) engine=ndb;
+insert into test.t1 values (1,1,repeat("B", 1000));
+Stopping Primary -> Secondary replication
+stop slave;
+Stopping Secondary -> Primary replication
+stop slave;
+Making change on Primary
+update test.t1 set b=2 where a=1;
+Making conflicting change on Secondary
+begin;
+update test.t1 set b=3 where a=1;
+insert into test.t1 values (2,2,repeat("A", 1000));
+commit;
+Capturing session epoch from Master
+Show that last_conflict_epoch is 0
+Variable_name	Value
+Ndb_conflict_last_conflict_epoch	0
+Restart Secondary->Primary replication
+Check that max_replicated_epoch is 
+still < the saved session epoch
+Max replicated epoch should be < committed epoch
+@max_replicated_epoch < @master_session_epoch
+1
+Some invariants :
+@conflict_detected_epoch != 0
+1
+@conflict_detected_epoch > @max_replicated_epoch
+1
+Primary has detected the problem, but Secondary
+is unaware as the slave is offline.
+Now bring it back
+Now sync up
+Now lets check that the max replicated epoch
+on the Primary is == the last_conflict_epoch
+@max_replicated_epoch = @conflict_detected_epoch
+1
+Cleanup
+include/rpl_end.inc

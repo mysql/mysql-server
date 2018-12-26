@@ -1,0 +1,12 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.schema_unused_indexes view
+
+# Ensure structure changes don't slip in
+DESC sys.schema_unused_indexes;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.schema_unused_indexes;
+--enable_result_log
+

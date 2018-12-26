@@ -1,0 +1,52 @@
+# Test for access on status vars registered by components in sessions.
+--source include/count_sessions.inc
+
+--source ../include/have_component_test_status_var_service.inc
+
+--enable_connect_log
+
+SET @start_value= @@global.wait_timeout;
+SET @@global.wait_timeout= 2;
+
+CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'pw';
+#GRANT SELECT ON perf_schema.* TO 'testuser'@'localhost';
+
+INSTALL COMPONENT "file://component_test_status_var_service";
+send SHOW STATUS WHERE VARIABLE_NAME LIKE 'test_component.int_variable';
+
+connect(con1,localhost,root,,);
+send SHOW STATUS WHERE VARIABLE_NAME LIKE '%component%';
+
+connect(con2,localhost,testuser,'pw',);
+send SHOW STATUS WHERE VARIABLE_NAME LIKE '%component%';
+
+connection default;
+reap;
+#UNINSTALL COMPONENT "file://component_test_status_var_service_int";
+#INSTALL COMPONENT "file://component_test_status_var_service_int";
+
+connection con1;
+reap;
+#UNINSTALL COMPONENT "file://component_test_status_var_service_int";
+#INSTALL COMPONENT "file://component_test_status_var_service_int";
+
+connection con2;
+reap;
+
+connection default;
+disconnect con1;
+disconnect con2;
+UNINSTALL COMPONENT "file://component_test_status_var_service";
+DROP USER 'testuser'@'localhost';
+
+SET @@global.wait_timeout= @start_value;
+
+--disable_connect_log
+
+--echo ########## test_component_status_var_service.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_status_var_service.log;
+remove_file $MYSQLD_DATADIR/test_component_status_var_service.log;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

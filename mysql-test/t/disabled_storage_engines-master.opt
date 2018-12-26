@@ -1,0 +1,1 @@
+--disabled_storage_engines=heap $EXAMPLE_PLUGIN_OPT

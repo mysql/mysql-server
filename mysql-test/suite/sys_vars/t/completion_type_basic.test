@@ -1,0 +1,187 @@
+############## mysql-test\t\completion_type_basic.test #########################
+#                                                                              #
+# Variable Name: completion_type                                               #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 0                                                             #
+# Valid Values: 0,1 & 2                                                        #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "completion_type"         #
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                          .                     #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#          server-system-variables.html#option_mysqld_completion_type          #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+###############################################################
+#           START OF completion_type TESTS                    #
+###############################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.completion_type;
+SELECT @start_global_value;
+SET @start_session_value = @@session.completion_type;
+SELECT @start_session_value;
+
+--echo '#--------------------FN_DYNVARS_017_01-------------------------#'
+###############################################################
+#     Display the DEFAULT value of completion_type            #
+###############################################################
+
+SET @@global.completion_type = 2;
+SET @@global.completion_type = DEFAULT;
+SELECT @@global.completion_type;
+
+SET @@session.completion_type = 1;
+SET @@session.completion_type = DEFAULT;
+SELECT @@session.completion_type;
+
+
+--echo '#--------------------FN_DYNVARS_017_03-------------------------#'
+#########################################################################
+# Change the value of completion_type to a valid value for GLOBAL Scope #
+#########################################################################
+
+SET @@global.completion_type = 0;
+SELECT @@global.completion_type;
+SET @@global.completion_type = 1;
+SELECT @@global.completion_type;
+SET @@global.completion_type = 2;
+SELECT @@global.completion_type;
+
+SET @@global.completion_type = NO_CHAIN;
+SELECT @@global.completion_type;
+SET @@global.completion_type = CHAIN;
+SELECT @@global.completion_type;
+SET @@global.completion_type = 'RELEASE';
+SELECT @@global.completion_type;
+
+--echo '#--------------------FN_DYNVARS_017_04-------------------------#'
+##########################################################################
+# Change the value of completion_type to a valid value for SESSION Scope #
+##########################################################################
+
+SET @@session.completion_type = 0;
+SELECT @@session.completion_type;
+SET @@session.completion_type = 1;
+SELECT @@session.completion_type;
+SET @@session.completion_type = 2;
+SELECT @@session.completion_type;
+
+SET @@session.completion_type = 'NO_CHAIN';
+SELECT @@session.completion_type;
+SET @@session.completion_type = 'CHAIN';
+SELECT @@session.completion_type;
+SET @@session.completion_type = 'RELEASE';
+SELECT @@session.completion_type;
+
+--echo '#------------------FN_DYNVARS_017_05-----------------------#'
+###########################################################
+# Change the value of completion_type to an invalid value #
+###########################################################
+set sql_mode=TRADITIONAL;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.completion_type = 10;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.completion_type = -1024;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.completion_type = 2.4;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.completion_type = OFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.completion_type = 10;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.completion_type = -2;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.completion_type = 1.2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.completion_type = ON;
+
+
+--echo '#------------------FN_DYNVARS_017_06-----------------------#'
+###############################################################################
+#   Check if the value in GLOBAL & SESSION Tables matches value in variable   #
+###############################################################################
+
+--disable_warnings
+SELECT @@global.completion_type = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='completion_type';
+
+SELECT @@session.completion_type = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='completion_type';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_017_07-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.completion_type = TRUE;
+SELECT @@global.completion_type;
+SET @@global.completion_type = FALSE;
+SELECT @@global.completion_type;
+
+
+--echo '#---------------------FN_DYNVARS_001_08----------------------#'
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+#    to same session variable                                                #
+##############################################################################
+
+SET @@completion_type = 1;
+SELECT @@completion_type = @@local.completion_type;
+SELECT @@local.completion_type = @@session.completion_type;
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+##########################################################################
+#   Check if completion_type can be accessed with and without @@ sign    #
+##########################################################################
+
+SET completion_type = 1;
+SELECT @@completion_type;
+--Error ER_PARSE_ERROR
+SET local.completion_type = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.completion_type;
+--Error ER_PARSE_ERROR
+SET session.completion_type = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT session.completion_type;
+--Error ER_BAD_FIELD_ERROR
+SELECT completion_type = @@session.completion_type;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.completion_type = @start_global_value;
+SELECT @@global.completion_type;
+SET @@session.completion_type = @start_session_value;
+SELECT @@session.completion_type;
+set sql_mode='';
+
+############################################
+#         END OF completion_type TESTS     #
+############################################
+

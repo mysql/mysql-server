@@ -1,0 +1,106 @@
+# The function should return NULL if any of its arguments are NULL.
+SELECT LPAD(NULL, 5, 'x') AS result;
+result
+NULL
+SELECT LPAD(NULL, NULL, 'x') AS result;
+result
+NULL
+SELECT LPAD(NULL, NULL, NULL) AS result;
+result
+NULL
+SELECT LPAD('a', NULL, 'x') AS result;
+result
+NULL
+SELECT LPAD('a', NULL, NULL) AS result;
+result
+NULL
+SELECT LPAD('a', 5, NULL) AS result;
+result
+NULL
+SELECT LPAD(NULL, 5, NULL) AS result;
+result
+NULL
+# The function should return an empty string if len is 0.
+SELECT LPAD('a', 0, 'x') AS result;
+result
+
+SELECT LPAD('a', 0, '') AS result;
+result
+
+SELECT LPAD('', 0, 'x') AS result;
+result
+
+SELECT LPAD('', 0, '') AS result;
+result
+
+# The function should return NULL if len is negative.
+SELECT LPAD('a', -1, 'x');
+LPAD('a', -1, 'x')
+NULL
+# Min signed long long int:
+SELECT LPAD('a', -9223372036854775808, 'x');
+LPAD('a', -9223372036854775808, 'x')
+NULL
+# Min signed long long int - 1
+SELECT LPAD('a', -9223372036854775809, 'x');
+LPAD('a', -9223372036854775809, 'x')
+NULL
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-9223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '-9223372036854775809'
+# The function should return NULL with a warning if len is larger than
+# max_allowed_packet.
+# Max signed long long int:
+SELECT LPAD('a', 9223372036854775807, 'x');
+LPAD('a', 9223372036854775807, 'x')
+NULL
+Warnings:
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+# Max signed long long int + 1:
+SELECT LPAD('a', 9223372036854775808, 'x');
+LPAD('a', 9223372036854775808, 'x')
+NULL
+Warnings:
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+# Max unsigned long long int:
+SELECT LPAD('a', 18446744073709551615, 'x');
+LPAD('a', 18446744073709551615, 'x')
+NULL
+Warnings:
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+# Max unsigned long long int + 1:
+SELECT LPAD('a', 18446744073709551616, 'x');
+LPAD('a', 18446744073709551616, 'x')
+NULL
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
+Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+# The function should return an empty string if padstr is empty.
+SELECT LPAD('a', 5, '') AS result;
+result
+
+SELECT LPAD('a', 5, '') AS result;
+result
+
+# The function should do nothing if str is of length len.
+SELECT LPAD('12345', 5, 'x');
+LPAD('12345', 5, 'x')
+12345
+# The function should chop the string if len is shorter than the length
+# of str.
+SELECT LPAD('123456787890', 1, 'x');
+LPAD('123456787890', 1, 'x')
+1
+SELECT LPAD('123456787890', 5, 'x');
+LPAD('123456787890', 5, 'x')
+12345
+# The function should left pad with padstr so that the string is len
+# bytes long if str is shorter than len.
+SELECT LPAD('123', 5, 'x');
+LPAD('123', 5, 'x')
+xx123
+# The function should repeat padstr also if it has mulitplie characters.
+SELECT LPAD('a', 5, 'xy');
+LPAD('a', 5, 'xy')
+xyxya

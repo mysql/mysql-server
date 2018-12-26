@@ -1,0 +1,269 @@
+# needed in sourced show_i_s_tablespaces.inc
+let $MYSQLD_DATADIR = `select @@datadir`;
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+SET @old_innodb_file_per_table=@@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = OFF;
+
+--echo #
+--echo # Put all partitions of a table into a general tablespace.
+--echo #
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
+CREATE TABLESPACE `s``1` ADD DATAFILE 's-1.ibd' ENGINE InnoDB;
+CREATE TABLE t1 (a INT, b INT)
+ENGINE = InnoDB
+TABLESPACE=`s1`
+  PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+    PARTITION tens VALUES LESS THAN (100) TABLESPACE=`innodb_file_per_table`
+      (SUBPARTITION subpart11,
+       SUBPARTITION subpart12),
+    PARTITION hundreds VALUES LESS THAN (1000)
+      (SUBPARTITION subpart21,
+       SUBPARTITION subpart22 TABLESPACE=`innodb_file_per_table`),
+    PARTITION onethousands VALUES LESS THAN (2000)
+      TABLESPACE=`innodb_file_per_table`
+      (SUBPARTITION subpart23 TABLESPACE = `s1`,
+       SUBPARTITION subpart24),
+    PARTITION thousands VALUES LESS THAN (10000)
+      (SUBPARTITION subpart31,
+       SUBPARTITION subpart32));
+
+SET GLOBAL innodb_file_per_table = ON;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t2 (a INT, b INT)
+ENGINE = InnoDB
+  PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+    PARTITION tens VALUES LESS THAN (100) TABLESPACE=`s1`
+      (SUBPARTITION subpart11,
+       SUBPARTITION subpart12),
+    PARTITION hundreds VALUES LESS THAN (1000)
+      (SUBPARTITION subpart21,
+       SUBPARTITION subpart22 TABLESPACE=`s``1`),
+    PARTITION thousands VALUES LESS THAN (10000)
+      (SUBPARTITION subpart31 DATA DIRECTORY '$MYSQL_TMP_DIR',
+       SUBPARTITION subpart32 DATA DIRECTORY '$MYSQL_TMP_DIR' TABLESPACE `innodb_file_per_table`));
+
+ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
+(PARTITION tenthousands VALUES LESS THAN (20000));
+
+--echo # Only allow tablespace name as ident, not text. I.e. no 'single' quotes.
+--error ER_PARSE_ERROR
+ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
+(PARTITION twentythousands VALUES LESS THAN (30000)
+ TABLESPACE = 'innodb_system');
+--error ER_PARSE_ERROR
+ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
+(PARTITION twentythousands VALUES LESS THAN (30000)
+ TABLESPACE = "innodb_system");
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'ANSI_QUOTES';
+--error ER_PARSE_ERROR
+ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
+(PARTITION twentythousands VALUES LESS THAN (30000)
+ TABLESPACE = 'innodb_system');
+
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
+(PARTITION twentythousands VALUES LESS THAN (30000)
+ TABLESPACE = "innodb_system");
+
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
+(PARTITION thirtythousands VALUES LESS THAN (40000)
+ TABLESPACE = `innodb_file_per_table`);
+SET @@sql_mode = @old_sql_mode;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA_CREATE_OPTION
+eval ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
+(PARTITION fortythousands VALUES LESS THAN (50000)
+ (SUBPARTITION p40k_1 TABLESPACE = innodb_system DATA DIRECTORY = '$MYSQL_TMP_DIR',
+  SUBPARTITION p40k_2 DATA DIRECTORY = '$MYSQL_TMP_DIR'));
+
+--echo # Verify that it is OK to have TABLESPACE innodb_system with DATA DIR also on table
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA_CREATE_OPTION
+eval CREATE TABLE t3 (a int)
+ENGINE = InnoDB
+TABLESPACE = innodb_system DATA DIRECTORY = '$MYSQL_TMP_DIR';
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t3 (a int)
+ENGINE = InnoDB
+TABLESPACE = innodb_file_per_table DATA DIRECTORY = '$MYSQL_TMP_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t3;
+DROP TABLE t3;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t3 (a int) ENGINE = InnoDB DATA DIRECTORY = '$MYSQL_TMP_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t3;
+DROP TABLE t3;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
+(PARTITION fortythousands VALUES LESS THAN (50000)
+ (SUBPARTITION p40k_1 DATA DIRECTORY = '$MYSQL_TMP_DIR',
+  SUBPARTITION p40k_2 TABLESPACE = innodb_file_per_table DATA DIRECTORY = '$MYSQL_TMP_DIR'));
+SET GLOBAL innodb_file_per_table = OFF;
+
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
+(PARTITION fiftythousands VALUES LESS THAN (60000));
+
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
+(PARTITION sixtythousands VALUES LESS THAN (70000)
+ TABLESPACE = `innodb_system`);
+
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
+(PARTITION seventythousands VALUES LESS THAN (80000)
+ TABLESPACE = `innodb_file_per_table`);
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
+(PARTITION eightythousands VALUES LESS THAN (90000)
+ (SUBPARTITION p80k_1 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = '$MYSQL_TMP_DIR',
+  SUBPARTITION p80k_2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = '$MYSQL_TMP_DIR'));
+
+--echo # Test if both TABLESPACE and DATA DIRECTORY is allowed on table level.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t3 (a int)
+ENGINE = InnoDB
+TABLESPACE = innodb_file_per_table DATA DIRECTORY = '$MYSQL_TMP_DIR';
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA_CREATE_OPTION
+eval CREATE TABLE t4 (a int)
+ENGINE = InnoDB
+TABLESPACE = innodb_system DATA DIRECTORY = '$MYSQL_TMP_DIR';
+
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
+(PARTITION ninetythousands VALUES LESS THAN (100000)
+ (SUBPARTITION p90k_1 TABLESPACE = `innodb_file_per_table`,
+  SUBPARTITION p90k_2 TABLESPACE = `innodb_system`));
+
+
+FLUSH TABLES;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+
+SET @@sql_mode = 'ANSI_QUOTES';
+SET GLOBAL innodb_file_per_table = ON;
+
+FLUSH TABLES;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+
+--echo # DISCARD will only work on the first partitions that use file_per_table
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ALGORITHM=INPLACE, DISCARD TABLESPACE;
+--replace_result #P# #p#  #SP# #sp#
+--error ER_NOT_ALLOWED_COMMAND
+ALTER TABLE t1 ALGORITHM=DEFAULT, DISCARD TABLESPACE;
+SET @@sql_mode = @old_sql_mode;
+--replace_result #P# #p#  #SP# #sp#
+--error ER_NOT_ALLOWED_COMMAND
+ALTER TABLE t2 DISCARD TABLESPACE;
+call mtr.add_suppression("Operating system error number .* in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
+call mtr.add_suppression("Cannot open datafile for read-only: .*");
+DROP TABLE t1;
+DROP TABLE t2;
+
+# From SHOW CREATE TABLE above
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+ (SUBPARTITION subpart11 ENGINE = InnoDB,
+  SUBPARTITION subpart12 ENGINE = InnoDB),
+ PARTITION hundreds VALUES LESS THAN (1000)
+ (SUBPARTITION subpart21 TABLESPACE = s1 ENGINE = InnoDB,
+  SUBPARTITION subpart22 ENGINE = InnoDB),
+ PARTITION onethousands VALUES LESS THAN (2000)
+ (SUBPARTITION subpart23 TABLESPACE = s1 ENGINE = InnoDB,
+  SUBPARTITION subpart24 ENGINE = InnoDB),
+ PARTITION thousands VALUES LESS THAN (10000)
+ (SUBPARTITION subpart31 TABLESPACE = s1 ENGINE = InnoDB,
+  SUBPARTITION subpart32 TABLESPACE = s1 ENGINE = InnoDB),
+ PARTITION tenthousands VALUES LESS THAN (20000)
+ (SUBPARTITION tenthousandssp0 TABLESPACE = s1 ENGINE = InnoDB,
+  SUBPARTITION tenthousandssp1 TABLESPACE = s1 ENGINE = InnoDB),
+ PARTITION twentythousands VALUES LESS THAN (30000)
+ (SUBPARTITION twentythousandssp0 TABLESPACE = innodb_system ENGINE = InnoDB,
+  SUBPARTITION twentythousandssp1 TABLESPACE = innodb_system ENGINE = InnoDB),
+ PARTITION thirtythousands VALUES LESS THAN (40000)
+ (SUBPARTITION thirtythousandssp0 ENGINE = InnoDB,
+  SUBPARTITION thirtythousandssp1 ENGINE = InnoDB),
+ PARTITION fortythousands VALUES LESS THAN (50000)
+ (SUBPARTITION p40k_1 TABLESPACE = innodb_system ENGINE = InnoDB,
+  SUBPARTITION p40k_2 DATA DIRECTORY = '$MYSQL_TMP_DIR' ENGINE = InnoDB),
+ PARTITION fiftythousands VALUES LESS THAN (60000)
+ (SUBPARTITION fiftythousandssp0 TABLESPACE = s1 ENGINE = InnoDB,
+  SUBPARTITION fiftythousandssp1 TABLESPACE = s1 ENGINE = InnoDB),
+ PARTITION sixtythousands VALUES LESS THAN (70000)
+ (SUBPARTITION sixtythousandssp0 TABLESPACE = innodb_system ENGINE = InnoDB,
+  SUBPARTITION sixtythousandssp1 TABLESPACE = innodb_system ENGINE = InnoDB),
+ PARTITION seventythousands VALUES LESS THAN (80000)
+ (SUBPARTITION seventythousandssp0 ENGINE = InnoDB,
+  SUBPARTITION seventythousandssp1 ENGINE = InnoDB),
+ PARTITION ninetythousands VALUES LESS THAN (100000)
+ (SUBPARTITION p90k_1 ENGINE = InnoDB,
+  SUBPARTITION p90k_2 TABLESPACE = innodb_system ENGINE = InnoDB)) */;
+CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+ (SUBPARTITION subpart11 TABLESPACE = s1 ENGINE = InnoDB,
+  SUBPARTITION subpart12 TABLESPACE = s1 ENGINE = InnoDB),
+ PARTITION hundreds VALUES LESS THAN (1000)
+ (SUBPARTITION subpart21 ENGINE = InnoDB,
+  SUBPARTITION subpart22 TABLESPACE = `s``1` ENGINE = InnoDB),
+ PARTITION thousands VALUES LESS THAN (10000)
+ (SUBPARTITION subpart31 ENGINE = InnoDB,
+  SUBPARTITION subpart32 ENGINE = InnoDB)) */;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t2;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t3;
+
+ALTER TABLE t3 DISCARD TABLESPACE;
+DROP TABLE t1, t2, t3;
+DROP TABLESPACE s1;
+DROP TABLESPACE `s``1`;
+
+CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) TABLESPACE ts1 ROW_FORMAT=COMPACT;
+CREATE TABLE ti
+(id INT, amount DECIMAL(7,2), tr_date DATE) TABLESPACE ts1
+ENGINE=INNODB
+PARTITION BY HASH( MONTH(tr_date) )
+PARTITIONS 6;
+
+DROP TABLE t1,ti;
+DROP TABLESPACE ts1;
+
+--echo #
+--echo # Clean-up.
+--echo #
+
+SET @@global.innodb_file_per_table=@old_innodb_file_per_table;
+
+--rmdir $MYSQL_TMP_DIR/test

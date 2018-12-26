@@ -1,0 +1,179 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_valgrind.inc
+
+--source ../include/start_server_common.inc
+
+
+# NOTE : Index stats are manifested during table creation. To force a low index
+# condition, performance_schema_max_index_stat must be set to the number of
+# all system table indexes, plus 1.
+
+#############################
+# Setup database and tables.
+#############################
+--disable_warnings
+drop table if exists db1.t1;
+drop database if exists db1;
+--enable_warnings
+create database db1;
+create table db1.t1 (a int, b char(10) default 'default',
+                         unique key uidx(a));
+
+#######################
+# Execute few queries.
+#######################
+insert into db1.t1 values('1', 'abc');
+insert into db1.t1 values('2', 'abc');
+select * from db1.t1 where a='1';
+
+#####################################################
+# Run few queries on Performance Schema stats tables.
+#####################################################
+# There should be 3 entries in following table. 2 for insert and 1 for select.
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+# Stats for 2 indexes (full scan, uidx)
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+
+flush tables;
+
+# Stats for full scan lost
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+# Stats for only 1 index, uidx
+# Stats for full scan lost
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+
+# Expect INDEX_STAT lost, we have room for 1 out of 2
+--disable_warnings
+select variable_value > 0 from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+
+# While at it, check that FLUSH STATUS Resets the lost counter
+FLUSH STATUS;
+
+select variable_value from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+--enable_warnings
+
+
+create table db1.t2 (a int, b char(10) default 'default',
+                         unique key uidx(a));
+
+#######################
+# Execute few queries.
+#######################
+insert into db1.t1 values('3', 'abc');
+insert into db1.t1 values('4', 'abc');
+select * from db1.t1 where a='1';
+
+insert into db1.t2 values('1', 'abc');
+insert into db1.t2 values('2', 'abc');
+select * from db1.t2 where a='1';
+
+#####################################################
+# Run few queries on Performance Schema stats tables.
+#####################################################
+
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+
+flush tables;
+
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+
+# Expect INDEX_STAT lost
+--disable_warnings
+select variable_value > 0 from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+--enable_warnings
+
+FLUSH STATUS;
+
+
+#####################################################################################
+# Update setup_objects to DISABLE TABLE and check index lost stats after flush tables
+#####################################################################################
+
+update performance_schema.setup_objects set ENABLED='NO' where OBJECT_TYPE='TABLE';
+
+
+
+#######################
+# Execute few queries.
+#######################
+insert into db1.t1 values('5', 'abc');
+insert into db1.t1 values('6', 'abc');
+select * from db1.t1 where a='1';
+
+insert into db1.t2 values('3', 'abc');
+insert into db1.t2 values('4', 'abc');
+select * from db1.t2 where a='1';
+
+# Empty, objects are disabled
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+# Empty, objects are disabled
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+
+flush tables;
+
+# Empty, objects are disabled
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+# Empty, objects are disabled
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+
+# Do not expect lost counter in INDEX_STAT 
+--disable_warnings
+select variable_value from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+--enable_warnings
+
+###########
+# Cleanup.
+###########
+drop database db1;
+
+update performance_schema.setup_objects set ENABLED='YES'
+  where OBJECT_TYPE='TABLE' and OBJECT_SCHEMA="%";

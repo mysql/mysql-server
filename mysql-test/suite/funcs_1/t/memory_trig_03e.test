@@ -1,0 +1,21 @@
+#### suite/funcs_1/t/memory_triggers.test
+
+
+# Memory tables should be used
+#
+# Set $engine_type
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+# --source include/have_memory.inc
+let $engine_type= memory;
+
+# Create some objects needed in many testcases
+USE test;
+
+--source suite/funcs_1/triggers/triggers_03e_db_level.inc
+--source suite/funcs_1/triggers/triggers_03e_table_level.inc
+--source suite/funcs_1/triggers/triggers_03e_global_db_mix.inc
+--source suite/funcs_1/triggers/triggers_03e_db_table_mix.inc
+--source suite/funcs_1/triggers/triggers_03e_prepare.inc
+--source suite/funcs_1/triggers/triggers_03e_definer.inc
+--source suite/funcs_1/triggers/triggers_03e_columns.inc
+

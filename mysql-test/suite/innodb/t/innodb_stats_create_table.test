@@ -1,0 +1,59 @@
+#
+# Test CREATE TABLE ... STATS_PERSISTENT=0|1|default
+#
+
+
+-- vertical_results
+
+# confirm that nothing is present before the test
+SELECT COUNT(*) FROM mysql.innodb_table_stats WHERE
+database_name = 'test' AND
+table_name = 'test_ps_create_table';
+
+##
+
+CREATE TABLE test_ps_create_table (a INT, PRIMARY KEY (a))
+ENGINE=INNODB STATS_PERSISTENT=0;
+
+# nothing should be present
+SELECT COUNT(*) FROM mysql.innodb_table_stats WHERE
+database_name = 'test' AND
+table_name = 'test_ps_create_table';
+
+DROP TABLE test_ps_create_table;
+
+##
+
+CREATE TABLE test_ps_create_table (a INT, PRIMARY KEY (a))
+ENGINE=INNODB;
+
+# 1 row should be present if the default of --innodb-stats-persistent is 1
+SELECT COUNT(*) FROM mysql.innodb_table_stats WHERE
+database_name = 'test' AND
+table_name = 'test_ps_create_table';
+
+DROP TABLE test_ps_create_table;
+
+##
+
+CREATE TABLE test_ps_create_table (a INT, PRIMARY KEY (a))
+ENGINE=INNODB STATS_PERSISTENT=default;
+
+# 1 row should be present if the default of --innodb-stats-persistent is 1
+SELECT COUNT(*) FROM mysql.innodb_table_stats WHERE
+database_name = 'test' AND
+table_name = 'test_ps_create_table';
+
+DROP TABLE test_ps_create_table;
+
+##
+
+CREATE TABLE test_ps_create_table (a INT, PRIMARY KEY (a))
+ENGINE=INNODB STATS_PERSISTENT=1;
+
+# 1 row should be present
+SELECT COUNT(*) FROM mysql.innodb_table_stats WHERE
+database_name = 'test' AND
+table_name = 'test_ps_create_table';
+
+DROP TABLE test_ps_create_table;

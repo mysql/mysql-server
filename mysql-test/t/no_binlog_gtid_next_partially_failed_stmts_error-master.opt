@@ -1,0 +1,5 @@
+--gtid_mode=ON
+--enforce_gtid_consistency
+--skip-log-bin
+--skip-log-slave-updates
+--skip-slave-preserve-commit-order

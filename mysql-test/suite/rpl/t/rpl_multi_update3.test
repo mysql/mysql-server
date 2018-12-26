@@ -1,0 +1,14 @@
+#######################################################
+# Wrapper for rpl_multi_update3.test to allow multi   #
+# Engines to reuse test code. By JBM 2006-02-15       #
+# Added comments section and to skip when ndb is      #
+# Default engine.                                     #
+#######################################################
+--source include/not_ndb_default.inc
+--source include/not_group_replication_plugin.inc
+--source include/have_myisam.inc
+--source include/master-slave.inc
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+let $engine_type=MyISAM;
+-- source extra/rpl_tests/rpl_multi_update3.test
+--source include/rpl_end.inc

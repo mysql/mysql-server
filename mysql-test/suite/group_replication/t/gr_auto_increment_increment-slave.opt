@@ -1,0 +1,2 @@
+--no-console
+--log-error=$MYSQLTEST_VARDIR/tmp/group_replication_auto_increment_increment_log.err

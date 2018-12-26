@@ -1,0 +1,40 @@
+
+#
+# This is a regression test for bug #2526 "--init-file crashes MySQL if it
+# contains a large select"
+#
+# See mysql-test/std_data/init_file.dat and
+# mysql-test/t/init_file-master.opt for the actual test
+#
+
+#
+# Bug#23240 --init-file statements with NOW() reports '1970-01-01 11:00:00'as the date time
+#
+INSERT INTO init_file.startup VALUES ( NOW() );
+SELECT * INTO @X FROM init_file.startup limit 0,1;
+SELECT * INTO @Y FROM init_file.startup limit 1,1;
+SELECT YEAR(@X)-YEAR(@Y);
+# Enable this DROP DATABASE only after resolving bug #42507
+DROP DATABASE init_file;
+
+--echo ok
+--echo end of 4.1 tests
+#
+# Chec 5.x features
+#
+# Expected:
+#   3, 5, 7, 11, 13 
+select * from t1;
+# Expected:
+#   30, 3, 11, 13
+select * from t2;
+# Enable this DROP TABLE only after resolving bug #42507
+drop table t1, t2;
+
+# MTR will restart server anyway, but by forcing it we avoid being warned
+# about the apparent side effect
+
+# The below force start is giving warnings in the server logs hence disabling warnings specifically
+--disable_warnings
+--source include/force_restart.inc
+--enable_warnings

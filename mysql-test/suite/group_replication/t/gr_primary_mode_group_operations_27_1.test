@@ -1,0 +1,219 @@
+###############################################################################
+#
+# When changing mode to single primary with an appointed primary, P,
+# if P leaves or fails under a majority, when the primary election began
+# but is not yet over, the change will not abort and
+# adapt to the new elected primary throwing a warning.
+#
+# Also:
+# When the plugin is stopped or leaves in error, while changing
+# from multi primary mode to single primary mode, if the member did
+# not set the single primary mode flag to true, then update
+# everywhere checks shall remain true.
+#
+# Test:
+#   0. This test needs three servers
+#   1. Create table for tests on a multi primary group
+#   2. Lock table on a server that will be a secondary and set its
+#      weight to be chosen as primary on single primary mode
+#   3. Insert a row on a group
+#   4. Invoke a change to single primary selecting server3 as new primary
+#   5. Check that the other members are waiting to enable
+#      super_read_only and executing primary election
+#   6. Stop server 3
+#   7. Wait group detect exit of server3
+#   8. Unblock table on member that is blocked
+#   9. Check that the action finishes
+#  10. Confirm server2 is the new primary due its weight on member
+#      election
+#  11. Check that Single primary mode is false on the stuck member and the
+#      update everywhere checks are true
+#  12. Clean up
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Create table for tests on a multi primary group
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
+set session sql_log_bin=1;
+
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
+set session sql_log_bin=1;
+
+--let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 2. Lock table on a server that will be a secondary and set its
+--echo #    weight to be chosen as primary on single primary mode
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: The appointed primary for election left the group, this operation will be aborted.*");
+set session sql_log_bin=1;
+
+SET @@GLOBAL.group_replication_member_weight= 90;
+
+LOCK TABLE t1 READ;
+
+--echo
+--echo # 3. Insert a row on a group
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--eval INSERT INTO t1 VALUES (1)
+
+--echo
+--echo # 4. Invoke a change to single primary selecting server3 as new primary
+
+--replace_result $server3_uuid MEMBER3_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server3_uuid")
+
+--echo
+--echo # 5. Check that the other members are waiting to enable
+--echo #    super_read_only and executing primary election
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/sql/Waiting for global read lock%"
+--source include/wait_condition.inc
+
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch%";`
+--let $assert_text= The stage should be "Single-primary Switch: executing Primary election"
+--let $assert_cond= "$stage_name" = "stage/group_rpl/Single-primary Switch: executing Primary election"
+--source include/assert.inc
+
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%global read lock%";`
+--let $assert_text= The stage should be "stage/sql/Waiting for global read lock"
+--let $assert_cond= "$stage_name" = "stage/sql/Waiting for global read lock"
+--source include/assert.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Waiting for members to enable super_read_only%"
+--source include/wait_condition.inc
+
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch%";`
+--let $assert_text= The stage should be "Single-primary Switch: executing Primary election"
+--let $assert_cond= "$stage_name" = "stage/group_rpl/Single-primary Switch: executing Primary election"
+--source include/assert.inc
+
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%super_read_only%";`
+--let $assert_text= The stage should be "Primary Election: waiting for members to enable super_read_only"
+--let $assert_cond= "$stage_name" = "stage/group_rpl/Primary Election: waiting for members to enable super_read_only"
+--source include/assert.inc
+
+--echo
+--echo # 6. Stop server 3
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+# Wait a few seconds for the message to appear in the log
+# When stop returns the write command was already executed, still it can fail
+--sleep 2
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_only_after = CURRENT_TEST: gr_primary_mode_group_operations_27_1
+--let $assert_count = 1
+--let $assert_select = Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.
+--let $assert_text = Found the expected error about the operation abort
+--source include/assert_grep.inc
+
+--let $assert_text= group_replication_enforce_update_everywhere_checks is ON
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 1
+--source include/assert.inc
+
+--let $assert_text= The single primary mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_single_primary_mode]" = 0;
+--source include/assert.inc
+
+--echo
+--echo # 7. Wait group detect exit of server3
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 8. Unblock table on member that is blocked
+
+UNLOCK TABLES;
+
+--echo
+--echo # 9. Check that the action finishes
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server3_uuid MEMBER3_UUID
+--reap
+
+--echo
+--echo # 10. Confirm server2 is the new primary due its weight on member
+--echo #     election
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--echo # 11. Check that Single primary mode is false on the stuck member and the
+--echo #     update everywhere checks are true
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= group_replication_enforce_update_everywhere_checks is ON
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = "1"
+--source include/assert.inc
+
+--let $assert_text= The single primary mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_single_primary_mode]" = 0;
+
+--echo
+--echo # 12. Clean up
+
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+
+--source include/start_group_replication.inc
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+DROP TABLE t1;
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

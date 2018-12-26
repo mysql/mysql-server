@@ -1,0 +1,1 @@
+$SYS_VAR_SERVICE_OPT --mysqlx=OFF

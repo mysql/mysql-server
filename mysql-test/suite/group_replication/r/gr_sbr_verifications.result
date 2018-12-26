@@ -1,0 +1,86 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# Initialization
+
+# Bootstrap start Group Replication on server1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+# Create new channel ch2_1: server1(slave), server2(master).
+[connection server1]
+CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_2_PORT, MASTER_AUTO_POSITION=1 for channel 'ch2_1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch2_1']
+
+# Set binlog format on server2.
+[connection server2]
+SET SESSION BINLOG_FORMAT= "STATEMENT";
+
+# Create a table t1 without PK on server2(master)
+# and add data to it.
+CREATE TABLE t1 (c1 INT);
+include/rpl_sync.inc
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT= AUTOMATIC;
+
+# Verify insert doesn't gets executed as table
+# doesn't have a primary key.
+[connection server1]
+include/wait_for_slave_sql_error_and_restart.inc [errno=3098 FOR CHANNEL 'ch2_1']
+Pattern found.
+Occurrences of '.* \[ERROR\].*The table does not comply with the requirements by an external plugin.*' in the input file: 1
+
+# Create a table t2 with MYISAM storage engine on
+# server2(master) and add data to it.
+[connection server2]
+CREATE TABLE t2 (c1 INT) engine MyIsam;
+include/rpl_sync.inc
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:2';
+INSERT INTO t2 VALUES (1);
+SET GTID_NEXT= AUTOMATIC;
+
+# Verify insert doesn't gets executed as table
+# doesn't have the innodb storage engine.
+[connection server1]
+include/wait_for_slave_sql_error_and_restart.inc [errno=3098 FOR CHANNEL 'ch2_1']
+Pattern found.
+Pattern found.
+Occurrences of '.* \[ERROR\].*The table does not comply with the requirements by an external plugin.*' in the input file: 2
+
+# Create a table tc3 with foreign key with delete CASCADE clause
+# on server2(master) and add data to it.
+[connection server2]
+CREATE TABLE tp3 (c1 INT PRIMARY KEY);
+CREATE TABLE tc3 (c1 INT PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tp3(c1) ON DELETE CASCADE);
+INSERT INTO tp3 VALUES(1);
+include/rpl_sync.inc
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:3';
+INSERT INTO tc3 VALUES (1);
+SET GTID_NEXT= AUTOMATIC;
+
+# Verify insert doesn't gets executed as table
+# has a foreign key with CASCADE clause.
+[connection server1]
+include/wait_for_slave_sql_error_and_restart.inc [errno=3098 FOR CHANNEL 'ch2_1']
+Pattern found.
+Occurrences of '.* \[ERROR\].*The table does not comply with the requirements by an external plugin.*' in the input file: 3
+
+# Clean-up
+[connection server2]
+drop table t1;
+drop table t2;
+drop table tc3;
+drop table tp3;
+SET SESSION BINLOG_FORMAT= DEFAULT;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch2_1']
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch2_1']
+RESET SLAVE ALL FOR CHANNEL 'ch2_1';
+include/group_replication_end.inc

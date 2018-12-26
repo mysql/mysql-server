@@ -1,0 +1,92 @@
+SET @start_value = @@global.delay_key_write;
+SELECT @start_value;
+@start_value
+ON
+'#--------------------FN_DYNVARS_023_01------------------------#'
+SET @@global.delay_key_write = OFF;
+SET @@global.delay_key_write = DEFAULT;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+ON
+'#---------------------FN_DYNVARS_023_02-------------------------#'
+SET @@global.delay_key_write = NULL;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'NULL'
+'#--------------------FN_DYNVARS_023_03------------------------#'
+SET @@global.delay_key_write = ON;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+ON
+SET @@global.delay_key_write = OFF;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+OFF
+SET @@global.delay_key_write = ALL;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+ALL
+'#--------------------FN_DYNVARS_023_04-------------------------#'
+SET @@global.delay_key_write = 3;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of '3'
+SET @@global.delay_key_write = -1;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of '-1'
+SET @@global.delay_key_write = TRU;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'TRU'
+SET @@global.delay_key_write = ERROR;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'ERROR'
+SET @@global.delay_key_write = FALSE0;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'FALSE0'
+SET @@global.delay_key_write = ONN;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'ONN'
+SET @@global.delay_key_write = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@global.delay_key_write = ' ';
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of ' '
+SET @@global.delay_key_write = "";
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of ''
+'#-------------------FN_DYNVARS_023_05----------------------------#'
+SET @@delay_key_write = 0;
+ERROR HY000: Variable 'delay_key_write' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.delay_key_write;
+ERROR HY000: Variable 'delay_key_write' is a GLOBAL variable
+'#----------------------FN_DYNVARS_023_06------------------------#'
+SELECT @@delay_key_write = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='delay_key_write';
+@@delay_key_write = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_023_07-------------------------#'
+SET @@global.delay_key_write = 0;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+OFF
+SET @@global.delay_key_write = 1;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+ON
+SET @@global.delay_key_write = 2;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+ALL
+'#---------------------FN_DYNVARS_023_08----------------------#'
+SET @@global.delay_key_write = TRUE;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+ON
+SET @@global.delay_key_write = FALSE;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+OFF
+'#---------------------FN_DYNVARS_023_09----------------------#'
+SET delay_key_write = ON;
+ERROR HY000: Variable 'delay_key_write' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@delay_key_write;
+@@delay_key_write
+OFF
+SET GLOBAL delay_key_write = OFF;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+OFF
+SET @@global.delay_key_write = @start_value;
+SELECT @@global.delay_key_write;
+@@global.delay_key_write
+ON

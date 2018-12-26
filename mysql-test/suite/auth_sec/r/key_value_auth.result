@@ -1,0 +1,178 @@
+
+
+=======================================================================
+Checking the password authentication with @default_plugin plugin
+=======================================================================
+
+set @default_plugin= @@global.default_authentication_plugin;
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'abc';
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')=@default_plugin;
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')=@default_plugin
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=@default_plugin;
+(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=@default_plugin
+1
+1 Expected
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+=======================================================================
+Checking the password authentication with sha256_password plugin
+=======================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='sha256_password';
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='sha256_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='sha256_password';
+(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='sha256_password'
+1
+1 Expected
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of long password (more than 40 chars) using @default_plugin plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of long password (more than 40 chars) using sha256_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of NULL password using @default_plugin plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY '';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY '';
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of NULL password using sha256_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='';
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+=================================================================================================
+checking the combination of Client default_auth=sha256_password and server default_auth=native
+=================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
+GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
+GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
+**** Client default_auth=sha_256_password and server default auth=native
+user()	current_user()
+Tanjotuser1@localhost	Tanjotuser1@localhost
+**** Client default_auth=native and server default auth=native
+user()	current_user()
+Tanjotuser2@localhost	Tanjotuser2@127.0.0.1
+**** Client default_auth=sha_256_password + public key on file.
+user()	current_user()
+Tanjotuser1@localhost	Tanjotuser1@localhost
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+=================================================================================================
+Starting the server with the default authentication mysql_native_password
+=================================================================================================
+
+# Restart server with default-authentication-plugin=mysql_native_password;
+Creating a user with mysql_native_password plugin
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
+Grant all on *.* to 'Tanjotuser1'@'localhost';
+Creating a user with SHA256_password plugin
+CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
+set password for 'Tanjotuser3'@'localhost' ='abc';
+Grant all on *.* to 'Tanjotuser3'@'localhost';
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
+(select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password'
+1
+1 Expected
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser3'@'localhost';
+
+
+=================================================================================================
+Starting the server with the default authentication sha256_password
+=================================================================================================
+
+# Restart server with default-authentication-plugin=sha256_password;
+Creating a user with mysql_native_password plugin
+CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+set password for 'Tanjotuser2'@'localhost' ='abc';
+Grant all on *.* to 'Tanjotuser2'@'localhost';
+Creating a user with SHA256_password plugin
+CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED by 'abc';
+Grant all on *.* to 'Tanjotuser3'@'localhost';
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
+(select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password'
+1
+1 Expected
+DROP USER 'Tanjotuser2'@'localhost';
+DROP USER 'Tanjotuser3'@'localhost';

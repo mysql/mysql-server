@@ -1,0 +1,77 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+## Range Partitioning ##
+CREATE TABLE t1 (id int PRIMARY KEY, vc VARCHAR(255),
+t DATE)
+CHARSET=utf8mb4
+PARTITION BY RANGE (id)
+(PARTITION p1 VALUES LESS THAN (5),
+PARTITION p2 VALUES LESS THAN (10),
+PARTITION p3 VALUES LESS THAN (15),
+PARTITION p4 VALUES LESS THAN MAXVALUE);
+include/rpl_sync.inc
+[connection server2]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `t` date DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+INSERT INTO t1 VALUES (01, 'test partioning of tables', '2013-03-01');
+INSERT INTO t1 VALUES (10, 'test partioning of tables', '2012-12-10');
+INSERT INTO t1 VALUES (12, 'test partioning of tables', '2011-11-13');
+INSERT INTO t1 VALUES (100, 'test partioning of tables', '2011-10-13');
+include/rpl_sync.inc
+[connection server3]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `t` date DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+include/assert.inc ['Check that partition p1 on table t1 has 1 row']
+include/assert.inc ['Check that partition p2 on table t1 has 0 rows']
+include/assert.inc ['Check that partition p3 on table t1 has 2 rows']
+include/assert.inc ['Check that partition p4 on table t1 has 1 row']
+DELETE FROM t1 WHERE id=12;
+INSERT INTO t1 values (7, 'test partioning of tables', '2016-08-15');
+include/rpl_sync.inc
+[connection server1]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `t` date DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (15) ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+include/assert.inc ['Check that partition p1 on table t1 has 1 row']
+include/assert.inc ['Check that partition p2 on table t1 has 1 row']
+include/assert.inc ['Check that partition p3 on table t1 has 1 row']
+include/assert.inc ['Check that partition p4 on table t1 has 1 row']
+DROP TABLE t1;
+include/rpl_sync.inc
+include/group_replication_end.inc

@@ -1,0 +1,51 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Execute some transactions on server1.
+include/rpl_gr_wait_for_number_of_members.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+
+############################################################
+# 2. Force negative certification outcome of the next
+#    transaction.
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
+
+############################################################
+# 3. First insert must be aborted.
+INSERT INTO t1 VALUES (2);
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+INSERT INTO t1 VALUES (3);
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is no value 2 in table t1 on server 1']
+include/assert.inc ['There is a value 3 in table t1 on server 1']
+include/assert.inc ['The value of Count_Transactions_in_queue should be 0 on server 1']
+include/assert.inc ['The value of Count_transactions_checked should be 4 on server 1']
+include/assert.inc ['The value of Count_conflicts_detected should be 1 on server 1']
+include/assert.inc ['The value of Last_conflict_free_transaction should be 8a94f357-aab4-11df-86ab-c80aa9429123:5 on server 1']
+include/assert.inc ['There is no value 2 in table t1 on server 2']
+include/assert.inc ['There is a value 3 in table t1 on server 2']
+include/assert.inc ['The value of Count_Transactions_in_queue should be 0 on server 2']
+include/assert.inc ['The value of Count_transactions_checked should be 4 on server 2']
+include/assert.inc ['The value of Count_conflicts_detected should be 1 on server 2']
+include/assert.inc ['The value of Last_conflict_free_transaction should be 8a94f357-aab4-11df-86ab-c80aa9429123:5 on server 2']
+
+############################################################
+# 4. Clean debug flag on MTR side.
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+############################################################
+# 5. Shutdown.
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['Aborted transaction should not have increased GNO to 7 on server 1']
+include/assert.inc ['Aborted transaction should not have increased GNO to 7 on server 2']
+include/group_replication_end.inc

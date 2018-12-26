@@ -1,0 +1,19 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (pk integer auto_increment , primary key (pk));
+SET SESSION SQL_MODE='traditional';
+# **** [MASTER] *****
+# action: raise DUP KEY error (error code should be set in the 
+#                              query log event)
+INSERT INTO t1 (`pk`) VALUES (1), (1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+DROP TABLE t1;
+# **** [ sync slave with master ] ****
+# assertion: sync slave with master makes slave not to stop with
+#            duplicate key error (because it has received event
+#            with expected error code).
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

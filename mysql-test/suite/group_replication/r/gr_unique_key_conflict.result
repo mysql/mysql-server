@@ -1,0 +1,181 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# Create a table on server1.
+[connection server1]
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL);
+include/rpl_sync.inc
+
+###########################################################
+# Scenario 1: UNIQUE NOT NULL KEY, conflicting case
+
+############################################################
+# 0. Initial setup and checks.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+include/gtid_step_reset.inc
+
+############################################################
+# 1. Set a debug sync before broadcast message to group on
+#    connection local_server_connection1.
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+
+#####################################################################
+# 2. Commit local_transaction that will be blocked before broadcast.
+BEGIN;
+INSERT INTO t1 VALUES (1, 2);
+COMMIT;
+
+############################################################
+# 3. Wait until local transaction reaches the
+# group_replication_before_message_broadcast debug sync point.
+[connection server_1]
+
+############################################################
+# 4. Execute a transaction on remote server, that will reach first
+#    certification, since transaction on the local server
+#    is blocked before broadcast.
+[connection server2]
+BEGIN;
+INSERT INTO t1 VALUES (3, 2);
+COMMIT;
+
+############################################################
+# 5. Signal the waiting thread on local server to resume the
+#    transaction.
+[connection server_1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+############################################################
+# 6. Wait for remote transaction to be executed succesfully
+on local server.
+[connection server2]
+include/sync_slave_sql_with_master.inc
+############################################################
+# 7. If the test case is conflict scenario, local transaction
+#    will end up in an error stating that it was aborted,
+#    since transactions are conflicting and transaction on
+#    remote server was ordered first. If the test case is
+#    is positive scenario, no error will be seen here.
+[connection server1]
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+[connection server1]
+SET @@GLOBAL.DEBUG=@debug_save;
+############################################################
+# 8. Sync everything
+include/rpl_sync.inc
+############################################################
+# 9. Assert that number of certified transactions are the
+#    expected ones.
+include/assert.inc [The value of Count_Transactions_Checked should be 3 after starting group replication]
+include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
+############################################################
+# 10. Assert that GTID is increased as expected
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+############################################################
+# 11. Cleanup (restore the connection back to original)
+[connection server1]
+
+############################################################
+# Scenario 2: UNIQUE NOT NULL KEY, non-conflicting case
+
+############################################################
+# 0. Initial setup and checks.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+include/gtid_step_reset.inc
+
+############################################################
+# 1. Set a debug sync before broadcast message to group on
+#    connection local_server_connection1.
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+
+#####################################################################
+# 2. Commit local_transaction that will be blocked before broadcast.
+BEGIN;
+INSERT INTO t1 VALUES (5, 6);
+COMMIT;
+
+############################################################
+# 3. Wait until local transaction reaches the
+# group_replication_before_message_broadcast debug sync point.
+[connection server_1]
+
+############################################################
+# 4. Execute a transaction on remote server, that will reach first
+#    certification, since transaction on the local server
+#    is blocked before broadcast.
+[connection server2]
+BEGIN;
+INSERT INTO t1 VALUES (7, 8);
+COMMIT;
+
+############################################################
+# 5. Signal the waiting thread on local server to resume the
+#    transaction.
+[connection server_1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+############################################################
+# 6. Wait for remote transaction to be executed succesfully
+on local server.
+[connection server2]
+include/sync_slave_sql_with_master.inc
+############################################################
+# 7. If the test case is conflict scenario, local transaction
+#    will end up in an error stating that it was aborted,
+#    since transactions are conflicting and transaction on
+#    remote server was ordered first. If the test case is
+#    is positive scenario, no error will be seen here.
+[connection server1]
+[connection server1]
+SET @@GLOBAL.DEBUG=@debug_save;
+############################################################
+# 8. Sync everything
+include/rpl_sync.inc
+############################################################
+# 9. Assert that number of certified transactions are the
+#    expected ones.
+include/assert.inc [The value of Count_Transactions_Checked should be 5 after starting group replication]
+include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
+############################################################
+# 10. Assert that GTID is increased as expected
+include/gtid_step_assert.inc [count=2, only_count=1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+############################################################
+# 11. Cleanup (restore the connection back to original)
+[connection server1]
+
+############################################################
+# Check the data sanity
+[connection server1]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain 3 rows after the above execution]
+
+############################################################
+# Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

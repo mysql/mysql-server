@@ -1,0 +1,70 @@
+# ==== References ====
+#
+# WL#7374 Performance schema tables to monitor replication lags and queue
+#
+# ==== Purpose ====
+# This test verifies the behavior of QUEUEING_TIMESTAMPS in case of
+# partial transactions in the relay log.
+
+# This test case uses a debug point based on RBR
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+
+# Prepare the slave IO thread to stop after queuing a WRITE_ROWS event
+SET @save_debug=@@global.debug;
+SET GLOBAL DEBUG= "d,stop_io_after_reading_write_rows_log_event";
+
+# Do some transactions on master
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+
+BEGIN;
+INSERT INTO t1 (c1) VALUES (1);
+COMMIT;
+
+# Wait for the slave IO thread to reach the debug point
+--source include/rpl_connection_slave.inc
+--source include/wait_for_slave_io_to_stop.inc
+
+--let $initial_queue_timestamp= query_get_value(select QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP from performance_schema.replication_connection_status,QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP,1)
+
+--source include/kill_and_restart_mysqld.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $restart_queue_timestamp= query_get_value(select QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP from performance_schema.replication_connection_status,QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP,1)
+
+# Remove the debug point, so the IO thread will not stop after
+# queuing a WRITE_ROWS event anymore
+
+SET GLOBAL DEBUG= @save_debug;
+
+# Start slave
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+--let $final_queue_timestamp= query_get_value(select LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP from performance_schema.replication_connection_status,LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP,1)
+
+# Check that the timestamps values are valid
+--let $unix_ts_initial= `SELECT UNIX_TIMESTAMP('$initial_queue_timestamp')`
+--let $unix_ts_restart= `SELECT UNIX_TIMESTAMP('$restart_queue_timestamp')`
+--let $assert_text= Assert that the timestamp after the restart is more recent than the initial timestamp
+--let $assert_cond= $unix_ts_restart - $unix_ts_initial  > 0
+--source include/assert.inc
+
+# Check that the timestamps values are valid
+--let $unix_ts_final= `SELECT UNIX_TIMESTAMP('$final_queue_timestamp')`
+--let $assert_text= Assert that the final queue timestamp is more recent than the timestamp after the restart
+--let $assert_cond= $unix_ts_final - $unix_ts_restart  > 0
+--source include/assert.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

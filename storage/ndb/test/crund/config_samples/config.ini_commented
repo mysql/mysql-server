@@ -1,0 +1,174 @@
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# config.ini -- MySQL Cluster configuration file (options case-insensitive)
+
+[ndbd default]
+
+# directory for log, trace, pid files
+# (requires data nodes restart with --initial)
+#DataDir=(cwd)				# default
+#DataDir=.../mysql/ndblog
+
+# number of data copies (i.e., size of node groups)
+# (requires cluster restart with --initial)
+NoOfReplicas=2				# default >=6.3.25
+#NoOfReplicas=1
+
+# whether cluster operates in diskless mode (no checkpointing, logging to disk)
+# (requires cluster restart with --initial)
+Diskless=1
+#Diskless=0				# disabled (default)
+
+# whether data nodes exit or perform an automatic restart on error
+#StopOnError=1				# enabled (default)
+
+# whether to shut down data node when encountered a corrupted tuple
+#CrashOnCorruptedTuple=0		# available >=7.0.28
+#CrashOnCorruptedTuple=1		# default >=7.2.1
+
+# memory allocated for records and ordered indexes (have same for all nodes)
+# (pk, unique indexes also create an ordered index unless w/ 'USING HASH')
+DataMemory=1024M
+#DataMemory=512M
+#DataMemory=98M				# default
+# jdbc@(A=4096, B=4096, maxBlobBytes=100000) fails at DataMemory=512M
+# jdbc@(A=1024, B=1024, maxBlobBytes=1000000) fails at DataMemory=1024M
+
+# max number of parallel transactions (must be the same for all data nodes)
+MaxNoOfConcurrentTransactions=65536
+#MaxNoOfConcurrentTransactions=16384
+#MaxNoOfConcurrentTransactions=4096	# default
+# clusterj@(A=4096, B=4096) fails at MaxNoOfConcurrentTransactions=4096
+# clusterj@(A=16384, B=16384) fails at MaxNoOfConcurrentTransactions=16384
+
+# max number of operation records (1KB) in update phase or locked
+#MaxNoOfConcurrentOperations=262144
+MaxNoOfConcurrentOperations=65536
+#MaxNoOfConcurrentOperations=32768      # default
+# ndbapi@(A=16384, B=16384) fails on MaxNoOfLocalOperations
+#   at MaxNoOfConcurrentOperations=32768
+# jdbc@(A=4096, B=4096, maxBlobBytes=100000) fails on MaxNoOfLocalOperations
+#   at MaxNoOfConcurrentOperations=65536
+# jdbc@(A=1024, B=1024, maxBlobBytes=1000000) fails on MaxNoOfLocalOperations
+#   at MaxNoOfConcurrentOperations=131072
+
+# max number of operation records to be local to the database
+#MaxNoOfLocalOperations=(1.1 * MaxNoOfConcurrentOperations)	# default
+
+# max number of parallel scans (scan records in each data node)
+# (used for each full-table scan and parallel range scan on ordered indexes)
+#MaxNoOfConcurrentScans=256	 			# default, 500 max
+
+# max number of local records for scans not fully parallelized
+#MaxNoOfLocalScans=(MaxNoOfConcurrentScans * data nodes)	# default < 7.2
+#MaxNoOfLocalScans=(4 * MaxNoOfConcurrentScans * data nodes)	# default >=7.2
+
+# size of internal buffer used for passing messages within and between nodes
+#LongMessageBuffer=64M
+#LongMessageBuffer=16M
+#LongMessageBuffer=4M			# default >=7.0.4
+
+# max size of allocated memory unit for tables
+#MaxAllocate=32M			# default
+
+# size of the REDO buffer
+#RedoBuffer=32M				# default >=7.0.4
+# size of the UNDO index buffer
+#UndoIndexBuffer=2M			# default
+# size of the UNDO data buffer
+#UndoDataBuffer=16M			# default
+
+# number of REDO log files per node (as sets of 4 * FragmentLogFileSize)
+# (requires data nodes restart with --initial)
+NoOfFragmentLogFiles=96
+#NoOfFragmentLogFiles=8			# default
+
+# size of redo log files
+# (requires data nodes restart with --initial)
+FragmentLogFileSize=64M
+#FragmentLogFileSize=16M		# default
+# jdbc@(A=1024, B=1024, maxBlobBytes=1000000) fails on REDO log files overload
+#   with Diskless=0 at FragmentLogFileSize=16M
+
+# interval (ms) between global checkpoints (committed tx flushed to disk)
+# at TimeBetweenGlobalCheckpoints=2000  # default
+# at TimeBetweenGlobalCheckpoints=1000
+# at TimeBetweenGlobalCheckpoints=100
+# jdbc@(A=1024, B=1024, maxBlobBytes=1000000) fails on REDO log files overload
+
+# rate (B/s) of data sent to disk during a local checkpoint
+#DiskCheckpointSpeed=10M		# default
+# rate (B/s) of data sent to disk during a local checkpoint during restart
+#DiskCheckpointSpeedInRestart=100M	# default
+
+# prevent swapping of data node processes to disk (may need 'root' privileges)
+#LockPagesInMainMemory=2		# lock before allocating process
+#LockPagesInMainMemory=1		# lock after allocating process
+#LockPagesInMainMemory=0		# disabled (default)
+
+# use O_DIRECT writes for local checkpoints, backups, and redo logs
+# (may lower kswapd and CPU usage, recommended >=6.2.3 on Linux)
+#ODirect=0				# disabled (default)
+# max number of bytes to store before flushing data to disk
+# (may prevent write buffering, ignored when ODirect is enabled)
+#DiskSyncSize=4M			# default
+
+# interval (ms) between synchronization epochs for mysql cluster replication
+# (increase for long-running transactions)
+#TimeBetweenEpochs=100			# default
+# timeout (ms) for synchronization epochs for mysql cluster replication
+# (increase for long-running transactions or set to 0 to disable GCP stops)
+TimeBetweenEpochsTimeout=0		# disabled, default >=7.2.1
+
+[ndb_mgmd default]
+
+[mysqld default]
+
+[tcp default]
+
+# size of the Transporter's send and receive buffers
+SendBufferMemory=2M			# default >=7.0.4
+ReceiveBufferMemory=2M			# default >=7.0.4
+
+[ndb_mgmd]
+
+HostName=127.0.0.1              # hostname or IP address (default: localhost)
+#PortNumber=1186		# port for mgmd (default: 1186)
+##DataDir=.../mysql/ndblog 	# directory for log files (default: cwd)
+
+[ndbd]
+
+HostName=127.0.0.1              # hostname or IP address (default: localhost)
+#ServerPort=61150		# port for data+api node communication
+##DataDir=.../mysql/ndblog 	# directory for log files (default: cwd)
+
+[ndbd]
+
+HostName=127.0.0.1              # hostname or IP address (default: localhost)
+#ServerPort=61151		# port for data+api node communication
+##DataDir=.../mysql/ndblog 	# directory for log files (default: cwd)
+
+[api]
+[api]
+[api]
+[api]

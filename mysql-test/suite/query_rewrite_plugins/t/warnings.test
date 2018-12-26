@@ -1,0 +1,56 @@
+--echo #
+--echo # Test of rules where the parser gives warnings about the originial
+--echo # query, pattern or replacement.
+--echo #
+
+call mtr.add_suppression("Plugin rewriter reported: 'Some rules failed to load.'");
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+# Still many unsupported statements
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'LOAD DATA INFILE "tab1.data" INTO TABLE test.t1',
+         'LOAD DATA INFILE "tab2.data" INTO TABLE test.t1' ),
+       ( 'DO CONCAT("a", "b")', 'DO CONCAT("c", "d")' );
+
+--error ER_SIGNAL_EXCEPTION
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SHOW WARNINGS', 'SHOW /* I rewrote it */ WARNINGS' );
+
+--error ER_SIGNAL_EXCEPTION
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # We want the note about the query being rewritten here ...
+SHOW WARNINGS;
+SHOW ERRORS;
+GET DIAGNOSTICS CONDITION 1 @p1 = RETURNED_SQLSTATE, @p2 = MESSAGE_TEXT;
+SELECT @p1;
+SELECT @p2;
+
+--echo # ... but not here, since we failed parsing after seeing SHOW WARNINGS.
+--error ER_PARSE_ERROR
+SHOW WARNINGS and give me a parse error, please;
+
+DELETE FROM query_rewrite.rewrite_rules;
+
+--echo # Test of warnings when we rewrite the diagnostics statement.  echo #
+--echo # We disable mtr's SHOW WARNINGS here, as it would just be confusing
+--echo # when it gets rewritten without us seeing it.
+--disable_warnings
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SHOW WARNINGS', 'SELECT "used to be SHOW WARNINGS"' ),
+       ( 'SELECT 1', 'SHOW WARNINGS' );
+
+--error ER_SIGNAL_EXCEPTION
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT 1;
+
+SHOW WARNINGS;
+
+--enable_warnings
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

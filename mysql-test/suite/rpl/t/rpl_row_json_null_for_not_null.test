@@ -1,0 +1,27 @@
+#
+# Tests for the JSON data type under row-based replication.
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+# mysqlbinlog.inc with $only_decoded_rows needs have_grep.inc
+--source include/have_grep.inc
+
+--echo #
+--echo # Bug#26787468: REPLICATION DOES NOT HANDLE NULL INSERTED
+--echo #               IN JSON NOT NULL COLUMN CORRECTLY
+--echo #
+CREATE TABLE t (i INT, j JSON NOT NULL);
+SET SESSION binlog_row_value_options = 'PARTIAL_JSON';
+--source include/save_binlog_position.inc
+INSERT IGNORE INTO t VALUES (1, NULL);  # succeeds with a warning
+SELECT * FROM t;
+--echo # mysqlbinlog used to show 'Invalid JSON' for the second column.
+--let $mysqlbinlog_only_decoded_rows=1
+--source include/mysqlbinlog.inc
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM t;
+--connection master
+DROP TABLE t;
+
+--source include/rpl_end.inc

@@ -1,0 +1,34 @@
+Structure
+
+Ndbd_mem_allocator
+Handles allocation on 32k blocks
+Provides Buddy allocation of max 8G objects
+
+SuperPool 8k (chunk size 64k)
+GroupPool - Metadata
+  DICT::RopePool
+
+GroupPool - Disk operations
+  TUP::Page request
+  PGMAN::Page request
+  LGMAN::Log waiter
+  LGMAN::Log syncer
+
+GroupPool - Disk space
+  Tsman::Datafile
+  Tsman::Tablespace
+  Lgman::Undofile
+  Lgman::Logfilegroup
+  TUP::Extent alloc info
+
+SuperPool 32k
+  TUP Undo buffer
+  SUMA GCI buffer
+  Pgman::PageEntry
+
+Direct Ndbd_mem_allocator
+  Pgman::GlobalPage - 
+  TUP PageMan
+  Restore
+  Backup
+  Lgman::Logbuffer

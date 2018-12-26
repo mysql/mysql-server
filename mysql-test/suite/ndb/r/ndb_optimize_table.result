@@ -1,0 +1,36 @@
+CREATE TABLE t1 (
+pk INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+attr1 VARCHAR(1024),
+attr2 VARBINARY(1024),
+attr3 TEXT
+) ROW_FORMAT=DYNAMIC ENGINE=ndbcluster CHARACTER SET latin1;
+CREATE UNIQUE INDEX ui on t1(pk,attr1,attr2);
+set @val = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
+set @val2 = 0x0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF;
+set ndb_autoincrement_prefetch_sz = 256;
+select count(*) from t1;
+count(*)
+10000
+SET SESSION information_schema_stats_expiry=0;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+select count(*) from t1;
+count(*)
+2500
+select count(*) from t1 where mod(pk, 100) < 75;
+count(*)
+0
+set ndb_optimization_delay = 0;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+optimize worked ok!
+drop table t1;
+SET SESSION information_schema_stats_expiry=default;

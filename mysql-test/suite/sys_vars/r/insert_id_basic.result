@@ -1,0 +1,124 @@
+SET @start_value = @@session.insert_id;
+SELECT @start_value;
+@start_value
+0
+'#--------------------FN_DYNVARS_051_01------------------------#'
+SET @@session.insert_id = 99;
+'Variable is giving error on assigning Default value';
+SELECT @@session.insert_id;
+@@session.insert_id
+99
+'#---------------------FN_DYNVARS_051_02-------------------------#'
+SET @@session.insert_id = @start_value;
+SELECT @@session.insert_id = 0;
+@@session.insert_id = 0
+1
+'#--------------------FN_DYNVARS_051_03------------------------#'
+SET @@session.insert_id = 0;
+SELECT @@session.insert_id;
+@@session.insert_id
+0
+SET @@session.insert_id = 1099;
+SELECT @@session.insert_id;
+@@session.insert_id
+1099
+SET @@session.insert_id = 1800;
+SELECT @@session.insert_id;
+@@session.insert_id
+1800
+SET @@session.insert_id = 65535;
+SELECT @@session.insert_id;
+@@session.insert_id
+65535
+'#--------------------FN_DYNVARS_051_04-------------------------#'
+SET @@session.insert_id = -1;
+Warnings:
+Warning	1292	Truncated incorrect insert_id value: '-1'
+SELECT @@session.insert_id;
+@@session.insert_id
+0
+SET @@session.insert_id = 100000000000;
+SELECT @@session.insert_id;
+@@session.insert_id
+100000000000
+SET @@session.insert_id = 10000.01;
+ERROR 42000: Incorrect argument type to variable 'insert_id'
+SELECT @@session.insert_id;
+@@session.insert_id
+100000000000
+SET @@session.insert_id = -1024;
+Warnings:
+Warning	1292	Truncated incorrect insert_id value: '-1024'
+SELECT @@session.insert_id;
+@@session.insert_id
+0
+SET @@session.insert_id = 42949672950;
+SELECT @@session.insert_id;
+@@session.insert_id
+42949672950
+SET @@session.insert_id = ON;
+ERROR 42000: Incorrect argument type to variable 'insert_id'
+SELECT @@session.insert_id;
+@@session.insert_id
+42949672950
+SET @@session.insert_id = 'test';
+ERROR 42000: Incorrect argument type to variable 'insert_id'
+SELECT @@session.insert_id;
+@@session.insert_id
+42949672950
+'#-------------------FN_DYNVARS_051_05----------------------------#'
+SET @@global.insert_id = 0;
+ERROR HY000: Variable 'insert_id' is a SESSION variable and can't be used with SET GLOBAL
+SELECT @@global.insert_id;
+ERROR HY000: Variable 'insert_id' is a SESSION variable
+'#----------------------FN_DYNVARS_051_06------------------------#'
+SELECT @@global.insert_id = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='insert_id';
+ERROR HY000: Variable 'insert_id' is a SESSION variable
+SELECT @@session.insert_id = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='insert_id';
+@@session.insert_id = VARIABLE_VALUE
+1
+'#-------------------FN_DYNVARS_051_07----------------------------#'
+SET @@global.insert_id = 0;
+ERROR HY000: Variable 'insert_id' is a SESSION variable and can't be used with SET GLOBAL
+SELECT @@global.insert_id;
+ERROR HY000: Variable 'insert_id' is a SESSION variable
+'#---------------------FN_DYNVARS_051_08----------------------#'
+SET @@session.insert_id = TRUE;
+SELECT @@session.insert_id;
+@@session.insert_id
+1
+SET @@session.insert_id = FALSE;
+SELECT @@session.insert_id;
+@@session.insert_id
+0
+'#---------------------FN_DYNVARS_051_09----------------------#'
+SET @@session.insert_id = 1;
+SELECT @@insert_id = @@session.insert_id;
+@@insert_id = @@session.insert_id
+1
+SELECT @@session.insert_id = @@local.insert_id;
+@@session.insert_id = @@local.insert_id
+1
+'#---------------------FN_DYNVARS_051_10----------------------#'
+SET insert_id = 1;
+SELECT @@insert_id;
+@@insert_id
+1
+SET local.insert_id = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.insert_id = 1' at line 1
+SELECT local.insert_id;
+ERROR 42S02: Unknown table 'local' in field list
+SET session.insert_id = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.insert_id = 1' at line 1
+SELECT session.insert_id;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT insert_id = @@session.insert_id;
+ERROR 42S22: Unknown column 'insert_id' in 'field list'
+SET @@session.insert_id = @start_value;
+SELECT @@session.insert_id;
+@@session.insert_id
+0

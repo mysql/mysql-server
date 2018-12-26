@@ -1,0 +1,85 @@
+# This test case accompanies bug#26434966 (bugs.mysql.com bug #87052)
+#
+# t1 is an NDB table without any unique keys.
+#
+# We test HASH_SCAN access in idempotent mode by deleting a row on the slave,
+# and then deleting several rows on the master, where the replicated delete
+# includes the row already deleted.
+
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/master-slave.inc
+
+connection master;
+--echo **** On Master ****
+
+# t1 has a non-unique index and a hidden primary key
+CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), KEY(C1, C2)) ENGINE = ndb;
+
+# t2 is exacly like t1
+CREATE TABLE t2 (C1 CHAR(1), C2 CHAR(1), KEY(C1, C2)) ENGINE = ndb;
+
+# t3 is exacly like t1
+CREATE TABLE t3 (C1 CHAR(1), C2 CHAR(1), KEY(C1, C2)) ENGINE = ndb;
+
+#
+# Load data
+#
+INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
+INSERT INTO t2 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
+INSERT INTO t3 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
+
+--sleep 1
+--source include/sync_slave_sql_with_master.inc
+--echo **** On Slave ****
+
+set @prior_slave_exec_mode=@@global.slave_exec_mode;
+set @prior_slave_rows_search_algorithms=@@global.slave_rows_search_algorithms;
+set @prior_slave_allow_batching=@@global.slave_allow_batching;
+set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.slave_rows_search_algorithms= 'HASH_SCAN';
+set @@global.slave_allow_batching = OFF;
+
+--source include/restart_slave_sql.inc
+
+# Deletions on slave
+DELETE FROM t1 WHERE C1 = 'L';
+DELETE FROM t2 WHERE C1 = 'L';
+DELETE FROM t3 WHERE C1 = 'K';
+
+connection master;
+--echo **** On Master ****
+--sleep 1
+DELETE FROM t1;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/check_slave_is_running.inc
+--echo **** On Slave ; expect count to be 0 ****
+SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
+
+connection master;
+--echo **** On Master ****
+DELETE FROM t2;
+DELETE FROM t3;
+
+
+--source include/sync_slave_sql_with_master.inc
+--source include/check_slave_is_running.inc
+--echo **** On Slave ; expect count to be 0 ****
+SELECT COUNT(*) FROM t2 ORDER BY c1,c2;
+SELECT COUNT(*) FROM t3 ORDER BY c1,c2;
+
+
+--connection master
+--echo **** On Master ****
+drop table t1, t2, t3;
+
+
+--sync_slave_with_master
+--echo **** Cleanup on Slave ****
+set @@global.slave_exec_mode= @prior_slave_exec_mode;
+set @@global.slave_rows_search_algorithms= @prior_slave_rows_search_algorithms;
+set @@global.slave_allow_batching= @prior_slave_allow_batching;
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t.* Error_code: 1032");
+
+--source include/rpl_end.inc

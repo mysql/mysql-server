@@ -1,0 +1,34 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
+CREATE TABLE t1 (`bit_key` bit, `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t2 (`bit_key` bit(4), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t3 (`bit_key` bit(7), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t4 (`bit_key` bit(8), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t5 (`bit_key` bit(9), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t6 (`bit_key` bit(14), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t7 (`bit_key` bit(15), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t8 (`bit_key` bit(16), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+INSERT INTO `t1` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t1` WHERE `bit` < 2 LIMIT 4;
+INSERT INTO `t2` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t2` WHERE `bit` < 2 LIMIT 4;
+INSERT INTO `t3` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t3` WHERE `bit` < 2 LIMIT 4;
+INSERT INTO `t4` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t4` WHERE `bit` < 2 LIMIT 4;
+INSERT INTO `t5` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t5` WHERE `bit` < 2 LIMIT 4;
+INSERT INTO `t6` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t6` WHERE `bit` < 2 LIMIT 4;
+INSERT INTO `t7` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t7` WHERE `bit` < 2 LIMIT 4;
+INSERT INTO `t8` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t8` WHERE `bit` < 2 LIMIT 4;
+include/sync_slave_sql_with_master.inc
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

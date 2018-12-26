@@ -1,0 +1,36 @@
+###############################################
+#                                             #
+#   Prepared Statements test on NDB tables    #
+#                                             #
+###############################################
+
+-- source include/have_ndb.inc
+
+# Turn off ndb_join_pushdown
+--disable_query_log
+set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
+set ndb_join_pushdown = false;
+--enable_query_log
+
+# Set default engine type to use for these tests
+let $type= 'NDB' ;
+
+# Source the upstream include files which are also
+# used by ps_2myisam, ps_3innodb etc. This means that when
+# these upstream include files are modified the ps_7ndb.result file
+# need to be updated. Sometimes also the upstream include files need
+# to be adapted to also work with NDB tables
+-- source include/ps_create.inc
+-- source include/ps_renew.inc
+
+-- source include/ps_query.inc
+-- source include/ps_modify.inc
+-- source include/ps_modify1.inc
+-- source include/ps_conv.inc
+
+drop table t1, t9;
+
+# Restore original ndb_join_pushdown value
+--disable_query_log
+set ndb_join_pushdown = @save_ndb_join_pushdown;
+--enable_query_log

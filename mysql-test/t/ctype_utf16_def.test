@@ -1,0 +1,7 @@
+
+#
+# Bug #32391  	Character sets: crash with --character-set-server
+# 
+SHOW VARIABLES LIKE 'collation_server';
+SHOW VARIABLES LIKE 'character_set_server';
+SHOW VARIABLES LIKE 'ft_stopword_file';

@@ -1,0 +1,109 @@
+SET @session_start_value = @@session.sql_log_off;
+SELECT @session_start_value;
+@session_start_value
+0
+'#--------------------FN_DYNVARS_157_01------------------------#'
+SET @@session.sql_log_off = 0;
+SET @@session.sql_log_off = DEFAULT;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+0
+SET @@session.sql_log_off = 1;
+SET @@session.sql_log_off = DEFAULT;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+0
+'#---------------------FN_DYNVARS_157_02-------------------------#'
+SET sql_log_off = 1;
+SELECT @@sql_log_off;
+@@sql_log_off
+1
+SELECT session.sql_log_off;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT local.sql_log_off;
+ERROR 42S02: Unknown table 'local' in field list
+SET session sql_log_off = 0;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+0
+'#--------------------FN_DYNVARS_157_03------------------------#'
+SET @@session.sql_log_off = 0;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+0
+SET @@session.sql_log_off = 1;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+1
+'#--------------------FN_DYNVARS_157_04-------------------------#'
+SET @@session.sql_log_off = -1;
+ERROR 42000: Variable 'sql_log_off' can't be set to the value of '-1'
+SET @@session.sql_log_off = 2;
+ERROR 42000: Variable 'sql_log_off' can't be set to the value of '2'
+SET @@session.sql_log_off = "T";
+ERROR 42000: Variable 'sql_log_off' can't be set to the value of 'T'
+SET @@session.sql_log_off = "Y";
+ERROR 42000: Variable 'sql_log_off' can't be set to the value of 'Y'
+SET @@session.sql_log_off = TRÜE;
+ERROR 42000: Variable 'sql_log_off' can't be set to the value of 'TRÜE'
+SET @@session.sql_log_off = ÕN;
+ERROR 42000: Variable 'sql_log_off' can't be set to the value of 'ÕN'
+SET @@session.sql_log_off = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@session.sql_log_off = ÓFF;
+ERROR 42000: Variable 'sql_log_off' can't be set to the value of 'ÓFF'
+SET @@session.sql_log_off = '¹';
+ERROR 42000: Variable 'sql_log_off' can't be set to the value of '¹'
+SET @@session.sql_log_off = NO;
+ERROR 42000: Variable 'sql_log_off' can't be set to the value of 'NO'
+'#-------------------FN_DYNVARS_157_05----------------------------#'
+SET @@global.sql_log_off = 1-@@global.sql_log_off;
+SELECT @@global.sql_log_off;
+@@global.sql_log_off
+1
+SET @@global.sql_log_off = 1-@@global.sql_log_off;
+SELECT @@global.sql_log_off;
+@@global.sql_log_off
+0
+'#----------------------FN_DYNVARS_157_06------------------------#'
+SELECT count(VARIABLE_VALUE) 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='sql_log_off';
+count(VARIABLE_VALUE)
+1
+'#----------------------FN_DYNVARS_157_07------------------------#'
+SELECT IF(@@session.sql_log_off, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_log_off';
+IF(@@session.sql_log_off, "ON", "OFF") = VARIABLE_VALUE
+1
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+1
+SELECT VARIABLE_VALUE
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_log_off';
+VARIABLE_VALUE
+ON
+'#---------------------FN_DYNVARS_157_08-------------------------#'
+SET @@session.sql_log_off = OFF;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+0
+SET @@session.sql_log_off = ON;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+1
+'#---------------------FN_DYNVARS_157_09----------------------#'
+SET @@session.sql_log_off = TRUE;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+1
+SET @@session.sql_log_off = FALSE;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+0
+SET @@session.sql_log_off = @session_start_value;
+SELECT @@session.sql_log_off;
+@@session.sql_log_off
+0

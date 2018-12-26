@@ -1,0 +1,69 @@
+#
+# Various tests for SUM(DISTINCT ...)
+#
+
+--source include/not_sparc_debug.inc
+--source include/big_test.inc
+--source include/not_valgrind.inc
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+#
+# Test the case when distinct values doesn't fit in memory and 
+# filesort is used (see uniques.cc:merge_walk)
+#
+
+CREATE TABLE t1 (id INTEGER);
+CREATE TABLE t2 (id INTEGER);
+
+INSERT INTO t1 (id) VALUES (1), (1), (1),(1);
+INSERT INTO t1 (id) SELECT id FROM t1; /* 8 */
+INSERT INTO t1 (id) SELECT id FROM t1; /* 12 */
+INSERT INTO t1 (id) SELECT id FROM t1; /* 16 */
+INSERT INTO t1 (id) SELECT id FROM t1; /* 20 */
+INSERT INTO t1 (id) SELECT id FROM t1; /* 24 */
+INSERT INTO t1 SELECT id+1 FROM t1;
+INSERT INTO t1 SELECT id+2 FROM t1;
+INSERT INTO t1 SELECT id+4 FROM t1;
+INSERT INTO t1 SELECT id+8 FROM t1;
+INSERT INTO t1 SELECT id+16 FROM t1;
+INSERT INTO t1 SELECT id+32 FROM t1;
+INSERT INTO t1 SELECT id+64 FROM t1;
+INSERT INTO t1 SELECT id+128 FROM t1;
+INSERT INTO t1 SELECT id+256 FROM t1;
+INSERT INTO t1 SELECT id+512 FROM t1;
+
+# Just test that AVG(DISTINCT) is there
+SELECT AVG(DISTINCT id) FROM t1 GROUP BY id % 13;
+SELECT SUM(DISTINCT id)/COUNT(DISTINCT id) FROM t1 GROUP BY id % 13;
+
+INSERT INTO t1 SELECT id+1024 FROM t1;
+INSERT INTO t1 SELECT id+2048 FROM t1;
+INSERT INTO t1 SELECT id+4096 FROM t1;
+INSERT INTO t1 SELECT id+8192 FROM t1;
+INSERT INTO t2 SELECT id FROM t1 ORDER BY id*rand();
+
+# SELECT '++++++++++++++++++++++++++++++++++++++++++++++++++';
+
+SELECT SUM(DISTINCT id) sm FROM t1;
+SELECT SUM(DISTINCT id) sm FROM t2;
+SELECT SUM(DISTINCT id) sm FROM t1 group by id % 13;
+
+# this limit for max_heap_table_size is set to force testing the case, when
+# all distinct sum values can not fit in memory and must be stored in a
+# temporary table
+
+SET max_heap_table_size=16384;
+
+# to check that max_heap_table_size was actually set (hard limit for minimum
+# max_heap_table_size is set in mysqld.cc):
+
+SHOW variables LIKE 'max_heap_table_size';
+
+SELECT SUM(DISTINCT id) sm FROM t1;
+SELECT SUM(DISTINCT id) sm FROM t2;
+SELECT SUM(DISTINCT id) sm FROM t1 GROUP BY id % 13;
+
+DROP TABLE t1;
+DROP TABLE t2;

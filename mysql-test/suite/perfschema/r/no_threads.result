@@ -1,0 +1,47 @@
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_consumers set enabled='YES';
+update performance_schema.setup_instruments set enabled='YES'
+  where name like "wait/synch/mutex/mysys/THR_LOCK_myisam";
+drop table if exists test.t1;
+truncate table performance_schema.events_waits_current;
+truncate table performance_schema.events_waits_history;
+truncate table performance_schema.events_waits_history_long;
+show global variables like "thread_handling";
+Variable_name	Value
+thread_handling	no-threads
+show status like "Performance_schema_thread_instances_lost";
+Variable_name	Value
+Performance_schema_thread_instances_lost	0
+create table test.t1(a int);
+show global variables like "performance_schema";
+Variable_name	Value
+performance_schema	ON
+show global variables like "performance_schema_max_thread%";
+Variable_name	Value
+performance_schema_max_thread_classes	100
+performance_schema_max_thread_instances	50
+select count(*) from performance_schema.threads
+where name like "thread/sql/main";
+count(*)
+1
+select count(*) from performance_schema.threads
+where name like "thread/sql/OneConnection";
+count(*)
+0
+select event_name, operation,
+left(source, locate(":", source)) as short_source
+from performance_schema.events_waits_current;
+event_name	operation	short_source
+wait/synch/mutex/mysys/THR_LOCK_myisam	lock	mi_create.cc:
+select event_name, operation,
+left(source, locate(":", source)) as short_source
+from performance_schema.events_waits_history;
+event_name	operation	short_source
+wait/synch/mutex/mysys/THR_LOCK_myisam	lock	mi_create.cc:
+select event_name, operation,
+left(source, locate(":", source)) as short_source
+from performance_schema.events_waits_history_long;
+event_name	operation	short_source
+wait/synch/mutex/mysys/THR_LOCK_myisam	lock	mi_create.cc:
+update performance_schema.setup_instruments set enabled='YES';
+drop table test.t1;

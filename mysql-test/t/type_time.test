@@ -1,0 +1,441 @@
+
+#
+# testing of the TIME column type
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create table t1 (t time);
+insert into t1 values("10:22:33"),("12:34:56.78"),(10),(1234),(123456.78),(1234559.99),("1"),("1:23"),("1:23:45"), ("10.22"), ("-10  1:22:33.45"),("20 10:22:33"),("1999-02-03 20:33:34");
+insert t1 values (30),(1230),("1230"),("12:30"),("12:30:35"),("1 12:30:31.32");
+select * from t1;
+# Test wrong values
+insert into t1 values("10.22.22"),(1234567),(123456789),(123456789.10),("10 22:22"),("12.45a");
+select * from t1;
+drop table t1;
+
+create table t1 (t time);
+insert into t1 values ('09:00:00'),('13:00:00'),('19:38:34'), ('13:00:00'),('09:00:00'),('09:00:00'),('13:00:00'),('13:00:00'),('13:00:00'),('09:00:00');
+select t, time_to_sec(t),sec_to_time(time_to_sec(t)) from t1;
+select sec_to_time(time_to_sec(t)) from t1;
+drop table t1;
+
+CREATE TABLE t1 (t TIME);
+INSERT INTO t1 VALUES (+10), (+10.0), (+10e0);
+INSERT INTO t1 VALUES (-10), (-10.0), (-10e0);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# BUG #12440: Incorrect processing of time values containing
+# long fraction part and/or large exponent part.
+#
+SELECT CAST(235959.123456 AS TIME);
+SELECT CAST(0.235959123456e+6 AS TIME);
+SELECT CAST(235959123456e-6 AS TIME);
+
+# These must cut fraction part
+SELECT CAST(235959.1234567 AS TIME);
+SELECT CAST(0.2359591234567e6 AS TIME);
+
+# This must return NULL and produce warning:
+SELECT CAST(0.2359591234567e+30 AS TIME);
+###########################################################
+
+--echo End of 4.1 tests
+
+#
+# Bug#29555: Comparing time values as strings may lead to a wrong result.
+#
+select cast('100:55:50' as time) < cast('24:00:00' as time);
+select cast('100:55:50' as time) < cast('024:00:00' as time);
+select cast('300:55:50' as time) < cast('240:00:00' as time);
+select cast('100:55:50' as time) > cast('24:00:00' as time);
+select cast('100:55:50' as time) > cast('024:00:00' as time);
+select cast('300:55:50' as time) > cast('240:00:00' as time);
+create table t1 (f1 time);
+insert into t1 values ('24:00:00');
+select cast('24:00:00' as time) = (select f1 from t1);
+drop table t1;
+
+#
+# Bug#29739: Incorrect time comparison in BETWEEN.
+#
+create table t1(f1 time, f2 time);
+insert into t1 values('20:00:00','150:00:00');
+select 1 from t1 where cast('100:00:00' as time) between f1 and f2;
+drop table t1;
+
+#
+# Bug#29729: Wrong conversion error led to an empty result set.
+#
+CREATE TABLE  t1 (
+  f2 date NOT NULL,
+  f3 int(11) unsigned NOT NULL default '0',
+  PRIMARY KEY  (f3, f2)
+);
+insert into t1 values('2007-07-01', 1);
+insert into t1 values('2007-07-01', 2);
+insert into t1 values('2007-07-02', 1);
+insert into t1 values('2007-07-02', 2);
+SELECT sum(f3) FROM t1 where f2='2007-07-01 00:00:00' group by f2;
+drop table t1;
+
+
+--echo #
+--echo # Bug #44792: valgrind warning when casting from time to time
+--echo #
+
+CREATE TABLE t1 (c TIME);
+INSERT INTO t1 VALUES ('0:00:00');
+SELECT CAST(c AS TIME) FROM t1;
+DROP TABLE t1;
+
+--echo End of 5.0 tests
+
+--echo #
+--echo # Bug#53942 valgrind warnings with timestamp() function and incomplete datetime values
+--echo #
+SET @@timestamp=UNIX_TIMESTAMP('2001-01-01 01:00:00');
+CREATE TABLE t1(f1 TIME);
+INSERT INTO t1 VALUES ('23:38:57');
+SELECT TIMESTAMP(f1,'1') FROM t1;
+DROP TABLE t1;
+SET @@timestamp=default;
+
+--echo End of 5.1 tests
+
+#
+# Bug#42664 - Sign ignored for TIME types when not comparing as longlong
+#
+
+CREATE TABLE t1 (f1 TIME);
+INSERT INTO t1 VALUES ('24:00:00');
+SELECT      '24:00:00' = (SELECT f1 FROM t1);
+SELECT CAST('24:00:00' AS TIME) = (SELECT f1 FROM t1);
+SELECT CAST('-24:00:00' AS TIME) = (SELECT f1 FROM t1);
+TRUNCATE t1;
+INSERT INTO t1 VALUES ('-24:00:00');
+SELECT CAST('24:00:00' AS TIME) = (SELECT f1 FROM t1);
+SELECT CAST('-24:00:00' AS TIME) = (SELECT f1 FROM t1);
+SELECT '-24:00:00' = (SELECT f1 FROM t1);
+DROP TABLE t1;
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#946 Testing <=> operator with TIME
+--echo #
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('20:00:00'),('19:20:30');
+SELECT * FROM t1 WHERE a<=>'19:20:30';
+SELECT * FROM t1 WHERE a<=>TIME'19:20:30';
+SELECT * FROM t1 WHERE a<=>192030;
+DROP TABLE t1;
+
+
+--echo #
+--echo # WL#946: Testing rounding
+--echo #
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('10:10:10.9999994'), ('10:10:10.9999995');
+INSERT INTO t1 VALUES (101010.9999994), (101010.9999995);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Before WL#946 TIME did not reject too big negative minutes/seconds
+--echo #
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('-10:60:59'), ('-10:59:60'), (-106059), (-105960);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # WL#946 Make sure case from number to TIME properly handles
+--echo # too big negative minutes/secons
+--echo #
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (-106059), (-105960);
+SELECT CAST(a AS TIME) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # WL#946 Checking function TIME()
+--echo #
+SELECT TIME('1000009:10:10');
+SELECT TIME('1000009:10:10.1999999999999');
+SELECT TIME('10000090:10:10');
+SELECT TIME('10000090:10:10.1999999999999');
+SELECT TIME('100000900:10:10');
+SELECT TIME('100000900:10:10.1999999999999');
+SELECT TIME('1000009000:10:10');
+SELECT TIME('1000009000:10:10.1999999999999');
+SELECT TIME('10000090000:10:10');
+SELECT TIME('10000090000:10:10.1999999999999');
+
+--echo #
+--echo # Checking Item_func_if::val_str with TIME arguments
+--echo #
+SELECT CAST(IF(1, TIME'00:00:00',TIME'00:00:00') AS CHAR);
+
+--echo #
+--echo # Checking Item_func_case::val_str with TIME arguments
+--echo #
+SELECT CAST(CASE WHEN 1 THEN TIME'00:00:00' ELSE TIME'00:00:00' END AS CHAR);
+
+--echo #
+--echo # Testing CASE with TIME type without a found item
+--echo #
+SELECT CAST(CASE WHEN 0 THEN '01:01:01' END AS TIME);
+SELECT CAST(CASE WHEN 0 THEN TIME'01:01:01' END AS TIME);
+
+--echo #
+--echo # Testing COALESCE with TIME type without a found item
+--echo #
+SELECT COALESCE(TIME(NULL));
+
+--echo #
+--echo # Testing TIME field with NULL value with NOT IN
+--echo #
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1 WHERE a NOT IN (TIME'20:20:20',TIME'10:10:10');
+DROP TABLE t1;
+
+--echo #
+--echo # Testing Item_func_numhybrid::val_int when TIME type
+--echo #
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT CAST(COALESCE(a,a) AS SIGNED) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Testing Item_func_numhybrid::val_decimal when TIME type
+--echo #
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT CAST(COALESCE(a,a) AS DECIMAL(23,6)) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Testing Item_func_numhybrid::get_time  when non-temporal type
+--echo #
+SELECT CAST(COALESCE(10,20) AS TIME);
+
+--echo #
+--echo # Testing Item_func_min_max::get_time when DATE type and NULL
+--echo #
+SELECT CAST(LEAST(DATE(NULL), DATE(NULL)) AS TIME);
+
+--echo #
+--echo # Testing Item_func_min_max::get_time with non-temporal arguments
+--echo #
+SELECT CAST(LEAST(111111,222222) AS TIME);
+
+
+--echo #
+--echo # Item::get_time_from_numeric
+--echo #
+SELECT CAST(SUM(0) AS TIME);
+SELECT CAST(SUM(0 + 0e0) AS TIME);
+SET timestamp=1322115328;
+SELECT CAST(UNIX_TIMESTAMP() AS TIME);
+SET timestamp=default;
+
+--echo #
+--echo # Item::get_time_from_non_temporal
+--echo #
+SELECT TIME(154559.616 + 0e0);
+
+--echo #
+--echo # Item_name_const::get_time
+--echo #
+SELECT TIME(NAME_CONST('a', 0));
+
+--echo #
+--echo # Item_cache_datetime::get_time
+--echo #
+CREATE TABLE t1 (a DATE);
+INSERT INTO t1 VALUES (0);
+SELECT TIME(MIN(a)) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#13623473 "MISSING ROWS ON SELECT AND JOIN WITH
+--echo # TIME/DATETIME COMPARE"
+--echo #
+
+--echo # Systematic testing of ref access and range scan
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2012-01-31 10:14:35');
+
+CREATE TABLE t1 (col_time_key TIME, KEY(col_time_key)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('00:00:00'),('-24:00:00'),('-48:00:00'),('24:00:00'),('48:00:00');
+CREATE TABLE t2 (col_datetime_key DATETIME, KEY(col_datetime_key)) ENGINE=InnoDB;
+INSERT INTO t2 SELECT * FROM t1;
+
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+
+let $cnt_0=5;
+let $operator= =;
+# For operator in =, >=, >, <=, <
+while ($cnt_0)
+{  
+  let $cnt_1=2;
+  let $first_table=t1;
+  # for table in t1,t2
+  while ($cnt_1)
+  {
+    if ($first_table==t1)
+    {
+      let $first_index=col_time_key;
+      let $second_table=t2;
+      let $second_index=col_datetime_key;
+    }
+    if ($first_table==t2)
+    {
+      let $first_index=col_datetime_key;
+      let $second_table=t1;
+      let $second_index=col_time_key;
+    }
+    let $cnt_2=2;
+    let $first_index_hint=ignore;
+    # for first_index_hint in ignore,force
+    while ($cnt_2)
+    {
+      let $cnt_3=2;
+      let $second_index_hint=ignore;
+      # for second_index_hint in ignore, force
+      while ($cnt_3)
+      {
+        let $cnt_4=2;
+        let $first_operand=col_time_key;
+        # for first_operand in col_time_key, col_datetime_key
+        while ($cnt_4)
+        {
+          if ($first_operand==col_time_key)
+          {
+            let $second_operand=col_datetime_key;
+          }
+          if ($first_operand==col_datetime_key)
+          {
+            let $second_operand=col_time_key;
+          }
+  
+          eval EXPLAIN SELECT * FROM
+               $first_table $first_index_hint INDEX ($first_index)
+               STRAIGHT_JOIN
+               $second_table $second_index_hint INDEX ($second_index)
+               WHERE $first_operand $operator $second_operand;
+          --sorted_result
+          eval SELECT * FROM
+               $first_table $first_index_hint INDEX ($first_index)
+               STRAIGHT_JOIN
+               $second_table $second_index_hint INDEX ($second_index)
+               WHERE $first_operand $operator $second_operand;
+  
+          let $first_operand=col_datetime_key;
+          dec $cnt_4;
+        }
+        let $second_index_hint=force;
+        dec $cnt_3;
+      }
+      let $first_index_hint=force;
+      dec $cnt_2;
+    }
+    let $first_table=t2;
+    dec $cnt_1;
+  }
+  if ($cnt_0==5)
+  {
+    let $operator= >=;
+  }
+  if ($cnt_0==4)
+  {
+    let $operator= >;
+  }
+  if ($cnt_0==3)
+  {
+    let $operator= <=;
+  }
+  if ($cnt_0==2)
+  {
+    let $operator= <;
+  }
+  dec $cnt_0;
+}
+
+DROP TABLE t1,t2;
+
+--echo
+--echo # Original test of the bug report
+--echo
+
+CREATE TABLE t1 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  col_int_nokey INT,
+  col_int_key INT NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (10,1,7), (11,7,0), (12,4,9), (13,7,3),
+(14,0,4), (15,2,2), (16,9,5), (17,4,3), (18,0,1), (19,9,3), (20,1,6),
+(21,3,7), (22,8,5), (23,8,1), (24,18,204), (25,84,224), (26,6,9),
+(27,3,5), (28,6,0), (29,6,3);
+
+CREATE TABLE t2 (
+  col_int_nokey INT NOT NULL,
+  col_datetime_key DATETIME NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,'2001-11-04 19:07:55','k');
+
+CREATE TABLE t3 (
+  col_time_key TIME,
+  KEY col_time_key (col_time_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES ('21:22:34'), ('10:50:38'), ('00:21:38'),
+('04:08:02'), ('16:25:11'), ('10:14:58'), ('19:47:59'), ('11:14:24'),
+('00:00:00'), ('00:00:00'), ('15:57:25'), ('07:05:51'), ('19:22:21'),
+('03:53:16'), ('09:16:38'), ('15:37:26'), ('00:00:00'), ('05:03:03'),
+('02:59:24'), ('00:01:58');
+
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+-- enable_result_log
+
+let $query=SELECT * FROM t2 STRAIGHT_JOIN t3 FORCE INDEX (col_time_key)
+           ON t3.col_time_key > t2.col_datetime_key;
+eval EXPLAIN $query;
+--sorted_result
+eval $query;
+
+let $query=SELECT * FROM t2 STRAIGHT_JOIN t3 IGNORE INDEX (col_time_key)
+           ON t3.col_time_key > t2.col_datetime_key;
+eval EXPLAIN $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1,t2,t3;
+SET TIMESTAMP = DEFAULT;
+SET sql_mode = default;
+
+--echo #
+--echo # End of 5.6 tests
+--echo #

@@ -1,0 +1,66 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP DATABASE IF EXISTS mysqltest_prometheus;
+DROP DATABASE IF EXISTS mysqltest_sisyfos;
+DROP DATABASE IF EXISTS mysqltest_bob;
+include/sync_slave_sql_with_master.inc
+DROP DATABASE IF EXISTS mysqltest_bob;
+CREATE DATABASE mysqltest_prometheus;
+CREATE DATABASE mysqltest_sisyfos;
+CREATE DATABASE mysqltest_bob;
+USE mysqltest_sisyfos;
+CREATE TABLE t1 (b int);
+INSERT INTO t1 VALUES(1);
+USE mysqltest_bob;
+CREATE TABLE t2 (b int);
+INSERT INTO t2 VALUES(2);
+ALTER DATABASE mysqltest_sisyfos CHARACTER SET latin1;
+USE mysqltest_sisyfos;
+ALTER DATABASE mysqltest_bob CHARACTER SET latin1;
+SHOW DATABASES LIKE 'mysql%';
+Database (mysql%)
+mysql
+mysqltest_bob
+mysqltest_prometheus
+mysqltest_sisyfos
+include/sync_slave_sql_with_master.inc
+SHOW DATABASES LIKE 'mysql%';
+Database (mysql%)
+mysql
+mysqltest_prometheus
+mysqltest_sisyfos
+DROP DATABASE IF EXISTS mysqltest_sisyfos;
+USE mysqltest_prometheus;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+CREATE DATABASE mysqltest_sisyfos;
+USE mysqltest_sisyfos;
+CREATE TABLE t2 (a INT);
+SHOW DATABASES LIKE 'mysql%';
+Database (mysql%)
+mysql
+mysqltest_bob
+mysqltest_prometheus
+mysqltest_sisyfos
+include/sync_slave_sql_with_master.inc
+SHOW DATABASES LIKE 'mysql%';
+Database (mysql%)
+mysql
+mysqltest_prometheus
+mysqltest_sisyfos
+USE mysqltest_prometheus;
+SHOW TABLES;
+Tables_in_mysqltest_prometheus
+t1
+USE mysqltest_sisyfos;
+SHOW TABLES;
+Tables_in_mysqltest_sisyfos
+t2
+DROP DATABASE IF EXISTS mysqltest_prometheus;
+DROP DATABASE IF EXISTS mysqltest_sisyfos;
+DROP DATABASE IF EXISTS mysqltest_bob;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

@@ -1,0 +1,31 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create database if not exists mysqltest1;
+DROP TABLE IF EXISTS mysqltest1.t1;
+CREATE TABLE mysqltest1.t1 (n MEDIUMINT NOT NULL AUTO_INCREMENT,
+a TIMESTAMP DEFAULT '2005-05-05 01:01:01',
+b TIMESTAMP DEFAULT '2005-05-05 01:01:01',
+PRIMARY KEY(n));
+CREATE FUNCTION mysqltest1.f1() RETURNS TIMESTAMP
+BEGIN
+DECLARE v1 INT DEFAULT 300;
+WHILE v1 > 0 DO
+SET v1 = v1 - 1;
+END WHILE;  
+RETURN NOW();
+END|
+INSERT INTO mysqltest1.t1 VALUES(NULL,NOW(),mysqltest1.f1());
+CREATE TRIGGER mysqltest1.trig1 BEFORE INSERT ON mysqltest1.t1
+FOR EACH ROW BEGIN
+SET new.b = mysqltest1.f1();
+END|
+INSERT INTO mysqltest1.t1 SET n = NULL, a = now();
+include/sync_slave_sql_with_master.inc
+DROP TABLE IF EXISTS mysqltest1.t1;
+DROP FUNCTION mysqltest1.f1;
+DROP DATABASE mysqltest1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

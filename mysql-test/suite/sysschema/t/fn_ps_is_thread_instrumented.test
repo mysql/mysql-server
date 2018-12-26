@@ -1,0 +1,17 @@
+# Tests for sys schema
+# Verify the sys.ps_is_thread_instrumented() function perfoms as expected
+
+# Passing NULL/nothing should return NULL
+SELECT sys.ps_is_thread_instrumented(NULL);
+
+# By default current thread should be instrumented
+SELECT sys.ps_is_thread_instrumented(CONNECTION_ID());
+
+# Now toggle our thread to off and re-check
+UPDATE performance_schema.threads SET instrumented = 'NO' WHERE processlist_id = CONNECTION_ID();
+SELECT sys.ps_is_thread_instrumented(CONNECTION_ID());
+
+# Try some huge number to check unknown connections
+SELECT sys.ps_is_thread_instrumented(234623462376);
+
+--source ../include/ps_threads_cleanup.inc

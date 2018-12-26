@@ -1,0 +1,62 @@
+# Stop DB server which was created by MTR default
+# ------------------------------------------------------------------
+# Check upgrade from 8.0 when events/triggers/views/routines contain GROUP BY DESC.
+# ------------------------------------------------------------------
+# Set different path for --datadir
+# DB server which was started above is not running, no need for shutdown
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+#
+# Upgrade tests for WL#8693
+#
+# Starting the DB server will fail since the data dir contains
+# events/triggers/views/routines contain GROUP BY DESC
+Pattern "Trigger 'trigger_groupby_desc' has an error in its body" found
+Pattern "Error in parsing Event 'test'.'event_groupby_desc' during upgrade" found
+Pattern "Error in parsing Routine 'test'.'procedure_groupby_desc' during upgrade" found
+Pattern "Error in parsing View 'test'.'view_groupby_desc' during upgrade" found
+Pattern "Data Dictionary initialization failed." found
+# Remove copied files
+# Restart the server with default options.
+# restart
+########################################################################
+#
+# Bug#28204431: mysql upgrade from "version < 8.0.13" to "version >= 8.0.13"
+#
+# Verify that the server rejects upgrade if there are partitioned
+# InnoDB tables using shared tablespaces.
+#
+# Unzip a 8.0.12 datadir containing partitioned InnoDB tables using shared
+# tablespaces, start the server against it, verify that the server errs out
+# during upgrade.
+#
+########################################################################
+########################################################################
+# Copy and unzip the datadir.
+########################################################################
+########################################################################
+# Starting the DB server will fail since the data dir contains
+# tables with non native partitioning.
+########################################################################
+########################################################################
+# Look for errors.
+########################################################################
+Pattern "Partitioned table 't2' is not allowed to use shared tablespace 'innodb_system'." found
+Pattern "Partitioned table 't3' is not allowed to use shared tablespace 's1'." found
+Pattern "Partitioned table 't4' is not allowed to use shared tablespace 'innodb_system'." found
+Pattern "Partitioned table 't4' is not allowed to use shared tablespace 's1'." found
+Pattern "Partitioned table 't5' is not allowed to use shared tablespace 'innodb_system'." found
+Pattern "Partitioned table 't5' is not allowed to use shared tablespace 's1'." found
+Pattern "Partitioned table 't6' is not allowed to use shared tablespace 'innodb_system'." found
+Pattern "Partitioned table 't6' is not allowed to use shared tablespace 's1'." found
+Pattern "Partitioned table 't7' is not allowed to use shared tablespace 'innodb_system'." found
+Pattern "Partitioned table 't7' is not allowed to use shared tablespace 's2'." found
+Pattern "Partitioned table 't7' is not allowed to use shared tablespace 's1'." found
+########################################################################
+# Remove copied files.
+########################################################################
+########################################################################
+# Cleanup: Restart with default options.
+########################################################################
+# restart

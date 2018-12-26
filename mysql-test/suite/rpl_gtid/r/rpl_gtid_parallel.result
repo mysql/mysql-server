@@ -1,0 +1,53 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Configure ====
+==== Initialize ====
+connection slave;
+include/stop_slave.inc
+connection slave;
+CREATE PROCEDURE show_slave_status ()
+BEGIN
+DECLARE name VARCHAR(100) DEFAULT('');
+WHILE name = '' DO
+SHOW SLAVE STATUS;
+SELECT TABLE_NAME INTO name
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = 't_end';
+END WHILE;
+END|
+CREATE PROCEDURE read_gtid_executed ()
+BEGIN
+DECLARE name VARCHAR(100) DEFAULT('');
+DECLARE temp VARCHAR(10000) DEFAULT('');
+WHILE name = '' DO
+SET temp = @@GLOBAL.GTID_EXECUTED;
+SET temp = @@GLOBAL.GTID_OWNED;
+SELECT TABLE_NAME INTO name
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = 't_end';
+END WHILE;
+END|
+connection master;
+CREATE TABLE t1_1 (a INT) ENGINE = InnoDB;
+CREATE TABLE t2_1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1_1 VALUES (0);
+INSERT INTO t2_1 VALUES (0);
+==== Generate binary log ====
+CREATE TABLE t_end (a INT);
+==== Apply the generated binary logs ====
+==== Wait for load to finish ====
+connection slave;
+==== Check result ====
+include/diff_tables.inc
+connection slave;
+==== Clean up ====
+connection master;
+DROP TABLE t_end;
+connection slave;
+DROP TABLE t_end;
+DROP PROCEDURE show_slave_status;
+DROP PROCEDURE read_gtid_executed;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;

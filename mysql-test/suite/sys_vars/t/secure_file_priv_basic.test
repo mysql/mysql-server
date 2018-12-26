@@ -1,0 +1,27 @@
+--source include/not_var_link.inc
+
+#
+# only global
+#
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select @@global.secure_file_priv;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.secure_file_priv;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like 'secure_file_priv';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show session variables like 'secure_file_priv';
+--disable_warnings
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select * from performance_schema.global_variables where variable_name='secure_file_priv';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select * from performance_schema.session_variables where variable_name='secure_file_priv';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global secure_file_priv=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session secure_file_priv=1;

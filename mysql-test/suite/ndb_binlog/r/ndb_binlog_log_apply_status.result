@@ -1,0 +1,41 @@
+create table test.t1(a int primary key) engine=ndb;
+set global ndb_log_apply_status=Off;
+show variables like '%ndb_log_apply_status%';
+Variable_name	Value
+ndb_log_apply_status	OFF
+reset slave;
+reset master;
+Should have empty apply status table
+select * from mysql.ndb_apply_status;
+server_id	epoch	log_name	start_pos	end_pos
+Dummy incoming ndb_apply_status updates, should not be logged
+begin;
+insert into mysql.ndb_apply_status values (555, 12345, 'binlog.000001', 20, 30);
+insert into mysql.ndb_apply_status values (666, 67890, 'binlog.000001', 50, 60);
+replace into test.t1 values (1);
+commit;
+Should not see ndb_apply_status updates in the Binlog
+show binlog events;
+select txt from binlog_stmts where txt like '%binlog.000001%' order by txt;
+txt
+set global ndb_log_apply_status=On;
+show variables like '%ndb_log_apply_status%';
+Variable_name	Value
+ndb_log_apply_status	ON
+reset slave;
+reset master;
+Should have empty apply status table
+select * from mysql.ndb_apply_status;
+server_id	epoch	log_name	start_pos	end_pos
+Dummy incoming ndb_apply_status updates, should be logged
+begin;
+insert into mysql.ndb_apply_status values (555, 12345, 'binlog.000001', 20, 30);
+insert into mysql.ndb_apply_status values (666, 67890, 'binlog.000001', 50, 60);
+replace into test.t1 values (1);
+commit;
+Should see ndb_apply_status updates in the Binlog
+show binlog events;
+select txt from binlog_stmts where txt like '%binlog.000001%' order by txt;
+txt
+set global ndb_log_apply_status=Off;
+drop table test.t1;

@@ -1,0 +1,63 @@
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Bug#13688248 CRASH IN DIAGNOSTICS_AREA::SET_OK_STATUS WHEN USING DEBUG_SYNC
+--echo #
+
+SET SESSION DEBUG_SYNC= 'RESET';
+
+CREATE TABLE t1 (pk INT, PRIMARY KEY(pk));
+
+connect (con1,localhost,root,,);
+connection con1;
+SET SESSION sql_mode=TRADITIONAL;
+SET SESSION autocommit=1;
+
+INSERT INTO t1 VALUES(1);
+
+connection con1;
+SET SESSION debug_sync='write_row_replace SIGNAL go_ahead1 WAIT_FOR comes_never ';
+--send
+REPLACE INTO t1 ( pk ) VALUES ( 1 );
+--reap;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#19670163 : ASSERT AFTER MISSING ERROR CHECK IN SUBQUERY
+--echo #
+
+#Using connection con1 from test case above.
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES (0);
+INSERT INTO t2 VALUES (0);
+
+--enable_connect_log
+START TRANSACTION;
+DELETE FROM t1;
+
+--connection default
+SET DEBUG_SYNC=
+  'lock_wait_suspend_thread_enter SIGNAL blocked WAIT_FOR delete';
+--echo # Sending:
+--send SET @b= (SELECT(SELECT a FROM t1 FOR UPDATE) FROM t2 FOR UPDATE)
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR blocked';
+SET DEBUG_SYNC= 'lock_wait_suspend_thread_enter SIGNAL delete';
+DELETE FROM t2;
+COMMIT;
+
+--connection default
+--echo #Reaping "SET @b ..."
+--error ER_LOCK_DEADLOCK
+--reap
+
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+--disable_connect_log
+DROP TABLE t1,t2;
+SET DEBUG_SYNC= 'RESET';

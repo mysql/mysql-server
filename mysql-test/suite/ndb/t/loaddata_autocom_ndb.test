@@ -1,0 +1,4 @@
+--source include/have_ndb.inc
+let $engine_type=ndbcluster;
+
+--source include/loaddata_autocom.inc

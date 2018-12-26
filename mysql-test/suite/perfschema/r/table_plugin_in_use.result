@@ -1,0 +1,292 @@
+#################
+# INITIAL STATE #
+#################
+update performance_schema.setup_objects
+set ENABLED = "YES", TIMED = "YES"
+  where OBJECT_TYPE = "TABLE" and OBJECT_SCHEMA = "performance_schema";
+FLUSH TABLES;
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+show create table performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+select * from performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+###########
+# INSTALL #
+###########
+INSTALL PLUGIN pfs_example_plugin_employee SONAME 'pfs_example_plugin_employee.xxx';
+select name from mysql.plugin
+where name like 'pfs_example_%';
+name
+pfs_example_plugin_employee
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	VERSION	TABLE_COMMENT
+performance_schema	pfs_example_employee_name	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_employee_salary	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine_by_employee_by_type	PERFORMANCE_SCHEMA	10	
+describe performance_schema.pfs_example_employee_name;
+Field	Type	Null	Key	Default	Extra
+EMPLOYEE_NUMBER	int(11)	NO	PRI	NULL	
+FIRST_NAME	char(20)	YES	MUL	NULL	
+LAST_NAME	varchar(20)	YES		NULL	
+show create table performance_schema.pfs_example_employee_name;
+Table	Create Table
+pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
+  `EMPLOYEE_NUMBER` int(11) NOT NULL,
+  `FIRST_NAME` char(20) DEFAULT NULL,
+  `LAST_NAME` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`EMPLOYEE_NUMBER`),
+  KEY `FIRST_NAME` (`FIRST_NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+"===== In con1 : Issue query"
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+"===== In con2 : Starting transaction"
+begin;
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+##############
+# UN INSTALL #
+##############
+"===== In default : Sending UNINSTALL"
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+"===== Check table lock status "
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OWNER_THREAD_ID	INTERNAL_LOCK	EXTERNAL_LOCK
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+"===== Check Thread Status for default connection "
+NAME	PROCESSLIST_COMMAND	PROCESSLIST_STATE	PROCESSLIST_INFO
+thread/sql/one_connection	Query	Waiting for table metadata lock	UNINSTALL PLUGIN pfs_example_plugin_employee
+"===== Check metadata lock status "
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLE	performance_schema	pfs_example_employee_name	SHARED_READ	TRANSACTION	GRANTED
+TABLE	performance_schema	pfs_example_employee_name	EXCLUSIVE	TRANSACTION	PENDING
+select name from mysql.plugin
+where name like 'pfs_example_%';
+name
+pfs_example_plugin_employee
+"===== In con1 : Send a query. About to block"
+select * from performance_schema.pfs_example_employee_name;
+"===== In con2 : Still alive. Issue a query."
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+"===== Check table lock status "
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OWNER_THREAD_ID	INTERNAL_LOCK	EXTERNAL_LOCK
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+"===== Check Thread Status for default connection "
+NAME	PROCESSLIST_COMMAND	PROCESSLIST_STATE	PROCESSLIST_INFO
+thread/sql/one_connection	Query	Waiting for table metadata lock	UNINSTALL PLUGIN pfs_example_plugin_employee
+"===== Check metadata lock status "
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLE	performance_schema	pfs_example_employee_name	SHARED_READ	TRANSACTION	GRANTED
+TABLE	performance_schema	pfs_example_employee_name	EXCLUSIVE	TRANSACTION	PENDING
+TABLE	performance_schema	pfs_example_employee_name	SHARED_READ	TRANSACTION	PENDING
+"===== In con2 : Closing transaction"
+commit;
+########
+# CON1 #
+########
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+########################
+# UNINSTALL completing #
+########################
+select name from mysql.plugin
+where name like 'pfs_example_%';
+name
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+show create table performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+select * from performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+###############
+# INSTALL (2) #
+###############
+INSTALL PLUGIN pfs_example_plugin_employee SONAME 'pfs_example_plugin_employee.xxx';
+select name from mysql.plugin
+where name like 'pfs_example_%';
+name
+pfs_example_plugin_employee
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	VERSION	TABLE_COMMENT
+performance_schema	pfs_example_employee_name	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_employee_salary	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine_by_employee_by_type	PERFORMANCE_SCHEMA	10	
+describe performance_schema.pfs_example_employee_name;
+Field	Type	Null	Key	Default	Extra
+EMPLOYEE_NUMBER	int(11)	NO	PRI	NULL	
+FIRST_NAME	char(20)	YES	MUL	NULL	
+LAST_NAME	varchar(20)	YES		NULL	
+show create table performance_schema.pfs_example_employee_name;
+Table	Create Table
+pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
+  `EMPLOYEE_NUMBER` int(11) NOT NULL,
+  `FIRST_NAME` char(20) DEFAULT NULL,
+  `LAST_NAME` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`EMPLOYEE_NUMBER`),
+  KEY `FIRST_NAME` (`FIRST_NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+"===== In con1 : Issue query."
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+"===== In con2 : Start transaction."
+begin;
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+##################
+# UN INSTALL (2) #
+##################
+"===== In default : Sending UNINSTALL"
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+"===== Check table lock status "
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OWNER_THREAD_ID	INTERNAL_LOCK	EXTERNAL_LOCK
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+"===== Check Thread Status for default connection "
+NAME	PROCESSLIST_COMMAND	PROCESSLIST_STATE	PROCESSLIST_INFO
+thread/sql/one_connection	Query	Waiting for table metadata lock	UNINSTALL PLUGIN pfs_example_plugin_employee
+"===== Check metadata lock status "
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLE	performance_schema	pfs_example_employee_name	SHARED_READ	TRANSACTION	GRANTED
+TABLE	performance_schema	pfs_example_employee_name	EXCLUSIVE	TRANSACTION	PENDING
+select name from mysql.plugin
+where name like 'pfs_example_%';
+name
+pfs_example_plugin_employee
+"===== In con1 : Send query. About to block"
+select * from performance_schema.pfs_example_employee_name;
+"===== In con2 : Still alive. Issue query."
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+"===== Check table lock status "
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OWNER_THREAD_ID	INTERNAL_LOCK	EXTERNAL_LOCK
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+"===== Check Thread Status for default connection "
+NAME	PROCESSLIST_COMMAND	PROCESSLIST_STATE	PROCESSLIST_INFO
+thread/sql/one_connection	Query	Waiting for table metadata lock	UNINSTALL PLUGIN pfs_example_plugin_employee
+"===== Check metadata lock status "
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLE	performance_schema	pfs_example_employee_name	SHARED_READ	TRANSACTION	GRANTED
+TABLE	performance_schema	pfs_example_employee_name	EXCLUSIVE	TRANSACTION	PENDING
+TABLE	performance_schema	pfs_example_employee_name	SHARED_READ	TRANSACTION	PENDING
+#########################
+# KILLING UNINSTALL (2) #
+#########################
+kill query @pid;
+"===== In con2 : Closing transaction"
+commit;
+########
+# CON1 #
+########
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+############################
+# UNINSTALL (2) completing #
+############################
+ERROR 70100: Query execution was interrupted
+show errors;
+Level	Code	Message
+Error	1317	Query execution was interrupted
+Error	1883	Plugin 'pfs_example_plugin_employee' cannot be uninstalled now. Plugin is still in use.
+select name from mysql.plugin
+where name like 'pfs_example_%';
+name
+pfs_example_plugin_employee
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+TABLE_SCHEMA	TABLE_NAME	ENGINE	VERSION	TABLE_COMMENT
+performance_schema	pfs_example_employee_name	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_employee_salary	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine	PERFORMANCE_SCHEMA	10	
+performance_schema	pfs_example_machine_by_employee_by_type	PERFORMANCE_SCHEMA	10	
+describe performance_schema.pfs_example_employee_name;
+Field	Type	Null	Key	Default	Extra
+EMPLOYEE_NUMBER	int(11)	NO	PRI	NULL	
+FIRST_NAME	char(20)	YES	MUL	NULL	
+LAST_NAME	varchar(20)	YES		NULL	
+show create table performance_schema.pfs_example_employee_name;
+Table	Create Table
+pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
+  `EMPLOYEE_NUMBER` int(11) NOT NULL,
+  `FIRST_NAME` char(20) DEFAULT NULL,
+  `LAST_NAME` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`EMPLOYEE_NUMBER`),
+  KEY `FIRST_NAME` (`FIRST_NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.pfs_example_employee_name;
+EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
+1	foo1	bar1
+2	foo2	bar2
+3	foo3	bar3
+##################
+# UN INSTALL (3) #
+##################
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+select * from INFORMATION_SCHEMA.tables
+where TABLE_NAME like "pfs_example_%";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+describe performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+show create table performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+select * from performance_schema.pfs_example_employee_name;
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
+###########
+# CLEANUP #
+###########
+update performance_schema.setup_objects
+set ENABLED = "NO", TIMED = "NO"
+  where OBJECT_TYPE = "TABLE" and OBJECT_SCHEMA = "performance_schema";
+FLUSH TABLES;

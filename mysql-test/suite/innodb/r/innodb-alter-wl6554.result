@@ -1,0 +1,54 @@
+#
+# Bug#15863023 SUPPORT IN-PLACE EXTENSION OF VARCHAR COLUMN
+#
+CREATE TABLE t1 (pk VARCHAR(2) PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (fk VARCHAR(2), FOREIGN KEY (fk) REFERENCES t1 (pk))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('aa'), ('bb');
+INSERT INTO t2 VALUES ('aa'), ('bb');
+ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE COLUMN pk pk VARCHAR(5);
+INSERT INTO t1 VALUES ('co');
+INSERT INTO t2 VALUES ('co');
+INSERT IGNORE INTO t2 VALUES ('code');
+Warnings:
+Warning	1265	Data truncated for column 'fk' at row 1
+ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(7);
+INSERT INTO t2 VALUES ('code');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`))
+INSERT INTO t2 VALUES ('coastal');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`))
+INSERT INTO t2 VALUES ('coast');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`))
+INSERT INTO t1 VALUES ('coast');
+INSERT INTO t2 VALUES ('coastal');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`))
+INSERT INTO t2 VALUES ('coast');
+DROP TABLE t2, t1;
+CREATE TABLE t1 (pk VARCHAR(2) PRIMARY KEY) ENGINE=InnoDB charset latin1;
+CREATE TABLE t2 (fk VARCHAR(2),
+CONSTRAINT fk FOREIGN KEY (fk) REFERENCES t1 (pk))
+ENGINE=InnoDB charset latin1;
+INSERT INTO t1 VALUES ('aa'), ('bb');
+INSERT INTO t2 VALUES ('aa'), ('bb');
+ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(6);
+ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(255);
+# We cannot shrink the size or cross the 256-byte boundary.
+ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(6);
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(256);
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+# ALGORITHM=COPY has more limitations with FOREIGN KEY.
+ALTER TABLE t2 CHANGE COLUMN fk fk VARCHAR(256);
+ERROR HY000: Cannot change column 'fk': used in a foreign key constraint 'fk'
+ALTER TABLE t2 ALGORITHM=INPLACE, DROP FOREIGN KEY fk;
+ALTER TABLE t2 CHANGE COLUMN fk fk VARCHAR(256);
+ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(300);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(99999);
+ERROR 42000: BLOB/TEXT column 'fk' used in key specification without a key length
+ALTER TABLE t2 ALGORITHM=INPLACE, DROP INDEX fk;
+# Type change from VARCHAR to BLOB is not supported.
+ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(99999);
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+DROP TABLE t2, t1;
+SET sql_mode = default;

@@ -1,0 +1,27 @@
+
+############################################################
+# Tests startup options for mysql server pertaining binlog
+# This test doesnot require (as of now) to be run for all
+# the binlogging format as server startup in the cases
+# below are independent of the format. We therefore run this
+# test in only statement format.
+############################################################
+
+--source include/have_binlog_format_statement.inc
+--source include/have_debug.inc
+
+#----------------------------------------------------------#
+# BUG 11766817 - 60030: CRASH ON MYSQLD STARTUP WHEN USING #
+#                       LOG-BIN                            #
+#----------------------------------------------------------#
+#----------------------------------------------------------#
+# BUG 12929941 - SEGFAULT IN STRMAKE/CONVERT_DIRNAME WHEN  #
+#                USING --RELAY-LOG=SLAVE-RELAY-BIN         #
+#----------------------------------------------------------#
+
+# Check if datadir was changed to the correct value via
+# code
+
+--let $assert_text= Datadir should not be empty
+--let $assert_cond= "[SHOW VARIABLES LIKE "datadir", Value, 1]" != ""
+--source include/assert.inc

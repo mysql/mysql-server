@@ -1,0 +1,172 @@
+# This Tests repair functionality of Myisam engine specific tables
+# To test the Bug fixes (BUG#18874,BUG#22562,BUG#23175,BUG#36055)
+# All tests are required to run with MyISAM.
+# Hence MTR starts mysqld with MyISAM as default
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+CALL mtr.add_suppression("Enabling keys got errno");
+
+#
+# Test of repair table
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 SELECT 1,"table 1";
+repair table t1 use_frm;
+alter table t1 ENGINE=HEAP;
+repair table t1 use_frm;
+drop table t1;
+
+#
+# disabled keys during repair
+#
+create table t1(id int PRIMARY KEY, st varchar(10), KEY st_key(st));
+insert into t1 values(1, "One");
+alter table t1 disable keys;
+analyze table t1;
+show keys from t1;
+repair table t1 extended;
+analyze table t1;
+show keys from t1;
+drop table t1;
+
+
+# non-existent table
+repair table t1 use_frm;
+
+create table t1 engine=myisam SELECT 1,"table 1";
+flush tables;
+let $MYSQLD_DATADIR= `select @@datadir`;
+exec echo 1 > $MYSQLD_DATADIR/test/t1.MYI ;
+repair table t1;
+repair table t1 use_frm;
+drop table t1;
+
+#
+# BUG#18874 - Setting myisam_repair_threads > 1, index cardinality always 1
+#
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
+SET myisam_repair_threads=2;
+REPAIR TABLE t1;
+ANALYZE TABLE t1;
+SHOW INDEX FROM t1;
+SET myisam_repair_threads=@@global.myisam_repair_threads;
+DROP TABLE t1;
+
+#
+# BUG#22562 - REPAIR TABLE .. USE_FRM causes server crash on Windows and
+#             server hangs on Linux
+#
+CREATE TABLE t1(a INT);
+USE mysql;
+REPAIR TABLE test.t1 USE_FRM;
+USE test;
+DROP TABLE t1;
+
+#
+# BUG#23175 - MYISAM crash/repair failed during repair
+#
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
+SET myisam_sort_buffer_size=4096;
+INSERT INTO t1 VALUES
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0');
+SET myisam_repair_threads=2;
+REPAIR TABLE t1;
+SET myisam_repair_threads=@@global.myisam_repair_threads;
+SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+DROP TABLE t1;
+
+#
+# BUG#31174 - "Repair" command on MyISAM crashes with small 
+#              myisam_sort_buffer_size
+#
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
+SET myisam_sort_buffer_size=4496;
+INSERT INTO t1 VALUES
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0');
+SET myisam_repair_threads=2;
+REPAIR TABLE t1;
+SET myisam_repair_threads=@@global.myisam_repair_threads;
+SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+DROP TABLE t1;
+
+--echo End of 4.1 tests
+
+
+#
+# Bug#18775 - Temporary table from alter table visible to other threads
+#
+# REPAIR TABLE ... USE_FRM on temporary table crashed the table or server.
+--disable_warnings
+DROP TABLE IF EXISTS tt1;
+--enable_warnings
+CREATE TEMPORARY TABLE tt1 (c1 INT);
+REPAIR TABLE tt1 USE_FRM;
+DROP TABLE tt1;
+
+
+--echo #
+--echo # Bug #48248 assert in MDL_ticket::upgrade_shared_lock_to_exclusive
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+LOCK TABLES t1 READ;
+REPAIR TABLE t1;
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Test for bug #50784 "MDL: Assertion `m_tickets.is_empty() ||
+--echo #                      m_tickets.front() == m_trans_sentinel'"
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (i int);
+create table t2 (j int);
+set @@autocommit= 0;
+repair table t1, t2;
+set @@autocommit= default;
+drop tables t1, t2;

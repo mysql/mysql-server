@@ -1,0 +1,109 @@
+--character_set sjis
+--disable_warnings
+drop table if exists `ВsВP`;
+drop table if exists `ВsВQ`;
+drop table if exists `ВsВR`;
+drop table if exists `ВsВS`;
+drop table if exists `ВsВT`;
+drop table if exists `ВsВU`;
+drop table if exists `ВsВV`;
+drop table if exists `ВsВW`;
+drop table if exists `ВsВX`;
+--enable_warnings
+
+#
+# Test INSTR() function with Japanese characters in sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+CREATE TABLE `ВsВP` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ВsВQ` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ВsВR` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ВsВS` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ВsВT` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ВsВU` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ВsВV` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ВsВW` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ВsВX` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+
+INSERT INTO `ВsВP` VALUES ('±≤≥іµ');
+INSERT INTO `ВsВQ` VALUES ('В†ВҐВ§В¶В®');
+INSERT INTO `ВsВR` VALUES ('Г\П\Х\Ч\Н\');
+INSERT INTO `ВsВS` VALUES ('±≤≥іµ');
+INSERT INTO `ВsВT` VALUES ('В†ВҐВ§В¶В®');
+INSERT INTO `ВsВU` VALUES ('Г\П\Х\Ч\Н\');
+INSERT INTO `ВsВV` VALUES ('±≤≥іµ');
+INSERT INTO `ВsВW` VALUES ('В†ВҐВ§В¶В®');
+INSERT INTO `ВsВX` VALUES ('Г\П\Х\Ч\Н\');
+
+#InnoDB
+SELECT INSTR(`ВbВP`,'±') from `ВsВP`;
+SELECT INSTR(`ВbВP`,'≤') from `ВsВP`;
+SELECT INSTR(`ВbВP`,'≥') from `ВsВP`;
+SELECT INSTR(`ВbВP`,'і') from `ВsВP`;
+SELECT INSTR(`ВbВP`,'µ') from `ВsВP`;
+SELECT INSTR(`ВbВP`,'Ё') from `ВsВP`;
+SELECT INSTR(`ВbВP`,'В†') from `ВsВQ`;
+SELECT INSTR(`ВbВP`,'ВҐ') from `ВsВQ`;
+SELECT INSTR(`ВbВP`,'В§') from `ВsВQ`;
+SELECT INSTR(`ВbВP`,'В¶') from `ВsВQ`;
+SELECT INSTR(`ВbВP`,'В®') from `ВsВQ`;
+SELECT INSTR(`ВbВP`,'Вс') from `ВsВQ`;
+SELECT INSTR(`ВbВP`,'Г\') from `ВsВR`;
+SELECT INSTR(`ВbВP`,'П\') from `ВsВR`;
+SELECT INSTR(`ВbВP`,'Х\') from `ВsВR`;
+SELECT INSTR(`ВbВP`,'Ч\') from `ВsВR`;
+SELECT INSTR(`ВbВP`,'Н\') from `ВsВR`;
+SELECT INSTR(`ВbВP`,'Й\') from `ВsВR`;
+
+#MyISAM
+SELECT INSTR(`ВbВP`,'±') from `ВsВS`;
+SELECT INSTR(`ВbВP`,'≤') from `ВsВS`;
+SELECT INSTR(`ВbВP`,'≥') from `ВsВS`;
+SELECT INSTR(`ВbВP`,'і') from `ВsВS`;
+SELECT INSTR(`ВbВP`,'µ') from `ВsВS`;
+SELECT INSTR(`ВbВP`,'Ё') from `ВsВS`;
+SELECT INSTR(`ВbВP`,'В†') from `ВsВT`;
+SELECT INSTR(`ВbВP`,'ВҐ') from `ВsВT`;
+SELECT INSTR(`ВbВP`,'В§') from `ВsВT`;
+SELECT INSTR(`ВbВP`,'В¶') from `ВsВT`;
+SELECT INSTR(`ВbВP`,'В®') from `ВsВT`;
+SELECT INSTR(`ВbВP`,'Вс') from `ВsВT`;
+SELECT INSTR(`ВbВP`,'Г\') from `ВsВU`;
+SELECT INSTR(`ВbВP`,'П\') from `ВsВU`;
+SELECT INSTR(`ВbВP`,'Х\') from `ВsВU`;
+SELECT INSTR(`ВbВP`,'Ч\') from `ВsВU`;
+SELECT INSTR(`ВbВP`,'Н\') from `ВsВU`;
+SELECT INSTR(`ВbВP`,'Й\') from `ВsВU`;
+
+#MEMORY
+SELECT INSTR(`ВbВP`,'±') from `ВsВV`;
+SELECT INSTR(`ВbВP`,'≤') from `ВsВV`;
+SELECT INSTR(`ВbВP`,'≥') from `ВsВV`;
+SELECT INSTR(`ВbВP`,'і') from `ВsВV`;
+SELECT INSTR(`ВbВP`,'µ') from `ВsВV`;
+SELECT INSTR(`ВbВP`,'Ё') from `ВsВV`;
+SELECT INSTR(`ВbВP`,'В†') from `ВsВW`;
+SELECT INSTR(`ВbВP`,'ВҐ') from `ВsВW`;
+SELECT INSTR(`ВbВP`,'В§') from `ВsВW`;
+SELECT INSTR(`ВbВP`,'В¶') from `ВsВW`;
+SELECT INSTR(`ВbВP`,'В®') from `ВsВW`;
+SELECT INSTR(`ВbВP`,'Вс') from `ВsВW`;
+SELECT INSTR(`ВbВP`,'Г\') from `ВsВX`;
+SELECT INSTR(`ВbВP`,'П\') from `ВsВX`;
+SELECT INSTR(`ВbВP`,'Х\') from `ВsВX`;
+SELECT INSTR(`ВbВP`,'Ч\') from `ВsВX`;
+SELECT INSTR(`ВbВP`,'Н\') from `ВsВX`;
+SELECT INSTR(`ВbВP`,'Й\') from `ВsВX`;
+
+DROP TABLE `ВsВP`;
+DROP TABLE `ВsВQ`;
+DROP TABLE `ВsВR`;
+DROP TABLE `ВsВS`;
+DROP TABLE `ВsВT`;
+DROP TABLE `ВsВU`;
+DROP TABLE `ВsВV`;
+DROP TABLE `ВsВW`;
+DROP TABLE `ВsВX`;

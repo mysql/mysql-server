@@ -1,0 +1,314 @@
+###################################################################
+# WL#10433 Group Replication: Member weight for automatic primary
+#                             election on failover
+#
+# Validate that leader election takes place based on member weight
+# except when starting group for the first time. The first primary
+# is member which bootstrap the group without considering member
+# weight.
+#
+# Test:
+# 1. Verify group_replication_member_weight for value range, NULL,
+#    string and decimal.
+#    1.1. Set group_replication_member_weight below its minimum value
+#    1.2. Verify its set to minimum value of the group_replication_member_weight
+#    1.3. Set group_replication_member_weight above its maximum value
+#    1.4. Verify its set to maximum value of the group_replication_member_weight
+#    1.5. Verify that setting group_replication_member_weight value to NULL
+#         results in incorrect argument type error.
+#    1.6. Verify that setting group_replication_member_weight value to string
+#         results in incorrect argument type error.
+#    1.7. Verify that setting group_replication_member_weight value to decimal
+#         results in incorrect argument type error.
+#
+# 2. Set member weight before(90,98,92,93) and after(91,93,87,97)
+#    start group replication for server1,2,3,4 respectively, and
+#    verify if it set correctly.
+#    For each server it performs following steps:
+#    - Get member uuid.
+#    - Set member weight.
+#    - Start group replication (boostrap group using server1).
+#    - Assert member weight is set properly.
+#    - Update member weight.
+#    - Assert member weight is set properly.
+#
+# 3. Verify next primaries get selected in order 1, 4, 2, 3
+#    based on member weight. After verifying stop current primary
+#    so next primary can be elected.
+#    2.1. Wait for server1 to be set as primary member.
+#    2.2. Assert first primary is server1 as it bootstrapped the group.
+#    2.3. Stop group replication on server1.
+#    2.4. Wait for server4 to be set as primary member.
+#    2.5. Assert next primary is server4 as it has next highest
+#         member_weight=97
+#    2.6. Stop group replication on server4.
+#    2.7. Wait for server2 to be set as primary member.
+#    2.8. Assert next primary is server2 as it has next highest
+#         member_weight=93
+#    2.9. Stop group replication on server2.
+#    2.10. Wait for server3 to be set as primary member.
+#    2.11. Assert next primary is server3 as it has next highest
+#          member_weight=87
+#    2.12. Stop group replication on server3.
+#
+##################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo #
+--echo # 1. Verify group_replication_member_weight for value range, NULL,
+--echo #    string and decimal.
+--echo #
+
+--echo # 1.1. Set group_replication_member_weight to below minimum value.
+SET @@GLOBAL.group_replication_member_weight= -1;
+
+--echo # 1.2. Verify its set to minimum value of the group replication variables.
+--let $assert_text= Minimum group_replication_member_weight is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_weight]" = 0
+--source include/assert.inc
+
+--echo # 1.3. Set group_replication_member_weight above its maximum value.
+SET @@GLOBAL.group_replication_member_weight= 110;
+
+--echo # 1.4. Verify its set to maximum value of the group replication variables.
+--let $assert_text= Maximum group_replication_member_weight is 100
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_weight]" = 100
+--source include/assert.inc
+
+--echo # 1.5. Verify that setting group_replication_member_weight value to NULL
+--echo #      results in incorrect argument type error.
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_member_weight= NULL;
+
+--echo # 1.6. Verify that setting group_replication_member_weight value to string
+--echo #      results in incorrect argument type error.
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_member_weight= 'random';
+
+--echo # 1.7. Verify that setting group_replication_member_weight value to decimal
+--echo #      results in incorrect argument type error.
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.group_replication_member_weight= 40.1;
+
+
+--echo #
+--echo # 2. Set member weight before(90,98,92,93) and after(91,93,87,97)
+--echo #    start group replication and verify if it set correctly.
+
+# Server1
+
+# get member uuid
+--let $server_uuid1=`SELECT @@server_uuid`
+
+# set member weight
+--eval SET GLOBAL group_replication_member_weight= 90
+
+# Boosttrap and start group replication
+--source include/start_and_bootstrap_group_replication.inc
+
+# Assert member weight is set properly
+--let $member_weight= query_get_value(SELECT @@GLOBAL.group_replication_member_weight, @@GLOBAL.group_replication_member_weight, 1)
+--let $assert_cond= $member_weight = 90
+--let $assert_text= Assert that server has group_replication_member_weight=$member_weight
+--source include/assert.inc
+
+# update member weight
+--eval SET GLOBAL group_replication_member_weight= 91
+
+# Assert member weight is set properly after update
+--let $member_weight= query_get_value(SELECT @@GLOBAL.group_replication_member_weight, @@GLOBAL.group_replication_member_weight, 1)
+--let $assert_cond= $member_weight = 91
+--let $assert_text= Assert that server has group_replication_member_weight=$member_weight after update
+--source include/assert.inc
+
+
+# Server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# get member uuid
+--let $server_uuid2=`SELECT @@server_uuid`
+
+# set member weight
+--eval SET GLOBAL group_replication_member_weight= 98
+
+# start group replication
+--source include/start_group_replication.inc
+
+# Assert member weight is set properly
+--let $member_weight= query_get_value(SELECT @@GLOBAL.group_replication_member_weight, @@GLOBAL.group_replication_member_weight, 1)
+--let $assert_cond= $member_weight = 98
+--let $assert_text= Assert that server has group_replication_member_weight=$member_weight
+--source include/assert.inc
+
+# update member weight
+--eval SET GLOBAL group_replication_member_weight= 93
+
+# Assert member weight is set properly after update
+--let $member_weight= query_get_value(SELECT @@GLOBAL.group_replication_member_weight, @@GLOBAL.group_replication_member_weight, 1)
+--let $assert_cond= $member_weight = 93
+--let $assert_text= Assert that server has group_replication_member_weight=$member_weight after update
+--source include/assert.inc
+
+# Wait for member to point PRIMARY node i.e. server1 or abort.
+--let $group_replication_expected_uuid=$server_uuid1
+--source include/gr_wait_primary_member_uuid.inc
+
+
+# Server3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+# get member uuid
+--let $server_uuid3=`SELECT @@server_uuid`
+
+# set member weight
+--eval SET GLOBAL group_replication_member_weight= 92
+
+# start group replication
+--source include/start_group_replication.inc
+
+# Assert member weight is set properly
+--let $member_weight= query_get_value(SELECT @@GLOBAL.group_replication_member_weight, @@GLOBAL.group_replication_member_weight, 1)
+--let $assert_cond= $member_weight = 92
+--let $assert_text= Assert that server has group_replication_member_weight=$member_weight
+--source include/assert.inc
+
+# update member weight
+--eval SET GLOBAL group_replication_member_weight= 87
+
+# Assert member weight is set properly after update
+--let $member_weight= query_get_value(SELECT @@GLOBAL.group_replication_member_weight, @@GLOBAL.group_replication_member_weight, 1)
+--let $assert_cond= $member_weight = 87
+--let $assert_text= Assert that server has group_replication_member_weight=$member_weight after update
+--source include/assert.inc
+
+
+# Server4
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+# get member uuid
+--let $server_uuid4=`SELECT @@server_uuid`
+
+# set member weight
+--eval SET GLOBAL group_replication_member_weight= 93
+
+# start group replication
+--source include/start_group_replication.inc
+
+# Assert member weight is set properly
+--let $member_weight= query_get_value(SELECT @@GLOBAL.group_replication_member_weight, @@GLOBAL.group_replication_member_weight, 1)
+--let $assert_cond= $member_weight = 93
+--let $assert_text= Assert that server has group_replication_member_weight=$member_weight
+--source include/assert.inc
+
+# update member weight
+--eval SET GLOBAL group_replication_member_weight= 97
+
+# Assert member weight is set properly after update
+--let $member_weight= query_get_value(SELECT @@GLOBAL.group_replication_member_weight, @@GLOBAL.group_replication_member_weight, 1)
+--let $assert_cond= $member_weight = 97
+--let $assert_text= Assert that server has group_replication_member_weight=$member_weight after update
+--source include/assert.inc
+
+
+--echo #
+--echo # 3. Verify next primaries get selected in order 1, 4, 2, 3
+--echo #    based on member weight.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# 3.1. Wait for server1 to be set as primary member.
+--let $group_replication_expected_uuid=$server_uuid1
+--source include/gr_wait_primary_member_uuid.inc
+
+# 3.2. Assert first primary is server1 as it bootstrapped the group
+--let $assert_text= Verify group_replication_primary_member is server1
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server_uuid1"
+--source include/assert.inc
+
+# 3.3. stop group replication on server1
+--source include/stop_group_replication.inc
+
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+# 3.4. Wait for server4 to be set as primary member.
+--let $group_replication_expected_uuid=$server_uuid4
+--source include/gr_wait_primary_member_uuid.inc
+
+# 3.5. Assert next primary is server4 as it has highest member_weight=97
+--let $assert_text= Verify group_replication_primary_member is server4
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server_uuid4"
+--source include/assert.inc
+
+# 3.6. stop group replication on server4
+--source include/stop_group_replication.inc
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# 3.7. Wait for server2 to be set as primary member.
+--let $group_replication_expected_uuid=$server_uuid2
+--source include/gr_wait_primary_member_uuid.inc
+
+# 3.8. Assert next primary is server2 as it has next highest member_weight=93
+--let $assert_text= Verify group_replication_primary_member is server2
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server_uuid2"
+--source include/assert.inc
+
+# 3.9. stop group replication on server2
+--source include/stop_group_replication.inc
+
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+# 3.10. Wait for server3 to be set as primary member.
+--let $group_replication_expected_uuid=$server_uuid3
+--source include/gr_wait_primary_member_uuid.inc
+
+# 3.11. Assert next primary is server3 as it has next highest member_weight=87
+--let $assert_text= Verify group_replication_primary_member is server3
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server_uuid3"
+--source include/assert.inc
+
+# 3.12. stop group replication on server3
+--source include/stop_group_replication.inc
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+
+--source include/group_replication_end.inc

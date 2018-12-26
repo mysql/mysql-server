@@ -1,0 +1,23 @@
+select @@global.performance_schema_events_statements_history_long_size;
+@@global.performance_schema_events_statements_history_long_size
+15000
+select @@session.performance_schema_events_statements_history_long_size;
+ERROR HY000: Variable 'performance_schema_events_statements_history_long_size' is a GLOBAL variable
+show global variables like 'performance_schema_events_statements_history_long_size';
+Variable_name	Value
+performance_schema_events_statements_history_long_size	15000
+show session variables like 'performance_schema_events_statements_history_long_size';
+Variable_name	Value
+performance_schema_events_statements_history_long_size	15000
+select * from performance_schema.global_variables
+where variable_name='performance_schema_events_statements_history_long_size';
+VARIABLE_NAME	VARIABLE_VALUE
+performance_schema_events_statements_history_long_size	15000
+select * from performance_schema.session_variables
+where variable_name='performance_schema_events_statements_history_long_size';
+VARIABLE_NAME	VARIABLE_VALUE
+performance_schema_events_statements_history_long_size	15000
+set global performance_schema_events_statements_history_long_size=1;
+ERROR HY000: Variable 'performance_schema_events_statements_history_long_size' is a read only variable
+set session performance_schema_events_statements_history_long_size=1;
+ERROR HY000: Variable 'performance_schema_events_statements_history_long_size' is a read only variable

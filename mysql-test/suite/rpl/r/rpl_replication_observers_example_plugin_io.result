@@ -1,0 +1,59 @@
+include/have_replication_observers_example_plugin.inc
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Stop slave and install plugin.
+#
+include/stop_slave.inc
+include/install_replication_observers_example.inc
+#
+# Cause a reset slave notification.
+#
+RESET SLAVE;
+#
+# Cause a connect notification.
+#
+include/start_slave.inc
+#
+# Execute some transactions on master to cause the other notifications.
+#
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+INSERT t1 VALUES(1);
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+#
+# Stop slave and uninstall plugin.
+#
+include/stop_slave.inc
+include/uninstall_replication_observers_example.inc
+#
+# Verify that all relay hooks were called.
+#
+Matching lines are:
+replication_observers_example_plugin:binlog_relay_after_reset_slave'
+Occurrences of 'replication_observers_example_plugin:binlog_relay_after_reset_slave' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:binlog_relay_thread_start'
+Occurrences of 'replication_observers_example_plugin:binlog_relay_thread_start' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:binlog_relay_before_request_transmit'
+Occurrences of 'replication_observers_example_plugin:binlog_relay_before_request_transmit' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:binlog_relay_after_read_event'
+Occurrences of 'replication_observers_example_plugin:binlog_relay_after_read_event' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:binlog_relay_after_queue_event'
+Occurrences of 'replication_observers_example_plugin:binlog_relay_after_queue_event' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:binlog_relay_applier_start'
+Occurrences of 'replication_observers_example_plugin:binlog_relay_applier_start' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:binlog_relay_applier_stop'
+Occurrences of 'replication_observers_example_plugin:binlog_relay_applier_stop' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:binlog_relay_thread_stop'
+Occurrences of 'replication_observers_example_plugin:binlog_relay_thread_stop' in the input file: 1
+include/rpl_end.inc

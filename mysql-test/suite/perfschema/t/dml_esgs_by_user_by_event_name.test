@@ -1,0 +1,39 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log 
+select * from performance_schema.events_stages_summary_by_user_by_event_name
+  where event_name like 'stage/%' limit 1;
+
+select * from performance_schema.events_stages_summary_by_user_by_event_name
+  where event_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.events_stages_summary_by_user_by_event_name
+  set event_name='FOO', user='BAR',
+  count_star=1, sum_timer_wait=2, min_timer_wait=3,
+  avg_timer_wait=4, max_timer_wait=5;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_stages_summary_by_user_by_event_name
+  set count_star=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_stages_summary_by_user_by_event_name
+  set count_star=12 where event_name like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_stages_summary_by_user_by_event_name
+  where count_star=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_stages_summary_by_user_by_event_name;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_stages_summary_by_user_by_event_name READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_stages_summary_by_user_by_event_name WRITE;
+UNLOCK TABLES;
+

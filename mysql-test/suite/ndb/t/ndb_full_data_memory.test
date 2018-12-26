@@ -1,0 +1,11 @@
+--source include/have_ndb.inc
+--source suite/ndb/t/have_ndb_error_insert.inc
+call mtr.add_suppression("The table 't1' is full");
+create table t1(x int primary key, y int) engine=ndbcluster;
+insert into t1 values (0, 0);
+exec $NDB_MGM --verbose=0 -e "all error 3005";
+--error 1114
+alter table t1 algorithm=inplace, add unique key (y);
+delete from t1;
+drop table t1;
+exec $NDB_MGM --verbose=0 -e "all error 0";

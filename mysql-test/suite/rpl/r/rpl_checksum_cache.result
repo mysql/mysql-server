@@ -1,0 +1,130 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t2 set data=repeat.*'a', @act_size.*");
+call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t1 values.* NAME_CONST.*'n',.*, @data .*");
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+set @save_binlog_cache_size = @@global.binlog_cache_size;
+set @save_binlog_checksum = @@global.binlog_checksum;
+set @save_master_verify_checksum = @@global.master_verify_checksum;
+set @@global.binlog_cache_size = 4096;
+set @@global.binlog_checksum = CRC32;
+set @@global.master_verify_checksum = 1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/start_slave.inc
+flush status;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	0
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	0
+create table t1 (a int PRIMARY KEY, b CHAR(32)) engine=innodb;
+create procedure test.p_init (n int, size int) 
+begin
+while n > 0 do
+select round(RAND() * size) into @act_size;
+set @data = repeat('a', @act_size);
+insert into t1 values(n, @data );
+set n= n-1;
+end while;
+end|
+begin;
+call test.p_init(4000, 32);
+commit;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	3
+*** binlog_cache_disk_use must be non-zero ***
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+begin;
+delete from t1;
+commit;
+include/sync_slave_sql_with_master.inc
+flush status;
+create table t2(a int auto_increment primary key, data VARCHAR(12288)) ENGINE=Innodb;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	2
+*** binlog_cache_disk_use must be non-zero ***
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t2, slave:t2]
+begin;
+delete from t2;
+commit;
+include/sync_slave_sql_with_master.inc
+flush status;
+create table t3(a int auto_increment primary key, data VARCHAR(8192)) engine=innodb;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	2
+*** binlog_cache_disk_use must be non-zero ***
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t3, slave:t3]
+begin;
+delete from t3;
+commit;
+include/sync_slave_sql_with_master.inc
+flush status;
+create procedure test.p1 (n int) 
+begin
+while n > 0 do
+case (select (round(rand()*100) % 3) + 1)
+when 1 then
+select round(RAND() * 32) into @act_size;
+set @data = repeat('a', @act_size);
+insert into t1 values(n, @data);
+when 2 then
+begin
+select round(8192 + RAND() * 4096) into @act_size;
+insert into t2 set data=repeat('a', @act_size);
+end;
+when 3 then
+begin
+select round(3686.4000 + RAND() * 819.2000) into @act_size;
+insert into t3 set data= repeat('a', @act_size);
+end;
+end case;
+set n= n-1;
+end while;
+end|
+set autocommit= 0;
+begin;
+call test.p1(1000);
+commit;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	2
+*** binlog_cache_disk_use must be non-zero ***
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t3, slave:t3]
+begin;
+delete from t1;
+delete from t2;
+delete from t3;
+commit;
+drop table t1, t2, t3;
+set @@global.binlog_cache_size = @save_binlog_cache_size;
+set @@global.binlog_checksum = @save_binlog_checksum;
+set @@global.master_verify_checksum = @save_master_verify_checksum;
+drop procedure test.p_init;
+drop procedure test.p1;
+include/rpl_end.inc

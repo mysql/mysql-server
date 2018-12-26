@@ -1,0 +1,31 @@
+#
+# only global
+#
+
+#
+# Don't rely on being able to guess the correct default.
+# -master.opt file for this test sets plugin_dir to a known directory
+#
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR /mysql/ /
+select @@global.plugin_dir;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.plugin_dir;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR /mysql/ /
+show global variables like 'plugin_dir';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR /mysql/ /
+show session variables like 'plugin_dir';
+--disable_warnings
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR /mysql/ /
+select * from performance_schema.global_variables where variable_name='plugin_dir';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR /mysql/ /
+select * from performance_schema.session_variables where variable_name='plugin_dir';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global plugin_dir=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session plugin_dir=1;
+

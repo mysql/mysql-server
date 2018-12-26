@@ -1,0 +1,15 @@
+SET GLOBAL group_replication_group_name= "aeaeaeae-aeae-aeae-aeae-aeaeaeaeaeae";
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("is not a valid UUID");
+call mtr.add_suppression("'group_replication' init function returned error");
+SET SESSION sql_log_bin=1;
+
+[connection server1]
+[ON SERVER1]
+include/start_and_bootstrap_group_replication.inc
+# restart:--group-replication-start-on-boot=1 --group-replication-group-name=aaaaaaaa-aaaa-aaaa-aaaa-invalidvalueused --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1
+# Asserting that the error due to invalid group name is being thrown.
+Occurrences of 'is not a valid UUID' in the input file: 1
+# restart:--group-replication-start-on-boot=0 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1
+SET GLOBAL group_replication_group_name="aaaaaaaa-aaaa-aaaa-aaaa-invalidvalueused";
+ERROR 42000: The group name is not a valid UUID, its length is too big

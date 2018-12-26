@@ -1,0 +1,76 @@
+# Test case for BUG#4680 -- if there are extra files in the db directory
+# dropping the db on the master causes replication problems
+
+-- source include/not_group_replication_plugin.inc
+-- source include/master-slave.inc
+-- source include/have_debug.inc
+
+--disable_warnings
+DROP DATABASE IF EXISTS test1;
+DROP DATABASE IF EXISTS test2;
+--enable_warnings
+CREATE DATABASE test1;
+CREATE DATABASE test2;
+
+CREATE TABLE test1.t1 (n INT);
+INSERT INTO test1.t1 VALUES(1);
+# Create an extra file in database directory
+SELECT * FROM test1.t1 INTO OUTFILE 'test1/f1.txt';
+
+CREATE TABLE test1.t2 (n INT);
+CREATE TABLE test1.t3 (n INT);
+
+--replace_result \\ /
+--error ER_DB_DROP_RMDIR
+DROP DATABASE test1;
+
+# No tables should be dropped after WL#7743.
+--let assert_text= Tables in test1 database are not dropped
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=3
+--source include/assert.inc
+
+# Case when we fail while dropping tables and there are InnoDB tables only.
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test1/f1.txt;
+
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+--error ER_UNKNOWN_ERROR
+DROP DATABASE test1;
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+USE test1;
+# No tables should be dropped after WL#9536.
+--let assert_text= Tables in test1 database are not dropped
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=3
+--source include/assert.inc
+
+# Finally, case when we fail while dropping table and there are both InnoDB and MyISAM tables.
+CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
+
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+--error ER_UNKNOWN_ERROR
+DROP DATABASE test1;
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+
+--let assert_text= MyISAM table t5 is dropped
+--let assert_cond="[SHOW TABLES LIKE "t5"]"=""
+--source include/assert.inc
+
+--let assert_text= InnoDB tables in test1 database are not dropped
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=3
+--source include/assert.inc
+
+# Ensuring that replication is successful
+USE test2;
+CREATE TABLE t1 (n INT);
+INSERT INTO t1 VALUES (1234);
+
+# Cleanup
+DROP TABLE t1;
+
+#cleanup
+--source include/rpl_connection_master.inc
+
+DROP DATABASE test1;
+DROP DATABASE test2;
+
+--source include/rpl_end.inc

@@ -1,0 +1,171 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+[connection server2]
+
+# 1.1 Block the action on validation with a debug point
+#     Change to single primary mode appoint server 2 as the new primary
+#     Check the action is stuck in the check pre conditions stage
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+[connection server_1]
+include/assert.inc [The stage should be "Single-primary Switch: checking group pre-conditions"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+[connection server_2]
+include/assert.inc [The stage should be "Single-primary Switch: checking group pre-conditions"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 1]
+
+# 1.2 Lock a table on the new primary and execute a transaction on server1
+#     Unblock the debug point
+#     Check the action is stuck in the Primary Election stage
+[connection server_2]
+LOCK TABLE t1 WRITE;
+[connection server_1]
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+include/assert.inc [The stage should be "Single-primary Switch: executing Primary election"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+[connection server2]
+include/assert.inc [The stage should be "Single-primary Switch: executing Primary election"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+
+# 1.3 Block the stop process of the action using a debug point
+#     Unlock the table on the new primary
+#     Check it is stuck in the wait for other member to finish stage
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
+[connection server_2]
+UNLOCK TABLES;
+include/rpl_sync.inc
+[connection server_1]
+include/assert.inc [The stage should be "Single-primary Switch: waiting for operation to complete on all members"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+[connection server2]
+include/assert.inc [The stage should be "Single-primary Switch: waiting for operation to complete on all members"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
+
+# 1.4 Unblock the debug point
+#     Check the action terminates and no stages appear
+[connection server1]
+group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
+Mode switched to single-primary successfully.
+include/assert.inc [There is no stage present]
+[connection server2]
+include/assert.inc [There is no stage present]
+
+# 2.1 Block the action on validation with a debug point
+#     Change the current primary to server 1
+#     Check the action is stuck in the check pre conditions stage
+[connection server2]
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+[connection server1]
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+SELECT group_replication_set_as_primary("MEMBER1_UUID");
+[connection server_1]
+include/assert.inc [The stage should be "Primary switch: checking current primary pre-conditions"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+[connection server2]
+include/assert.inc [The stage should be "Primary switch: checking current primary pre-conditions"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+
+# 2.2 Start some transaction on the old primary (server2)
+#     Unblock the debug point
+#     Check the action is stuck waiting for old transactions to finish
+#     Commit a transaction and see there is reported progress
+[connection server_1]
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+[connection server2]
+CREATE TABLE test.t2 (a INT PRIMARY KEY);
+BEGIN;
+INSERT INTO t1 VALUES (2);
+[connection server_2_1]
+BEGIN;
+INSERT INTO t2 VALUES (2);
+[connection server_2]
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+include/assert.inc [The stage should be "Primary Switch: waiting for pending transactions to finish"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 0]
+[connection server_1]
+include/assert.inc [The stage should be "Primary Switch: waiting on another member step completion"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+[connection server2]
+COMMIT;
+[connection server_2]
+include/assert.inc [The stage should be "Primary Switch: waiting for pending transactions to finish"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+
+# 2.3 Lock a table t1 and execute a transaction on server2.
+#     This will block the read mode during election
+#     Commit the last transaction blocking phase 2.2 (table 2)
+#     Check the action is stuck in the Primary Election stage
+[connection server_2]
+LOCK TABLE t1 WRITE;
+[connection slave]
+INSERT INTO t1 VALUES (3);
+[connection server_2_1]
+COMMIT;
+[connection server_1]
+include/assert.inc [The stage should be "Primary Switch: executing Primary election"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 0]
+[connection server2]
+include/assert.inc [The stage should be "Primary Switch: executing Primary election"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 0]
+
+# 2.4 Block the stop process of the action using a debug point
+#     Unlock the table on the old primary (server2)
+#     Check it is stuck in the wait for other member to finish stage
+[connection server_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
+[connection server_2]
+UNLOCK TABLES;
+[connection slave]
+[connection server_1]
+include/assert.inc [The stage should be "Primary Switch: waiting for operation to complete on all members"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+[connection server2]
+include/assert.inc [The stage should be "Primary Switch: waiting for operation to complete on all members"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+[connection server_1]
+SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
+
+# 2.5 Unblock the debug point
+#     Check the action terminates and no stages appear
+[connection server1]
+group_replication_set_as_primary("MEMBER1_UUID")
+Primary server switched to: MEMBER1_UUID
+include/assert.inc [There is no stage present]
+[connection server2]
+include/assert.inc [There is no stage present]
+
+# 3. Clean up
+[connection server1]
+DROP TABLE t1;
+DROP TABLE t2;
+include/group_replication_end.inc

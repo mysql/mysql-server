@@ -1,0 +1,24 @@
+set global log_bin_trust_routine_creators=1;
+ERROR HY000: Unknown system variable 'log_bin_trust_routine_creators'
+set table_type='MyISAM';
+ERROR HY000: Unknown system variable 'table_type'
+select @@table_type='MyISAM';
+ERROR HY000: Unknown system variable 'table_type'
+backup table t1 to 'data.txt';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'backup table t1 to 'data.txt'' at line 1
+restore table t1 from 'data.txt';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'restore table t1 from 'data.txt'' at line 1
+show plugin;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'plugin' at line 1
+load table t1 from master;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'table t1 from master' at line 1
+load data from master;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from master' at line 1
+SHOW INNODB STATUS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INNODB STATUS' at line 1
+create table t1 (t6 timestamp) type=myisam;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'type=myisam' at line 1
+show table types;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'types' at line 1
+show mutex status;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'mutex status' at line 1

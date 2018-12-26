@@ -1,0 +1,62 @@
+CALL mtr.add_suppression("The option expire_logs_days cannot be used together*");
+####
+#### Case 1:
+####
+#### Case 1.1:
+# restart:--binlog_expire_logs_seconds=2 --expire_logs_days=1 --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+FLUSH LOGS;
+FLUSH LOGS;
+#### Case 1.2:
+SET GLOBAL expire_logs_days= 10;
+ERROR HY000: The option expire_logs_days and binlog_expire_logs_seconds cannot be used together. Please use binlog_expire_logs_seconds to set the expire time (expire_logs_days is deprecated)
+#### Case 1.3:
+include/assert_grep.inc [Assert that there is a warning at bootstrap for expire_logs_days]
+#### Case 1.4
+include/assert.inc [The value of expire_logs_days is not changed.]
+include/assert.inc [The value of binlog_expire_logs_seconds is not changed.]
+####
+#### Case 2:
+####
+#### Case 2.1:
+# restart: --expire_logs_days=1 --binlog_expire_logs_seconds=0 --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+FLUSH LOGS;
+FLUSH LOGS;
+#### Case 2.2:
+include/assert_grep.inc [There is no warning at server start when binlog_expire_logs_seconds is not set.]
+# restart: --expire_logs_days=1 --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+include/assert_grep.inc [There is no warning at server start when binlog_expire_logs_seconds is not set.]
+#### Case 2.3
+include/assert.inc [The value of expire_logs_days is not changed.]
+include/assert.inc [The value of binlog_expire_logs_seconds is changed from default 2592000 to 0 .]
+####
+#### Case 3:
+####
+#### Case 3.1:
+# restart: --binlog_expire_logs_seconds=5 --expire_logs_days=0 --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+include/assert_grep.inc [There is a no warning at server start for expire_logs_days]
+# restart: --binlog_expire_logs_seconds=5 --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+include/assert_grep.inc [There is a no warning at server start for expire_logs_days]
+#### Case 3.2
+include/assert.inc [The value of expire_logs_days is 0.]
+include/assert.inc [The value of binlog_expire_logs_seconds is not changed.]
+####
+#### Case 4:
+####
+#### Case 4.1: server start should not purge the file
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err --expire_logs_days=0
+#### Case 4.2: flush logs should not purge the file
+FLUSH LOGS;
+FLUSH LOGS;
+#### Case 4.3
+include/assert.inc [The value of binlog_expire_logs_seconds is changed to 0.]
+####
+#### Case 5:
+####
+#### Case 5.1
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+include/assert.inc [The value of expire_logs_days is 0.]
+include/assert.inc [The value of binlog_expire_logs_seconds is changed to 2592000(30 days).]
+SET GLOBAL binlog_expire_logs_seconds= 2592000;
+SET GLOBAL expire_logs_days= 0;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.

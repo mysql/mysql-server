@@ -1,0 +1,538 @@
+drop table if exists t1;
+create table t1(a int);
+insert into t1 values(1);
+
+Test default delimiter ;
+a
+1
+
+Test delimiter without arg
+ERROR at line 9: DELIMITER must be followed by a 'delimiter' character or string
+
+Test delimiter :
+a
+1
+
+Test delimiter :
+a
+1
+
+Test delimiter :;
+a
+1
+
+Test delimiter //
+a
+1
+
+Test delimiter MySQL
+a
+1
+
+Test delimiter delimiter
+a
+1
+Tables_in_test
+t1
+t2
+t3
+Tables_in_test
+t1
+_
+Test delimiter : from command line
+a
+1
+_
+Test delimiter :; from command line
+a
+1
+_
+Test 'go' command(vertical output) G
+*************************** 1. row ***************************
+a: 1
+_
+Test  'go' command g
+a
+1
+drop table t1;
+create table t1(a int);
+lock tables t1 write;
+database()
+test
+unlock tables;
+drop table t1;
++----------------------+------------+--------+
+| concat('>',col1,'<') | col2       | col3   |
++----------------------+------------+--------+
+| >a   <               | b          | 123421 |
+| >a   <               | 0123456789 |      4 |
+| >abcd<               |            |      4 |
++----------------------+------------+--------+
++-------------------+
+| __tañgè Ñãmé      |
++-------------------+
+| John Doe          |
++-------------------+
++-------------------+
+| John Doe          |
++-------------------+
+| __tañgè Ñãmé      |
++-------------------+
++------+------+---------------------------+
+| i    | j    | k                         |
++------+------+---------------------------+
+|    1 | NULL | NULL                      |
+| NULL | NULL | <-----------------------> |
+| NULL | NULL | <-----                    |
+| NULL | NULL | Τη γλώσσα                 |
+| NULL | NULL | ᛖᚴ ᚷᛖᛏ                    |
++------+------+---------------------------+
+i	j	k
+NULL	1	NULL
+Field	Type	Null	Key	Default	Extra
+i	int(11)	YES		NULL	
+j	int(11)	NO		NULL	
+k	int(11)	YES		NULL	
++------+---+------+
+| i    | j | k    |
++------+---+------+
+| NULL | 1 | NULL |
++------+---+------+
++-------+---------+------+-----+---------+-------+
+| Field | Type    | Null | Key | Default | Extra |
++-------+---------+------+-----+---------+-------+
+| i     | int(11) | YES  |     | NULL    |       |
+| j     | int(11) | NO   |     | NULL    |       |
+| k     | int(11) | YES  |     | NULL    |       |
++-------+---------+------+-----+---------+-------+
+i	s1
+1	x
+2	NULL
+3	
++------+------+
+| i    | s1   |
++------+------+
+|    1 | x    |
+|    2 | NULL |
+|    3 |      |
++------+------+
+concat(null)
+NULL
++--------------+
+| concat(null) |
++--------------+
+| NULL         |
++--------------+
+create table t1(a int, b varchar(255), c int);
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	int(11)	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	int(11)	YES		NULL	
+drop table t1;
+ERROR 1059 (42000) at line 1: Identifier name 'verylongdatabasenamethatshouldblowthe256byteslongbufferincom_connectfunctionxkxkxkxkxkxkxkxkxkxkxkxk' is too long
+1
+1
+ERROR 1064 (42000) at line 3: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR at line 1: USE must be followed by a database name
+\
+\\
+';
+';
+create table t17583 (a int);
+insert into t17583 (a) values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+select count(*) from t17583;
+count(*)
+1280
+drop table t17583;
+Test connect without db- or host-name => reconnect
+Test connect with dbname only => new dbname, old hostname
+ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'connecttest' at line 1
+Test connect with _invalid_ dbname only => new invalid dbname, old hostname
+ERROR 1049 (42000) at line 1: Unknown database 'invalid'
+ERROR 1049 (42000) at line 1: Unknown database 'invalid'
+Test connect with dbname + hostname
+Test connect with dbname + _invalid_ hostname
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+The commands reported in the bug report
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
+Too long dbname
+ERROR 1059 (42000) at line 1: Identifier name 'test_really_long_dbnamexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' is too long
+Too long hostname
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyrils_superlonghostnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
+1
+1
+ERROR at line 1: DELIMITER cannot contain a backslash character
+ERROR at line 1: DELIMITER cannot contain a backslash character
+1
+1
+1
+1
+This is a file starting with UTF8 BOM 0xEFBBBF
+This is a file starting with UTF8 BOM 0xEFBBBF
+delimiter
+1
+2
+2
+2
+2
+@z:='1'	@z=database()
+1	NULL
+1
+1
+1
+1
+COUNT (*)
+1
+COUNT (*)
+1
+COUNT (*)
+1
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+End of 5.0 tests
+*************************** 1. row ***************************
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
+1: 1
+2: 2
+3: 3
+4: 4
+5: 5
+6: 6
+7: 7
+8: 8
+9: 9
+0: 0
++---+
+| 1 |
++---+
+| 1 |
++---+
+SET @@global.sql_mode='';
+Warning (Code 1286): Unknown storage engine 'nonexistent'
+Warning (Code 1266): Using storage engine InnoDB for table 't2'
+Warning (Code 1286): Unknown storage engine 'nonexistent2'
+Warning (Code 1266): Using storage engine InnoDB for table 't2'
+Error (Code 1050): Table 't2' already exists
+drop tables t1, t2;
+SET @@global.sql_mode=DEFAULT;
+Variable_name	Value
+lc_messages	ru_RU
+<TABLE BORDER=1><TR><TH>&lt;</TH></TR><TR><TD>&lt; &amp; &gt;</TD></TR></TABLE>create table t1 (a char(5));
+insert into t1 values ('\0b\0');
+a
+\0b\0
+a
+\0b\0
++------+
+| a    |
++------+
+|  b   |
++------+
+*************************** 1. row ***************************
+a:  b 
+<TABLE BORDER=1><TR><TH>a</TH></TR><TR><TD> b </TD></TR></TABLE><?xml version="1.0"?>
+
+<resultset statement="select a from t1
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="a"> b </field>
+  </row>
+</resultset>
+drop table t1;
+
+Bug #47147: mysql client option --skip-column-names does not apply to vertical output
+
+*************************** 1. row ***************************
+1
+
+#
+# Bug #54899: --one-database option cannot handle DROP/CREATE DATABASE 
+#             commands.
+#
+CREATE DATABASE connected_db;
+USE connected_db;
+SHOW TABLES;
+Tables_in_connected_db
+table_in_connected_db
+DROP DATABASE connected_db;
+
+#
+# Testing --one-database option
+#
+CREATE DATABASE connected_db;
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+t1
+SHOW TABLES IN test;
+Tables_in_test
+t1
+USE test;
+DROP TABLE t1;
+DROP DATABASE connected_db;
+
+SHOW TABLES IN test;
+Tables_in_test
+SHOW TABLES IN test1;
+Tables_in_test1
+DROP DATABASE test1;
+
+#
+# Checking --one-database option followed by the execution of 
+# connect command.
+#
+CREATE DATABASE connected_db;
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+t1
+t2
+SHOW TABLES IN test;
+Tables_in_test
+t1
+t2
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP DATABASE connected_db;
+
+#
+# Checking --one-database option with no database specified
+# at command-line.
+#
+SHOW TABLES IN test;
+Tables_in_test
+
+#
+# Checking --one-database option with non_existent_db 
+# specified with USE command
+#
+CREATE DATABASE connected_db;
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+table_in_connected_db
+
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+table_in_connected_db
+DROP DATABASE connected_db;
+Connected
+1
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+mysql: [Warning] Using a password on the command line interface can be insecure.
+1
+1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+1
+1
+a
+1
+2
+ERROR 1243 (HY000) at line 15: Unknown prepared statement handler (x) given to EXECUTE
+#
+# Bug #16102788: INDETERMINATE BEHAVIOR DUE TO EMPTY OPTION VALUES
+#
+mysql: [ERROR] mysql: Empty value for 'port' specified.
+mysql: [ERROR] mysql: Empty value for 'port' specified.
+#
+# Bug #21464621: MYSQL CLI SHOULD SUGGEST CONNECT-EXPIRED-PASSWORD WHEN ERROR 1862 OCCURS
+#
+CREATE USER bug21464621 IDENTIFIED BY 'password' PASSWORD EXPIRE;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Please use --connect-expired-password option or invoke mysql in interactive mode.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+user()
+bug21464621@localhost
+DROP USER bug21464621;
+
+End of tests

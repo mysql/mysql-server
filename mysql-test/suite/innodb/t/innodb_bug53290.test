@@ -1,0 +1,22 @@
+-- source include/big_test.inc
+
+create table bug53290 (x bigint) engine=innodb;
+
+insert into bug53290 () values (),(),(),(),(),(),(),(),(),(),(),();
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+insert into bug53290 select * from bug53290;
+
+alter table bug53290 add unique index `idx` (x);
+
+drop table bug53290;

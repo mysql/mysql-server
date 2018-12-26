@@ -1,0 +1,15 @@
+!include ../my.cnf
+
+[mysqld]
+ndb-autoincrement-prefetch-sz=49
+
+[mysqld.1.1]
+log-bin=mysqld-bin
+
+[mysqld.2.1]
+skip-log-bin
+
+[ENV]
+MYSQLD1_PORT=                  @mysqld.1.1.port
+MYSQLD2_PORT=                  @mysqld.2.1.port
+

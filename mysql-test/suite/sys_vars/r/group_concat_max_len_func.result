@@ -1,0 +1,94 @@
+SET @save = @@global.group_concat_max_len;
+DROP TABLE IF EXISTS t1;
+## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (id),
+rollno INT NOT NULL,
+name VARCHAR(30)
+);
+'#--------------------FN_DYNVARS_034_01-------------------------#'
+## Setting initial value of variable to 4 ##
+SET @@global.group_concat_max_len = 4;
+## Inserting some rows in table ##
+INSERT INTO t1(rollno, name) VALUES(1, 'Record_1');
+INSERT INTO t1(rollno, name) VALUES(2, 'Record_2');
+INSERT INTO t1(rollno, name) VALUES(1, 'Record_3');
+INSERT INTO t1(rollno, name) VALUES(3, 'Record_4');
+INSERT INTO t1(rollno, name) VALUES(1, 'Record_5');
+INSERT INTO t1(rollno, name) VALUES(3, 'Record_6');
+INSERT INTO t1(rollno, name) VALUES(4, 'Record_7');
+INSERT INTO t1(rollno, name) VALUES(4, 'Record_8');
+SELECT * FROM t1 ORDER BY id;
+id	rollno	name
+1	1	Record_1
+2	2	Record_2
+3	1	Record_3
+4	3	Record_4
+5	1	Record_5
+6	3	Record_6
+7	4	Record_7
+8	4	Record_8
+## Creating two new connections ##
+'#--------------------FN_DYNVARS_034_02-------------------------#'
+## Connecting with test_con1 ##
+## Accessing data and using group_concat on column whose value is greater than 4 ##
+SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
+id	rollno	GROUP_CONCAT(name)
+1	1	Reco
+2	2	Reco
+4	3	Reco
+7	4	Reco
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
+Warning	1260	Row 4 was cut by GROUP_CONCAT()
+## Changing session value of variable and verifying its behavior, ##
+## warning should come here ##
+SET @@session.group_concat_max_len = 10;
+SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
+id	rollno	GROUP_CONCAT(name)
+1	1	Record_1,R
+2	2	Record_2
+4	3	Record_4,R
+7	4	Record_7,R
+Warnings:
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 5 was cut by GROUP_CONCAT()
+Warning	1260	Row 7 was cut by GROUP_CONCAT()
+'#--------------------FN_DYNVARS_034_03-------------------------#'
+## Connecting with new connection test_con2 ##
+## Verifying initial value of variable. It should be 4 ##
+SELECT @@session.group_concat_max_len = 4;
+@@session.group_concat_max_len = 4
+1
+## Setting session value of variable to 20 and verifying variable is concating ##
+## column's value to 20 or not ##
+SET @@session.group_concat_max_len = 20;
+## Verifying value of name column, it should not me more than 20 characters ##
+## Warning should come here ##
+SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
+id	rollno	GROUP_CONCAT(name)
+1	1	Record_1,Record_3,Re
+2	2	Record_2
+4	3	Record_4,Record_6
+7	4	Record_7,Record_8
+Warnings:
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
+'#--------------------FN_DYNVARS_034_04-------------------------#'
+## Setting session value of variable to 26. No warning should appear here ##
+## because the value after concatination is less than 30 ##
+SET @@session.group_concat_max_len = 26;
+## Verifying value of name column, it should not give warning now ##
+SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
+id	rollno	GROUP_CONCAT(name)
+1	1	Record_1,Record_3,Record_5
+2	2	Record_2
+4	3	Record_4,Record_6
+7	4	Record_7,Record_8
+## Dropping table t1 ##
+DROP TABLE t1;
+## Disconnecting both the connection ##
+SET @@global.group_concat_max_len = @save;

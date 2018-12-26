@@ -1,0 +1,178 @@
++++++++++++++++++++++++++++++++++++++++++++++++
++ Renaming users shouldn't crash the server
++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER u1, r1;
+GRANT r1 TO u1;
+RENAME USER u1 TO u11;
+ALTER USER u1 DEFAULT ROLE ALL;
+ERROR HY000: Unknown authorization ID `u1`@`%`
+ALTER USER anything DEFAULT ROLE ALL;
+ERROR HY000: Unknown authorization ID `anything`@`%`
+ALTER USER u11 DEFAULT ROLE ALL;
+++ Cleanup
+DROP USER u11, r1;
++++++++++++++++++++++++++++++++++++++++++++++
++ RENAME USER shouldn't break the role graph
++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+CREATE USER u3@localhost;
+CREATE ROLE r1;
+CREATE ROLE r2;
+GRANT r1 TO u1@localhost;
+GRANT r2 TO u1@localhost WITH ADMIN OPTION;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (c1 INT);
+GRANT SELECT ON db1.t1 TO r1;
+GRANT INSERT ON *.* TO r2;
+ALTER USER u1@localhost DEFAULT ROLE r1,r2;
+-------------------------------------
+SHOW GRANTS;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+-------------------------------------
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT SELECT ON `db1`.`t1` TO `u1`@`localhost`
+GRANT `r1`@`%` TO `u1`@`localhost`
+GRANT `r2`@`%` TO `u1`@`localhost` WITH ADMIN OPTION
+-------------------------------------
+# Role should not be allowed to rename.
+RENAME USER r1 TO r2;
+ERROR HY000: Renaming of a role identifier is forbidden
+RENAME USER u1@localhost TO u2@localhost, u3@localhost TO u1@localhost;
+SELECT * FROM mysql.default_roles ORDER BY default_role_user;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+localhost	u2	%	r1
+localhost	u2	%	r2
+# Check the current role of the AuthID which is granted default roles.
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`
+SET ROLE NONE;
+SELECT * FROM db1.t1;
+ERROR 42000: SELECT command denied to user 'u2'@'localhost' for table 't1'
+SET ROLE r1;
+SELECT * FROM db1.t1;
+c1
+SELECT CURRENT_USER(), CURRENT_ROLE();
+CURRENT_USER()	CURRENT_ROLE()
+u2@localhost	`r1`@`%`
+-------------------------------
+SHOW GRANTS;
+Grants for u2@localhost
+GRANT USAGE ON *.* TO `u2`@`localhost`
+GRANT SELECT ON `db1`.`t1` TO `u2`@`localhost`
+GRANT `r1`@`%` TO `u2`@`localhost`
+GRANT `r2`@`%` TO `u2`@`localhost` WITH ADMIN OPTION
+-------------------------------
+SHOW GRANTS FOR u2@localhost USING r1;
+Grants for u2@localhost
+GRANT USAGE ON *.* TO `u2`@`localhost`
+GRANT SELECT ON `db1`.`t1` TO `u2`@`localhost`
+GRANT `r1`@`%` TO `u2`@`localhost`
+GRANT `r2`@`%` TO `u2`@`localhost` WITH ADMIN OPTION
+-------------------------------
+++ Cleanup
+DROP ROLE r1;
+DROP ROLE r2;
+DROP USER u2@localhost;
+DROP USER u1@localhost;
+DROP DATABASE db1;
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Rename the AuthId after it has been released from
++ the role graph post revoking it from the user
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER usr, role_usr;
+RENAME USER role_usr to role_usr_test;
+GRANT role_usr_test to usr;
+# Throw error as role_usr_test is in role graph
+RENAME USER role_usr_test to role_usr;
+ERROR HY000: Renaming of a role identifier is forbidden
+REVOKE role_usr_test from usr;
+RENAME USER role_usr_test to role_usr;
+DROP USER usr, role_usr;
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Rename the AuthId after it has been released from
++ the role graph after the user has been dropped.
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER usr, role_usr;
+RENAME USER role_usr to role_usr_test;
+GRANT role_usr_test to usr;
+# Throw error as role_usr_test is in role graph
+RENAME USER role_usr_test to role_usr;
+ERROR HY000: Renaming of a role identifier is forbidden
+++ Cleanup
+DROP USER usr;
+RENAME USER role_usr_test to role_usr;
+DROP USER role_usr;
++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Rename the AuthId which is granted some default roles
++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER u5;
+CREATE ROLE r1,r2,r3;
+GRANT ALL ON test.* TO r2;
+GRANT r1, r2, r3 TO u5;
+ALTER USER u5 DEFAULT ROLE r2,r3;
+RENAME USER u5 to u1;
+SELECT current_role();
+current_role()
+`r2`@`%`,`r3`@`%`
+SET ROLE DEFAULT;
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Rename and grant default roles again to the previously granted AuthId
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+RENAME USER u1 to u2;
+GRANT r3 TO u2;
+ALTER USER u2 DEFAULT ROLE r1, r2, r3;
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+SET ROLE DEFAULT;
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Rename role when it is, in the role graph and, not in the role graph
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+rename user r2 to r22;
+ERROR HY000: Renaming of a role identifier is forbidden
+REVOKE r2 FROM u2;
+RENAME USER r2 to r22;
+++ Cleanup
+DROP ROLE r1,r22, r3;
+DROP USER u2;
+DROP USER u1;
+ERROR HY000: Operation DROP USER failed for 'u1'@'%'
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Rename authId which was granted inherited roles but the
++ authId is not in role graph
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER u1;
+CREATE ROLE r1,r2,r3;
+GRANT r1 TO r2;
+GRANT r2 TO r3;
+GRANT r3 to u1;
+DROP USER u1;
+RENAME USER r3 to r33;
+++ Cleanup
+DROP ROLE r3;
+ERROR HY000: Operation DROP ROLE failed for 'r3'@'%'
+DROP USER u1;
+ERROR HY000: Operation DROP USER failed for 'u1'@'%'
+DROP ROLE r1, r2, r33;
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Rename authId which was granted inherited roles but the
++ authId is not in role graph
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER u1;
+CREATE ROLE r1,r2,r3;
+GRANT r1 TO r2;
+GRANT r2 TO r3;
+GRANT r3 to u1;
+REVOKE r3 FROM u1;
+RENAME USER r3 to r33;
+++ Cleanup
+DROP ROLE r3;
+ERROR HY000: Operation DROP ROLE failed for 'r3'@'%'
+DROP ROLE r1, r2, r33;
+DROP USER u1;

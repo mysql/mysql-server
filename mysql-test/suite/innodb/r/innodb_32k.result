@@ -1,0 +1,67 @@
+SET GLOBAL innodb_file_per_table=1;
+SET SESSION innodb_strict_mode=ON;
+CREATE TABLE t1 (id int, a TEXT) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k.
+Error	1031	Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1 (id int, a TEXT) ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k.
+Error	1031	Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1(id int, a TEXT) KEY_BLOCK_SIZE=4;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k.
+Error	1031	Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1 (id int, a TEXT);
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'KEY_BLOCK_SIZE'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k.
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'KEY_BLOCK_SIZE'
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k.
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+ALTER TABLE t1 KEY_BLOCK_SIZE=4;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'KEY_BLOCK_SIZE'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k.
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'KEY_BLOCK_SIZE'
+DROP TABLE t1;
+SET SESSION innodb_strict_mode=OFF;
+CREATE TABLE t1 (id int, a TEXT) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+Warnings:
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
+DROP TABLE t1;
+CREATE TABLE t1 (id int, a TEXT) ROW_FORMAT=COMPRESSED;
+Warnings:
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
+DROP TABLE t1;
+CREATE TABLE t1 (id int, a TEXT) KEY_BLOCK_SIZE=4;
+Warnings:
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
+DROP TABLE t1;
+CREATE TABLE t1 (id int, a TEXT);
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+Warnings:
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+Warnings:
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
+ALTER TABLE t1 KEY_BLOCK_SIZE=4;
+Warnings:
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4 as ROW_FORMAT is not COMPRESSED.
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=default;

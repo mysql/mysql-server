@@ -1,0 +1,5 @@
+-- source include/not_ndb_default.inc
+--source include/not_group_replication_plugin.inc
+-- source include/have_myisam.inc
+let $engine_type=myisam;
+-- source extra/rpl_tests/rpl_EE_err.test

@@ -1,0 +1,50 @@
+# ==== Purpose ====
+#
+# Verify that the slave stops gracefully when reading a relay log with
+# corrupted data.
+#
+# ==== Implementation ====
+#
+# Setup "fake replication" where the slave only starts the SQL thread,
+# not the IO thread, and reads from an existing relay log that has
+# been prepared so that it contains the error.  This requires some
+# extra server options: see the -master.opt file.
+#
+# ==== Related bugs ====
+#
+# BUG#31793: log event corruption causes crash
+# BUG#40482: server/mysqlbinlog crashes when reading invalid Incident_log_event
+
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+# BUG#40482 only manifested itself in debug-compiled binaries.
+source include/have_debug.inc;
+
+--connection slave
+call mtr.add_suppression('Found invalid event in binary log');
+call mtr.add_suppression('Slave SQL.*Relay log read failure: Could not parse relay log event entry.* MY-013121');
+
+#
+# BUG#40482: server/mysqlbinlog crashes when reading invalid Incident_log_event
+#
+# The relay log contains an Incident_log_event with a non-existing
+# incident number.
+
+--echo ==== Initialize ====
+--source include/stop_slave.inc
+RESET SLAVE;
+
+let $fake_relay_log= $MYSQL_TEST_DIR/std_data/bug40482-bin.000001;
+source include/setup_fake_relay_log.inc;
+
+--echo ==== Test ====
+START SLAVE SQL_THREAD;
+let $slave_sql_errno= 13121; # ER_SLAVE_RELAY_LOG_READ_FAILURE
+let $show_slave_sql_error= 1;
+source include/wait_for_slave_sql_error.inc;
+
+--echo ==== Clean up ====
+source include/cleanup_fake_relay_log.inc;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

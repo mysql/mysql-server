@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="test">
+	<table_structure name="onerow">
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+	</table_structure>
+	<table_data name="onerow">
+	<row>
+		<field name="a">1</field>
+	</row>
+	</table_data>
+</database>
+</mysqldump>

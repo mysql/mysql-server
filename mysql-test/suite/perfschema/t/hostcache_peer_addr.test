@@ -1,0 +1,46 @@
+
+#
+# Tests for the performance_schema host_cache.
+#
+# Simulate failures from vio_peer_addr, reported in:
+# status variable Peer_address_errors
+
+--source include/have_debug.inc
+
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+--source ../include/hostcache_set_state.inc
+
+show global status like "connection_errors_%";
+
+connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+select "Con1 is alive";
+select current_user();
+disconnect con1;
+
+--connection default
+set global debug= "+d,vio_peer_addr_error";
+
+--disable_query_log
+--error ER_BAD_HOST_ERROR
+connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+show global status like "connection_errors_%";
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_BAD_HOST_ERROR
+connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+show global status like "connection_errors_%";
+--source ../include/hostcache_dump.inc
+
+set global debug= default;
+
+flush status;
+show global status like "connection_errors_%";
+

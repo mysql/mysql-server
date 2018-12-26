@@ -1,0 +1,12 @@
+drop table if exists t1;
+reset master;
+create table t1 (a int);
+insert into t1 values (1);
+flush logs;
+drop table t1;
+RESET MASTER;
+*** must be 1 ***
+select * from t1;
+a
+1
+drop table t1;

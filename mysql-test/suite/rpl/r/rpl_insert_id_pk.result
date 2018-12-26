@@ -1,0 +1,82 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+create table t1(a int auto_increment, primary key(a));
+create table t2(b int auto_increment, c int, primary key(b));
+insert into t1 values (1),(2),(3);
+insert into t1 values (null);
+insert into t2 values (null,last_insert_id());
+include/sync_slave_sql_with_master.inc
+select * from t1 ORDER BY a;
+a
+1
+2
+3
+4
+select * from t2 ORDER BY b;
+b	c
+1	4
+drop table t1;
+drop table t2;
+create table t1(a int auto_increment, key(a)) engine=innodb;
+create table t2(b int auto_increment, c int, key(b), foreign key(b) references t1(a)) engine=innodb;
+SET FOREIGN_KEY_CHECKS=0;
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+insert into t2 values (null,last_insert_id());
+SET FOREIGN_KEY_CHECKS=1;
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a
+10
+11
+12
+13
+select * from t2;
+b	c
+5	0
+6	11
+drop table t2;
+drop table t1;
+create table t1(a int auto_increment, primary key(a));
+create table t2(b int auto_increment, c int, primary key(b));
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+insert into t2 (c) select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+b	c
+5	0
+6	10
+7	11
+8	12
+9	13
+include/sync_slave_sql_with_master.inc
+select * from t1 ORDER BY a;
+a
+10
+11
+12
+13
+select * from t2 ORDER BY b;
+b	c
+5	0
+6	10
+7	11
+8	12
+9	13
+drop table t1;
+drop table t2;
+include/sync_slave_sql_with_master.inc
+SET TIMESTAMP=1000000000;
+CREATE TABLE t1 ( a INT UNIQUE );
+SET FOREIGN_KEY_CHECKS=0;
+INSERT INTO t1 VALUES (1),(1);
+Got one of the listed errors
+include/sync_slave_sql_with_master.inc
+drop table t1;
+include/rpl_end.inc

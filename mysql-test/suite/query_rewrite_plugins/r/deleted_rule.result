@@ -1,0 +1,30 @@
+#
+# Test of deletion of rules.
+#
+CREATE TABLE t1 ( c1 VARCHAR(10) );
+INSERT INTO t1 VALUES ( 'abc' ), ( 'def' );
+CREATE TABLE t2 ( c1 VARCHAR(10) );
+INSERT INTO t2 VALUES ( '123' ), ( '456' );
+# Query rewrite plugin was installed.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1', 'SELECT * FROM test.t2' );
+CALL query_rewrite.flush_rewrite_rules();
+# Check that the rewrite rule is executed.
+SELECT * FROM test.t1;
+c1
+123
+456
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT * FROM test.t2' by a query rewrite plugin
+DELETE FROM query_rewrite.rewrite_rules
+WHERE pattern = 'SELECT * FROM test.t1';
+CALL query_rewrite.flush_rewrite_rules();
+# Check that the rewrite rule is not executed.
+SELECT * FROM test.t1;
+c1
+abc
+def
+DROP TABLE t1, t2;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

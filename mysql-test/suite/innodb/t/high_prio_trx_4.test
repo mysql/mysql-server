@@ -1,0 +1,63 @@
+# Scenario:
+#  T1= ({R(Z), R(B)})
+#  T2= ({R(C), R(B)})
+#  T3= ({R(B), W(B), C}, HIGH_PRIORITY)
+#
+# Outcome: T1 and T2 must abort, T3 must commit.
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 0, 0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+--connect(con3,localhost,root,,test)
+
+--echo
+--echo # On connection 1
+--connection con1
+START TRANSACTION;
+SELECT c1, c2 FROM t1 WHERE c1=0 LOCK IN SHARE MODE;
+
+--echo
+--echo # On connection 2
+--connection con2
+START TRANSACTION;
+SELECT c3, c2 FROM t1 WHERE c1=0 LOCK IN SHARE MODE;
+
+--echo
+--echo # On connection 3
+--connection con3
+--source include/start_transaction_high_prio.inc
+UPDATE t1 SET c1=3 WHERE c1=0;
+COMMIT;
+--disconnect con3
+
+--echo
+--echo # On connection 1
+--connection con1
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+--disconnect con1
+
+--echo
+--echo # On connection 2
+--connection con2
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+--disconnect con2
+
+--connection default
+--let $assert_text= 'There is a 3.0.0 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3 AND t1.c2 = 0 AND t1.c3 = 0, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is no 0.0.0 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 0 AND t1.c2 = 0 AND t1.c3 = 0, count, 1] = 0
+--source include/assert.inc
+
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

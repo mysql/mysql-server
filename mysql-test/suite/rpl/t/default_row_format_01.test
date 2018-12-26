@@ -1,0 +1,104 @@
+# **************************************************************
+# wl8307 : Check default_row_format functionality by Replication
+# case 1 : Check default_row_format=Dynamic on Master & slave
+#          Check with partition table.
+#          Check with Index prefix length greater 767 bytes
+#          Also check same default row_fromat=Dynamic
+# case 2 : Row_format=compact with index prefix greater than 767
+#          Bytes should fail on both Master(M) and slave(S)
+#          Also set at the parameter level and check retains same
+#          row_format=compact
+# case 3 : Set at the Parameter and DDL level different row_format
+# **************************************************************
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+# InnoDB doesn't support only 16k as index prefix is 3070 bytes 
+
+connection master;
+USE test;
+
+# Create partition table
+CREATE TABLE tab(empno INT,ename VARCHAR(30),sal NUMERIC(3))
+ENGINE=InnoDB PARTITION BY HASH(empno) (PARTITION p0,PARTITION p1 );
+
+# Create Index prefix greater than 767 bytes
+CREATE TABLE tab1(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(3070)))
+ENGINE= InnoDB
+DEFAULT CHARACTER SET latin1;
+
+# Insert few records
+INSERT INTO tab VALUES (100,'VISWANATH',100);
+INSERT INTO tab VALUES (300,'VISWANATH',200);
+
+INSERT INTO tab1(a,b) VALUES(1,'Check with max prefix');
+
+# Connect to slave
+--source include/sync_slave_sql_with_master.inc
+
+# Check Dynamic (default) on slave ide
+SELECT @@innodb_default_row_format;
+
+# Check data on slave side
+SELECT * FROM tab ORDER BY empno;
+SELECT * FROM tab1 ORDER BY a;
+
+# Chek health of the table
+CHECK TABLE tab;
+CHECK TABLE tab1;
+
+# Check Dynamic (default) on slave
+--source suite/innodb/include/default_row_format_show.inc
+
+# Cleanup
+connection master;
+DROP TABLE tab,tab1;
+
+# Set Default Row-foramt=Compact
+SET GLOBAL innodb_default_row_format=Compact;
+
+# Create Index prefix greater than 767 bytes
+-- error ER_INDEX_COLUMN_TOO_LONG
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(768)))
+ENGINE= InnoDB
+DEFAULT CHARACTER SET latin1;
+
+# Connect to slave
+--source include/sync_slave_sql_with_master.inc
+
+# Check Default is Compact on slave side
+SELECT @@innodb_default_row_format;
+
+# Check table does not exist on slave side
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE tab;
+
+connection master;
+# Set Default Row_foramt=Dynamic
+SET GLOBAL innodb_default_row_format=Dynamic;
+
+# Create Index prefix less than 767 bytes
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(767)))
+ENGINE= InnoDB ROW_FORMAT=COMPACT
+DEFAULT CHARACTER SET latin1;
+
+INSERT INTO tab(a,b) VALUES(1,'Check with max prefix');
+
+ALTER TABLE tab ROW_FORMAT=COMPRESSED;
+
+# Check Row_format=Compressed on Master side
+--source suite/innodb/include/default_row_format_show.inc
+
+# Connect to slave
+--source include/sync_slave_sql_with_master.inc
+
+# Check Dynamic (default) on slave side
+SELECT @@innodb_default_row_format;
+
+# Check Row_format=Compressed on slave side
+--source suite/innodb/include/default_row_format_show.inc
+
+# Cleanup
+connection master;
+DROP TABLE tab;
+
+--source include/rpl_end.inc

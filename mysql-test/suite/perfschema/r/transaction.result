@@ -1,0 +1,604 @@
+
+========================================================================
+STEP 1 - SETUP
+========================================================================
+
+# Control thread
+
+SET SESSION AUTOCOMMIT= 1;
+SELECT thread_id INTO @my_thread_id
+FROM performance_schema.threads
+WHERE processlist_id = connection_id();
+
+# Connection 1
+
+SET SESSION AUTOCOMMIT= 0;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE;
+
+# Create test tables, one transactional and one non-transactional
+
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS nt1;
+CREATE TABLE t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
+CREATE TABLE nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
+
+# Get tables loaded in data-dictionary cache
+
+
+# Disable all events from the control thread
+
+
+# Clear transaction tables
+
+CALL clear_transaction_tables();
+
+========================================================================
+# STEP 2 - BASIC TRANSACTION
+========================================================================
+
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SELECT @@global.autocommit;
+@@global.autocommit
+1
+SELECT @@transaction_isolation;
+@@transaction_isolation
+REPEATABLE-READ
+SELECT @@autocommit;
+@@autocommit
+0
+
+# STEP 2.1 - START/COMMIT
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (101, 'COMMITTED');
+COMMIT;
+
+# STEP 2.2 - ROLLBACK
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (102, 'ROLLED BACK');
+ROLLBACK;
+
+## Expect 1 committed and 1 rolled back transaction
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED',   0, '', '', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', 0, '', '', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+# STEP 2.3 - COMMIT AND CHAIN
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (103, 'COMMIT AND CHAIN');
+COMMIT AND CHAIN;
+INSERT INTO t1 VALUES (104, 'COMMIT AND CHAIN');
+COMMIT;
+
+## Expect 2 committed transactions
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 2);
+ACTUAL	EXPECTED
+     2	       2
+CALL clear_transaction_tables();
+
+========================================================================
+# STEP 3 - ISOLATION LEVEL
+========================================================================
+
+connection con1
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+INSERT INTO t1 VALUES (301, 'SERIALIZABLE');
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+INSERT INTO t1 VALUES (302, 'REPEATABLE READ');
+COMMIT;
+SELECT @@binlog_format INTO @binlog_save;
+SET SESSION BINLOG_FORMAT='ROW';
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+INSERT INTO t1 VALUES (303, 'READ COMMITTED');
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+INSERT INTO t1 VALUES (304, 'READ UNCOMMITTED');
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET binlog_format= @binlog_save;
+
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', 'SERIALIZABLE', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', 'READ COMMITTED', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', 'READ UNCOMMITTED', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+========================================================================
+# STEP 4 - ACCESS MODE
+========================================================================
+#
+# STEP 4.1 - READ ONLY, TIMING ENABLED
+#
+
+connection con1
+SET SESSION TRANSACTION READ WRITE;
+START TRANSACTION;
+INSERT INTO t1 VALUES (410, 'READ ONLY');
+INSERT INTO t1 VALUES (411, 'READ ONLY');
+INSERT INTO t1 VALUES (412, 'READ ONLY');
+INSERT INTO t1 VALUES (413, 'READ ONLY');
+COMMIT;
+SET SESSION TRANSACTION READ ONLY;
+START TRANSACTION;
+SELECT * FROM t1 ORDER BY s1;
+s1	s2
+101	COMMITTED
+103	COMMIT AND CHAIN
+104	COMMIT AND CHAIN
+301	SERIALIZABLE
+302	REPEATABLE READ
+303	READ COMMITTED
+304	READ UNCOMMITTED
+410	READ ONLY
+411	READ ONLY
+412	READ ONLY
+413	READ ONLY
+COMMIT;
+
+## Expect 1 read only, committed transaction in events_transactions_history
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ ONLY', 'REPEATABLE READ', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+#
+# STEP 4.2 - READ ONLY, TIMING DISABLED
+#
+
+## Disable timing stats for 'transaction'
+UPDATE performance_schema.setup_instruments SET timed = 'NO' WHERE name = 'transaction';
+
+TRUNCATE performance_schema.events_transactions_summary_global_by_event_name;
+connection con1
+START TRANSACTION;
+SELECT * FROM t1 ORDER BY s1;
+s1	s2
+101	COMMITTED
+103	COMMIT AND CHAIN
+104	COMMIT AND CHAIN
+301	SERIALIZABLE
+302	REPEATABLE READ
+303	READ COMMITTED
+304	READ UNCOMMITTED
+410	READ ONLY
+411	READ ONLY
+412	READ ONLY
+413	READ ONLY
+COMMIT;
+
+SET SESSION TRANSACTION READ WRITE;
+
+## Expect 1 event, 0 stats
+SELECT * FROM performance_schema.events_transactions_summary_global_by_event_name;
+EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_READ_WRITE	SUM_TIMER_READ_WRITE	MIN_TIMER_READ_WRITE	AVG_TIMER_READ_WRITE	MAX_TIMER_READ_WRITE	COUNT_READ_ONLY	SUM_TIMER_READ_ONLY	MIN_TIMER_READ_ONLY	AVG_TIMER_READ_ONLY	MAX_TIMER_READ_ONLY
+transaction	1	0	0	0	0	0	0	0	0	0	1	0	0	0	0
+
+## Restore setup_instruments
+UPDATE performance_schema.setup_instruments SET enabled = 'YES' WHERE name = 'transaction';
+
+========================================================================
+# STEP 5 - IMPLICIT START
+========================================================================
+# When AUTOCOMMIT is disabled, the first statement following a committed
+# transaction marks the start of a new transaction. Subsequent statements will
+# be part of the transaction until it is committed.
+
+SET SESSION AUTOCOMMIT = 0;
+INSERT INTO t1 VALUES (501, 'IMPLICIT START');
+
+## Expect 1 active transaction in events_transactions_current
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+INSERT INTO t1 VALUES (502, 'IMPLICIT START');
+COMMIT;
+
+## Expect one committed transaction in events_transactions_current and history
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+========================================================================
+# STEP 6 - IMPLICIT COMMIT (DDL, ETC)
+========================================================================
+# Transactions are implicitly ended by DDL statements, locking statements
+# and server administration commands.
+
+SET SESSION AUTOCOMMIT = 0;
+INSERT INTO t1 VALUES (601, 'IMPLICIT COMMIT');
+
+## Expect one active transaction in events_transactions_current, zero events in history
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', 'NO', 0, 0, 0, 0);
+ACTUAL	EXPECTED
+     0	       0
+INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
+## Issue a DDL statement to force a commmit
+## This DDL needs to fail early, to avoid starting its own transaction
+## which will disturb the state.
+ALTER TABLE t1 ADD KEY (s3);
+ERROR 42000: Key column 's3' doesn't exist in table
+
+## Expect 0 active transactions, 1 committed transaction
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
+ACTUAL	EXPECTED
+     0	       0
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+========================================================================
+STEP 7 - XA TRANSACTIONS
+========================================================================
+#
+# STEP 7.1 - XA START
+#
+XA START 'XA_CON1_GTRID_001', 'XA_CON1_BQUAL_001', 1234567890;
+
+## Expect 1 active XA transaction, state ACTIVE
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 1234567890, 'XA_CON1_GTRID_001', 'XA_CON1_BQUAL_001', 'ACTIVE', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+
+# STEP 7.2 - XA END
+
+INSERT INTO t1 VALUES (701, 'XA');
+XA END 'XA_CON1_GTRID_001', 'XA_CON1_BQUAL_001', 1234567890;
+
+## Expect 1 active XA transaction, state IDLE
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 1234567890, 'XA_CON1_GTRID_001', 'XA_CON1_BQUAL_001', 'IDLE', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+
+#
+# STEP 7.3 - XA PREPARE
+#
+XA PREPARE 'XA_CON1_GTRID_001', 'XA_CON1_BQUAL_001', 1234567890;
+
+## Expect 1 active XA transaction, state PREPARED
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 1234567890, 'XA_CON1_GTRID_001', 'XA_CON1_BQUAL_001', 'PREPARED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+
+#
+# STEP 7.4 - XA COMMIT
+#
+XA COMMIT 'XA_CON1_GTRID_001', 'XA_CON1_BQUAL_001', 1234567890;
+
+## Expect 1 committed XA transaction, state COMMITTED in current and history
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 1234567890, 'XA_CON1_GTRID_001', 'XA_CON1_BQUAL_001', 'COMMITTED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 1234567890, 'XA_CON1_GTRID_001', 'XA_CON1_BQUAL_001', 'COMMITTED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+#
+# STEP 7.5 - XA ROLLBACK
+#
+XA START 'XA_CON1_002';
+INSERT INTO t1 VALUES (702, 'XA');
+XA END 'XA_CON1_002';
+XA PREPARE 'XA_CON1_002';
+
+## Expect 1 active XA transaction, state PREPARED
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 0, 'XA_CON1_002', '', 'PREPARED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+XA ROLLBACK 'XA_CON1_002';
+
+## Expect 1 XA transaction, state ROLLBACK ONLY in current and history
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ROLLED BACK', 0, 'XA_CON1_002', '', 'ROLLBACK ONLY', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', 0, 'XA_CON1_002', '', 'ROLLBACK ONLY', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+SELECT * FROM performance_schema.events_transactions_current ORDER BY event_id;
+THREAD_ID	EVENT_ID	END_EVENT_ID	EVENT_NAME	STATE	TRX_ID	GTID	XID_FORMAT_ID	XID_GTRID	XID_BQUAL	XA_STATE	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	ACCESS_MODE	ISOLATION_LEVEL	AUTOCOMMIT	NUMBER_OF_SAVEPOINTS	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	NUMBER_OF_RELEASE_SAVEPOINT	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	NESTING_EVENT_TYPE
+#
+# STEP 7.6 - XA TRANSACTION - LONG GTRID AND BQUAL
+#
+XA START   'GTRID_6789012345678901234567890123456789012345678901234567890123','BQUAL_6789012345678901234567890123456789012345678901234567890123',1234567890;
+INSERT INTO t1 VALUES (703, 'XA LONG');
+XA END     'GTRID_6789012345678901234567890123456789012345678901234567890123','BQUAL_6789012345678901234567890123456789012345678901234567890123',1234567890;
+XA PREPARE 'GTRID_6789012345678901234567890123456789012345678901234567890123','BQUAL_6789012345678901234567890123456789012345678901234567890123',1234567890;
+XA COMMIT  'GTRID_6789012345678901234567890123456789012345678901234567890123','BQUAL_6789012345678901234567890123456789012345678901234567890123',1234567890;
+
+## Expect 1 committed XA transaction, state COMMITTED in current and history
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 1234567890, 'GTRID_6789012345678901234567890123456789012345678901234567890123', 'BQUAL_6789012345678901234567890123456789012345678901234567890123', 'COMMITTED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 1234567890, 'GTRID_6789012345678901234567890123456789012345678901234567890123', 'BQUAL_6789012345678901234567890123456789012345678901234567890123', 'COMMITTED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+#
+# STEP 7.7 - XA TRANSACTION - LONG GTRID AND BINARY BQUAL
+#
+XA START   'GTRID_6789012345678901234567890123456789012345678901234567890123',0x425155414C5FA5A53839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233,1234567890;
+INSERT INTO t1 VALUES (704, 'XA LONG/BINARY');
+XA END     'GTRID_6789012345678901234567890123456789012345678901234567890123',0x425155414C5FA5A53839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233,1234567890;
+XA PREPARE 'GTRID_6789012345678901234567890123456789012345678901234567890123',0x425155414C5FA5A53839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233,1234567890;
+XA COMMIT  'GTRID_6789012345678901234567890123456789012345678901234567890123',0x425155414C5FA5A53839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233,1234567890;
+
+## Expect 1 committed XA transaction, state COMMITTED in current and history
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 1234567890, 'GTRID_6789012345678901234567890123456789012345678901234567890123', '0x425155414C5FA5A53839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233', 'COMMITTED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 1234567890, 'GTRID_6789012345678901234567890123456789012345678901234567890123', '0x425155414C5FA5A53839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233', 'COMMITTED', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+========================================================================
+# STEP 8 - TRANSACTIONAL AND NON-TRANSACTIONAL TABLES
+========================================================================
+
+SET SESSION AUTOCOMMIT = 0;
+SELECT COUNT(*) FROM performance_schema.events_transactions_current ORDER BY event_id;
+COUNT(*)
+0
+
+#
+# STEP 8.1 - UPDATE NON-TRANSACTIONAL TABLE
+#
+INSERT INTO nt1 VALUES (801, 'NON-TRANSACTIONAL');
+
+## Expect 0 transactions in events_transactions_current
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
+ACTUAL	EXPECTED
+     0	       0
+COMMIT;
+
+## Expect 0 transactions in events_transactions_history
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
+ACTUAL	EXPECTED
+     0	       0
+
+#
+# STEP 8.2 - UPDATE TRANSACTIONAL AND NON-TRANSACTIONAL TABLES
+#
+
+## First non-transactional...
+
+INSERT INTO nt1 VALUES (802, 'NON-TRANSACTIONAL');
+
+## Expect 0 transactions in events_transactions_current
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
+ACTUAL	EXPECTED
+     0	       0
+
+## Now transactional. Transaction should be started.
+INSERT INTO t1 VALUES (802, 'TRANSACTIONAL');
+
+## Expect 1 transaction in events_transactions_current
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+
+COMMIT;
+
+## Expect 1 committed transaction in events_transactions_current and history
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+========================================================================
+# STEP 9 - SAVEPOINTS
+========================================================================
+#
+# STEP 9.1 - SAVEPOINT 1
+#
+START TRANSACTION;
+INSERT INTO t1 VALUES (901, 'SAVEPOINT');
+SAVEPOINT SVP001;
+
+## Expect 1 active transaction with 1 savepoint
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 0, '', '', '', '', 'READ WRITE', '', 'NO', 1, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+
+#
+# STEP 9.2 - SAVEPOINTS 2 and 3
+#
+INSERT INTO t1 VALUES (902, 'SAVEPOINT');
+SAVEPOINT SVP002;
+INSERT INTO t1 VALUES (903, 'SAVEPOINT');
+SAVEPOINT SVP003;
+INSERT INTO t1 VALUES (904, 'SAVEPOINT');
+SELECT COUNT(*) FROM t1 WHERE s1 > 900;
+COUNT(*)
+4
+
+#
+# STEP 9.3 - ROLLBACK TO SAVEPOINT 2
+#
+ROLLBACK TO SVP002;
+
+## Expect 1 active transaction with 3 savepoints, 1 rollback to savepoint
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 0, '', '', '', '', 'READ WRITE', '', 'NO', 3, 1, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+
+#
+# STEP 9.4 - RELEASE SAVEPOINT 1
+#
+RELEASE SAVEPOINT SVP001;
+
+## Expect 1 active transaction with 3 savepoints, 1 rollback to savepoint, 1 release savepoint
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 0, '', '', '', '', 'READ WRITE', '', 'NO', 3, 1, 1, 1);
+ACTUAL	EXPECTED
+     1	       1
+#
+# STEP 9.5 - COMMIT
+#
+COMMIT;
+
+## Expect 1 committed transaction with 3 savepoints, 1 rollback to savepoint, 1 release savepoint
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 3, 1, 1, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+========================================================================
+# STEP 10 - GTIDs
+========================================================================
+GTIDs are tested in transaction_gtid.test.
+
+========================================================================
+# STEP 11 - MISCELLANY
+========================================================================
+#
+# STEP 11.1 - TRUNCATE DURING ACTIVE TRANSACTION
+#
+
+# Verify that truncating events_transactions_current during an active transaction
+# does not leave an orphaned transaction event, and that the row index to
+# events_transactions_history is reset to 0.
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1110, 'INSERT 1110');
+TRUNCATE performance_schema.events_transactions_current;
+
+COMMIT;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1111, 'INSERT 1111');
+COMMIT;
+
+## Expect 1 transaction for connection 1
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', '', '', '', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_transaction_tables();
+
+#
+# STEP 11.2 - DISABLE THREAD INSTRUMENTATION
+#
+UPDATE performance_schema.setup_consumers
+SET enabled = 'NO'
+  WHERE name = 'thread_instrumentation';
+
+TRUNCATE performance_schema.events_transactions_summary_global_by_event_name;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1120, 'INSERT 1120');
+COMMIT;
+
+## Expect 1 event with non-zero summary stats
+SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT, MIN_TIMER_WAIT, AVG_TIMER_WAIT, COUNT_READ_WRITE
+FROM performance_schema.events_transactions_summary_global_by_event_name
+WHERE count_star = 1 and sum_timer_wait != 0;
+EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	COUNT_READ_WRITE
+
+## Disable timing stats for 'transaction'
+UPDATE performance_schema.setup_instruments SET timed = 'NO' WHERE name = 'transaction';
+
+TRUNCATE performance_schema.events_transactions_summary_global_by_event_name;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1121, 'INSERT 1121');
+COMMIT;
+
+## Expect 1 event, 0 stats
+SELECT * FROM performance_schema.events_transactions_summary_global_by_event_name;
+EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_READ_WRITE	SUM_TIMER_READ_WRITE	MIN_TIMER_READ_WRITE	AVG_TIMER_READ_WRITE	MAX_TIMER_READ_WRITE	COUNT_READ_ONLY	SUM_TIMER_READ_ONLY	MIN_TIMER_READ_ONLY	AVG_TIMER_READ_ONLY	MAX_TIMER_READ_ONLY
+transaction	1	0	0	0	0	1	0	0	0	0	0	0	0	0	0
+
+## Restore setup_consumers and setup_instruments
+UPDATE performance_schema.setup_consumers SET enabled = 'YES' WHERE name = 'thread_instrumentation';
+UPDATE performance_schema.setup_instruments SET enabled = 'YES' WHERE name = 'transaction';
+
+DELETE FROM t1;
+CALL clear_history();
+
+#
+# STEP 11.3 - STATEMENT ROLLBACK - AUTOCOMMIT OFF - BINLOG FORMAT 'STATEMENT'
+#
+SET SESSION binlog_format = STATEMENT;
+SET SESSION AUTOCOMMIT = 0;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1130, 'INSERT 1130');
+
+## Expect binlog statement mode error
+UPDATE t1, performance_schema.setup_instruments pfs
+SET t1.s1 = 1, pfs.timed = 'NO';
+
+COMMIT;
+
+SET SESSION AUTOCOMMIT = 1;
+
+## Expect 1 committed transaction
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', '', '', 'NO', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+
+DELETE FROM t1;
+CALL clear_history();
+
+#
+# STEP 11.4 - STATEMENT ROLLBACK - AUTOCOMMIT ON - BINLOG FORMAT 'STATEMENT'
+#
+SET SESSION binlog_format = STATEMENT;
+SET SESSION AUTOCOMMIT = 1;
+
+## Expect binlog statement mode error
+UPDATE t1, performance_schema.setup_instruments pfs
+SET t1.s1 = 1, pfs.timed = 'NO';
+
+## Expect 1 rolled back transaction
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', 0, '', '', '', '', '', '', 'YES', 0, 0, 0, 1);
+ACTUAL	EXPECTED
+     1	       1
+CALL clear_history();
+
+========================================================================
+# CLEAN UP
+========================================================================
+
+DROP TABLE t1;
+DROP TABLE nt1;
+DROP PROCEDURE clear_transaction_tables;
+DROP PROCEDURE clear_transaction_history;
+DROP PROCEDURE clear_statement_history;
+DROP PROCEDURE clear_history;
+DROP PROCEDURE transaction_verifier;

@@ -1,0 +1,118 @@
+###############################################################################
+#
+# Test that errors when persisting variable do not make actions abort
+#
+# Test:
+#   0. This test requires two servers in single primary mode
+#   1. Start the group and set the debug point so the persist fails
+#   2. Execute action to switch to multi primary mode
+#   3. Assert servers are in multi primary mode
+#   4. Check that only server 2 persisted the variables
+#   5. Go back to single primary mode with server 1 as the primary
+#   6. Check if the members roles are the expected ones
+#   7. Check that only server 2 persisted the variables
+#   8. Cleanup
+#
+###############################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start the group and set the debug point so the persist fails
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+SET @@GLOBAL.DEBUG='+d,group_replication_var_persist_error';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Execute action to switch to multi primary mode
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 3. Assert servers are in multi primary mode
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--echo
+--echo # 4. Check that only server 2 persisted the variables
+
+--let $assert_text= 'There are no persisted variables'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There are two persisted variables'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 2
+--source include/assert.inc
+
+--echo
+--echo # 5. Go back to single primary mode with server 1 as the primary
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 6. Check if the members roles are the expected ones
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo # 7. Check that only server 2 persisted the variables
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There are no persisted variables'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There are two persisted variables'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 2
+--source include/assert.inc
+
+--echo
+--echo # 8. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG='-d,group_replication_var_persist_error';
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

@@ -1,0 +1,80 @@
+# Tests for PERFORMANCE_SCHEMA
+#
+# Test the effect of a flush tables with read lock on setup_ tables.
+
+use performance_schema;
+
+# Make test robust against errors in other tests.
+# Ensure that instrumentation is turned on when we create new connection.
+update performance_schema.setup_instruments set enabled='YES';
+
+create user pfsuser@localhost;
+grant SELECT, UPDATE, LOCK TABLES on performance_schema.* to pfsuser@localhost;
+flush privileges;
+
+--echo connect (con1, localhost, pfsuser, , test);
+connect (con1, localhost, pfsuser, , test);
+
+lock tables performance_schema.setup_instruments read;
+--disable_result_log
+select * from performance_schema.setup_instruments;
+--enable_result_log
+unlock tables;
+
+lock tables performance_schema.setup_instruments write;
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
+unlock tables;
+
+--echo connection default;
+connection default;
+
+flush tables with read lock;
+
+--echo connection con1;
+connection con1;
+
+lock tables performance_schema.setup_instruments read;
+--disable_result_log
+select * from performance_schema.setup_instruments;
+--enable_result_log
+unlock tables;
+
+# This will block
+--send
+lock tables performance_schema.setup_instruments write;
+
+--echo connection default;
+connection default;
+
+let $wait_condition= select 1 from performance_schema.events_waits_current where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
+
+--source include/wait_condition.inc
+
+# Observe the blocked thread in the performance schema :)
+select event_name,
+  left(source, locate(":", source)) as short_source,
+  if(timer_end IS NULL, NULL, "SET") as timer_end,
+  if(timer_wait IS NULL, NULL, "SET") as timer_wait,
+  operation
+  from performance_schema.events_waits_current
+  where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
+
+unlock tables;
+
+connection con1;
+--reap
+
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
+unlock tables;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo connection default;
+connection default;
+
+drop user pfsuser@localhost;
+flush privileges;
+

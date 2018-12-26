@@ -1,0 +1,31 @@
+set @@global.log_output = 'TABLE';
+set session long_query_time=10;
+select get_lock('bug27638', 1);
+get_lock('bug27638', 1)
+1
+set session long_query_time=1;
+select get_lock('bug27638', 2);
+get_lock('bug27638', 2)
+0
+select if (query_time >= '00:00:01', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log
+where sql_text = 'select get_lock(\'bug27638\', 2)';
+qt	sql_text
+OK	select get_lock('bug27638', 2)
+select get_lock('bug27638', 60);
+get_lock('bug27638', 60)
+0
+select if (query_time >= '00:00:59', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log
+where sql_text = 'select get_lock(\'bug27638\', 60)';
+qt	sql_text
+OK	select get_lock('bug27638', 60)
+select get_lock('bug27638', 101);
+get_lock('bug27638', 101)
+0
+select if (query_time >= '00:01:40', 'OK', 'WRONG') as qt, sql_text from mysql.slow_log
+where sql_text = 'select get_lock(\'bug27638\', 101)';
+qt	sql_text
+OK	select get_lock('bug27638', 101)
+select release_lock('bug27638');
+release_lock('bug27638')
+1
+set @@global.log_output=default;

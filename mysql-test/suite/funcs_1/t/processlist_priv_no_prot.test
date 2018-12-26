@@ -1,0 +1,28 @@
+############ suite/funcs_1/t/processlist_priv_no_prot.test #############
+#                                                                      #
+# Testing of privileges around                                         #
+#     SELECT ... PROCESSLIST/SHOW PROCESSLIST                          #
+#                                                                      #
+# The prepared statement variant of this test is                       #
+# suite/funcs_1/t/b_processlist_priv_ps.test.                          #
+#                                                                      #
+# There is important documentation within                              #
+#       suite/funcs_1/datadict/processlist_priv.inc                    #
+#                                                                      #
+# Creation:                                                            #
+# 2007-08-14 mleich  Create this test as part of                       #
+#                    WL#3982 Test information_schema.processlist       #
+#                                                                      #
+########################################################################
+
+# One subtest is skipped because of
+#    Bug#30395 strange results after REVOKE PROCESS ON *.* FROM ...
+let $fixed_bug_30395= 0;
+
+
+# The file with expected results fits only to a run without
+# ps-protocol/sp-protocol/cursor-protocol/view-protocol.
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+--source suite/funcs_1/datadict/processlist_priv.inc

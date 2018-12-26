@@ -1,0 +1,1 @@
+--innodb_lock_wait_timeout=1 --innodb_rollback_on_timeout=1

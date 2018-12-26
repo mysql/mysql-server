@@ -1,0 +1,38 @@
+--source include/have_ndb.inc
+--source include/have_ndb_debug.inc
+
+--echo Testing for bug#24444908 / bug#25128512
+#################################################
+# Testcase for Bug#24444908:
+#
+#   CLUSTER CRASHED DURING RESTART WITH AN ASSERTION 
+#   !CALLBACKOBJ->HAS_DATA_TO
+#
+# We had no thread concurrency safe way of checking for
+# disconnected nodes while sending to them. Thus there
+# could be race conditions where a thread passed the
+# 'is connected to node <n>' check while another thread 
+# disconnected and cleared the send buffers to node <n>.
+# If the sending thread then was 'slow', it could append
+# more data to the just cleared send buffers.
+#
+# Upon reconnect we then hit an assert as we assumed the
+# send buffers to still be empty.
+#
+# With release built binaries this resulted in problems as in
+# Bug#25128512: ..'WE(1) HAVE BEEN DECLARED DEAD BY 2 (VIA 4)'
+# Due to messages created as part of the disconnects not being
+# cleared, and was sent after we reconnected again. Thus it
+# was interpretted as being yet another disconnect.
+#################################################
+
+--echo Restart node 1 while other node(s) keps try sending to it
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 2355 1" >> $NDB_TOOLS_OUTPUT
+
+--echo Wait for node 1 to go down.
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --wait-nodes=1 --no-contact >> $NDB_TOOLS_OUTPUT
+
+--echo Waiting for node 1 to get started again
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+
+--echo End of test for bug#24444908 / bug#25128512

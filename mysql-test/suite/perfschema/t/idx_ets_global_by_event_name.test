@@ -1,0 +1,15 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = COUNT_STAR;
+let $table = performance_schema.events_transactions_summary_global_by_event_name;
+
+###########################################################################
+# Test index on EVENT_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = EVENT_NAME;
+let $col1_act = "transaction";
+
+--source ../include/idx_explain_test.inc

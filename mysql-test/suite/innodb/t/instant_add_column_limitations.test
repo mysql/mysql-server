@@ -1,0 +1,106 @@
+# WL#11250 Support Instant Add Column
+# test some error conditions
+
+# InnoDB does not support compressed tables for page sizes=32k,64k
+--source include/have_innodb_max_16k.inc
+
+--echo #
+--echo # Scenario 1:
+--echo # Create a small table with row_format compressed and adding instant column should fail
+--echo #
+
+CREATE TABLE t1 (a INT, b INT) ROW_FORMAT=COMPRESSED;
+
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+# Try to add instant column
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 5, ALGORITHM=INSTANT;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Scenario 2:
+--echo # Create a small table and adding instant column between two columns should fail
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+# Try to add instant column after first column should fail
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 5 AFTER a, ALGORITHM=INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 5 FIRST, ALGORITHM=INSTANT;
+
+# add instant column at the end of table
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 5 AFTER b, ALGORITHM=INSTANT;
+
+# INPLACE , not INSTANT
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 6 AFTER c1, ALGORITHM=INPLACE;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Scenario 3:
+--echo # Create a small table and adding spatial types with not null should fail
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN c1 POINT NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN d1 LINESTRING  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ ALTER TABLE t1 ADD COLUMN e1 POLYGON  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN f1 MULTIPOINT  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN g1 MULTILINESTRING  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN h1 MULTIPOLYGON  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN i1 GEOMETRYCOLLECTION  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN j1 GEOMETRY  NOT NULL, ALGORITHM = INSTANT;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Scenario 4:
+--echo # Create a temporary table and adding instant column should fail
+--echo #
+
+CREATE TEMPORARY TABLE tmp1(a int);
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE tmp1 ADD COLUMN b int, ALGORITHM=INSTANT;
+
+DROP TABLE tmp1;
+
+
+--echo #
+--echo # Scenario 5:
+--echo # trying to add instant columns for data-dictionary tables should fail
+--echo #
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE mysql.plugin ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE mysql.user ADD COLUMN c1 INT, ALGORITHM=INSTANT;

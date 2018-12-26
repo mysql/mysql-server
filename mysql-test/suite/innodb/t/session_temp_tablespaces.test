@@ -1,0 +1,333 @@
+################################################################################
+# InnoDB: Reclaim disk space occupied by temporary tables online.
+# This test case will test
+#    - Starting server with innodb_temp_tablespaces_dir system variable
+#    - Initial number of .ibt files and their size
+#    - Info population in INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES
+#    - New set of .ibt files getting allocated once initial set is exausted
+#    - Session tablespaces getting allocated for explicit temporary tables
+#    - Session tablespaces getting allocated for intrinsic temporary tables
+#    - Purpose/state of .ibt files getting displayed
+#    - Space getting reclaimed on disconnection
+#    - Test with invalid values of innodb_temp_tablespaces_dir
+#    - Disk full scenario
+#    - Creating workload and executing queries involving intrinsic tables
+################################################################################
+
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+--mkdir $MYSQLTEST_VARDIR/tmp/wl11613_dir/
+let $restart_parameters = "restart: --innodb_temp_tablespaces_dir=$MYSQLTEST_VARDIR/tmp/wl11613_dir";
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SELECT @@innodb_temp_tablespaces_dir;
+
+--echo # Check the initial number of .ibt files and their size
+--replace_column 1 ID
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+--echo # Check connection_id() of session is populated correctly in
+--echo # ID column of INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES
+--replace_column 1 ID
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES  WHERE ID = connection_id();
+
+--echo # Check the default location of innodb_temp_tablespaces_dir
+let $restart_parameters=;
+--source include/restart_mysqld.inc
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+
+--replace_regex /\.[\\\/]#innodb_temp[\\\/]/#innodb_temp/
+SELECT @@innodb_temp_tablespaces_dir;
+
+# Using on disk tablespace for intrinsic optimiser tables
+SET GLOBAL big_tables=ON;
+
+--echo # Create a new connection.
+connect (con1, localhost, root,,);
+
+connection con1;
+
+--echo # A session tablespace will be allocated to connection 1
+--echo # for explicit temporary tables and state will be active
+
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+CREATE TEMPORARY TABLE test.t2(a INT, b BLOB);
+INSERT INTO t1 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t2 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+
+--echo # Create a new connection.
+connect (con2, localhost, root,,);
+connection con2;
+
+--echo # A session tablespace will be allocated to connection 2
+--echo # for explicit temporary tables
+--echo # One more session tablespace will be allocated for intrinsic
+--echo # temporary tables on executing select query from
+--echo # INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES
+--echo # State for both tablespaces would be active
+--echo # The purpose for internal tablespace would be intrinsic
+--echo # The purpose for tablespace for user defined temporary tables
+--echo # would be USER
+--echo # The purpose of inactive(unallocated) tablespaces would be none
+
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+CREATE TEMPORARY TABLE test.t2(a INT, b BLOB);
+INSERT INTO t1 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t2 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+--echo # Ensure entries in information_schema.processlist and
+--echo # information_schema.innodb_session_temp_tablespaces are
+--echo # in sync
+
+SELECT USER, b.STATE, INFO, SPACE, SIZE, a.STATE, PURPOSE FROM
+  INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
+  WHERE a.ID=b.ID ORDER BY SPACE;
+
+# Creating more connections to see if a new set of session tablespaces
+# get created once initial set of 10 ibt files get allocated.
+
+--echo # Create a new connection.
+connect (con3, localhost, root,,);
+connection con3;
+
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+--echo # Create a new connection.
+connect (con4, localhost, root,,);
+connection con4;
+
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+--echo # Create a new connection.
+connect (con5, localhost, root,,);
+connection con5;
+
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+--echo # Create a new connection.
+connect (con6, localhost, root,,);
+connection con6;
+
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+
+# At this point, all 10 tablespaces have been allocated.
+# On executing select query from INNODB_SESSION_TEMP_TABLESPACES,
+# new set of 10 ibt files would be created
+
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+disconnect con1;
+disconnect con2;
+disconnect con3;
+disconnect con4;
+disconnect con5;
+disconnect con6;
+
+--echo # Space would now be reclaimed and state for all sessions would be inactive
+--echo # in INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES except for one
+--echo # intrinsic tablespace for default connection when select query from
+--echo # INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACE is executed from
+--echo # default connection
+connection default;
+# wait for all the connections to go away and release the temporary tablespaces
+let $wait_timeout= 20;
+let $wait_condition= SELECT COUNT(*) = 1 from INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE STATE = 'ACTIVE';
+--source include/wait_condition.inc
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+--source include/shutdown_mysqld.inc
+--echo "List files in #innodb_temp. It should be empty"
+--list_files $MYSQLD_DATADIR/#innodb_temp/
+--echo "Check if ibtmp1 exists in datadir. There should be no ibtmp1"
+--error 1
+--file_exists $MYSQLD_DATADIR/ibtmp1
+
+# Note: Relative path for innodb_temp_tablespaces_dir is with respect to datadir.
+# Any directory inside datadir is not allowed for innodb_temp_tablespaces_dir
+
+--echo "Test with invalid values of innodb_temp_tablespaces_dir"
+--echo "invalid abc dir"
+--error 1
+--exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir="abc"
+
+--echo "invalid ./sys/ dir"
+--error 1
+--exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir="./sys/"
+
+--echo "invalid /wl11613-do-not-exists/ dir"
+--error 1
+--exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir="/wl11613-do-not-exist/"
+
+--echo "invalid empty \"\" "
+--error 1
+--exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir=""
+
+--echo "invalid #innodb_temp "
+--error 1
+--exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir="#innodb_temp"
+
+# Remove #innodb_temp directory manually and check if on next restart the
+# directory is getting created or not. It should be created and server
+# should successfully start
+
+--rmdir $MYSQLD_DATADIR/#innodb_temp
+let $restart_parameters=;
+--source include/start_mysqld.inc
+
+--echo "Check if ibtmp1 exists in datadir. It should be recreated on restart"
+--file_exists $MYSQLD_DATADIR/ibtmp1
+
+# Create a dummy file in #innodb_temp directory manually and see if
+# this is shown in INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES
+
+--write_file $MYSQLD_DATADIR/#innodb_temp/temp_11.ibt
+test contents
+EOF
+
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+--echo # Simulating disk space full scenario
+--let $restart_parameters="restart: --innodb_temp_tablespaces_dir=."
+--source include/start_mysqld.inc
+SET GLOBAL big_tables=ON;
+
+--replace_regex /\.[\\\/]#innodb_temp[\\\/]/#innodb_temp/
+SELECT @@innodb_temp_tablespaces_dir;
+
+--disable_query_log
+call mtr.add_suppression("Unable to allocate temporary tablespace for this session");
+--enable_query_log
+
+--echo # Create a new connection.
+connect (con1, localhost, root,,);
+
+connection con1;
+SET SESSION DEBUG='+d,ibt_pool_exhausted';
+--error ER_NO_SESSION_TEMP
+CREATE TEMPORARY TABLE t1 (a INT);
+SET SESSION DEBUG='-d,ibt_pool_exhausted';
+
+CREATE TABLE t3(a INT, b BLOB);
+INSERT INTO t3 VALUES (1, 'hi'), (2, 'hello');
+
+SET SESSION DEBUG='+d,ibt_pool_exhausted';
+--replace_regex /tablespace.*failed/tablespace failed/
+--error ER_NO_SESSION_TEMP
+INSERT INTO t3 SELECT * FROM t3;
+SET SESSION DEBUG='-d,ibt_pool_exhausted';
+
+--echo # Create Workload and execute queries involving intrinsic tables.
+
+let $wl6737_auto_inc = auto_increment;
+--disable_result_log
+--disable_query_log
+
+--source suite/innodb/include/create_workload_itt.inc
+--source suite/innodb/include/query_workload_itt.inc
+
+--enable_query_log
+--enable_result_log
+
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+disconnect con1;
+connection default;
+--sleep 2
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+--source suite/innodb/include/drop_workload_itt.inc
+SET GLOBAL big_tables=default;
+--force-rmdir $MYSQLTEST_VARDIR/tmp/wl11613_dir/
+
+# tablespace identifier for temporary tablespace is allowed
+# with INNODB_STRICT_MODE ON as well as OFF
+set @@innodb_strict_mode=0;
+CREATE TEMPORARY table t1(a INT) TABLESPACE=innodb_temporary;
+set @@innodb_strict_mode=1;
+CREATE TEMPORARY table t2(a INT) TABLESPACE=innodb_temporary;
+SHOW WARNINGS;
+
+CREATE TEMPORARY TABLE t3 (a INT);
+ALTER TABLE t3 TABLESPACE innodb_temporary;
+SHOW WARNINGS;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE t4 (a INT) TABLESPACE=innodb_system;
+
+--error ER_RESERVED_TABLESPACE_NAME
+CREATE TEMPORARY TABLE t4 (a INT) TABLESPACE=mysql;
+
+CREATE TABLESPACE tbs ADD DATAFILE 'tbs.ibd' engine=INNODB;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE t4 (a INT) TABLESPACE=tbs;
+
+
+--replace_column 1 ID
+--replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+
+--echo #########################################################################
+--echo # Cleanup
+--echo #########################################################################
+DROP TABLESPACE tbs;

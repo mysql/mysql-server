@@ -1,0 +1,86 @@
+################################################################################
+# BUG#21045848 XA+MEMORY TABLE: POST SERVER RESTART 'XA COMMIT'
+#              IS OVERRIDDEN BY 'DELETE' CMD
+#
+# Memory table's data will be lost after server restarts. To keep the data
+# consistency between master and slave, it just binlogs
+# 'DELETE FROM `db`.`table_name`' when the memory table is locked first time.
+# So DELETE statement could be binlogged in many statements.
+#
+# Because it was not handled correctly, it caused below problems:
+## - COM_FIELD_LIST
+#   it didn't flush binlog cache to binlog file. So the DELETEs were not
+#   binlogged in COM_FIELD_LIST, it was binlogged with next statement together.
+#
+# - CREATE TABLE ... LIKE memory_table
+# - CREATE TABLE ... SELECT memory_table
+#   They were binlogged like:
+#   GTID_log_event | Anonymous_gtid_log_event
+#   DELETE FROM memory_table
+#   CREATE TABLE ... LIKE memory_table | CREATE TABLE ... SELECT memory_table
+#
+#   Both statements shared the same gtid event. That was not correct.
+#
+# - DELETE was binlogged without BEGIN and COMMIT
+#   It caused some DML binlogged without BEGIN and COMMIT.  For example:
+#   INSERT INTO myisam_t1 SELECT * FROM memory_table
+#   it was binlogged as:
+#   GTID_log_event | Anonymous_gtid_log_event
+#   DELETE FROM memory_table
+#   INSERT INTO myisam_t1 SELECT * FROM memory_table
+#
+# The test cases verify some cases that cannot be run when gtid mode is on.
+################################################################################
+
+--source include/master-slave.inc
+
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2(c1 INT) ENGINE = MyISAM;
+CREATE TABLE mem_t1(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+CREATE TABLE mem_t2(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+
+INSERT INTO mem_t1 VALUES(1),(2),(3);
+INSERT INTO mem_t2 VALUES(1),(2),(3);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--let $rpl_server_number=1
+--source include/rpl_restart_server.inc
+
+--source include/start_slave.inc
+
+--echo # Test case 1: verify DELETE FROM mem_xx can be binlogged correctly
+--echo #              in CREATE TABLE ... SELECT
+--source include/rpl_connection_master.inc
+--source include/save_binlog_position.inc
+
+CREATE TABLE t3 SELECT * FROM mem_t1 UNION SELECT 10;
+
+--let $limit= 0,4
+--let $event_sequence= Anonymous_Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT
+--source include/assert_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+# DELETE FROM mem_t1 have been applied the tables should be empty.
+SELECT * FROM mem_t1;
+
+--echo #
+--echo # Test case 2: verify DELETE FROM mem_xx can be binlogged correctly
+--echo #              in a DML on a MyISAM table
+--source include/rpl_connection_master.inc
+--source include/save_binlog_position.inc
+
+# mem_t2 is empty, the UNION makes sure that a row event is binlogged.
+INSERT INTO t2 SELECT * FROM mem_t2 UNION SELECT 10;
+
+--source include/assert_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+# DELETE FROM mem_xx have been applied the tables should be empty.
+SELECT * FROM mem_t2;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1, t2, t3, mem_t1, mem_t2;
+--source include/rpl_end.inc

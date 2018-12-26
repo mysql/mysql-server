@@ -1,0 +1,21 @@
+select @@global.plugin_dir;
+@@global.plugin_dir
+MYSQL_TMP_DIR/
+select @@session.plugin_dir;
+ERROR HY000: Variable 'plugin_dir' is a GLOBAL variable
+show global variables like 'plugin_dir';
+Variable_name	Value
+plugin_dir	MYSQL_TMP_DIR/
+show session variables like 'plugin_dir';
+Variable_name	Value
+plugin_dir	MYSQL_TMP_DIR/
+select * from performance_schema.global_variables where variable_name='plugin_dir';
+VARIABLE_NAME	VARIABLE_VALUE
+plugin_dir	MYSQL_TMP_DIR/
+select * from performance_schema.session_variables where variable_name='plugin_dir';
+VARIABLE_NAME	VARIABLE_VALUE
+plugin_dir	MYSQL_TMP_DIR/
+set global plugin_dir=1;
+ERROR HY000: Variable 'plugin_dir' is a read only variable
+set session plugin_dir=1;
+ERROR HY000: Variable 'plugin_dir' is a read only variable

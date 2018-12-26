@@ -1,0 +1,147 @@
+# ==== Purpose ====
+#
+# This test will make use of all replication include files for
+# a new created channel and also for the default channel, always
+# passing the channel name as a parameter.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#21146550 MTR RPL INCLUDES DO NOT SUPPORT DEFAULT CHANNEL AS
+#              $RPL_CHANNEL_NAME
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_mixed.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+# Suppression of error messages
+CALL mtr.add_suppression('Duplicate entry .* for key');
+CALL mtr.add_suppression('A slave with the same server_uuid/server_id as this slave has connected to the master');
+CALL mtr.add_suppression('The slave coordinator and worker threads are stopped');
+
+
+# Create a new channel on slave
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
+
+--echo #
+--echo # Start and stop slave
+--echo #
+
+--let $rpl_channel_name= ''
+--source include/stop_slave.inc
+--let $rpl_channel_name= 'ch1'
+--source include/start_slave.inc
+--source include/check_slave_is_running.inc
+--source include/check_slave_no_error.inc
+--source include/stop_slave.inc
+--let $rpl_channel_name= ''
+--source include/start_slave.inc
+--source include/check_slave_is_running.inc
+--source include/check_slave_no_error.inc
+
+--source include/stop_slave_io.inc
+--source include/stop_slave_sql.inc
+--let $rpl_channel_name= 'ch1'
+--source include/start_slave_io.inc
+--source include/start_slave_sql.inc
+--source include/stop_slave_io.inc
+--source include/stop_slave_sql.inc
+--let $rpl_channel_name= ''
+--source include/start_slave_io.inc
+--source include/start_slave_sql.inc
+
+--echo #
+--echo # Sync slave
+--echo #
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+--let $rpl_channel_name= ''
+--source include/sync_slave_io_with_master.inc
+--source include/sync_slave_sql_with_io.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_io.inc
+
+--let $rpl_channel_name= 'ch1'
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (2);
+--source include/sync_slave_io_with_master.inc
+--source include/sync_slave_sql_with_io.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (3);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--let $rpl_channel_name= ''
+--source include/start_slave.inc
+
+--echo #
+--echo # Show relaylog events
+--echo #
+
+--let $rpl_channel_name= ''
+--source include/show_relaylog_events.inc
+--let $rpl_channel_name= 'ch1'
+--let $binlog_limit= 3
+--source include/show_relaylog_events.inc
+
+--echo #
+--echo # Wait for error and skip
+--echo #
+
+--let $rpl_channel_name= ''
+INSERT INTO t1 VALUES (4);
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (4);
+--source include/rpl_connection_slave.inc
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+--source include/wait_for_slave_sql_error.inc
+
+--let $rpl_channel_name= 'ch1'
+--source include/start_slave_io.inc
+--let $rpl_channel_name= ''
+# The default channel will be disconnected from master by ch1
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--source include/wait_for_slave_io_error.inc
+START SLAVE SQL_THREAD FOR CHANNEL 'ch1';
+--let $rpl_channel_name= 'ch1'
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+--source include/wait_for_slave_sql_error.inc
+
+--let $rpl_channel_name= ''
+--source include/start_slave_io.inc
+--let $rpl_channel_name= 'ch1'
+# The ch1 channel will be disconnected from master by the default
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--source include/wait_for_slave_io_error.inc
+DELETE FROM t1 WHERE c1 = 4;
+--let $rpl_channel_name= ''
+--source include/start_slave_sql.inc
+
+--let $rpl_channel_name= 'ch1'
+--source include/rpl_skip_to_end_of_relay_log.inc
+--source include/stop_slave.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--let $rpl_channel_name=
+--let $binlog_limit=
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

@@ -1,0 +1,242 @@
+################################################################################
+# This test evaluates the limit case where no more donors remain in the group.
+# It is divided into 2 separated but similar phases.
+# Phase 1:
+#   A node joins but all the members/donors leave.
+#   Recovery fails and the member leaves
+# Phase 2:
+#   A node joins and the only donor leaves remaining another member on recovery.
+#   Recovery should fail on both members.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Setup a new 2 member group. Bootstrap start GR on M1. Insert some data
+#    for recovery on M1. Start GR on M2. Stop the applier on both servers to
+#    block recovery
+# Phase 1:
+# 2. Start recovery on a new member M3. Identify the donor, stop GR on donor.
+#    Identify the failover donor, stop GR on the last donor.
+# 3. Recovery should fail on the joiner M3. Check M3 goes in ERROR state.
+# Phase 2:
+# 4. Bootstrap start GR on M1. Stop the applier on M1. Start GR on M2. Check
+#    M2 is in recovering state.
+# 5. To avoid issues with simultaneous exits from the group set DEBUG in M3.
+#    START GR on M3. Check M3 is in recovering state.
+# 6. Stop GR on M1. Recovery should fail on both joiners i.e. check M2 goes
+#    in ERROR state, send SIGNAL on M3, check M3 goes in ERROR state.
+# 7. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--let $group_replication_group_name=0645c380-262c-11e5-867f-0800200c9a66
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo #
+--echo # Setup a new 2 member group
+--echo #
+
+--connection server1
+
+#extract server uuid for donor calculations below
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_and_bootstrap_group_replication.inc
+
+#insert some data
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--connection server2
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The member is leaving a group without being on one");
+SET SESSION sql_log_bin= 1;
+
+#extract server uuid for donor calculations below
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_group_replication.inc
+
+#Stop the applier on both servers to block recovery
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--connection server1
+
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--echo #
+--echo # Phase 1:
+--echo # Start recovery on a new member and kill both donors
+--echo #
+
+--connection server3
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("No suitable donor found, group replication recovery aborting.");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("The member is leaving a group without being on one");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo # Find if server 1 or 2 is the donor
+
+#give it time to connect
+--sleep 5
+
+#Find what member is the donor
+--let $donor_id= 1
+--let $failover= 2
+--let $failover_uuid= $server2_uuid
+if (`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE channel_name='group_replication_recovery' AND service_state='ON' AND source_uuid='$server2_uuid'`)
+{
+  --let $donor_id= 2
+  --let $failover= 1
+  --let $failover_uuid= $server1_uuid
+}
+
+--echo # Stop group replication on the donor making it leave the group
+--connection server$donor_id
+--source include/stop_group_replication.inc
+
+# Wait for the joiner to failover to the other member
+--connection server3
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE channel_name='group_replication_recovery' AND service_state='ON' AND source_uuid="$failover_uuid";
+--source include/wait_condition.inc
+
+--echo # Stop group replication on the failover donor making it leave the group
+--connection server$failover
+--source include/stop_group_replication.inc
+
+--echo # Recovery should fail on the joiner
+--connection server3
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # Phase 2
+--echo # Have 2 members on recovery and kill the donor
+--echo #
+
+#sleep so a different view id is generated
+--sleep 1
+
+--connection server1
+--source include/start_and_bootstrap_group_replication.inc
+
+# Stop the applier on server 1 so view change event wont be written and recovery blocks on other servers
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--echo # Start recovery on the other 2 members
+
+--connection server2
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("No suitable donor found, group replication recovery aborting.");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("The member is leaving a group without being on one");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+--let $server2_reconnect_interval= `SELECT @@GLOBAL.group_replication_recovery_reconnect_interval;`
+--let $server2_retry_count= `SELECT @@GLOBAL.group_replication_recovery_retry_count;`
+
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+SET GLOBAL group_replication_recovery_retry_count= 2;
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--connection server3
+
+# Here to avoid issues with simultaneous exits from the group (serve 2 and 3)
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
+
+--let $server3_reconnect_interval= `SELECT @@GLOBAL.group_replication_recovery_reconnect_interval;`
+--let $server3_retry_count= `SELECT @@GLOBAL.group_replication_recovery_retry_count;`
+
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+SET GLOBAL group_replication_recovery_retry_count= 2;
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo # Stop group replication on the donor making it leave the group
+--connection server1
+--source include/stop_group_replication.inc
+
+--echo # Recovery should fail on both joiners
+
+--connection server2
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--source include/stop_group_replication.inc
+
+--connection server3
+
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # Cleaning up
+--echo #
+
+#sleep so a different view id is generated
+--sleep 1
+
+--connection server1
+--source include/start_and_bootstrap_group_replication.inc
+
+--connection server2
+
+--disable_query_log
+--eval SET GLOBAL group_replication_recovery_reconnect_interval= $server2_reconnect_interval
+--eval SET GLOBAL group_replication_recovery_retry_count= $server2_retry_count
+--enable_query_log
+
+--source include/start_group_replication.inc
+
+--let $assert_text= On the recovered member, the table should exist and have 1 elements
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1;
+--source include/assert.inc
+
+--connection server3
+
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--disable_query_log
+--eval SET GLOBAL group_replication_recovery_reconnect_interval= $server3_reconnect_interval
+--eval SET GLOBAL group_replication_recovery_retry_count= $server3_retry_count
+--enable_query_log
+
+--source include/start_group_replication.inc
+
+--let $assert_text= On the recovered member, the table should exist and have 1 elements
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1;
+--source include/assert.inc
+
+--connection server1
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

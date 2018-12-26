@@ -1,0 +1,151 @@
+# ==== Purpose ====
+#
+# Verify that performance_schema.threads shows the correct
+# PROCESSLIST_INFO for all thread stages.
+#
+# This is to verify that BUG#21127308 has been fixed.  In the bug, the
+# status of a replication worker thread waiting for more work (and
+# several others) was not included in the array all_server_stages[],
+# which caused PROCESSLIST_INFO in performance_schema.threads to be
+# NULL for such threads.
+#
+# ==== Implementation ====
+#
+# It's hard to simulate all possible thread stages, as each case needs
+# to be simulated in its own ad-hoc way, likely using debug sync
+# points.
+#
+# Instead, we verify the bug just for one of the stages that was
+# missing in the bug.  Then, we parse mysqld.cc to find if there are
+# any stages declared which are not listed in the array.
+#
+# This works currently, but the parsing depends on the current
+# formatting in mysqld.  So this test will fail if e.g. the
+# declarations are moved to another file, or the datatype
+# PSI_stage_info is renamed, etc.  If that happens, please update this
+# script accordingly.
+#
+# ==== Related bugs ====
+#
+# BUG#21127308: REPLICATION THREAD STATUSES NOT SHOWN IN PERFORMANCE_SCHEMA
+# - Test was added in this bug.
+
+# Test is binlog_format-agnostic
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo ==== Initialize ====
+
+--connection slave
+--let $old_slave_parallel_workers= `SELECT @@GLOBAL.SLAVE_PARALLEL_WORKERS`
+--let $old_slave_transaction_retries= `SELECT @@GLOBAL.SLAVE_TRANSACTION_RETRIES`
+SET GLOBAL SLAVE_TRANSACTION_RETRIES= 0;
+SET GLOBAL SLAVE_PARALLEL_WORKERS= 1;
+--source include/start_slave.inc
+
+--echo ==== Test ====
+
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= = 'Waiting for an event from Coordinator'
+--source include/wait_show_condition.inc
+
+if (!$group_replication_plugin_installed)
+{
+  --let $assert_cond= COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = "Waiting for an event from Coordinator"
+}
+if ($group_replication_plugin_installed)
+{
+  # We will have one worker from the above configured slave plus the
+  # initial configured number of workers on group_replicatin_applier
+  # channel. group_replication_applier is not restarted during the
+  # test, so its configuration remains.
+  --let $workers= 1 + $old_slave_parallel_workers
+  --let $assert_cond= COUNT(*) = $workers FROM performance_schema.threads WHERE PROCESSLIST_STATE = "Waiting for an event from Coordinator"
+}
+--let $assert_text= The worker status should be set in P_S.threads
+--source include/assert.inc
+
+--echo ==== Look for more mistakes in mysqld.cc ====
+
+perl;
+  # Find the location of mysqld.cc, if available.
+  my $mysqld;
+  for my $location ('../sql', '../../sql', '../../../sql')
+  {
+    if (-f "$location/mysqld.cc") {
+      $mysqld= "$location/mysqld.cc";
+      last;
+    }
+  }
+
+  # Tests may be installed in a completely different directory, in
+  # which case the source is not reachable. In that case, just skip
+  # this part of the test.
+  if ($mysqld)
+  {
+    # List of all stages declared in mysqld.cc
+    my %declared_stages= ();
+    # Hash of all stages included in the all_server_stages array.
+    my @listed_stages= ();
+
+    # This flag is set to true while processing lines from the array
+    # initialization.
+    my $in_server_stage_list= 0;
+
+    # Process mysqld.cc
+    open MYSQLD_CC, $mysqld or die "Error $? opening $mysqld: $!";
+    while (<MYSQLD_CC>)
+    {
+      # Read declaration.
+      if (/PSI_stage_info\s+([A-Za-z_0-9]+)\s*=/)
+      {
+        $declared_stages{$1} = 1;
+      }
+      # Figure out when we enter and leave the array initialization.
+      elsif (/PSI_stage_info\s*\*\s*all_server_stages\s*\[/)
+      {
+        $in_server_stage_list= 1;
+      }
+      elsif (/\};/) {
+        $in_server_stage_list= 0;
+      }
+      # Read element from list.
+      elsif ($in_server_stage_list &&
+             /\&\s*([A-Za-z_0-9]+)\s*,?/)
+      {
+        push(@listed_stages, $1);
+      }
+    }
+    close MYSQLD_CC or die "Error $? closing $mysqld: $!";
+
+    # Sanity check, so that change in the format or naming doesn't make
+    # this test useless.
+    if (scalar(keys(%declared_stages)) < 10)
+    {
+      die "No declared stages found. Probably the format of stage declarations has changed; please update the regular expressions in this test to match the new format.";
+    }
+
+    # Check that every declared stage was found in the array.
+    for my $stage (@listed_stages)
+    {
+      delete($declared_stages{$stage});
+    }
+    if (scalar(%declared_stages))
+    {
+      die "Error: the following stages were declared in mysqld.cc but not listed in all_server_stages: " . join(", ", sort(keys(%declared_stages))) . ". This will make the PROCESSLIST_STATE column of performance_schema.threads show NULL when a thread is in this stage.";
+    }
+  }
+EOF
+
+--echo ==== Clean up ====
+
+--source include/stop_slave.inc
+--replace_result $old_slave_parallel_workers OLD_VALUE
+eval SET GLOBAL SLAVE_PARALLEL_WORKERS= $old_slave_parallel_workers;
+--replace_result $old_slave_transaction_retries OLD_VALUE
+eval SET GLOBAL SLAVE_TRANSACTION_RETRIES= $old_slave_transaction_retries;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

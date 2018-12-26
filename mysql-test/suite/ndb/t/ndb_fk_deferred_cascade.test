@@ -1,0 +1,141 @@
+-- source include/have_ndb.inc
+
+create table parent (
+  a int primary key auto_increment,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table child (
+  a int primary key auto_increment,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table grandchild (
+  a int primary key auto_increment,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+#
+# Test deferred DELETE cascade
+#
+
+alter table child add constraint fkname foreign key (a) references parent (a)
+on delete cascade on update restrict;
+
+alter table grandchild add constraint fkname_child foreign key (a) references child
+(a) on delete cascade on update restrict;
+
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into grandchild values (1,1,1),(2,2,2);
+
+set ndb_deferred_constraints = 0;
+
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+select * from grandchild order by 1,2,3;
+rollback;
+
+set ndb_deferred_constraints = 1;
+
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+select * from grandchild order by 1,2,3;
+commit;
+
+set ndb_deferred_constraints = 0;
+
+# the deletes should show now...
+select * from child order by 1,2,3;
+select * from grandchild order by 1,2,3;
+
+drop table grandchild, child, parent;
+
+create table t1 (
+  a int primary key,
+  b int null,
+  unique(b) using hash) engine = ndb;
+
+let $i=1024;
+disable_query_log;
+while ($i)
+{
+	eval insert into t1 values ($i, $i - 1);
+	dec $i;
+}
+insert into t1 values (0,null);
+enable_query_log;
+
+select max(a) into @maxa
+from t1;
+
+select min(a) into @mina
+from t1;
+
+select count(*) from t1;
+
+select * from t1 p
+where not exists (select 1 from t1 c where c.a = p.b);
+
+alter table t1 add constraint fkname
+  foreign key (b) references t1 (a) on delete cascade on update restrict;
+
+set ndb_deferred_constraints = 0;
+
+begin;
+# either FK or UK can fire...which is timing/config dependent
+--error 1062, 1452
+update t1 set b = a + 1;
+rollback;
+
+set ndb_deferred_constraints = 1;
+
+begin;
+update t1 set b = a + 1;
+--error 1452
+commit;
+
+begin;
+update t1 set b = a + 1;
+update t1 set b = null where a = @maxa;
+commit;
+
+select count(*) from t1;
+
+select * from t1 p
+where not exists (select 1 from t1 c where c.a = p.b);
+
+set ndb_deferred_constraints = 0;
+
+begin;
+delete from t1 where a = @maxa - 1;
+# only a = 0 should be present
+select * from t1;
+rollback;
+
+set ndb_deferred_constraints = 1;
+
+begin;
+delete from t1 where a = @maxa - 5;
+# all rows still present
+select count(*) from t1;
+commit;
+
+# only 5 rows present
+select * from t1 order by 1,2;
+
+# check that accessing them using UK works
+select * from t1 where b = @maxa;
+select * from t1 where b = @maxa - 1;
+select * from t1 where b = @maxa - 2;
+select * from t1 where b = @maxa - 3;
+
+drop table t1;

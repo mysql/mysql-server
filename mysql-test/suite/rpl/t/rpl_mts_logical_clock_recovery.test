@@ -1,0 +1,108 @@
+# In this test we make sure that the slave does a recovery when the it is
+# brought up after it has stopped due to error in one or more of its workers.
+--source include/not_group_replication_plugin.inc
+-- source include/have_debug.inc
+-- source include/not_valgrind.inc
+-- source include/master-slave.inc
+
+--let $debug_point=set_commit_parent_100
+--source include/add_debug_point.inc
+
+# set up the tables and replicate it to the slave.
+CREATE TABLE t1 (a int primary key) engine=innodb;
+CREATE TABLE t2 (a int primary key) engine=innodb;
+CREATE TABLE t3 (a int primary key) engine=innodb;
+CREATE TABLE t4 (a int primary key) engine=innodb;
+-- source include/sync_slave_sql_with_master.inc
+-- source include/stop_slave_sql.inc
+--let $debug_point=crash_in_a_worker
+--source include/add_debug_point.inc
+
+-- connection master
+--let $debug_point=set_commit_parent_100
+--source include/remove_debug_point.inc
+--let $debug_point=set_commit_parent_150
+--source include/add_debug_point.inc
+
+# execute transactions
+
+# trx1 should be applied and its worker released for receiving more work.
+# trx2 to trx5 are prepared in a way that they will be scheduled on the slave
+# but will not be applied. In order to have all four transactions scheduled,
+# the coordinator will have to distribute work by all four workers. The test
+# case expects the slave to crash after some workload be distributed to the
+# worker #2.
+
+# trx1
+INSERT INTO t1 values (0);
+
+# trx2 should not complete on the slave.
+BEGIN;
+INSERT INTO t2 values (1),(2),(3);
+UPDATE t2 SET a= a+1 WHERE a=3;
+COMMIT;
+
+# trx3 should not complete on the slave.
+BEGIN;
+INSERT INTO t3 values (1),(2),(3);
+UPDATE t3 SET a= a+1 WHERE a=3;
+COMMIT;
+
+# trx4 should not complete on the slave.
+BEGIN;
+INSERT INTO t4 values (1),(2),(3);
+UPDATE t4 SET a= a+1 WHERE a=3;
+COMMIT;
+
+# trx5 should not complete on the slave.
+BEGIN;
+INSERT INTO t1 values (1),(2),(3);
+UPDATE t1 SET a= a+1 WHERE a=3;
+COMMIT;
+
+--let $debug_point=set_commit_parent_150
+--source include/remove_debug_point.inc
+
+# Make sure the workload is already on the relay log before starting the
+# applier to avoid issues with slow systems.
+--source include/sync_slave_io_with_master.inc
+
+# This should prevent trx2 to trx5 from committing and will make all
+# four MTS workers to be busy regardless of server speed.
+--source include/rpl_connection_slave1.inc
+BEGIN;
+INSERT INTO t1 (a) VALUES (4);
+INSERT INTO t2 (a) VALUES (4);
+INSERT INTO t3 (a) VALUES (4);
+INSERT INTO t4 (a) VALUES (4);
+
+--source include/rpl_connection_slave.inc
+# make sure mtr expects a crash & restarts
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+START SLAVE;
+-- source include/wait_until_disconnected.inc
+-- let $rpl_server_number= 2
+-- source include/rpl_start_server.inc
+-- enable_reconnect
+-- echo # Reconnecting to the slave server
+-- source include/wait_until_connected_again.inc
+-- connection slave
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+
+# we need to send an additional event since the UNTIL CONDITION
+# needs an aditional event after the failed group to stop the slave
+# due to buf in until conditions
+-- connection master
+CREATE TABLE t5 (a int);
+
+-- connection slave
+-- source include/wait_for_slave_sql_to_stop.inc
+-- source include/start_slave.inc
+
+# cleanup
+-- connection master
+DROP TABLES t1, t2, t3, t4, t5;
+-- connection master
+-- source include/sync_slave_sql_with_master.inc
+-- source include/rpl_end.inc
+

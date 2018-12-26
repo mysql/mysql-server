@@ -1,0 +1,63 @@
+--echo Testing NDB$EPOCH2_TRANS algorithm
+
+#let $rpl_debug=1;
+
+let $clusterA_port=$MASTER_MYPORT;
+let $clusterB_port=$SLAVE_MYPORT;
+
+#let $clusterA_port=$SLAVE_MYPORT;
+#let $clusterB_port=$MASTER_MYPORT;
+#let $SWITCH_CLUSTER_ROLES=1;
+
+#echo $clusterA_port;
+#echo $clusterB_port;
+
+--echo Setup connections for use in this file
+--connect(clusterA,127.0.0.1,root,,test,$clusterA_port,)
+--connect(clusterB,127.0.0.1,root,,test,$clusterB_port,)
+
+--echo First we have Cluster A as Primary, Cluster B as Secondary
+--connection clusterA
+#SHOW VARIABLES LIKE '%server%';
+SET GLOBAL ndb_slave_conflict_role="PRIMARY";
+
+--connection clusterB
+#SHOW VARIABLES LIKE '%server%';
+SET GLOBAL ndb_slave_conflict_role="SECONDARY";
+
+--connection clusterA
+
+let $PRIMARY_CONFLICT_ALG=\"NDB\$EPOCH2_TRANS()\";
+let $SECONDARY_CONFLICT_ALG=\"NDB\$EPOCH2_TRANS()\";
+
+--source suite/ndb_rpl/t/ndb_rpl_conflict_epoch_trans.inc
+
+--echo Next we have Cluster A as Secondary, Cluster B as Primary
+--connection clusterA
+SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_slave_conflict_role="SECONDARY";
+
+--connection clusterB
+SET GLOBAL ndb_slave_conflict_role="NONE";
+SET GLOBAL ndb_slave_conflict_role="PRIMARY";
+
+--echo We set a special control var to allow the generic scripts
+--echo to handle this topology
+let $SWITCH_CLUSTER_ROLES=1;
+
+--echo Remove some connections which can't be setup twice (ugly)
+--disconnect master
+--disconnect master1
+--disconnect slave
+--disconnect slave1
+
+--source suite/ndb_rpl/t/ndb_rpl_conflict_epoch_trans.inc
+
+# TODO : Switch back to A Primary, B Secondary?
+
+--connection clusterA
+SET GLOBAL ndb_slave_conflict_role="NONE";
+
+--connection clusterB
+SET GLOBAL ndb_slave_conflict_role="NONE";
+

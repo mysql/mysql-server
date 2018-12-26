@@ -1,0 +1,101 @@
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='';
+drop procedure if exists p;
+drop procedure if exists p2;
+drop procedure if exists p3;
+create procedure p()
+begin
+declare utf8_var VARCHAR(128) CHARACTER SET UTF8;
+set utf8_var = concat(repeat('A', 128), 'X');
+show warnings;
+select length(utf8_var), utf8_var;
+end
+$$
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create procedure p2()
+begin
+declare msg VARCHAR(129) CHARACTER SET UTF8;
+set msg = concat(repeat('A', 128), 'X');
+select length(msg), msg;
+signal sqlstate '55555' set message_text = msg;
+end
+$$
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create procedure p3()
+begin
+declare name VARCHAR(65) CHARACTER SET UTF8;
+set name = concat(repeat('A', 64), 'X');
+select length(name), name;
+signal sqlstate '55555' set
+message_text = 'Message',
+table_name = name;
+end
+$$
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+call p;
+Level	Code	Message
+Warning	1265	Data truncated for column 'utf8_var' at row 1
+length(utf8_var)	utf8_var
+128	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+call p2;
+length(msg)	msg
+129	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX
+ERROR 55555: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+call p3;
+length(name)	name
+65	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX
+ERROR 55555: Message
+drop procedure p;
+drop procedure p2;
+drop procedure p3;
+SET sql_mode=default;
+create procedure p()
+begin
+declare utf8_var VARCHAR(128) CHARACTER SET UTF8;
+set utf8_var = concat(repeat('A', 128), 'X');
+select length(utf8_var), utf8_var;
+end
+$$
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create procedure p2()
+begin
+declare msg VARCHAR(129) CHARACTER SET UTF8;
+set msg = concat(repeat('A', 128), 'X');
+select length(msg), msg;
+signal sqlstate '55555' set message_text = msg;
+end
+$$
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create procedure p3()
+begin
+declare name VARCHAR(65) CHARACTER SET UTF8;
+set name = concat(repeat('A', 64), 'X');
+select length(name), name;
+signal sqlstate '55555' set
+message_text = 'Message',
+table_name = name;
+end
+$$
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+call p;
+ERROR 22001: Data too long for column 'utf8_var' at row 1
+call p2;
+length(msg)	msg
+129	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX
+ERROR HY000: Data too long for condition item 'MESSAGE_TEXT'
+call p3;
+length(name)	name
+65	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX
+ERROR HY000: Data too long for condition item 'TABLE_NAME'
+drop procedure p;
+drop procedure p2;
+drop procedure p3;
+SET @@sql_mode=@save_sql_mode;

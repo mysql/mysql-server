@@ -1,0 +1,90 @@
+SET @start_global_value = @@global.innodb_thread_sleep_delay;
+SELECT @start_global_value;
+@start_global_value
+10000
+Valid values are zero or above
+select @@global.innodb_thread_sleep_delay >=0;
+@@global.innodb_thread_sleep_delay >=0
+1
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+10000
+select @@session.innodb_thread_sleep_delay;
+ERROR HY000: Variable 'innodb_thread_sleep_delay' is a GLOBAL variable
+show global variables like 'innodb_thread_sleep_delay';
+Variable_name	Value
+innodb_thread_sleep_delay	10000
+show session variables like 'innodb_thread_sleep_delay';
+Variable_name	Value
+innodb_thread_sleep_delay	10000
+select * from performance_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_thread_sleep_delay	10000
+select * from performance_schema.session_variables where variable_name='innodb_thread_sleep_delay';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_thread_sleep_delay	10000
+set global innodb_thread_sleep_delay=10;
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+10
+select * from performance_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_thread_sleep_delay	10
+select * from performance_schema.session_variables where variable_name='innodb_thread_sleep_delay';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_thread_sleep_delay	10
+set session innodb_thread_sleep_delay=1;
+ERROR HY000: Variable 'innodb_thread_sleep_delay' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_thread_sleep_delay=DEFAULT;
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+10000
+set global innodb_thread_sleep_delay=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_sleep_delay'
+set global innodb_thread_sleep_delay=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_sleep_delay'
+set global innodb_thread_sleep_delay="foo";
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_sleep_delay'
+set global innodb_thread_sleep_delay=18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_sleep_delay'
+set global innodb_thread_sleep_delay=-7;
+Warnings:
+Warning	1292	Truncated incorrect innodb_thread_sleep_delay value: '-7'
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+0
+select * from performance_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_thread_sleep_delay	0
+set global innodb_thread_sleep_delay=0;
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+0
+set global innodb_thread_sleep_delay=1000;
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+1000
+set global innodb_thread_sleep_delay=1000000;
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+1000000
+set global innodb_thread_sleep_delay=1000001;
+Warnings:
+Warning	1292	Truncated incorrect innodb_thread_sleep_delay value: '1000001'
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+1000000
+set global innodb_thread_sleep_delay=4294967295;
+Warnings:
+Warning	1292	Truncated incorrect innodb_thread_sleep_delay value: '4294967295'
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+1000000
+set global innodb_thread_sleep_delay=555;
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+555
+SET @@global.innodb_thread_sleep_delay = @start_global_value;
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+10000

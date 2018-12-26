@@ -1,0 +1,27 @@
+--character_set sjis
+SET NAMES sjis;
+SET character_set_database = sjis;
+--disable_warnings
+drop database if exists `ﾆﾎﾝｺﾞ`;
+drop database if exists `日本語`;
+drop database if exists `ソ十表`;
+--enable_warnings
+
+#
+# Test Creating databases using Japanese charact for DB name in ujis encoding
+#
+
+CREATE DATABASE `ﾆﾎﾝｺﾞ`;
+CREATE DATABASE `日本語`;
+CREATE DATABASE `ソ十表`;
+
+SELECT schema_name from information_schema.schemata
+  where schema_name <> 'mtr' order by schema_name;
+
+USE `ﾆﾎﾝｺﾞ`;
+USE `日本語`;
+USE `ソ十表`;
+
+DROP DATABASE `ﾆﾎﾝｺﾞ`;
+DROP DATABASE `日本語`;
+DROP DATABASE `ソ十表`;

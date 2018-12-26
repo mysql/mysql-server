@@ -1,0 +1,161 @@
+-- source include/no_valgrind_without_big.inc
+
+# Temporarily skipping the test when log-bin is enabled due to Bug#22292900
+--source include/not_log_bin.inc
+
+let MYSQLD_DATADIR=`select @@datadir`;
+let PAGE_SIZE=`select @@innodb_page_size`;
+
+-- disable_query_log
+call mtr.add_suppression("innodb_force_recovery is on.");
+call mtr.add_suppression("Tablespace open failed for.*bug16720368");
+call mtr.add_suppression("Failed to find tablespace.*bug16720368");
+call mtr.add_suppression("Header page contains inconsistent data in .*bug16720368.ibd");
+call mtr.add_suppression("Corrupted page.*could not be found in the doublewrite buffer");
+call mtr.add_suppression("Could not find.*test/bug16720368");
+call mtr.add_suppression(".*test.*bug16720368.*missing");
+call mtr.add_suppression("Ignoring tablespace `test/bug16720368` because it could not be opened");
+call mtr.add_suppression("Found 1 prepared XA transactions");
+call mtr.add_suppression("Operating system error.*in a file operation");
+call mtr.add_suppression("\(The error means\|If you are\)");
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Error number [0-9]* means 'Resource temporarily unavailable'");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression(".*MY-\d+.* Tablespace [0-9]+, name 'test.*bug16720368', unable to open file '.*test.*bug16720368.ibd' - Data structure corruption");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+-- enable_query_log
+
+-- echo #
+-- echo # Bug#16720368 INNODB CRASHES ON BROKEN #SQL*.IBD FILE AT STARTUP
+-- echo #
+
+SET GLOBAL innodb_file_per_table=1;
+
+CREATE TABLE bug16720368_1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+connect (con1,localhost,root);
+CREATE TABLE bug16720368 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO bug16720368 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+
+connection default;
+
+-- echo # Cleanly shutdown mysqld
+-- source include/shutdown_mysqld.inc
+
+disconnect con1;
+
+-- echo # Corrupt FIL_PAGE_OFFSET in bug16720368.ibd,
+-- echo # and update the checksum to the "don't care" value.
+perl;
+my $file = "$ENV{MYSQLD_DATADIR}/test/bug16720368.ibd";
+open(FILE, "+<$file") || die "Unable to open $file";
+print FILE pack("H*","deadbeefc001cafe") || die "Unable to write $file";
+seek(FILE, $ENV{PAGE_SIZE}-8, 0) || die "Unable to seek $file";
+print FILE pack("H*","deadbeef") || die "Unable to write $file";
+close(FILE) || die "Unable to close $file";
+EOF
+
+-- echo # Restart mysqld
+-- source include/start_mysqld.inc
+
+-- echo # This will succeed after a clean shutdown, due to
+-- echo # fil_open_single_table_tablespace(check_space_id=FALSE).
+SELECT COUNT(*) FROM bug16720368;
+
+INSERT INTO bug16720368_1 VALUES(1);
+
+-- source include/kill_and_restart_mysqld.inc
+
+-- echo # The table is unaccessible, because after a crash we will
+-- echo # validate the tablespace header.
+--error ER_TABLESPACE_MISSING
+SELECT COUNT(*) FROM bug16720368;
+--error ER_TABLESPACE_MISSING
+INSERT INTO bug16720368 VALUES(0,1);
+
+let $restart_parameters = restart: --innodb-force-recovery=3;
+-- source include/kill_and_restart_mysqld.inc
+
+-- echo # The table is readable thanks to innodb-force-recovery.
+SELECT COUNT(*) FROM bug16720368;
+--error ER_INNODB_FORCED_RECOVERY
+INSERT INTO bug16720368 VALUES(0,1);
+
+-- echo # Shut down the server cleanly to hide the corruption.
+let $restart_parameters = restart;
+-- source include/restart_mysqld.inc
+
+-- echo # The table is accessible, because after a clean shutdown we will
+-- echo # NOT validate the tablespace header.
+-- echo # We can modify the existing pages, but we cannot allocate or free
+-- echo # any pages, because that would hit the corruption on page 0.
+SELECT COUNT(*) FROM bug16720368;
+INSERT INTO bug16720368 VALUES(0,1);
+
+-- echo # Shut down the server to uncorrupt the data.
+-- source include/shutdown_mysqld.inc
+
+# Uncorrupt the FIL_PAGE_OFFSET.
+perl;
+my $file = "$ENV{MYSQLD_DATADIR}/test/bug16720368.ibd";
+open(FILE, "+<$file") || die "Unable to open $file";
+# Uncorrupt FIL_PAGE_OFFSET.
+print FILE pack("H*","deadbeef00000000") || die "Unable to write $file";
+close(FILE) || die "Unable to close $file";
+EOF
+
+-- echo # Restart the server after uncorrupting the file.
+-- source include/start_mysqld.inc
+
+INSERT INTO bug16720368 VALUES(9,1);
+SELECT COUNT(*) FROM bug16720368;
+
+DROP TABLE bug16720368, bug16720368_1;
+
+-- echo #
+-- echo # Bug#16735660 ASSERT TABLE2 == NULL, ROLLBACK OF RESURRECTED TXNS,
+-- echo # DICT_TABLE_ADD_TO_CACHE
+-- echo #
+
+SET GLOBAL innodb_file_per_table=1;
+
+CREATE TEMPORARY TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES(42);
+
+-- connect (con1,localhost,root)
+
+CREATE TABLE bug16735660 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+XA START 'x';
+INSERT INTO bug16735660 VALUES(1),(2),(3);
+XA END 'x';
+XA PREPARE 'x';
+
+-- connection default
+
+-- source include/kill_mysqld.inc
+-- disconnect con1
+
+-- move_file $MYSQLD_DATADIR/test/bug16735660.ibd $MYSQLD_DATADIR/bug16735660.omg
+
+-- echo # Attempt to start without an *.ibd file.
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+-- error 1,42
+-- exec $MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
+
+let SEARCH_PATTERN= \[ERROR\].*Could not find any file associated with the tablespace ID:.*;
+-- source include/search_pattern.inc
+
+-- move_file $MYSQLD_DATADIR/bug16735660.omg $MYSQLD_DATADIR/test/bug16735660.ibd
+
+-- source include/start_mysqld.inc
+
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM bug16735660;
+
+XA RECOVER;
+XA ROLLBACK 'x';
+
+SELECT * FROM bug16735660;
+DROP TABLE bug16735660;

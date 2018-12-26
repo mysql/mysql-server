@@ -1,0 +1,15 @@
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+connection con1;
+--error ER_PARSE_ERROR,ER_TOO_LONG_IDENT,ER_WRONG_NAME_FOR_INDEX
+drop database AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
+connection default;
+disconnect con1;
+
+# End of 4.1 tests
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

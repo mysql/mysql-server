@@ -1,0 +1,47 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+[connection server2]
+
+# 1. Kill and restart server 2
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS2 --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+[connection server1]
+
+# 2. Wait until server2 is marked as UNREACHABLE
+include/gr_wait_for_member_state.inc
+
+# 3. Execute query that will be blocked and leave the group plugin busy
+INSERT INTO test.t1 VALUES(11);
+[connection server_1]
+set session sql_log_bin=0;
+call mtr.add_suppression("Group Replication plugin is busy, it cannot be uninstalled. To force");
+call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("Due to a plugin error, some transactions were unable to be certified and will now rollback.");
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+set session sql_log_bin=1;
+
+# 4. Uninstall plugin will return error due plugin being in use
+UNINSTALL PLUGIN group_replication;
+ERROR HY000: Plugin 'group_replication' cannot be uninstalled now. Plugin is busy, it cannot be uninstalled. To force a stop run STOP GROUP_REPLICATION and then UNINSTALL PLUGIN group_replication.
+
+# 5. Call mysqladmin to shutdown server
+
+# 6. Clean-up
+[connection server1]
+include/rpl_start_server.inc [server_number=1]
+include/rpl_reconnect.inc
+# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+Got one of the listed errors
+[connection server2]
+DROP TABLE test.t1;
+[connection server_1]
+DROP TABLE test.t1;
+include/group_replication_end.inc

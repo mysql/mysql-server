@@ -1,0 +1,59 @@
+#------------------------------------------------------------------------------
+# Redo log optimization
+# Test aims to verify recovery works when server is stopped in debug point
+# 1) log_before_checkpoint_flush
+# 2) log_before_checkpoint_lsn_update
+# 3) log_before_checkpoint_limits_update
+# 4) log_before_checkpoint_data_flush
+# 5) log_wait_for_flush_before_flushed_to_disk_lsn
+# 6) log_wait_for_flush_before_wait
+#------------------------------------------------------------------------------
+
+# Test uses debug binary
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--echo # Test with log_before_checkpoint_flush
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_before_checkpoint_flush;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_before_checkpoint_lsn_update
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_before_checkpoint_lsn_update;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_before_checkpoint_limits_update
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_before_checkpoint_limits_update;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_before_checkpoint_data_flush
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_before_checkpoint_data_flush;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_wait_for_flush_before_flushed_to_disk_lsn
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_wait_for_flush_before_flushed_to_disk_lsn;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_wait_for_flush_before_wait
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_wait_for_flush_before_wait;
+--source suite/innodb/include/innodb_redo_debug.inc

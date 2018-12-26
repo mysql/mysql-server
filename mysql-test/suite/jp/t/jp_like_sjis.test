@@ -1,0 +1,131 @@
+--character_set sjis
+--disable_warnings
+drop table if exists `‚s‚P`;
+drop table if exists `‚s‚Q`;
+drop table if exists `‚s‚R`;
+drop table if exists `‚s‚S`;
+drop table if exists `‚s‚T`;
+drop table if exists `‚s‚U`;
+drop table if exists `‚s‚V`;
+drop table if exists `‚s‚W`;
+drop table if exists `‚s‚X`;
+--enable_warnings
+
+#
+# Test LIKE pattern matching using Japanese characters in sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+CREATE TABLE `‚s‚P` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Q` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚R` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚S` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚T` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚U` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚V` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚W` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚X` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+
+#Load the following data in each table
+# jisx0201 hankaku-katakana data
+# jisx0208 data
+
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚S`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚T`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
+
+#InnoDB
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE ' %';
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '% %';
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '% ';
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE 'À%';
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '%×Ø%';
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '%¿';
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '°±²³´µ¶·¸¹º»¼½¾¿%';
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿%';
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿';
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '@%';
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%@%';
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%@';
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '‚Æ%';
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%‚ %';
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%‚í';
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE 'E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±';
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE 'ƒ\%';
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE '%–\%';
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE '%ž\';
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE 'ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\';
+
+#MyISAM
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE ' %';
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '% %';
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '% ';
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE 'À%';
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '%×Ø%';
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '%¿';
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '°±²³´µ¶·¸¹º»¼½¾¿%';
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿%';
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿';
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '@%';
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%@%';
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%@';
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '‚Æ%';
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%‚ %';
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%‚í';
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE 'E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±';
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE 'ƒ\%';
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE '%–\%';
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE '%ž\';
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE 'ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\';
+
+#MEMORY
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE ' %';
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '% %';
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '% ';
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE 'À%';
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '%×Ø%';
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '%¿';
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '°±²³´µ¶·¸¹º»¼½¾¿%';
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿%';
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿';
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '@%';
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%@%';
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%@';
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '‚Æ%';
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%‚ %';
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%‚í';
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE 'E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±';
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE 'ƒ\%';
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%–\%';
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%ž\';
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE 'ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\';
+
+DROP TABLE `‚s‚P`;
+DROP TABLE `‚s‚Q`;
+DROP TABLE `‚s‚R`;
+DROP TABLE `‚s‚S`;
+DROP TABLE `‚s‚T`;
+DROP TABLE `‚s‚U`;
+DROP TABLE `‚s‚V`;
+DROP TABLE `‚s‚W`;
+DROP TABLE `‚s‚X`;

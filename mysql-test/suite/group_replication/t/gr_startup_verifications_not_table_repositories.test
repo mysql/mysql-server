@@ -1,0 +1,154 @@
+################################################################################
+# The intent of this test is to verify if the validations that were created
+# within the group replication plugin in the startup process are fully
+# functional.
+#
+# It will test the static variables:
+# - Table repositories. It will be set to FILE in order to fail.
+#
+# Test:
+# 0. The test requires one server.
+#  - Install plugin at startup.
+# 1. Test with relay_log_info_repository=FILE and master_info_repository=TABLE.
+#    START GROUP_REPLICATION must fail.
+# 2. Test with relay_log_info_repository=TABLE and master_info_repository=FILE.
+#    START GROUP_REPLICATION must fail.
+# 3. Test with relay_log_info_repository=FILE and master_info_repository=FILE.
+#    START GROUP_REPLICATION must fail.
+# 4. Test with relay_log_info_repository=TABLE and master_info_repository=TABLE.
+#    START GROUP_REPLICATION must succeed.
+# 5. Test that variables cannot be changed when group replication is running.
+#  - Set master_info_repository=FILE. It must fail.
+#  - Set relay_log_info_repository=FILE. It must fail.
+# 6. Clean up.
+################################################################################
+
+--let $skip_recovery_configuration=1
+--source include/have_binlog_format_row.inc
+
+--let $group_replication_group_name= 56ada920-9d9f-11e4-bd06-0800200c9a66
+
+# The section below is present in "have_group_replication_plugin.inc."
+# But since this test is evaluating the absence of certain configurations, one
+# is not able to use that file since it enforces the existence of such
+# parameters in the server.
+
+if (`SELECT @@have_dynamic_loading != 'YES'`) {
+  --skip Requires dynamic loading
+}
+
+if (!`select count(*) from information_schema.plugins where PLUGIN_NAME like 'group_replication'`)
+{
+  --skip Needs Group Replication plugin
+}
+
+--source include/rpl_group_replication_default_connections.inc
+--source include/gr_configuration.inc
+--source include/gr_set_bootstrap_group.inc
+
+SET @saved_rli_rep= @@GLOBAL.relay_log_info_repository;
+SET @saved_mi_rep= @@GLOBAL.master_info_repository;
+
+# If a channel exists from a previous run it must be removed for the test to run
+
+--let $group_rep_exist= `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE channel_name='group_replication_applier'`
+if ($group_rep_exist) {
+--disable_result_log
+--disable_query_log
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+--enable_query_log
+--enable_result_log
+
+}
+
+#
+# Test with the relay log repository set to FILE
+#
+
+SET @@GLOBAL.relay_log_info_repository='FILE';
+SET @@GLOBAL.master_info_repository='TABLE';
+
+--let $rli_rep = `SELECT @@GLOBAL.relay_log_info_repository`
+--let $assert_text= Relay log repository info storage is set to file
+--let $assert_cond= "$rli_rep" = "FILE"
+--source include/assert.inc
+
+--let $mi_rep = `SELECT @@GLOBAL.master_info_repository`
+--let $assert_text= Master info repository info storage is set to file
+--let $assert_cond= "$mi_rep" = "TABLE"
+--source include/assert.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+#
+# Test with the master info repository set to FILE
+#
+
+SET @@GLOBAL.relay_log_info_repository='TABLE';
+SET @@GLOBAL.master_info_repository='FILE';
+
+--let $rli_rep = `SELECT @@GLOBAL.relay_log_info_repository`
+--let $assert_text= Relay log repository info storage is set to file
+--let $assert_cond= "$rli_rep" = "TABLE"
+--source include/assert.inc
+
+--let $mi_rep = `SELECT @@GLOBAL.master_info_repository`
+--let $assert_text= Master info repository info storage is set to file
+--let $assert_cond= "$mi_rep" = "FILE"
+--source include/assert.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+#
+# Test with both repositories set to FILE
+#
+
+SET @@GLOBAL.relay_log_info_repository='FILE';
+SET @@GLOBAL.master_info_repository='FILE';
+
+--let $rli_rep = `SELECT @@GLOBAL.relay_log_info_repository`
+--let $assert_text= Relay log repository info storage is set to file
+--let $assert_cond= "$rli_rep" = "FILE"
+--source include/assert.inc
+
+--let $mi_rep = `SELECT @@GLOBAL.master_info_repository`
+--let $assert_text= Master info repository info storage is set to file
+--let $assert_cond= "$mi_rep" = "FILE"
+--source include/assert.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+#
+# Test that the variable cannot be changed when group replication is running
+#
+
+SET @@GLOBAL.relay_log_info_repository='TABLE';
+SET @@GLOBAL.master_info_repository='TABLE';
+
+--source include/start_group_replication.inc
+
+--error ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
+SET @@GLOBAL.master_info_repository='FILE';
+
+--error ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
+SET @@GLOBAL.relay_log_info_repository='FILE';
+
+#
+# Cleanup
+#
+
+--source include/stop_group_replication.inc
+
+#--echo @saved_rli_rep
+#--echo @saved_mi_rep
+
+SET @@GLOBAL.relay_log_info_repository= @saved_rli_rep;
+SET @@GLOBAL.master_info_repository= @saved_mi_rep;
+
+call mtr.add_suppression("Master info repository must be set to TABLE.");
+call mtr.add_suppression("Relay log info repository must be set to TABLE.");
+
+--source include/gr_clear_configuration.inc

@@ -1,0 +1,219 @@
+################# mysql-test\t\log_output_basic.test ##########################
+#                                                                             #
+# Variable Name: log_output                                                   # 
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: enumeration                                                      #
+# Default Value: TABLE                                                        #
+# Range: TABLE, FILE, NONE                                                    #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable log_output               #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF log_output TESTS                         #
+######################################################################## 
+
+
+######################################################################## 
+#     Saving initial value of log_output in a temporary variable       #
+######################################################################## 
+
+SET @start_value = @@global.log_output;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_065_01------------------------#'
+######################################################################## 
+#                    Display the DEFAULT value of log_output           #
+######################################################################## 
+
+SET @@global.log_output = FILE;
+SET @@global.log_output = DEFAULT;
+SELECT @@global.log_output;
+
+--echo '#---------------------FN_DYNVARS_065_02-------------------------#'
+################################################## 
+#      Check if NULL or empty value is accepeted #
+################################################## 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = NULL;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = "";
+
+--echo '#--------------------FN_DYNVARS_065_03------------------------#'
+######################################################################## 
+#              Change the value of log_output to a valid value         #
+######################################################################## 
+
+SET @@global.log_output = 'TABLE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'FILE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'NONE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'FILE,TABLE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'TABLE,FILE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'NONE,TABLE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'NONE,FILE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'FILE,TABLE,NONE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'TABLE,NONE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'TABLE,TABLE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = ',TABLE';
+SELECT @@global.log_output;
+
+SET @@global.log_output = 'TABLE,,FILE,,,';
+SELECT @@global.log_output;
+
+
+--echo '#--------------------FN_DYNVARS_065_04-------------------------#'
+########################################################################### 
+#               Change the value of log_output to invalid value           #
+########################################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = -1;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = TAB;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = NIL;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = 'FIL';
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = 'T';
+
+# use of space in value
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = 'TABLE, FILE';
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = ' TABLE,FILE';
+
+--echo '#-------------------FN_DYNVARS_065_05----------------------------#'
+######################################################################
+#              Test if accessing session log_output gives error      #
+######################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@log_output = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_output;
+
+
+--echo '#----------------------FN_DYNVARS_065_06------------------------#'
+######################################################################## 
+#     Check if the value in GLOBAL Table matches value in variable     #
+########################################################################
+
+--disable_warnings
+SELECT @@log_output = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='log_output';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_065_07-------------------------#'
+################################################################### 
+#        Check if numbers can be used on variable                 #
+################################################################### 
+
+# test if variable accepts 0,1,2
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = 0;
+SELECT @@global.log_output;
+
+SET @@global.log_output = 1;
+SELECT @@global.log_output;
+
+SET @@global.log_output = 2;
+SELECT @@global.log_output;
+
+SET @@global.log_output = 3;
+SELECT @@global.log_output;
+
+SET @@global.log_output = 4;
+SELECT @@global.log_output;
+
+SET @@global.log_output = 5;
+SELECT @@global.log_output;
+
+SET @@global.log_output = 6;
+SELECT @@global.log_output;
+
+SET @@global.log_output = 7;
+SELECT @@global.log_output;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = 8;
+
+
+--echo '#---------------------FN_DYNVARS_065_08----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.log_output = TRUE;
+SELECT @@global.log_output;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_output = FALSE;
+SELECT @@global.log_output;
+
+--echo '#---------------------FN_DYNVARS_065_09----------------------#'
+################################################################  
+# Check if log_output can be accessed with and without @@ sign #
+################################################################
+--Error ER_GLOBAL_VARIABLE
+SET log_output = ON;
+
+SET global log_output = 'TABLE';
+SELECT @@global.log_output;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.log_output = @start_value;
+SELECT @@global.log_output;
+
+################################################################### 
+#                    END OF log_output TESTS                      #
+################################################################### 

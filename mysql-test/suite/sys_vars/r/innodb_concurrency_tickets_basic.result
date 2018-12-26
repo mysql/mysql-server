@@ -1,0 +1,130 @@
+SET @global_start_value = @@global.innodb_concurrency_tickets;
+SELECT @global_start_value;
+@global_start_value
+5000
+'#--------------------FN_DYNVARS_046_01------------------------#'
+SET @@global.innodb_concurrency_tickets = 0;
+Warnings:
+Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '0'
+SET @@global.innodb_concurrency_tickets = DEFAULT;
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+5000
+'#---------------------FN_DYNVARS_046_02-------------------------#'
+SET innodb_concurrency_tickets = 1;
+ERROR HY000: Variable 'innodb_concurrency_tickets' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@innodb_concurrency_tickets;
+@@innodb_concurrency_tickets
+5000
+SELECT local.innodb_concurrency_tickets;
+ERROR 42S02: Unknown table 'local' in field list
+SET global innodb_concurrency_tickets = 0;
+Warnings:
+Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '0'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+'#--------------------FN_DYNVARS_046_03------------------------#'
+SET @@global.innodb_concurrency_tickets = 1;
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = 1000;
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1000
+SET @@global.innodb_concurrency_tickets = 4294967295;
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+4294967295
+'#--------------------FN_DYNVARS_046_04-------------------------#'
+SET @@global.innodb_concurrency_tickets = 4294967296;
+SELECT @@global.innodb_concurrency_tickets IN (4294967296,4294967295);
+@@global.innodb_concurrency_tickets IN (4294967296,4294967295)
+1
+SET @@global.innodb_concurrency_tickets = 12345678901;
+SELECT @@global.innodb_concurrency_tickets IN (12345678901,4294967295);
+@@global.innodb_concurrency_tickets IN (12345678901,4294967295)
+1
+SET @@global.innodb_concurrency_tickets = 18446744073709551615;
+SELECT @@global.innodb_concurrency_tickets IN (18446744073709551615,4294967295);
+@@global.innodb_concurrency_tickets IN (18446744073709551615,4294967295)
+1
+'#--------------------FN_DYNVARS_046_05-------------------------#'
+SET @@global.innodb_concurrency_tickets = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '-1'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = -1024;
+Warnings:
+Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '-1024'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = "T";
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = "Y";
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+'#----------------------FN_DYNVARS_046_06------------------------#'
+SELECT @@global.innodb_concurrency_tickets =
+VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_concurrency_tickets';
+@@global.innodb_concurrency_tickets =
+VARIABLE_VALUE
+1
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_concurrency_tickets';
+VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_046_07-------------------------#'
+SET @@global.innodb_concurrency_tickets = OFF;
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+'#---------------------FN_DYNVARS_046_08----------------------#'
+SET @@global.innodb_concurrency_tickets = TRUE;
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '0'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1
+SET @@global.innodb_concurrency_tickets = @global_start_value;
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+5000

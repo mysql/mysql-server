@@ -1,0 +1,122 @@
+# BUG#33029 5.0 to 5.1 replication fails on dup key when inserting
+# using a trig in SP
+
+# For all 5.0 up to 5.0.58 exclusive, and 5.1 up to 5.1.12 exclusive,
+# if one statement in a SP generated AUTO_INCREMENT value by the top
+# statement, all statements after it would be considered generated
+# AUTO_INCREMENT value by the top statement, and a erroneous INSERT_ID
+# value might be associated with these statement, which could cause
+# duplicate entry error and stop the slave.
+
+--source include/not_group_replication_plugin.inc
+source include/have_binlog_format_statement.inc;
+source include/master-slave.inc;
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TRIGGER IF EXISTS tr1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+--source include/sync_slave_sql_with_master.inc
+--connection master
+
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY);
+
+delimiter //;
+
+CREATE PROCEDURE p1()
+BEGIN
+   DECLARE ins_count INT DEFAULT 10; 
+
+   WHILE ins_count > 0 DO
+       INSERT INTO t1 VALUES (NULL);
+       SET ins_count = ins_count - 1;
+   END WHILE;
+
+   DELETE FROM t1 WHERE id = 1;
+   DELETE FROM t1 WHERE id = 2;
+   DELETE FROM t2 WHERE id = 1;
+   DELETE FROM t2 WHERE id = 2;
+END//
+
+CREATE PROCEDURE p2()
+BEGIN
+   INSERT INTO t1 VALUES (NULL);
+   DELETE FROM t1 WHERE id = f1(3);
+   DELETE FROM t1 WHERE id = f1(4);
+   DELETE FROM t2 WHERE id = 3;
+   DELETE FROM t2 WHERE id = 4;
+END//
+
+CREATE TRIGGER tr1 BEFORE DELETE
+    ON t1 FOR EACH ROW 
+    BEGIN
+        INSERT INTO t2  VALUES (NULL);
+    END//
+
+CREATE FUNCTION f1 (i int) RETURNS int
+    BEGIN
+        INSERT INTO t2 VALUES (NULL);
+        RETURN i;
+    END//
+
+delimiter ;//
+
+# the $binlog_start will be used by the show_binlog_events.inc, so
+# that we can skip binlog events we don't care
+--let $mask_binlog_commit_events= 1
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+CALL p1();
+source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
+
+echo # Result on master;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--source include/sync_slave_sql_with_master.inc
+
+echo # Result on slave;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+
+DROP TRIGGER tr1;
+
+# the $binlog_start will be used by the show_binlog_events.inc, so
+# that we can skip binlog events we don't care
+--let $mask_binlog_commit_events= 1
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+CALL p2();
+source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
+
+echo # Result on master;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--source include/sync_slave_sql_with_master.inc
+
+echo # Result on slave;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# clean up
+connection master;
+disable_warnings;
+DROP TABLE IF EXISTS t1, t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS tr1;
+enable_warnings;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

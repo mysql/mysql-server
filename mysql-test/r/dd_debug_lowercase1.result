@@ -1,0 +1,25 @@
+#
+# Bug#25495714: FOREIGN KEY INFORMATION IN NEW DD NOT FOLLOW
+#               THE LOWER CASE TABLE NAME SETTING
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+CREATE TABLE t2 (c1 INT, FOREIGN KEY (c1) REFERENCES TEST.T1 (c1));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT unique_constraint_schema, referenced_table_name
+FROM information_schema.referential_constraints WHERE table_name = 't2';
+UNIQUE_CONSTRAINT_SCHEMA	REFERENCED_TABLE_NAME
+test	t1
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys, mysql.tables
+WHERE tables.name= 't2' AND foreign_keys.table_id = tables.id;
+referenced_table_schema	referenced_table_name
+test	t1
+SET SESSION debug= '-d,skip_dd_table_access_check';
+DROP TABLE t2, t1;

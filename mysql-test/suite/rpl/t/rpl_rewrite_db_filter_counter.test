@@ -1,0 +1,83 @@
+# ==== Purpose ====
+#
+# Verify that we increase the counter of replication_applier_filters for
+# REPLICATE_REWRITE_DB filter rule when applying relay
+# log event which uses the rewritten database.
+#
+# ==== Implementation ====
+#
+# 1. Log on slave.
+# 2. Set REPLICATE_REWRITE_DB= ((db1, db2)).
+# 3. Check the replication_applier_filters.counter is 0.
+# 4. Log on master.
+# 5. CREATE DATABASE db1.
+# 6. Execute transactions with using db1.
+# 7. sync slave with master.
+# 8. Verify that the REPLICATE_REWRITE_DB filter is hit 6 times on slave
+#    and all the data was replicated to db2.t1.
+#
+# ==== References ====
+#
+# WL#7361 MSR: per-channel replication filters
+# Bug #25456120  WL7361: REPLICATE_REWRITE_DB FILTER RULE DOESN'T INCREASES THE COUNTER
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB= ((db1, db2));
+--source include/start_slave.inc
+--query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME = '' AND FILTER_NAME = 'REPLICATE_REWRITE_DB'
+CREATE DATABASE db2;
+
+--source include/rpl_connection_master.inc
+CREATE DATABASE db1;
+USE db1;
+# The query increases increase rewrite_db_filter counter by 1 on slave.
+CREATE TABLE t1 (a INT);
+# The query increases increase rewrite_db_filter counter by 1 on slave.
+INSERT INTO t1 VALUES (1);
+BEGIN;
+# The query increases increase rewrite_db_filter counter by 1 on slave.
+INSERT INTO t1 VALUES (2);
+# The query increases increase rewrite_db_filter counter by 1 on slave.
+INSERT INTO t1 VALUES (3);
+COMMIT;
+# The query increases increase rewrite_db_filter counter by 1 on slave.
+CREATE USER user1;
+# The query increases increase rewrite_db_filter counter by 1 on slave.
+CREATE VIEW v1 as SELECT 1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo #
+--echo # Wait until the REPLICATE_REWRITE_DB filter is hit 6 times on slave
+--echo # and all the data was replicated to db2.t1.
+--echo #
+let $wait_condition=
+  SELECT COUNTER=6
+  FROM performance_schema.replication_applier_filters
+  WHERE CHANNEL_NAME = '' AND FILTER_NAME = 'REPLICATE_REWRITE_DB';
+--source include/wait_condition_or_abort.inc
+SELECT COUNT(*) FROM db2.t1;
+
+--source include/rpl_connection_master.inc
+# The query increases increase rewrite_db_filter counter by 1 on slave.
+DROP VIEW v1;
+# The query increases increase rewrite_db_filter counter by 1 on slave.
+DROP USER user1;
+DROP DATABASE db1;
+
+--source include/sync_slave_sql_with_master.inc
+DROP DATABASE db2;
+--echo #
+--echo # Verify that the REPLICATE_REWRITE_DB filter is hit 8 times on slave.
+--echo #
+--query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME = '' AND FILTER_NAME = 'REPLICATE_REWRITE_DB'
+
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB= ();
+--source include/start_slave.inc
+--source include/rpl_end.inc

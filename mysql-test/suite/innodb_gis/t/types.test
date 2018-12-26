@@ -1,0 +1,87 @@
+# WL#6455 GEOMETRY datatypes support
+# In order to implement GIS indexing in InnoDB,
+# InnoDB needs to support GEOMETRY datatypes,
+# so that InnoDB stores them properly and understands them.
+
+--source include/have_debug.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+# Turn on the geometry data print.
+SET SESSION debug="+d,row_print_geometry_data";
+
+# Test GEOMETRY datatype.
+CREATE TABLE t_wl6455 ( i INT, g GEOMETRY NOT NULL) ENGINE=InnoDB;
+SHOW CREATE TABLE t_wl6455;
+
+# Insert Point.
+INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
+
+INSERT INTO t_wl6455 VALUES(2, POINT(2,2));
+
+# Insert MultiPoint.
+SET @mp = 'MULTIPOINT(0 0, 20 20, 60 60)';
+INSERT INTO t_wl6455 VALUES(3, ST_GeomFromText(@mp));
+
+# Insert LineString.
+INSERT INTO t_wl6455 VALUES(4, LINESTRING(POINT(1,1), POINT(4, 4)));
+
+INSERT INTO t_wl6455 VALUES(5, LINESTRING(POINT(2,2), POINT(5, 5)));
+
+# Insert MultiLineString.
+SET @mls = 'MultiLineString((1 1,2 2,3 3),(4 4,5 5))';
+INSERT INTO t_wl6455 VALUES(6, ST_GeomFromText(@mls));
+
+# Insert Polygon.
+SET @poly = 'Polygon((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))';
+INSERT INTO t_wl6455 VALUES(7, ST_GeomFromText(@poly));
+
+# Insert MultiPolygon.
+SET @mpoly = 'MultiPolygon(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))';
+INSERT INTO t_wl6455 VALUES(8, ST_GeomFromText(@mpoly));
+
+# Insert GeometryCollection.
+SET @gc = 'GeometryCollection(Point(1 1),LineString(2 2, 3 3))';
+INSERT INTO t_wl6455 VALUES(9, ST_GeomFromText(@gc));
+
+# Show result.
+SELECT ST_AsText(g) FROM t_wl6455;
+
+# Test create prefix index.
+--error ER_WRONG_SUB_KEY
+CREATE INDEX i_p ON t_wl6455 (g(10));
+
+# Select on prefix index.
+--replace_column 10 #
+EXPLAIN SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
+SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
+
+# Test rollback/commit
+SET AUTOCOMMIT = 0;
+INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
+SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(10,10);
+ROLLBACK;
+SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(10,10);
+
+INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
+COMMIT;
+
+INSERT INTO t_wl6455 VALUES(11, POINT(11,11));
+BEGIN;
+INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
+
+--source include/kill_and_restart_mysqld.inc
+
+CHECK TABLE t_wl6455;
+SELECT ST_AsText(g) FROM t_wl6455;
+
+# Check information_schema, the mtype of GEOMETRY datatype is 14.
+SELECT sc.name, sc.pos, sc.mtype
+FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
+ON sc.TABLE_ID=st.TABLE_ID
+WHERE st.NAME='test/t_wl6455' AND sc.NAME='g';
+
+# Clean up
+DROP TABLE t_wl6455;

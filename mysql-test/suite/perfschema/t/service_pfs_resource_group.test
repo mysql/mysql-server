@@ -1,0 +1,116 @@
+--echo
+--echo ## Test the Performance Schema Resource Group service WL#8881
+--echo ##
+--echo ## 1. Load component to register callbacks for each API
+--echo ## 2. Create users to trigger tests within the component
+--echo ## 3. Write test results to a log file
+--echo ## 4. Print out log file
+--echo ##
+
+##                                             EXPECTED
+## TEST                                        RESULT    VERIFICATION
+## ------------------------------------------  --------  ---------------------------------
+## 1. Set resource group, current thread       Success   Group name = PFS_CURRENT_THREAD
+## 2. Set resource group, valid group name     Success   Group name = PFS_VALID_GROUP_NAME
+## 3. Set resource group, invalid thread id    Fail      Log message
+## 4. Set resource group, invalid group name   Fail      Log message
+
+--echo ## Note: The test component sets its own resource group name, PFS_CURRENT_THREAD, for root.
+
+--disable_ps_protocol
+
+--echo
+--echo ## Install test component
+INSTALL COMPONENT 'file://component_test_pfs_resource_group';
+
+--echo
+--echo ## Create test-specific users. The internal tests are triggered when the user connects.
+
+CREATE USER PFS_TEST_CURRENT_THREAD;
+CREATE USER PFS_TEST_VALID_GROUP_NAME;
+CREATE USER PFS_TEST_INVALID_THREAD_ID;
+CREATE USER PFS_TEST_INVALID_GROUP_NAME;
+# CREATE USER PFS_DEBUG_MODE;
+GRANT ALL ON *.* TO PFS_TEST_CURRENT_THREAD;
+GRANT ALL ON *.* TO PFS_TEST_VALID_GROUP_NAME;
+GRANT ALL ON *.* TO PFS_TEST_INVALID_THREAD_ID;
+GRANT ALL ON *.* TO PFS_TEST_INVALID_GROUP_NAME;
+# GRANT ALL ON *.* TO PFS_DEBUG_MODE;
+
+--echo
+--echo ## TEST 1. CURRENT THREAD (INSTRUMENTED)
+--echo ## PFS_CURRENT_THREAD is the group name for the component connection, set during component initialization.
+--echo ## This also exercises the THREADS.RESOURCE_GROUP index.
+--echo
+SELECT name, type, processlist_user, processlist_host, processlist_db, resource_group
+FROM performance_schema.threads WHERE resource_group = 'PFS_CURRENT_THREAD';
+
+--echo
+--echo ## TEST 2. VALID GROUP NAME
+--echo ## set_resource_group() with a valid group name
+--echo ## CONNECT PFS_TEST_VALID_GROUP_NAME
+connect (con_valid_group_name, localhost, PFS_TEST_VALID_GROUP_NAME, , test);
+
+#--echo
+#--echo ## Verify valid group name test result
+#--echo
+#SELECT name, type, processlist_user, processlist_host, processlist_db, resource_group
+#FROM performance_schema.threads WHERE resource_group = 'PFS_VALID_GROUP_NAME';
+
+--echo
+--echo ## TEST 3. INVALID THREAD_ID
+--echo ## Test set_resource_group() with an invalid thread_id
+--echo ## CONNECT PFS_TEST_INVALID_THREAD_ID
+connect (con_invalid_thread_id, localhost, PFS_TEST_INVALID_THREAD_ID, , test);
+
+--echo
+--echo ## TEST 4. INVALID GROUP NAME
+--echo ## Test set_resource_group() with an invalid group name
+--echo ## CONNECT PFS_TEST_INVALID_GROUP_NAME
+connect (con_invalid_group_name, localhost, PFS_TEST_INVALID_GROUP_NAME, , test);
+
+--echo ## Disconnect PFS_TEST_VALID_GROUP_NAME
+--connection con_valid_group_name
+--disconnect con_valid_group_name
+--source include/wait_until_disconnected.inc
+
+--echo ## Disconnect PFS_TEST_INVALID_THREAD_ID
+--connection con_invalid_thread_id
+--disconnect con_invalid_thread_id
+--source include/wait_until_disconnected.inc
+
+--echo ## Disconnect PFS_TEST_INVALID_GROUP_NAME
+--connection con_invalid_group_name
+--disconnect con_invalid_group_name
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo ## Connect default
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo
+--echo ## PRINT LOG FILE
+--echo =========================================
+let $MYSQLD_DATADIR= `select @@datadir`;
+#cat_file $MYSQLD_DATADIR/test_pfs_resource_group.log;
+--echo =========================================
+
+--echo
+--echo ## Uninstall component
+--echo
+UNINSTALL COMPONENT 'file://component_test_pfs_resource_group';
+let $wait_condition=SELECT count(*)=0 FROM mysql.component WHERE component_urn like '%component_test_pfs_resource_group';
+--source include/wait_condition.inc
+
+--echo
+--echo ## Clean up
+--echo
+DROP USER PFS_TEST_CURRENT_THREAD;
+DROP USER PFS_TEST_VALID_GROUP_NAME;
+DROP USER PFS_TEST_INVALID_THREAD_ID;
+DROP USER PFS_TEST_INVALID_GROUP_NAME;
+
+remove_file $MYSQLD_DATADIR/test_pfs_resource_group.log;
+
+--enable_ps_protocol

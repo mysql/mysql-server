@@ -1,0 +1,118 @@
+#
+# Variable name : session_track_state_change
+# Scope         : Global & Session
+#
+# Global - default
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+# Session - default
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+
+# via performance_schema.global_variables
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE '%track_state_change%';
+VARIABLE_NAME	VARIABLE_VALUE
+session_track_state_change	OFF
+# via performance_schema.session_variables
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE '%track_state_change%';
+VARIABLE_NAME	VARIABLE_VALUE
+session_track_state_change	OFF
+SET @global_saved_tmp =  @@global.session_track_state_change;
+
+# Altering global variable's value
+SET @@global.session_track_state_change = 0;
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+SET @@global.session_track_state_change = TrUe;
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+1
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+SET @@global.session_track_state_change = FaLsE;
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+
+# Altering session variable's value
+SET @@session.session_track_state_change = 0;
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+
+# Variables' values in a new session.
+# Global - expect 0
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+
+# Session - expect 0
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+
+# Switching to the default connection.
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+
+# Test if DEFAULT is working as expected.
+SET @@global.session_track_state_change = DEFAULT;
+SET @@session.session_track_state_change = DEFAULT;
+
+# Global - expect 0
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+# Session - expect 0
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+
+# Variables' values in a new session (con2).
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+
+# Altering session should not affect global.
+SET @@session.session_track_state_change = FALSE;
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+
+# Variables' values in a new session (con3).
+# Altering global should not affect session.
+SET @@global.session_track_state_change = OFF;
+SELECT @@global.session_track_state_change;
+@@global.session_track_state_change
+0
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+
+# Switching to the default connection.
+# Restoring the original values.
+SET @@global.session_track_state_change = @global_saved_tmp;
+# End of tests.

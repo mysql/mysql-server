@@ -1,0 +1,4 @@
+--loose-caching_sha2_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem
+--loose-caching_sha2_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+--loose-sha256_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem
+--loose-sha256_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem

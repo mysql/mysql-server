@@ -1,0 +1,16 @@
+#### suite/funcs_1/t/innodb_bitdata.test
+
+# InnoDB tables should be used
+#
+# 1. Check if InnoDB is available
+# 2. Set $engine_type
+let $engine_type= innodb;
+
+let $message= NOT YET IMPLEMENTED: bitdata tests;
+--source include/show_msg80.inc
+exit;
+
+# Create some objects needed in many testcases
+USE test;
+--source suite/funcs_1/include/innodb_tb4.inc
+--source suite/funcs_1/bitdata/bitdata_master.test

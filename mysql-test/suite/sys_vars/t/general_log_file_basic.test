@@ -1,0 +1,79 @@
+################### mysql-test\t\general_log_file_basic.test ###################
+#                                                                              #
+# Variable Name: general_log_file                                              #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: Filename                                                          #
+# Default Value: host_name.log                                                 #
+# Valid Values:                                                                #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-16                                                    #
+# Author:  Salman Rawala                                                       #
+# Modified: HHunger 2008-09-11 Set system variable back to the start value     #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "general_log_file"        #
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+#                                                                              #
+# Reference:                                                                   #
+# http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html          #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+###########################################################
+#           START OF general_log_file TESTS               #
+###########################################################
+
+
+########################################################################
+#   Saving initial value of general_log_file in a temporary variable   #
+########################################################################
+
+SET @start_value = @@global.general_log_file;
+SELECT @start_value;
+
+
+--echo '#---------------------FN_DYNVARS_004_01-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.general_log_file = DEFAULT;
+SET @a=concat(left(@@hostname, instr(concat(@@hostname, '.'), '.')-1), '.log');
+SELECT RIGHT(@@global.general_log_file, length(@a)) = @a;
+
+
+--echo '#--------------------FN_DYNVARS_004_02------------------------#'
+#######################################################################
+#        Change the value of general_log_file to a invalid value      #
+#######################################################################
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.general_log_file = mytest.log;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.general_log_file = 12;
+
+
+--echo '#----------------------FN_DYNVARS_004_03------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL Tables matches values in variable             #
+##############################################################################
+
+--disable_warnings
+SELECT @@global.general_log_file = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='general_log_file';
+--enable_warnings
+
+SET @@global.general_log_file= @start_value;
+
+#####################################################
+#       END OF general_log_file TESTS               #
+#####################################################
+

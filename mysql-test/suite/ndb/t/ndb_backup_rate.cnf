@@ -1,0 +1,13 @@
+!include ../my.cnf
+
+[cluster_config.1]
+DataMemory=100M
+BackupMemory=15M
+BackupDataBufferSize=11M
+BackupLogBufferSize = 3M
+BackupMaxWriteSize=10M
+MinDiskWriteSpeed=2M
+MaxDiskWriteSpeed=2M
+MaxDiskWriteSpeedOtherNodeRestart=2M
+DefaultOperationRedoProblemAction=abort
+NoOfFragmentLogFiles=3

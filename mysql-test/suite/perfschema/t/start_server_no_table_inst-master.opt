@@ -1,0 +1,4 @@
+--loose-enable-performance-schema
+--loose-performance_schema_max_table_instances=0
+--loose-performance_schema_max_index_stat=0
+--loose-performance_schema_max_table_lock_stat=0

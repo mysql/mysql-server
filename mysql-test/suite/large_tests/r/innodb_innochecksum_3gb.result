@@ -1,0 +1,93 @@
+DROP TABLE IF EXISTS tab2;
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	crc32
+SELECT @@default_storage_engine;
+@@default_storage_engine
+InnoDB
+CREATE TABLE tab2(col_1 CHAR (255) ,
+col_2 VARCHAR (255), col_3 longtext,
+col_4 longtext,col_5 BLOB,
+col_6 LONGBLOB , col_7 bigint)
+engine = innodb ;
+CREATE INDEX idx1 ON tab2(col_3(10));
+CREATE INDEX idx2 ON tab2(col_4(10));
+CREATE INDEX idx3 ON tab2(col_5(10));
+# Generate a input text file for loading the table
+# check whether file exist
+# load the data into the table
+SELECT COUNT(*) FROM tab2;
+COUNT(*)
+7014000
+# Stop the server
+# Rewrite the tab2.ibd file into new checksum=CRC32
+# Restart the DB server with default innodb_checksum_algorithm=InnoDB (Default)
+# no need to pass to the server.
+# Load the with repeat function
+SET @col_1 = repeat('A', 5);
+SET @col_2 = repeat('B', 20);
+SET @col_3 = repeat('D', 100);
+SET @col_4 = repeat('E', 100);
+SET @col_5 = repeat('F', 100);
+SET @col_6 = repeat('G', 100);
+# Check the table status with DML
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,1000);
+# Check with Read operation by record count
+SELECT COUNT(*) FROM tab2 where col_7=1000;
+COUNT(*)
+1
+# Stop the server
+# Rewrite the tab2.ibd file into new checksum=None
+# Check the page type summary with longform for *.ibd
+
+File::tab#.ibd
+================PAGE TYPE SUMMARY==============
+#PAGE_COUNT	PAGE_TYPE
+===============================================
+  #	Index page
+       #	SDI Index page
+       #	Undo log page
+       #	Inode page
+       #	Insert buffer free list page
+    #	Freshly allocated page
+      #	Insert buffer bitmap
+       #	System page
+       #	Transaction system page
+       #	File Space Header
+      #	Extent descriptor page
+       #	BLOB page
+       #	Compressed BLOB page
+       #	Subsequent Compressed BLOB page
+       #	SDI BLOB page
+       #	Compressed SDI BLOB page
+       #	Other type of page
+===============================================
+Additional information:
+Undo page type: # insert, # update, # other
+Undo page state: # active, # cached, # to_free, # to_purge, # prepared, # other
+# Page type dump for tab2.ibd
+# check whether dump.txt file exist
+# Restart the DB server with default innodb_checksum_algorithm=CRC32
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	crc32
+# Check the default engine is always InnoDB after restart
+SELECT @@default_storage_engine;
+@@default_storage_engine
+InnoDB
+# Load the with repeat function
+SET @col_1 = repeat('G', 5);
+SET @col_2 = repeat('H', 20);
+SET @col_3 = repeat('I', 100);
+SET @col_4 = repeat('J', 100);
+SET @col_5 = repeat('K', 100);
+SET @col_6 = repeat('L', 100);
+# Check the table status with DML
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,2000);
+# Check with Read operation that record count
+SELECT COUNT(*) FROM tab2 where col_7=2000;
+COUNT(*)
+1
+DROP TABLE IF EXISTS tab2;

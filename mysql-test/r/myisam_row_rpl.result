@@ -1,0 +1,60 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Bug#11940249: RBR: MYISAM TABLE CORRUPTION AFTER FIRST LARGE INSERT
+#               ON SLAVE
+#
+# Must have > 100 rows in the first rpl event (to trigger bulk_insert
+# optimization for insert into an empty table, by disable all non-unique
+# indexes and recreate them afterwards.)
+# and then it must be a second rpl event for the same insert (i.e.
+# during the same lock).
+# Note that --binlog-row-event-max-size=1024 is set in the .opt files
+# to enforce the default size.
+CREATE TABLE tmp (a VARCHAR(10), b INT) ENGINE=Memory;
+INSERT INTO tmp VALUES ('aZa', 1), ('zAz', 2), ('M', 3);
+INSERT INTO tmp SELECT * FROM tmp;
+INSERT INTO tmp SELECT * FROM tmp;
+INSERT INTO tmp SELECT * FROM tmp;
+INSERT INTO tmp SELECT * FROM tmp;
+INSERT INTO tmp SELECT * FROM tmp;
+INSERT INTO tmp SELECT * FROM tmp;
+CREATE TABLE t
+(a VARCHAR(10),
+b INT,
+KEY a (a))
+ENGINE = MyISAM;
+INSERT INTO t SELECT * FROM tmp;
+# on slave:
+SELECT COUNT(*) FROM t WHERE b > -1;
+COUNT(*)
+192
+# on master:
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+RENAME TABLE t to t_2;
+RENAME TABLE t_2 to t;
+# on slave:
+SELECT COUNT(*) FROM t WHERE b > -1;
+COUNT(*)
+192
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+REPAIR TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	repair	status	OK
+SELECT COUNT(*) FROM t WHERE b > -1;
+COUNT(*)
+192
+include/diff_tables.inc [master:t, slave:t]
+DROP TABLE t, tmp;
+include/rpl_end.inc

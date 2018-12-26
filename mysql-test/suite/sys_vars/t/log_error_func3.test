@@ -1,0 +1,7 @@
+# Test for BUG#51215 "log-error partially works with version 5.5"
+# when --log-error is not used
+
+# check displayed value. Should be empty.
+--disable_warnings
+select variable_value from performance_schema.global_variables where variable_name="log_error";
+--enable_warnings

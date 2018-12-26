@@ -1,0 +1,253 @@
+/*
+   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+%{
+#include "NdbImportCsv.hpp"
+
+static int
+NdbImportCsv_yylex(union YYSTYPE* lvalp, NdbImportCsv::Parse& csvparse);
+
+static void
+NdbImportCsv_yyerror(NdbImportCsv::Parse& csvparse, const char* msg);
+
+#ifdef VM_TRACE
+#define YYDEBUG 1
+#endif
+%}
+
+%pure-parser
+%lex-param { NdbImportCsv::Parse& csvparse }
+%parse-param { NdbImportCsv::Parse& csvparse }
+
+%defines
+%verbose
+%error-verbose
+
+%union {
+  NdbImportCsv::Line* m_line;
+  NdbImportCsv::Field* m_field;
+  NdbImportCsv::Data* m_data;
+  NdbImportCsv::Chunk m_chunk;
+}
+
+%type <m_line> line
+%type <m_field> field
+%type <m_data> data
+%type <m_chunk> T_FIELDSEP
+%type <m_chunk> T_QUOTE
+%type <m_chunk> T_ESCAPE
+%type <m_chunk> T_LINEEND
+%type <m_chunk> T_DATA
+%type <m_chunk> T_BYTE
+
+%token T_FIELDSEP
+%token T_FIELDSEP2      /* for lex if length > 1 */
+%token T_QUOTE
+%token T_QUOTEQUOTE     /* for lex */
+%token T_ESCAPE
+%token T_LINEEND
+%token T_LINEEND2       /* for lex if length > 1 */
+%token T_DATA
+%token T_BYTE
+%token T_NUL            /* NUL byte 0x00 */
+
+%%
+
+page:
+  line_list
+  {
+    csvparse.m_input.m_line_list.push_back_from(csvparse.m_line_list);
+  }
+  ;
+
+line_list:
+  line_list
+  line
+  {
+    NdbImportCsv::Line* line = $2;
+    line->m_lineno = csvparse.m_line_list.cnt();
+    csvparse.m_line_list.push_back(line);
+  }
+  |
+  line
+  {
+    NdbImportCsv::Line* line = $1;
+    line->m_lineno = 0;
+    require(csvparse.m_line_list.cnt() == 0);
+    csvparse.m_line_list.push_back(line);
+  }
+  ;
+
+line:
+  field_list
+  T_LINEEND
+  {
+    NdbImportCsv::Line* line = csvparse.m_input.alloc_line();
+    NdbImportCsv::FieldList& field_list = csvparse.m_field_list;
+    NdbImportCsv::Chunk chunk_lineend = $2;
+    line->m_pos = field_list.front()->m_pos;
+    line->m_end = chunk_lineend.m_end;
+    line->m_field_list.push_back_from(field_list);
+    $$ = line;
+  }
+  |
+  T_LINEEND
+  {
+    NdbImportCsv::Line* line = csvparse.m_input.alloc_line();
+    NdbImportCsv::FieldList& field_list = csvparse.m_field_list;
+    require(field_list.cnt() == 0);
+    NdbImportCsv::Chunk chunk_lineend = $1;
+    line->m_pos = chunk_lineend.m_pos;
+    line->m_end = chunk_lineend.m_end;
+    require(line->m_field_list.cnt() == 0);
+    line->m_field_list.push_back_from(field_list);
+    $$ = line;
+  }
+  ;
+
+field_list:
+  field_list
+  T_FIELDSEP
+  field
+  {
+    NdbImportCsv::Field* field = $3;
+    field->m_fieldno = csvparse.m_field_list.cnt();
+    csvparse.m_field_list.push_back(field);
+  }
+  |
+  field
+  {
+    NdbImportCsv::Field* field = $1;
+    field->m_fieldno = 0;
+    require(csvparse.m_field_list.cnt() == 0);
+    csvparse.m_field_list.push_back(field);
+  }
+  ;
+
+field:
+  data_list
+  {
+    NdbImportCsv::Field* field = csvparse.m_input.alloc_field();
+    NdbImportCsv::DataList& data_list = csvparse.m_data_list;
+    field->m_pos = data_list.front()->m_pos;
+    field->m_end = data_list.back()->m_end;
+    field->m_null = false;
+    require(field->m_data_list.cnt() == 0);
+    field->m_data_list.push_back_from(csvparse.m_data_list);
+    $$ = field;
+  }
+  |
+  {
+    const NdbImportCsv::Buf& buf = csvparse.m_input.m_buf;
+    NdbImportCsv::Field* field = csvparse.m_input.alloc_field();
+    field->m_pos = buf.m_pos;
+    field->m_end = buf.m_pos;
+    field->m_null = false;
+    require(field->m_data_list.cnt() == 0);
+    $$ = field;
+  }
+  |
+  T_QUOTE
+  data_list
+  T_QUOTE
+  {
+    NdbImportCsv::Field* field = csvparse.m_input.alloc_field();
+    NdbImportCsv::Chunk chunk_quote1 = $1;
+    NdbImportCsv::Chunk chunk_quote2 = $3;
+    field->m_pos = chunk_quote1.m_pos;
+    field->m_end = chunk_quote2.m_end;
+    field->m_null = false;
+    require(field->m_data_list.cnt() == 0);
+    field->m_data_list.push_back_from(csvparse.m_data_list);
+    $$ = field;
+  }
+  |
+  T_QUOTE
+  T_QUOTE
+  {
+    const NdbImportCsv::Buf& buf = csvparse.m_input.m_buf;
+    NdbImportCsv::Field* field = csvparse.m_input.alloc_field();
+    field->m_pos = buf.m_pos;
+    field->m_end = buf.m_pos;
+    field->m_null = false;
+    require(field->m_data_list.cnt() == 0);
+    $$ = field;
+  }
+  ;
+
+data_list:
+  data_list
+  data
+  {
+    NdbImportCsv::Data* data = $2;
+    csvparse.m_data_list.push_back(data);
+  }
+  |
+  data
+  {
+    NdbImportCsv::Data* data = $1;
+    require(csvparse.m_data_list.cnt() == 0);
+    csvparse.m_data_list.push_back(data);
+  }
+  ;
+
+data:
+  T_DATA
+  {
+    NdbImportCsv::Data* data = csvparse.m_input.alloc_data();
+    NdbImportCsv::Chunk chunk_data = $1;
+    data->m_pos = chunk_data.m_pos;
+    data->m_len = chunk_data.m_len;
+    data->m_end = chunk_data.m_end;
+    data->m_escape = false;
+    $$ = data;
+  }
+  |
+  T_ESCAPE T_BYTE
+  {
+    NdbImportCsv::Data* data = csvparse.m_input.alloc_data();
+    NdbImportCsv::Chunk chunk_byte = $2;
+    data->m_pos = chunk_byte.m_pos;
+    data->m_len = chunk_byte.m_len;
+    data->m_end = chunk_byte.m_end;
+    data->m_escape = true;
+    $$ = data;
+  }
+  ;
+
+%%
+
+static int
+NdbImportCsv_yylex(YYSTYPE* lvalp, NdbImportCsv::Parse& csvparse)
+{
+  return csvparse.do_lex(lvalp);
+}
+
+static void
+NdbImportCsv_yyerror(NdbImportCsv::Parse& csvparse, const char* msg)
+{
+  csvparse.do_error(msg);
+}
+
+// vim:filetype=yacc

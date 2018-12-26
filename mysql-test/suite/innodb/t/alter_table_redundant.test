@@ -1,0 +1,17 @@
+# Bug #19824442	ALTER TABLE FAILS, TABLESPACE ALREADY IN CACHE, GENERIC
+# 		ERROR FROM ENGINE
+
+
+
+SET GLOBAL innodb_file_per_table=ON;
+
+DROP TABLE IF EXISTS t;
+
+CREATE TABLE t(C INT) ROW_FORMAT=redundant ENGINE=InnoDB;
+
+--echo #restart the server
+--source include/restart_mysqld.inc
+
+ALTER TABLE t ROW_FORMAT=REDUNDANT KEY_BLOCK_SIZE=0, ALGORITHM=DEFAULT;
+
+DROP TABLE t;

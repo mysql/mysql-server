@@ -1,0 +1,109 @@
+call mtr.add_suppression("192.0.2.4");
+flush status;
+flush hosts;
+flush user_resources;
+flush privileges;
+select @@global.debug;
+@@global.debug
+
+select @@global.max_connect_errors;
+@@global.max_connect_errors
+100
+select @@global.max_user_connections;
+@@global.max_user_connections
+0
+select @@global.max_connections;
+@@global.max_connections
+151
+select `User`, `Host` from mysql.`user` where `host` like '%\\%%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like '192.%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like '2001:%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like 'santa.claus.%';
+User	Host
+CREATE USER 'user4'@'santa.claus.ipv4.example.com';
+GRANT SELECT ON test.* TO 'user4'@'santa.claus.ipv4.example.com';
+SET global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+SELECT "Con4 is alive" AS "";
+
+Con4 is alive
+SELECT current_user() AS "";
+
+user4@santa.claus.ipv4.example.com
+SET global debug= default;
+
+====================================================================
+Testing index for columns IP
+====================================================================
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS 
+from performance_schema.host_cache 
+where IP = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where IP > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where IP < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where IP = "192.0.2.4";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	const	PRIMARY	PRIMARY	258	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where IP = "192.0.2.4";
+SUM_CONNECT_ERRORS
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns HOST
+====================================================================
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS 
+from performance_schema.host_cache 
+where HOST = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	ref	HOST	HOST	1023	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where HOST > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where HOST < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where HOST = "santa.claus.ipv4.example.com";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	host_cache	NULL	ref	HOST	HOST	1023	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select SUM_CONNECT_ERRORS
+from performance_schema.host_cache
+where HOST = "santa.claus.ipv4.example.com";
+SUM_CONNECT_ERRORS
+#
+OK: handler_read_key incremented
+REVOKE SELECT ON test.* FROM 'user4'@'santa.claus.ipv4.example.com';
+DROP USER 'user4'@'santa.claus.ipv4.example.com';

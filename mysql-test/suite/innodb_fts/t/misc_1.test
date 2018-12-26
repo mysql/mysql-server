@@ -1,0 +1,894 @@
+--source include/have_innodb_max_16k.inc
+--source include/no_valgrind_without_big.inc
+
+
+#------------------------------------------------------------------------------
+# FTS with FK and update cascade
+#-------------------------------------------------------------------------------
+set names utf8;
+
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A new Doc ID must be supplied while updating FTS indexed columns.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
+
+# Create FTS table
+CREATE TABLE t1 (
+        id1 INT ,
+        a1 VARCHAR(200) ,
+        b1 TEXT ,
+        FULLTEXT KEY (a1,b1), PRIMARY KEY (a1, id1)
+        ) CHARACTER SET = utf8 , ENGINE = InnoDB;
+
+CREATE TABLE t2 (
+        id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a2 VARCHAR(200),
+        b2 TEXT ,
+        FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
+        FULLTEXT KEY (b2,a2)
+        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        (2,'How To Use MySQL Well','After you went through a ...'),
+        (3,'Optimizing MySQL','In this tutorial we will show ...');
+
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (4,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        (5,'MySQL vs. YourSQL','In the following database comparison ...'),
+        (6,'MySQL Security','When configured properly, MySQL ...');
+
+# Insert rows in t2 fk table
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...');
+
+# Insert rows t2 fk table
+INSERT INTO t2 (a2,b2) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+# error on violating fk constraint
+--error 1452
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tricks','1. Never run mysqld as root. 2. ...');
+
+# error on delete from parent table
+--error 1451
+DELETE FROM t1;
+
+ANALYZE TABLE t1; 
+ANALYZE TABLE t2;
+
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ORDER BY id1;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ORDER BY id2;
+
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id1;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id2;
+
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id1;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id2;
+
+
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
+
+set global innodb_optimize_fulltext_only=1;
+optimize table t1;
+set global innodb_optimize_fulltext_only=0;
+# Updating parent table hence child table should get updated due to 'update cascade' clause
+UPDATE t1 SET a1 = "changing column - on update cascade" , b1 = "to check foreign constraint" WHERE
+MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+# no records expected
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+# InnoDB:Error child table shows records which is incorrect - UPADTE on Fix
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+# it shows updated record
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ORDER BY id1;
+# InnoDB:Error child table does not show the expected record
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ORDER BY id2;
+SELECT id2 FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%' ORDER BY id2;
+
+DROP TABLE t2 , t1;
+
+# on update cascade
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
+create table t2 (s1 int, s2 varchar(200),
+  fulltext key(s2),
+  foreign key (s1,s2) references t1 (s1,s2) on update cascade) ENGINE = InnoDB;
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
+commit;
+select * from t2 where match(s2) against ('Lollipops');
+DROP TABLE t2 , t1;
+
+# on delete cascade
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
+create table t2 (s1 int, s2 varchar(200),
+  fulltext key(s2),
+  foreign key (s1,s2) references t1 (s1,s2) on delete cascade) ENGINE = InnoDB;
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+delete from t1  where s2 <> 'Sunshine';
+select * from t2 where match(s2) against ('Lollipops');
+DROP TABLE t2 , t1;
+
+# on delete set NULL
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
+create table t2 (s1 int, s2 varchar(200),
+  fulltext key(s2),
+  foreign key (s1,s2) references t1 (s1,s2) on delete set null) ENGINE = InnoDB;
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+delete from t1 where s2 <> 'Sunshine';
+select * from t2 where match(s2) against ('Lollipops');
+DROP TABLE t2 , t1;
+
+
+# on update set NULL
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
+create table t2 (s1 int, s2 varchar(200),
+  fulltext key(s2),
+  foreign key (s1,s2) references t1 (s1,s2) on update set null) ENGINE = InnoDB;
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
+commit;
+select * from t2 where match(s2) against ('Lollipops');
+DROP TABLE t2 , t1;
+
+# When Doc ID is involved
+create table t1 (s1 bigint unsigned not null, s2 varchar(200),
+		 primary key (s1,s2)) ENGINE = InnoDB;
+create table t2 (FTS_DOC_ID BIGINT UNSIGNED NOT NULL, s2 varchar(200),
+		 foreign key (FTS_DOC_ID) references t1 (s1)
+		 on update cascade) ENGINE = InnoDB;
+
+create fulltext index idx on t2(s2);
+
+show create table t2;
+
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+
+update t1 set s1 = 3 where s1=1;
+
+select * from t2 where match(s2) against ('sunshine');
+
+# FTS Doc ID cannot be reused
+--error 1451
+update t1 set s1 = 1 where s1=3;
+
+DROP TABLE t2 , t1;
+
+#------------------------------------------------------------------------------
+# FTS with FK and delete casecade
+#------------------------------------------------------------------------------
+
+# Create FTS table
+CREATE TABLE t1 (
+        id1 INT ,
+        a1 VARCHAR(200) PRIMARY KEY,
+        b1 TEXT character set utf8 ,
+        FULLTEXT KEY (a1,b1)
+        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+
+CREATE TABLE t2 (
+        id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a2 VARCHAR(200),
+        b2 TEXT character set utf8 ,
+        FOREIGN KEY (a2) REFERENCES t1(a1) ON DELETE CASCADE,
+        FULLTEXT KEY (b2,a2)
+        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        (2,'How To Use MySQL Well','After you went through a ...'),
+        (3,'Optimizing MySQL','In this tutorial we will show ...'),
+        (4,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        (5,'MySQL vs. YourSQL','In the following database comparison ...'),
+        (6,'MySQL Security','When configured properly, MySQL ...');
+
+# Insert rows in t2
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+# delete records from parent
+DELETE FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+# no records expected
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+SELECT * FROM t1 WHERE a1 LIKE '%tutorial%';
+SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
+
+DROP TABLE t2 , t1;
+
+#------------------------------------------------------------------------------
+# FTS with FK+transactions and UPDATE casecade with transaction
+#-------------------------------------------------------------------------------
+
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* FTS Doc ID must be larger than 3 for table `test`.`t2`");
+
+# Create FTS table
+CREATE TABLE t1 (
+        id1 INT ,
+        a1 VARCHAR(200) ,
+        b1 TEXT ,
+        FULLTEXT KEY (a1,b1), PRIMARY KEY(a1, id1)
+        ) CHARACTER SET = utf8 , ENGINE = InnoDB;
+
+CREATE TABLE t2 (
+        id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a2 VARCHAR(200),
+        b2 TEXT ,
+        FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
+        FULLTEXT KEY (b2,a2)
+        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        (2,'How To Use MySQL Well','After you went through a ...'),
+        (3,'Optimizing MySQL','In this tutorial we will show ...');
+
+# Insert rows in t2 fk table
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...');
+
+START TRANSACTION;
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (4,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        (5,'MySQL vs. YourSQL','In the following database comparison ...'),
+        (6,'MySQL Security','When configured properly, MySQL ...');
+
+# Insert rows t2 fk table
+INSERT INTO t2 (a2,b2) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+# error on violating fk constraint
+--error 1452
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tricks','1. Never run mysqld as root. 2. ...');
+
+# error on DELETE FROM parent table
+--error 1451
+DELETE FROM t1;
+
+# records expected
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ORDER BY id1;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ORDER BY id2;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id1;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id2;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id1;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id2;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
+
+# no records as data not COMMITted.
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('root') ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('root') ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('mysqld (+root)' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('mysqld (-root)' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('root' WITH QUERY EXPANSION) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('root' WITH QUERY EXPANSION) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"database comparison"@02' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"database comparison"@02' IN BOOLEAN MODE) ;
+
+SELECT * FROM t1 ORDER BY id1;
+SELECT * FROM t2 ORDER BY id2;
+
+COMMIT;
+
+START TRANSACTION;
+# Updating parent table hence child table should get updated due to 'UPDATE cascade' clause
+UPDATE t1 SET a1 = "changing column - on UPDATE cascade" , b1 = "to check foreign constraint" WHERE
+MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+COMMIT;
+
+# no records expected
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+# it shows updated record
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ORDER BY id1;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ORDER BY id2;
+SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%' ORDER BY id2;
+
+DROP TABLE t2 , t1;
+
+
+# FTS with FK+transactions - UPDATE cascade
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on UPDATE cascade) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
+COMMIT;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+# FTS with FK+transactions -  on DELETE cascade
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on DELETE cascade) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+DELETE FROM t1  WHERE s2 <> 'Sunshine';
+COMMIT;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+# FTS with FK+transactions -  DELETE SET NULL
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on DELETE SET NULL) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+DELETE FROM t1 WHERE s2 <> 'Sunshine';
+COMMIT;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+
+# FTS with FK+transactions -  UPDATE SET NULL
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on UPDATE SET NULL) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
+COMMIT;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+
+#-----------------------------------------------------------------------------
+
+# FTS with FK+transactions - UPDATE cascade
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on UPDATE cascade) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
+ROLLBACK;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+# FTS with FK+transactions - DELETE cascade
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on DELETE cascade) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+DELETE FROM t1  WHERE s2 <> 'Sunshine';
+ROLLBACK;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+# FTS with FK+transactions - DELETE SET NULL
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on DELETE SET NULL) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+DELETE FROM t1 WHERE s2 <> 'Sunshine';
+ROLLBACK;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+
+# FTS with FK+transactions - UPDATE SET NULL
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on UPDATE SET NULL) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
+ROLLBACK;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+
+#------------------------------------------------------------------------------
+# FTS index with compressed row format
+#------------------------------------------------------------------------------
+
+# Save innodb variables
+let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+set global innodb_file_per_table=1;
+
+# Create FTS table
+CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) CHARACTER SET = utf8, ROW_FORMAT=COMPRESSED, ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...');
+
+# Create the FTS index Using Alter Table
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+EVAL SHOW CREATE TABLE t1;
+
+# Check whether individual space id created for AUX tables
+SELECT count(*) FROM information_schema.innodb_tables WHERE name LIKE "%FTS_%" AND space !=0;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) ORDER BY id;
+
+# boolean mode
+select * from t1 where MATCH(a,b) AGAINST("+tutorial +VÐƷWİ" IN BOOLEAN MODE);
+--error ER_PARSE_ERROR
+select * from t1 where MATCH(a,b) AGAINST("+-VÐƷWİ" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE) ORDER BY id;
+select *, MATCH(a,b) AGAINST("mysql stands" IN BOOLEAN MODE) as x from t1 ORDER BY id;
+select * from t1 where MATCH a,b AGAINST ("+database* +VÐƷW*" IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"security mysql"' IN BOOLEAN MODE);
+
+# query expansion
+select * from t1 where MATCH(a,b) AGAINST ("VÐƷWİ" WITH QUERY EXPANSION) ORDER BY id;
+
+# Drop index 
+ALTER TABLE t1 DROP INDEX idx;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) ORDER BY id;
+
+# boolean mode
+select * from t1 where MATCH(a,b) AGAINST("+tutorial +VÐƷWİ" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+dbms" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE) ORDER BY id;
+select *, MATCH(a,b) AGAINST("mysql VÐƷWİ" IN BOOLEAN MODE) as x from t1 ORDER BY id;
+# Innodb:Assert eval0eval.c line 148
+#select * from t1 where MATCH a,b AGAINST ("+database* +VÐƷWİ*" IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"security mysql"' IN BOOLEAN MODE);
+
+# query expansion
+select * from t1 where MATCH(a,b) AGAINST ("VÐƷWİ" WITH QUERY EXPANSION) ORDER BY id;
+
+
+# insert for proximity search 
+INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
+# Insert into table with similar word of different distances
+INSERT INTO t1 (a,b) VALUES
+        ('test proximity search, test, proximity and phrase',
+         'search, with proximity innodb');
+
+INSERT INTO t1 (a,b) VALUES
+        ('test proximity fts search, test, proximity and phrase',
+         'search, with proximity innodb');
+
+INSERT INTO t1 (a,b) VALUES
+        ('test more proximity fts search, test, more proximity and phrase',
+         'search, with proximity innodb');
+
+# This should only return the first document
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"proximity search"@2' IN BOOLEAN MODE);
+
+# This would return no document
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"proximity search"@1' IN BOOLEAN MODE);
+
+# This give you all three documents
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"proximity search"@3' IN BOOLEAN MODE) ORDER BY id;
+
+# Similar boundary testing for the words
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"test proximity"@5' IN BOOLEAN MODE) ORDER BY id;
+
+# Test with more word The last document will return, please notice there
+# is no ordering requirement for proximity search.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
+
+# The phrase search will not require exact word ordering
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"more fts proximity"@03' IN BOOLEAN MODE);
+
+
+UPDATE t1 SET a = UPPER(a) , b = UPPER(b) ;
+UPDATE t1 SET a = UPPER(a) , b = LOWER(b) ;
+
+select * from t1 where MATCH(a,b) AGAINST("+tutorial +dbms" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+VÐƷWİ" IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) ORDER BY id;
+
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+
+
+SELECT * FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM t1 ORDER BY id;
+
+DROP TABLE t1;
+eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
+
+#------------------------------------------------------------------------------
+# FTS index with utf8 character testcase
+#------------------------------------------------------------------------------
+
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) CHARACTER SET = utf8, ENGINE=InnoDB;
+
+
+# Insert rows from different languages
+INSERT INTO t1 (a,b) VALUES
+('Я могу есть стекло', 'оно мне не вредит'),
+('Мога да ям стъкло', 'то не ми вреди'),
+('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+('Příliš žluťoučký kůň', 'úpěl ďábelské kódy'),
+('Sævör grét', 'áðan því úlpan var ónýt'),
+('うゐのおくやま','けふこえて'),
+('いろはにほへど　ちりぬる','あさきゆめみじ　ゑひもせず');
+
+# insert english text
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam@oraclehelp.com ...')  ,
+        ('Trial version','query performace @1255 minute on 2.1Hz Memory 2GB...')  ,
+        ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# FTS Queries
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("вредит χωρὶς") ORDER BY id;
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("оно" WITH QUERY EXPANSION);
+
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE) ORDER BY id;
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+γυαλιὰ +tutorial" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+tutorial +(Мога τίποτα)" IN BOOLEAN MODE);
+
+# Innodb:error - no result returned (update result of query once fixed) (innodb limit , does not understand character boundry for japanses like charcter set)
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("ちりぬる" WITH QUERY EXPANSION);
+
+# Innodb:error - no result returned (update result of query once fixed) (innodb limit , does not understand character boundry for japanses like charcter set)
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("+あさきゆめみじ　+ゑひもせず" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("うゐのおく*" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"γυαλιὰ χωρὶς"@2' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"query performace"@02' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"πάθω τίποτα"@2' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"あさきゆめみじ ゑひもせず"@1' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"あさきゆめみじ ゑひもせず"@2' IN BOOLEAN MODE);
+
+ALTER TABLE t1 DROP INDEX idx;
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# Innodb:error - no result returned (update result of query once fixed) (innodb limit , does not understand character boundry for japanses like charcter set)
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ ゑひもせず");
+# Update fails because where condition do not succeed which is incorrect (update result of query once fixed)
+UPDATE t1 SET a = "Pchnąć w tę łódź jeża" , b = "lub osiem skrzyń fig" WHERE MATCH(a,b) AGAINST ("あさきゆめみじ ゑひもせず");
+UPDATE t1 SET a = "В чащах юга жил-был цитрус? Да", b = "но фальшивый экземпляр! ёъ" WHERE MATCH(a,b) AGAINST ("вред*" IN BOOLEAN MODE);
+DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
+
+# Innodb error - no result returned
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("łódź osiem");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("фальшив*" IN BOOLEAN MODE) ORDER BY id;
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"łódź jeża"@2' IN BOOLEAN MODE);
+
+SELECT * FROM t1 ORDER BY id;
+DROP TABLE t1;
+
+# This is to test the update operation on FTS indexed and non-indexed
+# column
+CREATE TABLE t1(ID INT PRIMARY KEY,
+		no_fts_field VARCHAR(10),
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+
+# Update FULLTEXT indexed column, Doc ID will be updated
+UPDATE t1 SET fts_field='anychange' where id = 1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+
+# Update non-FULLTEXT indexed column, Doc ID stay to be the same
+UPDATE t1 SET no_fts_field='anychange' where id = 1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+
+# Update both FULLTEXT indexed and non-indexed column, Doc ID will be updated
+UPDATE t1 SET no_fts_field='anychange', fts_field='other' where id = 1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+
+# FTS index dropped, the DOC_ID column is kept, however, the ID will not
+# change
+DROP INDEX f on t1;
+
+UPDATE t1 SET fts_field='anychange' where id = 1;
+
+UPDATE t1 SET no_fts_field='anychange' where id = 1;
+
+UPDATE t1 SET no_fts_field='anychange', fts_field='other' where id = 1;
+
+CREATE FULLTEXT INDEX f ON t1(FTS_FIELD);
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
+
+DROP TABLE t1;
+
+# Test on user supplied 'FTS_DOC_ID'
+CREATE TABLE t1(`FTS_DOC_ID` serial,
+		no_fts_field VARCHAR(10),
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
+
+# Doc ID must be updated as well (HA_FTS_INVALID_DOCID).
+--error 182
+UPDATE t1 SET fts_field='anychange' where FTS_DOC_ID = 1;
+
+UPDATE t1 SET fts_field='anychange', FTS_DOC_ID = 2 where FTS_DOC_ID = 1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+
+# "BBB" should be marked as deleted.
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+
+UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+
+# "HA_FTS_INVALID_DOCID"
+--error 182
+UPDATE t1 SET no_fts_field='anychange', fts_field='other' where FTS_DOC_ID = 2;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
+
+# Doc ID must be monotonically increase (HA_FTS_INVALID_DOCID)
+--error 182
+UPDATE t1 SET  FTS_DOC_ID = 1 where FTS_DOC_ID = 2;
+
+DROP INDEX f ON t1;
+
+# After FULLTEXT index dropped, we can update the fields freely
+UPDATE t1 SET fts_field='newchange' where FTS_DOC_ID = 2;
+
+UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(ID INT PRIMARY KEY,
+		no_fts_field VARCHAR(10),
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field), index k(fts_field)) ENGINE=INNODB;
+
+CREATE TABLE t2(ID INT PRIMARY KEY,
+		no_fts_field VARCHAR(10),
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field),
+		INDEX k2(fts_field),
+		FOREIGN KEY(fts_field) REFERENCES
+		t1(fts_field) ON UPDATE CASCADE) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
+
+INSERT INTO t2 VALUES (1, 'AAA', 'BBB');
+
+update t1 set fts_field='newchange' where id =1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+SELECT * FROM t2 WHERE MATCH(fts_field) against("BBB");
+SELECT * FROM t1 WHERE MATCH(fts_field) against("newchange");
+SELECT * FROM t2 WHERE MATCH(fts_field) against("newchange");
+
+DROP TABLE t2;
+
+DROP TABLE t1;
+
+# Testcases adopted from innodb_multi_update.test
+
+CREATE TABLE t1(id INT PRIMARY KEY,
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+
+
+CREATE TABLE t2(id INT PRIMARY KEY,
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+
+INSERT INTO t1 values (1,'100'),(2,'200'),(3,'300'),(4,'400'),(5,'500'),(6,'600'), (7,'700'),(8,'800'),(9,'900'),(10,'1000'),(11,'1100'),(12,'1200');
+INSERT INTO t2 values (1,'100'),(2,'200'),(3,'300'),(4,'400'),(5,'500'),(6,'600'), (7,'700'),(8,'800');
+
+UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'foo');
+
+UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'foo') WHERE t1.fts_field = "100foo";
+
+# Update two tables in the same statement
+UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'xoo'), t2.fts_field = CONCAT(t1.fts_field, 'xoo') where t1.fts_field=CONCAT(t2.fts_field, 'foo');
+
+# Following selects shows whether the correct Doc ID are updated
+
+# This row should present in table t1
+SELECT * FROM t1 WHERE MATCH(fts_field) against("100foofoo");
+
+# Following rows should be dropped
+SELECT * FROM t1 WHERE MATCH(fts_field) against("100foo");
+SELECT * FROM t1 WHERE MATCH(fts_field) against("100");
+
+# This row should present in table t2
+SELECT * FROM t2 WHERE MATCH(fts_field) against("400fooxoo");
+SELECT * FROM t2 WHERE MATCH(fts_field) against("100");
+
+# Follow rows should be marked as dropped
+SELECT * FROM t2 WHERE MATCH(fts_field) against("200");
+SELECT * FROM t2 WHERE MATCH(fts_field) against("400");
+
+
+DROP TABLE t1;
+
+DROP TABLE t2;
+
+
+--echo
+--echo BUG#13701973/64274: MYSQL THREAD WAS SUSPENDED WHEN EXECUTE UPDATE QUERY
+--echo
+# FTS setup did not track which tables it had already looked at to see whether
+# they need initialization. Hilarity ensued when hitting circular dependencies.
+
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+
+CREATE TABLE t1 (
+  t1_id INT(10) UNSIGNED NOT NULL,
+  t2_id INT(10) UNSIGNED DEFAULT NULL,
+  PRIMARY KEY (t1_id),
+  FOREIGN KEY (t2_id) REFERENCES t2 (t2_id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  t1_id INT(10) UNSIGNED NOT NULL,
+  t2_id INT(10) UNSIGNED NOT NULL,
+  t3_id INT(10) UNSIGNED NOT NULL,
+  t4_id INT(10) UNSIGNED NOT NULL,
+  PRIMARY KEY (t2_id),
+  FOREIGN KEY (t1_id) REFERENCES t1 (t1_id),
+  FOREIGN KEY (t3_id) REFERENCES t3 (t3_id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (t4_id) REFERENCES t4 (t4_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE t3 (
+  t3_id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  payload char(3),
+  PRIMARY KEY (t3_id)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES (1, '100');
+
+CREATE TABLE t4 (
+  t2_id INT(10) UNSIGNED DEFAULT NULL,
+  t4_id INT(10) UNSIGNED NOT NULL,
+  PRIMARY KEY (t4_id),
+  FOREIGN KEY (t2_id) REFERENCES t2 (t2_id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+SET FOREIGN_KEY_CHECKS=1;
+
+UPDATE t3 SET payload='101' WHERE t3_id=1;
+
+SET FOREIGN_KEY_CHECKS=0;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;

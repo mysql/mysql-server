@@ -1,0 +1,32 @@
+###############################################################################
+# BUG#18791604 SERVER HITS ER 1200 ON START SLAVE CMD, STILL HEARTBEAT_PERIOD
+#              SETS TO DEFAULT
+#
+# When a server is not configured as a slave (no CHANGE MASTER done yet),
+# START SLAVE will fail and that is fine. But this resets the heartbeat_period
+# to default which is strange and counterintuitive.
+#
+# We fix this by making sure start slave NEVER affects heartbeat_period.
+# It should NOT be set by anything other than CHANGE MASTER.
+#
+# We test that:
+# 1. On a fresh server start/re-start heartbeat_period is 0.
+# 2  START SLAVE doesnt affect heartbeat_period, it still remains 0.
+###############################################################################
+
+--source include/have_binlog_format_statement.inc
+
+--let $slave_heartbeat_value= query_get_value("SHOW STATUS like 'Slave_heartbeat_period'", Value, 1)
+
+--let $assert_cond= "$slave_heartbeat_value" = 0.000
+--let $assert_text= heartbeat period should be 0.000 in the beginning.
+--source include/assert.inc
+
+--error ER_BAD_SLAVE
+START SLAVE;
+
+--let $slave_heartbeat_value= query_get_value("SHOW STATUS like 'Slave_heartbeat_period'", Value, 1)
+
+--let $assert_cond= "$slave_heartbeat_value" = 0.000
+--let $assert_text= heartbeat period should be 0.000 even after START SLAVE.
+--source include/assert.inc

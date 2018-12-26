@@ -1,0 +1,45 @@
+######## suite/innodb/t/innodb_bulk_create_index.test            #####
+#                                                                    #
+# Testcase for worklog WL#7277:  Bulk Load for Create Index   #
+#  The basic idea of bulk load is to build an index from bottom up   #
+#  (also known as sorted index build).                               #
+# Earlier index was create by repeatedly inserting records           #
+# Test scenario :                                                    #
+# - Run bulk create index on 10K rows                                #
+# - Run bulk create index on table with various row types            #
+# - Run DML and SELECT after bulk index creation                     #
+# Creation:                                                          #
+# 2014-06-19 Implemented this test as part of WL#7277                #
+#                                                                    #
+######################################################################
+
+-- source include/have_innodb_max_16k.inc
+-- source include/big_test.inc
+
+# Test Row Format: REDUNDANT.
+let $row_format = REDUNDANT;
+-- source suite/innodb/include/innodb_bulk_create_index.inc
+
+# Test Row Format: COMPACT.
+let $row_format = COMPACT;
+-- source suite/innodb/include/innodb_bulk_create_index.inc
+
+# Test Row Format: DYNAMIC.
+let $row_format = DYNAMIC;
+-- source suite/innodb/include/innodb_bulk_create_index.inc
+
+# Test Row Format: COMPRESSED.
+let $row_format = COMPRESSED;
+-- source suite/innodb/include/innodb_bulk_create_index.inc
+
+# Test Fill Factor: 10
+let $row_format = COMPACT;
+SET GLOBAL innodb_fill_factor=10;
+-- source suite/innodb/include/innodb_bulk_create_index.inc
+
+# Test Fill Factor: 50
+let $row_format = COMPACT;
+SET GLOBAL innodb_fill_factor=50;
+-- source suite/innodb/include/innodb_bulk_create_index.inc
+
+SET GLOBAL innodb_fill_factor=default;

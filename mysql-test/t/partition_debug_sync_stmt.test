@@ -1,0 +1,104 @@
+--source include/force_binlog_format_statement.inc
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Test Auto increment generation and release of overbooked values.
+--echo #
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Unsafe statement written .* = STATEMENT.");
+CREATE TABLE t1 (a SERIAL) ENGINE = InnoDB
+PARTITION BY KEY ALGORITHM = 1 () PARTITIONS 3;
+INSERT INTO t1 VALUES (10);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release";
+send INSERT INTO t1 VALUES (3), (NULL), (4);
+
+--echo # Con1
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (5);
+--echo # Not really a bug, since no row has been assigned the number between
+--echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SET DEBUG_SYNC="now SIGNAL release";
+
+--echo # Default
+connection default;
+--echo # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
+reap;
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+
+--echo # Test with generating an auto inc value in Con1
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES (10);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release";
+send INSERT INTO t1 VALUES (3), (NULL), (4);
+
+--echo # Con1
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (NULL);
+--echo # Not really a bug, since no row has been assigned the number between
+--echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SET DEBUG_SYNC="now SIGNAL release";
+
+--echo # Default
+connection default;
+--echo # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
+reap;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+
+--echo #
+--echo # Test with INSERT SELECT
+--echo #
+TRUNCATE TABLE t1;
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t2 VALUES (3), (NULL), (4);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release TIMEOUT 2";
+send INSERT INTO t1 SELECT * FROM t2;
+
+--echo # Con1
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (5);
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SET DEBUG_SYNC="now SIGNAL release";
+
+--echo # Default
+connection default;
+--echo # Reaping: INSERT INTO t1 SELECT * FROM t2;
+reap;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+
+--echo # Test with generating an auto inc value in Con1
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES (10);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release TIMEOUT 2";
+send INSERT INTO t1 SELECT * FROM t2;
+
+--echo # Con1
+connection con1;
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (NULL);
+--echo # Not really a bug, since no row has been assigned the number between
+--echo # this and the next auto_inc value.
+ANALYZE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+SET DEBUG_SYNC="now SIGNAL release";
+
+--echo # Default
+connection default;
+--echo # Reaping: INSERT INTO t1 SELECT * FROM t2;
+reap;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+
+disconnect con1;
+DROP TABLE t1, t2;
+SET DEBUG_SYNC='RESET';
+
+--source include/restore_default_binlog_format.inc

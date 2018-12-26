@@ -1,0 +1,2 @@
+--max_relay_log_size=16384
+--log-error-verbosity=2

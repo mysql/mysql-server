@@ -1,0 +1,26 @@
+drop table if exists t1,t2,t3,t4,t5,t6;
+#
+# Bug#26379 - Combination of FLUSH TABLE and REPAIR TABLE
+#             corrupts a MERGE table
+# Problem #3
+#
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+LOCK TABLE t1 WRITE;
+# connection con1
+SET SESSION debug="+d,sleep_open_and_lock_after_open";
+INSERT INTO t1 VALUES (1);
+# connection default
+# Let INSERT go into thr_multi_lock().
+# Kick INSERT out of thr_multi_lock().
+FLUSH TABLES;
+# Let INSERT go through open_tables() where it sleeps.
+# Unlock and close table and wait for con1 to close too.
+FLUSH TABLES;
+# This should give no result.
+SELECT * FROM t1;
+c1
+UNLOCK TABLES;
+# connection con1
+SET SESSION debug="-d,sleep_open_and_lock_after_open";
+# connection default
+DROP TABLE t1;

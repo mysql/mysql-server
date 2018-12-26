@@ -1,0 +1,39 @@
+# Tests for PERFORMANCE_SCHEMA
+
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table replication_connection_configuration.
+--disable_result_log
+SELECT * FROM performance_schema.replication_connection_configuration
+  LIMIT 1;
+
+SELECT * FROM performance_schema.replication_connection_configuration
+  WHERE user='FOO' or host='BAR';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_connection_configuration
+  SET user='FOO', host='BAR',
+  port=1, connection_retry_count=2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_connection_configuration
+  SET connection_retry_interval=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_connection_configuration
+  SET connection_retry_interval=12 WHERE host LIKE "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_connection_configuration
+  WHERE connection_retry_count=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_connection_configuration;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_configuration READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_configuration WRITE;
+UNLOCK TABLES;

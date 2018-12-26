@@ -1,0 +1,305 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
+a TEXT,
+b TEXT
+) ENGINE = InnoDB;
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
+"Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data1.txt"
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+49
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+AGAINST ('row35col2word49' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID
+35
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("+row5col2word49" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("+row35col2word49 +(row35col1word49 row35col2word40)" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("+row35col2word49 -(row45col2word49)" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("row5col2word49 row5col2word40" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1
+WHERE MATCH a,b AGAINST ("+row5col2word* +row5col1word49*" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1
+WHERE MATCH a,b AGAINST ('"row35col2word49"' IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1
+WHERE MATCH a,b AGAINST ('"ROW35col2WORD49"' IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST ("row5col2word49" WITH QUERY EXPANSION);
+COUNT(*)
+1
+SELECT FTS_DOC_ID FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"row5col2word48 row5col2word49"@2' IN BOOLEAN MODE);
+FTS_DOC_ID
+5
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"row5col2word48 row5col2word49"@1' IN BOOLEAN MODE);
+FTS_DOC_ID	a	b
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+a	b
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
+a	b
+using update	changing fulltext index record
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+a	b
+using update	changing fulltext index record
+DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+a	b
+DROP TABLE t1;
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
+a TEXT,
+b TEXT
+) ENGINE = InnoDB;
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
+"Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data2.txt"
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+100
+SELECT FTS_DOC_ID from t1 WHERE b like '%row300col2word30%';
+FTS_DOC_ID
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+AGAINST ('row35col2word49' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID
+35
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+row5col2word49" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+row35col2word49 +(row35col1word49 row35col2word40)" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+row35col2word49 -(row45col2word49)" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("row5col2word49 row5col2word40" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1 
+WHERE MATCH a,b AGAINST ("+row5col2word* +row5col1word49*" IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1 
+WHERE MATCH a,b AGAINST ('"row35col2word49"' IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1 
+WHERE MATCH a,b AGAINST ('"ROW35col2WORD49"' IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST ("row5col2word49" WITH QUERY EXPANSION);
+COUNT(*)
+1
+SELECT FTS_DOC_ID FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"row5col2word48 row5col2word49"@2' IN BOOLEAN MODE);
+FTS_DOC_ID
+5
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"row5col2word48 row5col2word49"@1' IN BOOLEAN MODE);
+FTS_DOC_ID	a	b
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+SELECT a,b FROM t1
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+a	b
+SELECT a,b FROM t1
+WHERE MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
+a	b
+using update	changing fulltext index record
+SELECT a,b FROM t1
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+a	b
+using update	changing fulltext index record
+DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+a	b
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+UPDATE t1 SET a = NULL , b = NULL, FTS_DOC_ID= 6000 + FTS_DOC_ID;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+COUNT(*)
+99
+ALTER TABLE t1 DROP INDEX idx;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+COUNT(*)
+99
+DROP TABLE t1;
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
+a TEXT,
+b TEXT
+) ENGINE = InnoDB;
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
+"Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data3.txt"
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+100
+SELECT COUNT(*) from t1 WHERE b like '%samerowword%';
+COUNT(*)
+100
+SELECT COUNT(*) FROM t1 WHERE MATCH (a,b)
+AGAINST ('samerowword' IN NATURAL LANGUAGE MODE);
+COUNT(*)
+100
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword +samerowword" IN BOOLEAN MODE);
+COUNT(*)
+100
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword" IN BOOLEAN MODE);
+COUNT(*)
+100
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword -(row45col2word49)" IN BOOLEAN MODE);
+COUNT(*)
+100
+SELECT COUNT(*) from t1 
+WHERE MATCH a,b AGAINST ("+sameroww" IN BOOLEAN MODE);
+COUNT(*)
+0
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST ("samerowword" WITH QUERY EXPANSION);
+COUNT(*)
+100
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", 
+FTS_DOC_ID = FTS_DOC_ID + 10000 
+WHERE MATCH(a,b) AGAINST("+samerowword +samerowword" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword +samerowword" IN BOOLEAN MODE);
+COUNT(*)
+0
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword" IN BOOLEAN MODE);
+COUNT(*)
+0
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
+COUNT(*)
+100
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+COUNT(*)
+100
+DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+COUNT(*)
+0
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+UPDATE t1 SET a = NULL , b = NULL ;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+COUNT(*)
+0
+ALTER TABLE t1 DROP INDEX idx;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+COUNT(*)
+0
+DROP TABLE t1;
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
+a TEXT,
+b TEXT
+) ENGINE = InnoDB;
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
+"Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data4.txt"
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+100
+SELECT COUNT(*) from t1 WHERE a like '%samerowword%';
+COUNT(*)
+100
+SELECT COUNT(*) FROM t1 WHERE MATCH (a,b)
+AGAINST ('samerowword' IN NATURAL LANGUAGE MODE);
+COUNT(*)
+100
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
+COUNT(*)
+100
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST("+samerowword" IN BOOLEAN MODE);
+COUNT(*)
+100
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST("+samerowword -(1050)" IN BOOLEAN MODE);
+COUNT(*)
+0
+SELECT COUNT(*) from t1 WHERE MATCH a,b AGAINST ("+2001" IN BOOLEAN MODE);
+COUNT(*)
+0
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST ("samerowword" WITH QUERY EXPANSION);
+COUNT(*)
+100
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", 
+FTS_DOC_ID = FTS_DOC_ID + 10000 
+WHERE MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
+COUNT(*)
+0
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword" IN BOOLEAN MODE);
+COUNT(*)
+0
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
+COUNT(*)
+100
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+COUNT(*)
+100
+DELETE FROM t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+COUNT(*)
+0
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+UPDATE t1 SET a = NULL , b = NULL ;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+COUNT(*)
+0
+ALTER TABLE t1 DROP INDEX idx;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+COUNT(*)
+0
+DROP TABLE t1;

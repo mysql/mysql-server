@@ -1,0 +1,32 @@
+
+
+#
+# 2010-01-10 - Added check for I_S values aver variable value change
+#
+
+
+#
+# exists as global only
+#
+select @@global.relay_log_recovery;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.relay_log_recovery;
+show global variables like 'relay_log_recovery';
+show session variables like 'relay_log_recovery';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='relay_log_recovery';
+select * from performance_schema.session_variables where variable_name='relay_log_recovery';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global relay_log_recovery=1;
+select @@global.relay_log_recovery;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='relay_log_recovery';
+select * from performance_schema.session_variables where variable_name='relay_log_recovery';
+--enable_warnings
+
+

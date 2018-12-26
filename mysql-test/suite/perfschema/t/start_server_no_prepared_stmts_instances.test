@@ -1,0 +1,42 @@
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+--source ../include/start_server_common.inc
+
+CREATE DATABASE db;
+USE db; 
+
+# Expect no history
+
+show global variables like "performance_schema_max_prepared_statements_instances";
+select count(*) from performance_schema.prepared_statements_instances;
+
+# Valid operation, edge case
+
+truncate table performance_schema.prepared_statements_instances;
+
+# Prepare statements
+--source suite/perfschema/include/prepared_stmts_setup.inc
+
+# check the lost status
+show global status like "%performance_schema_prepared_statements_lost%";
+
+# Execute statements 
+--source suite/perfschema/include/prepared_stmts_execution.inc
+
+# check the lost status
+show global status like "%performance_schema_prepared_statements_lost%";
+
+# deallocate prepared statements 
+--source suite/perfschema/include/prepared_stmts_deallocation.inc
+
+# check the lost status 
+show global status like "%performance_schema_prepared_statements_lost%";
+
+# Flush status now
+flush status;
+
+# status after flush. expect 0.
+show global status like "%performance_schema_prepared_statements_lost%";
+
+DROP DATABASE db; 

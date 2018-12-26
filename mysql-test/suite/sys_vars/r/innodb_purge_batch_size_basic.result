@@ -1,0 +1,115 @@
+SET @global_start_value = @@global.innodb_purge_batch_size;
+SELECT @global_start_value;
+@global_start_value
+300
+'#--------------------FN_DYNVARS_046_01------------------------#'
+SET @@global.innodb_purge_batch_size = 1;
+SET @@global.innodb_purge_batch_size = DEFAULT;
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+300
+'#---------------------FN_DYNVARS_046_02-------------------------#'
+SET innodb_purge_batch_size = 1;
+ERROR HY000: Variable 'innodb_purge_batch_size' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@innodb_purge_batch_size;
+@@innodb_purge_batch_size
+300
+SELECT local.innodb_purge_batch_size;
+ERROR 42S02: Unknown table 'local' in field list
+SET global innodb_purge_batch_size = 1;
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+'#--------------------FN_DYNVARS_046_03------------------------#'
+SET @@global.innodb_purge_batch_size = 1;
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = 5000;
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+5000
+SET @@global.innodb_purge_batch_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect innodb_purge_batch_size value: '4294967295'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+5000
+'#--------------------FN_DYNVARS_046_04-------------------------#'
+SET @@global.innodb_purge_batch_size = 0;
+Warnings:
+Warning	1292	Truncated incorrect innodb_purge_batch_size value: '0'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = "T";
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = "Y";
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = 4294967297;
+Warnings:
+Warning	1292	Truncated incorrect innodb_purge_batch_size value: '4294967297'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+5000
+'#----------------------FN_DYNVARS_046_05------------------------#'
+SELECT @@global.innodb_purge_batch_size =
+VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_purge_batch_size';
+@@global.innodb_purge_batch_size =
+VARIABLE_VALUE
+1
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+5000
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_purge_batch_size';
+VARIABLE_VALUE
+5000
+'#---------------------FN_DYNVARS_046_06-------------------------#'
+SET @@global.innodb_purge_batch_size = OFF;
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+5000
+SET @@global.innodb_purge_batch_size = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+5000
+'#---------------------FN_DYNVARS_046_07----------------------#'
+SET @@global.innodb_purge_batch_size = TRUE;
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect innodb_purge_batch_size value: '0'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = @global_start_value;
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+300

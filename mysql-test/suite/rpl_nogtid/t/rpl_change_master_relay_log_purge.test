@@ -1,0 +1,118 @@
+# ==== Purpose ====
+#
+# This test script serves as the functionality testing for
+# WL#6120- Change master without stopping slave.
+#
+# This test script does the following:
+
+#  - If at least one of the receiver or applier threads is running, relay logs
+#    should not be purged.
+#  - If relay_log_file/relay_log_pos options are used, relay logs should
+#    not be purged.
+#  - If both receiver and applier threads are stopped and there is no use of
+#    relay_log_file/relay_log_pos options, relay logs should be
+#    purged.
+#
+#  ==== Related Worklog(s) And Bug(s)====
+#
+#  WL#6120- Change master without stopping Slave threads.
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_mixed.inc
+
+FLUSH BINARY LOGS;
+
+--source include/sync_slave_sql_with_master.inc
+
+#save old values to restore after test in the cleanup section.
+let $slave_heartbeat_timeout_before_test= query_get_value(select HEARTBEAT_INTERVAL from performance_schema.replication_connection_configuration, HEARTBEAT_INTERVAL, 1);
+let $delay_before_test= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
+
+--echo
+--echo We now stop the IO thread and ensure that the relaylog files
+--echo are not deleted on doing a change master with a running SQL thread.
+--echo
+
+# Note down the current relaylog file.
+# CM stands for 'change master'.
+let $relay_log_file_before_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+
+# Execute change master command with running SQL thread.
+--source include/stop_slave_io.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
+
+# Note down the active relaylog after change master
+let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+
+--let $assert_text= The relaylog file should not change if change master command was executed while SQL thread was running.
+--let $assert_cond= "$relay_log_file_before_CM" = "$relay_log_file_after_CM"
+--source include/assert.inc
+
+--echo
+--echo We now stop the SQL thread and ensure that the relaylog files
+--echo are not deleted on doing a change master with a running IO thread.
+--echo
+
+--source include/stop_slave_sql.inc
+--source include/start_slave_io.inc
+CHANGE MASTER TO MASTER_DELAY= 20;
+
+# Note down the active relaylog after change master
+let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+
+--let $assert_text= The relaylog file should not change if change master command was executed while IO thread was running.
+--let $assert_cond= "$relay_log_file_before_CM" = "$relay_log_file_after_CM"
+--source include/assert.inc
+
+--echo
+--echo If the relay_log_file and relay_log_pos options are used, we dont purge
+--echo relaylogs.
+--echo
+
+# Lets stop IO thread again to make sure we are not purging relay logs only
+# because we have a use of relay_log_file/relay_log_pos options and not
+# because one of the slave threads is running.
+
+--source include/stop_slave_io.inc
+
+let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+replace_result $relay_log_file RELAY_LOG_FILE;
+eval CHANGE MASTER TO RELAY_LOG_FILE= '$relay_log_file';
+
+let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+replace_result $relay_log_pos RELAY_LOG_POS;
+eval CHANGE MASTER TO RELAY_LOG_POS= $relay_log_pos;
+
+let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+
+--let $assert_text= The relaylog file should not change if change master command contained relay_log_file or relay_log_pos option.
+--let $assert_cond= "$relay_log_file_before_CM" = "$relay_log_file_after_CM"
+--source include/assert.inc
+
+--echo
+--echo With both the threads stopped and no use of relay_log_file or
+--echo relay_log_pos options, the relaylogs should be deleted.
+--echo
+
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
+
+let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
+
+--let $assert_text= With both the threads stopped and no use of relay_log_file or relay_log_pos options in change master command, the relaylogs should be deleted.
+--let $assert_cond= "$relay_log_file_before_CM" != "$relay_log_file_after_CM"
+--source include/assert.inc
+
+--echo
+--echo cleanup
+--echo
+
+# Restore to default values now using the values saved before the tests.
+# No need to record the default values in the result file.
+--disable_query_log
+eval CHANGE MASTER TO MASTER_DELAY= $delay_before_test;
+eval CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= $slave_heartbeat_timeout_before_test;
+--enable_query_log
+
+--source include/start_slave.inc
+--source include/rpl_end.inc

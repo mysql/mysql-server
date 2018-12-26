@@ -1,0 +1,259 @@
+###############################################################################
+# WL#6630 Semisync separate acks collector
+#
+# In the worklog, a separate ack collector thread is added in semisync master
+# plugin. This test verifys  the ack collector thread can works as expected.
+#
+# The thread is created when semisync master is enabled. and it is destroyed
+# when semisync master is disabled.
+################################################################################
+--source include/not_valgrind.inc
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# server_1 is master, others are slaves.
+--let $rpl_topology= 1->2, 1->3, 1->4
+--source include/rpl_init.inc
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+# Suppress warning:
+# "Semi-sync master failed on net_flush() before waiting for slave reply"
+CALL mtr.add_suppression("Semi-sync master failed on net_flush().*");
+
+--echo ####################################################################
+--echo # Test Case: semisync master can be enabled and disabled sucessfully
+--echo # without any live slave connection and also test ON, OFF can be set
+--echo # more than once without problems.
+--echo ####################################################################
+--let $semisync_master_enabled= OFF
+--source include/install_semisync_master.inc
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+
+--echo ####################################################################
+--echo # Test Case: Semisync should work even semisync slaves are connected
+--echo # before semisync master enabled.
+--echo ####################################################################
+CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/install_semisync_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
+--source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+
+--echo ####################################################################
+--echo # Test Case: Semisync should work when more than one semisync slaves
+--echo # connectted.
+--echo ####################################################################
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--source include/install_semisync_slave.inc
+--source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+--source include/install_semisync_slave.inc
+
+--source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+
+--echo ###################################################################
+--echo # Test Case: Semisync should work after semisync master is disabled
+--echo # and enabled again.
+--echo ###################################################################
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+INSERT INTO t1 VALUES(0);
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
+--source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+
+--echo ###################################################################
+--echo # Test Case: Semisync should still work after some semisync slaves
+--echo # reconnected
+--echo ###################################################################
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/stop_slave_io.inc
+--source include/start_slave_io.inc
+
+--source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--source include/stop_slave_io.inc
+--source include/start_slave_io.inc
+
+--source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+
+--echo ###################################################################
+--echo # Test Case: Semisync should still work after some semisync slaves
+--echo # disconnected
+--echo ###################################################################
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/uninstall_semisync_slave.inc
+
+--source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--source include/uninstall_semisync_slave.inc
+
+--source extra/rpl_tests/rpl_semi_sync_ack_thread.inc
+
+--echo #####################################################################
+--echo # Test Case: PS threads table includes ACK thread's status correctly.
+--echo #####################################################################
+
+--echo #
+--echo # Status: Waiting for semi-sync ACK from slave
+--echo #
+
+# It may still in ack reading state, but it should change to ack waiting state.
+--let $wait_condition= SELECT count(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = 'Waiting for semi-sync ACK from slave'
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SELECT name, type, processlist_state FROM performance_schema.threads
+  WHERE name LIKE "%Ack_receiver";
+
+--echo #
+--echo # Coverage Test:
+--echo # It should print an error to log if select() function returns -1
+--echo #
+
+SET @save_debug = @@GLOBAL.debug;
+SET GLOBAL debug = 'd,rpl_semisync_simulate_select_error';
+
+# wait enough time to guarantee that select() timeout happens
+--sleep 2
+
+# It can still receive ACK from semi-sync slave
+INSERT INTO t1 VALUES(1);
+
+SET GLOBAL debug = @save_debug;
+
+--echo #
+--echo # Status: Waiting for semisync slave to connect
+--echo #
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+--source include/uninstall_semisync_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+# It guarantees semisync slave 5 is alrealdy unregistered from semisync master
+CALL mtr.add_suppression("Timeout waiting for reply of binlog.*");
+INSERT INTO t1 VALUES(1);
+--save_master_pos
+
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+--sync_with_master
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SELECT name, type, processlist_state FROM performance_schema.threads
+  WHERE name LIKE "%Ack_receiver";
+
+--echo #
+--echo # Ack thread is stopped, it should be not in PS.threads table.
+--echo #
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+
+--let $assert_text= ack receiver thread is destroied
+--let $assert_cond= count(*) = 0 FROM performance_schema.threads WHERE name LIKE "%Ack_receiver"
+--source include/assert.inc
+
+--echo ############################################
+--echo # Test Case: Coverage test on error branches
+--echo ############################################
+SET @save_debug = @@GLOBAL.debug;
+CALL mtr.add_suppression("Failed to start semi-sync ACK receiver thread.*");
+CALL mtr.add_suppression("Failed to register slave to semi-sync ACK receiver thread.*");
+CALL mtr.add_suppression("Failed to stop ack receiver thread on my_thread_join.*");
+CALL mtr.add_suppression("Run function 'transmit_start' .* failed");
+
+SET GLOBAL rpl_semi_sync_master_trace_level = 255;
+--echo #
+--echo # Failure on creating ack receiver thread
+--echo #
+SET GLOBAL debug = 'd,rpl_semisync_simulate_create_thread_failure';
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
+
+--let $assert_variable_name= rpl_semi_sync_master_enabled
+--let $assert_variable_value= 0
+--source include/assert_variable.inc
+
+--let $assert_text= ack receiver thread is destroied;
+--let $assert_cond= count(*) = 0 FROM performance_schema.threads WHERE name LIKE "%Ack_receiver"
+--source include/assert.inc
+
+--echo #
+--echo # Failure on stopping ack receive thread
+--echo #
+
+SET GLOBAL debug= @save_debug;
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
+
+SET GLOBAL debug = 'd,rpl_semisync_simulate_thread_join_failure';
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+
+--let $assert_variable_name= rpl_semi_sync_master_enabled
+--let $assert_variable_value= 0
+--source include/assert_variable.inc
+
+--let $assert_text= ack receiver thread is destroied
+--let $assert_cond= count(*) = 0 FROM performance_schema.threads WHERE name LIKE "%Ack_receiver"
+--source include/assert.inc
+
+--echo #
+--echo # Failure on registering semisync slave
+--echo #
+SET GLOBAL debug= 'd,rpl_semisync_simulate_add_slave_failure';
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/stop_slave.inc
+--let $save_retry_count= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+--let $save_retry_time= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
+CHANGE MASTER TO master_retry_count = 1, master_connect_retry = 5;
+
+# Make IO thread hungs after connecting to master. So we can make sure it is
+# stopped by add_slave_failure
+SET @save_debug= @@GLOBAL.debug;
+SET GLOBAL debug= 'd,dbug.before_get_MASTER_UUID';
+--source include/install_semisync_slave.inc
+
+# Clear the debug point and signal IO thread to resume
+SET GLOBAL debug= @save_debug;
+SET debug_sync= 'now SIGNAL signal.get_master_uuid';
+
+# It should be stopped by add_slave failure
+--source include/wait_for_slave_io_to_stop.inc
+
+eval CHANGE MASTER TO master_retry_count = $save_retry_count,
+                      master_connect_retry = $save_retry_time;
+
+--source include/uninstall_semisync_slave.inc
+--source include/start_slave_sql.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+SET GLOBAL debug= @save_debug;
+--source include/uninstall_semisync_master.inc
+--source include/rpl_end.inc

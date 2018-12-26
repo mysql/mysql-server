@@ -1,0 +1,54 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 #
+select * from performance_schema.objects_summary_global_by_type
+  where object_schema = 'performance_schema' limit 1;
+
+select * from performance_schema.objects_summary_global_by_type
+  where object_schema='FOO';
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 #
+select * from performance_schema.objects_summary_global_by_type
+  order by count_star limit 1;
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 #
+select * from performance_schema.objects_summary_global_by_type
+  order by count_star desc limit 1;
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 #
+select * from performance_schema.objects_summary_global_by_type
+  where object_type = 'TABLE' order by object_schema, object_name limit 1;
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 #
+select * from performance_schema.objects_summary_global_by_type
+  where object_type = 'TABLE' order by object_schema desc, object_name desc limit 1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.objects_summary_global_by_type
+  set object_type='TABLE', schema_name='FOO', object_name='BAR',
+  count_star=1, sum_timer_wait=2, min_timer_wait=3,
+  avg_timer_wait=4, max_timer_wait=5;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.objects_summary_global_by_type
+  set count_star=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.objects_summary_global_by_type
+  set count_star=12 where object_name like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.objects_summary_global_by_type
+  where count_star=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.objects_summary_global_by_type;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.objects_summary_global_by_type READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.objects_summary_global_by_type WRITE;
+UNLOCK TABLES;
+

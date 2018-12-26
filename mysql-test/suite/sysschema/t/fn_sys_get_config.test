@@ -1,0 +1,12 @@
+# Tests for sys schema
+# Verify the sys.sys_get_config() function perfoms as expected
+
+# Check a known parameter
+SET @sys.statement_truncate_len := IFNULL(@sys.statement_truncate_len, sys.sys_get_config('statement_truncate_len', 128));
+
+SELECT @sys.statement_truncate_len;
+
+# Check an unknown parameter
+SET @sys.foo := IFNULL(@sys.foo, sys.sys_get_config('foo', 'foobar'));
+
+SELECT @sys.foo;

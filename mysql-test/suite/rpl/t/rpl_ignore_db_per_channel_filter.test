@@ -1,0 +1,182 @@
+###############################################################################
+# ==== Purpose ====
+# Verify that replicate-ignore-db per-channel filter works correctly when set
+# through the command line.
+#
+# 0. Start multi-source replication server_1->server_2, server_3->server_2
+#    with channels '' and 'channel_3_2' respectively.
+# 1. Restart slave server to activate replicate-ignore-db per-channel filter.
+# 2. Check that the replicate-ignore-db filter has been activated.
+# 3. Do some transactions on server_1.
+# 4. Check that the replicate-ignore-db filter has been applied correctly.
+# 5. Do some transactions on server_3.
+# 6. Check that the replicate-ignore-db filter has been applied correctly.
+# 7. Cleanup
+#
+# ==== References ====
+# WL#7361 MSR: per-channel replication filters
+################################################################################
+
+--let $rpl_topology= 1->2,3->2
+--let $rpl_skip_change_master= 1
+--let $rpl_skip_start_slave= 1
+--let $rpl_multi_source= 1
+--source include/have_binlog_format_row_or_statement.inc
+--source include/have_slave_repository_type_table.inc
+--source include/force_restart.inc
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel 'channel_3_2' which does not exist. The filter.s. have been discarded.");
+
+--disable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=$MASTER_MYPORT,MASTER_USER='root' for CHANNEL '';
+--replace_result $SERVER_MYPORT_3 MASTER_PORT_3
+eval CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=$SERVER_MYPORT_3,MASTER_USER='root' for CHANNEL 'channel_3_2';
+--enable_warnings
+
+--source include/start_slave.inc
+
+--echo
+--echo # Restart slave server to activate replicate-ignore-db per-channel filter.
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+
+--echo
+--echo # Check that the replicate-ignore-db per-channel filter has been activated.
+--let $assert_text= Check that the filters have been set correctly
+--let $assert_cond= [SELECT COUNT(*) from performance_schema.replication_applier_filters WHERE CHANNEL_NAME="" AND FILTER_NAME="REPLICATE_IGNORE_DB" AND FILTER_RULE="db2"] = 1
+--source include/assert.inc
+
+--let $assert_text= Check that the filters have been set correctly
+--let $assert_cond= [SELECT COUNT(*) from performance_schema.replication_applier_filters WHERE CHANNEL_NAME="channel_3_2" AND FILTER_NAME="REPLICATE_IGNORE_DB" AND FILTER_RULE="db4"] = 1
+--source include/assert.inc
+
+--echo # Do some transactions on server_1.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+CREATE DATABASE db1;
+use db1;
+CREATE TABLE db1.t1(a int primary key);
+INSERT INTO t1 values(23);
+
+CREATE DATABASE db2;
+use db2;
+CREATE TABLE db2.t2(a int primary key);
+INSERT INTO t2 values(23);
+
+--let $sync_slave_connection= server_2
+--let $rpl_channel_name= ''
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # Check that the replicate-ignore-db filter has been applied correctly.
+
+--let $assert_text= Check that the database db1 is present.
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = "db1"] = 1
+--source include/assert.inc
+
+--let $assert_text= Check that database db2 is filtered out.
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = "db2"] = 0
+--source include/assert.inc
+
+--let $assert_text= Check that table db1.t1 is present.
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = "db1" AND TABLE_NAME = "t1"] = 1
+--source include/assert.inc
+
+--let $assert_text= Check that table db2.t2 is filtered out.
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = "db2" AND TABLE_NAME = "t2"] = 0
+--source include/assert.inc
+
+--let $assert_text= Check that table db1.t1 has 1 record.
+--let $assert_cond= [SELECT COUNT(*) FROM db1.t1] = 1
+--source include/assert.inc
+
+--echo
+--echo # Do some transactions on server_3.
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+CREATE DATABASE db3;
+use db3;
+CREATE TABLE db3.t1(a int primary key);
+INSERT INTO t1 values(23);
+
+CREATE DATABASE db4;
+use db4;
+CREATE TABLE db4.t2(a int primary key);
+INSERT INTO t2 values(23);
+
+--let $sync_slave_connection= server_2
+--let $rpl_channel_name= 'channel_3_2'
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # Check that the replicate-ignore-db filter has been applied correctly.
+
+--let $assert_text= Check that database db3 is present.
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = "db3"] = 1
+--source include/assert.inc
+
+--let $assert_text= Check that database db4 is filtered out.
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = "db4"] = 0
+--source include/assert.inc
+
+--let $assert_text= Check that table db3.t1 is present.
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = "db3" AND TABLE_NAME = "t1"] = 1
+--source include/assert.inc
+
+--let $assert_text= Check that table db4.t2 is filtered out.
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = "db4" AND TABLE_NAME = "t2"] = 0
+--source include/assert.inc
+
+--let $assert_text= Check that table db3.t1 has 1 record.
+--let $assert_cond= [SELECT COUNT(*) FROM db3.t1] = 1
+--source include/assert.inc
+
+--echo
+--echo # Cleanup
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+DROP DATABASE db1;
+DROP DATABASE db2;
+
+--let $sync_slave_connection= server_2
+--let $rpl_channel_name= ''
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+DROP DATABASE db3;
+DROP DATABASE db4;
+
+--let $sync_slave_connection= server_2
+--let $rpl_channel_name= 'channel_3_2'
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_channel_name= 'channel_3_2'
+--source include/stop_slave.inc
+
+--let $rpl_channel_name= ''
+--source include/stop_slave.inc
+
+RESET SLAVE ALL FOR CHANNEL '';
+RESET SLAVE ALL FOR CHANNEL 'channel_3_2';
+
+--disable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=$MASTER_MYPORT,MASTER_USER='root' for CHANNEL 'channel_1';
+--replace_result $SERVER_MYPORT_3 MASTER_PORT_3
+eval CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=$SERVER_MYPORT_3,MASTER_USER='root' for CHANNEL 'channel_3';
+--enable_warnings
+
+--let $rpl_channel_name=
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

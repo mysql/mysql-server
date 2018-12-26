@@ -1,0 +1,117 @@
+SET @global_start_value = @@global.innodb_adaptive_flushing_lwm;
+SELECT @global_start_value;
+@global_start_value
+10
+'#--------------------FN_DYNVARS_046_01------------------------#'
+SET @@global.innodb_adaptive_flushing_lwm = 1;
+SET @@global.innodb_adaptive_flushing_lwm = DEFAULT;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+10
+'#---------------------FN_DYNVARS_046_02-------------------------#'
+SET innodb_adaptive_flushing_lwm = 1;
+ERROR HY000: Variable 'innodb_adaptive_flushing_lwm' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@innodb_adaptive_flushing_lwm;
+@@innodb_adaptive_flushing_lwm
+10
+SELECT local.innodb_adaptive_flushing_lwm;
+ERROR 42S02: Unknown table 'local' in field list
+SET global innodb_adaptive_flushing_lwm = 1;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+1
+'#--------------------FN_DYNVARS_046_03------------------------#'
+SET @@global.innodb_adaptive_flushing_lwm = 0;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+0
+SET @@global.innodb_adaptive_flushing_lwm = 1;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+1
+SET @@global.innodb_adaptive_flushing_lwm = 60;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+60
+SET @@global.innodb_adaptive_flushing_lwm = 70;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+70
+'#--------------------FN_DYNVARS_046_04-------------------------#'
+SET @@global.innodb_adaptive_flushing_lwm = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_adaptive_flushing_lwm value: '-1'
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+0
+SET @@global.innodb_adaptive_flushing_lwm = -1024;
+Warnings:
+Warning	1292	Truncated incorrect innodb_adaptive_flushing_lwm value: '-1024'
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+0
+SET @@global.innodb_adaptive_flushing_lwm = "T";
+ERROR 42000: Incorrect argument type to variable 'innodb_adaptive_flushing_lwm'
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+0
+SET @@global.innodb_adaptive_flushing_lwm = "Y";
+ERROR 42000: Incorrect argument type to variable 'innodb_adaptive_flushing_lwm'
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+0
+SET @@global.innodb_adaptive_flushing_lwm = 10.4;
+ERROR 42000: Incorrect argument type to variable 'innodb_adaptive_flushing_lwm'
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+0
+SET @@global.innodb_adaptive_flushing_lwm = 71;
+Warnings:
+Warning	1292	Truncated incorrect innodb_adaptive_flushing_lwm value: '71'
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+70
+SET @@global.innodb_adaptive_flushing_lwm = 65536;
+Warnings:
+Warning	1292	Truncated incorrect innodb_adaptive_flushing_lwm value: '65536'
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+70
+'#----------------------FN_DYNVARS_046_05------------------------#'
+SELECT @@global.innodb_adaptive_flushing_lwm =
+VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_adaptive_flushing_lwm';
+@@global.innodb_adaptive_flushing_lwm =
+VARIABLE_VALUE
+1
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+70
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_adaptive_flushing_lwm';
+VARIABLE_VALUE
+70
+'#---------------------FN_DYNVARS_046_06-------------------------#'
+SET @@global.innodb_adaptive_flushing_lwm = OFF;
+ERROR 42000: Incorrect argument type to variable 'innodb_adaptive_flushing_lwm'
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+70
+SET @@global.innodb_adaptive_flushing_lwm = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_adaptive_flushing_lwm'
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+70
+'#---------------------FN_DYNVARS_046_07----------------------#'
+SET @@global.innodb_adaptive_flushing_lwm = TRUE;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+1
+SET @@global.innodb_adaptive_flushing_lwm = FALSE;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+0
+SET @@global.innodb_adaptive_flushing_lwm = @global_start_value;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+@@global.innodb_adaptive_flushing_lwm
+10

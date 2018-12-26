@@ -1,0 +1,58 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (a INT AUTO_INCREMENT KEY) ENGINE=INNODB;
+CREATE TABLE t2 (b INT AUTO_INCREMENT KEY, c INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE=INNODB;
+SET FOREIGN_KEY_CHECKS=0;
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t2 VALUES (5,0);
+INSERT INTO t2 VALUES (NULL,LAST_INSERT_ID());
+SET FOREIGN_KEY_CHECKS=1;
+SELECT * FROM t1 ORDER BY a;
+a
+10
+11
+12
+13
+SELECT * FROM t2 ORDER BY b;
+b	c
+5	0
+6	11
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1 ORDER BY a;
+a
+10
+11
+12
+13
+SELECT * FROM t2 ORDER BY b;
+b	c
+5	0
+6	11
+SET TIMESTAMP=1000000000;
+CREATE TABLE t3 ( a INT UNIQUE );
+SET FOREIGN_KEY_CHECKS=0;
+INSERT INTO t3 VALUES (1),(1);
+Got one of the listed errors
+include/sync_slave_sql_with_master.inc
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE IF EXISTS t1,t2,t3;
+SET FOREIGN_KEY_CHECKS=1;
+include/sync_slave_sql_with_master.inc
+create table t1 (b int primary key) engine = INNODB;
+create table t2 (a int primary key, b int, foreign key (b) references t1(b))
+engine = INNODB;
+insert into t1 set b=1;
+insert into t2 set a=1, b=1;
+set foreign_key_checks=0;
+delete from t1;
+must sync w/o a problem (could not with the buggy code)
+include/sync_slave_sql_with_master.inc
+select count(*) from t1 /* must be zero */;
+count(*)
+0
+drop table t2,t1;
+include/rpl_end.inc

@@ -1,0 +1,37 @@
+###################### mysql_comments.test #############################
+#                                                                      #
+# Testing of comments handling by the command line client (mysql)      #
+#                                                                      #
+# Creation:                                                            #
+# 2007-10-29 akopytov Implemented this test as a part of fixes for     #
+#                     bug #26215 and bug #11230                        #
+#                                                                      #
+########################################################################
+
+#
+# Bug #11230: Keeping comments when storing stored procedures
+#
+
+# See the content of mysql_comments.sql
+# Set the test database to a known state before running the tests.
+--disable_warnings
+drop table if exists t1;
+drop function if exists foofct;
+drop procedure if exists `empty`;
+drop procedure if exists foosp;
+drop procedure if exists nicesp;
+drop trigger if exists t1_empty;
+drop trigger if exists t1_bi;
+--enable_warnings
+
+# Test without comments
+--echo "Pass 1 : --disable-comments"
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{2}/--TIMESTAMP--/
+--exec $MYSQL --disable-comments test 2>&1 < "./t/mysql_comments.sql"
+
+# Test with comments
+--echo "Pass 2 : --enable-comments"
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{2}/--TIMESTAMP--/
+--exec $MYSQL --enable-comments test 2>&1 < "./t/mysql_comments.sql"
+
+--echo End of 5.0 tests

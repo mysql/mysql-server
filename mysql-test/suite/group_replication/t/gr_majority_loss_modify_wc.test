@@ -1,0 +1,130 @@
+################################################################################
+# WL#11512
+# Verify that a blocked group, a group with 2 members on which 1 crashes
+# (without executing STOP GROUP_REPLICATION), *cannot* modify its
+# "write concurrency."
+#
+# Test:
+#   0) The test requires two servers: M1 and M2
+#   1) Create a group with 2 members. Bring all ONLINE and create a table.
+#   2) Reconfigure write-concurrency value on group.
+#   3) Crash M2
+#   4) Unsuccessfully call to group_replication_set_write_concurrency(_) on
+#      blocked server (M1).
+#   5) Unblock the group with the alive member (M1).
+#   6) Check that write_concurrency value remains same after unblocking group.
+#   7) Call group_replication_set_write_concurrency(_) on M1 in order to prove
+#      liveness. Assert check that "write concurrency" is modified.
+#   8) Clean up.
+#
+# Note: based off majority_loss_5_to_2
+################################################################################
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/not_valgrind.inc
+--source include/have_group_replication_plugin.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo
+--echo ############################################################
+--echo # Step 1 Create a group with 2 members. Bring all ONLINE.
+--let $rpl_server_count= 2
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # Step 2 Reconfigure write-concurrency value on group, check the new value.
+--let $gr_new_write_concurrency= 42
+
+--eval SELECT group_replication_set_write_concurrency($gr_new_write_concurrency)
+--let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_new_write_concurrency
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # Step 3 Crash M2
+# We do kill the servers, using shutdown_server 0, and then MTR will
+# follow the expect file and restart the server, but we do not wait
+# for the server restart.
+# Since the servers loose its GCS configuration they will not rejoin
+# the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+# Wait until all members are marked unreachable in
+# the remaining server
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member2_uuid
+--source include/gr_wait_for_member_state.inc
+--echo member2 @ server1 is marked as UNREACHABLE
+
+--echo
+--echo ############################################################
+--echo # Step 4 Unsuccessfully call to group_replication_set_write_concurrency(_) on blocked server (M1).
+# group_replication_set_write_concurrency will fail since group lost its
+# majority.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_write_concurrency($gr_new_write_concurrency)
+
+# Ensure that even group_replication_get_write_concurrency fails since group lost majority.
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_get_write_concurrency()
+
+--echo
+--echo ############################################################
+--echo # Step 5 Unblock the group with the alive member (M1).
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+
+--disable_query_log
+--eval SET GLOBAL group_replication_force_members= "$local_address_server1"
+--enable_query_log
+
+--let $assert_text= group_replication_force_members is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_force_members]" = "$local_address_server1"
+--source include/assert.inc
+
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo ############################################################
+--echo # Step 6 Check that write_concurrency value remains same after unblocking group.
+--let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_new_write_concurrency
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # Step 7 Call group_replication_set_write_concurrency(_) on M1 in order to prove liveness. Assert check that "write concurrency" is modified.
+--let $gr_new_write_concurrency= 111
+--eval SELECT group_replication_set_write_concurrency($gr_new_write_concurrency)
+--let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_new_write_concurrency
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # Step 8 Clean up.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--source include/group_replication_end.inc

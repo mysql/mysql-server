@@ -1,0 +1,100 @@
+!include include/default_ndbd.cnf
+
+[cluster_config.1]
+# NoOfReplicas refers to NDBD nodes/nodegroup
+NoOfReplicas=                  2
+ndbd=,
+ndb_mgmd=
+# 3 MySQLDS attached to Cluster 1
+mysqld=,,                   
+
+
+
+[cluster_config.slave]
+# NoOfReplicas refers to NDBD nodes/nodegroup
+NoOfReplicas=                  2
+ndbd=,
+ndb_mgmd=
+# 3 MySQLDs attached to Cluster 2
+mysqld=,,
+
+
+
+[mysqld]
+open-files-limit=           1024
+local-infile
+character-set-server=      latin1
+connect-timeout=            60
+log-bin-trust-function-creators=1
+key_buffer_size=            1M
+sort_buffer=                256K
+max_heap_table_size=        1M
+loose-innodb_data_file_path=      ibdata1:10M:autoextend
+slave-net-timeout=120
+ndbcluster
+ndb-wait-setup=60
+
+
+[mysqld.1.1]
+server-id= 1
+log-bin= master-bin
+binlog_format=row
+
+
+
+[mysqld.2.1]
+server-id= 2
+# Note no binary log
+
+
+
+[mysqld.3.1]
+server-id= 3
+log-bin= master-bin
+binlog_format=row
+
+
+
+[mysqld.1.slave]
+# Note no binlog on this slave
+server-id= 4
+skip-slave-start
+loose-skip-innodb
+slave-load-tmpdir= ../../../tmp
+ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
+
+
+
+[mysqld.2.slave]
+# Note binlog on this slave, but not logging slave updates
+server-id= 5
+skip-slave-start
+loose-skip-innodb
+slave-load-tmpdir= ../../../tmp
+ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
+log-bin= slave-master-bin
+binlog_format=row
+
+
+
+[mysqld.3.slave]
+# Note binlog on this slave, with slave updates logged
+server-id= 6
+skip-slave-start
+loose-skip-innodb
+slave-load-tmpdir= ../../../tmp
+ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
+log-bin= slave-master-bin
+binlog_format=row
+log-slave-updates
+
+
+
+[ENV]
+SERVER_MYPORT_1= @mysqld.1.1.port
+SERVER_MYPORT_2= @mysqld.2.1.port
+SERVER_MYPORT_3= @mysqld.3.1.port
+SERVER_MYPORT_4= @mysqld.1.slave.port
+SERVER_MYPORT_5= @mysqld.2.slave.port
+SERVER_MYPORT_6= @mysqld.3.slave.port
+

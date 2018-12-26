@@ -1,0 +1,111 @@
+SET @global_start_value = @@global.innodb_flush_log_at_timeout;
+SELECT @global_start_value;
+@global_start_value
+1
+'#--------------------FN_DYNVARS_046_01------------------------#'
+SET @@global.innodb_flush_log_at_timeout = 0;
+SET @@global.innodb_flush_log_at_timeout = DEFAULT;
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+1
+'#---------------------FN_DYNVARS_046_02-------------------------#'
+SET innodb_flush_log_at_timeout = 1;
+ERROR HY000: Variable 'innodb_flush_log_at_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@innodb_flush_log_at_timeout;
+@@innodb_flush_log_at_timeout
+1
+SELECT local.innodb_flush_log_at_timeout;
+ERROR 42S02: Unknown table 'local' in field list
+SET global innodb_flush_log_at_timeout = 0;
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+0
+'#--------------------FN_DYNVARS_046_03------------------------#'
+SET @@global.innodb_flush_log_at_timeout = 0;
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+0
+SET @@global.innodb_flush_log_at_timeout = 10;
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+10
+SET @@global.innodb_flush_log_at_timeout = 2700;
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+'#--------------------FN_DYNVARS_046_04-------------------------#'
+SET @@global.innodb_flush_log_at_timeout = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_flush_log_at_timeout value: '-1'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+0
+SET @@global.innodb_flush_log_at_timeout = "T";
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+0
+SET @@global.innodb_flush_log_at_timeout = "Y";
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+0
+SET @@global.innodb_flush_log_at_timeout = 2701;
+Warnings:
+Warning	1292	Truncated incorrect innodb_flush_log_at_timeout value: '2701'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+SET @@global.innodb_flush_log_at_timeout = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+SET @@global.innodb_flush_log_at_timeout = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+SET @@global.innodb_flush_log_at_timeout = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+'#----------------------FN_DYNVARS_046_05------------------------#'
+SELECT @@global.innodb_flush_log_at_timeout =
+VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_flush_log_at_timeout';
+@@global.innodb_flush_log_at_timeout =
+VARIABLE_VALUE
+1
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_flush_log_at_timeout';
+VARIABLE_VALUE
+2700
+'#---------------------FN_DYNVARS_046_06-------------------------#'
+SET @@global.innodb_flush_log_at_timeout = OFF;
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+SET @@global.innodb_flush_log_at_timeout = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+'#---------------------FN_DYNVARS_046_07----------------------#'
+SET @@global.innodb_flush_log_at_timeout = TRUE;
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+1
+SET @@global.innodb_flush_log_at_timeout = FALSE;
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+0
+SET @@global.innodb_flush_log_at_timeout = @global_start_value;
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+1

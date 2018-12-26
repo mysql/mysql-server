@@ -1,0 +1,209 @@
+TABLE: "table_io_waits_summary_by_index_usage"
+INDEXES: PK (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME)
+
+===== SETUP =====
+## Connection Default
+## Disable events from the default connection
+
+## Create user1, user2, user3
+CREATE USER user1@localhost;
+CREATE USER user2@localhost;
+CREATE USER user3@localhost;
+GRANT ALL ON *.* to 'user1'@localhost;
+GRANT ALL ON *.* to 'user2'@localhost;
+GRANT ALL ON *.* to 'user3'@localhost;
+
+## Setup test connection 1
+## Setup test connection 2
+## Setup test connection 3
+
+## Default connection
+
+## Create data tables
+CREATE TABLE test.t1(a INT, b INT, c INT, d INT DEFAULT 0, PRIMARY KEY(a), INDEX index_b(b), INDEX index_cb(c, b));
+CREATE TABLE test.t2 LIKE test.t1;
+CREATE TABLE test.t3 LIKE test.t1;
+
+## Generate event data from 3 connections
+## Connection 1
+## Connection 2
+## Connection 3
+## Connection 2
+## Create prepared statements on connection 2
+PREPARE st1 FROM 'SELECT SQRT(POW(?,2) + POW(?,2)) AS hypotenuse';
+PREPARE st3 FROM 'INSERT INTO test.t1 SELECT * FROM test.t1 WHERE a<=?';
+PREPARE st4 FROM '(SELECT a FROM test.t1) UNION (SELECT a+10 FROM test.t1) ORDER BY RAND()*0+a';
+## Create stored procedure connection 2
+CREATE PROCEDURE SampleProc1()
+BEGIN
+SET @table = 'test.t1';
+SET @s = CONCAT('SELECT * FROM ', @table);
+PREPARE st2 FROM @s;
+END|
+
+Call SampleProc1() to prepare a statement
+CALL SampleProc1();
+## Connection default
+
+## Use Connection 2 for default target thread id
+
+## Create index_test() procedure
+
+===== BEGIN TEST =====
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema = 'test' and object_name is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema = 'test' and object_name is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema = 'test' and object_name = 't1' and index_name is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema = 'test' and object_name = 't1' and index_name is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE'
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' AND object_schema = 'test'
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' AND object_schema = 'test' AND object_name = 't1'
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' AND object_schema = 'test' AND object_name = 't1' AND index_name = 'index_b'
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'impossible' AND object_schema = 'test' AND object_name = 't1'
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'impossible'
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' AND object_schema = 'impossible'
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' AND object_schema = 'test' AND object_name = 'impossible'
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' AND object_schema = 'test' AND object_name = 't1' AND index_name = 'impossible'
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+
+===== CLEAN UP =====
+## Default connection
+DEALLOCATE PREPARE st1;
+DEALLOCATE PREPARE st2;
+DEALLOCATE PREPARE st3;
+DEALLOCATE PREPARE st4;
+DROP PROCEDURE SampleProc1;
+DROP PROCEDURE index_test;
+DROP TABLE IF EXISTS test.indexes_off;
+DROP TABLE IF EXISTS test.indexes_on;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE test.t3;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user2@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user3@localhost;
+DROP USER user1@localhost;
+DROP USER user2@localhost;
+DROP USER user3@localhost;
+UPDATE performance_schema.threads SET INSTRUMENTED = 'YES';

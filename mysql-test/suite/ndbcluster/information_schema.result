@@ -1,0 +1,34 @@
+#
+# WL#6599: New Data Dictionary and I_S Integration.
+#
+# Test case to check if ndbinfo schema is listed by I_S when ndbcluster
+# is running.
+#
+SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo';
+SCHEMA_NAME
+ndbinfo
+SELECT
+IF(count(table_name) > 10, 'Yes', 'No') as 'Have more than 10 ndbinfo tables'
+  FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';
+Have more than 10 ndbinfo tables
+Yes
+#
+# Check that it's not possible to create a NDB table
+# in the information_schema database
+#
+create table information_schema.t1(
+a int,
+b varchar(10),
+c date
+) engine=ndb;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CREATE TABLE t1(a int primary key,b int) engine = NDB;
+SELECT CHECKSUM FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME="t1";
+CHECKSUM
+NULL
+checking the same query in innodb and comparing the result.
+CREATE TABLE t2(a int primary key,b int) engine = INNODB;
+SELECT CHECKSUM FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME="t2";
+CHECKSUM
+NULL
+DROP TABLE t1,t2;

@@ -1,0 +1,51 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+Basic insert, update, delete from Master->Slave
+DBUG code will set + check transfer of extra
+row data in RBR
+**** On Master ****
+CREATE TABLE t1 (a INT);
+Ten inserts in one transaction -> 1 epoch transaction
+BEGIN;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+COMMIT;
+Wait for Binlog-on-disk
+flush logs;
+Check that we have the expected extra row data in the Binlog
+create table raw_data(txt varchar(1000));
+select replace(txt, '\r', '') from raw_data where txt like '%### Extra row data format%' order by txt;
+replace(txt, '\r', '')
+### Extra row data format: 0, len: 0 :
+### Extra row data format: 1, len: 1 :0x01
+### Extra row data format: 2, len: 2 :0x0202
+### Extra row data format: 3, len: 3 :0x030303
+### Extra row data format: 4, len: 4 :0x04040404
+### Extra row data format: 5, len: 5 :0x0505050505
+### Extra row data format: 6, len: 6 :0x060606060606
+### Extra row data format: 7, len: 7 :0x07070707070707
+### Extra row data format: 8, len: 8 :0x0808080808080808
+### Extra row data format: 9, len: 9 :0x090909090909090909
+drop table raw_data;
+Generate some more insert, update, delete traffic
+INSERT INTO t1 SELECT a+10 FROM t1;
+INSERT INTO t1 SELECT a+20 FROM t1;
+INSERT INTO t1 SELECT a+40 FROM t1;
+UPDATE t1 SET a = a+1;
+UPDATE t1 SET a = a+1;
+UPDATE t1 SET a = a+1;
+UPDATE t1 SET a = a+1;
+UPDATE t1 SET a = a+1;
+DELETE FROM t1 WHERE a > 390;
+**** On Slave ****
+include/sync_slave_sql_with_master.inc
+Check row count and that slave is running ok
+SELECT count(*) from t1;
+count(*)
+80
+include/check_slave_is_running.inc
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

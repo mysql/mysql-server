@@ -1,0 +1,141 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE FUNCTION create_temp_table() RETURNS INT DETERMINISTIC
+BEGIN
+CREATE TEMPORARY TABLE temp1 (i INT);
+return 1;
+END//
+CREATE FUNCTION drop_temp_table() RETURNS INT DETERMINISTIC
+BEGIN
+DROP TEMPORARY TABLE temp1;
+return 2;
+END//
+#
+# Verify that a 'function call' top statement is written into binary
+# log even if the function has only 'DROP TEMPORARY TABLE' and
+# replication runs successfully in the ROLLBACK case.
+#
+START TRANSACTION;
+SELECT create_temp_table();
+create_temp_table()
+1
+ROLLBACK;
+Warnings:
+Warning	1751	The creation of some temporary tables could not be rolled back.
+START TRANSACTION;
+SELECT drop_temp_table();
+drop_temp_table()
+2
+ROLLBACK;
+Warnings:
+Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
+START TRANSACTION;
+SELECT create_temp_table();
+create_temp_table()
+1
+ROLLBACK;
+Warnings:
+Warning	1751	The creation of some temporary tables could not be rolled back.
+START TRANSACTION;
+SELECT drop_temp_table();
+drop_temp_table()
+2
+ROLLBACK;
+Warnings:
+Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`create_temp_table`()
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`drop_temp_table`()
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`create_temp_table`()
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`drop_temp_table`()
+master-bin.000001	#	Query	#	#	ROLLBACK
+include/sync_slave_sql_with_master.inc
+[connection master]
+#
+# Verify that a 'function call' top statement is written into binary
+# log even if the function has only 'DROP TEMPORARY TABLE' and
+# replication runs successfully.
+#
+SELECT create_temp_table();
+create_temp_table()
+1
+SELECT drop_temp_table();
+drop_temp_table()
+2
+SELECT create_temp_table();
+create_temp_table()
+1
+SELECT drop_temp_table();
+drop_temp_table()
+2
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`create_temp_table`()
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`drop_temp_table`()
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`create_temp_table`()
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`drop_temp_table`()
+master-bin.000001	#	Query	#	#	COMMIT
+include/sync_slave_sql_with_master.inc
+[connection master]
+#
+# Verify that a 'function call' top statement is written into binary
+# log even if the function has only 'DROP TEMPORARY TABLE' and
+# replication runs successfully.
+#
+START TRANSACTION;
+SELECT create_temp_table();
+create_temp_table()
+1
+COMMIT;
+START TRANSACTION;
+SELECT drop_temp_table();
+drop_temp_table()
+2
+COMMIT;
+START TRANSACTION;
+SELECT create_temp_table();
+create_temp_table()
+1
+COMMIT;
+START TRANSACTION;
+SELECT drop_temp_table();
+drop_temp_table()
+2
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`create_temp_table`()
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`drop_temp_table`()
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`create_temp_table`()
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`drop_temp_table`()
+master-bin.000001	#	Query	#	#	COMMIT
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP FUNCTION create_temp_table;
+DROP FUNCTION drop_temp_table;
+include/rpl_end.inc

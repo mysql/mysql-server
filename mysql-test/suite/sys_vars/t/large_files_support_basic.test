@@ -1,0 +1,21 @@
+#
+# only global
+#
+select @@global.large_files_support;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.large_files_support;
+show global variables like 'large_files_support';
+show session variables like 'large_files_support';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='large_files_support';
+select * from performance_schema.session_variables where variable_name='large_files_support';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global large_files_support=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session large_files_support=1;
+

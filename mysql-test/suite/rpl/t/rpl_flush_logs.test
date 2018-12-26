@@ -1,0 +1,190 @@
+#
+# WL#5142
+# This test verifies if the 'flush individual logs' statement 
+# works fine.  
+#
+
+# "Flush" commands are logged as rotate events in the binary
+# log without gtid events. So it is correct to check master
+# and slave sync logic with positions instead gtids numbers.
+# Hence for this test script, making use_gtids to false
+# in all the cases (GTID_MODE ON or OFF).
+--let $use_gtids=0
+
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+connection master;
+
+# Test 'flush error logs' statement.
+
+--echo # Test if support 'flush error logs' statement.
+flush error logs;
+
+file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
+
+--echo # Make sure binary logs was not be flushed
+--echo # after execute 'flush error logs' statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
+
+--source include/sync_slave_sql_with_master.inc
+--echo # Make sure relay logs was not be flushed 
+--echo # after execute 'flush error logs' statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000003;
+
+connection master;
+--echo # Test if support 'flush relay logs' statement.
+flush relay logs;
+
+--source include/sync_slave_sql_with_master.inc
+--echo # Check the 'slave-relay-bin.000003' file is created
+--echo # after executed 'flush relay logs' statement.
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000003;
+
+connection master;
+--echo # Make sure binary logs was not be flushed
+--echo # after execute 'flush relay logs' statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
+
+
+# Test 'flush slow logs' statement.
+--echo # Test if support 'flush slow logs' statement.
+flush slow logs;
+
+--echo # Make sure binary logs was not be flushed
+--echo # after execute 'flush slow logs' statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
+
+
+# Test 'flush general logs' statement.
+--echo # Test if support 'flush general logs' statement.
+flush general logs;
+
+--echo # Make sure binary logs was not be flushed
+--echo # after execute 'flush general logs' statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
+
+
+# Test 'flush engine logs' statement.
+--echo # Test if support 'flush engine logs' statement.
+flush engine logs;
+
+--echo # Make sure binary logs was not be flushed
+--echo # after execute 'flush engine logs' statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
+
+
+# Test 'flush binary logs' statement.
+--echo # Make sure the 'master-bin.000002' file does not
+--echo # exist before execute 'flush binary logs' statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
+
+--echo # Test if support 'flush binary logs' statement.
+flush binary logs;
+
+--echo # Check the 'master-bin.000002' file is created
+--echo # after executed 'flush binary logs' statement.
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000001;
+
+
+# Test 'flush error logs, relay logs' statement
+--source include/sync_slave_sql_with_master.inc
+--echo # Make sure the 'slave-relay-bin.000006' file does not exist
+--echo # exist before execute 'flush error logs, relay logs' statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000006;
+
+connection master;
+
+--echo # Test if support to combine all kinds of logs into one statement.
+flush error logs, relay logs;
+
+file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
+
+--echo # Make sure binary logs was not be flushed
+--echo # after execute 'flush error logs, relay logs' statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000003;
+
+--source include/sync_slave_sql_with_master.inc
+--echo # Check the 'slave-relay-bin.000006' file is created after
+--echo # execute 'flush error logs, relay logs' statement.
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000006;
+
+
+# Test 'flush logs' statement
+--echo # Make sure the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
+--echo # files do not exist before execute 'flush error logs, relay logs'
+--echo # statement.
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
+--error 1
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
+
+--source include/stop_slave_sql.inc
+
+connection master;
+
+--echo # Test if 'flush logs' statement works fine and flush all the logs.
+flush logs;
+
+file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
+
+--echo # Check 'master-bin.000003' is created
+--echo # after execute 'flush logs' statement.
+file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000003;
+
+--source include/sync_slave_io_with_master.inc
+--echo # Check the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
+--echo # files are created after execute 'flush logs' statement.
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
+
+#
+# Bug #24786290: REPLICATION BREAKS AFTER BUG #74145 HAPPENS IN MASTER
+#
+# === Purpose ===
+#
+# This test verifies that failed FLUSH <individual> LOGS statements
+# are not written to binary log.
+
+--connection master
+--let $binlog_file= query_get_value(SHOW MASTER STATUS,File,1)
+--let $binlog_start= query_get_value(SHOW MASTER STATUS,Position,1)
+--let $master_pos_before_flush_logs= $binlog_start
+
+# Make FLUSH <individual> LOGS fail by changing
+# the permissions of the slow log and general log.
+--let $slow_log= `SELECT @@global.slow_query_log_file`
+--chmod 0000 $slow_log
+--replace_regex /.*File .* not found .*/File not found (Errcode: ##)/
+--error 29
+FLUSH SLOW LOGS;
+
+--let $general_log= `SELECT @@global.general_log_file`
+--chmod 0000 $general_log
+--replace_regex /.*File .* not found .*/File not found (Errcode: ##)/
+--error 29
+FLUSH GENERAL LOGS;
+
+# Assert that the above statements are not written to the binlog.
+--let $master_pos_after_flush_logs= query_get_value(SHOW MASTER STATUS,Position,1)
+--let $assert_text= assert that the above events are not written to binlog
+--let $assert_cond= $master_pos_before_flush_logs = $master_pos_after_flush_logs
+--source include/assert.inc
+--source include/show_binlog_events.inc
+
+# Restore permissions
+--chmod 0644 $slow_log
+--chmod 0644 $general_log
+
+--source include/sync_slave_io_with_master.inc
+--source include/start_slave_sql.inc
+--source include/rpl_end.inc

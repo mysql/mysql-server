@@ -1,0 +1,110 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # WL#9262: All system tables should support 32 character length user names
+--echo #
+
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+
+CREATE USER user_name_robert_golebiowski1234@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@localhost WITH GRANT OPTION;
+
+CREATE USER some_user@localhost;
+
+connect (con_1, localhost, user_name_robert_golebiowski1234,,);
+
+--echo # This will change CURRENT_USER from user_name_robert_golebiowski1234@localhost to
+--echo # user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+--echo # We have to do this in the server code as we are not able to simulate connecting to
+--echo # such a host from MTR
+SET @@global.debug="+d,wl_9262_set_max_length_hostname";
+FLUSH PRIVILEGES;
+SET @@global.debug="-d,wl_9262_set_max_length_hostname";
+SELECT CURRENT_USER();
+
+CREATE DATABASE db_1;
+CREATE TABLE db_1.test_table(ID INT);
+
+--echo # This should just work and Grantor should not be truncated
+GRANT SELECT ON db_1.test_table TO some_user@localhost;
+
+SELECT Grantor FROM mysql.tables_priv WHERE USER = 'some_user';
+SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE USER = 'some_user';
+
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER user_name_robert_golebiowski1234@localhost;
+DROP USER some_user@localhost;
+DROP DATABASE db_1;
+
+--connection default
+--disconnect con_1
+
+--echo #
+--echo # If acl_load() fails unexpectedly we shouldn't delete the acl cache
+--echo #
+use test;
+CREATE ROLE r1,r2;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT all on *.* to u1@localhost;
+GRANT r1,r2 TO u1@localhost;
+GRANT ALL ON *.* TO r1;
+SHOW GRANTS FOR u1@localhost USING r1;
+ALTER USER u1@localhost DEFAULT ROLE r1;
+SET @@global.debug="+d,induce_acl_load_failure";
+GRANT r1 TO r2;
+--error ER_UNKNOWN_ERROR
+FLUSH PRIVILEGES;
+connect (con1,localhost,u1,foo,);
+SHOW GRANTS;
+connection default;
+REVOKE r1 FROM r2;
+SET @@global.debug="+d,induce_acl_load_failure";
+--error ER_UNKNOWN_ERROR
+FLUSH PRIVILEGES;
+--echo # Grant should not have changed
+SHOW GRANTS FOR u1@localhost USING r1;
+connection con1;
+--echo # Grant should not have changed
+SHOW GRANTS;
+connection default;
+disconnect con1;
+SET @@global.debug="-d,induce_acl_load_failure";
+FLUSH PRIVILEGES;
+DROP USER u1@localhost;
+DROP ROLE r1,r2;
+
+--echo #
+--echo # If reload_roles_cache() fails unexpectedly, we should be able to
+--echo # revert the roles cache to previous sane state
+--echo #
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+GRANT SELECT ON *.* TO r1;
+SET DEFAULT ROLE ALL TO u1;
+SELECT * FROM mysql.role_edges;
+SELECT * FROM mysql.default_roles;
+# Since foo have some privilege over mysql database therefore,
+# following must succeed
+connect(foo_conn, localhost, u1,);
+USE mysql;
+
+--connection default
+--disconnect foo_conn
+
+# Trigger a debug execution in role cache reinitialization and return error,
+# in turn this leads backup copies to be restored.
+SET @@global.debug="+d, dbug_fail_in_role_cache_reinit";
+--error ER_TABLE_CORRUPT
+FLUSH PRIVILEGES;
+# Since backup copies of roles are restored hence following must succeed
+connect(foo_conn, localhost, u1,);
+USE mysql;
+
+--connection default
+--disconnect foo_conn
+
+SET @@global.debug="-d, dbug_fail_in_role_cache_reinit";
+DROP USER u1;
+DROP ROLE r1;

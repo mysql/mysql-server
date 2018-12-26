@@ -1,0 +1,88 @@
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
+--echo 1 Expected
+
+let cpu=`SELECT @@GLOBAL.innodb_log_wait_for_flush_spin_hwm`;
+
+####################################################################
+#   Check invalid set value attempts                               #
+####################################################################
+
+SET @@GLOBAL.innodb_log_wait_for_flush_spin_hwm=-1;
+
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+SET @@GLOBAL.innodb_log_wait_for_flush_spin_hwm=1;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+
+SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
+--echo 1 Expected
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.innodb_log_wait_for_flush_spin_hwm = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_log_wait_for_flush_spin_hwm';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_log_wait_for_flush_spin_hwm';
+--enable_warnings
+--echo 1 Expected
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_log_wait_for_flush_spin_hwm = @@GLOBAL.innodb_log_wait_for_flush_spin_hwm;
+--echo 1 Expected
+
+################################################################################
+#   Check if innodb_log_wait_for_flush_spin_hwm can be accessed with and without @@ sign   #
+################################################################################
+
+SELECT COUNT(@@innodb_log_wait_for_flush_spin_hwm);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_log_wait_for_flush_spin_hwm);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_log_wait_for_flush_spin_hwm);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_log_wait_for_flush_spin_hwm = @@SESSION.innodb_log_wait_for_flush_spin_hwm;
+
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 1000;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 0;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 80;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 50;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+
+eval SET @@GLOBAL.innodb_log_wait_for_flush_spin_hwm=$cpu;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;

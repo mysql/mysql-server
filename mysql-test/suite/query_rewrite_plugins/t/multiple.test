@@ -1,0 +1,30 @@
+--echo #
+--echo # Test of multiple query rewrite plugins. This will only work on an
+--echo # installation, where all plugins are in the same directory.
+--echo #
+
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+--source include/no_opt_trace_protocol.inc
+--source include/no_explain_protocol.inc
+--source include/no_json_explain_protocol.inc
+
+--let plugins= REWRITER,REWRITE_EXAMPLE
+--source include/check_plugin_dir.inc
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_pre_parse_plugin.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "abc"', 'SELECT "Rewritten"' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT * FROM query_rewrite.rewrite_rules;
+
+SELECT 'abc';
+SELECT 'ABC';
+
+UNINSTALL PLUGIN rewrite_example;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

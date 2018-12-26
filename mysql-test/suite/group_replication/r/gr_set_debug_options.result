@@ -1,0 +1,66 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("\\[ERROR\\] \\[MY-[^]]*\\] \\[Repl\] Plugin group_replication reported: 'Some debug options in '.*' are not valid.'");
+SET SESSION sql_log_bin=1;
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="123456";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of '123456'
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="!@#!#!#";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of '!@#!#!#'
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_DBG";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of 'GCS_DEBUG_DBG'
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL,12345";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of 'GCS_DEBUG_ALL,12345'
+include/start_and_bootstrap_group_replication.inc
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="123456";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of '123456'
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="!@#!#!#";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of '!@#!#!#'
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_DBG";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of 'GCS_DEBUG_DBG'
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC,GCS_DEBUG_TRACE,XCOM_DEBUG_BASIC,XCOM_DEBUG_TRACE,GCS_DEBUG_ALL";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL,12345";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of 'GCS_DEBUG_ALL,12345'
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL,XCOM_DEBUG_DBG";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of 'GCS_DEBUG_ALL,XCOM_DEBUG_DBG'
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC,GCS_DEBUG_TRACE,XCOM_DEBUG_BASIC,XCOM_DEBUG_TRACE";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC,,,,,XCOM_DEBUG_BASIC";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+[connection server1]
+include/stop_group_replication.inc
+include/start_and_bootstrap_group_replication.inc
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_NONE";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_TRACE";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="XCOM_DEBUG_BASIC";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="XCOM_DEBUG_TRACE";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+[connection server2]
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Some debug options in '.*' are not valid.'");
+SET SESSION sql_log_bin=1;
+SET GLOBAL group_replication_group_name= "89ab83b0-9f17-11e3-a5e2-0800200c9a66";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC,XCOM_DEBUG_BASIC,GCS_DEBUG_TRACE";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+include/start_group_replication.inc
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="";
+include/assert.inc [Checking the value of gr_communications_debug_opts]
+[connection server1]
+include/group_replication_end.inc

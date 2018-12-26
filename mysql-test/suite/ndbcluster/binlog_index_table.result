@@ -1,0 +1,21 @@
+select TABLE_SCHEMA, TABLE_NAME from information_schema.tables
+where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_binlog_index';
+TABLE_SCHEMA	TABLE_NAME
+mysql	ndb_binlog_index
+select ORDINAL_POSITION, COLUMN_NAME, COLUMN_TYPE, COLUMN_DEFAULT,
+IS_NULLABLE from information_schema.columns
+where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_binlog_index'
+  order by ORDINAL_POSITION;
+ORDINAL_POSITION	COLUMN_NAME	COLUMN_TYPE	COLUMN_DEFAULT	IS_NULLABLE
+1	Position	bigint(20) unsigned	NULL	NO
+2	File	varchar(255)	NULL	NO
+3	epoch	bigint(20) unsigned	NULL	NO
+4	inserts	int(10) unsigned	NULL	NO
+5	updates	int(10) unsigned	NULL	NO
+6	deletes	int(10) unsigned	NULL	NO
+7	schemaops	int(10) unsigned	NULL	NO
+8	orig_server_id	int(10) unsigned	NULL	NO
+9	orig_epoch	bigint(20) unsigned	NULL	NO
+10	gci	int(10) unsigned	NULL	NO
+11	next_position	bigint(20) unsigned	NULL	NO
+12	next_file	varchar(255)	NULL	NO

@@ -1,0 +1,21 @@
+select * from performance_schema.metadata_locks;
+select * from performance_schema.metadata_locks
+where object_name='foo';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COLUMN_NAME	OBJECT_INSTANCE_BEGIN	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS	SOURCE	OWNER_THREAD_ID	OWNER_EVENT_ID
+insert into performance_schema.metadata_locks
+set object_name='FOO', owner_thread_id=1;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'metadata_locks'
+update performance_schema.metadata_locks
+set owner_thread_id=12 where object_name='foo';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'metadata_locks'
+delete from performance_schema.metadata_locks;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'metadata_locks'
+delete from performance_schema.metadata_locks
+where timer_name='CYCLE';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'metadata_locks'
+LOCK TABLES performance_schema.metadata_locks READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'metadata_locks'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.metadata_locks WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'metadata_locks'
+UNLOCK TABLES;

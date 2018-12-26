@@ -1,0 +1,1025 @@
+CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_sql%'
+Variable_name	Value
+Mysqlx_stmt_execute_sql	1
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%'
+Variable_name	Value
+Mysqlx_stmt_execute_xplugin	0
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xplugintest`.`scalar_types`(`number_sint`, `number_uint`, `value_string`) VALUES(0, ?, \'First inserted row\'),(?, 1,\'Second inserted row\'), (-1, 0,?)"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_SINT
+      v_signed_int: -1
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "\"Thrid\" inserted \'row\'"
+      }
+    }
+  }
+}
+
+
+3 rows affected
+Records: 3  Duplicates: 0  Warnings: 0
+send Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xplugintest`.`scalar_types`(`number_float`, `number_double`, `value_blob`) VALUES(0.1, ?, \'First inserted blob\'),(?, 200.01,\'Second inserted blob\'), (10.11, 2.2, ?), (111, 222, ?)"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 200.01
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 10.11
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "\"Thrid\" inserted \'blob\'"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+}
+
+
+4 rows affected
+Records: 4  Duplicates: 0  Warnings: 0
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_sql%'
+Variable_name	Value
+Mysqlx_stmt_execute_sql	5
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%'
+Variable_name	Value
+Mysqlx_stmt_execute_xplugin	1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_sql%'
+Variable_name	Value
+Mysqlx_stmt_execute_sql	1
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%'
+Variable_name	Value
+Mysqlx_stmt_execute_xplugin	0
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SELECT * FROM `xplugintest`.`scalar_types`;
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+1	0	0	First inserted row	1.1	2.2	NULL
+1	-1	0	Second inserted row	1.1	2.2	NULL
+0	-1	0	"Thrid" inserted 'row'	1.1	2.2	NULL
+10	-10	0	NULL	0.1	200.01	First inserted blob
+10	-10	0	NULL	10.11	200.01	Second inserted blob
+10	-10	0	NULL	10.11	2.2	"Thrid" inserted 'blob'
+10	-10	0	NULL	111	222	NULL
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_sql%'
+Variable_name	Value
+Mysqlx_stmt_execute_sql	1
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%'
+Variable_name	Value
+Mysqlx_stmt_execute_xplugin	0
+0 rows affected
+Filter data by unsigned int
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xplugintest`.`scalar_types` WHERE `number_uint`=?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+1	0	0	First inserted row	1.1	2.2	null
+1	-1	0	Second inserted row	1.1	2.2	null
+0 rows affected
+Filter data by signed int
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xplugintest`.`scalar_types` WHERE `number_sint`=?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_SINT
+      v_signed_int: -1
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+1	-1	0	Second inserted row	1.1	2.2	null
+0	-1	0	"Thrid" inserted 'row'	1.1	2.2	null
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_sql%'
+Variable_name	Value
+Mysqlx_stmt_execute_sql	5
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%'
+Variable_name	Value
+Mysqlx_stmt_execute_xplugin	0
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_sql%'
+Variable_name	Value
+Mysqlx_stmt_execute_sql	1
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%'
+Variable_name	Value
+Mysqlx_stmt_execute_xplugin	0
+0 rows affected
+Insert multiple rows into a Document column
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Bras\", \"id\": \"1\"\n}"
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"2\",\n         \"name\": \"Omar Mex\", \"id\": \"2\"\n}"
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"3\",\n         \"name\": \"Omar Peru\", \"id\": \"3\"\n}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+name	type
+scalar_types	TABLE
+table2	COLLECTION
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "nodatabase"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "errorstatement"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "nodatabase"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Unknown database 'nodatabase' (code 1049)
+Got expected error: Invalid xplugin command errorstatement (code 5157)
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_sql%'
+Variable_name	Value
+Mysqlx_stmt_execute_sql	3
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_execute_xplugin%'
+Variable_name	Value
+Mysqlx_stmt_execute_xplugin	3
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_crud_insert%'
+Variable_name	Value
+Mysqlx_crud_insert	2
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_list_objects%'
+Variable_name	Value
+Mysqlx_stmt_list_objects	2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP DATABASE xplugintest;
+DROP DATABASE xplugintest_1;
+CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
+RUN SHOW STATUS like 'Mysqlx_stmt_create_collection'
+Variable_name	Value
+Mysqlx_stmt_create_collection	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_create_collection_index%'
+Variable_name	Value
+Mysqlx_stmt_create_collection_index	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_rows_sent%'
+Variable_name	Value
+Mysqlx_rows_sent	2
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_bytes_sent%'
+Variable_name	Value
+Mysqlx_bytes_sent	706
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+Command is valid but returns error so its counted in status variable
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: ""
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid collection name (code 5113)
+Parse error , so its not counted in status variable
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1064
+  msg: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'create_collection\' at line 1"
+  sql_state: "42000"
+}
+
+"Index with  unique(true), index column NOT NULL (true)" counted in index status variable
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "col1_index"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: ".col1"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "TEXT(13)"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+Command is parsed , returns error. Counted in status variable
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table_non_existing"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "col1_index"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: ".col1"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "TEXT(13)"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5113
+  msg: "Invalid collection name: xplugintest.table_non_existing"
+  sql_state: "HY000"
+}
+
+Invalid index command. Not able to parse so not counted in status variable
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1064
+  msg: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'create_collection_index\' at line 1"
+  sql_state: "42000"
+}
+
+"Create table table3 in xplugintest "
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table3"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xplugintest`.`scalar_types`(`number_sint`, `number_uint`, `value_string`) VALUES(0, ?, \'First inserted row\'),(?, 1,\'Second inserted row\'), (-1, 0,?)"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_SINT
+      v_signed_int: -1
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "\"Thrid\" inserted \'row\'"
+      }
+    }
+  }
+}
+
+
+3 rows affected
+Records: 3  Duplicates: 0  Warnings: 0
+send Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xplugintest`.`scalar_types`(`number_float`, `number_double`, `value_blob`) VALUES(0.1, ?, \'First inserted blob\'),(?, 200.01,\'Second inserted blob\'), (10.11, 2.2, ?), (111, 222, ?)"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 200.01
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 10.11
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "\"Thrid\" inserted \'blob\'"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+}
+
+
+4 rows affected
+Records: 4  Duplicates: 0  Warnings: 0
+RUN USE xplugintest
+
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_create_collection'
+Variable_name	Value
+Mysqlx_stmt_create_collection	3
+0 rows affected
+RUN CREATE TABLE `table4` (`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL)
+
+0 rows affected
+RUN ALTER TABLE xplugintest.table4 ADD FULLTEXT INDEX `fulltext_idx_1` (value_string)
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 1
+RUN SHOW STATUS like 'Mysqlx_stmt_create_collection'
+Variable_name	Value
+Mysqlx_stmt_create_collection	3
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_create_collection_index%'
+Variable_name	Value
+Mysqlx_stmt_create_collection_index	2
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_rows_sent%'
+Variable_name	Value
+Mysqlx_rows_sent	7
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_bytes_sent%'
+Variable_name	Value
+Mysqlx_bytes_sent	2737
+0 rows affected
+Filter data by unsigned int
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xplugintest`.`scalar_types` WHERE `number_uint`=?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+1	0	0	First inserted row	1.1	2.2	null
+1	-1	0	Second inserted row	1.1	2.2	null
+0 rows affected
+Filter data by signed int
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xplugintest`.`scalar_types` WHERE `number_sint`=?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_SINT
+      v_signed_int: -1
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+1	-1	0	Second inserted row	1.1	2.2	null
+0	-1	0	"Thrid" inserted 'row'	1.1	2.2	null
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_create_collection'
+Variable_name	Value
+Mysqlx_stmt_create_collection	3
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_create_collection_index%'
+Variable_name	Value
+Mysqlx_stmt_create_collection_index	2
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_rows_sent%'
+Variable_name	Value
+Mysqlx_rows_sent	15
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_bytes_sent%'
+Variable_name	Value
+Mysqlx_bytes_sent	5042
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_drop_collection'
+Variable_name	Value
+Mysqlx_stmt_drop_collection	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_drop_collection_index%'
+Variable_name	Value
+Mysqlx_stmt_drop_collection_index	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_ping%'
+Variable_name	Value
+Mysqlx_stmt_ping	0
+0 rows affected
+# drop index counted in status variable
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "col1_index"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+"drop index with error counted in status variable" 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "non_existing_index"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1091
+  msg: "Can\'t DROP \'non_existing_index\'; check that column/key exists"
+  sql_state: "42000"
+}
+
+"Parse error not counted in status variable"
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection_index"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1064
+  msg: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'drop_collection_index\' at line 1"
+  sql_state: "42000"
+}
+
+# drop collection , index sql not counted in status variable
+RUN DROP TABLE xplugintest.table3
+
+0 rows affected
+RUN ALTER TABLE xplugintest.table4 DROP INDEX `fulltext_idx_1`
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+"Drop table created using create_collection message"
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+"Non existing Drop table counted in status variable"
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table_non_existing"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: Unknown table 'xplugintest.table_non_existing' (code 1051)
+"Drop table parse error NOT counted in status variable"
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1064
+  msg: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'drop_collection\' at line 1"
+  sql_state: "42000"
+}
+
+"Drop table created using create_collection message"
+send Mysqlx.Sql.StmtExecute {
+  stmt: "drop_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "scalar_types"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN SHOW STATUS like 'Mysqlx_stmt_drop_collection'
+Variable_name	Value
+Mysqlx_stmt_drop_collection	3
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_stmt_drop_collection_index%'
+Variable_name	Value
+Mysqlx_stmt_drop_collection_index	2
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "bla"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bla"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+RUN SHOW STATUS like 'Mysqlx_stmt_ping%'
+Variable_name	Value
+Mysqlx_stmt_ping	2
+0 rows affected
+Check - expect.open and expect.close status variable
+RUN SHOW STATUS like 'Mysqlx_expect_close%'
+Variable_name	Value
+Mysqlx_expect_close	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_expect_open%'
+Variable_name	Value
+Mysqlx_expect_open	0
+0 rows affected
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 1
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Expect.Open {
+}
+
+Mysqlx.Ok {
+}
+
+RUN SHOW STATUS like 'Mysqlx_expect_close%'
+Variable_name	Value
+Mysqlx_expect_close	0
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_expect_open%'
+Variable_name	Value
+Mysqlx_expect_open	2
+0 rows affected
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Ok {
+}
+
+RUN SHOW STATUS like 'Mysqlx_expect_close%'
+Variable_name	Value
+Mysqlx_expect_close	1
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_expect_open%'
+Variable_name	Value
+Mysqlx_expect_open	2
+0 rows affected
+send Mysqlx.Expect.Close {
+}
+
+Mysqlx.Ok {
+}
+
+RUN SHOW STATUS like 'Mysqlx_expect_close%'
+Variable_name	Value
+Mysqlx_expect_close	2
+0 rows affected
+RUN SHOW STATUS like 'Mysqlx_expect_open%'
+Variable_name	Value
+Mysqlx_expect_open	2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP DATABASE xplugintest;
+DROP DATABASE xplugintest_1;

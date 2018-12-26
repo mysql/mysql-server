@@ -1,0 +1,147 @@
+############# mysql-test\t\innodb_compression_pad_pct_max_basic.test ##########
+#                                                                             #
+# Variable Name: innodb_compression_pad_pct_max                               #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: Numeric                                                          #
+# Default Value: 50                                                           #
+# Range: 0-75                                                                 #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+#Description: Test Cases of Dynamic System Variable                           #
+#             innodb_compression_pad_pct_max                                  #
+#             that checks the behavior of                                     #
+#             this variable in the following ways                             #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+--source include/load_sysvars.inc
+
+######################################################################
+#      START OF innodb_compression_pad_pct_max TESTS                 #
+######################################################################
+
+
+############################################################################################
+# Saving initial value of innodb_compression_pad_pct_max in a temporary variable           #
+############################################################################################
+
+SET @global_start_value = @@global.innodb_compression_pad_pct_max;
+SELECT @global_start_value;
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+########################################################################
+# Display the DEFAULT value of innodb_compression_pad_pct_max          #
+########################################################################
+
+SET @@global.innodb_compression_pad_pct_max = DEFAULT;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+##############################################################################################
+# check if innodb_compression_pad_pct_max can be accessed with and without @@ sign           #
+##############################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET innodb_compression_pad_pct_max = 1;
+SELECT @@innodb_compression_pad_pct_max;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_compression_pad_pct_max;
+
+SET global innodb_compression_pad_pct_max = 0;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+#################################################################################
+# change the value of innodb_compression_pad_pct_max to a valid value           #
+#################################################################################
+
+SET @@global.innodb_compression_pad_pct_max = 0;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+SET @@global.innodb_compression_pad_pct_max = 75;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+--echo '#--------------------FN_DYNVARS_046_04-------------------------#'
+################################################################################
+# Cange the value of innodb_compression_pad_pct_max to invalid value           #
+################################################################################
+
+SET @@global.innodb_compression_pad_pct_max = -1;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_pad_pct_max = "T";
+SELECT @@global.innodb_compression_pad_pct_max;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_pad_pct_max = 1.1;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+SET @@global.innodb_compression_pad_pct_max = 76;
+SELECT @@global.innodb_compression_pad_pct_max;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_pad_pct_max = " ";
+SELECT @@global.innodb_compression_pad_pct_max;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_pad_pct_max = ' ';
+SELECT @@global.innodb_compression_pad_pct_max;
+
+--echo '#----------------------FN_DYNVARS_046_05------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT @@global.innodb_compression_pad_pct_max =
+ VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_compression_pad_pct_max';
+--enable_warnings
+SELECT @@global.innodb_compression_pad_pct_max;
+--disable_warnings
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+ WHERE VARIABLE_NAME='innodb_compression_pad_pct_max';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_046_06-------------------------#'
+###################################################################
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_pad_pct_max = OFF;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_pad_pct_max = ON;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+--echo '#---------------------FN_DYNVARS_046_07----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@global.innodb_compression_pad_pct_max = TRUE;
+SELECT @@global.innodb_compression_pad_pct_max;
+SET @@global.innodb_compression_pad_pct_max = FALSE;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.innodb_compression_pad_pct_max = @global_start_value;
+SELECT @@global.innodb_compression_pad_pct_max;
+
+###############################################################
+#      END OF innodb_compression_pad_pct_max TESTS            #
+###############################################################

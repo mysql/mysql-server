@@ -1,0 +1,46 @@
+--source include/have_ndb.inc
+
+use ndbinfo;
+
+#
+# WL 7656 server_operations view
+#
+
+--echo Small test to show server-specific nature of server view
+
+connect(mysqld1,127.0.0.1,root,,test,$MASTER_MYPORT1);
+
+create table test.t1 (a int primary key, b int) engine=ndb;
+
+insert into test.t1 values (1,1), (2,2);
+
+--echo Lock a row from each server...
+--connection default
+--echo Server0
+begin;
+select * from test.t1 where a=1 for update;
+
+--connection mysqld1
+--echo Server1
+begin;
+select * from test.t1 where a=2 for update;
+
+
+--echo Show content of server_locks vs cluster_locks
+--connection default
+select count(1) from ndbinfo.cluster_locks;
+select count(1) from ndbinfo.server_locks;
+
+--connection mysqld1
+select count(1) from ndbinfo.cluster_locks;
+select count(1) from ndbinfo.server_locks;
+
+--echo Finished
+--connection default
+rollback;
+
+--connection mysqld1
+rollback;
+
+drop table test.t1;
+

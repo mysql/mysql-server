@@ -1,0 +1,78 @@
+# ==== Purpose ====
+#
+# When binlog is enabled, verify that a transaction with a specified
+# UUID:NUMBER can be committed successfully right after committing a
+# single statement 'CREATE TEMPORARY TABLE' transaction which raises
+# a GTID-violation flag and starts a transaction.
+#
+# ==== Implementation ====
+#
+# 1) Set @@GLOBAL.GTID_MODE to OFF_PERMISSIVE and disable autocommit
+# 2) Create a temporary TABLE with SELECT to raise the GTID-violation flag
+#    and start a transaction.
+# 3) Set GTID_NEXT='UUID:NUMBER' to cause an error
+#    'ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION'
+# 4) Commit the single statement transaction
+#
+# 5) Create a temporary TABLE to raise the GTID-violation flag
+#    and start a transaction.
+# 6) Set GTID_NEXT='UUID:NUMBER' to cause an error
+#    'ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION'
+# 7) Commit the single statement transaction
+#
+# 8) Create a temporary TABLE LIKE other one to raise the GTID-violation flag
+#    and start a transaction.
+# 9) Set GTID_NEXT='UUID:NUMBER' to cause an error
+#    'ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION'
+# 10) Commit the single statement transaction
+#
+# 11) Succeed to set GTID_NEXT='UUID:NUMBER'
+# 12) The next transaction can be committed successfully
+#    with the specified UUID:NUMBER.
+#
+# 13) Drop a temporary TABLE to start a transaction.
+# 14) Set GTID_NEXT='UUID:NUMBER' to cause an error
+#    'ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION'
+#
+# ==== References ====
+#
+# Bug #20748502  ASSERTION `THD->VARIABLES.GTID_NEXT.TYPE== ANONYMOUS_GROUP' FAILED.
+# mysql-test/t/no_binlog_gtid_next_temporary_table.test
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+# Clean gtid_executed so that test can execute after other tests
+RESET MASTER;
+CREATE TABLE t1 (c1 INT);
+SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
+SET SESSION autocommit = 0;
+CREATE TEMPORARY TABLE Temp1 SELECT RAND();
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET SESSION GTID_NEXT = '11111111-AAAA-2222-BBBB-000000000000:1';
+COMMIT;
+
+CREATE TEMPORARY TABLE Temp2(c1 INT);
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET SESSION GTID_NEXT = '11111111-AAAA-2222-BBBB-000000000000:2';
+COMMIT;
+
+CREATE TEMPORARY TABLE Temp3 LIKE Temp2;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET SESSION GTID_NEXT = '11111111-AAAA-2222-BBBB-000000000000:3';
+COMMIT;
+
+# The transaction can be committed successfully
+# with the specified UUID:NUMBER.
+SET SESSION GTID_NEXT = '11111111-AAAA-2222-BBBB-000000000000:4';
+DROP TABLE t1;
+
+SET SESSION GTID_NEXT = 'automatic';
+DROP TEMPORARY TABLE Temp1,Temp2,Temp3;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET SESSION GTID_NEXT='11111111-AAAA-2222-BBBB-000000000000:5';
+COMMIT;
+
+# Reset
+SET SESSION autocommit = 1;
+SET @@GLOBAL.GTID_MODE = OFF;

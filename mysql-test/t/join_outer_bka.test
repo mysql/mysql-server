@@ -1,0 +1,13 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
+# 
+# Run join_outer.test with BKA enabled 
+#
+set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
+
+--source t/join_outer.test
+
+set optimizer_switch=default;

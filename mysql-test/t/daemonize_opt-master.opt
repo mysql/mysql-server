@@ -1,0 +1,2 @@
+--daemonize
+--innodb_buffer_pool_dump_at_shutdown=OFF

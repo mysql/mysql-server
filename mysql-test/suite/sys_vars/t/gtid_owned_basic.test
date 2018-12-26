@@ -1,0 +1,46 @@
+
+# the variable is controlled in different ways depending on whether
+# gtid_mode=on or off.  the behavior when gtid_mode=on is tested in
+# rpl_gtid_execution.test
+
+
+SET @start_global_value = @@global.gtid_owned;
+SELECT @start_global_value;
+
+#
+# exists as global and session.
+#
+select @@global.gtid_owned;
+select @@session.gtid_owned;
+show global variables like 'gtid_owned';
+show session variables like 'gtid_owned';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='gtid_owned';
+select * from performance_schema.session_variables where variable_name='gtid_owned';
+--enable_warnings
+
+#
+# It is not writable.
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.gtid_owned = 1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@session.gtid_owned = 1;
+
+#
+# With GTID_MODE = OFF, gtid_owned stays empty when setting gtid_next
+# to anonymous or automatic.
+#
+
+set @@session.gtid_next = 'anonymous';
+select @@session.gtid_owned;
+select @@global.gtid_owned;
+ROLLBACK;
+
+set @@session.gtid_next = 'automatic';
+select @@session.gtid_owned;
+select @@global.gtid_owned;
+
+#
+# See rpl_gtid_execution.test for a comprehensive test case with gtid_mode=on.
+#

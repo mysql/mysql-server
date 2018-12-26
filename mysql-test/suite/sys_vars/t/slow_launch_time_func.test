@@ -1,0 +1,106 @@
+############# mysql-test\t\slow_launch_time_func.test ##########################
+#                                                                              #
+# Variable Name: slow_launch_time                                              #
+# Scope: SESSION                                                               #
+# Access Type: Dynamic                                                         #
+# Data Type: NUMERIC                                                           #
+# Default Value: 2                                                             #
+# Values:      -                                                               #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-02                                                    #
+# Author:  Sharique Abdullah                                                   #
+#                                                                              #
+# Last change: 2008-09-09 mleich Reimplementation of this test                 #
+#              - Fix Bug#36874 : main.slow_launch_time_func test fails         #
+#                randomly                                                      #
+#              - Fix other failures and streamline the test                    #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "slow_launch_time "       #
+#              that checks behavior of this variable in the following ways     #
+#              * Functionality based on different values                       #
+#                                                                              #
+# Reference:                                                                   #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html       #
+#           option_mysqld_slow_launch_time                                     #
+#                                                                              #
+################################################################################
+
+#
+# Setup
+#
+
+--source include/not_threadpool.inc
+--source include/not_valgrind.inc
+
+SET @global_slow_launch_time = @@GLOBAL.slow_launch_time;
+
+--echo '#--------------------FN_DYNVARS_124_01-------------------------#'
+
+########################################################################
+# Reveal that a new connect gets counted as "slow launched thread" if  #
+# @@GLOBAL.slow_launch_time = 0.                                       #
+# The value of slow_launch_threads must be increased by 1.             #
+########################################################################
+
+SET @@GLOBAL.slow_launch_time=0;
+SELECT @@GLOBAL.slow_launch_time;
+
+let $value_before=
+   query_get_value(show status like 'slow_launch_threads', Value, 1);
+--echo ** Connecting conn1 using username 'root' **
+CONNECT (conn1,localhost,root,,);
+# To assure that the connection has been established.
+SELECT 1;
+let $value_after=
+   query_get_value(show status like 'slow_launch_threads', Value, 1);
+if (!`SELECT $value_after = $value_before + 1`)
+{
+   --echo ERROR: Subtest FN_DYNVARS_124_01 failed
+   --echo A new connect should be counted as 'slow_launch_thread' if
+   --echo @@GLOBAL.slow_launch_time=0
+   SELECT @@GLOBAL.slow_launch_time;
+   echo Number of slow_launch_threads before new connect: $value_before;
+   echo Number of slow_launch_threads after new connect: $value_after;
+}
+disconnect conn1;
+source include/wait_until_disconnected.inc;
+--echo ** Switch to connection default and disconnect conn1 **
+connection default;
+
+--echo '#--------------------FN_DYNVARS_124_02-------------------------#'
+
+########################################################################
+# Reveal that a new connect gets not counted as "slow launched thread" #
+# if @@GLOBAL.slow_launch_time is sufficient big.                      #
+# The value of slow_launch_threads must not change.                    #
+########################################################################
+
+SET @@GLOBAL.slow_launch_time= 10000;
+SELECT @@GLOBAL.slow_launch_time;
+
+let $value_before=
+   query_get_value(show status like 'slow_launch_threads', Value, 1);
+--echo ** Connecting conn2 using username 'root' **
+CONNECT (conn2,localhost,root,,);
+SELECT 1;
+let $value_after=
+   query_get_value(show status like 'slow_launch_threads', Value, 1);
+if ($value_after != $value_before)
+{
+   --echo ERROR: Subtest FN_DYNVARS_124_02 failed
+   --echo A new connect must not be counted as 'slow_launch_thread' if
+   --echo @@GLOBAL.slow_launch_time is sufficient big.
+   SELECT @@GLOBAL.slow_launch_time;
+   echo Number of slow_launch_threads before new connect: $value_before;
+   echo Number of slow_launch_threads after new connect: $value_after;
+}
+
+#
+# Cleanup
+#
+
+--echo ** Switch to connection default and disconnect conn2 **
+connection default;
+disconnect conn2;
+SET @@GLOBAL.slow_launch_time = @global_slow_launch_time;

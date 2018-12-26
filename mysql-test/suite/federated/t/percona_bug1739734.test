@@ -1,0 +1,50 @@
+--echo #
+--echo # Bug lp1739734  "Federated table returns error 1430 from storage engine"
+--echo #
+--echo # This is a bug introduced in the artful/gcc7 compilation fixes, caused by
+--echo # a moved break statement.
+
+--source suite/federated/include/federated.inc
+
+connection master;
+CREATE DATABASE lp1739734;
+use lp1739734;
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CREATE SERVER local_server
+FOREIGN DATA WRAPPER mysql
+OPTIONS (
+  HOST '127.0.0.1',
+  PORT $MASTER_MYPORT,
+  USER 'root',
+  PASSWORD '',
+  DATABASE 'lp1739734'
+);
+
+CREATE TABLE remote_table (
+  a INT,
+  b INT,
+  KEY ab (a,b),
+  KEY ba (b,a)
+);
+
+
+CREATE TABLE local_table (
+  a INT,
+  b INT,
+  KEY ab (a,b),
+  KEY ba (b,a)
+) ENGINE=federated CONNECTION='local_server/remote_table';
+
+SELECT * FROM local_table;
+
+SELECT * FROM local_table USE INDEX (ab)
+WHERE a<1 AND b=0;
+
+SELECT * FROM local_table USE INDEX (ba)
+WHERE a<1 AND b=0;
+
+DROP DATABASE lp1739734;
+DROP SERVER local_server;
+
+--source suite/federated/include/federated_cleanup.inc

@@ -1,0 +1,62 @@
+# Variable Name: write_timeout                                                #
+# Creation Date: 2017-12-20                                                   #
+# Author:  Horst Hunger                                                       #
+
+--source include/load_sysvars.inc
+
+SET @start_global_value = @@global.mysqlx_write_timeout;
+SELECT @start_global_value;
+
+SET @@global.mysqlx_write_timeout = 100;
+SET @@global.mysqlx_write_timeout = DEFAULT;
+SELECT @@global.mysqlx_write_timeout;
+
+SET @@session.mysqlx_write_timeout = DEFAULT;
+
+SET @@global.mysqlx_write_timeout = DEFAULT;
+SELECT @@global.mysqlx_write_timeout = 28800;
+
+SET @@global.mysqlx_write_timeout = 1;
+SELECT @@global.mysqlx_write_timeout;
+SET @@global.mysqlx_write_timeout = 60020;
+SELECT @@global.mysqlx_write_timeout;
+SET @@global.mysqlx_write_timeout = 65535;
+SELECT @@global.mysqlx_write_timeout;
+SET @@global.mysqlx_write_timeout = 31536000;
+SELECT @@global.mysqlx_write_timeout;
+
+SET @@global.mysqlx_write_timeout = 0;
+SELECT @@global.mysqlx_write_timeout;
+SET @@global.mysqlx_write_timeout = -1024;
+SELECT @@global.mysqlx_write_timeout;
+SET @@global.mysqlx_write_timeout = 31536001;
+SELECT @@global.mysqlx_write_timeout;
+SET @@global.mysqlx_write_timeout = 1000000000;
+SELECT @@global.mysqlx_write_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_write_timeout = 65530.34;
+SELECT @@global.mysqlx_write_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_write_timeout = test;
+SELECT @@global.mysqlx_write_timeout;
+
+--disable_warnings
+SELECT @@global.mysqlx_write_timeout = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='mysqlx_write_timeout';
+--enable_warnings
+
+SET @@global.mysqlx_write_timeout = TRUE;
+SELECT @@global.mysqlx_write_timeout;
+SET @@global.mysqlx_write_timeout = FALSE;
+SELECT @@global.mysqlx_write_timeout;
+
+SET @@global.mysqlx_write_timeout = 10;
+SELECT @@mysqlx_write_timeout = @@global.mysqlx_write_timeout;
+
+SET @@mysqlx_write_timeout = 100;
+
+SET mysqlx_write_timeout = 1;
+
+SET @@global.mysqlx_write_timeout = @start_global_value;
+

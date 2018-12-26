@@ -1,0 +1,11 @@
+!include suite/rpl/my.cnf
+
+[mysqld.1]
+
+[mysqld.2]
+
+[mysqld.3]
+
+[ENV]
+SERVER_MYPORT_3=                @mysqld.3.port
+SERVER_MYSOCK_3=                @mysqld.3.socket

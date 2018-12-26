@@ -1,0 +1,74 @@
+#
+#BUG#13333431 : INCORRECT DEFAULT PORT IN 'SHOW SLAVE HOSTS' OUTPUT 
+#
+# ==== Purpose ====
+#
+# The test show the default value printed for the slave's port number if the 
+# --report-port= <some value> is not set on the slave. This is different from
+# the present scenario which show 3306 as the default value if the report-port 
+# is not set on the slave. 
+#
+#====Method====
+#
+# Start replication  with report port set to 9000 and restart the slave.
+# In this case on doing SHOW SLAVE HOSTS on the master, we get the port number
+# of the slave to be 9000.
+# In the second case restart the slave server with report port not set. In this
+# case on doing SHOW SLAVE HOSTS on the master, we get the actual port number
+# of the slave (ie. SLAVE_PORT).
+
+source include/master-slave.inc;
+source include/have_binlog_format_mixed.inc;
+
+connection master;
+
+# Start the server with some value being passed to the report_port= <option>
+# this will be used incase we have to mask the value of the slave's port
+# number in certain situations.
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --report-port=9000
+--source include/rpl_restart_server.inc
+
+connection slave;
+--source include/start_slave.inc
+--let $slave_param= Slave_IO_State
+--let $slave_param_value= Waiting for master to send event
+--source include/wait_for_slave_param.inc
+
+--echo [Slave restarted with the report-port set to some value]
+connection master;
+
+# 9000 is the value of the port we should get.
+--let $report_port= query_get_value(SHOW SLAVE HOSTS, Port, 1)
+--let assert_text= The value shown for the slave's port number is user specified port number which is the value set for report-port.
+--let assert_cond= $report_port = "9000"
+--source include/assert.inc
+
+# Start the server with the report-port being passed with no value. So on SHOW SLAVE HOSTS
+# on the master the value of slave's port should be the actual value of the slave port.
+connection master;
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= 
+--source include/rpl_restart_server.inc
+
+connection slave;
+--source include/start_slave.inc
+--let $slave_param= Slave_IO_State
+--let $slave_param_value= Waiting for master to send event
+--source include/wait_for_slave_param.inc
+
+connection master;
+--source include/sync_slave_sql_with_master.inc
+--echo [Slave restarted with the report-port set to the value of slave's port number]
+
+connection master;
+
+# The value reported is the actual value of the slave's port.
+--let $report_port= query_get_value(SHOW SLAVE HOSTS, Port, 1)
+--let assert_text= The default value shown for the slave's port number is the actual port number of the slave.
+--let assert_cond= $report_port = "$SLAVE_MYPORT"
+--source include/assert.inc
+
+--source include/rpl_end.inc

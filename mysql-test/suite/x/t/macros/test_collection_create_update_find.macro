@@ -1,0 +1,82 @@
+#
+# Setup_Schema
+#
+-->macro Setup_Schema
+stmtadmin create_collection	{"schema":"xtest", "name":"xdoc"};
+recvresult;
+varlet %RESULT_PATCH_STRING% {"a": "foo", "_id": 1};
+varlet %RESULT_PATCH_NULL% {"a": "foo", "_id": 1};
+varlet %RESULT_PATCH_ARRAY% {"a": "foo", "_id": 1};
+varlet %RESULT_PATCH_ID% {"a": "foo", "_id": 1};
+varlet %OBJECT% Collection1;
+varlet %OBJECT_COLUMN% ;
+-->endmacro
+
+
+#
+# Document_UpdatePatch_Find
+#
+-->macro Document_UpdatePatch_Find	%ERROR%	%DOC%	%PATCH%	%EXPECT%
+echo # Verification of JSON patch [%DOC% patch %PATCH% = %EXPECT%];
+quiet;
+noquery_result;
+callmacro Crud_insert	Collection1	'xdoc'	Row_octet	'%DOC%';
+callmacro Crud_update	Collection1	'xdoc'	Op_octets
+		MERGE_PATCH	'%PATCH%';
+callmacro Crud_find	Collection1	'xdoc';
+callmacro Crud_delete	Collection1 'xdoc';
+recvresult;
+expecterror %ERROR%;
+recvresult;
+recvtovar %RESULT%;
+recvresult;
+noquiet;
+query_result;
+assert_eq %EXPECT%	%RESULT%;
+echo;
+-->endmacro
+
+
+#
+# Document_UpdatePatchObj_Find
+#
+-->macro Document_UpdatePatchObj_Find	%ERROR%	%DOC%	%OBJ%	%EXPECT%
+echo # Verification of JSON patch [%DOC% patch PROTOBUF_EXPR = %EXPECT%];
+quiet;
+noquery_result;
+callmacro Crud_insert	Collection1	'xdoc'	Row_octet	'%DOC%';
+callmacro Crud_update	Collection1	'xdoc'	Op_object
+		MERGE_PATCH	%OBJ%;
+callmacro Crud_find	Collection1	'xdoc';
+callmacro Crud_delete	Collection1 'xdoc';
+recvresult;
+expecterror %ERROR%;
+recvresult;
+recvtovar %RESULT%;
+recvresult;
+noquiet;
+query_result;
+assert_eq %EXPECT%	%RESULT%;
+echo;
+-->endmacro
+
+
+#
+# Document_OnlyTable_UpdatePatch_Find
+#
+-->macro Document_OnlyTable_UpdatePatch_Find	%ERROR%	%DOC%	%PATCH%	%EXPECT%
+echo # Test not applicable:;
+echo # doc:%DOC%  patch:%PATCH% result:%EXPECT%;
+echo # document can't be an array;
+-->endmacro
+
+
+#
+# DocumentNull_OnlyTable_UpdatePatch_Find
+#
+-->macro DocumentNull_OnlyTable_UpdatePatch_Find	%ERROR%	%DOC%	%PATCH%	%EXPECT%
+echo # Test not applicable:;
+echo # doc:%DOC%  patch:%PATCH% result:%EXPECT%;
+echo # document can't be an array;
+-->endmacro
+

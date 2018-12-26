@@ -1,0 +1,193 @@
+############## mysql-test\t\auto_increment_offset_func.test ####################
+#                                                                              #
+# Variable Name: auto_increment_offset                                         #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 1                                                             #
+# Range: 1 - 65536                                                             #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "auto_increment_offset"   #
+#              that checks functionality of this variable                      #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#  server-system-variables.html#option_mysqld_auto-increment-offset            #
+#                                                                              #
+################################################################################
+--source include/force_myisam_default.inc
+# save vars
+SET @global_auto_increment_increment = @@global.auto_increment_increment;
+SET @session_auto_increment_increment = @@session.auto_increment_increment;
+SET @global_auto_increment_offset = @@global.auto_increment_offset;
+SET @session_auto_increment_offset = @@session.auto_increment_offset;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+
+--echo ## Creating New Table ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+
+--echo '#--------------------FN_DYNVARS_002_01-------------------------#'
+#######################################################
+#    Setting initial value of auto_increment_offset   # 
+#######################################################
+
+--echo ## Setting initial value of variable to 5 ##
+SET @@auto_increment_increment = 10;
+SET @@auto_increment_offset = 5;
+
+
+--echo '#--------------------FN_DYNVARS_002_02-------------------------#'
+###########################################################################
+# Inserting first value in table to check auto_increment_offset initial
+# behavior 
+###########################################################################
+
+--echo ## Inserting records in table and verifying variable's behavior ##
+INSERT into t1(name) values('Record_1');	
+SELECT * from t1;
+INSERT into t1(name) values('Record_2');	
+SELECT * from t1;
+
+--echo ## Test behavior of variable after updating value of variable ##
+SET @@auto_increment_offset = 24;
+SELECT @@auto_increment_offset;
+INSERT into t1(name) values('Record_3');	
+SELECT * from t1;
+INSERT into t1(name) values('Record_4');	
+SELECT * from t1;
+
+
+--echo '#--------------------FN_DYNVARS_002_03-------------------------#'
+##########################################################
+#    Test behavior of variable on new connection # 01    #
+##########################################################
+
+--echo ## Changing value of global scope before opening new connection ##
+ 
+SET @@global.auto_increment_increment = 15;
+SET @@global.auto_increment_offset = 36;
+
+--echo ## New connection test_con1 ##
+CONNECT (test_con1,localhost,root,,);
+CONNECTION test_con1;
+
+--echo ## Value of session & global vairable here should be 10 ##
+SELECT @@global.auto_increment_offset = 36;
+SELECT @@session.auto_increment_offset = 36;
+
+--echo ## Verify global value effect of variable by inserting new rows in table ##
+INSERT into t1(name) values('Record_5');
+INSERT into t1(name) values('Record_6');
+SELECT * from t1;
+
+--echo ## Setting session value of variable and inserting data in table ##
+SET @@session.auto_increment_offset = 54;
+INSERT into t1(name) values('Record_7');
+INSERT into t1(name) values('Record_8');
+SELECT * from t1;
+
+
+--echo '#--------------------FN_DYNVARS_002_04-------------------------#'
+######################################################################
+#    Test behavior of variable on assigning value to variable that is   
+#    less than last index id   
+######################################################################
+
+--echo ## Setting value of variable less than last insert id ##
+SET @@session.auto_increment_offset = 5;
+INSERT into t1(name) values('Record_9');
+INSERT into t1(name) values('Record_10');
+INSERT into t1(name) values('Record_11');
+INSERT into t1(name) values('Record_12');
+SELECT * from t1;
+
+
+
+--echo '#--------------------FN_DYNVARS_002_05-------------------------#'
+#####################################################################
+#    Verify variable's behavior on assigning value greater than 
+#    auto_increment_increment value
+#####################################################################
+
+--echo ## Assigning value to variable greater than auto_increment_incrent value ##
+SET @@auto_increment_offset = 140;
+SET @@auto_increment_increment = 10;
+
+INSERT into t1(name) values('Record_13');
+INSERT into t1(name) values('Record_14');
+SELECT * from t1;
+
+--echo '#--------------------FN_DYNVARS_002_06-------------------------#'
+###############################################################################
+#    Altering table field to different datatypes and checking their behavior  #
+###############################################################################
+
+--echo ## Changing datatype of column id with primary key to SmallInt ##
+ALTER table t1 modify id SMALLINT NOT NULL auto_increment;
+INSERT into t1(name) values('Record_15');
+INSERT into t1(name) values('Record_16');
+SELECT * from t1;
+
+--echo ## Changing datatype of column id with primary key to BigInt ##
+ALTER table t1 modify id BIGINT NOT NULL auto_increment;
+INSERT into t1(name) values('Record_17');
+INSERT into t1(name) values('Record_18');
+SELECT * from t1;
+
+--echo '#--------------------FN_DYNVARS_002_07-------------------------#'
+###############################################################################
+#    Check behavior of variable after assigning invalid values to variable    #
+###############################################################################
+
+--echo ## Assigning -ve value to variable ## 
+SET @@auto_increment_offset = -10;
+SELECT @@auto_increment_offset = -10;
+INSERT into t1(name) values('Record_17');	
+INSERT into t1(name) values('Record_18');	
+SELECT * from t1;
+
+--echo ## Assigning value that is out of range of variable ##
+SET @@auto_increment_offset = 65536;
+SELECT @@auto_increment_offset;
+INSERT into t1(name) values('Record_17');	
+INSERT into t1(name) values('Record_18');	
+INSERT into t1(name) values('Record_19');	
+INSERT into t1(name) values('Record_20');	
+SELECT * from t1;
+
+--echo ## No effect of auto_increment_offset since value of this variable is greater ## 
+--echo ## than auto_increment_increment ##
+
+############################################################
+#    Disconnecting all connection & dropping table         #
+############################################################
+
+--echo ## Dropping table ##
+DROP table if exists t1;
+
+--echo ## Disconnecting connection ##
+DISCONNECT test_con1;
+
+--echo ## switching to default connection ##
+connection default;
+
+# restore vars
+SET @@global.auto_increment_increment = @global_auto_increment_increment;
+SET @@session.auto_increment_increment = @session_auto_increment_increment;
+SET @@global.auto_increment_offset = @global_auto_increment_offset;
+SET @@session.auto_increment_offset = @session_auto_increment_offset;

@@ -1,0 +1,38 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP DATABASE IF EXISTS test1;
+DROP DATABASE IF EXISTS test2;
+CREATE DATABASE test1;
+CREATE DATABASE test2;
+CREATE TABLE test1.t1 (n INT);
+INSERT INTO test1.t1 VALUES(1);
+SELECT * FROM test1.t1 INTO OUTFILE 'test1/f1.txt';
+CREATE TABLE test1.t2 (n INT);
+CREATE TABLE test1.t3 (n INT);
+DROP DATABASE test1;
+ERROR HY000: Error dropping database (can't rmdir './test1/', errno: 17 - File exists)
+include/assert.inc [Tables in test1 database are not dropped]
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+DROP DATABASE test1;
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+USE test1;
+include/assert.inc [Tables in test1 database are not dropped]
+CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+DROP DATABASE test1;
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+include/assert.inc [MyISAM table t5 is dropped]
+include/assert.inc [InnoDB tables in test1 database are not dropped]
+USE test2;
+CREATE TABLE t1 (n INT);
+INSERT INTO t1 VALUES (1234);
+DROP TABLE t1;
+[connection master]
+DROP DATABASE test1;
+DROP DATABASE test2;
+include/rpl_end.inc

@@ -1,0 +1,213 @@
+#######################################################################################
+# This test checks dynamically setting the values for
+# group_replication_communication_debug_options variable and checks all possible correct
+# and incorrect values before and after starting the group replication and also
+# setting the incorrect values through cmdline
+#
+# WL10200 : Change GCS/XCOM to have dynamic debugging and tracing
+# Test :
+# 0. This test requires 2 servers(1 server for all the correct and incorrect values verification, and
+#    2nd server for cmdline value verification for this gr_communication_debug_options variable)
+# 1. Store the values of gr_communication_debug_options before doing any operations on server1
+# 2. Check and make sure file is not created when the server is started
+#    and validate the default value set for group_replication_communication_
+#    debug_options variable
+# 3. Make sure server throws proper error when user tries to set incorrect values for
+#    gr_communication_debug_options
+# 4. Test passing more than one value to group_replication_communication_debug_options
+#    with one incorrect value, and make sure server throws proper error
+# 5. Bootstrap and start group replication on server1
+# 6. Make sure file is created once the gr is started, in server1 data directory
+# 7. Make sure server1 throws proper error, if user tries to set incorrect value,
+#    even after the gr is started
+# 8. Validate the option set after 3-4 failed attempts with incorrect values
+# 9. Set all the 5 valid values dynamically and make sure value set is GCS_DEBUG_ALL
+# 10.Test passing more than one values(correct/incorrect) to group_replication_communication_debug_options
+#    also validate the set options.
+# 11.Overwrite the previous option with "" dynamically and make sure old value is
+#    overridden by disabling all the previous set options.
+# 12.Set all the 5 valid values and start the gr and validate that value set is GCS_DEBUG_ALL
+# 13.Try to set all the valid values possible dynamically on server1 and validate the same
+# 14.Make sure GCS_DEBUG_TRACE file is present after all these operations
+# 15.Server2 is set with incorrect gr_communications_debug_options during the start,
+#    connect a client and try to start the gr and then set the correct values to
+#    gr_communications_debug_options and start the gr and validate
+# 16.Overwrite previous set options with "" dynamically and make sure old value is
+#    overridden by disabling all the previous set options
+# 17.Connect to server1 and cleanup
+#######################################################################################
+--source include/have_debug.inc
+--let $group_replication_group_name= 89ab83b0-9f17-11e3-a5e2-0800200c9a66
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 2
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("\\[ERROR\\] \\[MY-[^]]*\\] \\[Repl\] Plugin group_replication reported: 'Some debug options in '.*' are not valid.'");
+SET SESSION sql_log_bin=1;
+
+# Store the values of gr_communication_debug_options before doing any operations on server1
+--let $saved_gr_communication_debug_options_server1 = `SELECT @@GLOBAL.group_replication_communication_debug_options;`
+
+#  Check and make sure file is not created when the server is started and validate
+#  the default value set for group_replication_communication_debug_options variable
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_NONE"
+--source include/assert.inc
+
+# Make sure server throws proper error when user tries to set incorrect values for
+# gr_communication_debug_options.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="123456";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="!@#!#!#";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_DBG";
+
+# Test passing more than one value to group_replication_communication_debug_options
+# with one incorrect value, and make sure server throws proper error
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL,12345";
+
+# Bootstrap and start group replication on server1
+--source include/start_and_bootstrap_group_replication.inc
+
+# Make sure file is created once the gr is started, in server1 data directory
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+# Make sure server1 throws proper error, if user tries to set incorrect value,
+# even after the gr is started
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="123456";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="!@#!#!#";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_DBG";
+
+# Validate the option set after 3-4 failed attempts with incorrect values
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_NONE"
+--source include/assert.inc
+
+# Set all the 5 valid values dynamically and make sure value set is GCS_DEBUG_ALL
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC,GCS_DEBUG_TRACE,XCOM_DEBUG_BASIC,XCOM_DEBUG_TRACE,GCS_DEBUG_ALL";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
+# Test passing more than one values(correct/incorrect) to group_replication_communication_debug_options
+# also validate the set options
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL,12345";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL,XCOM_DEBUG_DBG";
+
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC,GCS_DEBUG_TRACE,XCOM_DEBUG_BASIC,XCOM_DEBUG_TRACE";
+
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_BASIC,GCS_DEBUG_TRACE,XCOM_DEBUG_BASIC,XCOM_DEBUG_TRACE"
+--source include/assert.inc
+
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC,,,,,XCOM_DEBUG_BASIC";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_BASIC,XCOM_DEBUG_BASIC"
+--source include/assert.inc
+
+# Overwrite the previous option with "" dynamically and make sure old value is
+# overridden by disabling all the previous set options.
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_NONE"
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+--source include/start_and_bootstrap_group_replication.inc
+
+# Try to set all the valid values possible dynamically on server1 and validate the same
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_NONE";
+
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_NONE"
+--source include/assert.inc
+
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_BASIC"
+--source include/assert.inc
+
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_TRACE";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_TRACE"
+--source include/assert.inc
+
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="XCOM_DEBUG_BASIC";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "XCOM_DEBUG_BASIC"
+--source include/assert.inc
+
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="XCOM_DEBUG_TRACE";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "XCOM_DEBUG_TRACE"
+--source include/assert.inc
+
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
+# Make sure GCS_DEBUG_TRACE file is present after all these operations
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+# Server2 is set with incorrect gr_communications_debug_options during the start,
+# connect a client and try to start the gr and then set the correct values to
+# gr_communications_debug_options and start the gr and validate
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Some debug options in '.*' are not valid.'");
+SET SESSION sql_log_bin=1;
+
+SET GLOBAL group_replication_group_name= "89ab83b0-9f17-11e3-a5e2-0800200c9a66";
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_BASIC,XCOM_DEBUG_BASIC,GCS_DEBUG_TRACE";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_BASIC,GCS_DEBUG_TRACE,XCOM_DEBUG_BASIC"
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+# Overwrite previous set options with "" dynamically and make sure old value is
+# overridden by disabling all the previous set options.
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="";
+--let $assert_text= Checking the value of gr_communications_debug_opts
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_NONE"
+--source include/assert.inc
+
+# Connect to server1 and cleanup
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--disable_query_log
+--eval SET @@GLOBAL.group_replication_communication_debug_options= "$saved_gr_communication_debug_options_server1"
+--enable_query_log
+
+--source include/group_replication_end.inc
+
+# Known issue: Once bug#26729404 is fixed, remove the below lines.
+# For Server2, the value of gr_communications_debug_options can't be
+# set back to GCS_DEBUG_INVALID since its a garbage value and this
+# will cause check-testcase failure on server2. Thus, disabling the
+# check-testcase by sourcing 'force_restart.inc' file for the test.
+--source include/force_restart.inc

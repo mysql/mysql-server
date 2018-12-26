@@ -1,0 +1,149 @@
+# Test to check instrumentation of prepared statements created by 
+# stored programs. SQL prepared statements (PREPARE, EXECUTE, DEALLOCATE PREPARE) 
+# can be used in stored procedures, but not stored functions or triggers.
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+--let $psi_select = SELECT STATEMENT_NAME, SQL_TEXT, COUNT_EXECUTE, COUNT_REPREPARE, OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME FROM performance_schema.prepared_statements_instances
+TRUNCATE TABLE performance_schema.prepared_statements_instances; 
+
+CREATE DATABASE db;
+USE db;
+
+CREATE TABLE t
+(
+  a INT,
+  b CHAR(10),
+  name CHAR(10)
+);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+INSERT INTO t VALUES (1,"kuchipudi","Vempati");
+INSERT INTO t VALUES (2,"odissi","Mohapatra");
+INSERT INTO t VALUES (3,"kathak","Maharaj");
+INSERT INTO t VALUES (4,"mohiyattam","Kalyanikutty");
+INSERT INTO t VALUES (5,"manipuri","Guru");
+INSERT INTO t VALUES (6,"kathakali","Manavedan");
+SET sql_mode= default;
+# Stored Procedure
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  PREPARE st FROM 'SELECT * FROM t WHERE a<=?' ;
+  SET @a=3;
+  EXECUTE st using @a;
+END|
+
+CALL p1()|
+--eval $psi_select
+
+DEALLOCATE PREPARE st|
+--eval $psi_select
+
+CREATE PROCEDURE p2()
+BEGIN
+  PREPARE st1 FROM 'INSERT INTO t SELECT * FROM t WHERE a<=?' ;
+END|
+
+CALL p2()|
+--eval $psi_select
+
+SET @a=4|
+EXECUTE st1 using @a|
+--eval $psi_select
+
+CREATE PROCEDURE p3()
+BEGIN
+  SET @a=2; 
+  EXECUTE st1 using @a;
+END|
+
+CALL p3()|
+--eval $psi_select
+
+DEALLOCATE PREPARE st1|
+--eval $psi_select
+
+PREPARE st2 FROM 'UPDATE t SET a=a+1 WHERE b=?'|
+--eval $psi_select
+
+CREATE PROCEDURE p4()
+BEGIN
+  SET @b='kuchipudi';
+  EXECUTE st2 USING @b;
+END|
+
+CALL p4()|
+--eval $psi_select
+
+ALTER TABLE t DROP COLUMN name;
+
+# COUNT_REPREPARE must be 1 
+CALL p4()|
+--eval $psi_select
+
+DEALLOCATE PREPARE st2|
+--eval $psi_select
+
+CREATE PROCEDURE p5()
+BEGIN
+  SET @a=1;
+  SELECT @a;
+END|
+
+PREPARE st3 FROM 'CALL p5()'|
+--eval $psi_select
+EXECUTE st3|
+--eval $psi_select
+DEALLOCATE PREPARE st3|
+--eval $psi_select
+
+DELIMITER ;| 
+
+# Events
+
+CREATE TABLE tab(a INT);
+
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
+
+DELIMITER |;
+CREATE EVENT e1 ON SCHEDULE EVERY 10 HOUR DO
+BEGIN
+  PREPARE st FROM 'INSERT INTO tab VALUES(?)';
+  SET @a=1;
+  EXECUTE st USING @a;
+END|
+
+DELIMITER ;|
+
+# Let e1 insert 1 records into the table tab
+
+--let $wait_condition= select count(*) >= 1 from tab
+--source include/wait_condition.inc
+SELECT * FROM tab LIMIT 1;
+
+# Wait till the  above one execution of event is instrumented.
+
+--let $wait_condition= select count_star >= 1 from performance_schema.events_statements_summary_by_program use index () where object_type='EVENT'
+--source include/wait_condition.inc
+
+# The following should return empty set as the instrumented prepared statement
+# row is removed as de allocation of the statement happens automatically as 
+# event thread is cleaned up. 
+--eval $psi_select
+
+# clean-up
+TRUNCATE TABLE performance_schema.prepared_statements_instances;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+DROP TABLE t;
+DROP TABLE tab;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP PROCEDURE p5;
+DROP EVENT IF EXISTS e1;
+DROP DATABASE db;

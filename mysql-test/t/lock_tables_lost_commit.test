@@ -1,0 +1,32 @@
+# Test for Bug#578 mysqlimport -l silently fails when binlog-ignore-db is set
+
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT) ENGINE=innodb;
+--enable_warnings
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES(10);
+disconnect con1;
+
+connection con2;
+# The bug was that, because of the LOCK TABLES, the handler "forgot" to commit,
+# and the other commit when we write to the binlog was not done because of
+# binlog-ignore-db
+SELECT * FROM t1;
+DROP TABLE t1;
+
+connection default;
+disconnect con2;
+
+# End of 4.1 tests
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

@@ -1,0 +1,48 @@
+################################################################################
+# t/gcol_non_stored_columns_innodb.test                                        #
+#                                                                              #
+# Purpose:                                                                     #
+#  Ensure that MySQL behaviour is consistent irrelevant of                     #
+#    - the place of a non-stored column among other columns,                   #
+#    - the total number of non-stored fields.                                  #
+#                                                                              #
+#        InnoDB branch                                                         #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: Andrey Zhakov                                               #
+# Original Date: 2008-09-04                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+--source suite/gcol/inc/gcol_init_vars.pre
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+# Set the session storage engine
+eval SET @@session.default_storage_engine = 'InnoDB';
+
+##### Workarounds for known open engine specific bugs
+#     none
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/gcol/inc/gcol_non_stored_columns.inc
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/gcol/inc/gcol_cleanup.inc

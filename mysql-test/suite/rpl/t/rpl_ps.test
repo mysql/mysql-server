@@ -1,0 +1,102 @@
+#
+# Test of replicating user variables
+#
+###########################################################
+# 2006-02-08 By JBM added order by for use w/ NDB engine
+###########################################################
+--source include/not_group_replication_plugin.inc
+source include/master-slave.inc;
+
+#--source include/sync_slave_sql_with_master.inc
+#reset master;
+#connection master;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(n char(30));
+
+prepare stmt1 from 'insert into t1 values (?)';
+set @var1= "from-master-1";
+execute stmt1 using @var1;
+set @var1= "from-master-2-'',";
+execute stmt1 using @var1;
+SELECT * FROM t1 ORDER BY n;
+
+set @var2= 'insert into t1 values (concat("from-var-", ?))';
+prepare stmt2 from @var2;
+set @var1='from-master-3';
+execute stmt2 using @var1;
+
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM t1 ORDER BY n;
+
+connection master;
+
+drop table t1;
+
+--source include/sync_slave_sql_with_master.inc
+stop slave;
+source include/wait_for_slave_to_stop.inc;
+# End of 4.1 tests
+
+#
+# Bug #25843 Changing default database between PREPARE and EXECUTE of statement
+# breaks binlog.
+#
+# There were actually two problems discovered by this bug:
+#
+#   1. Default (current) database is not fixed at the creation time.
+#      That leads to wrong output of DATABASE() function.
+#
+#   2. Database attributes (@@collation_database) are not fixed at the creation
+#      time. That leads to wrong resultset.
+#
+# Binlog breakage and Query Cache wrong output happened because of the first
+# problem.
+#
+
+--echo
+--echo ########################################################################
+--echo #
+--echo # BUG#25843: Changing default database between PREPARE and EXECUTE of
+--echo # statement breaks binlog.
+--echo #
+--echo ########################################################################
+
+###############################################################################
+
+--echo # Connection: slave
+--connection slave
+
+START SLAVE;
+
+--echo # Connection: master
+--connection master
+
+CREATE DATABASE mysqltest1;
+CREATE TABLE t1(db_name CHAR(32), db_col_name CHAR(32));
+
+PREPARE stmt_d_1 FROM 'INSERT INTO t1 VALUES(DATABASE(), @@collation_database)';
+
+EXECUTE stmt_d_1;
+
+use mysqltest1;
+
+EXECUTE stmt_d_1;
+
+--echo # Connection: slave
+--source include/sync_slave_sql_with_master.inc
+
+SELECT * FROM t1;
+
+--echo # Connection: master
+--connection master
+
+DROP DATABASE mysqltest1;
+
+use test;
+DROP TABLE t1;
+
+--source include/rpl_end.inc

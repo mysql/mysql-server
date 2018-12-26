@@ -1,0 +1,78 @@
+# ==== Purpose ====
+#
+# Verify if the MTS SQL thread will became unresponsive after the slave
+# applied a partial transaction (without the XID event) followed by a
+# ROTATE event caused by IO thread reconnection when GTIDs and auto
+# positioning are enabled.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#17326020 ASSERTION ON SLAVE AFTER STOP/START SLAVE USING MTS+GTID
+#              REPLICATION
+# BUG#18885916 RELAY LOG WITHOUT XID_LOG_EVENT MAY CASE PARALLEL
+#              REPLICATION HANG
+#
+# ==== Implementation ====
+#
+# This test uses debug points on the slave to make the
+# IO thread to stop right after queuing a WRITE_ROWS log event.
+#
+# By doing this, the relay log file with the partial transaction
+# will contain: [GTID,] QUERY(BEGIN), TABLE_MAP and WRITE_ROWS, but
+# won't have the XID for the transaction.
+#
+# After reconnecting to the master, if the slave is configured with
+# GTID and auto positioning, the IO thread will request the whole
+# transaction again.
+#
+# The test case will then sync the slave with the master and verify
+# that all data was correctly applied on slave.
+#
+
+--source include/not_group_replication_plugin.inc
+# This test case uses a debug point based on RBR
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+# Prepare the slave IO thread to stop after queuing a WRITE_ROWS event
+SET @save_debug=@@global.debug;
+SET GLOBAL DEBUG= "d,stop_io_after_reading_write_rows_log_event";
+
+# Put some data in to the master
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+# This transaction will be split
+BEGIN;
+INSERT INTO t1 (c1) VALUES (1);
+COMMIT;
+# This transaction will not be split
+BEGIN;
+INSERT INTO t1 (c1) VALUES (2);
+COMMIT;
+
+# Wait the slave IO thread to reach the debug point
+--source include/rpl_connection_slave.inc
+--source include/wait_for_slave_io_to_stop.inc
+# Remove the debug point, so the IO thread will not stop after
+# queuing a WRITE_ROWS event anymore
+SET GLOBAL DEBUG= @save_debug;
+
+# Restart slave I/O thread
+--source include/start_slave_io.inc
+
+# Sync the slave with the master
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# Final data verification
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

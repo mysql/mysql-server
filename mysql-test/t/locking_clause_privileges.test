@@ -1,0 +1,38 @@
+--echo #
+--echo # Test of locking clause privileges.
+--echo #
+
+
+--echo #
+--echo #  Test of the parser tokens for use as role names.
+--echo #
+
+--error ER_PARSE_ERROR
+CREATE ROLE of;
+CREATE ROLE skip;
+CREATE ROLE locked;
+CREATE ROLE nowait;
+
+DROP ROLE skip, locked, nowait;
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1( a INT );
+CREATE TABLE db1.t2( a INT );
+
+--let $locking_clause_privileges=SELECT
+--let $locking_clause_privileges_expected_error=ER_TABLEACCESS_DENIED_ERROR
+--source include/locking_clause_privileges.inc
+
+--let $locking_clause_privileges=SELECT, UPDATE
+--let $locking_clause_privileges_expected_error=0
+--source include/locking_clause_privileges.inc
+
+--let $locking_clause_privileges=SELECT, DELETE
+--let $locking_clause_privileges_expected_error=0
+--source include/locking_clause_privileges.inc
+
+--let $locking_clause_privileges=SELECT, LOCK TABLES
+--let $locking_clause_privileges_expected_error=0
+--source include/locking_clause_privileges.inc
+
+DROP DATABASE db1;

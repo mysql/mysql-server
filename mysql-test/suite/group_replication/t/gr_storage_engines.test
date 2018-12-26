@@ -1,0 +1,105 @@
+################################################################################
+# The aim of this test is to verify that Group Replication successfully
+# blocks DML's on non-transactional tables.
+#
+# 0. Start a server with Group Replication
+# 1. Create tables with different storage engines, this should not be blocked
+#    (INNODB, CSV, MyISAM, MEMORY, ARCHIVE, BLACKHOLE, MRG_MyISAM)
+# 2. Perform DML's on non-transactional tables, the instructions should FAIL.
+# 3. Execute a DML(INSERT..SELECT) on innodb table where select is from
+#    non-transactional table. The instruction should FAIL.
+# 4. Alter the non-transactional table's engine to INNODB and execute
+#    DML(INSERT..SELECT) again. This time instruction should SUCCEED.
+# 5. Clean-up
+#
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+
+--source include/group_replication.inc
+
+--connection server1
+--echo Create tables with different storage engines, Group Replication should not block this.
+
+USE test;
+# Create table with INNODB
+CREATE TABLE tn (c1 int PRIMARY KEY, c2 int) ENGINE=INNODB;
+
+# Create table with CSV
+CREATE TABLE t1 (c1 int not null, c2 int not null) ENGINE=CSV;
+
+# Create table with MyISAM
+CREATE TABLE t2 (c1 int PRIMARY KEY, c2 int) ENGINE=MyISAM;
+
+# Create table with MEMORY
+CREATE TABLE t3 (c1 int PRIMARY KEY, c2 int) ENGINE=MEMORY;
+
+# Create table with ARCHIVE
+CREATE TABLE t4 (c1 int, c2 int) ENGINE=ARCHIVE;
+
+# Create table with BLACKHOLE
+CREATE TABLE t5 (c1 int PRIMARY KEY, c2 int) ENGINE=BLACKHOLE;
+
+# Create table with MRG_MyISAM
+CREATE TABLE t6 (C1 INT PRIMARY KEY, c2 int) ENGINE=MERGE UNION=(t2) INSERT_METHOD=LAST;
+
+--echo
+--echo Group Replication Should block DML's on non-transactional tables
+--echo
+
+--let $tables_count= 6
+while ($tables_count)
+{
+
+  # Test the INSERT instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval INSERT INTO t$tables_count (c1,c2) VALUES(1, 2)
+  --eval INSERT INTO tn (c1) VALUES ($tables_count+10)
+
+  # Test the UPDATE instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval UPDATE t$tables_count SET c2= 100
+
+  # Test the REPLACE instructions
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval REPLACE INTO t$tables_count(c1) VALUES(2)
+
+  # Test the REPLACE...SELECT instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval REPLACE INTO t$tables_count (c1) SELECT tn.c1 FROM tn
+
+  # Test the UPDATE_MULTI instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval UPDATE t$tables_count, tn SET t$tables_count.c1= 100, tn.c1= 100
+
+  # Test the DELETE instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval DELETE FROM t$tables_count
+
+  --eval DELETE FROM tn
+  --dec $tables_count
+}
+
+--echo Check that INSERT...SELECT statement on InnoDB table(tn) from a non-transactional table(Eg:MyISAM t2) fails
+--error ER_BEFORE_DML_VALIDATION_ERROR
+INSERT INTO tn (c1) SELECT (t2.c1) FROM t2;
+
+--echo change storage engine to "InnoDB" on t2 and check INSERT...SELECT on tn succeeds
+ALTER TABLE t2 ENGINE=INNODB;
+INSERT INTO tn (c1) SELECT (t2.c1) FROM t2;
+
+# clean up
+DROP TABLE tn;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication.");
+call mtr.add_suppression("Table.*does not use the InnoDB storage engine. This is not compatible with Group Replication.");
+SET SESSION sql_log_bin= 1;
+
+--source include/group_replication_end.inc

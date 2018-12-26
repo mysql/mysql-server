@@ -1,0 +1,92 @@
+--source include/have_debug.inc
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug #43867 ALTER TABLE on a partitioned table 
+--echo #            causes unnecessary deadlocks
+--echo #
+
+CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (1),
+ PARTITION p1 VALUES LESS THAN (2));
+
+INSERT INTO t1 VALUES (0),(1);
+
+connect(con1,localhost,root);
+
+--echo # Connection 2
+connection con1;
+BEGIN;
+SELECT * FROM t1;
+
+--echo # Connection 1
+connection default;
+--error ER_DROP_PARTITION_NON_EXISTENT
+ALTER TABLE t1 DROP PARTITION p3;
+
+--echo # Connection 2
+connection con1;
+--echo # This failed with deadlock and should not do so.
+SELECT * FROM t1;
+
+--echo # Connection 1
+connection default;
+disconnect con1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #46654 False deadlock on concurrent DML/DDL 
+--echo #            with partitions, inconsistent behavior
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS tbl_with_partitions;
+--enable_warnings
+
+CREATE TABLE tbl_with_partitions ( i INT ) 
+	PARTITION BY HASH(i);
+INSERT INTO tbl_with_partitions VALUES (1);
+
+connect(con2,localhost,root);
+connect(con3,localhost,root);
+
+--echo # Connection 3
+connection con3;
+LOCK TABLE tbl_with_partitions READ;
+
+--echo # Connection 1
+--echo # Access table with disabled autocommit
+connection default;
+SET AUTOCOMMIT = 0;
+SELECT * FROM tbl_with_partitions;
+
+--echo # Connection 2
+--echo # Alter table, abort after prepare
+connection con2;
+set session debug="+d,abort_copy_table";
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE tbl_with_partitions ADD COLUMN f INT, ALGORITHM=COPY;
+
+--echo # Connection 1
+--echo # Try accessing the table after Alter aborted.
+--echo # This used to give ER_LOCK_DEADLOCK.
+connection default;
+SELECT * FROM tbl_with_partitions;
+
+--echo # Connection 3
+connection con3;
+UNLOCK TABLES;
+
+--echo # Connection 1
+--echo # Cleanup
+connection default;
+disconnect con2;
+disconnect con3;
+DROP TABLE tbl_with_partitions;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

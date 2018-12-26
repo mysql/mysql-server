@@ -1,0 +1,48 @@
+
+#
+# Test of fulltext index
+# bug reported by  Tibor Simko <tibor.simko@cern.ch>
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (
+ id mediumint unsigned NOT NULL auto_increment,
+ tag char(6) NOT NULL default '',
+ value text NOT NULL default '',
+ PRIMARY KEY (id),
+ KEY kt(tag),
+ KEY kv(value(15)),
+ FULLTEXT KEY kvf(value)
+) ENGINE = InnoDB;
+SET sql_mode = default;
+CREATE TABLE t2 (
+ id_t2 mediumint unsigned NOT NULL default '0',
+ id_t1 mediumint unsigned NOT NULL default '0',
+ field_number tinyint unsigned NOT NULL default '0',
+ PRIMARY KEY (id_t2,id_t1,field_number),
+ KEY id_t1(id_t1)
+) ENGINE = InnoDB;
+
+INSERT INTO t1 (tag,value) VALUES ('foo123','bar111');
+INSERT INTO t1 (tag,value) VALUES ('foo123','bar222');
+INSERT INTO t1 (tag,value) VALUES ('bar345','baz333 ar');
+
+INSERT INTO t2 VALUES (2231626,64280,0);
+INSERT INTO t2 VALUES (2231626,64281,0);
+INSERT INTO t2 VALUES (12346, 3, 1);
+
+SELECT * FROM t1; SELECT * FROM t2;
+
+SELECT DISTINCT t2.id_t2 FROM t2, t1
+WHERE MATCH (t1.value) AGAINST ('baz333') AND t1.id = t2.id_t1;
+
+SELECT DISTINCT t2.id_t2 FROM t2, t1
+WHERE MATCH (t1.value) AGAINST ('baz333' IN BOOLEAN MODE)
+AND t1.id = t2.id_t1;
+
+DROP TABLE t1, t2;
+
+# End of 4.1 tests

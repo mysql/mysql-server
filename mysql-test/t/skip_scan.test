@@ -1,0 +1,22 @@
+let $engine=myisam;
+--source include/skip_scan_test.inc
+
+let $engine=innodb;
+--source include/skip_scan_test.inc
+
+--echo #
+--echo # Bug#28089360 WL#11322: SIG11 AT QEP_SHARED_OWNER::JOIN | SQL/SQL_OPT_EXEC_SHARED.H:458
+--echo #
+
+CREATE TABLE t1 (f1 INT(11), f2 VARCHAR(1), KEY k1 (f2, f1));
+INSERT INTO t1 VALUES (-682212662,'c'), (-1974921822,'C'), (1260604936,'9');
+
+CREATE TABLE t2 (f1 INT(11));
+INSERT INTO t2 VALUES (824388284), (1186821161);
+
+CREATE VIEW v1 AS select f1, f2 from t1;
+
+DELETE FROM t2 WHERE (f1, f1) IN (SELECT f1,f2 FROM v1 WHERE f1 >= 2);
+
+DROP VIEW v1;
+DROP TABLE t1, t2;

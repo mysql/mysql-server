@@ -1,0 +1,64 @@
+###############################################################################
+# Bug#22915670 'XA ROLLBACK' ASSERTS AFTER FAILED XA PREPARE
+# Problem: A 'XA PREPARE' that is failed in intermediate steps is leaving the
+# 'xa' transaction state in a bad way (ID = -1 but binlogged flag is 'true').
+# This is causing problems (hitting asserts) while executing
+# 'XA COMMIT/ROLLBACK' queries.
+# Steps to reproduce:
+#  1) Start a XA transaction
+#  2) Inject a failure point for 'XA PREPARE'
+#  3) Execute 'XA PREPARE'. Check that 'XA PREPARE' failed as expected.
+#  4) After failure, execute XA ROLLBACK or XA COMMIT.
+#      It should fail with UNKNOWN XID error instead of ASSERT.
+#  5) Repeat step 2 and 4 with different failure points.
+###############################################################################
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+
+# Initial setup
+SET @save_session_debug= @@SESSION.debug;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+# Loop through three failure points
+--let $iter=1
+while ($iter <= 3)
+{
+  # Step-1: Start A XA transaction.
+  XA START 'xa1';
+  --disable_warnings
+  INSERT INTO t1 VALUES (1);
+  --enable_warnings
+  XA END 'xa1';
+
+  # Step-2: Inject a failure point for 'XA PREPARE'
+  if ( $iter == 1)
+  {
+    SET @@SESSION.debug = "+d,simulate_xa_prepare_failure_in_cache_finalize";
+  }
+  if ( $iter == 2)
+  {
+    SET @@SESSION.debug = "+d,simulate_failure_in_before_commit_hook";
+  }
+  if ( $iter == 3)
+  {
+    SET @@SESSION.debug = "+d,simulate_transaction_rollback_request";
+  }
+
+  # Step-3: Execute 'XA PREPARE' and check that 'XA PREPARE' failed as expected.
+  --error ER_XA_RBROLLBACK,ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+  XA PREPARE 'xa1';
+
+  # Step-4: Execute 'XA COMMIT/ XA ROLLBACK'. Check that it fails with error.
+  --error ER_XAER_NOTA
+  XA ROLLBACK 'xa1';
+  --error ER_XAER_NOTA
+  XA COMMIT 'xa1';
+
+  # Step-5: Repeat for other failure points.
+  --inc $iter
+}
+
+# Cleanup
+SET @@SESSION.debug= @save_session_debug;
+DROP TABLE t1;

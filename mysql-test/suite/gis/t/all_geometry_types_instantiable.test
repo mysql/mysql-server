@@ -1,0 +1,663 @@
+###############################################################################
+#                                                                             #
+# This test is aimed to test all geometry types including GEOMETRY type.      #
+#                                                                             #
+#       Geometry (instantiable),                                              #
+#       Point (instantiable)                                                  #
+#       LineString (instantiable)                                             #
+#       Polygon (instantiable)                                                #
+#       GeometryCollection (instantiable)                                     #
+#       MultiPoint (instantiable)                                             #
+#       MultiLineString (instantiable)                                        #
+#       MultiPolygon (instantiable)                                           #
+#                                                                             #
+# Also the Geometry types support for 0-D, 1-D and 2-D would be tested        #
+# in this test case.                                                          #
+#                                                                             #
+# Creation Date: 2013-7-2                                                     #
+# Author : Tanjot Singh Uppal                                                 #
+#                                                                             #
+# Description:Test Cases of the geometry base class hierarchy.                #
+#                                                                             #
+###############################################################################
+
+
+############################################################################################
+# Creating the spatial objects                                                             #
+############################################################################################
+
+--echo # Creating the spatial objects
+USE test;
+
+CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
+CREATE TABLE gis_linestring (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
+CREATE TABLE gis_polygon (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
+CREATE TABLE gis_multi_point (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT);
+CREATE TABLE gis_multi_linestring (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING);
+CREATE TABLE gis_multi_polygon (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+
+--echo # Displaying the created spatial columns
+SHOW FIELDS FROM gis_point;
+SHOW FIELDS FROM gis_linestring;
+SHOW FIELDS FROM gis_polygon;
+SHOW FIELDS FROM gis_multi_point;
+SHOW FIELDS FROM gis_multi_linestring;
+SHOW FIELDS FROM gis_multi_polygon;
+SHOW FIELDS FROM gis_geometrycollection;
+SHOW FIELDS FROM gis_geometry;
+
+############################################################################################
+# Inserting the values specific to the spatial objects                                     #
+############################################################################################
+
+--echo # Inserting POINT Geometry Values 
+INSERT INTO gis_point VALUES
+    (101, ST_POINTFROMTEXT('POINT(0 0)')),
+    (102, ST_POINTFROMTEXT('POINT(1 0)')),
+    (103, ST_POINTFROMTEXT('POINT(0 1)')),
+    (104, ST_POINTFROMTEXT('POINT(1 1)')),
+    (105, ST_POINTFROMTEXT('POINT(-1 1)'));
+
+INSERT INTO gis_point VALUES
+    (106, ST_POINTFROMTEXT('POINT(0 0)')),
+    (107, ST_POINTFROMTEXT('POINT(10 0)')),
+    (108, ST_POINTFROMTEXT('POINT(0 10)')),
+    (109, ST_POINTFROMTEXT('POINT(-10 0)')),
+    (110, ST_POINTFROMTEXT('POINT(0 -10)'));
+
+INSERT INTO gis_point VALUES
+    (111, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1 1)')))),
+    (112, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1e308 1e308)')))),
+    (113, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1e308 -1e308)')))),
+    (114, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(-1e308 1e308)')))),
+    (115, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(-1e308 -1e308)'))));
+
+--echo # Inserting LINESTRING Geometry Values 
+INSERT INTO gis_linestring VALUES
+    (201, ST_LINEFROMTEXT('LINESTRING(0 0,5 5)')),
+    (202, ST_LINEFROMTEXT('LINESTRING(0 0,2 2,4 4)')),
+    (203, ST_LINEFROMTEXT('LINESTRING(0 0,5 5,10 10)'));
+
+INSERT INTO gis_linestring VALUES
+    (204, ST_LINESTRINGFROMTEXT('LINESTRING(10 10,5 5)')),
+    (205, ST_LINESTRINGFROMTEXT('LINESTRING(0 0,12 12,24 24)')),
+    (206, ST_LINESTRINGFROMTEXT('LINESTRING(0 0,50 50,100 100)'));
+
+INSERT INTO gis_linestring VALUES
+    (207, ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5))))),
+    (208, ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,10))))),
+    (209, ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)))));
+
+INSERT INTO gis_linestring VALUES
+    (210, ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5))))),
+    (211, ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(-50,-50), POINT(10,-10))))),
+    (212, ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(1e308,1e308), POINT(1e308,-1e308)))));
+
+INSERT INTO gis_linestring VALUES
+    (213, ST_LINEFROMWKB(ST_ASWKB(ST_LINEFROMTEXT('LINESTRING(1e308 1e308,1e308 -1e308)')))),
+    (214, ST_LINEFROMWKB(ST_ASWKB(ST_LINEFROMTEXT('LINESTRING(1 1,2 2,3 3,4 4,5 5,6 6,7 7,8 8,9 9)')))),
+    (215, ST_LINESTRINGFROMWKB(ST_ASWKB(ST_LINESTRINGFROMTEXT('LINESTRING(10 10,10 -10,-10 -10,-10 10,10 10)'))));
+
+--echo # Inserting POLYGON Geometry Values 
+INSERT INTO gis_polygon VALUES
+    (301, ST_POLYFROMTEXT('POLYGON((0 0,0 5,5 5, 0 0))')),
+    (302, ST_POLYFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))')),
+    (303, ST_POLYFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+
+INSERT INTO gis_polygon VALUES
+    (304, ST_POLYGONFROMTEXT('POLYGON((0 0,0 50,50 50,50 0,0 0))')),
+    (305, ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')),
+    (306, ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'));
+
+INSERT INTO gis_polygon VALUES
+    (307, ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))))),
+    (308, ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)))))),
+    (309, ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
+                                 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))));
+
+INSERT INTO gis_polygon VALUES
+    (310, ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))))),
+    (311, ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,15), POINT(15,15), POINT(15,10), POINT(10,10)))))),
+    (312, ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,20), POINT(20,20), POINT(20,10), POINT(10,10)),
+                                    LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14))))));
+
+INSERT INTO gis_polygon VALUES
+    (313, ST_POLYFROMWKB(ST_ASWKB(ST_POLYFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,5 5,0 0))')))),
+    (314, ST_POLYFROMWKB(ST_ASWKB(ST_POLYGONFROMTEXT('POLYGON((10 0,10 10,0 10,-10 10,-10 0,-10 -10,0 10,10 -10,10 0))')))),
+    (315, ST_POLYGONFROMWKB(ST_ASWKB(ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'))));
+
+--echo # Inserting MULTIPOINT Geometry Values 
+INSERT INTO gis_multi_point VALUES
+    (401, ST_MPOINTFROMTEXT('MULTIPOINT(0 0)')),
+    (402, ST_MPOINTFROMTEXT('MULTIPOINT(0 0,2 2,4 4)')),
+    (403, ST_MPOINTFROMTEXT('MULTIPOINT(0 0,5 5,10 10)'));
+
+INSERT INTO gis_multi_point VALUES
+    (404, ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0,100 100)')),
+    (405, ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0,1e308 1e308)')),
+    (406, ST_MULTIPOINTFROMTEXT('MULTIPOINT(1e308 1e308,1e308 -1e308,-1e308 1e308,-1e308 -1e308)'));
+
+INSERT INTO gis_multi_point VALUES
+    (407, ST_MPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0))))),
+    (408, ST_MPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0), POINT(10,10))))),
+    (409, ST_MPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)))));
+
+INSERT INTO gis_multi_point VALUES
+    (410, ST_MULTIPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0))))),
+    (411, ST_MULTIPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0), POINT(1e308,1e308))))),
+    (412, ST_MULTIPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308), POINT(-1e308,-1e308)))));
+
+INSERT INTO gis_multi_point VALUES
+    (413, ST_MPOINTFROMWKB(ST_ASWKB(ST_MPOINTFROMTEXT('MULTIPOINT(0 0)')))),
+    (414, ST_MPOINTFROMWKB(ST_ASWKB(ST_MPOINTFROMTEXT('MULTIPOINT(0 0,1e308 1e308,-1e308 -1e308)')))),
+    (415, ST_MPOINTFROMWKB(ST_ASWKB(ST_MPOINTFROMTEXT('MULTIPOINT(1e308 1e308,1e308 -1e308,-1e308 1e308,-1e308 -1e308,1e308 1e308)'))));
+
+--echo # Inserting MULTILINESTRING Geometry Values 
+INSERT INTO gis_multi_linestring VALUES
+    (501, ST_MLINEFROMTEXT('MULTILINESTRING((0 0,2 2))')),
+    (502, ST_MLINEFROMTEXT('MULTILINESTRING((0 0,2 2,4 4))')),
+    (503, ST_MLINEFROMTEXT('MULTILINESTRING((0 0,2 2,4 4),(6 6,8 8,10 10))'));
+
+INSERT INTO gis_multi_linestring VALUES
+    (504, ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,100 100,-100 -100))')),
+    (505, ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1e308 1e308,-1e308 -1e308))')),
+    (506, ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1e308 1e308,-1e308 -1e308),(1e308 -1e308,-1e308 1e308))'));
+
+INSERT INTO gis_multi_linestring VALUES
+    (507, ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2)))))),
+    (508, ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24)))))),
+    (509, ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4)),
+                                          LINESTRING(POINT(6,6), POINT(8,8), POINT(10,10))))));
+
+INSERT INTO gis_multi_linestring VALUES
+    (510, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4)))))),
+    (511, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1,1), POINT(2,2)))))),
+    (512, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24)),
+                                                    LINESTRING(POINT(36,36), POINT(48,48), POINT(50,50))))));
+
+INSERT INTO gis_multi_linestring VALUES
+    (513, ST_MLINEFROMWKB(ST_ASWKB(ST_MLINEFROMTEXT('MULTILINESTRING((0 0,10 10),(0 10,10 0))')))),
+    (514, ST_MLINEFROMWKB(ST_ASWKB(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,10 10,-10 10,0 0),(0 0,-10 -10,10 -10,0 0))')))),
+    (515, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,0 100),(0 0,100 0),(0 0,0 -100),(0 0,-100 0))'))));
+
+--echo # Inserting MULTIPOLGYON Geometry Values 
+INSERT INTO gis_multi_polygon VALUES
+    (601, ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)))')),
+    (602, ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)),((5 5,5 10,10 10,5 5)))')),
+    (603, ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+
+INSERT INTO gis_multi_polygon VALUES
+    (604, ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5, 0 0)))')),
+    (605, ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,0 -2,-2 -2, 0 0)))')),
+    (606, ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,5 5,-5 5,0 0)),((0 0,-5 -5,5 -5,0 0)))'));
+
+INSERT INTO gis_multi_polygon VALUES
+    (607, ST_MPOLYFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(5,0), POINT(5,5), POINT(0,5), POINT(0,0))))))),
+    (608, ST_MPOLYFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
+                                               LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))),
+    (609, ST_MPOLYFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(5,0), POINT(5,5), POINT(0,5), POINT(0,0))),
+                                       POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0)))))));
+
+INSERT INTO gis_multi_polygon VALUES
+    (610, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0))))))),
+    (611, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(10,10), POINT(20,10), POINT(20,20), POINT(10,20), POINT(10,10)),
+                                                      LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14))))))),
+    (612, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
+                                                      LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
+                                              POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0)))))));
+
+INSERT INTO gis_multi_polygon VALUES
+    (613, ST_MPOLYFROMWKB(ST_ASWKB(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,5 5,5 -5,0 0)),((0 0,-5 5,-5 -5,0 0)))')))),
+    (614, ST_MPOLYFROMWKB(ST_ASWKB(ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,10 10,-10 10,0 0)),((0 0,-10 -10,10 -10,0 0)))')))),
+    (615, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 0,5 -5,0 0)))'))));
+
+--echo # Inserting GEOMETRYCOLLECTION Geometry Values 
+INSERT INTO gis_geometrycollection VALUES
+    (701, ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))')),
+    (702, ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
+    (703, ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5), POLYGON((0 0,0 10,10 10,10 0,0 0)))'));
+
+INSERT INTO gis_geometrycollection VALUES
+    (704, ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
+    (705, ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
+                                                           'LINESTRING(0 0,10 10),'
+                                                           'POLYGON((0 0,0 10,10 10,10 0, 0 0)))')),
+    (706, ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),'
+                                                           'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                                                           'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),'
+                                                                        '((0 0,-10 0,-10 -10,0 -10,0 0))))'));
+
+INSERT INTO gis_geometrycollection VALUES
+    (707, ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0))))),
+    (708, ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0),
+                                                LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
+                                                POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
+                                                        LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))),
+    (709, ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(MULTIPOINT(POINT(0,0), POINT(5,5), POINT(10,10)),
+                                                MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
+                                                                LINESTRING(POINT(10,10), POINT(5,5), POINT(0,10))),
+                                                MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
+                                                                     LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
+                                                             POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0))))))));
+
+INSERT INTO gis_geometrycollection VALUES
+    (710, ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0),
+                                                          LINESTRING(POINT(0,0), POINT(100,100)))))),
+    (711, ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(10,10),
+                                                          LINESTRING(POINT(10,10), POINT(12,12), POINT(14,14), POINT(16,16), POINT(18,18)),
+                                                          POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
+                                                                  LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))),
+    (712, ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(MULTIPOINT(POINT(10,10), POINT(15,15), POINT(20,20)),
+                                                          MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
+                                                                          LINESTRING(POINT(10,10), POINT(5,5), POINT(0,10))),
+                                                          MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
+                                                                               LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
+                                                                       POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0))))))));
+
+INSERT INTO gis_geometrycollection VALUES
+    (713, ST_GEOMCOLLFROMWKB(ST_ASWKB(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
+                                                                'POINT(0 0),'
+                                                                'LINESTRING(0 0,10 10),'
+                                                                'POLYGON((0 0,0 10,10 10,10 0, 0 0)),'
+                                                                'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10),'
+                                                                'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                                                                'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))')))),
+    (714, ST_GEOMCOLLFROMWKB(ST_ASWKB(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
+                                                                'GEOMETRYCOLLECTION('
+                                                                      'POINT(0 0)),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                      'LINESTRING(0 0,10 10)),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                      'POLYGON((0 0,0 10,10 10,10 0, 0 0))),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                       'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10)),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                       'MULTILINESTRING((0 0,10 10),(0 10,10 0))),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                       'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))))')))),
+    (715, ST_GEOMCOLLFROMWKB(ST_ASWKB(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
+                                                                'GEOMETRYCOLLECTION(),'
+                                                                'POINT(0 0),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                      'LINESTRING(0 0,10 10),'
+                                                                      'GEOMETRYCOLLECTION('
+                                                                            'GEOMETRYCOLLECTION())),'
+                                                                'GEOMETRYCOLLECTION(),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                       'GEOMETRYCOLLECTION()),'
+                                                                'POLYGON((0 0,0 10,10 10,10 0, 0 0)),'
+                                                                'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10),'
+                                                                'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                                                                'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))'))));
+
+--echo # Inserting all kinds of spatial value to the GEOMETRY class
+INSERT INTO gis_geometry VALUES
+    (901, ST_GEOMFROMWKB(ST_ASWKB(POINT(0,0)))),
+    (902, ST_GEOMETRYFROMWKB(ST_ASWKB(POINT(1e308,-1e308))));
+
+INSERT INTO gis_geometry VALUES
+    (903, ST_GEOMFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10))))),
+    (904, ST_GEOMETRYFROMWKB(ST_ASWKB(LINESTRING(POINT(10,0), POINT(0,10), POINT(-10,0), POINT(0,-10)))));
+
+INSERT INTO gis_geometry VALUES
+    (905, ST_GEOMFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(5,0), POINT(0,0)))))),
+    (906, ST_GEOMETRYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
+                                     LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))));
+
+INSERT INTO gis_geometry VALUES
+    (907, ST_GEOMFROMTEXT('MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10)')),
+    (908, ST_GEOMETRYFROMTEXT('MULTIPOINT(1e308 1e308, -1e308 1e308, 1e308 -1e308, -1e308 -1e308)'));
+
+INSERT INTO gis_geometry VALUES
+    (909, ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10),(0 0,-10 -10))')),
+    (910, ST_GEOMETRYFROMTEXT('MULTILINESTRING((0 0,10 0),(0 0,0 10),(0 0,-10 0),(0 0,0 -10))'));
+
+INSERT INTO gis_geometry VALUES
+    (911, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)))')),
+    (912, ST_GEOMETRYFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,1 10,10 5,5 5)))'));
+
+INSERT INTO gis_geometry VALUES
+    (913, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                'POINT(0 0),'
+                                'LINESTRING(0 0,5 5,10 10),'
+                                'POLYGON((0 0,0 10,10 10,10 0,0 0)))')),
+    (924, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                'MULTIPOINT(0 0,2 2,4 4),'
+                                'MULTILINESTRING((0 0,5 5,0 0),(0 0,-5 -5,0 0)),'
+                                'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))')),
+    (915, ST_GEOMETRYFROMTEXT('GEOMETRYCOLLECTION('
+                                    'POINT(0 0),'
+                                    'LINESTRING(0 0,5 5,10 10),'
+                                    'POLYGON((0 0,0 10,10 10,10 0,0 0)),'
+                                    'MULTIPOINT(0 0,2 2,4 4),'
+                                    'MULTILINESTRING((0 0,5 5,0 0),(0 0,-5 -5,0 0)),'
+                                    'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))'));
+
+############################################################################################
+# Inserting the spatial values of all kinds to the parent class                            #
+############################################################################################
+
+--echo # Check the parent class hierarchy by inserting all values to the GEOMETRY parent class.
+INSERT INTO gis_geometry SELECT * FROM gis_point;
+
+INSERT INTO gis_geometry SELECT * FROM gis_linestring;
+
+INSERT INTO gis_geometry SELECT * FROM gis_polygon;
+
+INSERT INTO gis_geometry SELECT * FROM gis_multi_point;
+
+INSERT INTO gis_geometry SELECT * FROM gis_multi_linestring;
+
+INSERT INTO gis_geometry SELECT * FROM gis_multi_polygon;
+
+INSERT INTO gis_geometry SELECT * FROM gis_geometrycollection;
+
+--echo # Checking the integrity of the above insert statements 
+SELECT COUNT(g) FROM gis_geometry;
+
+SELECT COUNT(ST_ASTEXT(g)) FROM gis_geometry;
+
+SELECT COUNT(DISTINCT(g)) FROM gis_geometry;
+
+SELECT COUNT(DISTINCT(ST_ASTEXT(g))) FROM gis_geometry;
+
+--echo # Displaying the created spatial columns
+SHOW FIELDS FROM gis_point;
+
+SHOW FIELDS FROM gis_linestring;
+
+SHOW FIELDS FROM gis_polygon;
+
+SHOW FIELDS FROM gis_multi_point;
+
+SHOW FIELDS FROM gis_multi_linestring;
+
+SHOW FIELDS FROM gis_multi_polygon;
+
+SHOW FIELDS FROM gis_geometrycollection;
+
+SHOW FIELDS FROM gis_geometry;
+
+############################################################################################
+# Analyzing the spatial objets                                                             #
+############################################################################################
+
+--echo # Analyzing the spatial objets
+ANALYZE TABLE gis_point;
+
+ANALYZE TABLE gis_linestring;
+
+ANALYZE TABLE gis_polygon;
+
+ANALYZE TABLE gis_multi_point;
+
+ANALYZE TABLE gis_multi_linestring;
+
+ANALYZE TABLE gis_multi_polygon;
+
+ANALYZE TABLE gis_geometrycollection;
+
+ANALYZE TABLE gis_geometry;
+
+############################################################################################
+# DDL Functionality on the GIS geometry types                                              #
+############################################################################################
+
+--echo # Check DDL functionality on GIS datatypes
+CREATE TABLE tab(c1 POINT, c2 LINESTRING, c3 POLYGON, c4 MULTIPOINT,
+                 c5 MULTILINESTRING, c6 MULTIPOLYGON, c7 GEOMETRYCOLLECTION, c8 GEOMETRY);
+
+SELECT sc.COLUMN_NAME, sc.ORDINAL_POSITION, sc.DATA_TYPE, sc.COLUMN_TYPE
+FROM information_schema.columns sc INNER JOIN information_schema.tables st
+ON sc.TABLE_NAME=st.TABLE_NAME WHERE st.TABLE_NAME='tab' ORDER BY sc.COLUMN_NAME;
+
+############################################################################################
+# Using Variables to assign spatial values                                                 #
+############################################################################################
+
+SET @c1 = ST_GEOMFROMTEXT('POINT(10 10)');
+SET @c2 = ST_GEOMFROMTEXT('LINESTRING(10 10,20 20,30 30)');
+SET @c3 = ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))');
+SET @c4 = ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 5,10 10,20 20)');
+SET @c5 = ST_GEOMFROMTEXT('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
+SET @c6 = ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))');
+SET @c7 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
+SET @c8 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))');
+
+--echo # Insert the spatial values 
+INSERT INTO tab VALUES (@c1, @c2, @c3, @c4, @c5, @c6, @c7, @c8);
+
+--echo # Check the above inserted values
+SELECT ST_ASTEXT(c1), ST_ASTEXT(c2), ST_ASTEXT(c3), ST_ASTEXT(c4), ST_ASTEXT(c5), ST_ASTEXT(c6), ST_ASTEXT(c7), ST_ASTEXT(c8) FROM tab;
+
+--echo # Cleanup the table
+TRUNCATE TABLE tab;
+
+############################################################################################
+# Checking the procedures to work with the Geometry class hierarchy                        #
+############################################################################################
+
+--echo # Create a procedure with INOUT params
+DELIMITER |;
+CREATE PROCEDURE geom_insert(IN c1 POINT, IN c2 LINESTRING, IN c3 POLYGON, IN c4 MULTIPOINT,
+                             IN c5 MULTILINESTRING, IN c6 MULTIPOLYGON, IN c7 GEOMETRYCOLLECTION, IN c8 GEOMETRY)
+BEGIN
+    INSERT INTO tab VALUES(@c1, @c2, @c3, @c4, @c5, @c6, @c7, @c8);
+END |
+DELIMITER ;|
+
+SET @c1 = ST_GEOMFROMTEXT('POINT(10 10)');
+SET @c2 = ST_GEOMFROMTEXT('LINESTRING(10 10,20 20,30 30)');
+SET @c3 = ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))');
+SET @c4 = ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 5,10 10,20 20)');
+SET @c5 = ST_GEOMFROMTEXT('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
+SET @c6 = ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))');
+SET @c7 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
+SET @c8 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))');
+
+--echo # Call the proc
+CALL geom_insert(@c1, @c2, @c3, @c4, @c5, @c6, @c7, @c8);
+
+--echo # Set the input spatial value 
+SET @c9 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(12 12,13 13))');
+
+--echo # Crate a procedure with OUT params and pass a value.
+DELIMITER |;
+CREATE PROCEDURE geom_out(OUT c9 GEOMETRY)
+BEGIN
+    SELECT ST_ASTEXT(@c9);
+END|
+DELIMITER ;|
+
+--echo # Call the proc and then change the spatial value of c8
+CALL geom_out(@c9);
+
+--echo # Dropping the created procedures
+DROP PROCEDURE geom_insert;
+DROP PROCEDURE geom_out;
+
+--echo # Delete the records
+TRUNCATE TABLE tab;
+
+############################################################################################
+# Checking the triggers to work with the Geometry class hierarchy                          #
+############################################################################################
+
+--echo # Create another table same as tab
+CREATE TABLE tab2 AS SELECT * FROM tab;
+
+--echo # Check the table definition
+SHOW CREATE TABLE tab2;
+
+--echo # Create a tigger and populate the values into tab2
+DELIMITER |;
+CREATE TRIGGER geom_trigger AFTER INSERT ON tab
+FOR EACH ROW
+BEGIN
+    INSERT INTO tab2 VALUES (@c1, @c2, @c3, @c4, @c5, @c6, @c7, @c8);
+END|
+DELIMITER ;|
+
+SET @c1 = ST_GEOMFROMTEXT('POINT(10 10)');
+SET @c2 = ST_GEOMFROMTEXT('LINESTRING(10 10,20 20,30 30)');
+SET @c3 = ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))');
+SET @c4 = ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 5,10 10,20 20)');
+SET @c5 = ST_GEOMFROMTEXT('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
+SET @c6 = ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))');
+SET @c7 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
+SET @c8 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))');
+
+--echo # Insert the spatial values 
+INSERT INTO tab VALUES(@c1, @c2, @c3, @c4, @c5, @c6, @c7, @c8);
+
+--echo # Check the values whether populated 
+SELECT ST_ASTEXT(c1) FROM tab2;
+SELECT ST_ASTEXT(c2) FROM tab2;
+SELECT ST_ASTEXT(c3) FROM tab2;
+SELECT ST_ASTEXT(c4) FROM tab2;
+SELECT ST_ASTEXT(c5) FROM tab2;
+SELECT ST_ASTEXT(c6) FROM tab2;
+SELECT ST_ASTEXT(c7) FROM tab2;
+SELECT ST_ASTEXT(c8) From tab2;
+
+--echo # Cleaning up the trigger
+DROP TRIGGER  geom_trigger;
+
+############################################################################################
+# Checking the cursor with the geometry hierarchy                                          #
+############################################################################################
+
+--echo # Check Cursor with Geometry 
+DELIMITER |;
+CREATE PROCEDURE geom_cursor()
+BEGIN
+    DECLARE v GEOMETRY;
+    DECLARE c CURSOR FOR SELECT c8 FROM tab2;
+    OPEN c;
+    FETCH c INTO v;
+    CLOSE c;
+    SELECT ST_ASTEXT(v);
+END|
+DELIMITER ;|
+
+--echo # Calling the cursor
+CALL geom_cursor();
+
+--echo # Dropping the created cursor
+DROP PROCEDURE geom_cursor;
+
+############################################################################################
+# Checking the join with the geometry data                                                 #
+############################################################################################
+
+--echo # Check self join
+SELECT ST_ASTEXT(tableX.c1), ST_ASTEXT(tableX.c4), ST_ASTEXT(tableX.c3)
+FROM tab AS tableX, tab2 AS tableY
+WHERE tableX.c1 = tableY.c1 AND tableX.c3 = tableY.c3 AND tableX.c4 = tableY.c4 AND
+      tableX.c5 = tableY.c5 AND tableX.c7 = tableY.c7 AND tableX.c8 = tableY.c8;
+
+--echo # Check equi join
+SELECT ST_ASTEXT(tableX.c3), ST_ASTEXT(tableY.c3) FROM tab AS tableX, tab2 AS tableY WHERE tableX.c3 = tableY.c3;
+
+############################################################################################
+# Checking the other DML operations on the geometry classes                                #
+############################################################################################
+
+--echo # Check DELETE stmt with WHERE clause and a constant predicate
+DELETE FROM tab
+WHERE c8 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))');
+
+--echo # Check the data
+SELECT COUNT(*) FROM tab;
+
+--echo # Check UPDATE stmt with WHERE clause and a constant predicate
+SET @c8 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(20 20, 30 30))');
+
+UPDATE tab2 SET c8 = @c8
+WHERE c3 = ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))');
+
+--echo # Check the column should be modified to LINESTRING(10 10,20 20,30 30)
+SELECT ST_ASTEXT(c8) FROM tab2;
+
+############################################################################################
+# Checking spatial index with geometry data                                                #
+############################################################################################
+
+--echo # Creating a table with spatial index column
+CREATE TABLE geom_index (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(g));
+
+--echo # Inserting geometry values
+INSERT INTO geom_index SELECT * FROM gis_geometry;
+
+--echo # Check column datatypes
+SHOW CREATE TABLE geom_index;
+
+SET @polygon = ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))');
+
+--echo # Sptail index query
+SELECT fid, ST_ASTEXT(g) FROM geom_index WHERE MBRCONTAINS(@polygon, g) ORDER BY fid;
+
+############################################################################################
+# Checking the commit and rollback                                                         #
+############################################################################################
+
+SELECT COUNT(*) FROM gis_geometry;
+
+--echo # Check start transaction commit & Rollback
+START TRANSACTION;
+DELETE FROM gis_geometry;
+ROLLBACK;
+
+SELECT COUNT(*) FROM gis_geometry;
+
+START TRANSACTION;
+DELETE FROM gis_geometry;
+COMMIT;
+
+SELECT COUNT(*) FROM gis_geometry;
+
+############################################################################################
+# Check that the new aliases introduced in WL#8055 exists andworks as expected.            #
+############################################################################################
+
+SET @geometrycollection_text = "GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())";
+SET @multilinestring_text = "MULTILINESTRING((10 10, 11 11), (9 9, 10 10))";
+SET @multipoint_text = "MULTIPOINT(10 10, 11 11)";
+SET @multipolygon_text = "MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),
+                                       ((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),
+                                        (30 20, 20 15, 20 25, 30 20)))";
+
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTXT(@geometrycollection_text));
+
+SELECT ST_ASTEXT(ST_MLINEFROMTEXT(@multilinestring_text));
+SELECT ST_ASTEXT(ST_MLINEFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT(@multilinestring_text))));
+
+SELECT ST_ASTEXT(ST_MPOINTFROMTEXT(@multipoint_text));
+SELECT ST_ASTEXT(ST_MPOINTFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT(@multipoint_text))));
+
+SELECT ST_ASTEXT(ST_MPOLYFROMTEXT(@multipolygon_text));
+SELECT ST_ASTEXT(ST_MPOLYFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT(@multipolygon_text))));
+
+SELECT ST_ASTEXT(ST_MULTILINESTRINGFROMTEXT(@multilinestring_text));
+SELECT ST_ASTEXT(ST_MULTILINESTRINGFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT(@multilinestring_text))));
+
+SELECT ST_ASTEXT(ST_MULTIPOINTFROMTEXT(@multipoint_text));
+SELECT ST_ASTEXT(ST_MULTIPOINTFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT(@multipoint_text))));
+
+SELECT ST_ASTEXT(ST_MULTIPOLYGONFROMTEXT(@multipolygon_text));
+SELECT ST_ASTEXT(ST_MULTIPOLYGONFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT(@multipolygon_text))));
+
+--echo # Final cleanup
+DROP TABLE gis_point;
+DROP TABLE gis_linestring;
+DROP TABLE gis_polygon;
+DROP TABLE gis_multi_point;
+DROP TABLE gis_multi_linestring;
+DROP TABLE gis_multi_polygon;
+DROP TABLE gis_geometrycollection;
+DROP TABLE gis_geometry;
+DROP TABLE tab;
+DROP TABLE tab2;
+DROP TABLE geom_index;

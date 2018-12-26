@@ -1,0 +1,48 @@
+## This is test file for connection authentication using mysqlx.
+##
+
+#TODO After implementing Names Pipes this test should be merged back to connection_skip_networking.test
+
+--source include/windows.inc
+--source include/xplugin_preamble.inc
+ 
+create user nonblank@localhost identified by 'nonblank';
+
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
+-->sql
+select user(),current_user(),@@bind_address;
+-->endsql
+EOF
+
+--echo Test starts here
+--disable_query_log
+--disable_result_log
+
+connect (master,localhost,root,,,,,PIPE);
+let $restart_parameters = restart: --enable-named-pipe --skip-networking;
+let $restart_parameters_restore = --enable-named-pipe;
+
+--replace_regex /restart: .+$XPLUGIN_SOCKE/restart: --skip-networking/
+--source ../include/restart_mysqld_pipe.inc
+--disable_result_log
+--echo Following commands should fail
+--replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
+--error 1
+--exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+
+--echo try login using mysqlx protocol when server started with skip-networking options and mysqlx loaded with non super user
+--replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
+--error 1
+--exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+ 
+ call mtr.add_suppression("Plugin mysqlx reported: .All I/O interfaces are disabled, X Protocol won't be accessible");
+
+--disable_query_log
+let $restart_parameters = restart: $restart_parameters_restore;
+--source ../include/restart_mysqld_pipe.inc
+--enable_query_log
+--enable_result_log
+
+## Cleanup
+drop user nonblank@localhost;
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp

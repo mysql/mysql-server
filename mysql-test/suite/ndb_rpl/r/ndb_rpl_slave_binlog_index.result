@@ -1,0 +1,34 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+STOP SLAVE;
+set @save_debug= @@global.debug;
+set global debug='+d,ndb_injector_binlog_index_write_fail_random';
+USE test;
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL,
+`b` varchar(1000) DEFAULT NULL,
+PRIMARY KEY (`a`)
+) ENGINE=ndbcluster;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `loadgen`(total int) begin   set @x = 0;   repeat     insert into test.t1 values (1, repeat('B', 10));     insert into test.t1 values (2, repeat('I', 10));     insert into test.t1 values (3,repeat('W', 10));     insert into test.t1 values (4, repeat('G', 10));     insert into test.t1 values (5, repeat('V', 10));     insert into test.t1 values (6, repeat('D', 10));     insert into test.t1 values (7, repeat('P', 10));     delete from test.t1;     set @x = @x + 1;   until @x = total   end repeat; end%
+call loadgen(2000);
+START SLAVE;
+Wait for replication to catch up
+Check that we got some warnings...
+Show that the test resulted in some extended error output...
+select count(1) > 1 as InjectCount from error_log where line like '%NDB Binlog%Injecting random write failure%';
+InjectCount
+1
+select count(1) > 1 as BasicError from error_log where line like '%NDB Binlog% failed writing to ndb_binlog_index%';
+BasicError
+1
+select count(1) > 1 as DetailError from error_log where line like '%NDB Binlog%Writing row%to ndb_binlog_index%';
+DetailError
+1
+drop table error_log;
+set global debug= @save_debug;
+drop table test.t1;
+drop procedure loadgen;
+include/rpl_end.inc

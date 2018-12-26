@@ -1,0 +1,27 @@
+SET NAMES sjis;
+SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+drop database if exists `ﾆﾎﾝｺﾞ`;
+drop database if exists `日本語`;
+drop database if exists `ソ十表`;
+CREATE DATABASE `ﾆﾎﾝｺﾞ`;
+CREATE DATABASE `日本語`;
+CREATE DATABASE `ソ十表`;
+SELECT schema_name from information_schema.schemata
+where schema_name <> 'mtr' order by schema_name;
+SCHEMA_NAME
+information_schema
+mysql
+performance_schema
+sys
+test
+ソ十表
+日本語
+ﾆﾎﾝｺﾞ
+USE `ﾆﾎﾝｺﾞ`;
+USE `日本語`;
+USE `ソ十表`;
+DROP DATABASE `ﾆﾎﾝｺﾞ`;
+DROP DATABASE `日本語`;
+DROP DATABASE `ソ十表`;

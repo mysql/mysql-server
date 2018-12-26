@@ -1,0 +1,6 @@
+--binlog-do-db=test
+--innodb-file-per-table
+--sync_binlog=10
+--innodb_flush_log_at_trx_commit=2
+--force-restart
+--innodb_buffer_pool_size=512M

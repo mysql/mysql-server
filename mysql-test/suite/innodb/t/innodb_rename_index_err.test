@@ -1,0 +1,37 @@
+#
+
+-- source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("Cannot calculate statistics for table `test`\.`t` because the \.ibd file is missing");
+call mtr.add_suppression("Cannot find index i1 in InnoDB index dictionary");
+call mtr.add_suppression("Build InnoDB index translation table");
+call mtr.add_suppression("Table test/t contains 0 indexes inside InnoDB, which is different from the number of indexes 1 defined in MySQL");
+call mtr.add_suppression("Innodb could not find key no 0 with name i1 from dict cache for table test/t");
+call mtr.add_suppression("Table test/t contains fewer indexes inside InnoDB than are defined in the MySQL .frm file");
+--enable_query_log
+
+CREATE TABLE t (c1 INT, c2 INT, KEY i2 (c2)) ENGINE=INNODB;
+
+SET DEBUG='+d,ib_rename_index_fail1';
+-- error ER_LOCK_DEADLOCK
+ALTER TABLE t RENAME INDEX i2 to x, ALGORITHM=INPLACE;
+SET DEBUG='-d,ib_rename_index_fail1';
+
+SET DEBUG='+d,ib_rename_index_fail2';
+ALTER TABLE t RENAME INDEX i2 to x, ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+SET DEBUG='-d,ib_rename_index_fail2';
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+
+SET DEBUG='+d,ib_rename_index_fail3';
+ALTER TABLE t RENAME INDEX x to y, ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+SET DEBUG='-d,ib_rename_index_fail3';
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+
+DROP TABLE t;

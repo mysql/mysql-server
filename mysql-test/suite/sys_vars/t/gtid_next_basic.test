@@ -1,0 +1,76 @@
+
+SET @start_global_value = @@session.gtid_next;
+SELECT @start_global_value;
+
+#
+# exists as session only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.gtid_next;
+select @@session.gtid_next;
+show global variables like 'gtid_next';
+show session variables like 'gtid_next';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='gtid_next';
+select * from performance_schema.session_variables where variable_name='gtid_next';
+--enable_warnings
+
+#
+# show that it is writable
+#
+--error ER_LOCAL_VARIABLE
+set global gtid_next = 1;
+set session gtid_next = "ANONYMOUS";
+select @@session.gtid_next;
+
+#
+# Show that one can set it to default
+#
+ROLLBACK;
+set session gtid_next=default;
+select @@session.gtid_next;
+
+#
+# Show that one cannot set it to NULL
+#
+ROLLBACK;
+--error ER_WRONG_VALUE_FOR_VAR
+set session gtid_next=NULL;
+select @@session.gtid_next;
+
+#
+# Bug #20753378  ASSERTION `GTID_NEXT->TYPE != AUTOMATIC_GROUP || THD->OWNED_GTID.IS_EMPTY()'
+#
+# Setting SESSION.GTID_NEXT=default right after setting
+# SESSION.GTID_NEXT='ANONYMOUS' causes an error
+# 'ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID', but this
+# changed gtid_next type from 'ANONYMOUS' to 'AUTOMATIC'.
+# So that the next transaction causes the above assertion error.
+#
+# Setting SESSION.GTID_NEXT=default should not change the
+# gtid_next type if it causes an error.
+#
+# Steps to reproduce:
+#  1) Set @@SESSION.GTID_NEXT to ANONYMOUS.
+#  2) Set @@SESSION.GTID_NEXT to default to cause the
+#     error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID.
+#  3) Execute 'SELECT @@SESSION.GTID_NEXT' to verify there is no
+#     assersion caused and gtid_next type is still ANONYMOUS.
+#
+SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+SET @@SESSION.GTID_NEXT = default;
+# Verify that there is no assersion caused and
+# gtid_next type is still ANONYMOUS.
+SELECT @@SESSION.GTID_NEXT;
+
+#
+# restore original value
+#
+ROLLBACK;
+set session gtid_next = @start_global_value;
+select @@session.gtid_next;
+
+#
+# See rpl_gtid_execution.test for a comprehensive test case.
+#

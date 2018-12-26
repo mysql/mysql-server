@@ -1,0 +1,41 @@
+################################################################################
+# t/part_supported_sql_funcs_innodb.test                                  #
+#                                                                              #
+# Purpose:                                                                     #
+#  Tests which SQL functions are allowed in partinioning clauses with          #
+#  INNODB.                                                                     #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: HH                                                          #
+# Original Date: 2006-11-23                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+
+##### Options, for debugging support #####
+let $debug= 0;
+let $do_long_tests= 1;
+
+# This test takes long time, so only run it with the --big mtr-flag.
+--source include/big_test.inc
+# Skiping this test from Valgrind execution as per Bug-14627884
+--source include/not_valgrind.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+#The server nust support the engine
+let $engine= 'INNODB';
+
+#------------------------------------------------------------------------------#
+--source suite/parts/inc/part_supported_sql_funcs_main.inc

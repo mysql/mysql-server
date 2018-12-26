@@ -1,0 +1,129 @@
+#
+# WL#5569 MTS
+#
+# The test verifies correctness of MTS execution when system meets
+# various limits due to few configuration options:
+#
+# A. @@global.slave_pending_jobs_size_max
+# B. @@global.slave_parallel_workers
+#
+
+--source include/not_group_replication_plugin.inc
+# no support for Query-log-event in this test
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+connection slave;
+
+create view coord_wait_list as
+       SELECT id from Information_Schema.processlist
+              where state like 'Waiting for Slave Worker%';
+
+# restart in Parallel
+
+let $workers= 4;
+
+source include/stop_slave.inc;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+eval set @@global.slave_parallel_workers= $workers;
+
+#
+# A. Prescribed number of Worker threads is honored
+#
+
+connection slave;
+
+create view worker_wait_list as
+       SELECT id from Information_Schema.processlist
+              where state like 'Waiting for an event from Coordinator';
+
+source include/stop_slave.inc;
+
+# relates to B preparation
+let $mts_max_q_size=1024;
+set @save_slave_pending_jobs_size_max = @@global.slave_pending_jobs_size_max;
+eval set @@global.slave_pending_jobs_size_max= $mts_max_q_size;
+
+source include/start_slave.inc;
+
+let $count= $workers;
+let $table= worker_wait_list;
+source include/wait_until_rows_count.inc;
+
+--echo Configured number of Workers is started.
+
+#
+# B. Max size of Worker queues
+#
+
+
+connection master;
+create database d0;
+create table d0.t0 (a int auto_increment primary key, b text null) engine=innodb;
+
+--source include/sync_slave_sql_with_master.inc
+
+
+begin;
+insert into d0.t0 set a= 1;
+
+# master trans structure aims at testing C's wait loop
+
+let $i_loop= 10;
+
+connection master;
+
+begin;
+--disable_query_log
+  eval insert into d0.t0 set a= 1, b=  REPEAT('b', 1);
+
+while ($i_loop)
+{
+  eval insert into d0.t0 set       b=  REPEAT('b', 1);
+  eval insert into d0.t0 set       b=  REPEAT('b', 1);
+  eval insert into d0.t0 set       b=  REPEAT('b', 1);
+  eval insert into d0.t0 set       b=  REPEAT('b', 1);
+  eval insert into d0.t0 set       b=  REPEAT('b', 1);
+  eval insert into d0.t0 set       b=  REPEAT('b', 1);
+  eval insert into d0.t0 set       b=  REPEAT('b', 2* $mts_max_q_size/3);
+  dec $i_loop;
+}
+--enable_query_log
+commit;
+
+let $d0_t0_count=`select count(*) from d0.t0`;
+
+connection slave;
+
+--echo *** Coordinator must be waiting for Workers have released pending events mem ***
+
+let $count= 1;
+let $table= coord_wait_list;
+source include/wait_until_rows_count.inc;
+
+rollback;
+
+let $count= $d0_t0_count;
+let $table= d0.t0;
+source include/wait_until_rows_count.inc;
+
+# cleanup of the max size
+set @@global.slave_pending_jobs_size_max= @save_slave_pending_jobs_size_max;
+
+
+#
+# cleanup
+#
+
+connection master;
+
+drop database d0;
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+
+drop view coord_wait_list;
+drop view worker_wait_list;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+
+--source include/rpl_end.inc

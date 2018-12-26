@@ -1,0 +1,2 @@
+--secure-file-priv=null
+--local-infile=true

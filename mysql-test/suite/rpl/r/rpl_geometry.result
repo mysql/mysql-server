@@ -1,0 +1,19 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t1(a varchar(100),
+b multipoint not null,
+c varchar(256));
+insert into t1 set
+a='hello',
+b=ST_GeomFromText('multipoint(1 1)'),
+c='geometry';
+create table t2 (a int(11) not null auto_increment primary key,
+b geometrycollection default null,
+c decimal(10,0));
+insert into t2(c) values (null);
+include/sync_slave_sql_with_master.inc
+drop table t1, t2;
+include/rpl_end.inc

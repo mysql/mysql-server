@@ -1,0 +1,91 @@
+###############################################################################
+#
+# This test validate that if we have two sessions and one set gtid_next to the
+# next automatic gtid, if both session execute a transaction in parallel one
+# of the transactions will rollback.
+#
+# Test:
+# 0. Test requires two servers.
+# 1. Establish another connection to server, to execute transactions in
+#    parallel.
+# 2. Create a table and set a manual gtid_next equal to next automatic gtid.
+#    Start a transaction.
+# 3. Using the other connection execute a transaction.
+# 4. Connect to first session and commit pending transaction. Server will
+#    rollback it due to already used gtid.
+# 5. Clean up.
+#
+###############################################################################
+
+--let $group_replication_group_name= c3b5927f-2a51-11e7-94b3-0010e0734796
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+set sql_log_bin=0;
+call mtr.add_suppression("The requested GTID .* was already used, the transaction will rollback");
+set sql_log_bin=1;
+
+--echo
+--echo #############################################################
+--echo # 1. Establish another connection to server, to execute
+--echo # transactions in parallel.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+set sql_log_bin=0;
+call mtr.add_suppression("The requested GTID .* was already used, the transaction will rollback");
+set sql_log_bin=1;
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+--echo
+--echo #############################################################
+--echo # 2. Create a table and set a manual gtid_next equal to next
+--echo # automatic gtid. Start a transaction.
+
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "c3b5927f-2a51-11e7-94b3-0010e0734796:1-3"
+--let $assert_text= GTID_EXECUTED should contain three GTIDs.
+--source include/assert.inc
+
+set GTID_NEXT='c3b5927f-2a51-11e7-94b3-0010e0734796:4';
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+--echo
+--echo #############################################################
+--echo # 3. Using the other connection execute a transaction.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2);
+
+--echo
+--echo #############################################################
+--echo # 4. Connect to first session and commit pending transaction.
+--echo # Server will  rollback it due to already used gtid.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = 'c3b5927f-2a51-11e7-94b3-0010e0734796:1-4'
+--source include/wait_condition.inc
+
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+COMMIT;
+set GTID_NEXT='automatic';
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_gtid_next_conflict.1.err
+--let $assert_count= 1
+--let $assert_select= .* was already used, the transaction will rollback
+--let $assert_text= The GR plug-in reported an error stating that a transaction will rollback
+--source include/assert_grep.inc
+
+--echo
+--echo #############################################################
+--echo # 5. Clean up.
+DROP TABLE t1;
+--source include/group_replication_end.inc

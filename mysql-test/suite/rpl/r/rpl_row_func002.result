@@ -1,0 +1,30 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP FUNCTION test.f1;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT, t TIMESTAMP, t2 TIMESTAMP, PRIMARY KEY(a));
+CREATE TABLE test.t2 (a INT NOT NULL AUTO_INCREMENT, t TIMESTAMP, t2 TIMESTAMP, PRIMARY KEY(a));
+SET sql_mode = default;
+create function test.f1() RETURNS TIMESTAMP 
+BEGIN
+UPDATE test.t1 SET t  = CURRENT_TIMESTAMP;
+RETURN CURRENT_TIMESTAMP;
+END//
+INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
+SET TIMESTAMP=2;
+INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
+SET TIMESTAMP=1;
+INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
+SET TIMESTAMP=333300000;
+INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
+include/sync_slave_sql_with_master.inc
+DROP FUNCTION test.f1;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

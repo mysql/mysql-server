@@ -1,0 +1,37 @@
+# ==== Purpose ====
+#
+# Verify that the binary logging is enabled and the replication works fine
+# without configuring --log-bin and --relay-log options on master and salve.
+#
+# ==== Implementation ====
+#
+# 1. Commit two transactions on master.
+# 2. Verify that the replication works fine without
+#    configuring --log-bin and --relay-log options.
+#
+# ==== References ====
+#
+# Bug #26729602  UPGRADE 5.7->8.0.3: REPLICATION MAY NOT START DUE TO INDEX FILE NEW DEFAULT NAME
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+
+--source include/sync_slave_sql_with_master.inc
+# Verify that the replication works well without configuring --log-bin
+# and --relay-log options.
+--let $diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

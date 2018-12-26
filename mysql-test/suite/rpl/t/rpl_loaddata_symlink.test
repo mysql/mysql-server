@@ -1,0 +1,23 @@
+#
+# BUG#43913
+# This test verifies if loading data infile will work fine 
+# if the path of the load data file is a symbolic link.
+#
+--source include/not_group_replication_plugin.inc
+--source include/not_windows.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+create table t1(a int not null auto_increment, b int, primary key(a) );
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+select * from t1;
+
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+select * from t1;
+
+connection master;
+drop table t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

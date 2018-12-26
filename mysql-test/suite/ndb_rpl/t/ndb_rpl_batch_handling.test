@@ -1,0 +1,99 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+
+--echo Log update-as-update
+insert into mysql.ndb_replication values ("test", "t1", 0, 7, NULL);
+
+
+--echo Create table with one row missing on slave
+
+create table test.t1 (a int primary key, b int) engine=ndb;
+
+insert into test.t1 values (3,3), (4,4);
+
+select * from test.t1 order by a;
+
+--sync_slave_with_master
+
+--connection slave
+
+delete from test.t1 where a=4;
+
+select * from test.t1 order by a;
+
+--echo Now create epoch transaction at master with 1 applicable and
+--echo n unapplicable operations
+--echo We hope that at least some of the unapplicable operations
+--echo will run in the same batch as the applicable one (so attempting
+--echo to get a COMMIT_ACK_MARKER), but will have their error handling
+--echo run afterwards.
+
+--connection master
+
+let $update_count=100;
+
+begin;
+  update test.t1 set b=30 where a=3;  # OK
+  update test.t1 set b=40 where a=4;  # Will fail
+commit;
+
+--disable_query_log
+while ($update_count)
+{
+  update test.t1 set b=4 where a=4;
+  update test.t1 set b=40 where a=4;
+  dec $update_count;
+}
+--enable_query_log
+
+--sync_slave_with_master
+
+--connection slave
+
+select * from test.t1 order by a;
+
+--echo Wait for LQH + TC Commit Ack Marker count to get to zero.
+--source suite/ndb_rpl/t/ndb_wait_for_zero_commit_ack_markers.inc
+--echo OK
+
+
+--echo Abort cleanup check
+begin;
+delete from test.t1;
+rollback;
+
+--echo Wait for LQH + TC Commit Ack Marker count to get to zero.
+--source suite/ndb_rpl/t/ndb_wait_for_zero_commit_ack_markers.inc
+--echo OK
+
+
+--echo Batched and multi-batch commit cleanup test
+begin;
+  insert into test.t1 values (6,6),(7,7),(8,8),(9,9),(10,10);
+  insert into test.t1 values (11,11);
+  insert into test.t1 values (12,12);
+commit;
+
+--echo Wait for LQH + TC Commit Ack Marker count to get to zero.
+--source suite/ndb_rpl/t/ndb_wait_for_zero_commit_ack_markers.inc
+--echo OK
+
+--echo Cleanup
+
+--connection master
+drop table test.t1;
+drop table mysql.ndb_replication;
+
+--sync_slave_with_master
+
+--source include/rpl_end.inc

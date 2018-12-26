@@ -1,0 +1,35 @@
+#
+# wl#8919 InnoDB: Implement NOWAIT and SKIP LOCKED
+#
+
+--source include/count_sessions.inc
+
+# Test different transaction isolation levels
+
+connect (con1,localhost,root,,);
+SET SESSION innodb_lock_wait_timeout=1;
+
+connection default;
+SET SESSION innodb_lock_wait_timeout=1;
+
+let $trx_isolation_level = READ UNCOMMITTED;
+let $for_share = FOR SHARE;
+--source suite/innodb/include/skip_locked_nowait_isolation.inc
+
+let $trx_isolation_level = READ COMMITTED;
+let $for_share = FOR SHARE;
+--source suite/innodb/include/skip_locked_nowait_isolation.inc
+
+let $trx_isolation_level = REPEATABLE READ;
+let $for_share = FOR SHARE;
+--source suite/innodb/include/skip_locked_nowait_isolation.inc
+
+let $trx_isolation_level = SERIALIZABLE;
+# Serializable will lock records by default.
+let $for_share =;
+--source suite/innodb/include/skip_locked_nowait_isolation.inc
+
+connection default;
+disconnect con1;
+
+--source include/wait_until_count_sessions.inc

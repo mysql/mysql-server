@@ -1,0 +1,84 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "table_handles";
+let $target_type  = TABLE;
+let $target_schema = test;
+let $target_name  = t1;
+
+--echo TABLE: $table
+--echo INDEXES: PK (OBJECT_INSTANCE_BEGIN), KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME), KEY (OWNER_THREAD_ID, OWNER_EVENT_ID)
+
+--source ../include/idx_compare_setup.inc
+
+--disable_query_log
+
+# Get an object_instance_begin
+
+--connection con1
+# Get MDL read lock
+LOCK TABLE t1 READ;
+
+--connection con2
+
+# User1 has a READ LOCK
+# User2 waiting for WRITE LOCK
+--send LOCK TABLE t1 write;
+
+--connection default
+
+# Wait for the LOCK TABLE t1 write to block
+let $wait_condition=
+  select count(*) = 1 from performance_schema.events_waits_current
+  where event_name = 'wait/lock/metadata/sql/mdl'
+  and object_name = 't1';
+--source include/wait_condition.inc
+
+--connection default
+
+eval SELECT object_instance_begin, owner_event_id
+  INTO @object_instance_begin, @target_event_id
+  FROM performance_schema.table_handles
+  WHERE external_lock = 'READ EXTERNAL'
+    AND owner_thread_id = $con1_thread_id
+  LIMIT 1;
+
+--enable_query_log
+
+#DEBUG SELECT @object_instance_begin, @owner_event_id;
+
+--echo
+--echo ## Test OBJECT_INSTANCE_BEGIN
+let $key_group = 12;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+let $key_group = 10;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test OWNER_THREAD_ID, OWNER_EVENT_ID
+--disable_query_log
+eval SET @target_thread_id = $con1_thread_id;
+--enable_query_log
+let $key_group = 1.1;
+--source ../include/idx_compare_load.inc
+
+--connection con1
+
+# User1 releases a READ LOCK
+# User2 granted a WRITE LOCK
+UNLOCK TABLES;
+
+--connection con2
+
+# Complete LOCK TABLE t1 write
+--reap
+UNLOCK TABLES;
+
+--connection default
+
+--source ../include/idx_compare_cleanup.inc

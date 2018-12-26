@@ -1,0 +1,108 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+include/stop_slave.inc
+FLUSH LOGS;
+create database db1;
+create database db2;
+create database db3;
+create database db4;
+FLUSH LOGS;
+#setup the databases and tables
+CREATE TABLE db1.t (a int) engine=innodb;
+CREATE TEMPORARY TABLE db1.t_temp (a int) engine=innodb;
+CREATE TABLE db2.t (a int) engine=myisam;
+CREATE TEMPORARY TABLE db2.t_temp (a int) engine=innodb;
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
+CREATE TEMPORARY TABLE db3.t_temp (a int) engine=innodb;
+SET @VAR=100;
+CREATE TABLE db4.t engine=myisam select @VAR as a;
+CREATE TEMPORARY TABLE db4.t_temp (a int) engine=innodb;
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+FLUSH LOGS;
+TRUNCATE db3.t;
+FLUSH LOGS;
+INSERT INTO db2.t values (1),(2),(3);
+INSERT INTO db4.t values (1),(2),(3);
+FLUSH LOGS;
+INSERT INTO db1.t_temp values (1),(2),(3);
+INSERT INTO db2.t_temp values (1),(2),(3);
+INSERT INTO db3.t_temp values (1),(2),(3);
+INSERT INTO db4.t_temp values (1),(2),(3);
+FLUSH LOGS;
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db1.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+COMMIT;
+BEGIN;
+INSERT INTO db3.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db3.t SET db3.t.a= 2 WHERE db3.t.a > 2;
+COMMIT;
+FLUSH LOGS;
+BEGIN;
+INSERT INTO db2.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db3.t SET db3.t.a= 2 WHERE db3.t.a > 2;
+COMMIT;
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db4.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+COMMIT;
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+DROP TABLE db1.t_temp;
+DROP TABLE db2.t_temp;
+DROP TABLE db3.t_temp;
+DROP TABLE db4.t_temp;
+SET GLOBAL slave_parallel_type='DATABASE';
+include/start_slave.inc
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:db1.t,slave:db1.t]
+include/diff_tables.inc [master:db2.t, slave:db2.t]
+include/diff_tables.inc [master:db3.t, slave:db3.t]
+include/diff_tables.inc [master:db4.t, slave:db4.t]
+include/stop_slave.inc
+RESET SLAVE;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
+include/start_slave.inc
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:db1.t, slave:db1.t]
+include/diff_tables.inc [master:db2.t, slave:db2.t]
+include/diff_tables.inc [master:db3.t, slave:db3.t]
+include/diff_tables.inc [master:db4.t, slave:db4.t]
+include/stop_slave.inc
+RESET SLAVE;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+SET GLOBAL slave_parallel_type='DATABASE';
+include/start_slave.inc
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:db1.t, slave:db1.t]
+include/diff_tables.inc [master:db2.t, slave:db2.t]
+include/diff_tables.inc [master:db3.t, slave:db3.t]
+include/diff_tables.inc [master:db4.t, slave:db4.t]
+include/stop_slave.inc
+SET GLOBAL SLAVE_PARALLEL_TYPE=DEFAULT;
+include/start_slave.inc
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+include/stop_slave.inc
+include/start_slave.inc
+include/rpl_end.inc

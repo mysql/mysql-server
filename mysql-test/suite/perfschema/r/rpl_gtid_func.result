@@ -1,0 +1,131 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+**** On Master ****
+drop table if exists test.marker;
+create table test.marker(a int) engine=innodb;
+insert into test.marker values (1);
+select * from test.marker;
+a
+1
+truncate table performance_schema.events_waits_history_long;
+truncate table performance_schema.events_statements_summary_by_digest;
+update performance_schema.setup_instruments
+set enabled='YES', timed='YES';
+**** On Slave ****
+truncate table performance_schema.events_waits_history_long;
+truncate table performance_schema.events_statements_summary_by_digest;
+update performance_schema.setup_instruments
+set enabled='YES', timed='NO';
+**** On Master ****
+select * from performance_schema.setup_instruments
+where timed='NO' and name not like "memory/%";
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+select "This better be in the master" as in_master_digest;
+in_master_digest
+This better be in the master
+insert into performance_schema.setup_objects
+values ('TABLE', 'master', 'foo', 'YES', 'YES');
+select * from performance_schema.setup_objects
+order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+EVENT	%	%	YES	YES
+EVENT	information_schema	%	NO	NO
+EVENT	mysql	%	NO	NO
+EVENT	performance_schema	%	NO	NO
+FUNCTION	%	%	YES	YES
+FUNCTION	information_schema	%	NO	NO
+FUNCTION	mysql	%	NO	NO
+FUNCTION	performance_schema	%	NO	NO
+PROCEDURE	%	%	YES	YES
+PROCEDURE	information_schema	%	NO	NO
+PROCEDURE	mysql	%	NO	NO
+PROCEDURE	performance_schema	%	NO	NO
+TABLE	%	%	YES	YES
+TABLE	information_schema	%	NO	NO
+TABLE	master	foo	YES	YES
+TABLE	mysql	%	NO	NO
+TABLE	performance_schema	%	NO	NO
+TRIGGER	%	%	YES	YES
+TRIGGER	information_schema	%	NO	NO
+TRIGGER	mysql	%	NO	NO
+TRIGGER	performance_schema	%	NO	NO
+select digest, digest_text, count_star
+from performance_schema.events_statements_summary_by_digest
+where digest_text like "%in_%_digest%";
+digest	digest_text	count_star
+1113135720bfa2871d2698503ecb3343bf5bda7f4cd97ac60f81c9a19cd384ea	SELECT ? AS `in_master_digest`	1
+insert into test.marker values (2);
+**** On Slave ****
+select * from test.marker;
+a
+1
+2
+select * from performance_schema.setup_instruments
+where timed='YES';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+select "This better be in the slave" as in_slave_digest;
+in_slave_digest
+This better be in the slave
+insert into performance_schema.setup_objects
+values ('TABLE', 'slave', 'foo', 'YES', 'YES');
+select * from performance_schema.setup_objects
+order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+EVENT	%	%	YES	YES
+EVENT	information_schema	%	NO	NO
+EVENT	mysql	%	NO	NO
+EVENT	performance_schema	%	NO	NO
+FUNCTION	%	%	YES	YES
+FUNCTION	information_schema	%	NO	NO
+FUNCTION	mysql	%	NO	NO
+FUNCTION	performance_schema	%	NO	NO
+PROCEDURE	%	%	YES	YES
+PROCEDURE	information_schema	%	NO	NO
+PROCEDURE	mysql	%	NO	NO
+PROCEDURE	performance_schema	%	NO	NO
+TABLE	%	%	YES	YES
+TABLE	information_schema	%	NO	NO
+TABLE	mysql	%	NO	NO
+TABLE	performance_schema	%	NO	NO
+TABLE	slave	foo	YES	YES
+TRIGGER	%	%	YES	YES
+TRIGGER	information_schema	%	NO	NO
+TRIGGER	mysql	%	NO	NO
+TRIGGER	performance_schema	%	NO	NO
+select digest, digest_text, count_star
+from performance_schema.events_statements_summary_by_digest
+where digest_text like "%in_%_digest%";
+digest	digest_text	count_star
+8a5ac97f0db99a2f19b8a07d18fe5a06bd0247f9cd61ee6b16ae1dc1ee3e0a6d	SELECT ? AS `in_slave_digest`	1
+**** On Master ****
+delete from performance_schema.setup_objects
+where object_schema='master';
+**** On Slave ****
+delete from performance_schema.setup_objects
+where object_schema='slave';
+select * from performance_schema.setup_objects;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+EVENT	mysql	%	NO	NO
+EVENT	performance_schema	%	NO	NO
+EVENT	information_schema	%	NO	NO
+EVENT	%	%	YES	YES
+FUNCTION	mysql	%	NO	NO
+FUNCTION	performance_schema	%	NO	NO
+FUNCTION	information_schema	%	NO	NO
+FUNCTION	%	%	YES	YES
+PROCEDURE	mysql	%	NO	NO
+PROCEDURE	performance_schema	%	NO	NO
+PROCEDURE	information_schema	%	NO	NO
+PROCEDURE	%	%	YES	YES
+TABLE	mysql	%	NO	NO
+TABLE	performance_schema	%	NO	NO
+TABLE	information_schema	%	NO	NO
+TABLE	%	%	YES	YES
+TRIGGER	mysql	%	NO	NO
+TRIGGER	performance_schema	%	NO	NO
+TRIGGER	information_schema	%	NO	NO
+TRIGGER	%	%	YES	YES
+include/rpl_end.inc

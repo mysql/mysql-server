@@ -1,0 +1,29 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+CREATE TABLE t1 (
+a int unsigned not null auto_increment primary key,
+b int unsigned
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+a int unsigned not null auto_increment primary key,
+b int unsigned
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL, 0);
+INSERT INTO t1 SELECT NULL, 0 FROM t1;
+INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0
+2	0
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	0
+2	1
+UPDATE t1, t2 SET t1.b = t2.b WHERE t1.a = t2.a;
+include/sync_slave_sql_with_master.inc
+drop table t1, t2;
+include/rpl_end.inc

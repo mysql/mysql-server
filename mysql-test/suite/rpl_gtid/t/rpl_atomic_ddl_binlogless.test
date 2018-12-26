@@ -1,0 +1,64 @@
+# ==== Purpose ====
+#
+# Check that the slave does not crash with an assertion when replicating an
+# empty crash-safe DDL when the binlog is not enabled.
+#
+# ==== Implementation ====
+#
+# Generate empty DDL's using two methods:
+# A. Create a filter on the slave and replicate DDL that will be ignored due to
+#    that filter.
+# B. Replicate `DROP TRIGGER IF EXISTS` using an unexisting database.
+#
+# ==== References ====
+#
+# BUG#27164661 SLAVE ASSERTS ON DROP TRIGGER IF EXISTS
+
+# no need to run in other binlog formats
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+# warning issued because we are using have_binlog_format_row.inc
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+
+#
+# A. Generate an empty transaction due to replication filters
+#
+
+--source include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER Replicate_Do_DB= (test1);
+
+--source include/rpl_connection_master.inc
+CREATE TABLE test.t1 (a INT);
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_sql.inc
+--source include/rpl_connection_master.inc
+# the slave will not hit a debug assert
+--source include/sync_slave_sql_with_master.inc
+
+# remove filter
+--source include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB= ();
+--source include/start_slave_sql.inc
+
+#
+# B. Generate an empty transaction due to an unexisting database
+#
+
+--source include/rpl_connection_master.inc
+DROP TRIGGER IF EXISTS test1.trig_t1;
+
+# synchronize master and slave using executed GTID set to verify that master and
+# slave executed exactly the same transactions
+--let $wait_for_executed_gtid_set= 1
+# the slave will not hit a debug assert
+--source include/sync_slave_sql_with_master.inc
+
+# clean up
+--source include/rpl_connection_master.inc
+DROP TABLE IF EXISTS t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

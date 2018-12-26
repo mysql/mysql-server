@@ -1,0 +1,17 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "events_transactions_summary_by_user_by_event_name";
+let $key_group = 3;
+let $target_event_name = transaction;
+
+--echo TABLE: $table
+--echo INDEXES: PK (USER, HOST, EVENT_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

@@ -1,0 +1,2 @@
+--let $show_binlog_events_mask_columns= 1, 2, 4, 5
+--source include/show_binlog_events.inc

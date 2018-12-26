@@ -1,0 +1,14 @@
+#
+# Make sure http://bugs.mysql.com/40360 remains fixed.
+#
+
+
+SET TRANSACTION_ISOLATION='READ-COMMITTED';
+
+# This is the default since MySQL 5.1.29 SET BINLOG_FORMAT='STATEMENT';
+
+CREATE TABLE bug40360 (a INT) engine=innodb;
+
+INSERT INTO bug40360 VALUES (1);
+
+DROP TABLE bug40360;

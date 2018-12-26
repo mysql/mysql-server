@@ -1,0 +1,52 @@
+CREATE TABLE t1 (t1_id int PRIMARY KEY, t1_val varchar(10));
+CREATE TABLE t2 (t2_id int PRIMARY KEY, t1_id int, t2_val int, INDEX (t1_id));
+CREATE TABLE `is` (t1_id int PRIMARY KEY, t1_val varchar(10));
+CREATE TABLE `ab``c` (t1_id int PRIMARY KEY, t1_val varchar(10));
+CREATE SQL SECURITY INVOKER VIEW myview AS SELECT * FROM t1 NATURAL JOIN t2;
+CALL sys.create_synonym_db('test', 'test1');
+summary
+Created 5 views in the `test1` database
+SELECT TABLE_NAME, SECURITY_TYPE FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'test1' ORDER BY TABLE_NAME;
+TABLE_NAME	SECURITY_TYPE
+ab`c	INVOKER
+is	INVOKER
+myview	INVOKER
+t1	INVOKER
+t2	INVOKER
+CALL sys.create_synonym_db('test', 'test1');
+ERROR HY000: Can't create database test1; database exists
+CREATE SCHEMA test2;
+CALL sys.create_synonym_db('test', 'test2');
+ERROR HY000: Can't create database test2; database exists
+SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'test2';
+COUNT(*)
+0
+CALL sys.create_synonym_db('test', 'is');
+summary
+Created 5 views in the `is` database
+SELECT TABLE_NAME, SECURITY_TYPE FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'is' ORDER BY TABLE_NAME;
+TABLE_NAME	SECURITY_TYPE
+ab`c	INVOKER
+is	INVOKER
+myview	INVOKER
+t1	INVOKER
+t2	INVOKER
+CALL sys.create_synonym_db('is', 'i`s');
+summary
+Created 5 views in the `i``s` database
+SELECT TABLE_NAME, SECURITY_TYPE FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'i`s' ORDER BY TABLE_NAME;
+TABLE_NAME	SECURITY_TYPE
+ab`c	INVOKER
+is	INVOKER
+myview	INVOKER
+t1	INVOKER
+t2	INVOKER
+DROP SCHEMA test1;
+DROP SCHEMA test2;
+DROP SCHEMA `is`;
+DROP SCHEMA `i``s`;
+DROP VIEW test.myview;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE `is`;
+DROP TABLE `ab``c`;

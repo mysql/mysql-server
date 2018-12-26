@@ -1,0 +1,66 @@
+SET @save_session_debug= @@SESSION.debug;
+SET @@SESSION.debug = "+d,transaction_write_set_savepoint_level";
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t4 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TRIGGER t1_tr1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+SAVEPOINT S1;
+INSERT INTO t2 VALUES (NEW.c1);
+END|
+CREATE FUNCTION f1(x INT) RETURNS INT
+BEGIN
+INSERT INTO t2 VALUES (x);
+SAVEPOINT S1;
+INSERT INTO t1 VALUES (100);
+ROLLBACK TO S1;
+RETURN (1);
+END|
+BEGIN;
+SAVEPOINT S1;
+INSERT INTO t1 VALUES (1);
+ROLLBACK TO S1;
+SELECT f1(102);
+f1(102)
+1
+SET @@SESSION.debug = "+d,transaction_write_set_size_2";
+SELECT f1(101);
+f1(101)
+1
+COMMIT;
+SET @@SESSION.debug= @save_session_debug;
+CREATE TRIGGER t3_tr1 AFTER INSERT ON t3 FOR EACH ROW
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+ROLLBACK TO SAVEPOINT inside_trigger;
+INSERT INTO t4 VALUES (NEW.c1*20);
+END;
+SAVEPOINT inside_trigger;
+INSERT INTO t4 VALUES (NEW.c1);
+RELEASE SAVEPOINT inside_trigger;
+END|
+INSERT INTO t3 values (1);
+INSERT INTO t4 values (2);
+INSERT INTO t3 values (2);
+SELECT * FROM t1;
+SELECT * FROM t2;
+c1	101
+c1	102
+SELECT * FROM t3;
+c1	1
+c1	2
+SELECT * FROM t4;
+c1	1
+c1	2
+c1	40
+include/assert.inc ['There are no values in table t1']
+include/assert.inc ['There are 2 values in table t2']
+include/assert.inc ['There are 2 values in table t3']
+include/assert.inc ['There are 3 values in table t4']
+DROP FUNCTION f1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;

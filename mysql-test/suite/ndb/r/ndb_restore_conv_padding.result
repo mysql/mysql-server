@@ -1,0 +1,180 @@
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+************************************************************
+* Creating table with char+binary types
+************************************************************
+CREATE TABLE t3(
+c1 char(32),
+b1 binary(32)
+) CHARACTER SET latin1 ENGINE=NDB;
+INSERT INTO t3 VALUES('aaaaaaaa', 'bbbbbbbb');
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	32
+************************************************************
+* Backing up table with char+binary types
+************************************************************
+************************************************************
+* Restoring table with unchanged char+binary types (sanity check):
+*     char(32)           -->    char(32)
+*     binary(32)         -->    binary(32)
+************************************************************
+CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
+DELETE FROM t3;
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	32
+SELECT COUNT(*) FROM t3 NATURAL JOIN t3_myisam;
+COUNT(*)
+1
+DROP TABLE t3_myisam;
+************************************************************
+* Restoring table with promoted char+binary types preserving padding:
+*     char(32)           -->    varchar(32)
+*     binary(32)         -->    varbinary(32)
+************************************************************
+ALTER TABLE t3 MODIFY c1 varchar(32), MODIFY b1 varbinary(32);
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	32
+CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
+DELETE FROM t3;
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+32	32
+SELECT COUNT(*) FROM t3 NATURAL JOIN t3_myisam;
+COUNT(*)
+1
+DROP TABLE t3_myisam;
+************************************************************
+* Restoring table with promoted char+binary types preserving padding:
+*     char(32)           -->    varchar(64)
+*     binary(32)         -->    varbinary(64)
+************************************************************
+ALTER TABLE t3 MODIFY c1 varchar(64), MODIFY b1 varbinary(64);
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+32	32
+CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
+DELETE FROM t3;
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+32	32
+SELECT COUNT(*) FROM t3 NATURAL JOIN t3_myisam;
+COUNT(*)
+1
+DROP TABLE t3_myisam;
+************************************************************
+* Restoring table with promoted char+binary types preserving padding:
+*     char(32)           -->    varchar(512)
+*     binary(32)         -->    varbinary(512)
+************************************************************
+ALTER TABLE t3 MODIFY c1 varchar(512), MODIFY b1 varbinary(512);
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+32	32
+CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
+DELETE FROM t3;
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+32	32
+SELECT COUNT(*) FROM t3 NATURAL JOIN t3_myisam;
+COUNT(*)
+1
+DROP TABLE t3_myisam;
+************************************************************
+* Restoring table with demoted char+binary types preserving padding:
+*     char(32)           -->    varchar(16)
+*     binary(32)         -->    varbinary(16)
+************************************************************
+ALTER TABLE t3 MODIFY c1 varchar(16), MODIFY b1 varbinary(16);
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+16	16
+CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
+DELETE FROM t3;
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+16	16
+SELECT COUNT(*) FROM t3 NATURAL JOIN t3_myisam;
+COUNT(*)
+1
+DROP TABLE t3_myisam;
+************************************************************
+* Restoring table with promoted char+binary types discarding padding:
+*     char(32)           -->    varchar(32)
+*     binary(32)         -->    varbinary(32)
+************************************************************
+DELETE FROM t3;
+ALTER TABLE t3 MODIFY c1 varchar(32), MODIFY b1 varbinary(32);
+INSERT INTO t3 VALUES('aaaaaaaa', 'bbbbbbbb');
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	8
+CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
+DELETE FROM t3;
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	8
+SELECT COUNT(*) FROM t3 NATURAL JOIN t3_myisam;
+COUNT(*)
+1
+DROP TABLE t3_myisam;
+************************************************************
+* Restoring table with promoted char+binary types discarding padding:
+*     char(32)           -->    varchar(64)
+*     binary(32)         -->    varbinary(64)
+************************************************************
+ALTER TABLE t3 MODIFY c1 varchar(64), MODIFY b1 varbinary(64);
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	8
+CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
+DELETE FROM t3;
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	8
+SELECT COUNT(*) FROM t3 NATURAL JOIN t3_myisam;
+COUNT(*)
+1
+DROP TABLE t3_myisam;
+************************************************************
+* Restoring table with promoted char+binary types discarding padding:
+*     char(32)           -->    varchar(512)
+*     binary(32)         -->    varbinary(512)
+************************************************************
+ALTER TABLE t3 MODIFY c1 varchar(512), MODIFY b1 varbinary(512);
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	8
+CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
+DELETE FROM t3;
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	8
+SELECT COUNT(*) FROM t3 NATURAL JOIN t3_myisam;
+COUNT(*)
+1
+DROP TABLE t3_myisam;
+************************************************************
+* Restoring table with demoted char+binary types discarding padding:
+*     char(32)           -->    varchar(16)
+*     binary(32)         -->    varbinary(16)
+************************************************************
+ALTER TABLE t3 MODIFY c1 varchar(16), MODIFY b1 varbinary(16);
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	8
+CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
+DELETE FROM t3;
+SELECT length(c1), length(b1) FROM t3;
+length(c1)	length(b1)
+8	8
+SELECT COUNT(*) FROM t3 NATURAL JOIN t3_myisam;
+COUNT(*)
+1
+DROP TABLE t3_myisam;
+************************************************************
+* Deleting table with char+binary types
+************************************************************
+DROP TABLE t3;

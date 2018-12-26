@@ -1,0 +1,50 @@
+#
+# This file contains bootstrap test cases that do not
+# need to be run with a debug build. See also the 
+# test file 'dd_bootstrap_debug.test' for debug
+# test cases.
+#
+# Preparation: Shut server down.
+#
+# 1. Try restart after dropping the time_zone_transition_type table.
+# ------------------------------------------------------------------
+# 1.1 Create bootstrap file.
+# 1.2 First start the server with --initialize, and drop the time_zone_transition_type table.
+# 1.3 Restart the server against DDIR - should succeed.
+# 1.4 Shut server down.
+# 1.5 Look for warning.
+#     Time zone table warning found 1 times.
+# 1.6 Delete bootstrap file, log file and datadir.
+#
+# 2. Try restart after deleting the mysql dd tablespace file.
+# -----------------------------------------------------------
+# 2.1 First start the server with --initialize.
+# 2.2 Delete the physical tablespace file for mysql.ibd.
+# 2.3 Restart the server against DDIR - should fail.
+# 2.4 Look for error.
+#     DD initialization error found 1 times.
+# 2.5 Delete log file and datadir.
+#
+# 3. Try restart on a non-existing datadir.
+# -----------------------------------------
+# 3.1 Restart the server against non-existing DDIR - should fail.
+# 3.2 Look for error.
+#     Datadir error found 1 times.
+# 3.3 Delete log file but datadir does not need cleanup
+# since it is non-existent.
+#
+# 4. Try restart on an empty datadir (non-existing mysql dir).
+# ------------------------------------------------------------
+# 4.1 Restart the server against existing but empty DDIR - should fail.
+# 4.2 Look for error.
+#     DD initialization error found 1 times.
+# 4.3 Delete log file and datadir.
+#
+# 5. Try restart on an empty mysql dir.
+# -------------------------------------
+# 5.1 Restart the server against existing but empty mysql dir - should fail.
+# 5.2 Look for error.
+#     DD initialization error found 1 times.
+# 5.3 Delete log file and datadir.
+#
+# Cleanup: Restarting the server against default datadir.

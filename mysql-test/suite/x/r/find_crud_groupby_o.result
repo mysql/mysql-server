@@ -1,0 +1,945 @@
+==============================================
+CRUD FIND GROUP BY SCENARIOS
+==============================================
+
+================================================================================
+PREAMBLE
+================================================================================
+create user crudfindgroupuser@localhost identified by 'crudfindgroupuser';
+grant all on *.* to crudfindgroupuser@localhost;
+================================================================================
+TEST START
+================================================================================
+RUN DROP SCHEMA if EXISTS minisakila
+
+0 rows affected
+RUN CREATE SCHEMA minisakila
+
+1 rows affected
+RUN USE minisakila
+
+0 rows affected
+RUN CREATE TABLE actor (
+  actor_id smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  first_name varchar(45) NOT NULL,
+  age int,
+  last_update timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (actor_id)
+)
+
+0 rows affected
+RUN INSERT INTO actor VALUES
+(1,'actor1',20,'2006-02-15 04:34:33'),
+(2,'actor2',25,'2006-02-14 04:34:33'),
+(3,'actor3',28,'2006-02-14 04:34:33'),
+(4,'actor4',15,'2006-02-15 04:34:33'),
+(5,'actor5',32,'2006-02-16 04:34:33'),
+(6,'actor6',37,'2006-02-17 04:34:33'),
+(7,'actor7',null,'2006-02-18 04:34:33')
+
+7 rows affected
+last insert id: 7
+Records: 7  Duplicates: 0  Warnings: 0
+Table based scenarios
+Find specific row criteria and group by (grouping) 
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "first_name"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "actor7"
+          }
+        }
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+}
+
+last_update
+2006-02-15 04:34:33
+2006-02-14 04:34:33
+2006-02-16 04:34:33
+2006-02-17 04:34:33
+command ok
+Find specific row with criteria and group by (grouping) 
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+}
+
+last_update
+2006-02-15 04:34:33
+2006-02-14 04:34:33
+2006-02-16 04:34:33
+2006-02-17 04:34:33
+2006-02-18 04:34:33
+command ok
+Find specific row criteria and group by (grouping) and having (grouping_criteria) 
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "AVG"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Average Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "first_name"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "actor7"
+          }
+        }
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: "<"
+      param {
+        type: IDENT
+        identifier {
+          name: "Average Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_DOUBLE
+          v_double: 32
+        }
+      }
+    }
+  }
+}
+
+Average Age	last_update
+17.5000	2006-02-15 04:34:33
+26.5000	2006-02-14 04:34:33
+command ok
+Find specific row with COUNT, MAX and MIN functions with group by (grouping) 
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Age count"
+  }
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MAX"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Maximum_Age"
+  }
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MIN"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Minimum_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+}
+
+Age count	Maximum_Age	Minimum_Age	last_update
+2	20	15	2006-02-15 04:34:33
+2	28	25	2006-02-14 04:34:33
+1	32	32	2006-02-16 04:34:33
+1	37	37	2006-02-17 04:34:33
+0	null	null	2006-02-18 04:34:33
+command ok
+Find specific row with COUNT, MAX and MIN functions with group by (grouping) and Having (grouping_criteria)
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Age count"
+  }
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MAX"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Maximum_Age"
+  }
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MIN"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Minimum_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "Maximum_Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_UINT
+          v_unsigned_int: 32
+        }
+      }
+    }
+  }
+}
+
+Age count	Maximum_Age	Minimum_Age	last_update
+1	32	32	2006-02-16 04:34:33
+command ok
+Find specific row with group by (grouping) and Having (grouping_criteria) with != Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MIN"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Minimum_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "Minimum_Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 15
+        }
+      }
+    }
+  }
+}
+
+Minimum_Age	last_update
+25	2006-02-14 04:34:33
+32	2006-02-16 04:34:33
+37	2006-02-17 04:34:33
+command ok
+Find specific row with group by (grouping) and Having (grouping_criteria) with >= Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MIN"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Minimum_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: ">="
+      param {
+        type: IDENT
+        identifier {
+          name: "Minimum_Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 32
+        }
+      }
+    }
+  }
+}
+
+Minimum_Age	last_update
+32	2006-02-16 04:34:33
+37	2006-02-17 04:34:33
+command ok
+Find specific row with group by (grouping) and Having (grouping_criteria) with > Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MIN"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Minimum_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          name: "Minimum_Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 32
+        }
+      }
+    }
+  }
+}
+
+Minimum_Age	last_update
+37	2006-02-17 04:34:33
+command ok
+Find specific row with group by (grouping) and Having (grouping_criteria) with <= Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MIN"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Minimum_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: "<="
+      param {
+        type: IDENT
+        identifier {
+          name: "Minimum_Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 25
+        }
+      }
+    }
+  }
+}
+
+Minimum_Age	last_update
+15	2006-02-15 04:34:33
+25	2006-02-14 04:34:33
+command ok
+Find specific row with group by (grouping) and Having (grouping_criteria) with < Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MIN"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Minimum_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: "<"
+      param {
+        type: IDENT
+        identifier {
+          name: "Minimum_Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 25
+        }
+      }
+    }
+  }
+}
+
+Minimum_Age	last_update
+15	2006-02-15 04:34:33
+command ok
+Find specific row with group by (grouping) and Having (grouping_criteria) with null DataType
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MIN"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Minimum_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: "is"
+      param {
+        type: IDENT
+        identifier {
+          name: "Minimum_Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_NULL
+        }
+      }
+    }
+  }
+}
+
+Minimum_Age	last_update
+null	2006-02-18 04:34:33
+command ok
+Find specific row with group by (grouping) and Having (grouping_criteria) with not null DataType
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "MIN"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Minimum_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: "is_not"
+      param {
+        type: IDENT
+        identifier {
+          name: "Minimum_Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_NULL
+        }
+      }
+    }
+  }
+}
+
+Minimum_Age	last_update
+15	2006-02-15 04:34:33
+25	2006-02-14 04:34:33
+32	2006-02-16 04:34:33
+37	2006-02-17 04:34:33
+command ok
+Find specific row with group by (grouping) and Having (grouping_criteria) with double DataType
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "AVG"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "age"
+          }
+        }
+      }
+    }
+    alias: "Average_Age"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "last_update"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "Average_Age"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_DOUBLE
+          v_double: 17.5
+        }
+      }
+    }
+  }
+}
+
+Average_Age	last_update
+17.5000	2006-02-15 04:34:33
+command ok
+Error because expression not in group list
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "first_name"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "Omar"
+          }
+        }
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      name: "last_update"
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 1055
+  msg: "Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column \'minisakila.actor.actor_id\' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by"
+  sql_state: "42000"
+}
+
+================================================================================
+CLEAN UP
+================================================================================
+RUN DROP SCHEMA IF EXISTS minisakila
+
+1 rows affected
+RUN DROP SCHEMA IF EXISTS mysqlxcoll
+
+0 rows affected
+RUN DROP USER crudfindgroupuser@localhost
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

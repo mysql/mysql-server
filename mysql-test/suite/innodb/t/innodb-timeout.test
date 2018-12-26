@@ -1,0 +1,116 @@
+
+let $initial_timeout=`select @@innodb_lock_wait_timeout`;
+set global innodb_lock_wait_timeout=42;
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+connection a;
+select @@innodb_lock_wait_timeout;
+set innodb_lock_wait_timeout=1;
+select @@innodb_lock_wait_timeout;
+
+connection b;
+let $connection_b_id=`SELECT CONNECTION_ID()`;
+select @@innodb_lock_wait_timeout;
+set global innodb_lock_wait_timeout=347;
+select @@innodb_lock_wait_timeout;
+set innodb_lock_wait_timeout=10;
+select @@innodb_lock_wait_timeout;
+
+connect (c,localhost,root,,);
+connection c;
+
+select @@innodb_lock_wait_timeout;
+
+disconnect c;
+--source include/wait_until_disconnected.inc
+
+connection a;
+--replace_result $connection_b_id <connection_b_id>
+eval SET @connection_b_id = $connection_b_id;
+create table t1(a int primary key)engine=innodb;
+begin;
+insert into t1 values(1),(2),(3);
+
+connection b;
+--send
+select * from t1 for update;
+
+# Observation on information_schema.processlist (2010-12 mysql-5.5)
+# -----------------------------------------------------------------
+# As soon as the server started the execution of the
+#   connection a: --send   select ... for update
+#   High parallel load could delay this up to two seconds.
+# and before either
+# - the innodb_lock_wait_timeout was exceeded
+#   -> connection b reap gets ER_LOCK_WAIT_TIMEOUT
+# or
+# - connection a commits, the lock disappears and the statement
+#   of connection b finishes
+#   -> connection b reap gets success + result set
+# we see within information_schema.processlist for connection b a row
+#    command  state        info
+#    Query    Sending data select * from t1 for update
+# The highest time value seen was @@innodb_lock_wait_timeout + 1.
+# Please note that there is unfortunately nothing which says
+# that we are just waiting for a lock.
+
+connection a;
+# In order to ensure that the execution of
+#    connection b: select * from t1 for update
+# has really started and is most probably waiting for the lock now we poll on
+# information_schema.processlist.
+# Also our current session innodb_lock_wait_timeout of 10 seconds should big
+# enough to prevent that connection b ends up with getting ER_LOCK_WAIT_TIMEOUT.
+#
+let $wait_timeout= 10;
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @connection_b_id AND INFO = 'select * from t1 for update';
+--source include/wait_condition.inc
+commit;
+
+connection b;
+reap;
+
+connection a;
+begin;
+insert into t1 values(4);
+
+connection b;
+set innodb_lock_wait_timeout=3;
+# 3 seconds should be big enough that the wait routine of connection a will
+# hit the time span where our next statement is visible within the
+# information_schema.processlist.
+--send
+select * from t1 for update;
+
+connection a;
+# Wait till the execution of the connection b statement was started.
+let $wait_timeout= 10;
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @connection_b_id AND INFO = 'select * from t1 for update';
+--source include/wait_condition.inc
+# Wait till the execution of the connection b statement has ended.
+let $wait_timeout= 10;
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @connection_b_id AND INFO IS NULL;
+--source include/wait_condition.inc
+# Give "commit" though this must be too late for the statement of connection b.
+commit;
+
+connection b;
+--error ER_LOCK_WAIT_TIMEOUT
+reap;
+
+disconnect b;
+--source include/wait_until_disconnected.inc
+
+connection a;
+disconnect a;
+--source include/wait_until_disconnected.inc
+
+connection default;
+drop table t1;
+--replace_result $initial_timeout <initial_timeout>
+eval set global innodb_lock_wait_timeout=$initial_timeout;

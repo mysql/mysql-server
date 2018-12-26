@@ -1,0 +1,89 @@
+
+--disable_warnings
+drop database if exists events_test;
+--enable_warnings
+create database if not exists events_test;
+use events_test;
+--echo
+--echo We use procedure here because its statements won't be
+--echo logged into the general log. If we had used normal select
+--echo that are logged in different ways depending on whether the
+--echo test suite is run in normal mode or with --ps-protocol
+--echo
+delimiter |;
+create procedure select_general_log()
+begin
+  select user_host, argument from mysql.general_log
+  where argument like '%events_logs_test%';
+end|
+delimiter ;|
+--echo
+--echo Check that general query log works, but sub-statements
+--echo of the stored procedure do not leave traces in it.
+--echo
+truncate mysql.general_log;
+# Logging format in ps protocol is slightly different
+--disable_ps_protocol
+select 'events_logs_tests' as outside_event;
+--enable_ps_protocol
+--replace_column 1 USER_HOST
+call select_general_log();
+--echo  
+--echo Check that unlike sub-statements of stored procedures,
+--echo sub-statements of events are present in the general log.
+--echo 
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
+truncate mysql.general_log;
+create event ev_log_general on schedule at now() on completion not preserve do select 'events_logs_test' as inside_event;
+--let $wait_condition=select count(*)=0 from information_schema.events where event_name='ev_log_general'
+--source include/wait_condition.inc
+--replace_column 1 USER_HOST
+call select_general_log();
+
+--echo
+--echo Check slow query log
+--echo
+--echo Ensure that slow logging is on
+show variables like 'slow_query_log';
+--echo 
+--echo Demonstrate that session value has no effect
+--echo
+set @@session.long_query_time=1;
+set @@global.long_query_time=300;
+truncate mysql.slow_log;
+create event ev_log_general on schedule at now() on completion not preserve
+  do select 'events_logs_test' as inside_event, sleep(1.5);
+--let $wait_condition=select count(*)=0 from information_schema.events where event_name='ev_log_general'
+--source include/wait_condition.inc
+--echo
+--echo Nothing should be logged
+--echo
+--replace_column 1 USER_HOST
+select user_host, db, sql_text from mysql.slow_log
+  where sql_text like 'select \'events_logs_test\'%';
+set @@global.long_query_time=1;
+truncate mysql.slow_log;
+create event ev_log_general on schedule at now() on completion not preserve
+  do select 'events_logs_test' as inside_event, sleep(1.5);
+--let $wait_condition=select count(*)=0 from information_schema.events where event_name='ev_log_general'
+--source include/wait_condition.inc
+--echo
+--echo Event sub-statement should be logged.
+--echo 
+--replace_column 1 USER_HOST
+select user_host, db, sql_text from mysql.slow_log
+  where sql_text like 'select \'events_logs_test\'%';
+
+drop database events_test;
+set @@global.long_query_time=default;
+set @@session.long_query_time=default;
+
+#
+# Safety
+#
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where db='events_test' and command = 'Connect' and user=current_user();
+--source include/wait_condition.inc

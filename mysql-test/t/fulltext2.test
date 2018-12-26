@@ -1,0 +1,240 @@
+# This tests the functionality of the fulltext search of Myisam engine
+# The implementation of the fulltext search is different in InnoDB engine
+# All tests are required to run with Myisam.
+# Hence MTR starts mysqld with MyISAM as default
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+#
+# test of new fulltext search features
+#
+
+#
+# two-level tree
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+  i int(10) unsigned not null auto_increment primary key,
+  a varchar(255) not null,
+  FULLTEXT KEY (a)
+) ENGINE=MyISAM;
+
+# two-level entry, second-level tree with depth 2
+--disable_query_log
+let $1=260;
+while ($1)
+{
+  eval insert t1 (a) values ('aaaxxx');
+  dec $1;
+}
+
+# two-level entry, second-level tree has only one page
+let $1=255;
+while ($1)
+{
+  eval insert t1 (a) values ('aaazzz');
+  dec $1;
+}
+
+# one-level entry (entries)
+let $1=250;
+while ($1)
+{
+  eval insert t1 (a) values ('aaayyy');
+  dec $1;
+}
+--enable_query_log
+
+# converting to two-level
+repair table t1 quick;
+check table t1;
+optimize table t1; # BUG#5327 - mi_sort_index() of 2-level tree
+check table t1;
+
+select count(*) from t1 where match a against ('aaaxxx');
+select count(*) from t1 where match a against ('aaayyy');
+select count(*) from t1 where match a against ('aaazzz');
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+select count(*) from t1 where match a against ('aaayyy' in boolean mode);
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+select count(*) from t1 where match a against ('aaaxxx aaayyy aaazzz');
+select count(*) from t1 where match a against ('aaaxxx aaayyy aaazzz' in boolean mode);
+
+select count(*) from t1 where match a against ('aaax*' in boolean mode);
+select count(*) from t1 where match a against ('aaay*' in boolean mode);
+select count(*) from t1 where match a against ('aaa*' in boolean mode);
+
+# mi_write:
+
+insert t1 (a) values ('aaaxxx'),('aaayyy');
+# call to enlarge_root() below
+insert t1 (a) values ('aaazzz'),('aaazzz'),('aaazzz'),('aaazzz'),('aaazzz');
+select count(*) from t1 where match a against ('aaaxxx');
+select count(*) from t1 where match a against ('aaayyy');
+select count(*) from t1 where match a against ('aaazzz');
+
+# mi_delete
+insert t1 (a) values ('aaaxxx 000000');
+select count(*) from t1 where match a against ('000000');
+delete from t1 where match a against ('000000');
+select count(*) from t1 where match a against ('000000');
+select count(*) from t1 where match a against ('aaaxxx');
+delete from t1 where match a against ('aaazzz');
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+select count(*) from t1 where match a against ('aaayyy' in boolean mode);
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+# double-check without index
+select count(*) from t1 where a = 'aaaxxx';
+select count(*) from t1 where a = 'aaayyy';
+select count(*) from t1 where a = 'aaazzz';
+
+# update
+insert t1 (a) values ('aaaxxx 000000');
+select count(*) from t1 where match a against ('000000');
+update t1 set a='aaazzz' where match a against ('000000');
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+update t1 set a='aaazzz' where a = 'aaaxxx';
+update t1 set a='aaaxxx' where a = 'aaayyy';
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+select count(*) from t1 where match a against ('aaayyy' in boolean mode);
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+
+drop table t1;
+
+CREATE TABLE t1 (
+  i int(10) unsigned not null auto_increment primary key,
+  a varchar(255) not null,
+  FULLTEXT KEY (a)
+) ENGINE=MyISAM;
+
+#
+# now same as about but w/o repair table
+# 2-level tree created by mi_write
+#
+
+# two-level entry, second-level tree with depth 2
+--disable_query_log
+let $1=260;
+while ($1)
+{
+  eval insert t1 (a) values ('aaaxxx');
+  dec $1;
+}
+let $1=255;
+while ($1)
+{
+  eval insert t1 (a) values ('aaazzz');
+  dec $1;
+}
+let $1=250;
+while ($1)
+{
+  eval insert t1 (a) values ('aaayyy');
+  dec $1;
+}
+--enable_query_log
+
+select count(*) from t1 where match a against ('aaaxxx');
+select count(*) from t1 where match a against ('aaayyy');
+select count(*) from t1 where match a against ('aaazzz');
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+select count(*) from t1 where match a against ('aaayyy' in boolean mode);
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+select count(*) from t1 where match a against ('aaaxxx aaayyy aaazzz');
+select count(*) from t1 where match a against ('aaaxxx aaayyy aaazzz' in boolean mode);
+
+select count(*) from t1 where match a against ('aaax*' in boolean mode);
+select count(*) from t1 where match a against ('aaay*' in boolean mode);
+select count(*) from t1 where match a against ('aaa*' in boolean mode);
+
+# mi_write:
+
+insert t1 (a) values ('aaaxxx'),('aaayyy');
+insert t1 (a) values ('aaazzz'),('aaazzz'),('aaazzz'),('aaazzz'),('aaazzz');
+select count(*) from t1 where match a against ('aaaxxx');
+select count(*) from t1 where match a against ('aaayyy');
+select count(*) from t1 where match a against ('aaazzz');
+
+# mi_delete
+insert t1 (a) values ('aaaxxx 000000');
+select count(*) from t1 where match a against ('000000');
+delete from t1 where match a against ('000000');
+select count(*) from t1 where match a against ('000000');
+select count(*) from t1 where match a against ('aaaxxx');
+delete from t1 where match a against ('aaazzz');
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+select count(*) from t1 where match a against ('aaayyy' in boolean mode);
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+# double-check without index
+select count(*) from t1 where a = 'aaaxxx';
+select count(*) from t1 where a = 'aaayyy';
+select count(*) from t1 where a = 'aaazzz';
+
+# update
+insert t1 (a) values ('aaaxxx 000000');
+select count(*) from t1 where match a against ('000000');
+update t1 set a='aaazzz' where match a against ('000000');
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+update t1 set a='aaazzz' where a = 'aaaxxx';
+update t1 set a='aaaxxx' where a = 'aaayyy';
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+select count(*) from t1 where match a against ('aaayyy' in boolean mode);
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+drop table t1;
+
+#
+# BUG#11336
+#
+# for uca collation isalnum and strnncollsp don't agree on whether
+# 0xC2A0 is a space (strnncollsp is right, isalnum is wrong).
+#
+# they still don't, the bug was fixed by avoiding strnncollsp
+#
+
+set names utf8;
+create table t1(a text,fulltext(a)) collate=utf8_swedish_ci;
+insert into t1 values('test test '),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test');
+delete from t1 limit 1;
+
+#
+# BUG#16489: utf8 + fulltext leads to corrupt index file.
+#
+truncate table t1;
+insert into t1 values('ab c d');
+update t1 set a='ab c d';
+select * from t1 where match a against('ab c' in boolean mode);
+drop table t1;
+set names latin1;
+
+# End of 4.1 tests
+
+#
+# BUG#19580 - FULLTEXT search produces wrong results on UTF-8 columns
+#
+SET NAMES utf8;
+CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES('„MySQL“');
+SELECT a FROM t1 WHERE MATCH a AGAINST('“MySQL„' IN BOOLEAN MODE);
+DROP TABLE t1;
+SET NAMES latin1;

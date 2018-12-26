@@ -1,0 +1,94 @@
+SET @start_value = @@global.general_log;
+SELECT @start_value;
+@start_value
+1
+'#---------------------FN_DYNVARS_004_01-------------------------#'
+SET @@global.general_log = DEFAULT;
+SELECT @@global.general_log = 0;
+@@global.general_log = 0
+1
+'#--------------------FN_DYNVARS_004_02------------------------#'
+SET @@global.general_log = ON;
+SELECT @@global.general_log;
+@@global.general_log
+1
+SET @@global.general_log = OFF;
+SELECT @@global.general_log;
+@@global.general_log
+0
+'#--------------------FN_DYNVARS_004_03-------------------------#'
+SET @@global.general_log = 2;
+ERROR 42000: Variable 'general_log' can't be set to the value of '2'
+SET @@global.general_log = -1;
+ERROR 42000: Variable 'general_log' can't be set to the value of '-1'
+SET @@global.general_log = TRUEF;
+ERROR 42000: Variable 'general_log' can't be set to the value of 'TRUEF'
+SET @@global.general_log = TRUE_F;
+ERROR 42000: Variable 'general_log' can't be set to the value of 'TRUE_F'
+SET @@global.general_log = FALSE0;
+ERROR 42000: Variable 'general_log' can't be set to the value of 'FALSE0'
+SET @@global.general_log = OON;
+ERROR 42000: Variable 'general_log' can't be set to the value of 'OON'
+SET @@global.general_log = ONN;
+ERROR 42000: Variable 'general_log' can't be set to the value of 'ONN'
+SET @@global.general_log = OOFF;
+ERROR 42000: Variable 'general_log' can't be set to the value of 'OOFF'
+SET @@global.general_log = 0FF;
+ERROR 42000: Variable 'general_log' can't be set to the value of '0FF'
+SET @@global.general_log = ' ';
+ERROR 42000: Variable 'general_log' can't be set to the value of ' '
+SET @@global.general_log = " ";
+ERROR 42000: Variable 'general_log' can't be set to the value of ' '
+SET @@global.general_log = '';
+ERROR 42000: Variable 'general_log' can't be set to the value of ''
+'#-------------------FN_DYNVARS_004_04----------------------------#'
+SET @@session.general_log = OFF;
+ERROR HY000: Variable 'general_log' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.general_log;
+ERROR HY000: Variable 'general_log' is a GLOBAL variable
+'#----------------------FN_DYNVARS_004_05------------------------#'
+SELECT IF(@@global.general_log, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='general_log';
+IF(@@global.general_log, "ON", "OFF") = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_004_06----------------------#'
+SET @@global.general_log = 0;
+SELECT @@global.general_log;
+@@global.general_log
+0
+SET @@global.general_log = 1;
+SELECT @@global.general_log;
+@@global.general_log
+1
+'#---------------------FN_DYNVARS_004_07----------------------#'
+SET @@global.general_log = TRUE;
+SELECT @@global.general_log;
+@@global.general_log
+1
+SET @@global.general_log = FALSE;
+SELECT @@global.general_log;
+@@global.general_log
+0
+'#---------------------FN_DYNVARS_004_08----------------------#'
+SET @@global.general_log = ON;
+SELECT @@general_log = @@global.general_log;
+@@general_log = @@global.general_log
+1
+'#---------------------FN_DYNVARS_004_09----------------------#'
+SET general_log = ON;
+ERROR HY000: Variable 'general_log' is a GLOBAL variable and should be set with SET GLOBAL
+SET local.general_log = OFF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.general_log = OFF' at line 1
+SELECT local.general_log;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.general_log = ON;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.general_log = ON' at line 1
+SELECT global.general_log;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT general_log = @@session.general_log;
+ERROR 42S22: Unknown column 'general_log' in 'field list'
+SET @@global.general_log = @start_value;
+SELECT @@global.general_log;
+@@global.general_log
+1

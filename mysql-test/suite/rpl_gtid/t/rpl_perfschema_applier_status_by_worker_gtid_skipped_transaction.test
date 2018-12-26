@@ -1,0 +1,29 @@
+#
+# ==== Purpose ====
+#
+# This test asserts that the table performance_schema.replication_applier_status_by_worker
+# does not display information about a GTID-skipped transaction.
+#
+# ==== Implementation ====
+#
+# The test starts by replicating some transactions on the slave.
+# Then, it forces the slave to skip a transaction originated in the master.
+# Finally, it checks that the skippped transaction information is not present
+# in table performance_schema.replication_applier_status_by_worker.
+#
+# ==== References ====
+#
+# WL#7374 Performance schema tables to monitor replication lags and queue
+
+# there is a specific test for mts
+--source include/not_mts_slave_parallel_workers.inc
+# the test is binlog-format agnostic
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+--let $is_mts= 0
+
+--source extra/rpl_tests/rpl_check_ps_applier_status_by_worker_gtid_skipped_transaction.inc
+
+--source include/rpl_end.inc

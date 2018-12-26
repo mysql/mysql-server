@@ -1,0 +1,33 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+select * from performance_schema.global_variables where variable_name like 'report_host';
+VARIABLE_NAME	VARIABLE_VALUE
+report_host	127.0.0.1
+select * from performance_schema.global_variables where variable_name like 'report_port';
+VARIABLE_NAME	VARIABLE_VALUE
+report_port	9308
+select * from performance_schema.global_variables where variable_name like 'report_user';
+VARIABLE_NAME	VARIABLE_VALUE
+report_user	my_user
+select * from performance_schema.global_variables where variable_name like 'report_password';
+VARIABLE_NAME	VARIABLE_VALUE
+report_password	my_password
+show global variables like 'report_host';
+Variable_name	report_host
+Value	127.0.0.1
+show global variables like 'report_port';
+Variable_name	report_port
+Value	9308
+show global variables like 'report_user';
+Variable_name	report_user
+Value	my_user
+show global variables like 'report_password';
+Variable_name	report_password
+Value	my_password
+set @@global.report_host='my.new.address.net';
+ERROR HY000: Variable 'report_host' is a read only variable
+end of tests
+include/rpl_end.inc

@@ -1,0 +1,76 @@
+###############################################################################
+#                                                                             #
+# File containing basic tests for offline mode variable                       #
+#                                                                             #
+###############################################################################
+
+
+--echo #
+--echo # Variable name : offline_mode
+--echo # Scope         : Global
+--echo #
+
+--echo # Global - default
+SELECT @@global.offline_mode;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.offline_mode;
+--echo
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.offline_mode= 'true';
+--echo
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.offline_mode= 100;
+--echo
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.offline_mode= WRONGVALUE;
+--echo
+
+--echo # via performance_schema.global_variables
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'offline_mode';
+--enable_warnings
+
+# Save the global value to be used to restore the original value.
+SET @global_saved_tmp =  @@global.offline_mode;
+--echo
+
+--echo # Altering global variable's value
+SET @@global.offline_mode = 0;
+SELECT @@global.offline_mode;
+
+SET @@global.offline_mode = TrUe;
+SELECT @@global.offline_mode;
+
+SET @@global.offline_mode = FaLsE;
+SELECT @@global.offline_mode;
+--echo
+
+--echo # Variables' values in a new session.
+connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+
+--echo # Global - expect 0
+SELECT @@global.offline_mode;
+--echo
+
+--echo # Switching to the default connection.
+connection default;
+
+SELECT @@global.offline_mode;
+--echo
+
+--echo # Test if DEFAULT is working as expected.
+SET @@global.offline_mode = DEFAULT;
+--echo
+
+--echo # Global - expect 0
+SELECT @@global.offline_mode;
+--echo
+
+--echo # Restoring the original values.
+SET @@global.offline_mode = @global_saved_tmp;
+
+--echo # End of tests.
+

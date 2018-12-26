@@ -1,0 +1,175 @@
+drop table if exists `ÇsÇP`;
+drop table if exists `ÇsÇQ`;
+drop table if exists `ÇsÇR`;
+drop table if exists `ÇsÇS`;
+drop table if exists `ÇsÇT`;
+drop table if exists `ÇsÇU`;
+drop table if exists `ÇsÇV`;
+drop table if exists `ÇsÇW`;
+drop table if exists `ÇsÇX`;
+SET NAMES sjis;
+SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `ÇsÇP` (`ÇbÇP` char(5)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇQ` (`ÇbÇP` char(5)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇR` (`ÇbÇP` char(5)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇS` (`ÇbÇP` char(5)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇT` (`ÇbÇP` char(5)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇU` (`ÇbÇP` char(5)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(5)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(5)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(5)) DEFAULT CHARSET = sjis engine = MEMORY;
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\');
+SELECT REPLACE(`ÇbÇP`,'±','±±') FROM `ÇsÇP`;
+REPLACE(`ÇbÇP`,'±','±±')
+±±≤≥¥µ
+SELECT REPLACE(`ÇbÇP`,'≤','≤≤') FROM `ÇsÇP`;
+REPLACE(`ÇbÇP`,'≤','≤≤')
+±≤≤≥¥µ
+SELECT REPLACE(`ÇbÇP`,'≥','≥≥') FROM `ÇsÇP`;
+REPLACE(`ÇbÇP`,'≥','≥≥')
+±≤≥≥¥µ
+SELECT REPLACE(`ÇbÇP`,'¥','¥¥') FROM `ÇsÇP`;
+REPLACE(`ÇbÇP`,'¥','¥¥')
+±≤≥¥¥µ
+SELECT REPLACE(`ÇbÇP`,'µ','µµ') FROM `ÇsÇP`;
+REPLACE(`ÇbÇP`,'µ','µµ')
+±≤≥¥µµ
+SELECT REPLACE(`ÇbÇP`,'Ç†','Ç†Ç†') FROM `ÇsÇQ`;
+REPLACE(`ÇbÇP`,'Ç†','Ç†Ç†')
+Ç†Ç†Ç¢Ç§Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç¢','Ç¢Ç¢') FROM `ÇsÇQ`;
+REPLACE(`ÇbÇP`,'Ç¢','Ç¢Ç¢')
+Ç†Ç¢Ç¢Ç§Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç§','Ç§Ç§') FROM `ÇsÇQ`;
+REPLACE(`ÇbÇP`,'Ç§','Ç§Ç§')
+Ç†Ç¢Ç§Ç§Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç¶','Ç¶Ç¶') FROM `ÇsÇQ`;
+REPLACE(`ÇbÇP`,'Ç¶','Ç¶Ç¶')
+Ç†Ç¢Ç§Ç¶Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç®','Ç®Ç®') FROM `ÇsÇQ`;
+REPLACE(`ÇbÇP`,'Ç®','Ç®Ç®')
+Ç†Ç¢Ç§Ç¶Ç®Ç®
+SELECT REPLACE(`ÇbÇP`,'É\','É\É\') FROM `ÇsÇR`;
+REPLACE(`ÇbÇP`,'É\','É\É\')
+É\É\è\ï\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'è\','è\è\') FROM `ÇsÇR`;
+REPLACE(`ÇbÇP`,'è\','è\è\')
+É\è\è\ï\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'ï\','ï\ï\') FROM `ÇsÇR`;
+REPLACE(`ÇbÇP`,'ï\','ï\ï\')
+É\è\ï\ï\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'ó\','ó\ó\') FROM `ÇsÇR`;
+REPLACE(`ÇbÇP`,'ó\','ó\ó\')
+É\è\ï\ó\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'ç\','ç\ç\') FROM `ÇsÇR`;
+REPLACE(`ÇbÇP`,'ç\','ç\ç\')
+É\è\ï\ó\ç\ç\
+SELECT REPLACE(`ÇbÇP`,'±','±±') FROM `ÇsÇS`;
+REPLACE(`ÇbÇP`,'±','±±')
+±±≤≥¥µ
+SELECT REPLACE(`ÇbÇP`,'≤','≤≤') FROM `ÇsÇS`;
+REPLACE(`ÇbÇP`,'≤','≤≤')
+±≤≤≥¥µ
+SELECT REPLACE(`ÇbÇP`,'≥','≥≥') FROM `ÇsÇS`;
+REPLACE(`ÇbÇP`,'≥','≥≥')
+±≤≥≥¥µ
+SELECT REPLACE(`ÇbÇP`,'¥','¥¥') FROM `ÇsÇS`;
+REPLACE(`ÇbÇP`,'¥','¥¥')
+±≤≥¥¥µ
+SELECT REPLACE(`ÇbÇP`,'µ','µµ') FROM `ÇsÇS`;
+REPLACE(`ÇbÇP`,'µ','µµ')
+±≤≥¥µµ
+SELECT REPLACE(`ÇbÇP`,'Ç†','Ç†Ç†') FROM `ÇsÇT`;
+REPLACE(`ÇbÇP`,'Ç†','Ç†Ç†')
+Ç†Ç†Ç¢Ç§Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç¢','Ç¢Ç¢') FROM `ÇsÇT`;
+REPLACE(`ÇbÇP`,'Ç¢','Ç¢Ç¢')
+Ç†Ç¢Ç¢Ç§Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç§','Ç§Ç§') FROM `ÇsÇT`;
+REPLACE(`ÇbÇP`,'Ç§','Ç§Ç§')
+Ç†Ç¢Ç§Ç§Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç¶','Ç¶Ç¶') FROM `ÇsÇT`;
+REPLACE(`ÇbÇP`,'Ç¶','Ç¶Ç¶')
+Ç†Ç¢Ç§Ç¶Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç®','Ç®Ç®') FROM `ÇsÇT`;
+REPLACE(`ÇbÇP`,'Ç®','Ç®Ç®')
+Ç†Ç¢Ç§Ç¶Ç®Ç®
+SELECT REPLACE(`ÇbÇP`,'É\','É\É\') FROM `ÇsÇU`;
+REPLACE(`ÇbÇP`,'É\','É\É\')
+É\É\è\ï\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'è\','è\è\') FROM `ÇsÇU`;
+REPLACE(`ÇbÇP`,'è\','è\è\')
+É\è\è\ï\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'ï\','ï\ï\') FROM `ÇsÇU`;
+REPLACE(`ÇbÇP`,'ï\','ï\ï\')
+É\è\ï\ï\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'ó\','ó\ó\') FROM `ÇsÇU`;
+REPLACE(`ÇbÇP`,'ó\','ó\ó\')
+É\è\ï\ó\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'ç\','ç\ç\') FROM `ÇsÇU`;
+REPLACE(`ÇbÇP`,'ç\','ç\ç\')
+É\è\ï\ó\ç\ç\
+SELECT REPLACE(`ÇbÇP`,'±','±±') FROM `ÇsÇV`;
+REPLACE(`ÇbÇP`,'±','±±')
+±±≤≥¥µ
+SELECT REPLACE(`ÇbÇP`,'≤','≤≤') FROM `ÇsÇV`;
+REPLACE(`ÇbÇP`,'≤','≤≤')
+±≤≤≥¥µ
+SELECT REPLACE(`ÇbÇP`,'≥','≥≥') FROM `ÇsÇV`;
+REPLACE(`ÇbÇP`,'≥','≥≥')
+±≤≥≥¥µ
+SELECT REPLACE(`ÇbÇP`,'¥','¥¥') FROM `ÇsÇV`;
+REPLACE(`ÇbÇP`,'¥','¥¥')
+±≤≥¥¥µ
+SELECT REPLACE(`ÇbÇP`,'µ','µµ') FROM `ÇsÇV`;
+REPLACE(`ÇbÇP`,'µ','µµ')
+±≤≥¥µµ
+SELECT REPLACE(`ÇbÇP`,'Ç†','Ç†Ç†') FROM `ÇsÇW`;
+REPLACE(`ÇbÇP`,'Ç†','Ç†Ç†')
+Ç†Ç†Ç¢Ç§Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç¢','Ç¢Ç¢') FROM `ÇsÇW`;
+REPLACE(`ÇbÇP`,'Ç¢','Ç¢Ç¢')
+Ç†Ç¢Ç¢Ç§Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç§','Ç§Ç§') FROM `ÇsÇW`;
+REPLACE(`ÇbÇP`,'Ç§','Ç§Ç§')
+Ç†Ç¢Ç§Ç§Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç¶','Ç¶Ç¶') FROM `ÇsÇW`;
+REPLACE(`ÇbÇP`,'Ç¶','Ç¶Ç¶')
+Ç†Ç¢Ç§Ç¶Ç¶Ç®
+SELECT REPLACE(`ÇbÇP`,'Ç®','Ç®Ç®') FROM `ÇsÇW`;
+REPLACE(`ÇbÇP`,'Ç®','Ç®Ç®')
+Ç†Ç¢Ç§Ç¶Ç®Ç®
+SELECT REPLACE(`ÇbÇP`,'É\','É\É\') FROM `ÇsÇX`;
+REPLACE(`ÇbÇP`,'É\','É\É\')
+É\É\è\ï\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'è\','è\è\') FROM `ÇsÇX`;
+REPLACE(`ÇbÇP`,'è\','è\è\')
+É\è\è\ï\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'ï\','ï\ï\') FROM `ÇsÇX`;
+REPLACE(`ÇbÇP`,'ï\','ï\ï\')
+É\è\ï\ï\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'ó\','ó\ó\') FROM `ÇsÇX`;
+REPLACE(`ÇbÇP`,'ó\','ó\ó\')
+É\è\ï\ó\ó\ç\
+SELECT REPLACE(`ÇbÇP`,'ç\','ç\ç\') FROM `ÇsÇX`;
+REPLACE(`ÇbÇP`,'ç\','ç\ç\')
+É\è\ï\ó\ç\ç\
+DROP TABLE `ÇsÇP`;
+DROP TABLE `ÇsÇQ`;
+DROP TABLE `ÇsÇR`;
+DROP TABLE `ÇsÇS`;
+DROP TABLE `ÇsÇT`;
+DROP TABLE `ÇsÇU`;
+DROP TABLE `ÇsÇV`;
+DROP TABLE `ÇsÇW`;
+DROP TABLE `ÇsÇX`;

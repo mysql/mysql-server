@@ -1,0 +1,83 @@
+SET @@session.default_storage_engine = 'MyISAM';
+create table t1 (a int, 
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored,
+d char(1),
+index (a),
+index (c));
+insert into t1 (a,d) values (4,'a'), (2,'b'), (1,'c'), (3,'d');
+select * from t1;
+a	b	c	d
+4	-4	-4	a
+2	-2	-2	b
+1	-1	-1	c
+3	-3	-3	d
+# HANDLER tbl_name OPEN
+handler t1 open;
+# HANDLER tbl_name READ non-gcol_index_name > (value1,value2,...)
+handler t1 read a > (2);
+a	b	c	d
+3	-3	-3	d
+# HANDLER tbl_name READ non-gcol_index_name > (value1,value2,...) WHERE non-gcol_field=expr
+handler t1 read a > (2) where d='c';
+a	b	c	d
+# HANDLER tbl_name READ gcol_index_name = (value1,value2,...)
+handler t1 read c = (-2);
+a	b	c	d
+2	-2	-2	b
+# HANDLER tbl_name READ gcol_index_name = (value1,value2,...) WHERE non-gcol_field=expr
+handler t1 read c = (-2) where d='c';
+a	b	c	d
+# HANDLER tbl_name READ non-gcol_index_name > (value1,value2,...) WHERE gcol_field=expr
+handler t1 read a > (2) where b=-3 && c=-3;
+a	b	c	d
+3	-3	-3	d
+# HANDLER tbl_name READ gcol_index_name <= (value1,value2,...)
+handler t1 read c <= (-2);
+a	b	c	d
+2	-2	-2	b
+# HANDLER tbl_name READ gcol_index_name > (value1,value2,...) WHERE gcol_field=expr
+handler t1 read c <= (-2) where b=-3;
+a	b	c	d
+3	-3	-3	d
+# HANDLER tbl_name READ gcol_index_name FIRST
+handler t1 read c first;
+a	b	c	d
+4	-4	-4	a
+# HANDLER tbl_name READ gcol_index_name NEXT
+handler t1 read c next;
+a	b	c	d
+3	-3	-3	d
+# HANDLER tbl_name READ gcol_index_name PREV
+handler t1 read c prev;
+a	b	c	d
+4	-4	-4	a
+# HANDLER tbl_name READ gcol_index_name LAST
+handler t1 read c last;
+a	b	c	d
+1	-1	-1	c
+# HANDLER tbl_name READ FIRST where non-gcol=expr
+handler t1 read FIRST where a >= 2;
+a	b	c	d
+4	-4	-4	a
+# HANDLER tbl_name READ FIRST where gcol=expr
+handler t1 read FIRST where b >= -2;
+a	b	c	d
+2	-2	-2	b
+# HANDLER tbl_name READ NEXT where non-gcol=expr
+handler t1 read NEXT where d='c';
+a	b	c	d
+1	-1	-1	c
+# HANDLER tbl_name READ NEXT where gcol=expr
+handler t1 read NEXT where b<=-4;
+a	b	c	d
+# HANDLER tbl_name CLOSE
+handler t1 close;
+drop table t1;
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;

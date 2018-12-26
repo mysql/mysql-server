@@ -1,0 +1,176 @@
+SET @start_global_value = @@global.transaction_alloc_block_size;
+SELECT @start_global_value;
+@start_global_value
+8192
+SET @start_session_value = @@session.transaction_alloc_block_size;
+SELECT @start_session_value;
+@start_session_value
+8192
+'#--------------------FN_DYNVARS_005_01-------------------------#'
+SET @@global.transaction_alloc_block_size = 100;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '100'
+SET @@global.transaction_alloc_block_size = DEFAULT;
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+8192
+SET @@session.transaction_alloc_block_size = 200;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '200'
+SET @@session.transaction_alloc_block_size = DEFAULT;
+SELECT @@session.transaction_alloc_block_size;
+@@session.transaction_alloc_block_size
+8192
+'#--------------------FN_DYNVARS_005_02-------------------------#'
+SET @@global.transaction_alloc_block_size = DEFAULT;
+SELECT @@global.transaction_alloc_block_size = 8192;
+@@global.transaction_alloc_block_size = 8192
+1
+SET @@session.transaction_alloc_block_size = DEFAULT;
+SELECT @@session.transaction_alloc_block_size = 8192;
+@@session.transaction_alloc_block_size = 8192
+1
+'#--------------------FN_DYNVARS_005_03-------------------------#'
+SET @@global.transaction_alloc_block_size = 1024;
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+1024
+SET @@global.transaction_alloc_block_size = 60020;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '60020'
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+59392
+'#--------------------FN_DYNVARS_005_04-------------------------#'
+SET @@session.transaction_alloc_block_size = 1024;
+SELECT @@session.transaction_alloc_block_size;
+@@session.transaction_alloc_block_size
+1024
+SET @@session.transaction_alloc_block_size = 65535;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '65535'
+SELECT @@session.transaction_alloc_block_size;
+@@session.transaction_alloc_block_size
+64512
+'#------------------FN_DYNVARS_005_05-----------------------#'
+SET @@global.transaction_alloc_block_size = 0;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '0'
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+1024
+SET @@global.transaction_alloc_block_size = -1024;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '-1024'
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+1024
+SET @@global.transaction_alloc_block_size = 135217728;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '135217728'
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+131072
+SET @@global.transaction_alloc_block_size = ON;
+ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
+SET @@global.transaction_alloc_block_size = OFF;
+ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
+SET @@global.transaction_alloc_block_size = True;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '1'
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+1024
+SET @@global.transaction_alloc_block_size = False;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '0'
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+1024
+SET @@global.transaction_alloc_block_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
+SET @@global.transaction_alloc_block_size ="Test";
+ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
+SET @@global.transaction_alloc_block_size = 1000;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '1000'
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+1024
+SET @@session.transaction_alloc_block_size = 135217728;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '135217728'
+SELECT @@session.transaction_alloc_block_size;
+@@session.transaction_alloc_block_size
+131072
+SET @@session.transaction_alloc_block_size = ON;
+ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
+SET @@session.transaction_alloc_block_size = OFF;
+ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
+SET @@session.transaction_alloc_block_size = True;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '1'
+SELECT @@session.transaction_alloc_block_size;
+@@session.transaction_alloc_block_size
+1024
+SET @@session.transaction_alloc_block_size = False;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '0'
+SELECT @@session.transaction_alloc_block_size;
+@@session.transaction_alloc_block_size
+1024
+SET @@session.transaction_alloc_block_size = "Test";
+ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
+SET @@session.transaction_alloc_block_size = 'test';
+ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
+'#------------------FN_DYNVARS_005_06-----------------------#'
+SELECT @@global.transaction_alloc_block_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='transaction_alloc_block_size';
+@@global.transaction_alloc_block_size = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_005_07-----------------------#'
+SELECT @@session.transaction_alloc_block_size = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='transaction_alloc_block_size';
+@@session.transaction_alloc_block_size = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_001_08----------------------#'
+SET @@transaction_alloc_block_size = 1024;
+SET @@global.transaction_alloc_block_size = 134217728;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '134217728'
+SELECT @@transaction_alloc_block_size = @@global.transaction_alloc_block_size;
+@@transaction_alloc_block_size = @@global.transaction_alloc_block_size
+0
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@transaction_alloc_block_size = 100;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '100'
+SELECT @@transaction_alloc_block_size = @@local.transaction_alloc_block_size;
+@@transaction_alloc_block_size = @@local.transaction_alloc_block_size
+1
+SELECT @@local.transaction_alloc_block_size = @@session.transaction_alloc_block_size;
+@@local.transaction_alloc_block_size = @@session.transaction_alloc_block_size
+1
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET transaction_alloc_block_size = 1027;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '1027'
+SELECT @@transaction_alloc_block_size;
+@@transaction_alloc_block_size
+1024
+SELECT local.transaction_alloc_block_size;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.transaction_alloc_block_size;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT transaction_alloc_block_size = @@session.transaction_alloc_block_size;
+ERROR 42S22: Unknown column 'transaction_alloc_block_size' in 'field list'
+SET @@global.transaction_alloc_block_size = @start_global_value;
+SELECT @@global.transaction_alloc_block_size;
+@@global.transaction_alloc_block_size
+8192
+SET @@session.tmp_table_size = @start_session_value;
+SELECT @@session.transaction_alloc_block_size;
+@@session.transaction_alloc_block_size
+1024

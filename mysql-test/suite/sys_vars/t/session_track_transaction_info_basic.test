@@ -1,0 +1,74 @@
+#### mysql-test\suite\sys_vars\t\session_track_transaction_info_basic.test ####
+#                                                                             #
+# Variable Name: session_track_transaction_info                               #
+# Scope: Global & Session                                                     #
+# Data Type: enumeration                                                      #
+# Default: 0                                                                  #
+# Accepted Values: 0, 1, 2                                                    #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2015-01-01                                                   #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             session_track_transaction_info                                  #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+###############################################################################
+
+SELECT @@session.session_track_transaction_info INTO @old_track_tx;
+SELECT @@global.session_track_transaction_info  INTO @old_track_tx_gbl;
+
+SELECT @@global.session_track_transaction_info;
+SELECT @@session.session_track_transaction_info;
+
+SET SESSION session_track_transaction_info=0;
+SELECT @@session.session_track_transaction_info;
+
+SET SESSION session_track_transaction_info=1;
+SELECT @@session.session_track_transaction_info;
+
+SET SESSION session_track_transaction_info=2;
+SELECT @@session.session_track_transaction_info;
+
+SET SESSION session_track_transaction_info=DEFAULT;
+SELECT @@session.session_track_transaction_info;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION session_track_transaction_info=1.1;
+
+SET SESSION session_track_transaction_info='OFF';
+SELECT @@session.session_track_transaction_info;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION session_track_transaction_info='on';
+
+SET SESSION session_track_transaction_info='STATE';
+SELECT @@session.session_track_transaction_info;
+
+SET SESSION session_track_transaction_info='CHARACTERISTICS';
+SELECT @@session.session_track_transaction_info;
+
+# Like most system variables, and unlike transaction_isolation/
+# transaction_read_only, session_track_transaction_info has two
+# scopes, SESSION and GLOBAL, with the default being SESSION.
+
+SET SESSION session_track_transaction_info='OFF';
+SET GLOBAL  session_track_transaction_info='STATE';
+SET         session_track_transaction_info='CHARACTERISTICS';
+SELECT @@global.session_track_transaction_info;
+SELECT @@session.session_track_transaction_info;
+SELECT @@session_track_transaction_info;
+SET GLOBAL  session_track_transaction_info='OFF';
+SET         session_track_transaction_info='CHARACTERISTICS';
+SET SESSION session_track_transaction_info='STATE';
+SELECT @@global.session_track_transaction_info;
+SELECT @@session.session_track_transaction_info;
+SELECT @@session_track_transaction_info;
+
+# clean up
+
+SET SESSION session_track_transaction_info=@old_track_tx;
+SET GLOBAL  session_track_transaction_info=@old_track_tx_gbl;

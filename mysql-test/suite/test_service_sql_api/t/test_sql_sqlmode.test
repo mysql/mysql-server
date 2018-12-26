@@ -1,0 +1,58 @@
+SET @sql_mode_global = @@global.sql_mode;
+SET @sql_mode_session = @@session.sql_mode;
+
+CREATE TABLE t1(a varchar(20) not null, b varchar(20));
+CREATE TABLE t2(a varchar(20) null, b varchar(20));
+
+INSERT INTO t1 VALUES('t1a1','t1b1');
+INSERT INTO t1 VALUES('t1a2','t1b2');
+INSERT INTO t1 VALUES('t1a3','t1b3');
+INSERT INTO t1 VALUES('t1a4','t1b4');
+
+INSERT INTO t2 VALUES('t2a1','t2b1');
+INSERT INTO t2 VALUES('t2a2','t2b2');
+INSERT INTO t2 VALUES('t2a3','t2b3');
+INSERT INTO t2 VALUES('t2a4','t2b4');
+
+SET @@global.sql_mode = NO_UNSIGNED_SUBTRACTION;
+
+SELECT @@global.sql_mode;
+SELECT @@session.sql_mode;
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SQL_SQLMODE TEST_SQL_SQLMODE
+eval INSTALL PLUGIN test_sql_sqlmode SONAME '$TEST_SQL_SQLMODE';
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_sql_sqlmode;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_sqlmode.log;
+remove_file $MYSQLD_DATADIR/test_sql_sqlmode.log;
+
+SELECT @@global.sql_mode;
+SELECT @@session.sql_mode;
+
+SET @@session.sql_mode = @@global.sql_mode;
+SELECT @@session.sql_mode;
+
+--echo # SQL_MODE : NO_UNSIGNED_SUBTRACTION(Checking whether subtraction result is signed)
+SELECT CAST(0 AS UNSIGNED) - 1;
+
+--echo ##########################################
+--echo # Cleanup
+--echo ##########################################
+
+--echo # Dropping the created tables
+DROP TABLE t1;
+DROP TABLE t2;
+
+SET @@global.sql_mode = @sql_mode_global;
+SET @@session.sql_mode = @sql_mode_session;

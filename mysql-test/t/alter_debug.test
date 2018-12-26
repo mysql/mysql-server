@@ -1,0 +1,15 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # BUG#27899274 - [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `!IS_SET()' FAILED.
+--echo #
+--echo #
+
+CREATE TABLE test.t1(col INT);
+SET SESSION debug= "+d, enable_stack_overrun_post_alter_commit";
+# Suppress exact error message as it contains numbers which may not be identical
+# across platforms
+--error ER_STACK_OVERRUN_NEED_MORE,ER_STACK_OVERRUN_NEED_MORE
+ALTER TABLE test.t1 ADD COLUMN col1 CHAR;
+SET SESSION debug= "-d, enable_stack_overrun_post_alter_commit";
+DROP TABLE test.t1;

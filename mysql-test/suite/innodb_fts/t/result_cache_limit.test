@@ -1,0 +1,51 @@
+# This is a basic test for innodb fts result cache limit.
+
+
+# Must have debug code to use SET SESSION debug
+--source include/have_debug.inc
+
+# Create FTS table
+CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE= InnoDB;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...'),
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...'),
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+SET SESSION debug="+d,fts_instrument_result_cache_limit";
+
+# Simple term search
+SELECT COUNT(*) FROM t1 WHERE MATCH (a,b) AGAINST ('mysql' IN BOOLEAN MODE);
+
+# Query expansion
+# HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT = 188
+--error 188
+SELECT COUNT(*) FROM t1 WHERE MATCH (a,b) AGAINST ('mysql' WITH QUERY EXPANSION);
+
+# Simple phrase search
+--error 188
+SELECT COUNT(*) FROM t1 WHERE MATCH (a,b) AGAINST ('"mysql database"' IN BOOLEAN MODE);
+
+# Simple proximity search
+--error 188
+SELECT COUNT(*) FROM t1 WHERE MATCH (a,b) AGAINST ('"mysql database" @ 5' IN BOOLEAN MODE);
+
+SET SESSION debug="-d,fts_instrument_result_cache_limit";
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_ft_result_cache_limit=default;

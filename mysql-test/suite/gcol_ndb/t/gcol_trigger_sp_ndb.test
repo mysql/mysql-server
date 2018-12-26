@@ -1,0 +1,28 @@
+--source include/have_ndb.inc
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+--source suite/gcol/inc/gcol_init_vars.pre
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+--source suite/gcol_ndb/inc/mtr_conditionals.inc
+
+##### Storage engine to be tested
+# Set the session storage engine
+eval SET @@session.default_storage_engine = 'ndbcluster';
+
+
+##### Workarounds for known open engine specific bugs
+#     none
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/gcol/inc/gcol_trigger_sp.inc
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/gcol/inc/gcol_cleanup.inc

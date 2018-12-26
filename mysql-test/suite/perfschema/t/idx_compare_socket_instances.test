@@ -1,0 +1,38 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "socket_instances";
+
+--echo TABLE: $table
+--echo INDEXES: PK (OBJECT_INSTANCE_BEGIN), KEY (THREAD_ID), KEY (SOCKET_ID), KEY (IP), KEY (PORT)
+
+--source ../include/idx_compare_setup.inc
+
+--disable_query_log
+# Get object_instance_begin, socket_id, ip and port
+eval SELECT object_instance_begin, socket_id, ip, port
+  INTO @object_instance_begin, @target_id, @target_ip, @target_port
+  FROM performance_schema.socket_instances
+  WHERE event_name = 'wait/io/socket/sql/server_tcpip_socket';
+--enable_query_log
+
+--echo
+--echo ## Test OBJECT_INSTANCE_BEGIN
+let $key_group = 12;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test SOCKET_ID
+let $key_group = 14;
+let $id_column = SOCKET_ID;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test IP, PORT
+let $key_group = 16.1;
+let $target_ip = `SELECT @target_ip`;
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

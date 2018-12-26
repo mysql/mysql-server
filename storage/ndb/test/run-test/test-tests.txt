@@ -1,0 +1,44 @@
+max-time: 1000
+cmd: atrt-testBackup
+args: -n BackupBank T6 
+
+max-time : 300
+cmd: testDict
+args: -n FK_SRNR1 T1
+
+max-time : 300
+cmd: testDict
+args: -n FK_SRNR2 T1
+
+max-time: 1000
+cmd: testNdbApi
+args: -n Bug44065_org
+
+max-time: 300
+cmd: testNdbApi
+args: -n FragmentedApiFailure T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug34702 T1
+
+max-time: 2500
+cmd: testPartitioning
+args: --forceshortreqs
+
+max-time: 1000
+cmd: testSRBank
+args: -n SR -l 300 -r 15 T1
+
+max-time: 5000
+cmd: testNodeRestart
+args: -n GCP -l 1 T1
+
+max-time: 600
+cmd: test_event
+args: -r 5000 -n Bug30780 T1
+
+max-time: 600
+cmd: testRedo
+args: -n RestartFD -l 2 T1
+

@@ -1,0 +1,133 @@
+#
+# WL#1697: Multisource replication
+#
+# The aim of this test:
+# 1. To check that replicated FLUSH RELAY LOGS commands do not cause
+#    errors when we have replication chains of several servers and
+#    not all channels exist on all servers.
+#Skip on group replication runs
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_mixed.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
+--echo #
+--echo # Set up replication chain S1->S2->S3.
+--echo #
+--let $rpl_topology= 1->2->3
+--let $rpl_multi_source= 1
+--source include/rpl_init.inc
+
+
+--echo #
+--echo # Assert that server 2 does have channel_1 and doesn't have channel_2.
+--echo #
+--connection server_2
+--let $num= `select count(*) from performance_schema.replication_connection_configuration where channel_name="channel_1"`
+--let $assert_text= Server 2 does have a channel named "channel_1".
+--let $assert_cond= $num = 1;
+--source include/assert.inc
+
+--let $num= `select count(*) from performance_schema.replication_connection_configuration where channel_name="channel_2"`
+--let $assert_text= Server 2 doesn't have a channel named "channel_2".
+--let $assert_cond= $num = 0;
+--source include/assert.inc
+
+
+--echo #
+--echo # Flush relay logs for a nonexistent channel.
+--echo # A error will be returned.
+--echo #
+--error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
+
+
+--echo #
+--echo # Assert that server 3 doesn't have channel_1 and does have channel_2.
+--echo #
+--connection server_3
+--let $num= `select count(*) from performance_schema.replication_connection_configuration where channel_name="channel_1"`
+--let $assert_text= Server 3 doesn't have a channel named "channel_1".
+--let $assert_cond= $num = 0;
+--source include/assert.inc
+
+--let $num= `select count(*) from performance_schema.replication_connection_configuration where channel_name="channel_2"`
+--let $assert_text= Server 3 does have a channel named "channel_2".
+--let $assert_cond= $num = 1;
+--source include/assert.inc
+
+
+--echo #
+--echo # Flush all logs from server 2 and verify that we don't have
+--echo # errors on server 3.
+--echo #
+--connection server_2
+FLUSH LOGS;
+
+--connection server_1
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $num= `select count(*) from t1`
+--let $assert_text= Server 2 has one row on table t1.
+--let $assert_cond= $num = 1;
+--source include/assert.inc
+
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
+
+--let $num= `select count(*) from t1`
+--let $assert_text= Server 3 has one row on table t1.
+--let $assert_cond= $num = 1;
+--source include/assert.inc
+
+
+
+--echo #
+--echo # Flush channel_1 relay logs from server 2 and verify that we
+--echo # don't have errors on server 3 (where channel_2 does not exist),
+--echo # despite a warning being logged and replication is working.
+--echo #
+--connection server_3
+call mtr.add_suppression("Slave channel 'channel_1' does not exist.");
+
+--connection server_2
+FLUSH RELAY LOGS FOR CHANNEL 'channel_1';
+
+--connection server_1
+INSERT INTO t1 VALUES (2);
+
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $num= `select count(*) from t1`
+--let $assert_text= Server 2 has two rows on table t1.
+--let $assert_cond= $num = 2;
+--source include/assert.inc
+
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
+
+--let $num= `select count(*) from t1`
+--let $assert_text= Server 3 has two rows on table t1.
+--let $assert_cond= $num = 2;
+--source include/assert.inc
+
+
+--echo #
+--echo # Clean up.
+--echo #
+--connection server_1
+DROP TABLE t1;
+
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

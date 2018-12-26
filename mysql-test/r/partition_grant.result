@@ -1,0 +1,34 @@
+drop schema if exists mysqltest_1;
+create schema mysqltest_1;
+use mysqltest_1;
+create table t1 (a int) partition by list (a) (partition p1 values in (1), partition p2 values in (2), partition p3 values in (3));
+insert into t1 values (1),(2);
+create user mysqltest_1@localhost;
+revoke all privileges on *.* from mysqltest_1@localhost;
+grant select,alter on mysqltest_1.* to mysqltest_1@localhost;
+show grants for current_user;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT SELECT, ALTER ON `mysqltest_1`.* TO `mysqltest_1`@`localhost`
+alter table t1 add b int;
+alter table t1 drop partition p2;
+ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'
+grant drop on mysqltest_1.* to mysqltest_1@localhost;
+alter table t1 drop partition p2;
+revoke alter on mysqltest_1.* from mysqltest_1@localhost;
+alter table t1 drop partition p3;
+ERROR 42000: ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
+revoke select,alter,drop on mysqltest_1.* from mysqltest_1@localhost;
+drop table t1;
+create table t1 (s1 int);
+insert into t1 values (1);
+grant alter on mysqltest_1.* to mysqltest_1@localhost;
+alter table t1 partition by list (s1) (partition p1 values in (2));
+ERROR HY000: Table has no partition for some existing values
+grant select, alter on mysqltest_1.* to mysqltest_1@localhost;
+alter table t1 partition by list (s1) (partition p1 values in (2));
+ERROR HY000: Table has no partition for value 1
+drop table t1;
+drop user mysqltest_1@localhost;
+drop schema mysqltest_1;
+End of 5.1 tests

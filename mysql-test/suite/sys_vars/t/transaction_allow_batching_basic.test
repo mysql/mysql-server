@@ -1,0 +1,45 @@
+
+SET @start_global_value = @@session.transaction_allow_batching;
+SELECT @start_global_value as "Should be off by default";
+
+#
+# exists as session only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.transaction_allow_batching;
+select @@session.transaction_allow_batching;
+show global variables like 'transaction_allow_batching';
+show session variables like 'transaction_allow_batching';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='transaction_allow_batching';
+select * from performance_schema.session_variables where variable_name='transaction_allow_batching';
+--enable_warnings
+
+#
+# show that it is writable
+#
+--error ER_LOCAL_VARIABLE
+set global transaction_allow_batching = 1;
+set session transaction_allow_batching = TRUE;
+select @@session.transaction_allow_batching;
+
+#
+# incorrect assignments
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set transaction_allow_batching=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set transaction_allow_batching=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set transaction_allow_batching="foobar";
+
+
+#
+# restore original value
+#
+set session transaction_allow_batching = @start_global_value;
+select @@session.transaction_allow_batching;
+
+#
+# See ndb_sql_transaction_allow_batching.test for a comprehensive test case.
+#

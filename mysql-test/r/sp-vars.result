@@ -1,0 +1,1223 @@
+DROP PROCEDURE IF EXISTS sp_vars_check_dflt;
+DROP PROCEDURE IF EXISTS sp_vars_check_assignment;
+DROP FUNCTION IF EXISTS sp_vars_check_ret1;
+DROP FUNCTION IF EXISTS sp_vars_check_ret2;
+DROP FUNCTION IF EXISTS sp_vars_check_ret3;
+DROP FUNCTION IF EXISTS sp_vars_check_ret4;
+DROP FUNCTION IF EXISTS sp_vars_div_zero;
+SET @@sql_mode = 'ansi';
+CREATE PROCEDURE sp_vars_check_dflt()
+BEGIN
+DECLARE v1 TINYINT DEFAULT 1e200;
+DECLARE v1u TINYINT UNSIGNED DEFAULT 1e200;
+DECLARE v2 TINYINT DEFAULT -1e200;
+DECLARE v2u TINYINT UNSIGNED DEFAULT -1e200;
+DECLARE v3 TINYINT DEFAULT 300;
+DECLARE v3u TINYINT UNSIGNED DEFAULT 300;
+DECLARE v4 TINYINT DEFAULT -300;
+DECLARE v4u TINYINT UNSIGNED DEFAULT -300;
+DECLARE v5 TINYINT DEFAULT 10 * 10 * 10;
+DECLARE v5u TINYINT UNSIGNED DEFAULT 10 * 10 * 10;
+DECLARE v6 TINYINT DEFAULT -10 * 10 * 10;
+DECLARE v6u TINYINT UNSIGNED DEFAULT -10 * 10 * 10;
+DECLARE v7 TINYINT DEFAULT '10';
+DECLARE v8 TINYINT DEFAULT '10 ';
+DECLARE v9 TINYINT DEFAULT ' 10 ';
+DECLARE v10 TINYINT DEFAULT 'String 10 ';
+DECLARE v11 TINYINT DEFAULT 'String10';
+DECLARE v12 TINYINT DEFAULT '10 String';
+DECLARE v13 TINYINT DEFAULT '10String';
+DECLARE v14 TINYINT DEFAULT concat('10', ' ');
+DECLARE v15 TINYINT DEFAULT concat(' ', '10');
+DECLARE v16 TINYINT DEFAULT concat('Hello, ', 'world');
+DECLARE v17 DECIMAL(64, 2) DEFAULT 12;
+DECLARE v18 DECIMAL(64, 2) DEFAULT 12.123;
+DECLARE v19 DECIMAL(64, 2) DEFAULT 11 + 1;
+DECLARE v20 DECIMAL(64, 2) DEFAULT 12 + 0.123;
+SHOW WARNINGS;
+SELECT v1, v1u, v2, v2u, v3, v3u, v4, v4u;
+SELECT v5, v5u, v6, v6u;
+SELECT v7, v8, v9, v10, v11, v12, v13, v14, v15, v16;
+SELECT v17, v18, v19, v20;
+END|
+CREATE PROCEDURE sp_vars_check_assignment()
+BEGIN
+DECLARE i1, i2, i3, i4 TINYINT;
+DECLARE u1, u2, u3, u4 TINYINT UNSIGNED;
+DECLARE d1, d2, d3 DECIMAL(64, 2);
+SET i1 = 1e200;
+SET i2 = -1e200;
+SET i3 = 300;
+SET i4 = -300;
+SELECT i1, i2, i3, i4;
+SET i1 = 10 * 10 * 10;
+SET i2 = -10 * 10 * 10;
+SET i3 = sign(10 * 10) * 10 * 20;
+SET i4 = sign(-10 * 10) * -10 * 20;
+SELECT i1, i2, i3, i4;
+SET u1 = 1e200;
+SET u2 = -1e200;
+SET u3 = 300;
+SET u4 = -300;
+SELECT u1, u2, u3, u4;
+SET u1 = 10 * 10 * 10;
+SET u2 = -10 * 10 * 10;
+SET u3 = sign(10 * 10) * 10 * 20;
+SET u4 = sign(-10 * 10) * -10 * 20;
+SELECT u1, u2, u3, u4;
+SET d1 = 1234;
+SET d2 = 1234.12;
+SET d3 = 1234.1234;
+SHOW WARNINGS;
+SELECT d1, d2, d3;
+SET d1 = 12 * 100 + 34;
+SET d2 = 12 * 100 + 34 + 0.12;
+SET d3 = 12 * 100 + 34 + 0.1234;
+SHOW WARNINGS;
+SELECT d1, d2, d3;
+END|
+CREATE FUNCTION sp_vars_check_ret1() RETURNS TINYINT
+BEGIN
+RETURN 1e200;
+END|
+CREATE FUNCTION sp_vars_check_ret2() RETURNS TINYINT
+BEGIN
+RETURN 10 * 10 * 10;
+END|
+CREATE FUNCTION sp_vars_check_ret3() RETURNS TINYINT
+BEGIN
+RETURN 'Hello, world';
+END|
+CREATE FUNCTION sp_vars_check_ret4() RETURNS DECIMAL(64, 2)
+BEGIN
+RETURN 12 * 10 + 34 + 0.1234;
+END|
+CREATE FUNCTION sp_vars_div_zero() RETURNS INTEGER
+BEGIN
+DECLARE div_zero INTEGER;
+SELECT 1/0 INTO div_zero;
+RETURN div_zero;
+END|
+
+---------------------------------------------------------------
+Calling the routines, created in ANSI mode.
+---------------------------------------------------------------
+
+CALL sp_vars_check_dflt();
+Level	Code	Message
+Note	1265	Data truncated for column 'v20' at row 1
+v1	v1u	v2	v2u	v3	v3u	v4	v4u
+127	255	-128	0	127	255	-128	0
+v5	v5u	v6	v6u
+127	255	-128	0
+v7	v8	v9	v10	v11	v12	v13	v14	v15	v16
+10	10	10	0	0	10	10	10	10	0
+v17	v18	v19	v20
+12.00	12.12	12.00	12.12
+CALL sp_vars_check_assignment();
+i1	i2	i3	i4
+127	-128	127	-128
+i1	i2	i3	i4
+127	-128	127	127
+u1	u2	u3	u4
+255	0	255	0
+u1	u2	u3	u4
+255	0	200	200
+Level	Code	Message
+Note	1265	Data truncated for column 'd3' at row 1
+d1	d2	d3
+1234.00	1234.12	1234.12
+Level	Code	Message
+Note	1265	Data truncated for column 'd3' at row 1
+d1	d2	d3
+1234.00	1234.12	1234.12
+SELECT sp_vars_check_ret1();
+sp_vars_check_ret1()
+127
+Warnings:
+Warning	1264	Out of range value for column 'sp_vars_check_ret1()' at row 1
+SELECT sp_vars_check_ret2();
+sp_vars_check_ret2()
+127
+Warnings:
+Warning	1264	Out of range value for column 'sp_vars_check_ret2()' at row 1
+SELECT sp_vars_check_ret3();
+sp_vars_check_ret3()
+0
+Warnings:
+Warning	1366	Incorrect integer value: 'Hello, world' for column 'sp_vars_check_ret3()' at row 1
+SELECT sp_vars_check_ret4();
+sp_vars_check_ret4()
+154.12
+Warnings:
+Note	1265	Data truncated for column 'sp_vars_check_ret4()' at row 1
+SELECT sp_vars_div_zero();
+sp_vars_div_zero()
+NULL
+SET @@sql_mode = 'traditional';
+
+---------------------------------------------------------------
+Calling in TRADITIONAL mode the routines, created in ANSI mode.
+---------------------------------------------------------------
+
+CALL sp_vars_check_dflt();
+Level	Code	Message
+Note	1265	Data truncated for column 'v20' at row 1
+v1	v1u	v2	v2u	v3	v3u	v4	v4u
+127	255	-128	0	127	255	-128	0
+v5	v5u	v6	v6u
+127	255	-128	0
+v7	v8	v9	v10	v11	v12	v13	v14	v15	v16
+10	10	10	0	0	10	10	10	10	0
+v17	v18	v19	v20
+12.00	12.12	12.00	12.12
+CALL sp_vars_check_assignment();
+i1	i2	i3	i4
+127	-128	127	-128
+i1	i2	i3	i4
+127	-128	127	127
+u1	u2	u3	u4
+255	0	255	0
+u1	u2	u3	u4
+255	0	200	200
+Level	Code	Message
+Note	1265	Data truncated for column 'd3' at row 1
+d1	d2	d3
+1234.00	1234.12	1234.12
+Level	Code	Message
+Note	1265	Data truncated for column 'd3' at row 1
+d1	d2	d3
+1234.00	1234.12	1234.12
+SELECT sp_vars_check_ret1();
+sp_vars_check_ret1()
+127
+Warnings:
+Warning	1264	Out of range value for column 'sp_vars_check_ret1()' at row 1
+SELECT sp_vars_check_ret2();
+sp_vars_check_ret2()
+127
+Warnings:
+Warning	1264	Out of range value for column 'sp_vars_check_ret2()' at row 1
+SELECT sp_vars_check_ret3();
+sp_vars_check_ret3()
+0
+Warnings:
+Warning	1366	Incorrect integer value: 'Hello, world' for column 'sp_vars_check_ret3()' at row 1
+SELECT sp_vars_check_ret4();
+sp_vars_check_ret4()
+154.12
+Warnings:
+Note	1265	Data truncated for column 'sp_vars_check_ret4()' at row 1
+SELECT sp_vars_div_zero();
+sp_vars_div_zero()
+NULL
+DROP PROCEDURE sp_vars_check_dflt;
+DROP PROCEDURE sp_vars_check_assignment;
+DROP FUNCTION sp_vars_check_ret1;
+DROP FUNCTION sp_vars_check_ret2;
+DROP FUNCTION sp_vars_check_ret3;
+DROP FUNCTION sp_vars_check_ret4;
+DROP FUNCTION sp_vars_div_zero;
+CREATE PROCEDURE sp_vars_check_dflt()
+BEGIN
+DECLARE v1 TINYINT DEFAULT 1e200;
+DECLARE v1u TINYINT UNSIGNED DEFAULT 1e200;
+DECLARE v2 TINYINT DEFAULT -1e200;
+DECLARE v2u TINYINT UNSIGNED DEFAULT -1e200;
+DECLARE v3 TINYINT DEFAULT 300;
+DECLARE v3u TINYINT UNSIGNED DEFAULT 300;
+DECLARE v4 TINYINT DEFAULT -300;
+DECLARE v4u TINYINT UNSIGNED DEFAULT -300;
+DECLARE v5 TINYINT DEFAULT 10 * 10 * 10;
+DECLARE v5u TINYINT UNSIGNED DEFAULT 10 * 10 * 10;
+DECLARE v6 TINYINT DEFAULT -10 * 10 * 10;
+DECLARE v6u TINYINT UNSIGNED DEFAULT -10 * 10 * 10;
+DECLARE v7 TINYINT DEFAULT '10';
+DECLARE v8 TINYINT DEFAULT '10 ';
+DECLARE v9 TINYINT DEFAULT ' 10 ';
+DECLARE v10 TINYINT DEFAULT 'String 10 ';
+DECLARE v11 TINYINT DEFAULT 'String10';
+DECLARE v12 TINYINT DEFAULT '10 String';
+DECLARE v13 TINYINT DEFAULT '10String';
+DECLARE v14 TINYINT DEFAULT concat('10', ' ');
+DECLARE v15 TINYINT DEFAULT concat(' ', '10');
+DECLARE v16 TINYINT DEFAULT concat('Hello, ', 'world');
+DECLARE v17 DECIMAL(64, 2) DEFAULT 12;
+DECLARE v18 DECIMAL(64, 2) DEFAULT 12.123;
+DECLARE v19 DECIMAL(64, 2) DEFAULT 11 + 1;
+DECLARE v20 DECIMAL(64, 2) DEFAULT 12 + 0.123;
+SHOW WARNINGS;
+SELECT v1, v1u, v2, v2u, v3, v3u, v4, v4u;
+SELECT v5, v5u, v6, v6u;
+SELECT v7, v8, v9, v10, v11, v12, v13, v14, v15, v16;
+SELECT v17, v18, v19, v20;
+END|
+CREATE PROCEDURE sp_vars_check_assignment()
+BEGIN
+DECLARE i1, i2, i3, i4 TINYINT;
+DECLARE u1, u2, u3, u4 TINYINT UNSIGNED;
+DECLARE d1, d2, d3 DECIMAL(64, 2);
+SET i1 = 1e200;
+SET i2 = -1e200;
+SET i3 = 300;
+SET i4 = -300;
+SELECT i1, i2, i3, i4;
+SET i1 = 10 * 10 * 10;
+SET i2 = -10 * 10 * 10;
+SET i3 = sign(10 * 10) * 10 * 20;
+SET i4 = sign(-10 * 10) * -10 * 20;
+SELECT i1, i2, i3, i4;
+SET u1 = 1e200;
+SET u2 = -1e200;
+SET u3 = 300;
+SET u4 = -300;
+SELECT u1, u2, u3, u4;
+SET u1 = 10 * 10 * 10;
+SET u2 = -10 * 10 * 10;
+SET u3 = sign(10 * 10) * 10 * 20;
+SET u4 = sign(-10 * 10) * -10 * 20;
+SELECT u1, u2, u3, u4;
+SET d1 = 1234;
+SET d2 = 1234.12;
+SET d3 = 1234.1234;
+SHOW WARNINGS;
+SELECT d1, d2, d3;
+SET d1 = 12 * 100 + 34;
+SET d2 = 12 * 100 + 34 + 0.12;
+SET d3 = 12 * 100 + 34 + 0.1234;
+SHOW WARNINGS;
+SELECT d1, d2, d3;
+END|
+CREATE FUNCTION sp_vars_check_ret1() RETURNS TINYINT
+BEGIN
+RETURN 1e200;
+END|
+CREATE FUNCTION sp_vars_check_ret2() RETURNS TINYINT
+BEGIN
+RETURN 10 * 10 * 10;
+END|
+CREATE FUNCTION sp_vars_check_ret3() RETURNS TINYINT
+BEGIN
+RETURN 'Hello, world';
+END|
+CREATE FUNCTION sp_vars_check_ret4() RETURNS DECIMAL(64, 2)
+BEGIN
+RETURN 12 * 10 + 34 + 0.1234;
+END|
+CREATE FUNCTION sp_vars_div_zero() RETURNS INTEGER
+BEGIN
+DECLARE div_zero INTEGER;
+SELECT 1/0 INTO div_zero;
+RETURN div_zero;
+END|
+
+---------------------------------------------------------------
+Calling the routines, created in TRADITIONAL mode.
+---------------------------------------------------------------
+
+CALL sp_vars_check_dflt();
+ERROR 22003: Out of range value for column 'v1' at row 1
+CALL sp_vars_check_assignment();
+ERROR 22003: Out of range value for column 'i1' at row 1
+SELECT sp_vars_check_ret1();
+ERROR 22003: Out of range value for column 'sp_vars_check_ret1()' at row 1
+SELECT sp_vars_check_ret2();
+ERROR 22003: Out of range value for column 'sp_vars_check_ret2()' at row 1
+SELECT sp_vars_check_ret3();
+ERROR HY000: Incorrect integer value: 'Hello, world' for column 'sp_vars_check_ret3()' at row 1
+SELECT sp_vars_check_ret4();
+sp_vars_check_ret4()
+154.12
+Warnings:
+Note	1265	Data truncated for column 'sp_vars_check_ret4()' at row 1
+SELECT sp_vars_div_zero();
+ERROR 22012: Division by 0
+SET @@sql_mode = 'ansi';
+DROP PROCEDURE sp_vars_check_dflt;
+DROP PROCEDURE sp_vars_check_assignment;
+DROP FUNCTION sp_vars_check_ret1;
+DROP FUNCTION sp_vars_check_ret2;
+DROP FUNCTION sp_vars_check_ret3;
+DROP FUNCTION sp_vars_check_ret4;
+DROP FUNCTION sp_vars_div_zero;
+
+---------------------------------------------------------------
+BIT data type tests
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v1 BIT;
+DECLARE v2 BIT(1);
+DECLARE v3 BIT(3) DEFAULT b'101';
+DECLARE v4 BIT(64) DEFAULT 0x5555555555555555;
+DECLARE v5 BIT(3);
+DECLARE v6 BIT(64);
+DECLARE v7 BIT(8) DEFAULT 128;
+DECLARE v8 BIT(8) DEFAULT '128';
+DECLARE v9 BIT(8) DEFAULT ' 128';
+DECLARE v10 BIT(8) DEFAULT 'x 128';
+SET v1 = v4;
+SET v2 = 0;
+SET v5 = v4; # check overflow
+SHOW WARNINGS;
+SET v6 = v3; # check padding
+SELECT HEX(v1);
+SELECT HEX(v2);
+SELECT HEX(v3);
+SELECT HEX(v4);
+SELECT HEX(v5);
+SELECT HEX(v6);
+SELECT HEX(v7);
+SELECT HEX(v8);
+SELECT HEX(v9);
+SELECT HEX(v10);
+END|
+CALL p1();
+Level	Code	Message
+Warning	1264	Out of range value for column 'v5' at row 1
+HEX(v1)
+1
+HEX(v2)
+0
+HEX(v3)
+5
+HEX(v4)
+5555555555555555
+HEX(v5)
+7
+HEX(v6)
+5
+HEX(v7)
+80
+HEX(v8)
+FF
+HEX(v9)
+FF
+HEX(v10)
+FF
+DROP PROCEDURE p1;
+
+---------------------------------------------------------------
+CASE expression tests.
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+Warnings:
+Note	1305	PROCEDURE test.p1 does not exist
+DROP PROCEDURE IF EXISTS p2;
+Warnings:
+Note	1305	PROCEDURE test.p2 does not exist
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+CREATE TABLE t1(log_msg VARCHAR(1024));
+CREATE PROCEDURE p1(arg VARCHAR(255))
+BEGIN
+INSERT INTO t1 VALUES('p1: step1');
+CASE arg * 10
+WHEN 10 * 10 THEN
+INSERT INTO t1 VALUES('p1: case1: on 10');
+WHEN 10 * 10 + 10 * 10 THEN
+BEGIN
+CASE arg / 10
+WHEN 1 THEN
+INSERT INTO t1 VALUES('p1: case1: case2: on 1');
+WHEN 2 THEN
+BEGIN
+DECLARE i TINYINT DEFAULT 10;
+WHILE i > 0 DO
+INSERT INTO t1 VALUES(CONCAT('p1: case1: case2: loop: i: ', i));
+CASE MOD(i, 2)
+WHEN 0 THEN
+INSERT INTO t1 VALUES('p1: case1: case2: loop: i is even');
+WHEN 1 THEN
+INSERT INTO t1 VALUES('p1: case1: case2: loop: i is odd');
+ELSE
+INSERT INTO t1 VALUES('p1: case1: case2: loop: ERROR');
+END CASE;
+SET i = i - 1;
+END WHILE;
+END;
+ELSE
+INSERT INTO t1 VALUES('p1: case1: case2: ERROR');
+END CASE;
+CASE arg
+WHEN 10 THEN
+INSERT INTO t1 VALUES('p1: case1: case3: on 10');
+WHEN 20 THEN
+INSERT INTO t1 VALUES('p1: case1: case3: on 20');
+ELSE
+INSERT INTO t1 VALUES('p1: case1: case3: ERROR');
+END CASE;
+END;
+ELSE
+INSERT INTO t1 VALUES('p1: case1: ERROR');
+END CASE;
+CASE arg * 10
+WHEN 10 * 10 THEN
+INSERT INTO t1 VALUES('p1: case4: on 10');
+WHEN 10 * 10 + 10 * 10 THEN
+BEGIN
+CASE arg / 10
+WHEN 1 THEN
+INSERT INTO t1 VALUES('p1: case4: case5: on 1');
+WHEN 2 THEN
+BEGIN
+DECLARE i TINYINT DEFAULT 10;
+WHILE i > 0 DO
+INSERT INTO t1 VALUES(CONCAT('p1: case4: case5: loop: i: ', i));
+CASE MOD(i, 2)
+WHEN 0 THEN
+INSERT INTO t1 VALUES('p1: case4: case5: loop: i is even');
+WHEN 1 THEN
+INSERT INTO t1 VALUES('p1: case4: case5: loop: i is odd');
+ELSE
+INSERT INTO t1 VALUES('p1: case4: case5: loop: ERROR');
+END CASE;
+SET i = i - 1;
+END WHILE;
+END;
+ELSE
+INSERT INTO t1 VALUES('p1: case4: case5: ERROR');
+END CASE;
+CASE arg
+WHEN 10 THEN
+INSERT INTO t1 VALUES('p1: case4: case6: on 10');
+WHEN 20 THEN
+INSERT INTO t1 VALUES('p1: case4: case6: on 20');
+ELSE
+INSERT INTO t1 VALUES('p1: case4: case6: ERROR');
+END CASE;
+END;
+ELSE
+INSERT INTO t1 VALUES('p1: case4: ERROR');
+END CASE;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE i TINYINT DEFAULT 3;
+WHILE i > 0 DO
+IF MOD(i, 2) = 0 THEN
+SET @_test_session_var = 10;
+ELSE
+SET @_test_session_var = 'test';
+END IF;
+CASE @_test_session_var
+WHEN 10 THEN
+INSERT INTO t1 VALUES('p2: case: numerical type');
+WHEN 'test' THEN
+INSERT INTO t1 VALUES('p2: case: string type');
+ELSE
+INSERT INTO t1 VALUES('p2: case: ERROR');
+END CASE;
+SET i = i - 1;
+END WHILE;
+END|
+CALL p1(10);
+CALL p1(20);
+CALL p2();
+SELECT * FROM t1;
+log_msg
+p1: step1
+p1: case1: on 10
+p1: case4: on 10
+p1: step1
+p1: case1: case2: loop: i: 10
+p1: case1: case2: loop: i is even
+p1: case1: case2: loop: i: 9
+p1: case1: case2: loop: i is odd
+p1: case1: case2: loop: i: 8
+p1: case1: case2: loop: i is even
+p1: case1: case2: loop: i: 7
+p1: case1: case2: loop: i is odd
+p1: case1: case2: loop: i: 6
+p1: case1: case2: loop: i is even
+p1: case1: case2: loop: i: 5
+p1: case1: case2: loop: i is odd
+p1: case1: case2: loop: i: 4
+p1: case1: case2: loop: i is even
+p1: case1: case2: loop: i: 3
+p1: case1: case2: loop: i is odd
+p1: case1: case2: loop: i: 2
+p1: case1: case2: loop: i is even
+p1: case1: case2: loop: i: 1
+p1: case1: case2: loop: i is odd
+p1: case1: case3: on 20
+p1: case4: case5: loop: i: 10
+p1: case4: case5: loop: i is even
+p1: case4: case5: loop: i: 9
+p1: case4: case5: loop: i is odd
+p1: case4: case5: loop: i: 8
+p1: case4: case5: loop: i is even
+p1: case4: case5: loop: i: 7
+p1: case4: case5: loop: i is odd
+p1: case4: case5: loop: i: 6
+p1: case4: case5: loop: i is even
+p1: case4: case5: loop: i: 5
+p1: case4: case5: loop: i is odd
+p1: case4: case5: loop: i: 4
+p1: case4: case5: loop: i is even
+p1: case4: case5: loop: i: 3
+p1: case4: case5: loop: i is odd
+p1: case4: case5: loop: i: 2
+p1: case4: case5: loop: i is even
+p1: case4: case5: loop: i: 1
+p1: case4: case5: loop: i is odd
+p1: case4: case6: on 20
+p2: case: string type
+p2: case: numerical type
+p2: case: string type
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+
+---------------------------------------------------------------
+BUG#14161
+---------------------------------------------------------------
+
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1(col BIGINT UNSIGNED);
+INSERT INTO t1 VALUE(18446744073709551614);
+CREATE PROCEDURE p1(IN arg BIGINT UNSIGNED)
+BEGIN
+SELECT arg;
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE col = arg;
+END|
+CALL p1(18446744073709551614);
+arg
+18446744073709551614
+col
+18446744073709551614
+col
+18446744073709551614
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+---------------------------------------------------------------
+BUG#13705
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1(x VARCHAR(10), y CHAR(3)) READS SQL DATA
+BEGIN
+SELECT x, y;
+END|
+CALL p1('alpha', 'abc');
+x	y
+alpha	abc
+CALL p1('alpha', 'abcdef');
+x	y
+alpha	abc
+Warnings:
+Warning	1265	Data truncated for column 'y' at row 1
+DROP PROCEDURE p1;
+
+---------------------------------------------------------------
+BUG#13675
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+DROP TABLE IF EXISTS t1;
+CREATE PROCEDURE p1(x DATETIME)
+BEGIN
+CREATE TABLE t1 SELECT x;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+END|
+CALL p1(NOW());
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "x" datetime DEFAULT NULL
+)
+CALL p1('test');
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "x" datetime DEFAULT NULL
+)
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
+DROP PROCEDURE p1;
+
+---------------------------------------------------------------
+BUG#12976
+---------------------------------------------------------------
+
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+CREATE TABLE t1(b BIT(1));
+INSERT INTO t1(b) VALUES(b'0'), (b'1');
+CREATE PROCEDURE p1()
+BEGIN
+SELECT HEX(b),
+b = 0,
+b = FALSE,
+b IS FALSE,
+b = 1,
+b = TRUE,
+b IS TRUE
+FROM t1;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE vb BIT(1);
+SELECT b INTO vb FROM t1 WHERE b = 0;
+SELECT HEX(vb),
+vb = 0,
+vb = FALSE,
+vb IS FALSE,
+vb = 1,
+vb = TRUE,
+vb IS TRUE;
+SELECT b INTO vb FROM t1 WHERE b = 1;
+SELECT HEX(vb),
+vb = 0,
+vb = FALSE,
+vb IS FALSE,
+vb = 1,
+vb = TRUE,
+vb IS TRUE;
+END|
+call p1();
+HEX(b)	b = 0	b = FALSE	b IS FALSE	b = 1	b = TRUE	b IS TRUE
+
+0	1	1	1	0	0	0
+1	0	0	0	1	1	1
+call p2();
+HEX(vb)	vb = 0	vb = FALSE	vb IS FALSE	vb = 1	vb = TRUE	vb IS TRUE
+0	1	1	1	0	0	0
+HEX(vb)	vb = 0	vb = FALSE	vb IS FALSE	vb = 1	vb = TRUE	vb IS TRUE
+1	0	0	0	1	1	1
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE IF EXISTS table_12976_a;
+DROP TABLE IF EXISTS table_12976_b;
+DROP PROCEDURE IF EXISTS proc_12976_a;
+DROP PROCEDURE IF EXISTS proc_12976_b;
+CREATE TABLE table_12976_a (val bit(1));
+CREATE TABLE table_12976_b(
+appname varchar(15),
+emailperm bit not null default 1,
+phoneperm bit not null default 0);
+insert into table_12976_b values ('A', b'1', b'1'), ('B', b'0', b'0');
+CREATE PROCEDURE proc_12976_a()
+BEGIN
+declare localvar bit(1);
+SELECT val INTO localvar FROM table_12976_a;
+SELECT coalesce(localvar, 1)+1, coalesce(val, 1)+1 FROM table_12976_a;
+END||
+CREATE PROCEDURE proc_12976_b(
+name varchar(15),
+out ep bit,
+out msg varchar(10))
+BEGIN
+SELECT emailperm into ep FROM table_12976_b where (appname = name);
+IF ep is true THEN
+SET msg = 'True';
+ELSE
+SET msg = 'False';
+END IF;
+END||
+INSERT table_12976_a VALUES (0);
+call proc_12976_a();
+coalesce(localvar, 1)+1	coalesce(val, 1)+1
+1	1
+UPDATE table_12976_a set val=1;
+call proc_12976_a();
+coalesce(localvar, 1)+1	coalesce(val, 1)+1
+2	2
+call proc_12976_b('A', @ep, @msg);
+select @ep, @msg;
+@ep	@msg
+1	True
+call proc_12976_b('B', @ep, @msg);
+select @ep, @msg;
+@ep	@msg
+0	False
+DROP TABLE table_12976_a;
+DROP TABLE table_12976_b;
+DROP PROCEDURE proc_12976_a;
+DROP PROCEDURE proc_12976_b;
+
+---------------------------------------------------------------
+BUG#9572
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+DROP PROCEDURE IF EXISTS p5;
+DROP PROCEDURE IF EXISTS p6;
+SET @@sql_mode = 'traditional';
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v TINYINT DEFAULT 1e200;
+SELECT v;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE v DECIMAL(5) DEFAULT 1e200;
+SELECT v;
+END|
+CREATE PROCEDURE p3()
+BEGIN
+DECLARE v CHAR(5) DEFAULT 'abcdef';
+SELECT v LIKE 'abc___';
+END|
+CREATE PROCEDURE p4(arg VARCHAR(2))
+BEGIN
+DECLARE var VARCHAR(1);
+SET var := arg;
+SELECT arg, var;
+END|
+CREATE PROCEDURE p5(arg CHAR(2))
+BEGIN
+DECLARE var CHAR(1);
+SET var := arg;
+SELECT arg, var;
+END|
+CREATE PROCEDURE p6(arg DECIMAL(2))
+BEGIN
+DECLARE var DECIMAL(1);
+SET var := arg;
+SELECT arg, var;
+END|
+CALL p1();
+ERROR 22003: Out of range value for column 'v' at row 1
+CALL p2();
+ERROR 22003: Out of range value for column 'v' at row 1
+CALL p3();
+ERROR 22001: Data too long for column 'v' at row 1
+CALL p4('aaa');
+ERROR 22001: Data too long for column 'arg' at row 1
+CALL p5('aa');
+ERROR 22001: Data too long for column 'var' at row 1
+CALL p6(10);
+ERROR 22003: Out of range value for column 'var' at row 1
+SET @@sql_mode = 'ansi';
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP PROCEDURE p5;
+DROP PROCEDURE p6;
+
+---------------------------------------------------------------
+BUG#9078
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1 (arg DECIMAL(64,2))
+BEGIN
+DECLARE var DECIMAL(64,2);
+SET var = arg;
+SELECT var;
+END|
+CALL p1(1929);
+var
+1929.00
+CALL p1(1929.00);
+var
+1929.00
+CALL p1(1929.003);
+var
+1929.00
+Warnings:
+Note	1265	Data truncated for column 'arg' at row 1
+DROP PROCEDURE p1;
+
+---------------------------------------------------------------
+BUG#8768
+---------------------------------------------------------------
+
+DROP FUNCTION IF EXISTS f1;
+CREATE FUNCTION f1(arg TINYINT UNSIGNED) RETURNS TINYINT
+BEGIN
+RETURN arg;
+END|
+SELECT f1(-2500);
+f1(-2500)
+0
+Warnings:
+Warning	1264	Out of range value for column 'arg' at row 1
+SET @@sql_mode = 'traditional';
+SELECT f1(-2500);
+ERROR 22003: Out of range value for column 'arg' at row 1
+DROP FUNCTION f1;
+CREATE FUNCTION f1(arg TINYINT UNSIGNED) RETURNS TINYINT
+BEGIN
+RETURN arg;
+END|
+SELECT f1(-2500);
+ERROR 22003: Out of range value for column 'arg' at row 1
+SET @@sql_mode = 'ansi';
+DROP FUNCTION f1;
+
+---------------------------------------------------------------
+BUG#8769
+---------------------------------------------------------------
+
+DROP FUNCTION IF EXISTS f1;
+CREATE FUNCTION f1(arg MEDIUMINT) RETURNS MEDIUMINT
+BEGIN
+RETURN arg;
+END|
+SELECT f1(8388699);
+f1(8388699)
+8388607
+Warnings:
+Warning	1264	Out of range value for column 'arg' at row 1
+SET @@sql_mode = 'traditional';
+SELECT f1(8388699);
+ERROR 22003: Out of range value for column 'arg' at row 1
+DROP FUNCTION f1;
+CREATE FUNCTION f1(arg MEDIUMINT) RETURNS MEDIUMINT
+BEGIN
+RETURN arg;
+END|
+SELECT f1(8388699);
+ERROR 22003: Out of range value for column 'arg' at row 1
+SET @@sql_mode = 'ansi';
+DROP FUNCTION f1;
+
+---------------------------------------------------------------
+BUG#8702
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(col VARCHAR(255));
+INSERT INTO t1(col) VALUES('Hello, world!');
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE sp_var INTEGER;
+SELECT col INTO sp_var FROM t1 LIMIT 1;
+SHOW WARNINGS;
+SET @user_var = sp_var;
+SELECT sp_var;
+SELECT @user_var;
+END|
+CALL p1();
+Level	Code	Message
+Warning	1366	Incorrect integer value: 'Hello, world!' for column 'sp_var' at row 1
+sp_var
+0
+@user_var
+0
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+---------------------------------------------------------------
+BUG#12903
+---------------------------------------------------------------
+
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(txt VARCHAR(255));
+CREATE FUNCTION f1(arg VARCHAR(255)) RETURNS VARCHAR(255)
+BEGIN
+DECLARE v1 VARCHAR(255);
+DECLARE v2 VARCHAR(255);
+SET v1 = CONCAT(LOWER(arg), UPPER(arg));
+SET v2 = CONCAT(LOWER(v1), UPPER(v1));
+INSERT INTO t1 VALUES(v1), (v2);
+RETURN CONCAT(LOWER(arg), UPPER(arg));
+END|
+SELECT f1('_aBcDe_');
+f1('_aBcDe_')
+_abcde__ABCDE_
+SELECT * FROM t1;
+txt
+_abcde__ABCDE_
+_abcde__abcde__ABCDE__ABCDE_
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+---------------------------------------------------------------
+BUG#13808
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP FUNCTION IF EXISTS f1;
+CREATE PROCEDURE p1(arg ENUM('a', 'b'))
+BEGIN
+SELECT arg;
+END|
+CREATE PROCEDURE p2(arg ENUM('a', 'b'))
+BEGIN
+DECLARE var ENUM('c', 'd') DEFAULT arg;
+SHOW WARNINGS;
+SELECT arg, var;
+END|
+CREATE FUNCTION f1(arg ENUM('a', 'b')) RETURNS ENUM('c', 'd')
+BEGIN
+RETURN arg;
+END|
+CALL p1('c');
+arg
+
+Warnings:
+Warning	1265	Data truncated for column 'arg' at row 1
+CALL p2('a');
+Level	Code	Message
+Warning	1265	Data truncated for column 'var' at row 1
+arg	var
+a	
+SELECT f1('a');
+f1('a')
+
+Warnings:
+Warning	1265	Data truncated for column 'f1('a')' at row 1
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP FUNCTION f1;
+
+---------------------------------------------------------------
+BUG#13909
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+CREATE PROCEDURE p1(arg VARCHAR(255))
+BEGIN
+SELECT CHARSET(arg);
+END|
+CREATE PROCEDURE p2(arg VARCHAR(255) CHARACTER SET UTF8)
+BEGIN
+SELECT CHARSET(arg);
+END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CALL p1('t');
+CHARSET(arg)
+utf8mb4
+CALL p1(_UTF8 't');
+CHARSET(arg)
+utf8mb4
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CALL p2('t');
+CHARSET(arg)
+utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CALL p2(_LATIN1 't');
+CHARSET(arg)
+utf8
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+---------------------------------------------------------------
+BUG#14188
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1(arg1 BINARY(2), arg2 VARBINARY(2))
+BEGIN
+DECLARE var1 BINARY(2) DEFAULT 0x41;
+DECLARE var2 VARBINARY(2) DEFAULT 0x42;
+SELECT HEX(arg1), HEX(arg2);
+SELECT HEX(var1), HEX(var2);
+END|
+CALL p1(0x41, 0x42);
+HEX(arg1)	HEX(arg2)
+4100	42
+HEX(var1)	HEX(var2)
+4100	42
+DROP PROCEDURE p1;
+
+---------------------------------------------------------------
+BUG#15148
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(col1 TINYINT, col2 TINYINT);
+INSERT INTO t1 VALUES(1, 2), (11, 12);
+CREATE PROCEDURE p1(arg TINYINT)
+BEGIN
+SELECT arg;
+END|
+CALL p1((1, 2));
+ERROR 21000: Operand should contain 1 column(s)
+CALL p1((SELECT * FROM t1 LIMIT 1));
+ERROR 21000: Operand should contain 1 column(s)
+CALL p1((SELECT col1, col2 FROM t1 LIMIT 1));
+ERROR 21000: Operand should contain 1 column(s)
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+---------------------------------------------------------------
+BUG#13613
+---------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+CREATE PROCEDURE p1(x VARCHAR(50))
+BEGIN
+SET x = SUBSTRING(x, 1, 3);
+SELECT x;
+END|
+CREATE FUNCTION f1(x VARCHAR(50)) RETURNS VARCHAR(50)
+BEGIN
+RETURN SUBSTRING(x, 1, 3);
+END|
+CALL p1('abcdef');
+x
+abc
+SELECT f1('ABCDEF');
+f1('ABCDEF')
+ABC
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+
+---------------------------------------------------------------
+BUG#13665
+---------------------------------------------------------------
+
+DROP FUNCTION IF EXISTS f1;
+CREATE FUNCTION f1() RETURNS VARCHAR(2000)
+BEGIN
+DECLARE var VARCHAR(2000);
+SET var = '';
+SET var = CONCAT(var, 'abc');
+SET var = CONCAT(var, '');
+RETURN var;
+END|
+SELECT f1();
+f1()
+abc
+DROP FUNCTION f1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v_char VARCHAR(255);
+DECLARE v_text TEXT DEFAULT '';
+SET v_char = 'abc';
+SET v_text = v_char;
+SET v_char = 'def';
+SET v_text = concat(v_text, '|', v_char);
+SELECT v_text;
+END|
+CALL p1();
+v_text
+abc|def
+DROP PROCEDURE p1;
+DROP PROCEDURE IF EXISTS bug27415_text_test|
+DROP PROCEDURE IF EXISTS bug27415_text_test2|
+CREATE PROCEDURE bug27415_text_test(entity_id_str_in text)
+BEGIN
+DECLARE str_remainder text;
+SET str_remainder = entity_id_str_in;
+select 'before substr', str_remainder;
+SET str_remainder = SUBSTRING(str_remainder, 3);
+select 'after substr', str_remainder;
+END|
+CREATE PROCEDURE bug27415_text_test2(entity_id_str_in text)
+BEGIN
+DECLARE str_remainder text;
+DECLARE str_remainder2 text;
+SET str_remainder2 = entity_id_str_in;
+select 'before substr', str_remainder2;
+SET str_remainder = SUBSTRING(str_remainder2, 3);
+select 'after substr', str_remainder;
+END|
+CALL bug27415_text_test('a,b,c')|
+before substr	str_remainder
+before substr	a,b,c
+after substr	str_remainder
+after substr	b,c
+CALL bug27415_text_test('a,b,c')|
+before substr	str_remainder
+before substr	a,b,c
+after substr	str_remainder
+after substr	b,c
+CALL bug27415_text_test2('a,b,c')|
+before substr	str_remainder2
+before substr	a,b,c
+after substr	str_remainder
+after substr	b,c
+CALL bug27415_text_test('a,b,c')|
+before substr	str_remainder
+before substr	a,b,c
+after substr	str_remainder
+after substr	b,c
+DROP PROCEDURE bug27415_text_test|
+DROP PROCEDURE bug27415_text_test2|
+drop function if exists f1;
+drop table if exists t1;
+create function f1() returns int 
+begin
+if @a=1 then set @b='abc';
+else set @b=1;
+end if;
+set @a=1;
+return 0;
+end|
+create table t1 (a int)|
+insert into t1 (a) values (1), (2)|
+set @b=1|
+set @a=0|
+select f1(), @b from t1|
+f1()	@b
+0	1
+0	0
+set @b:='test'|
+set @a=0|
+select f1(), @b from t1|
+f1()	@b
+0	1
+0	abc
+drop function f1;
+drop table t1;
+
+---------------------------------------------------------------
+BUG#28299
+---------------------------------------------------------------
+
+CREATE PROCEDURE ctest()
+BEGIN
+DECLARE i CHAR(16);
+DECLARE j INT;
+SET i= 'string';
+SET j= 1 + i;
+END|
+CALL ctest();
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'string'
+DROP PROCEDURE ctest;
+CREATE PROCEDURE vctest()
+BEGIN
+DECLARE i VARCHAR(16);
+DECLARE j INT;
+SET i= 'string';
+SET j= 1 + i;
+END|
+CALL vctest();
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'string'
+DROP PROCEDURE vctest;
+
+---------------------------------------------------------------
+BUG#19770958
+---------------------------------------------------------------
+
+CREATE TABLE t (a INT PRIMARY KEY, b TEXT, FULLTEXT(b)) ENGINE=InnoDB;
+CREATE FUNCTION f() RETURNS TEXT RETURN @@GLOBAL.innodb_ft_aux_table;
+SELECT @@GLOBAL.innodb_ft_aux_table, f();
+@@GLOBAL.innodb_ft_aux_table	f()
+NULL	NULL
+SET GLOBAL innodb_ft_aux_table="test/t";
+SELECT @@GLOBAL.innodb_ft_aux_table, f();
+@@GLOBAL.innodb_ft_aux_table	f()
+test/t	test/t
+SET GLOBAL innodb_ft_aux_table= default;
+DROP FUNCTION f;
+DROP TABLE t;

@@ -1,0 +1,10 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.version view
+
+# We do not do a DESC of this view, as the size of the version field
+# can change depending on the build.
+# Instead, we just select the sys_version, to ensure no errors/unwanted updates
+
+SELECT sys_version FROM sys.version;
+

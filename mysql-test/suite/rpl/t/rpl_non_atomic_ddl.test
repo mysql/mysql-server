@@ -1,0 +1,121 @@
+# ==== Purpose ====
+#
+# The test verifies the slave applier recovery after non-atomic DDL
+# crashes the server.
+# The test specifies slave_relay_log_info as of TABLE type.
+# At post-crash the slave service must recover and the applier resumes
+# from a correct binlog position.
+# The subject is not trivial as it may look because even with the slave binlogging
+# turned ON the post-crash recovering slave can't make use of its binlog as
+# the non-atomic DDL is not xided.
+#
+# ==== Implementation ====
+#
+# Simulate the crash once a non-atomic DDL completes on the slave
+# server including the final phase of the slave applier committing an
+# update into the info table.
+# At restart the slave server recovery must always find the slave info table updated
+# so never attempt binlog-based recovery for it which otherwise would
+# be in vain thanks to missed XID info.
+#
+# ==== References ====
+# WL#9175  Correct recovery of DDL statements/transactions by binary log
+#
+# See other tests like rpl_atomic_ddl, rpl_half_atomic_ddl verifying
+# the atomic DDL classes.
+#
+
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_debug.inc
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+
+##
+## Initialization
+##
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("Slave worker thread has failed to apply an event");
+call mtr.add_suppression("Error writing relay log configuration");
+
+--source include/rpl_connection_master.inc
+# instructing gtid_step_assert that is called by a sourced file
+# to satisfy to gtid-mode OFF as well.
+--let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+--let $gtid_step_gtid_mode_agnostic=`SELECT '$gtid_mode' != 'ON'`
+
+# Leave slave applier stopped
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+if (!$crash_commit)
+{
+  --let $commit_message=Crash right after the non-atomic DDL's event has updated slave relay log info
+  --let $crash_commit="+d,slave_crash_after_commit_no_atomic_ddl"
+}
+
+##
+## Execution
+##
+
+--let $table_name=tm
+--let $current_query=CREATE TABLE $table_name (a int) ENGINE=MYISAM
+
+--source include/rpl_connection_master.inc
+--eval $current_query
+--let $binlog_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
+
+--source include/sync_slave_io_with_master.inc
+
+# The receiver thread must be stopped now which
+# crash-safely memorizes the last received event coordinates.
+--source include/rpl_connection_slave.inc
+--source include/stop_slave_io.inc
+
+# Set up post-commit crash
+--source include/expect_crash.inc
+--echo *** Query: '$current_query'. $commit_message. ***
+--eval SET @@GLOBAL.debug=$crash_commit
+
+--error 0,2013
+START SLAVE SQL_THREAD;
+
+# Server wait for stop and restart
+--enable_reconnect
+--source include/wait_until_disconnected.inc
+--let $rpl_server_number= 2
+--source include/rpl_start_server.inc
+--disable_reconnect
+
+--source include/rpl_connection_slave.inc
+--let $assert_text=The table $table_name must be present
+--let $assert_cond=`SELECT count(*) = 0 FROM $table_name`
+--source include/assert.inc
+
+# The last executed position post crash recovery is extraneous.
+# Eventual 'START SLAVE' must succeed and would not when the last execution
+# coordiate remained as before the crash as the table could not be
+# re-CREATE-ed.
+--let $assert_text=The executed coordinates must be as after the crashing '$current_query'
+if (`select @@global.slave_parallel_workers = 0`)
+{
+  --let $assert_cond=`SELECT Master_log_pos = $binlog_pos FROM mysql.slave_relay_log_info`
+}
+if (`select @@global.slave_parallel_workers > 0`)
+{
+  --let $assert_cond=`SELECT max(Master_log_pos) = $binlog_pos FROM mysql.slave_worker_info`
+}
+--source include/assert.inc
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--eval DROP TABLE $table_name
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

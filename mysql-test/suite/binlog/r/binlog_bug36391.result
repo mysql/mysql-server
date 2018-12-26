@@ -1,0 +1,11 @@
+CREATE TABLE t1(id INT);
+SHOW TABLES;
+Tables_in_test
+t1
+FLUSH LOGS;
+DROP TABLE t1;
+RESET MASTER;
+SHOW TABLES;
+Tables_in_test
+t1
+DROP TABLE t1;

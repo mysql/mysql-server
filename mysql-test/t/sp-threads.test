@@ -1,0 +1,198 @@
+#
+# Testing stored procedures with multiple connections,
+# except security/privilege tests, they go to sp-security.test
+#
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+connect (con1root,localhost,root,,);
+connect (con2root,localhost,root,,);
+connect (con3root,localhost,root,,);
+
+connection con1root;
+use test;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (s1 int, s2 int, s3 int);
+
+delimiter //;
+create procedure bug4934()
+begin
+   insert into t1 values (1,0,1);
+end//
+delimiter ;//
+
+
+connection con2root;
+use test;
+
+call bug4934();
+select * from t1;
+
+
+connection con1root;
+
+drop table t1;
+create table t1 (s1 int, s2 int, s3 int);
+
+drop procedure bug4934;
+delimiter //;
+create procedure bug4934()
+begin
+end//
+delimiter ;//
+
+
+connection con2root;
+
+select * from t1;
+call bug4934();
+select * from t1;
+
+connection con1root;
+
+drop table t1;
+drop procedure bug4934;
+
+
+#
+# Bug#9486 Can't perform multi-update in stored procedure
+#
+--disable_warnings
+drop procedure if exists bug9486;
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (id1 int, val int);
+create table t2 (id2 int);
+
+create procedure bug9486()
+  update t1, t2 set val= 1 where id1=id2;
+call bug9486();
+# Let us check that SP invocation requires write lock for t2.
+connection con2root;
+lock tables t2 write;
+connection con1root;
+send call bug9486();
+connection con2root;
+--sleep 2
+# There should be call statement in locked state.
+--replace_column 1 # 3 localhost 6 #
+--replace_result "starting" STATE "init" STATE "cleaning up" STATE
+--sorted_result
+show processlist;
+unlock tables;
+connection con1root;
+reap;
+
+drop procedure bug9486;
+drop table t1, t2;
+
+
+#
+# Bug#11158 Can't perform multi-delete in stored procedure
+#
+--disable_warnings
+drop procedure if exists bug11158;
+--enable_warnings
+create procedure bug11158() delete t1 from t1, t2 where t1.id = t2.id;
+create table t1 (id int, j int);
+insert into t1 values (1, 1), (2, 2);
+create table t2 (id int);
+insert into t2 values (1);
+# Procedure should work and cause proper effect (delete only first row)
+call bug11158();
+select * from t1;
+# Also let us test that we obtain only read (and thus non exclusive) lock
+# for table from which we are not going to delete rows.
+connection con2root;
+lock tables t2 read;
+connection con1root;
+call bug11158();
+connection con2root;
+unlock tables;
+connection con1root;
+# Clean-up
+drop procedure bug11158;
+drop table t1, t2;
+
+
+#
+# Bug#11554 Server crashes on statement indirectly using non-cached function
+#
+--disable_warnings
+drop function if exists bug11554;
+drop view if exists v1;
+--enable_warnings
+create table t1 (i int);
+create function bug11554 () returns int return 1;
+create view v1 as select bug11554() as f;
+connection con2root;
+# This should not crash server
+insert into t1 (select f from v1);
+# Clean-up
+connection con1root;
+drop function bug11554;
+drop table t1;
+drop view v1;
+
+
+# Bug#12228 Crash happens during calling specific SP in multithread environment
+--disable_warnings
+drop procedure if exists p1;
+drop procedure if exists p2;
+--enable_warnings
+
+connection con1root;
+delimiter |;
+create table t1 (s1 int)|
+create procedure p1() select * from t1|
+create procedure p2()
+begin
+  insert into t1 values (1);
+  call p1();
+  select * from t1;
+end|
+delimiter ;|
+
+connection con2root;
+use test;
+lock table t1 write;
+
+connection con1root;
+send call p2();
+
+connection con3root;
+use test;
+drop procedure p1;
+create procedure p1() select * from t1;
+
+connection con2root;
+unlock tables;
+
+connection con1root;
+# Crash will be here if we hit Bug#12228
+reap;
+
+drop procedure p1;
+drop procedure p2;
+drop table t1;
+
+
+#
+# Bug#NNNN New bug synopsis
+#
+#--disable_warnings
+#drop procedure if exists bugNNNN;
+#--enable_warnings
+#create procedure bugNNNN...
+
+connection default;
+disconnect con1root;
+disconnect con2root;
+disconnect con3root;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

@@ -1,0 +1,24 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(c1 CHAR(10) CHARACTER SET utf16 DEFAULT 'ola');
+INSERT INTO t1 VALUES ('abc');
+INSERT INTO t1 VALUES ();
+#### ON MASTER
+SELECT c1, hex(c1) from t1;
+c1	abc
+hex(c1)	006100620063
+c1	ola
+hex(c1)	006F006C0061
+include/sync_slave_sql_with_master.inc
+#### ON SLAVE
+SELECT c1, hex(c1) FROM t1;
+c1	abc
+hex(c1)	006100620063
+c1	ola
+hex(c1)	006F006C0061
+include/diff_tables.inc [master:t1,slave:t1]
+DROP TABLE t1;
+include/rpl_end.inc

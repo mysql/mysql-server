@@ -1,0 +1,54 @@
+#### suite/funcs_1/datadict/datadict.pre
+#
+# Auxiliary script which loads prerequisites
+# (variables needed for --replace_result ...)
+# in datadictionary tests.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+--disable_query_log
+
+# Bug#12777 Different size shown for VARCHAR(n) columns (with n> 64)
+#           in INFORMATION_SCHEMA
+# This bug was unfortunately (for testers) declared to be no bug.
+# So CHARACTER_MAXIMUM_LENGTH of several <whatever>_CATALOG columns within
+# the INFORMATION_SCHEMA depends on PATH_MAX of the operating system.
+# Workaround for this problem:
+# Get the size of ONE known colum and check the size against some values to
+# be able to use the correct --replace_result statement. Using this only the
+# one pair of 'wrong' values is replaced and not all occurrencies of all
+# possible pairs of values. See bug #12777 for details.
+SELECT character_maximum_length INTO @CML
+FROM information_schema.columns
+WHERE table_schema = 'information_schema'
+  AND table_name   = 'COLUMNS'
+  AND column_name  = 'table_catalog';
+
+let $bug_12777_0512= `SELECT @CML =  512`;
+let $bug_12777_1023= `SELECT @CML = 1023`;
+let $bug_12777_1024= `SELECT @CML = 1024`;
+let $bug_12777_2048= `SELECT @CML = 2048`;
+# 4096 is the value used in the files with expected results.
+let $bug_12777_4095= `SELECT @CML = 4095`;
+if (0)
+{
+   # enable this for debugging only, but NOT in a pushed version, as then the
+   # result changes from OS to OS ...
+   eval SELECT @CML AS 'CML',
+               $bug_12777_0512 AS '512',
+               $bug_12777_1023 AS '1023',
+               $bug_12777_1024 AS '1024',
+               $bug_12777_2048 AS '2048',
+               $bug_12777_4095 AS '4095';
+}
+
+
+# Prepare a variable to be able to suppress machine dependant diffs
+# this can be used in: --replace_result $SERVER_NAME <SERVER_NAME>
+let $SERVER_NAME= `SELECT DISTINCT host FROM mysql.user
+                   WHERE host NOT In ("localhost", "127.0.0.1", "%")`;
+--enable_query_log
+

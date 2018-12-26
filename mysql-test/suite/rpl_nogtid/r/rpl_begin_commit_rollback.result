@@ -1,0 +1,466 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+SET @@session.binlog_direct_non_transactional_updates= FALSE;
+CREATE DATABASE replicate_do_db;
+CREATE DATABASE binlog_ignore_db;
+USE replicate_do_db;
+CREATE TABLE replicate_do_db.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE replicate_do_db.t2 (s CHAR(255)) ENGINE=MyISAM;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+[connection master]
+CREATE PROCEDURE replicate_do_db.p1 ()
+BEGIN
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+END//
+CREATE PROCEDURE replicate_do_db.p2 ()
+BEGIN
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+INSERT INTO t1 VALUES (8);
+INSERT INTO t1 VALUES (9);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t2 VALUES ('executed replicate_do_db.p2()');
+END//
+INSERT INTO replicate_do_db.t2 VALUES ('before call replicate_do_db.p1()');
+USE test;
+BEGIN;
+CALL replicate_do_db.p1();
+COMMIT;
+INSERT INTO replicate_do_db.t2 VALUES ('after call replicate_do_db.p1()');
+SELECT * FROM replicate_do_db.t1;
+a
+1
+2
+3
+4
+5
+SELECT * FROM replicate_do_db.t2;
+s
+before call replicate_do_db.p1()
+after call replicate_do_db.p1()
+[connection slave]
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_POS;
+include/wait_for_slave_sql_to_stop.inc
+include/assert.inc [Slave should have stopped after executing the stored procedure transaction]
+SELECT * from replicate_do_db.t1;
+a
+1
+2
+3
+4
+5
+SELECT * from replicate_do_db.t2;
+s
+before call replicate_do_db.p1()
+[connection master]
+INSERT INTO replicate_do_db.t2 VALUES ('before call replicate_do_db.p2()');
+BEGIN;
+CALL replicate_do_db.p2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+ROLLBACK;
+INSERT INTO replicate_do_db.t2 VALUES ('after call replicate_do_db.p2()');
+SELECT * FROM replicate_do_db.t1;
+a
+1
+2
+3
+4
+5
+SELECT * FROM replicate_do_db.t2;
+s
+before call replicate_do_db.p1()
+after call replicate_do_db.p1()
+before call replicate_do_db.p2()
+executed replicate_do_db.p2()
+after call replicate_do_db.p2()
+[connection slave]
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_POS;
+include/wait_for_slave_sql_to_stop.inc
+include/assert.inc [Slave should have stopped after executing the stored procedure transaction]
+SELECT * from replicate_do_db.t1;
+a
+1
+2
+3
+4
+5
+SELECT * from replicate_do_db.t2;
+s
+before call replicate_do_db.p1()
+executed replicate_do_db.p2()
+START SLAVE;
+include/wait_for_slave_sql_to_start.inc
+#
+# SAVEPOINT and ROLLBACK TO have the same problem in BUG#43263
+# This was reported by BUG#50407
+[connection master]
+BEGIN;
+INSERT INTO replicate_do_db.t1 VALUES(20);
+# 
+# Verify whether this statement is binlogged correctly
+/*comment*/ SAVEPOINT has_comment;
+USE replicate_do_db;
+INSERT INTO replicate_do_db.t1 VALUES(30);
+INSERT INTO replicate_do_db.t2 VALUES("in savepoint has_comment");
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+USE binlog_ignore_db;
+SavePoint mixed_cases;
+USE replicate_do_db;
+INSERT INTO replicate_do_db.t2 VALUES("in savepoint mixed_cases");
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+INSERT INTO replicate_do_db.t1 VALUES(40);
+USE binlog_ignore_db;
+ROLLBACK TO mixed_cases;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+ROLLBACK TO has_comment;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+USE replicate_do_db;
+INSERT INTO replicate_do_db.t2 VALUES("after rollback to");
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+INSERT INTO replicate_do_db.t1 VALUES(50);
+USE binlog_ignore_db;
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO replicate_do_db.t1 VALUES(20)
+master-bin.000001	#	Query	#	#	SAVEPOINT `has_comment`
+master-bin.000001	#	Query	#	#	use `replicate_do_db`; INSERT INTO replicate_do_db.t1 VALUES(30)
+master-bin.000001	#	Query	#	#	use `replicate_do_db`; INSERT INTO replicate_do_db.t2 VALUES("in savepoint has_comment")
+master-bin.000001	#	Query	#	#	SAVEPOINT `mixed_cases`
+master-bin.000001	#	Query	#	#	use `replicate_do_db`; INSERT INTO replicate_do_db.t2 VALUES("in savepoint mixed_cases")
+master-bin.000001	#	Query	#	#	use `replicate_do_db`; INSERT INTO replicate_do_db.t1 VALUES(40)
+master-bin.000001	#	Query	#	#	ROLLBACK TO `mixed_cases`
+master-bin.000001	#	Query	#	#	ROLLBACK TO `has_comment`
+master-bin.000001	#	Query	#	#	use `replicate_do_db`; INSERT INTO replicate_do_db.t2 VALUES("after rollback to")
+master-bin.000001	#	Query	#	#	use `replicate_do_db`; INSERT INTO replicate_do_db.t1 VALUES(50)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
+[on slave]
+#
+# Verify INSERT statements in savepoints are executed, for MyISAM table
+# is not effected by ROLLBACK TO
+SELECT * FROM replicate_do_db.t2 WHERE s LIKE '% savepoint %';
+s
+in savepoint has_comment
+in savepoint mixed_cases
+#
+# Verify INSERT statements on the Innodb table are rolled back;
+SELECT * FROM replicate_do_db.t1 WHERE a IN (30, 40);
+a
+
+# BUG#55798 Slave SQL retry on transaction inserts extra data into
+# non-transaction table
+# ----------------------------------------------------------------
+# To verify that SQL thread does not retry a transaction which can
+# not be rolled back safely, even though only a temporary error is
+# encountered.
+
+[connection master]
+USE replicate_do_db;
+DROP TABLE t1, t2;
+CREATE TABLE t1(c1 INT KEY, c2 CHAR(100)) ENGINE=InnoDB;
+CREATE TABLE t2(c1 INT) ENGINE=MyISAM;
+CREATE TABLE t3(c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, "master");
+SET @@session.binlog_direct_non_transactional_updates= FALSE;
+include/sync_slave_sql_with_master.inc
+# [ on slave ]
+USE replicate_do_db;
+SET @timeout_old= @@GLOBAL.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout= 1;
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+# Verify the SQL thread doesn't retry the transaction when one of
+# its statements has modified a non-transactional table.
+# ----------------------------------------------------------------
+
+# INSERT statement inserts a row to a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t2 VALUES(1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+UPDATE t1 SET c2='INSERT INTO t2 VALUES(1)' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# INSERT ... SELECT statement inserts a row to a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t2 SELECT 2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+UPDATE t1 SET c2='INSERT INTO t2 SELECT 2' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# UPDATE statement updates a row to a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+UPDATE t2 SET c1= 3;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+UPDATE t1 SET c2='UPDATE t2 SET c1= 3' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# MULTI-UPDATE statement updates a row to a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+UPDATE t2, t3 SET t2.c1=4, t3.c1= 4;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='UPDATE t2, t3 SET t2.c1=4, t3.c1= 4' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# DELETE statement deletes a row from a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+DELETE FROM t2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+UPDATE t1 SET c2='DELETE FROM t2' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# CREATE TEMPORARY TABLE statement in the transaction
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+CREATE TEMPORARY TABLE IF NOT EXISTS temp_t(c1 INT);
+UPDATE t1 SET c2='CREATE TEMPORARY TABLE IF NOT EXISTS temp_t(c1 INT)' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# DROP TEMPORARY TABLE statement in the transaction
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+DROP TEMPORARY TABLE IF EXISTS temp_t;
+UPDATE t1 SET c2='DROP TEMPORARY TABLE IF EXISTS temp_t' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# Verify that the SQL thread doesn't retry the transaction if one
+# of the sub-statements has modified a non-transactional table.
+# ----------------------------------------------------------------
+CREATE FUNCTION f_insert()
+RETURNS INT
+BEGIN
+INSERT INTO t2 VALUES(1);
+RETURN 2;
+END|
+CREATE FUNCTION f_insert_select()
+RETURNS INT
+BEGIN
+INSERT INTO t2 SELECT 2;
+RETURN 2;
+END|
+CREATE FUNCTION f_update()
+RETURNS INT
+BEGIN
+UPDATE t2 SET c1=3;
+RETURN 2;
+END |
+CREATE TABLE t4 (c1 INT) |
+INSERT INTO t4 VAlUES(1),(2) |
+CREATE FUNCTION f_multi_update()
+RETURNS INT
+BEGIN
+UPDATE t2, t4 SET t2.c1=4, t4.c1= 4;
+RETURN 2;
+END |
+CREATE FUNCTION f_delete()
+RETURNS INT
+BEGIN
+DELETE FROM t2;
+RETURN 2;
+END |
+
+# The INSERT statement in a function inserts a row into a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_insert());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_insert())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# The INSERT ... SELECT statement in a function inserts a row into a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_insert());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_insert())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# The UPDATE statement in a function updates a row of a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_update());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_update())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# The MULTI-UPDATE statement in a function updates a row of a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_multi_update());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_multi_update())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# The DELETE statement in a function deletes a row from a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_delete());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_delete())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+SET @@global.innodb_lock_wait_timeout= @timeout_old;
+#
+# Clean up
+#
+DROP DATABASE replicate_do_db;
+DROP DATABASE binlog_ignore_db;
+include/rpl_end.inc

@@ -1,0 +1,156 @@
+################################################################################
+# InnoDB transparent tablespace data encryption for general shared tablespace.
+# This test case will test
+#    - Crash during altering an encrypted tablespace
+#        - encryption='y' to encryption='n'
+#        - encryption='n' to encryption='y'
+# This test checks physical ibd file to see if unencrypted string is present
+# in any of the pages in tablespace file.
+################################################################################
+--source include/have_debug.inc
+--source include/big_test.inc
+# --source include/no_valgrind_without_big.inc
+# Disable in valgrind because of timeout, cf. Bug#22760145
+--source include/not_valgrind.inc
+
+--echo #########
+--echo # SETUP #
+--echo #########
+--echo
+let datadir=`SELECT @@datadir`;
+
+--echo #########################################################################
+--echo # RESTART 1 : WITH KEYRING PLUGIN
+--echo #########################################################################
+let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+let $explicit_default_wait_counter=4000;
+--source include/restart_mysqld_no_echo.inc
+
+--echo # Create a new 'unencrypted' tablespace 'encrypt_ts'
+SELECT NAME, FLAG, SPACE_TYPE FROM information_schema.INNODB_TABLESPACES
+	 where NAME="encrypt_ts";
+create tablespace encrypt_ts add datafile 'encrypt_ts.ibd'
+	 engine=INNODB encryption='N';
+SELECT NAME, FLAG, SPACE_TYPE FROM information_schema.INNODB_TABLESPACES
+	 where NAME="encrypt_ts";
+
+--echo # Create a table test.t1 in 'encrypt_ts' tablespace and insert some records.
+create table test.t1 (c char(20)) tablespace encrypt_ts;
+insert into test.t1 values ("samplerecord");
+
+# Make sure ts file is updated
+set global innodb_buf_flush_list_now = 1;
+
+--echo #############################################################
+--echo # INITIAL SETUP : Tablespace is created as unencrypted      #
+--echo #                 A table is created and rows are inserted  #
+--echo #############################################################
+
+--echo # Check that tablespace file is not encrypted yet
+--source include/if_encrypted.inc
+
+--echo ############################################################
+--echo # ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
+--echo ############################################################
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+
+# Make sure all pages are flushed
+set global innodb_buf_flush_list_now = 1;
+
+--echo # Check that tablespace file is encrypted now
+--source include/if_encrypted.inc
+
+--echo ############################################################
+--echo # ALTER TABLESPACE 2 :    Encrypted => Unencrypted         #
+--echo ############################################################
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+
+# Make sure all pages are flushed
+set global innodb_buf_flush_list_now = 1;
+
+--echo # Check that tablespace file is not encrypted now
+--source include/if_encrypted.inc
+
+--echo
+--echo ################# CRASH/RECOVERY TESTING ###################
+--echo
+
+--echo ############################################################
+--echo # ALTER TABLESPACE 3 :    Unencrypted => Encrypted         #
+--echo #                         (crash at page 10)               #
+--echo ############################################################
+# Insert few records in table
+--disable_query_log
+let $counter=12;
+while ($counter>0)
+{
+  INSERT INTO test.t1 SELECT * FROM test.t1;
+  dec $counter;
+}
+--enable_query_log
+
+SELECT COUNT(*) FROM test.t1;
+
+# Make sure ts file is updated with new records in table
+set global innodb_buf_flush_list_now = 1;
+
+--echo # Check that tablespace file is still unencrypted
+--source include/if_encrypted.inc
+
+--echo # Set Encryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+--source include/start_mysqld_no_echo.inc
+
+--echo # Wait for Encryption processing to finish in background thread
+let $wait_condition = select count(*) = 0
+	from performance_schema.events_stages_current
+	where EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+--source include/wait_condition.inc
+
+--echo # After restart/recovery, check that Encryption was roll-forward and
+--echo # tablespace file is encrypted now
+--source include/if_encrypted.inc
+
+--echo ############################################################
+--echo # ALTER TABLESPACE 4 :    Encrypted => Unencrypted         #
+--echo #                         (crash at page 10)               #
+--echo ############################################################
+
+SELECT COUNT(*) FROM test.t1;
+
+--echo # Check that tablespace file is Encrypted
+--source include/if_encrypted.inc
+
+--echo # Set Encryption process to crash after page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+--source include/start_mysqld_no_echo.inc
+
+--echo # Wait for Unencryption processing to finish in background thread
+let $wait_condition = select count(*) = 0
+	from performance_schema.events_stages_current
+	where EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+--source include/wait_condition.inc
+
+--echo # After restart/recovery, check that Unencryption was roll-forward and
+--echo # tablespace file is Unencrypted now
+--source include/if_encrypted.inc
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+DROP TABLE test.t1;
+DROP TABLESPACE encrypt_ts;
+remove_file $MYSQLTEST_VARDIR/tmpfile.txt;
+remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+
+--echo # Restarting server without keyring to restore server state
+let $restart_parameters = restart: ;
+--source include/restart_mysqld.inc

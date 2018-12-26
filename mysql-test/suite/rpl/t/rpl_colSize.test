@@ -1,0 +1,288 @@
+##################################################################
+# rpl_colSize                                                    #
+#                                                                #
+# This test is designed to test the changes included in WL#3228. #
+# The changes include the ability to replicate with the master   #
+# having columns that are smaller (shorter) than the slave.      #
+##################################################################
+
+-- source include/not_group_replication_plugin.inc
+-- source include/master-slave.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo **** Testing WL#3228 changes. ****
+--echo *** Create "wider" table on slave ***
+--source include/sync_slave_sql_with_master.inc
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
+RESET SLAVE;
+RESET MASTER;
+
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+
+#Get default engine value          WL#6921
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
+
+eval CREATE TABLE t1 (
+  a float     (47),
+  b double    (143,9),
+  c decimal   (65,30),
+  d numeric   (4,0),
+  e bit       (32),
+  f char      (21),
+  g varchar   (1300),
+  h binary    (33),
+  j varbinary (200),
+  k enum      ('5','6','7', '8','9','0'),
+  l set       ('1','2','3','4','5','6','7','8','9','0','11','12','13','14','15','16','17','18','19','21','22','23','24','25','26','27','28','29'),
+  m TINYBLOB,
+  n BLOB,
+  o MEDIUMBLOB,
+  p LONGBLOB,
+  q TINYTEXT,
+  r TEXT,
+  s MEDIUMTEXT,
+  t LONGTEXT
+);
+
+--echo *** Create same table on master but with narrow columns ***
+connection master;
+eval CREATE TABLE t1 (
+  a float     (44),
+  b double    (10,3),
+  c decimal   (10,2),
+  d numeric   (3,0),
+  e bit       (16),
+  f char      (10),
+  g varchar   (100),
+  h binary    (20),
+  j varbinary (20),
+  k enum      ('5','6','7'),
+  l set       ('1','2','3','4','5','6','7','8','9','0'),
+  m TINYBLOB,
+  n BLOB,
+  o MEDIUMBLOB,
+  p LONGBLOB,
+  q TINYTEXT,
+  r TEXT,
+  s MEDIUMTEXT,
+  t LONGTEXT
+);
+
+RESET MASTER;
+
+--echo *** Start replication ***
+connection slave;
+START SLAVE;
+--source include/wait_for_slave_to_start.inc
+
+--echo *** Insert data on master and display it. ***
+connection master;
+
+INSERT INTO t1 () VALUES (
+  17.567, 
+  2.123, 
+  10.20, 
+  125,
+  hex(64),
+  'TEST',
+  'This is a test',
+  'binary data',
+  'more binary data',
+  '6',
+  '7',
+  "blob 1",
+  "blob  2",
+  "blob   3",
+  "blob    4",
+  "text 1",
+  "text  2",
+  "text   3",
+  "text    4");
+
+# Replace values in columns that display differently between SBR & RBR
+--replace_column 5 # 8 #
+SELECT * FROM t1 ORDER BY a;
+
+--echo *** Select data from slave to compare ***
+--source include/sync_slave_sql_with_master.inc
+
+# Replace values in columns that display differently between SBR & RBR
+--replace_column 5 # 8 #
+SELECT * FROM t1 ORDER BY a;
+
+# Test boundary limits of varchar and char fields
+# Master/Slave
+# <256/<256 with m < s, m > s, and m == s <-- col a
+# >255/<256 with m < s, m > s, and m == s <-- error will be caught in BUG#22086
+# <256/>255 with m < s, m > s, and m == s <-- col b
+# >255/>255 with m < s, m > s, and m == s <-- col c
+#
+# Test boundary limits of CHAR fields
+# Master/Slave
+# <256/<256 with m < s, m > s, and m == s <-- col d
+# >255/<256 with m < s, m > s, and m == s <-- error char limited to 255 chars
+# <256/>255 with m < s, m > s, and m == s <-- error char limited to 255 chars
+# >255/>255 with m < s, m > s, and m == s <-- error char limited to 255 chars
+
+connection master;
+DROP TABLE t1;
+
+--echo Create varchar table on master
+CREATE TABLE t1 (
+  a VARCHAR(50),
+  b VARCHAR(100),
+  c VARCHAR(300),
+  d CHAR(5)
+);
+
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
+
+--echo Alter varchar table on slave
+ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(100);
+ALTER TABLE t1 CHANGE COLUMN b b VARCHAR(400);
+ALTER TABLE t1 CHANGE COLUMN c c VARCHAR(500);
+ALTER TABLE t1 CHANGE COLUMN d d CHAR(100);
+
+connection master;
+
+--echo Insert some values and select them on master
+INSERT INTO t1 VALUES ("This is a test of col a.", 
+                       "This is another test of col b.",
+                       "This is a test of the large col c.",
+                       "Col d");
+SELECT * FROM t1;
+#Replace default engine value with static engine string          WL#6921
+--replace_result $DEFAULT_ENGINE ENGINE default DEFAULT
+SHOW CREATE TABLE t1;
+
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
+
+--echo Insert some values and select them on slave
+SELECT * FROM t1;
+#Replace default engine value with static engine string          WL#6921
+--replace_result $DEFAULT_ENGINE ENGINE default DEFAULT
+SHOW CREATE TABLE t1;
+
+
+# Test boundary limits of bit fields
+# m < s, m % 8 != 0, and s % 8 == 0 col a
+# m < s, m % 8 == 0, and s % 8 != 0 col b
+# m < s, m % 8 != 0, and s % 8 != 0 col c
+# m > s, m % 8 != 0, and s % 8 == 0 <-- error will be caught in BUG#22086
+# m > s, m % 8 == 0, and s % 8 != 0 <-- error will be caught in BUG#22086
+# m > s, m % 8 != 0, and s % 8 != 0 <-- error will be caught in BUG#22086
+
+connection master;
+DROP TABLE t1;
+
+--echo Create bit table on master
+CREATE TABLE t1 (
+  a BIT(7),
+  b BIT(8),
+  c BIT(21),
+  d BIT(11),
+  e BIT(11)
+);
+
+--echo Create bit table on slave
+--source include/sync_slave_sql_with_master.inc
+
+DROP TABLE t1;
+CREATE TABLE t1 (
+  a BIT(16),
+  b BIT(22),
+  c BIT(54),
+  d BIT(25),
+  e BIT(13)
+);
+
+connection master;
+
+--echo Insert some values and select them on master
+INSERT INTO t1 VALUES (
+  b'1010101',
+  b'10101011',
+  b'101010110101010101111',
+  b'10101010101',
+  b'10101011111'
+  );
+
+SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
+#Replace default engine value with static engine string          WL#6921
+--replace_result $DEFAULT_ENGINE ENGINE default DEFAULT
+SHOW CREATE TABLE t1;
+
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
+
+--echo Insert some values and select them on master
+SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
+#Replace default engine value with static engine string          WL#6921
+--replace_result $DEFAULT_ENGINE ENGINE default DEFAULT
+SHOW CREATE TABLE t1;
+
+###############################################################################
+# Bug#19704825 TEMPORARY SLAVE TYPE CONVERSION TABLES RELEASED TO EARLY
+# Problem: Memory used in preparing slave type conversion
+# temporary table is getting released early and causing unexpected results
+# in case of nested events.
+# Eg: If a insert statement is calling a trigger which contains another
+# insert statement.
+# Steps to reproduce:
+#  1) Create a table t1
+#  2) Change it's definition on slave, so that insert will create conversion
+#     temporary table on slave (set SLAVE_TYPE_CONVERSIONS appropriately to
+#     allow the scenario)
+#  3) Create a table t2
+#  4) Create a trigger on top of table t1. Inside the trigger, insert a tuple
+#      into table t2
+#  5) Insert a tuple into table t1 on Master
+#  6) Make sure this insert is replicated without any issues.
+###############################################################################
+
+# Step 1, 2 are already done by above test code.
+
+# Step 3: Create a table t2
+connection master;
+CREATE TABLE t2(i INTEGER);
+
+# Step 4: Create a trigger on top of table t1. Inside the trigger, insert a
+#          tuple into table t2
+--delimiter $$
+CREATE TRIGGER t1_tr BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+INSERT INTO t2 VALUES(1);
+END $$
+--delimiter ;
+
+# Step 5: Insert a tuple into table t1 on Master
+INSERT INTO t1 VALUES (
+  b'1010101',
+  b'10101011',
+  b'101010110101010101111',
+  b'10101010101',
+  b'10101011111'
+  );
+
+# Step 6) Make sure this insert is replicated without any issues.
+--source include/sync_slave_sql_with_master.inc
+
+# End of test for Bug#19704825
+
+--echo *** Cleanup  ***
+connection master;
+DROP TABLE t1;
+DROP TABLE t2;
+--source include/sync_slave_sql_with_master.inc
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+
+# END 5.1 Test Case
+--source include/rpl_end.inc

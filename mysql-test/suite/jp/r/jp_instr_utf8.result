@@ -1,0 +1,223 @@
+drop table if exists `Ｔ１`;
+drop table if exists `Ｔ２`;
+drop table if exists `Ｔ３`;
+drop table if exists `Ｔ４`;
+drop table if exists `Ｔ５`;
+drop table if exists `Ｔ６`;
+drop table if exists `Ｔ７`;
+drop table if exists `Ｔ８`;
+drop table if exists `Ｔ９`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SET character_set_database = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `Ｔ１` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ２` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ３` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ４` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ５` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ６` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ７` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ８` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ９` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO `Ｔ１` VALUES ('ｱｲｳｴｵ');
+INSERT INTO `Ｔ２` VALUES ('あいうえお');
+INSERT INTO `Ｔ３` VALUES ('龔龖龗龞龡');
+INSERT INTO `Ｔ４` VALUES ('ｱｲｳｴｵ');
+INSERT INTO `Ｔ５` VALUES ('あいうえお');
+INSERT INTO `Ｔ６` VALUES ('龔龖龗龞龡');
+INSERT INTO `Ｔ７` VALUES ('ｱｲｳｴｵ');
+INSERT INTO `Ｔ８` VALUES ('あいうえお');
+INSERT INTO `Ｔ９` VALUES ('龔龖龗龞龡');
+SELECT INSTR(`Ｃ１`,'ｱ') from `Ｔ１`;
+INSTR(`Ｃ１`,'ｱ')
+1
+SELECT INSTR(`Ｃ１`,'ｲ') from `Ｔ１`;
+INSTR(`Ｃ１`,'ｲ')
+2
+SELECT INSTR(`Ｃ１`,'ｳ') from `Ｔ１`;
+INSTR(`Ｃ１`,'ｳ')
+3
+SELECT INSTR(`Ｃ１`,'ｴ') from `Ｔ１`;
+INSTR(`Ｃ１`,'ｴ')
+4
+SELECT INSTR(`Ｃ１`,'ｵ') from `Ｔ１`;
+INSTR(`Ｃ１`,'ｵ')
+5
+SELECT INSTR(`Ｃ１`,'ﾝ') from `Ｔ１`;
+INSTR(`Ｃ１`,'ﾝ')
+0
+SELECT INSTR(`Ｃ１`,'あ') from `Ｔ２`;
+INSTR(`Ｃ１`,'あ')
+1
+SELECT INSTR(`Ｃ１`,'い') from `Ｔ２`;
+INSTR(`Ｃ１`,'い')
+2
+SELECT INSTR(`Ｃ１`,'う') from `Ｔ２`;
+INSTR(`Ｃ１`,'う')
+3
+SELECT INSTR(`Ｃ１`,'え') from `Ｔ２`;
+INSTR(`Ｃ１`,'え')
+4
+SELECT INSTR(`Ｃ１`,'お') from `Ｔ２`;
+INSTR(`Ｃ１`,'お')
+5
+SELECT INSTR(`Ｃ１`,'ん') from `Ｔ２`;
+INSTR(`Ｃ１`,'ん')
+0
+SELECT INSTR(`Ｃ１`,'龔') from `Ｔ３`;
+INSTR(`Ｃ１`,'龔')
+1
+SELECT INSTR(`Ｃ１`,'龖') from `Ｔ３`;
+INSTR(`Ｃ１`,'龖')
+2
+SELECT INSTR(`Ｃ１`,'龗') from `Ｔ３`;
+INSTR(`Ｃ１`,'龗')
+3
+SELECT INSTR(`Ｃ１`,'龞') from `Ｔ３`;
+INSTR(`Ｃ１`,'龞')
+4
+SELECT INSTR(`Ｃ１`,'龡') from `Ｔ３`;
+INSTR(`Ｃ１`,'龡')
+5
+SELECT INSTR(`Ｃ１`,'丂') from `Ｔ３`;
+INSTR(`Ｃ１`,'丂')
+0
+SELECT INSTR(`Ｃ１`,'ｱ') from `Ｔ４`;
+INSTR(`Ｃ１`,'ｱ')
+1
+SELECT INSTR(`Ｃ１`,'ｲ') from `Ｔ４`;
+INSTR(`Ｃ１`,'ｲ')
+2
+SELECT INSTR(`Ｃ１`,'ｳ') from `Ｔ４`;
+INSTR(`Ｃ１`,'ｳ')
+3
+SELECT INSTR(`Ｃ１`,'ｴ') from `Ｔ４`;
+INSTR(`Ｃ１`,'ｴ')
+4
+SELECT INSTR(`Ｃ１`,'ｵ') from `Ｔ４`;
+INSTR(`Ｃ１`,'ｵ')
+5
+SELECT INSTR(`Ｃ１`,'ﾝ') from `Ｔ４`;
+INSTR(`Ｃ１`,'ﾝ')
+0
+SELECT INSTR(`Ｃ１`,'あ') from `Ｔ５`;
+INSTR(`Ｃ１`,'あ')
+1
+SELECT INSTR(`Ｃ１`,'い') from `Ｔ５`;
+INSTR(`Ｃ１`,'い')
+2
+SELECT INSTR(`Ｃ１`,'う') from `Ｔ５`;
+INSTR(`Ｃ１`,'う')
+3
+SELECT INSTR(`Ｃ１`,'え') from `Ｔ５`;
+INSTR(`Ｃ１`,'え')
+4
+SELECT INSTR(`Ｃ１`,'お') from `Ｔ５`;
+INSTR(`Ｃ１`,'お')
+5
+SELECT INSTR(`Ｃ１`,'ん') from `Ｔ５`;
+INSTR(`Ｃ１`,'ん')
+0
+SELECT INSTR(`Ｃ１`,'龔') from `Ｔ６`;
+INSTR(`Ｃ１`,'龔')
+1
+SELECT INSTR(`Ｃ１`,'龖') from `Ｔ６`;
+INSTR(`Ｃ１`,'龖')
+2
+SELECT INSTR(`Ｃ１`,'龗') from `Ｔ６`;
+INSTR(`Ｃ１`,'龗')
+3
+SELECT INSTR(`Ｃ１`,'龞') from `Ｔ６`;
+INSTR(`Ｃ１`,'龞')
+4
+SELECT INSTR(`Ｃ１`,'龡') from `Ｔ６`;
+INSTR(`Ｃ１`,'龡')
+5
+SELECT INSTR(`Ｃ１`,'丂') from `Ｔ６`;
+INSTR(`Ｃ１`,'丂')
+0
+SELECT INSTR(`Ｃ１`,'ｱ') from `Ｔ７`;
+INSTR(`Ｃ１`,'ｱ')
+1
+SELECT INSTR(`Ｃ１`,'ｲ') from `Ｔ７`;
+INSTR(`Ｃ１`,'ｲ')
+2
+SELECT INSTR(`Ｃ１`,'ｳ') from `Ｔ７`;
+INSTR(`Ｃ１`,'ｳ')
+3
+SELECT INSTR(`Ｃ１`,'ｴ') from `Ｔ７`;
+INSTR(`Ｃ１`,'ｴ')
+4
+SELECT INSTR(`Ｃ１`,'ｵ') from `Ｔ７`;
+INSTR(`Ｃ１`,'ｵ')
+5
+SELECT INSTR(`Ｃ１`,'ﾝ') from `Ｔ７`;
+INSTR(`Ｃ１`,'ﾝ')
+0
+SELECT INSTR(`Ｃ１`,'あ') from `Ｔ８`;
+INSTR(`Ｃ１`,'あ')
+1
+SELECT INSTR(`Ｃ１`,'い') from `Ｔ８`;
+INSTR(`Ｃ１`,'い')
+2
+SELECT INSTR(`Ｃ１`,'う') from `Ｔ８`;
+INSTR(`Ｃ１`,'う')
+3
+SELECT INSTR(`Ｃ１`,'え') from `Ｔ８`;
+INSTR(`Ｃ１`,'え')
+4
+SELECT INSTR(`Ｃ１`,'お') from `Ｔ８`;
+INSTR(`Ｃ１`,'お')
+5
+SELECT INSTR(`Ｃ１`,'ん') from `Ｔ８`;
+INSTR(`Ｃ１`,'ん')
+0
+SELECT INSTR(`Ｃ１`,'龔') from `Ｔ９`;
+INSTR(`Ｃ１`,'龔')
+1
+SELECT INSTR(`Ｃ１`,'龖') from `Ｔ９`;
+INSTR(`Ｃ１`,'龖')
+2
+SELECT INSTR(`Ｃ１`,'龗') from `Ｔ９`;
+INSTR(`Ｃ１`,'龗')
+3
+SELECT INSTR(`Ｃ１`,'龞') from `Ｔ９`;
+INSTR(`Ｃ１`,'龞')
+4
+SELECT INSTR(`Ｃ１`,'龡') from `Ｔ９`;
+INSTR(`Ｃ１`,'龡')
+5
+SELECT INSTR(`Ｃ１`,'丂') from `Ｔ９`;
+INSTR(`Ｃ１`,'丂')
+0
+DROP TABLE `Ｔ１`;
+DROP TABLE `Ｔ２`;
+DROP TABLE `Ｔ３`;
+DROP TABLE `Ｔ４`;
+DROP TABLE `Ｔ５`;
+DROP TABLE `Ｔ６`;
+DROP TABLE `Ｔ７`;
+DROP TABLE `Ｔ８`;
+DROP TABLE `Ｔ９`;

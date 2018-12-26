@@ -1,0 +1,109 @@
+# suite/funcs_1/t/is_coll_char_set_appl.test
+#
+# Check the layout of information_schema.collation_character_set_applicability
+# and some functionality related tests.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+
+let $is_table = COLLATION_CHARACTER_SET_APPLICABILITY;
+
+# The table INFORMATION_SCHEMA.CHARACTER_SET_APPLICABILITY must exist
+eval SHOW TABLES FROM information_schema LIKE '$is_table';
+
+--echo #######################################################################
+--echo # Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+--echo #######################################################################
+# Ensure that every INFORMATION_SCHEMA table can be queried with a SELECT
+# statement, just as if it were an ordinary user-defined table.
+#
+--source suite/funcs_1/datadict/is_table_query.inc
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.4.1: INFORMATION_SCHEMA.CHARACTER_SET_APPLICABILITY layout
+--echo #########################################################################
+# Ensure that the INFORMATION_SCHEMA.CHARACTER_SET_APPLICABILITY table has the
+# following columns, in the following order:
+#
+# COLLATION_NAME (shows the name of a collation),
+# CHARACTER_SET_NAME (shows the name of a character set to which that
+#           collation applies).
+#
+eval DESCRIBE          information_schema.$is_table;
+eval SHOW CREATE TABLE information_schema.$is_table;
+eval SHOW COLUMNS FROM information_schema.$is_table;
+
+# Note: Retrieval of information within information_schema.columns about
+#       information_schema.collation_character_set_applicability is in
+#       is_columns_is.test.
+#       Retrieval of information_schema.collation_character_set_applicability
+#       content is in charset_collation.inc (sourced by charset_collation_*.test).
+
+echo # Testcases 3.2.4.2 and 3.2.4.3 are checked in suite/funcs_1/t/charset_collation*.test;
+
+--echo ########################################################################
+--echo # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+--echo #           DDL on INFORMATION_SCHEMA tables are not supported
+--echo ########################################################################
+# 3.2.1.3:  Ensure that no user may execute an INSERT statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.4:  Ensure that no user may execute an UPDATE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.5:  Ensure that no user may execute a DELETE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.8:  Ensure that no user may create an index on an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.9:  Ensure that no user may alter the definition of an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.10: Ensure that no user may drop an INFORMATION_SCHEMA table.
+# 3.2.1.11: Ensure that no user may move an INFORMATION_SCHEMA table to any
+#           other database.
+# 3.2.1.12: Ensure that no user may directly add to, alter, or delete any data
+#           in an INFORMATION_SCHEMA table.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.collation_character_set_applicability
+SELECT * FROM information_schema.collation_character_set_applicability;
+
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.collation_character_set_applicability
+SET collation_name = 'big6_chinese_ci' WHERE character_set_name = 'big6';
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.collation_character_set_applicability
+SET character_set_name = 't_4711';
+
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM information_schema.collation_character_set_applicability;
+--error ER_DBACCESS_DENIED_ERROR
+TRUNCATE information_schema.collation_character_set_applicability;
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE INDEX my_idx
+ON information_schema.collation_character_set_applicability(collation_name);
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.collation_character_set_applicability ADD f1 INT;
+
+--error ER_DBACCESS_DENIED_ERROR
+DROP TABLE information_schema.collation_character_set_applicability;
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.collation_character_set_applicability
+RENAME db_datadict.collation_character_set_applicability;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.collation_character_set_applicability
+RENAME information_schema.xcollation_character_set_applicability;
+
+# Cleanup
+DROP DATABASE db_datadict;
+

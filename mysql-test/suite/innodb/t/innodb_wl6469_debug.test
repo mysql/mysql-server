@@ -1,0 +1,94 @@
+#
+# WL#6469: Optimizing CREATE/DROP performance for temporary tables
+#
+
+
+# Must have debug code to use SET SESSION debug
+--source include/have_debug.inc
+
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
+
+#########################################################################
+#									#
+# Will test following scenarios:					#
+# 1. Effect of errors on temp-table					#
+#########################################################################
+
+
+#-------------------------------------------------------------
+#
+# create test-bed.
+#
+let $per_table = `select @@innodb_file_per_table`;
+set global innodb_file_per_table = 0;
+
+#------------------------------------------------------------
+#
+# 1. Effect of errors on temp-table
+#
+set global innodb_file_per_table = 1;
+call mtr.add_suppression("No space left on device");
+call mtr.add_suppression("table.+ full");
+call mtr.add_suppression("Cannot create file");
+
+# In the test scenario, there can be orphaned .frm files.
+# These are expected.  So suppressing the associated warnings.
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
+			 "in the InnoDB internal");
+
+#
+--exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+set session debug="+d,ib_ddl_crash_during_tablespace_alloc";
+--error 2013
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine = innodb;
+#
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (10, 11);
+select * from t1;
+drop table t1;
+#
+#
+set session debug="+d,ib_create_table_fail_at_create_index";
+--error ER_INDEX_COLUMN_TOO_LONG
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine = innodb;
+--error ER_NO_SUCH_TABLE
+insert into t1 values (10, 11);
+set session debug="-d,ib_create_table_fail_at_create_index";
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (10, 11);
+drop table t1;
+
+
+#-------------------------------------------------------------
+#
+# Temp table with PK-FK -FK constraint is igonered for temp
+# tables
+
+--disable_warnings
+drop table if exists parent,child;
+--enable_warnings
+create temporary table parent ( i int primary key ) engine = innodb;
+create table child ( j int references parent(i)) engine = innodb;
+insert into parent values (1),(2),(3),(4);
+insert into child values (1),(2),(3),(4);
+# We can insert non referencing values as constraint is ignored for temp table
+insert into child values (5),(6);
+select * from parent;
+select * from child;
+#
+--source include/restart_mysqld.inc
+#
+# parent table will be removed on restart as its temp table
+--error ER_NO_SUCH_TABLE
+select * from parent ;
+select * from child ;
+drop table child;

@@ -1,0 +1,3 @@
+--no-console
+--log-error=$MYSQLTEST_VARDIR/log/mysqld.1.err
+$LOGGING_COMPONENTS_OPT

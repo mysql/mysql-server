@@ -1,0 +1,57 @@
+
+#
+# 2010-01-25 - Added
+#
+
+
+SET @start_global_value = @@global.innodb_old_blocks_time;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are zero or above
+select @@global.innodb_old_blocks_time >=0;
+select @@global.innodb_old_blocks_time;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_old_blocks_time;
+show global variables like 'innodb_old_blocks_time';
+show session variables like 'innodb_old_blocks_time';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_time';
+select * from performance_schema.session_variables where variable_name='innodb_old_blocks_time';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_old_blocks_time=10;
+select @@global.innodb_old_blocks_time;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_time';
+select * from performance_schema.session_variables where variable_name='innodb_old_blocks_time';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session innodb_old_blocks_time=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_old_blocks_time=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_old_blocks_time=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_old_blocks_time="foo";
+
+set global innodb_old_blocks_time=-7;
+select @@global.innodb_old_blocks_time;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_time';
+--enable_warnings
+
+#
+# cleanup
+#
+SET @@global.innodb_old_blocks_time = @start_global_value;
+SELECT @@global.innodb_old_blocks_time;

@@ -1,0 +1,210 @@
+CREATE DATABASE test_user_db;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+========== test 1.1 ======================================================
+CREATE USER plug IDENTIFIED WITH test_plugin_server;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+DROP USER plug;
+CREATE USER plug IDENTIFIED WITH test_plugin_server BY '123';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
+DROP USER plug;
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+DROP USER plug;
+CREATE USER plug IDENTIFIED WITH test_plugin_server BY '123';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
+DROP USER plug;
+CREATE USER plug IDENTIFIED WITH test_plugin_server AS '';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+DROP USER plug;
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+CREATE USER plug IDENTIFIED WITH test_plugin_server AS plug_dest;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'plug_dest' at line 1
+========== test 1.1 syntax errors ========================================
+CREATE USER plug IDENTIFIED WITH AS plug_dest;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS plug_dest' at line 1
+CREATE USER plug IDENTIFIED WITH;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+CREATE USER plug IDENTIFIED AS '';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS ''' at line 1
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' IDENTIFIED WITH 'test_plugin_server';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH 'test_plugin_server'' at line 1
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS '' AS 'plug_dest';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS 'plug_dest'' at line 1
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS '' 
+IDENTIFIED WITH test_plugin_server   AS 'plug_dest';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH test_plugin_server   AS 'plug_dest'' at line 2
+CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd' 
+IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'' at line 2
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest' 
+USER plug_dest IDENTIFIED by 'plug_dest_pwd';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USER plug_dest IDENTIFIED by 'plug_dest_pwd'' at line 2
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest' 
+plug_dest IDENTIFIED by 'plug_dest_pwd';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'plug_dest IDENTIFIED by 'plug_dest_pwd'' at line 2
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest' 
+IDENTIFIED by 'plug_dest_pwd';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED by 'plug_dest_pwd'' at line 2
+========== test 1.1  combinations ==========================
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+========== test 1.1.1.6/1.1.2.5 ============================
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+plug_dest	caching_sha2_password
+DROP USER plug, plug_dest;
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+DROP USER plug;
+CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug_dest	caching_sha2_password
+DROP USER plug_dest;
+CREATE USER plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+DROP USER plug;
+CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug_dest	caching_sha2_password
+DROP USER plug_dest;
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+DROP USER plug;
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+DROP USER plug;
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+CREATE USER plug_dest IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+plug_dest	test_plugin_server
+DROP USER plug,plug_dest;
+========== test 1.1.1.1/1.1.2.1/1.1.1.5 ====================
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE USER plüg IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg	test_plugin_server
+DROP USER plüg;
+CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg_dest	caching_sha2_password
+DROP USER plüg_dest;
+SET NAMES ascii;
+CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
+Warnings:
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg'
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+pl??g	test_plugin_server
+DROP USER 'plüg';
+Warnings:
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg'
+CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
+Warnings:
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+pl??g_dest	caching_sha2_password
+DROP USER 'plüg_dest';
+Warnings:
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
+SET NAMES latin1;
+========== test 1.1.1.5 ====================================
+CREATE USER 'plüg' IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
+ERROR HY000: Plugin 'test_plügin_server' is not loaded
+CREATE USER 'plug' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+DROP USER 'plug';
+CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg_dest	caching_sha2_password
+DROP USER 'plüg_dest';
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';
+ERROR HY000: Plugin 'test_pluggggin_server' is not loaded
+CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg	test_plugin_server
+DROP USER 'plüg';
+CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg_dest	caching_sha2_password
+DROP USER 'plüg_dest';
+CREATE USER plüg IDENTIFIED WITH test_plugin_server AS 'plüg_dest';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg	test_plugin_server
+DROP USER plüg;
+CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg_dest	caching_sha2_password
+DROP USER plüg_dest;
+========== test 1.1.1.2/1.1.2.2=============================
+SET @auth_name= 'test_plugin_server';
+CREATE USER plug IDENTIFIED WITH @auth_name AS 'plug_dest';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@auth_name AS 'plug_dest'' at line 1
+SET @auth_string= 'plug_dest';
+CREATE USER plug IDENTIFIED WITH test_plugin_server AS @auth_string;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@auth_string' at line 1
+========== test 1.1.1.3/1.1.2.3=============================
+CREATE USER plug IDENTIFIED WITH 'hh''s_test_plugin_server' AS 'plug_dest';
+ERROR HY000: Plugin 'hh's_test_plugin_server' is not loaded
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'hh''s_plug_dest';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+DROP USER plug;
+CREATE USER 'hh''s_plug_dest' IDENTIFIED BY 'plug_dest_passwd';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+hh's_plug_dest	caching_sha2_password
+DROP USER 'hh''s_plug_dest';
+========== test 1.1.1.4 ====================================
+CREATE USER plug IDENTIFIED WITH hh''s_test_plugin_server AS 'plug_dest';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '''s_test_plugin_server AS 'plug_dest'' at line 1
+DROP DATABASE test_user_db;

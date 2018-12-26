@@ -1,0 +1,118 @@
+#------------------------------------------------------------------------------
+# Test mysql_tzinfo_to_sql program against system zoneinfo files.
+# The mysql_tzinfo_to_sql program loads the time zone tables in the mysql 
+# database. It is used on systems that have a zoneinfo database (the set of 
+# files describing time zones). 
+# Examples of such systems are Linux, FreeBSD, Solaris, and Mac OS X. One 
+# likely location for these files is the /usr/share/zoneinfo directory 
+# (/usr/share/lib/zoneinfo on Solaris).
+# The test is skipped if any of the required zoneinfo files cannot be found. 
+# usage: 
+# 1] mysql_tzinfo_to_sql tz_dir
+# 2] mysql_tzinfo_to_sql tz_file tz_name
+# 3] mysql_tzinfo_to_sql --leap tz_file
+# Test aims loading zone tables in the mysql with above command.
+# Data is loaded into zone table from test_zone database instead of mysql 
+# database.
+#------------------------------------------------------------------------------
+--source include/not_windows.inc
+
+# Escape to perl to locate zoneinfo on this system
+perl;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+open ( OUTPUT, ">$dir/tmp/zoneinfocheck.inc") ;
+@path=();
+# Check zoneinfo folder in default places
+if(-d "/usr/share/zoneinfo"){
+  $path[1] = "/usr/share/zoneinfo";
+}elsif(-d "/usr/share/lib/zoneinfo"){
+  $path[1] = "/usr/share/lib/zoneinfo";
+}else{
+   # check if whereis command knows zoneinfo location
+   system("whereis zoneinfo");
+   if ($?==0) {
+      @path = split (/\s+/, `whereis zoneinfo`);
+   }
+}
+
+# Check that all requires zoneinfo resources are available
+if (defined($path[1])) {
+   if (-e "$path[1]/Japan") {
+      print OUTPUT "let zoneinfo_japan_path = $path[1]/Japan;\n";
+   }
+   if (-d "$path[1]/Europe") {
+      print OUTPUT "let zoneinfo_europe_path = $path[1]/Europe;\n";
+   }
+   if (-e "$path[1]/right/Europe/Moscow") {
+      print OUTPUT "let zoneinfo_leap_moscow_path= $path[1]/right/Europe/Moscow;\n",
+   }
+}
+
+close (OUTPUT);
+EOF
+
+# Load zoneinfo_path variables
+--source  $MYSQLTEST_VARDIR/tmp/zoneinfocheck.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/zoneinfocheck.inc
+
+# Skip test if any required zoneinfo resources are unavailable
+if (!$zoneinfo_japan_path) { 
+   --skip Unable to locate zoneinfo/Japan
+}
+if (!$zoneinfo_europe_path) { 
+   --skip Unable to locate zoneinfo/Europe
+}
+
+# Create tables zone tables in test_zone database
+CREATE DATABASE test_zone;
+USE test_zone;
+CREATE TABLE time_zone as SELECT * FROM mysql.time_zone WHERE 1 = 0;
+CREATE TABLE time_zone_leap_second as SELECT * FROM mysql.time_zone_leap_second WHERE 1 = 0;
+CREATE TABLE time_zone_name as SELECT * FROM mysql.time_zone_name WHERE 1 = 0;
+CREATE TABLE time_zone_transition as SELECT * FROM mysql.time_zone_transition WHERE 1 = 0;
+CREATE TABLE time_zone_transition_type as SELECT * FROM mysql.time_zone_transition_type WHERE 1 = 0;
+
+--echo # Load system zone table for Japanese zones. (mysql_tzinfo_to_sql <syszonepath>/Japan test_japan).
+--exec $MYSQL_TZINFO_TO_SQL $zoneinfo_japan_path test_japan >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+
+# Disabling query log when sourcing loadzonefile.sql to make test stable
+--disable_query_log
+--source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+--enable_query_log
+# Selecting count(*) > 0 to verify that mysql_tzinfo_to_sql produced output, while keeping the test stable
+SELECT (count(*) > 0) FROM time_zone;
+SELECT (count(*) > 0) FROM time_zone_name;
+SELECT (count(*) > 0) FROM time_zone_transition;
+SELECT (count(*) > 0) FROM time_zone_transition_type;
+
+--echo # Load system Moscow zone table with --leap option. (mysql_tzinfo_to_sql --leap <syszonepath>/right/Europe/Moscow)
+# Disabling query log when sourcing loadzonefile.sql to make test stable
+--disable_query_log
+# Not all systems include the <zoneinfo>/right directory
+if ($zoneinfo_leap_moscow_path) {
+  --exec $MYSQL_TZINFO_TO_SQL --leap $zoneinfo_leap_moscow_path >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+  --source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql  
+  SELECT (count(*) > 1) AS OK FROM time_zone_leap_second;
+}
+if (!$zoneinfo_leap_moscow_path) {
+  # Dummy select to match the result file
+  SELECT (count(*) = 0) AS OK FROM time_zone_leap_second;     
+}
+--enable_query_log
+
+--echo # Load system zone table files in Europe folder. (mysql_tzinfo_to_sql <syszonepath>/Europe)
+--exec $MYSQL_TZINFO_TO_SQL $zoneinfo_europe_path >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+# Disabling query log when sourcing loadzonefile.sql to make test stable
+--disable_query_log
+--source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+--enable_query_log
+# Selecting count(*) > 0 to verify that mysql_tzinfo_to_sql produced output, while keeping the test stable
+SELECT (count(*) > 0) FROM time_zone;
+SELECT (count(*) > 0) FROM time_zone_name;
+SELECT (count(*) > 0) FROM time_zone_transition;
+SELECT (count(*) > 0) FROM time_zone_transition_type;
+
+# Cleanup
+DROP DATABASE test_zone;
+--remove_file $MYSQLTEST_VARDIR/tmp/loadzonefile.sql

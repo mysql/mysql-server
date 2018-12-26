@@ -1,0 +1,96 @@
+#
+# Bug #18756233	 ASSERT !HAS_DONE_RESERVATION,
+# FSEG_ALLOC_FREE_PAGE_LOW(), BTR_STORE_BIG_REC_EXTE
+#
+create table t1 (f1 int primary key, f2 longblob, f3 longblob) engine = innodb;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t1';
+name	clust_index_size
+test/t1	0
+# If the page size is 16K, an uncompressed blob page can hold
+# data of 16330 bytes.  Insert 64 pages of data (64 * 16330 =
+# 1045120 bytes) so that 1 extent will be reserved and used.
+insert into t1 values (1, repeat('%', 1045120), repeat('~', 1045120));
+set global innodb_buf_flush_list_now = 1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t1';
+name	clust_index_size
+test/t1	1
+# This will reserve 2 extents.
+insert into t1 values (2, repeat('%', 1045121), repeat('~', 1045121));
+set global innodb_buf_flush_list_now = 1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t1';
+name	clust_index_size
+test/t1	289
+# This will reserve 1 extent.
+insert into t1 values (3, repeat('%', 1045119), repeat('~', 1045119));
+set global innodb_buf_flush_list_now = 1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t1';
+name	clust_index_size
+test/t1	289
+drop table t1;
+set global innodb_compression_level=0;
+create table t2 (f1 int primary key, f2 longblob, f3 longblob) engine=innodb
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t2';
+name	clust_index_size
+test/t2	0
+# For KBS=1, the payload is 986 bytes.  The extent will contain
+# 1048576/1024 = 1024 pages. So total bytes is 1024 * 986 = 1009664.
+# This will reserve 1 extent.
+insert into t2 values (1, repeat('%', 1009664), repeat('~', 1009664));
+set global innodb_buf_flush_list_now = 1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t2';
+name	clust_index_size
+test/t2	1
+# This will reserve 2 extent.
+insert into t2 values (2, repeat('%', 1009665), repeat('~', 1009665));
+set global innodb_buf_flush_list_now = 1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t2';
+name	clust_index_size
+test/t2	4257
+# This will reserve 1 extent.
+insert into t2 values (3, repeat('%', 1009663), repeat('~', 1009663));
+set global innodb_buf_flush_list_now = 1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t2';
+name	clust_index_size
+test/t2	4257
+drop table t2;
+set global innodb_compression_level=3;
+create table t3 (f1 int primary key, f2 longblob, f3 longblob) engine=innodb
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t3';
+name	clust_index_size
+test/t3	0
+# For KBS=1, the payload is 986 bytes.  The extent will contain
+# 1048576/1024 = 1024 pages. So total bytes is 4 * 1024 * 986 = 4038656.
+# This will reserve <= 4 extent.
+insert into t3 values (1, repeat('%', 4038656), repeat('~', 4038656));
+set global innodb_buf_flush_list_now = 1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t3';
+name	clust_index_size
+test/t3	1
+# This will reserve <= 4 extent
+insert into t3 values (2, repeat('%', 4038655), repeat('~', 4038655));
+set global innodb_buf_flush_list_now = 1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t3';
+name	clust_index_size
+test/t3	161
+# This will reserve <= 4 extent
+insert into t3 values (3, repeat('%', 4038657), repeat('~', 4038657));
+set global innodb_buf_flush_list_now = 1;
+select name, clust_index_size from information_schema.innodb_tablestats
+where name = 'test/t3';
+name	clust_index_size
+test/t3	161
+drop table t3;
+set global innodb_compression_level=default;

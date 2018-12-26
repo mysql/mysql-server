@@ -1,0 +1,269 @@
+DROP TABLE IF EXISTS t1, t2;
+#
+# Bug#31663 FIELDS TERMINATED BY special character
+#
+CREATE TABLE t1 (i1 int, i2 int, c1 VARCHAR(256), c2 VARCHAR(256));
+INSERT INTO t1 VALUES (101, 202, '-r-', '=raker=');
+# FIELDS TERMINATED BY 'raker', warning:
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS TERMINATED BY 'raker' FROM t1;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+101raker202raker-r-raker=raker=
+
+CREATE TABLE t2 SELECT * FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 FIELDS TERMINATED BY 'raker';
+Warnings:
+Warning	1262	Row 1 was truncated; it contained more data than there were input columns
+SELECT * FROM t2;
+i1	i2	c1	c2
+101	202	-r-	=raker=
+101	202	-r-	=
+DROP TABLE t2;
+# Only numeric fields, FIELDS TERMINATED BY 'r', no warnings:
+SELECT i1, i2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS TERMINATED BY 'r' FROM t1;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+101r202
+
+CREATE TABLE t2 SELECT i1, i2 FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS TERMINATED BY 'r';
+SELECT i1, i2 FROM t2;
+i1	i2
+101	202
+101	202
+DROP TABLE t2;
+# FIELDS TERMINATED BY '0', warning:
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS TERMINATED BY '0' FROM t1;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+10102020-r-0=raker=
+
+CREATE TABLE t2 SELECT * FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 FIELDS TERMINATED BY '0';
+Warnings:
+Warning	1262	Row 1 was truncated; it contained more data than there were input columns
+SELECT * FROM t2;
+i1	i2	c1	c2
+101	202	-r-	=raker=
+1	1	2	2
+DROP TABLE t2;
+# FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0', warning:
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0' FROM t1;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+10102020"-r-"0"=raker="
+
+CREATE TABLE t2 SELECT * FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0';
+Warnings:
+Warning	1262	Row 1 was truncated; it contained more data than there were input columns
+SELECT * FROM t2;
+i1	i2	c1	c2
+101	202	-r-	=raker=
+1	1	2	2
+DROP TABLE t2;
+# Only string fields, FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0', no warnings:
+SELECT c1, c2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0' FROM t1;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+"-r-"0"=raker="
+
+CREATE TABLE t2 SELECT c1, c2 FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0';
+SELECT c1, c2 FROM t2;
+c1	c2
+-r-	=raker=
+-r-	=raker=
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#32533: SELECT INTO OUTFILE never escapes multibyte character
+#
+CREATE TABLE t1 (c1 VARCHAR(256) charset latin1);
+INSERT INTO t1 VALUES (0xC3);
+SELECT HEX(c1) FROM t1;
+HEX(c1)
+C3
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug32533.txt' FIELDS ENCLOSED BY 0xC3 FROM t1;
+TRUNCATE t1;
+SELECT HEX(LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug32533.txt'));
+HEX(LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug32533.txt'))
+C35CC3C30A
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug32533.txt' INTO TABLE t1 CHARACTER SET latin1 FIELDS ENCLOSED BY 0xC3;
+SELECT HEX(c1) FROM t1;
+HEX(c1)
+C3
+DROP TABLE t1;
+# End of 5.0 tests.
+#
+# Bug #30946: mysqldump silently ignores --default-character-set
+#             when used with --tab
+#
+# Also see mysqldump.test
+#
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1 (a INT, b CHAR(10) CHARSET koi8r, c CHAR(10) CHARSET latin1);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
+# Error on multi-character ENCLOSED/ESCAPED BY
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS ENCLOSED BY '12345';
+ERROR 42000: Field separator argument is not what is expected; check the manual
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS ESCAPED BY '12345';
+ERROR 42000: Field separator argument is not what is expected; check the manual
+# "Not implemented" warning on multibyte  ENCLOSED/ESCAPED BY character,
+# LOAD DATA rises error or has unpredictable result -- to be fixed later
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS ENCLOSED BY 'ъ';
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET binary FIELDS ENCLOSED BY 'ъ';
+ERROR 42000: Field separator argument is not what is expected; check the manual
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS ESCAPED BY 'ъ';
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET binary FIELDS ESCAPED BY 'ъ';
+ERROR 42000: Field separator argument is not what is expected; check the manual
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY 'ъ';
+##################################################
+1ъABC-���ъDEF-���
+2ъ\Nъ\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET binary FIELDS TERMINATED BY 'ъ';
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SELECT * FROM t1;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SELECT * FROM t2;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' LINES STARTING BY 'ъ';
+##################################################
+ъ1	ABC-���	DEF-���
+ъ2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET binary LINES STARTING BY 'ъ';
+Warnings:
+Warning	1638	Non-ASCII separator arguments are not fully supported
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' LINES TERMINATED BY 'ъ';
+##################################################
+1	ABC-���	DEF-���ъ2	\N	\Nъ##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET binary LINES TERMINATED BY 'ъ';
+Warnings:
+Warning	1638	Non-ASCII separator arguments are not fully supported
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SELECT * FROM t1;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SELECT * FROM t2;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# Default (binary) charset:
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FROM t1;
+##################################################
+1	ABC-���	DEF-���
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET binary;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# latin1 charset (INTO OUTFILE warning is expected):
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' CHARACTER SET latin1 FROM t1;
+Warnings:
+Warning	1366	Incorrect string value: '\xE1\xE2\xF7' for column 'b' at row 1
+##################################################
+1	ABC-???	DEF-���
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET latin1 ;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-???	DEF-ÂÃÄ
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# KOI8-R charset (INTO OUTFILE warning is expected):
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' CHARACTER SET koi8r FROM t1;
+Warnings:
+Warning	1366	Incorrect string value: '\xC2\xC3\xC4' for column 'c' at row 1
+##################################################
+1	ABC-���	DEF-???
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET koi8r;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-???
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# UTF-8 charset:
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' CHARACTER SET utf8 FROM t1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+##################################################
+1	ABC-АБВ	DEF-ÂÃÄ
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SET NAMES default;
+DROP TABLE t1, t2;
+#
+# Bug #53088: mysqldump with -T & --default-character-set set
+#             truncates text/blob to 766 chars
+#
+# Also see mysqldump.test
+#
+CREATE TABLE t1 (a BLOB) CHARSET latin1;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (REPEAT('.', 800));
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug53088.txt' CHARACTER SET latin1 FROM t1;
+# should be greater than 800
+SELECT LENGTH(LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug53088.txt'));
+LENGTH(LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug53088.txt'))
+801
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug53088.txt' INTO TABLE t2;
+# should be 800
+SELECT LENGTH(a) FROM t2;
+LENGTH(a)
+800
+DROP TABLE t1, t2;
+# End of 5.1 tests.
+#
+# Bug#24577194 - LOAD DATA ERROR 1262 BEHAVIOUR DIFFERENT
+#                 BETWEEN 5.6 AND 5.7 UNDER STRICT SQLMOD
+#
+CREATE TABLE t1(c1 VARCHAR(10), c2 VARCHAR(10));
+INSERT INTO t1 VALUES('aaaaa', 'bbbbb');
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug24577194.txt' FIELDS TERMINATED BY ',';
+CREATE TABLE t2(c1 VARCHAR(10));
+SET sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug24577194.txt' INTO TABLE t2 FIELDS TERMINATED BY ',';
+ERROR 01000: Row 1 was truncated; it contained more data than there were input columns
+DROP TABLE t1,t2;
+SET sql_mode=default;

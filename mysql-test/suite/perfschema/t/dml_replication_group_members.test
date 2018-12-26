@@ -1,0 +1,36 @@
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table replication_group_members.
+--disable_result_log
+SELECT * FROM performance_schema.replication_group_members
+  LIMIT 1;
+
+SELECT * FROM performance_schema.replication_group_members
+  WHERE channel_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_group_members
+  SET channel_name='FOO', member_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_group_members
+  SET member_id=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_group_members
+  SET member_id=12 WHERE channel_name LIKE "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_group_members
+  WHERE member_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_group_members;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_group_members READ;
+UNLOCK TABLES;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_group_members WRITE;
+UNLOCK TABLES;

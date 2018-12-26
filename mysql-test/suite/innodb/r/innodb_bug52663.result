@@ -1,0 +1,26 @@
+set session transaction isolation level read committed;
+create table innodb_bug52663 (what varchar(5), id integer, count integer, primary key
+(what, id)) engine=innodb;
+insert into innodb_bug52663 values ('total', 0, 0);
+begin;
+set session transaction isolation level read committed;
+begin;
+update innodb_bug52663 set count = count + 1 where what = 'total' and id = 0;
+select * from innodb_bug52663;
+what	id	count
+total	0	1
+update innodb_bug52663 set count = count + 1 where what = 'total' and id = 0;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select * from innodb_bug52663;
+what	id	count
+total	0	0
+commit;
+update innodb_bug52663 set count = count + 1 where what = 'total' and id = 0;
+commit;
+select * from innodb_bug52663;
+what	id	count
+total	0	2
+select * from innodb_bug52663;
+what	id	count
+total	0	2
+drop table innodb_bug52663;

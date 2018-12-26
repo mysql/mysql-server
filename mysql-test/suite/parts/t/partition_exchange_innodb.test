@@ -1,0 +1,5 @@
+--source include/have_debug_sync.inc
+
+
+let $engine= 'InnoDB';
+--source suite/parts/inc/partition_exchange.inc

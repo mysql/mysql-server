@@ -1,0 +1,381 @@
+--source include/no_valgrind_without_big.inc
+
+# This test for FTS index with big records
+# case a) more words in single record
+# b) more words across records
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
+        a TEXT,
+        b TEXT
+        ) ENGINE = InnoDB;
+
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
+
+let $counter = 1;
+--disable_query_log
+
+# Generate input file using perl
+perl;
+use strict;
+my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/fts_input_data1.txt";
+open FH,">$fname";
+my $record_counter = 1;
+while ($record_counter < 50) { 
+   my $word_counter = 1;
+   my ($col1,$col2);
+   while ($word_counter < 51) {
+       $col1 = $col1. "row".$record_counter."col1"."word".$word_counter." ";
+       $col2 = $col2. "row".$record_counter."col2"."word".$word_counter." ";
+       $word_counter++;
+   }
+   print FH "$col1,$col2\n";
+   $record_counter++;
+}
+close FH;
+EOF
+
+EVAL LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/fts_input_data1.txt' INTO 
+TABLE t1 FIELDS TERMINATED BY ',' (a,b);
+--enable_query_log
+--echo "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data1.txt"
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+SELECT COUNT(*) FROM t1;
+
+# Select word "tutorial" in the table
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+        AGAINST ('row35col2word49' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("+row5col2word49" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("+row35col2word49 +(row35col1word49 row35col2word40)" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("+row35col2word49 -(row45col2word49)" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST("row5col2word49 row5col2word40" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1
+WHERE MATCH a,b AGAINST ("+row5col2word* +row5col1word49*" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1
+WHERE MATCH a,b AGAINST ('"row35col2word49"' IN BOOLEAN MODE);
+SELECT COUNT(*) from t1
+WHERE MATCH a,b AGAINST ('"ROW35col2WORD49"' IN BOOLEAN MODE);
+
+# query expansion
+SELECT COUNT(*) from t1
+WHERE MATCH(a,b) AGAINST ("row5col2word49" WITH QUERY EXPANSION);
+
+SELECT FTS_DOC_ID FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"row5col2word48 row5col2word49"@2' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"row5col2word48 row5col2word49"@1' IN BOOLEAN MODE);
+
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+
+DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+
+--remove_file '$MYSQLTEST_VARDIR/tmp/fts_input_data1.txt';
+DROP TABLE t1;
+
+#--------------------------------------------------------------------------------------------
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
+        a TEXT,
+        b TEXT
+        ) ENGINE = InnoDB;
+
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on t1(FTS_DOC_ID); 
+
+let $counter = 1;
+--disable_query_log
+
+# Generate input file using perl
+perl;
+use strict;
+my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/fts_input_data2.txt";
+open FH,">$fname";
+my $record_counter = 1;
+while ($record_counter < 101) { 
+   my $word_counter = 1;
+   my ($col1,$col2);
+   while ($word_counter < 50) {
+       $col1 = $col1. "row".$record_counter."col1"."word".$word_counter." ";
+       $col2 = $col2. "row".$record_counter."col2"."word".$word_counter." ";
+       $word_counter++;
+   }
+   print FH "$col1,$col2\n";
+   $record_counter++;
+}
+close FH;
+EOF
+
+EVAL LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/fts_input_data2.txt' 
+INTO TABLE t1 FIELDS TERMINATED BY ',' (a,b);
+--enable_query_log
+--echo "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data2.txt"
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+SELECT COUNT(*) FROM t1;
+
+SELECT FTS_DOC_ID from t1 WHERE b like '%row300col2word30%';
+
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+        AGAINST ('row35col2word49' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+row5col2word49" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+row35col2word49 +(row35col1word49 row35col2word40)" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+row35col2word49 -(row45col2word49)" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("row5col2word49 row5col2word40" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH a,b AGAINST ("+row5col2word* +row5col1word49*" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH a,b AGAINST ('"row35col2word49"' IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH a,b AGAINST ('"ROW35col2WORD49"' IN BOOLEAN MODE);
+
+# query expansion
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST ("row5col2word49" WITH QUERY EXPANSION);
+
+SELECT FTS_DOC_ID FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"row5col2word48 row5col2word49"@2' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"row5col2word48 row5col2word49"@1' IN BOOLEAN MODE);
+
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+
+SELECT a,b FROM t1
+WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+SELECT a,b FROM t1
+WHERE MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
+SELECT a,b FROM t1
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+
+DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+
+ALTER TABLE t1 DROP INDEX idx;
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+UPDATE t1 SET a = NULL , b = NULL, FTS_DOC_ID= 6000 + FTS_DOC_ID;
+
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+ALTER TABLE t1 DROP INDEX idx;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+
+--remove_file '$MYSQLTEST_VARDIR/tmp/fts_input_data2.txt';
+DROP TABLE t1;
+
+#--------------------------------------------------------------------------------------------
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
+        a TEXT,
+        b TEXT
+        ) ENGINE = InnoDB;
+
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on t1(FTS_DOC_ID); 
+
+let $counter = 1;
+--disable_query_log
+
+# Generate input file using perl
+perl;
+use strict;
+my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/fts_input_data3.txt";
+open FH,">$fname";
+my $record_counter = 1;
+while ($record_counter < 101) { 
+   my $word_counter = 1;
+   my ($col1,$col2);
+   while ($word_counter < 50) {
+       $col1 = $col1. "samerowword" ." ";
+       $col2 = $col2. "samerowword" ." ";
+       $word_counter++;
+   }
+   print FH "$col1,$col2\n";
+   $record_counter++;
+}
+close FH;
+EOF
+
+EVAL LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/fts_input_data3.txt' 
+INTO TABLE t1 FIELDS TERMINATED BY ',' (a,b);
+--enable_query_log
+--echo "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data3.txt"
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+SELECT COUNT(*) FROM t1;
+
+SELECT COUNT(*) from t1 WHERE b like '%samerowword%';
+
+SELECT COUNT(*) FROM t1 WHERE MATCH (a,b)
+        AGAINST ('samerowword' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword +samerowword" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword -(row45col2word49)" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH a,b AGAINST ("+sameroww" IN BOOLEAN MODE);
+
+# query expansion
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST ("samerowword" WITH QUERY EXPANSION);
+
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", 
+FTS_DOC_ID = FTS_DOC_ID + 10000 
+WHERE MATCH(a,b) AGAINST("+samerowword +samerowword" IN BOOLEAN MODE);
+
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword +samerowword" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+
+DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+
+ALTER TABLE t1 DROP INDEX idx;
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+UPDATE t1 SET a = NULL , b = NULL ;
+
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+ALTER TABLE t1 DROP INDEX idx;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+
+--remove_file '$MYSQLTEST_VARDIR/tmp/fts_input_data3.txt';
+DROP TABLE t1;
+
+#--------------------------------------------------------------------------------------------
+# Create FTS with same word and numbers
+EVAL CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
+        a TEXT,
+        b TEXT
+        ) ENGINE = InnoDB;
+
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX on t1(FTS_DOC_ID); 
+
+
+let $counter = 1;
+--disable_query_log
+
+# Generate input file using perl
+perl;
+use strict;
+my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/fts_input_data4.txt";
+open FH,">$fname";
+my $record_counter = 1;
+while ($record_counter < 101) { 
+   my $word_counter = 1001;
+   my ($col1,$col2);
+   while ($word_counter < 1101) {
+       $col1 = $col1. "samerowword" ." ";
+       $col2 = $col2. "$word_counter" ." ";
+       $word_counter++;
+   }
+   print FH "$col1,$col2\n";
+   $record_counter++;
+}
+close FH;
+EOF
+
+EVAL LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/fts_input_data4.txt' 
+INTO TABLE t1 FIELDS TERMINATED BY ',' (a,b);
+--enable_query_log
+--echo "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data4.txt"
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+SELECT COUNT(*) FROM t1;
+
+SELECT COUNT(*) from t1 WHERE a like '%samerowword%';
+
+SELECT COUNT(*) FROM t1 WHERE MATCH (a,b)
+        AGAINST ('samerowword' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST("+samerowword" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST("+samerowword -(1050)" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 WHERE MATCH a,b AGAINST ("+2001" IN BOOLEAN MODE);
+
+# query expansion
+SELECT COUNT(*) from t1 WHERE MATCH(a,b) AGAINST ("samerowword" WITH QUERY EXPANSION);
+
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", 
+FTS_DOC_ID = FTS_DOC_ID + 10000 
+WHERE MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
+
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+samerowword" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+
+DELETE FROM t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+SELECT COUNT(*) from t1 
+WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+
+ALTER TABLE t1 DROP INDEX idx;
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+UPDATE t1 SET a = NULL , b = NULL ;
+
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+ALTER TABLE t1 DROP INDEX idx;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL AND b IS NULL;
+
+--remove_file '$MYSQLTEST_VARDIR/tmp/fts_input_data4.txt';
+DROP TABLE t1;
+

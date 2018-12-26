@@ -1,0 +1,43 @@
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+insert into t1 values(1, Point(1,1));
+insert into t1 values(2, Point(2,2));
+insert into t1 values(3, Point(3,3));
+insert into t1 values(4, Point(4,4));
+insert into t1 values(5, Point(5,5));
+insert into t1 values(6, Point(6,6));
+insert into t1 values(7, Point(7,7));
+insert into t1 values(8, Point(8,8));
+insert into t1 values(9, Point(9,9));
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+start transaction;
+insert into t1 select * from t1;
+select count(*) from t1;
+count(*)
+73728
+rollback;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select count(*) from t1;
+count(*)
+36864
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+36864
+set @g1 = ST_GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+0
+drop table t1;

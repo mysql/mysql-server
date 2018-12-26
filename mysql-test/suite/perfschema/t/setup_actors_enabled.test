@@ -1,0 +1,215 @@
+# Check the impact of changes done in ENABLED column in
+# performance_schema.setup_actors.
+
+--source include/not_windows.inc
+
+# The initial number of rows is 1. The initial row always looks like this:
+# mysql> select * from performance_schema.setup_actors;
+# +------+------+------+---------+---------+
+# | HOST | USER | ROLE | ENABLED | HISTORY |
+# +------+------+------+---------+---------+
+# | %    | %    | %    | YES     | YES     |
+# +------+------+------+---------+---------+
+select * from performance_schema.setup_actors;
+
+truncate table performance_schema.setup_actors;
+
+insert into performance_schema.setup_actors
+values ('localhost', 'user1', '%', 'YES', 'YES');
+
+insert into performance_schema.setup_actors
+values ('localhost', 'user2', '%', 'NO', 'NO');
+
+create user user1@localhost, user2@localhost;
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+
+flush privileges;
+
+--echo # Switch to (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+
+# INSTRUMENTED must be YES because there is a match in
+# performance_schema.setup_actors and its ENABLED
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+let $con1_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--echo # Switch to (con2, localhost, user2, , )
+connect (con2, localhost, user2, , );
+
+# INSTRUMENTED must be NO because there is a match in 
+# performance_schema.setup_actors but its DISABLED.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+let $con1_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--echo # Switch to connection default
+--connection default
+update performance_schema.setup_actors set ENABLED='NO' where USER='user1';
+update performance_schema.setup_actors set ENABLED='YES' where USER='user2';
+
+--echo # Switch to connection con1
+--connection con1
+
+# INSTRUMENTED must still be YES because update to setup_actors doesn't affect
+# existing connetions.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+let $con1_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--echo # Switch to connection con2
+--connection con2
+
+# INSTRUMENTED must still be NO because update to setup_actors doesn't affect
+# existing connetions.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+let $con1_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--echo # Disconnect con1 and con2
+--disconnect con1
+--disconnect con2
+
+# Now reconnect
+--echo # Switch to (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+
+# INSTRUMENTED must still be NO because update to setup_actors affects
+# new connetions.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+let $con1_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--echo # Switch to (con2 localhost, user2, , )
+connect (con2, localhost, user2, , );
+
+# INSTRUMENTED must still be YES because update to setup_actors affects
+# new connetions.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+let $con1_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--echo # Disconnect con1 and con2
+--disconnect con1
+--disconnect con2
+
+--echo # Switch to connection default
+--connection default
+
+# Checking if update is allowed on performance_schema.setup_actors ENABLED 
+# column after revoke update privilege 
+
+revoke update on *.* from 'user2'@'localhost';
+
+flush privileges;
+
+--echo # Switch to (con2 localhost, user2, , )
+connect (con2, localhost, user2, , );
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.setup_actors 
+  set ENABLED='NO';
+
+--disconnect con2
+--connection default
+
+# Checking for Rules Order 
+# 1. a match for 'U1' and 'H1'.
+# 2. then for 'U1' and '%'.
+# 3. then for '%' and 'H1'.
+# 4. then for '%' and '%'.
+
+insert into performance_schema.setup_actors
+values ('%', 'user1', '%', 'YES', 'YES');
+
+
+insert into performance_schema.setup_actors
+values ('localhost', '%', '%', 'NO', 'NO');
+
+insert into performance_schema.setup_actors
+values ('%', '%', '%', 'YES', 'YES');
+
+
+--echo # Switch to (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+
+# INSTRUMENTED must still be NO as it will match rule1
+# new connetions.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--disconnect con1
+--connection default
+
+delete from performance_schema.setup_actors where
+HOST='localhost' and USER='user1';
+
+--echo # Switch to (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+
+# INSTRUMENTED must still be YES as it will match rule2
+# new connetions.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+
+--disconnect con1
+--connection default
+
+delete from performance_schema.setup_actors where
+HOST='%' and USER='user1';
+
+--echo # Switch to (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+
+# INSTRUMENTED must still be NO as it will match rule3
+# new connetions.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--disconnect con1
+--connection default
+
+delete from performance_schema.setup_actors where
+HOST='localhost' and USER='%';
+
+--echo # Switch to (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+
+# INSTRUMENTED must still be YES as it will match rule4
+# new connetions.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--disconnect con1
+--connection default
+
+revoke all privileges, grant option from user1@localhost;
+revoke all privileges, grant option from user2@localhost;
+drop user user1@localhost;
+drop user user2@localhost;
+flush privileges;
+
+truncate table performance_schema.setup_actors;
+
+insert into performance_schema.setup_actors
+values ('%', '%', '%', 'YES', 'YES');
+
+select * from performance_schema.setup_actors;
+

@@ -1,0 +1,215 @@
+SET @start_global_value = @@global.max_sp_recursion_depth;
+SELECT @start_global_value;
+@start_global_value
+0
+SET @start_session_value = @@session.max_sp_recursion_depth;
+SELECT @start_session_value;
+@start_session_value
+0
+'#--------------------FN_DYNVARS_085_01-------------------------#'
+SET @@global.max_sp_recursion_depth = 1000;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '1000'
+SET @@global.max_sp_recursion_depth = DEFAULT;
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+0
+SET @@session.max_sp_recursion_depth = 1000;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '1000'
+SET @@session.max_sp_recursion_depth = DEFAULT;
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+0
+'#--------------------FN_DYNVARS_085_02-------------------------#'
+SET @@global.max_sp_recursion_depth = DEFAULT;
+SELECT @@global.max_sp_recursion_depth = 0;
+@@global.max_sp_recursion_depth = 0
+1
+SET @@session.max_sp_recursion_depth = DEFAULT;
+SELECT @@session.max_sp_recursion_depth = 0;
+@@session.max_sp_recursion_depth = 0
+1
+'#--------------------FN_DYNVARS_085_03-------------------------#'
+SET @@global.max_sp_recursion_depth = 0;
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+0
+SET @@global.max_sp_recursion_depth = 1;
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+1
+SET @@global.max_sp_recursion_depth = 254;
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+254
+SET @@global.max_sp_recursion_depth = 255;
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+255
+SET @@global.max_sp_recursion_depth = 150;
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+150
+'#--------------------FN_DYNVARS_085_04-------------------------#'
+SET @@session.max_sp_recursion_depth = 0;
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+0
+SET @@session.max_sp_recursion_depth = 1;
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+1
+SET @@session.max_sp_recursion_depth = 254;
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+254
+SET @@session.max_sp_recursion_depth = 255;
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+255
+SET @@session.max_sp_recursion_depth = 150;
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+150
+'#------------------FN_DYNVARS_085_05-----------------------#'
+SET @@global.max_sp_recursion_depth = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '-1024'
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+0
+SET @@global.max_sp_recursion_depth = 256;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '256'
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+255
+SET @@global.max_sp_recursion_depth = -1;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '-1'
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+0
+SET @@global.max_sp_recursion_depth = 3000;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '3000'
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+255
+SET @@global.max_sp_recursion_depth = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_sp_recursion_depth'
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+255
+SET @@global.max_sp_recursion_depth = test;
+ERROR 42000: Incorrect argument type to variable 'max_sp_recursion_depth'
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+255
+SET @@global.max_sp_recursion_depth = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_sp_recursion_depth'
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+255
+SET @@session.max_sp_recursion_depth = 256;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '256'
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+255
+SET @@session.max_sp_recursion_depth = -1;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '-1'
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+0
+SET @@session.max_sp_recursion_depth = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '-1024'
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+0
+SET @@session.max_sp_recursion_depth = 500000;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '500000'
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+255
+SET @@session.max_sp_recursion_depth = -001;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '-1'
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+0
+SET @@session.max_sp_recursion_depth = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_sp_recursion_depth'
+SET @@session.max_sp_recursion_depth = 10737418241;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '10737418241'
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+255
+SET @@session.max_sp_recursion_depth = test;
+ERROR 42000: Incorrect argument type to variable 'max_sp_recursion_depth'
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+255
+SET @@session.max_sp_recursion_depth = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_sp_recursion_depth'
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+255
+'#------------------FN_DYNVARS_085_06-----------------------#'
+SELECT @@global.max_sp_recursion_depth = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='max_sp_recursion_depth';
+@@global.max_sp_recursion_depth = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_085_07-----------------------#'
+SELECT @@session.max_sp_recursion_depth = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='max_sp_recursion_depth';
+@@session.max_sp_recursion_depth = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_085_08-----------------------#'
+SET @@global.max_sp_recursion_depth = TRUE;
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+1
+SET @@global.max_sp_recursion_depth = FALSE;
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+0
+'#---------------------FN_DYNVARS_085_09----------------------#'
+SET @@global.max_sp_recursion_depth = 20;
+SELECT @@max_sp_recursion_depth = @@global.max_sp_recursion_depth;
+@@max_sp_recursion_depth = @@global.max_sp_recursion_depth
+0
+'#---------------------FN_DYNVARS_085_10----------------------#'
+SET @@max_sp_recursion_depth = 255;
+SELECT @@max_sp_recursion_depth = @@local.max_sp_recursion_depth;
+@@max_sp_recursion_depth = @@local.max_sp_recursion_depth
+1
+SELECT @@local.max_sp_recursion_depth = @@session.max_sp_recursion_depth;
+@@local.max_sp_recursion_depth = @@session.max_sp_recursion_depth
+1
+'#---------------------FN_DYNVARS_085_11----------------------#'
+SET max_sp_recursion_depth = 102;
+SELECT @@max_sp_recursion_depth;
+@@max_sp_recursion_depth
+102
+SELECT local.max_sp_recursion_depth;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.max_sp_recursion_depth;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT max_sp_recursion_depth = @@session.max_sp_recursion_depth;
+ERROR 42S22: Unknown column 'max_sp_recursion_depth' in 'field list'
+SET @@global.max_sp_recursion_depth = @start_global_value;
+SELECT @@global.max_sp_recursion_depth;
+@@global.max_sp_recursion_depth
+0
+SET @@session.max_sp_recursion_depth = @start_session_value;
+SELECT @@session.max_sp_recursion_depth;
+@@session.max_sp_recursion_depth
+0

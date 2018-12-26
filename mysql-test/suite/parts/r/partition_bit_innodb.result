@@ -1,0 +1,453 @@
+SET @max_row = 20;
+drop table if exists t1;
+create table t1 (a bit(65), primary key (a)) engine='INNODB' partition by key (a);
+ERROR 42000: Display width out of range for column 'a' (max = 64)
+create table t1 (a bit(0), primary key (a)) engine='INNODB' partition by key (a);
+ERROR HY000: Invalid size for column 'a'.
+create table t1 (a bit(0), primary key (a)) engine='INNODB' 
+partition by key (a) (
+partition pa1,
+partition pa2);
+ERROR HY000: Invalid size for column 'a'.
+create table t1 (a bit(64), primary key (a)) engine='INNODB' 
+partition by key (a) partitions 2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bit(64) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 2 */
+insert into t1 values 
+(b'1111111111111111111111111111111111111111111111111111111111111111'),
+(b'1000000000000000000000000000000000000000000000000000000000000000'),
+(b'0000000000000000000000000000000000000000000000000000000000000001'),
+(b'1010101010101010101010101010101010101010101010101010101010101010'),
+(b'0101010101010101010101010101010101010101010101010101010101010101');
+select hex(a) from t1;
+hex(a)
+1
+5555555555555555
+8000000000000000
+AAAAAAAAAAAAAAAA
+FFFFFFFFFFFFFFFF
+drop table t1;
+create table t1 (a bit(64), primary key (a)) engine='INNODB' 
+partition by key (a) (
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bit(64) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (a)
+(PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
+ PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
+ PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
+ PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
+insert into t1 values 
+(b'1111111111111111111111111111111111111111111111111111111111111111'),
+(b'1000000000000000000000000000000000000000000000000000000000000000'),
+(b'0000000000000000000000000000000000000000000000000000000000000001'),
+(b'1010101010101010101010101010101010101010101010101010101010101010'),
+(b'0101010101010101010101010101010101010101010101010101010101010101');
+select hex(a) from t1 where a=b'0101010101010101010101010101010101010101010101010101010101010101';
+hex(a)
+5555555555555555
+delete from t1 where a=b'0101010101010101010101010101010101010101010101010101010101010101';
+select hex(a) from t1;
+hex(a)
+1
+8000000000000000
+AAAAAAAAAAAAAAAA
+FFFFFFFFFFFFFFFF
+drop table t1;
+create table t2 (a bit, primary key (a)) engine='INNODB' 
+partition by key (a) partitions 4;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` bit(1) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 4 */
+insert into t2 values (b'0'), (b'1');
+select hex(a) from t2;
+hex(a)
+0
+1
+alter table t2 drop primary key;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` bit(1) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 4 */
+select hex(a) from t2;
+hex(a)
+0
+1
+alter table t2 add primary key (a);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` bit(1) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 4 */
+select hex(a) from t2;
+hex(a)
+0
+1
+drop table t2;
+create table t3 (a bit(8), primary key (a)) engine='INNODB' 
+partition by range (a) subpartition by key (a) subpartitions 2 (
+partition pa1 values less than (3),
+partition pa2 values less than (16),
+partition pa3 values less than (64),
+partition pa4 values less than (256));
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` bit(8) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY KEY (a)
+SUBPARTITIONS 2
+(PARTITION pa1 VALUES LESS THAN (3) ENGINE = InnoDB,
+ PARTITION pa2 VALUES LESS THAN (16) ENGINE = InnoDB,
+ PARTITION pa3 VALUES LESS THAN (64) ENGINE = InnoDB,
+ PARTITION pa4 VALUES LESS THAN (256) ENGINE = InnoDB) */
+255 inserts;
+select hex(a) from t3 where a=b'01010101';
+hex(a)
+55
+delete from t3 where a=b'01010101';
+select count(*) from t3;
+count(*)
+254
+select hex(a) from t3;
+hex(a)
+1
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+1A
+1B
+1C
+1D
+1E
+1F
+2
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+2A
+2B
+2C
+2D
+2E
+2F
+3
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+3A
+3B
+3C
+3D
+3E
+3F
+4
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+4A
+4B
+4C
+4D
+4E
+4F
+5
+50
+51
+52
+53
+54
+56
+57
+58
+59
+5A
+5B
+5C
+5D
+5E
+5F
+6
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+6A
+6B
+6C
+6D
+6E
+6F
+7
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+7A
+7B
+7C
+7D
+7E
+7F
+8
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+8A
+8B
+8C
+8D
+8E
+8F
+9
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+9A
+9B
+9C
+9D
+9E
+9F
+A
+A0
+A1
+A2
+A3
+A4
+A5
+A6
+A7
+A8
+A9
+AA
+AB
+AC
+AD
+AE
+AF
+B
+B0
+B1
+B2
+B3
+B4
+B5
+B6
+B7
+B8
+B9
+BA
+BB
+BC
+BD
+BE
+BF
+C
+C0
+C1
+C2
+C3
+C4
+C5
+C6
+C7
+C8
+C9
+CA
+CB
+CC
+CD
+CE
+CF
+D
+D0
+D1
+D2
+D3
+D4
+D5
+D6
+D7
+D8
+D9
+DA
+DB
+DC
+DD
+DE
+DF
+E
+E0
+E1
+E2
+E3
+E4
+E5
+E6
+E7
+E8
+E9
+EA
+EB
+EC
+ED
+EE
+EF
+F
+F0
+F1
+F2
+F3
+F4
+F5
+F6
+F7
+F8
+F9
+FA
+FB
+FC
+FD
+FE
+FF
+drop table t3;
+create table t4 (a bit(8), primary key (a)) engine='INNODB' 
+partition by list (a) subpartition by key (a) subpartitions 2 (
+partition pa1 values in (0,1,2,3),
+partition pa2 values in (4,5,6,7,8,9,10,11,12,13,14,15,16),
+partition pa3 values in (17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32));
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` bit(8) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
+SUBPARTITION BY KEY (a)
+SUBPARTITIONS 2
+(PARTITION pa1 VALUES IN (0,1,2,3) ENGINE = InnoDB,
+ PARTITION pa2 VALUES IN (4,5,6,7,8,9,10,11,12,13,14,15,16) ENGINE = InnoDB,
+ PARTITION pa3 VALUES IN (17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32) ENGINE = InnoDB) */
+32 inserts;
+select hex(a) from t4 where a=b'00000001';
+hex(a)
+1
+delete from t4 where a=b'00000001';
+select count(*) from t4;
+count(*)
+31
+select hex(a) from t4;
+hex(a)
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+1A
+1B
+1C
+1D
+1E
+1F
+2
+20
+3
+4
+5
+6
+7
+8
+9
+A
+B
+C
+D
+E
+F
+drop table t4;

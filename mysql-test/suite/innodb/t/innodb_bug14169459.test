@@ -1,0 +1,62 @@
+# This is the test for bug #14169459.
+
+
+SET default_storage_engine=InnoDB;
+
+--disable_query_log
+# These values can change during the test
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+# Set up some variables
+LET $MYSQL_DATA_DIR = `select @@datadir`;
+--enable_query_log
+
+SET GLOBAL innodb_file_per_table=ON;
+
+--echo #
+--echo # Create a temporary table and drop it.  Make sure the ibd file is gone.
+--echo # Make sure a discarded table can be dropped with all files deleted.
+--echo #
+CREATE TEMPORARY TABLE t14169459_1 (a INT, b TEXT) engine=InnoDB;
+CREATE TABLE t14169459_2 (a INT, b TEXT) engine=InnoDB;
+
+INSERT INTO t14169459_1 VALUES (1, 'one'),(2, 'two');
+INSERT INTO t14169459_2 VALUES (1, 'one'),(2, 'two');
+SELECT * FROM t14169459_1;
+SELECT * FROM t14169459_2;
+SHOW CREATE TABLE t14169459_1;
+SHOW CREATE TABLE t14169459_2;
+
+--echo ### directory of MYSQL_DATA_DIR/test
+--list_files $MYSQL_DATA_DIR/test
+--echo ### directory of MYSQL_TMP_DIR/mysqld.1
+--replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
+--list_files $MYSQL_TMP_DIR/mysqld.1 *.ibd
+
+FLUSH TABLES t14169459_2 FOR EXPORT;
+SELECT * FROM t14169459_2;
+UNLOCK TABLES;
+--echo ### directory of MYSQL_DATA_DIR/test
+--list_files $MYSQL_DATA_DIR/test
+ALTER TABLE t14169459_2 DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t14169459_2;
+--echo ### directory of MYSQL_DATA_DIR/test
+--list_files $MYSQL_DATA_DIR/test
+--echo ### directory of MYSQL_TMP_DIR/mysqld.1
+--replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
+--list_files $MYSQL_TMP_DIR/mysqld.1 *.ibd
+
+#--file_exists $MYSQL_TMP_DIR/mysqld.1/#sql15f8_2_1.ibd
+
+DROP TABLE t14169459_1;
+DROP TABLE t14169459_2;
+--echo ### directory of MYSQL_DATA_DIR/test
+--list_files $MYSQL_DATA_DIR/test
+--echo ### directory of MYSQL_TMP_DIR/mysqld.1
+--replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
+--list_files $MYSQL_TMP_DIR/mysqld.1 *.ibd
+
+-- disable_query_log
+eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+-- enable_query_log

@@ -1,0 +1,96 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Multi Primary
+
+# 1.1. On server1 enable group_replication_block_group_action debug
+#      point
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Primary assigned for election left the group, this operation will be aborted*");
+set session sql_log_bin=1;
+
+# 1.2. On server2 execute action to change to single primary with
+#      server1 as primary
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. Primary assigned for election left the group, this operation will be aborted.");
+set session sql_log_bin=1;
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+
+# 1.3. Verify that server2 is checking group pre-conditions
+[connection server_2]
+include/assert.inc [stage/group_rpl/Single-primary Switch: checking group pre-conditions]
+
+# 1.4. Kill and restart server1
+[connection server_1]
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+
+# 1.5. Reap action to switch to single primary and it returns error as
+#      server1 was killed
+[connection server2]
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. Primary assigned for election left the group, this operation will be aborted. No primary election was invoked under this operation.
+
+# 1.6. Add suppression on server3 for action failure
+[connection server3]
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: Primary assigned for election left the group, this operation will be aborted.");
+set session sql_log_bin=1;
+
+# 1.7. Confirm that group replication is on Multi primary server
+include/gr_assert_multi_primary_mode.inc
+[connection server2]
+include/gr_assert_multi_primary_mode.inc
+
+# 1.8. Cleanup to run Single Primary test
+[connection server1]
+include/start_group_replication.inc
+
+# 2. Single Primary
+
+# 2.1. Execute action to switch to single primary with server1 as
+#      primary
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+
+# 2.2. Create table on Group Replication
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+
+# 2.3. Begin a transaction on server1
+BEGIN;
+INSERT INTO test.t1 (b) VALUES (1);
+
+# 2.4. Execute action to set as primary server2
+[connection server_1_1]
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+
+# 2.5. Verify server is waiting for pending transactions to finish in
+#      order to conclude action
+[connection server_1]
+include/assert.inc [stage/group_rpl/Primary Switch: waiting for pending transactions to finish]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+
+# 2.6. Kill and restart server2, it would be the new primary
+[connection server2]
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+
+# 2.7. Verify the action executed on server1 failed, server selected
+#      exited from the group
+[connection server_1_1]
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Primary assigned for election left the group, this operation will be aborted. No primary election was invoked under this operation.
+
+# 2.8. Assert server1 is the new primary
+include/gr_assert_primary_member.inc
+
+# 2.9. Cleanup
+[connection server1]
+COMMIT;
+DROP TABLE t1;
+include/group_replication_end.inc

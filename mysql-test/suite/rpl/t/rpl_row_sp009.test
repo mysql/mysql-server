@@ -1,0 +1,100 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/18/2005                                                #
+# Updated: 08/29/2005 removed sleeps and added master pos save and snyc     #
+#############################################################################
+#TEST: Taken and modfied from http://bugs.mysql.com/bug.php?id=12168        #
+#############################################################################
+# 2006-02-08 By JBM : Added order by for ndb engine use
+#############################################################################
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+
+
+# Begin test section 1 
+CREATE TABLE test.t1 (a INT, PRIMARY KEY(a));
+INSERT INTO test.t1 VALUES (1),(2),(3),(4);
+CREATE TABLE test.t2 (a INT, PRIMARY KEY(a));
+
+delimiter |;
+CREATE PROCEDURE test.p1 (arg1 CHAR(1))
+BEGIN
+  DECLARE b, c INT;
+  IF arg1 = 'a' THEN
+    BEGIN
+      DECLARE cur1 CURSOR FOR SELECT A FROM test.t1 WHERE a % 2;
+      DECLARE continue handler for not found set b = 1;
+      SET b = 0;
+      OPEN cur1;
+      c1_repeat: REPEAT
+        FETCH cur1 INTO c;
+        IF (b = 1) THEN
+          LEAVE c1_repeat;
+        END IF;
+
+        INSERT INTO test.t2 VALUES (c);
+        UNTIL b = 1
+      END REPEAT;
+      CLOSE cur1;
+    END;
+  END IF;
+  IF arg1 = 'b' THEN
+    BEGIN
+      DECLARE cur2 CURSOR FOR SELECT a FROM test.t1 WHERE NOT a % 2;
+      DECLARE continue handler for not found set b = 1;
+      SET b = 0;
+      OPEN cur2;
+      c2_repeat: REPEAT
+        FETCH cur2 INTO c;
+        IF (b = 1) THEN
+          LEAVE c2_repeat;
+        END IF;
+
+        INSERT INTO test.t2 VALUES (c);
+        UNTIL b = 1
+      END REPEAT;
+      CLOSE cur2;
+    END;
+  END IF;
+END|
+delimiter ;|
+
+CALL test.p1('a');
+SELECT * FROM test.t2 ORDER BY a;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t2 ORDER BY a;
+connection master;
+truncate test.t2;
+
+# this next call fails, but should not
+call test.p1('b');
+select * from test.t2 ORDER BY a;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t2 ORDER BY a;
+
+connection master;
+truncate test.t2;
+SELECT * FROM test.t2 ORDER BY a;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t2 ORDER BY a;
+
+# Cleanup
+connection master;
+#show binlog events;
+DROP PROCEDURE test.p1;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+--source include/sync_slave_sql_with_master.inc
+
+# End of 5.0 test case
+--source include/rpl_end.inc

@@ -1,0 +1,21 @@
+select @@global.ft_stopword_file;
+@@global.ft_stopword_file
+(built-in)
+select @@session.ft_stopword_file;
+ERROR HY000: Variable 'ft_stopword_file' is a GLOBAL variable
+show global variables like 'ft_stopword_file';
+Variable_name	Value
+ft_stopword_file	(built-in)
+show session variables like 'ft_stopword_file';
+Variable_name	Value
+ft_stopword_file	(built-in)
+select * from performance_schema.global_variables where variable_name='ft_stopword_file';
+VARIABLE_NAME	VARIABLE_VALUE
+ft_stopword_file	(built-in)
+select * from performance_schema.session_variables where variable_name='ft_stopword_file';
+VARIABLE_NAME	VARIABLE_VALUE
+ft_stopword_file	(built-in)
+set global ft_stopword_file=1;
+ERROR HY000: Variable 'ft_stopword_file' is a read only variable
+set session ft_stopword_file=1;
+ERROR HY000: Variable 'ft_stopword_file' is a read only variable

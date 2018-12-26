@@ -1,0 +1,14 @@
+
+--echo ------ Run plugin ------------------------------------------------
+--replace_result $TEST_SQL_COMPLEX TEST_SQL_COMPLEX
+eval INSTALL PLUGIN test_sql_complex SONAME '$TEST_SQL_COMPLEX';
+--echo ------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_sql_complex;
+
+--echo ------ plugin log ------------------------------------------------
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_complex.log;
+remove_file $MYSQLD_DATADIR/test_sql_complex.log;
+
+--echo ------ cleanup ---------------------------------------------------
+

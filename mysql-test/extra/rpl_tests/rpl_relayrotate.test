@@ -1,0 +1,79 @@
+# When the relay log gets rotated while the I/O thread
+# is reading a transaction, the transaction spans on two or more
+# relay logs. If STOP SLAVE occurs while the SQL thread is
+# executing a part of the transaction in the non-first relay logs,
+# we test if START SLAVE will resume in the beginning of the
+# transaction (i.e., step back to the first relay log)
+  
+# The slave is started with max_binlog_size=16384 bytes,
+# to force many rotations (approximately 30 rotations)
+
+# We have to sync with master, to ensure slave had time to start properly
+# before we stop it. If not, we get errors about UNIX_TIMESTAMP() in the log.
+connection master;
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+stop slave;
+connection master;
+--disable_warnings
+eval create table t1 (a int) engine=$engine_type;
+--enable_warnings
+let $loop_max= 2000;
+let $1=$loop_max;
+disable_query_log;
+begin;
+while ($1)
+{
+# eval means expand $ expressions
+ eval insert into t1 values( $1 );
+ dec $1;
+}
+commit;
+# This will generate a 500kB master's binlog,
+# which corresponds to 30 slave's relay logs.
+enable_query_log;
+save_master_pos;
+connection slave;
+reset slave;
+start slave;
+# We wait 1 sec for the SQL thread to be somewhere in
+# the middle of the transaction, hopefully not in
+# the first relay log, and hopefully before the COMMIT.
+# Usually it stops when the SQL thread is around the 15th relay log.
+# We cannot use MASTER_POS_WAIT() as master's position
+# increases only when the slave executes the COMMIT.
+# Note that except when using Valgrind, 1 second is enough for the I/O slave
+# thread to fetch the whole master's binlog.
+sleep 1;
+stop slave;
+# We suppose the SQL thread stopped before COMMIT.
+# If so the transaction was rolled back
+# and the table is now empty.
+# Now restart
+start slave;
+# And see if the table contains $loop_max
+# which proves that the transaction restarted at
+# the right place.
+# We must wait for the transaction to commit before
+# reading, with a sync_with_master.
+sync_with_master;
+--replace_result $loop_max loop_max
+select max(a) from t1;
+connection master;
+
+# The following DROP is a very important cleaning task:
+# imagine the next test is run with --skip-innodb: it will do
+# DROP TABLE IF EXISTS t1; but this will delete the frm and leave
+# some data in the InnoDB datafile (because at that time mysqld
+# does not know about InnoDB : --skip-innodb). So if later in the
+# test suite a test wants to create an InnoDB table called t1, it
+# will fail with 
+# InnoDB: Error: table t1 already exists in InnoDB internal
+# InnoDB: data dictionary. Have you deleted the .frm file etc
+drop table t1;
+# wait until this drop is executed on slave
+save_master_pos;
+connection slave;
+sync_with_master;
+
+# End of 4.1 tests

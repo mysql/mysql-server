@@ -1,0 +1,92 @@
+################# mysql-test\t\innodb_autoinc_lock_mode_basic.test ############
+#                                                                             #
+# Variable Name: innodb_autoinc_lock_mode                                     #
+# Access Type: Static                                                         #
+# Data Type: Numeric                                                          #
+# Default Value: 1                                                            #
+# Range: 0,1,2                                                                #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-20                                                   #
+# Author:  Sharique Abdullah                                                      #
+#                                                                             #
+#Description:Test Cases of Dynamic System Variable innodb_autoextend_increment#
+#             that checks the behavior of this variable in the following ways #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF innodb_autoinc_lock_mode TESTS       #
+######################################################################## 
+
+
+################################################################################ 
+#   Saving initial value of innodb_autoinc_lock_mode in a temporary variable#
+################################################################################ 
+
+
+SET @global_start_value = @@global.innodb_autoinc_lock_mode;
+SELECT @global_start_value;
+
+
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+######################################################################## 
+#           Display the DEFAULT value of innodb_autoinc_lock_mode  #
+######################################################################## 
+
+
+--ERROR ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.innodb_autoinc_lock_mode = 0;
+--ERROR ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.innodb_autoinc_lock_mode = DEFAULT;
+SELECT @@global.innodb_autoinc_lock_mode;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+#################################################################################### 
+#   Check if innodb_autoinc_lock_mode can be accessed with and without @@ sign #
+#################################################################################### 
+
+
+SELECT @@innodb_autoinc_lock_mode;
+
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_autoinc_lock_mode;
+
+
+
+SELECT @@global.innodb_autoinc_lock_mode;
+
+
+
+--echo '#----------------------FN_DYNVARS_046_03------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT @@global.innodb_autoinc_lock_mode = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='innodb_autoinc_lock_mode';
+--enable_warnings
+SELECT @@global.innodb_autoinc_lock_mode;
+--disable_warnings
+SELECT VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='innodb_autoinc_lock_mode';
+--enable_warnings
+
+
+###############################################################
+#                    END OF innodb_autoinc_lock_mode TESTS           #
+############################################################### 

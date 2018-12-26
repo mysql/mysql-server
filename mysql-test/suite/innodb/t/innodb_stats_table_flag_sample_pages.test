@@ -1,0 +1,99 @@
+#
+# Test CREATE TABLE ... STATS_SAMPLE_PAGES=N|default
+#
+
+-- vertical_results
+
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
+
+SHOW CREATE TABLE test_ps_sample_pages;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+
+ALTER TABLE test_ps_sample_pages STATS_SAMPLE_PAGES=12345;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_sample_pages;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+
+DROP TABLE test_ps_sample_pages;
+
+##
+
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_SAMPLE_PAGES=default;
+
+SHOW CREATE TABLE test_ps_sample_pages;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+
+DROP TABLE test_ps_sample_pages;
+
+##
+
+-- error ER_PARSE_ERROR
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_SAMPLE_PAGES=-5;
+
+-- error ER_PARSE_ERROR
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_SAMPLE_PAGES=0;
+
+-- error ER_PARSE_ERROR
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_SAMPLE_PAGES=67000;
+
+-- error ER_PARSE_ERROR
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_SAMPLE_PAGES=670000;
+
+-- error ER_PARSE_ERROR
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_SAMPLE_PAGES=65536;
+
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_SAMPLE_PAGES=65535;
+
+SHOW CREATE TABLE test_ps_sample_pages;
+
+DROP TABLE test_ps_sample_pages;
+
+##
+
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_SAMPLE_PAGES=1;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_sample_pages;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+
+DROP TABLE test_ps_sample_pages;
+
+##
+
+CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_SAMPLE_PAGES=5678;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_sample_pages;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+
+ALTER TABLE test_ps_sample_pages STATS_SAMPLE_PAGES=default;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_sample_pages;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+
+DROP TABLE test_ps_sample_pages;

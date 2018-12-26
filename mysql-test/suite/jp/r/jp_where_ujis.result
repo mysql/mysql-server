@@ -1,0 +1,67 @@
+drop table if exists `г╘г▒`;
+drop table if exists `г╘г▓`;
+drop table if exists `г╘г│`;
+drop table if exists `г╘г┤`;
+drop table if exists `г╘г╡`;
+drop table if exists `г╘г╢`;
+drop table if exists `г╘г╖`;
+drop table if exists `г╘г╕`;
+drop table if exists `г╘г╣`;
+SET NAMES ujis;
+SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `г╘г▒` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `г╘г▓` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `г╘г│` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `г╘г┤` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `г╘г╡` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `г╘г╢` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `г╘г╖` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `г╘г╕` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `г╘г╣` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = MEMORY;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `г╘г▒`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `г╘г▓`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `г╘г│`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `г╘г┤`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `г╘г╡`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `г╘г╢`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `г╘г╖`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `г╘г╕`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `г╘г╣`;
+SELECT * FROM `г╘г▒` WHERE `г├г▒` = 'О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐';
+г├г▒
+О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐
+SELECT * FROM `г╘г▓` WHERE `г├г▒` = 'бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│';
+г├г▒
+бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│
+SELECT * FROM `г╘г│` WHERE `г├г▒` = 'Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟';
+г├г▒
+Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟
+SELECT * FROM `г╘г┤` WHERE `г├г▒` = 'О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐';
+г├г▒
+О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐
+SELECT * FROM `г╘г╡` WHERE `г├г▒` = 'бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│';
+г├г▒
+бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│
+SELECT * FROM `г╘г╢` WHERE `г├г▒` = 'Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟';
+г├г▒
+Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟
+SELECT * FROM `г╘г╖` WHERE `г├г▒` = 'О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐';
+г├г▒
+О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐
+SELECT * FROM `г╘г╕` WHERE `г├г▒` = 'бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│';
+г├г▒
+бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│
+SELECT * FROM `г╘г╣` WHERE `г├г▒` = 'Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟';
+г├г▒
+Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟
+DROP TABLE `г╘г▒`;
+DROP TABLE `г╘г▓`;
+DROP TABLE `г╘г│`;
+DROP TABLE `г╘г┤`;
+DROP TABLE `г╘г╡`;
+DROP TABLE `г╘г╢`;
+DROP TABLE `г╘г╖`;
+DROP TABLE `г╘г╕`;
+DROP TABLE `г╘г╣`;

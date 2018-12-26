@@ -1,0 +1,17 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "global_variables";
+let $key_group = 8;
+let $target_variable_name = binlog_format;
+
+--echo TABLE: $table
+--echo INDEXES: PK (VARIABLE_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

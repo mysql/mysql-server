@@ -1,0 +1,28 @@
+# 2010-01-27 - Added
+
+
+# Exists as global only
+#
+--echo Valid values are between 0 and 1024
+SELECT @@global.innodb_sync_array_size between 0 and 1024;
+SELECT @@global.innodb_sync_array_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_sync_array_size;
+
+SHOW GLOBAL variables LIKE 'innodb_sync_array_size';
+SHOW SESSION variables LIKE 'innodb_sync_array_size';
+--disable_warnings
+SELECT * FROM performance_schema.global_variables 
+WHERE variable_name='innodb_sync_array_size';
+SELECT * FROM performance_schema.session_variables 
+WHERE variable_name='innodb_sync_array_size';
+--enable_warnings
+
+#
+# Show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_sync_array_size=10;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION innodb_sync_array_size=10;
+SELECT @@global.innodb_sync_array_size;

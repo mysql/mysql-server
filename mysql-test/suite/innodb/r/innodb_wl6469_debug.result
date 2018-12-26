@@ -1,0 +1,61 @@
+set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+call mtr.add_suppression("No space left on device");
+call mtr.add_suppression("table.+ full");
+call mtr.add_suppression("Cannot create file");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
+			 "in the InnoDB internal");
+set session debug="+d,ib_ddl_crash_during_tablespace_alloc";
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+ERROR HY000: Lost connection to MySQL server during query
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (10, 11);
+select * from t1;
+a	b
+10	11
+drop table t1;
+set session debug="+d,ib_create_table_fail_at_create_index";
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+ERROR HY000: Index column size too large. The maximum column size is 3072 bytes.
+insert into t1 values (10, 11);
+ERROR 42S02: Table 'test.t1' doesn't exist
+set session debug="-d,ib_create_table_fail_at_create_index";
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (10, 11);
+drop table t1;
+drop table if exists parent,child;
+create temporary table parent ( i int primary key ) engine = innodb;
+create table child ( j int references parent(i)) engine = innodb;
+insert into parent values (1),(2),(3),(4);
+insert into child values (1),(2),(3),(4);
+insert into child values (5),(6);
+select * from parent;
+i
+1
+2
+3
+4
+select * from child;
+j
+1
+2
+3
+4
+5
+6
+# restart
+select * from parent ;
+ERROR 42S02: Table 'test.parent' doesn't exist
+select * from child ;
+j
+1
+2
+3
+4
+5
+6
+drop table child;

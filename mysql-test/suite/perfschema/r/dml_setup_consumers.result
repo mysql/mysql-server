@@ -1,0 +1,59 @@
+select * from performance_schema.setup_consumers;
+NAME	ENABLED
+events_stages_current	YES
+events_stages_history	YES
+events_stages_history_long	YES
+events_statements_current	YES
+events_statements_history	YES
+events_statements_history_long	YES
+events_transactions_current	YES
+events_transactions_history	YES
+events_transactions_history_long	YES
+events_waits_current	YES
+events_waits_history	YES
+events_waits_history_long	YES
+global_instrumentation	YES
+thread_instrumentation	YES
+statements_digest	YES
+select * from performance_schema.setup_consumers
+where name='events_waits_current';
+NAME	ENABLED
+events_waits_current	YES
+select * from performance_schema.setup_consumers
+where enabled='YES';
+NAME	ENABLED
+events_stages_current	YES
+events_stages_history	YES
+events_stages_history_long	YES
+events_statements_current	YES
+events_statements_history	YES
+events_statements_history_long	YES
+events_transactions_current	YES
+events_transactions_history	YES
+events_transactions_history_long	YES
+events_waits_current	YES
+events_waits_history	YES
+events_waits_history_long	YES
+global_instrumentation	YES
+thread_instrumentation	YES
+statements_digest	YES
+select * from performance_schema.setup_consumers
+where enabled='NO';
+NAME	ENABLED
+insert into performance_schema.setup_consumers
+set name='FOO', enabled='YES';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_consumers'
+update performance_schema.setup_consumers
+set name='FOO';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.setup_consumers
+set enabled='YES';
+delete from performance_schema.setup_consumers;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_consumers'
+delete from performance_schema.setup_consumers
+where name='events_waits_current';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_consumers'
+LOCK TABLES performance_schema.setup_consumers READ;
+UNLOCK TABLES;
+LOCK TABLES performance_schema.setup_consumers WRITE;
+UNLOCK TABLES;

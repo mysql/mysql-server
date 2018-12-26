@@ -1,0 +1,52 @@
+#Windows has trouble creating files/directories with long names
+--source include/not_windows.inc
+
+--echo #
+--echo # Bug#19419026 WHEN A TABLESPACE IS NOT FOUND, DO NOT REPORT "TABLE NOT FOUND"
+--echo #
+
+#Create database and tablename with all special characters
+
+CREATE DATABASE `..................................................`;
+USE `..................................................`;
+CREATE TABLE `..................................................` (id int) engine=innodb;
+
+--source include/shutdown_mysqld.inc
+
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e/@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.ibd
+
+--source include/start_mysqld.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 2 in a file operation."); 
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table `\.\.*`\.`\.\.*` because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '.*' is missing!");
+--enable_query_log
+
+--error ER_TABLESPACE_MISSING
+select * from `..................................................`;
+DROP TABLE `..................................................`;
+DROP DATABASE `..................................................`;
+
+--echo #
+--echo # Bug #26761960	TABLESPACE WITH SPECIAL CHARACTER MAY
+--echo #		BE NOT FOUND AFTER RESTART
+--echo #
+
+create database `test#_1`;
+create table `test#_1`.t1(f1 int);
+insert into `test#_1`.t1 values(1);
+insert into `test#_1`.t1 select * from `test#_1`.t1;
+
+--source include/kill_and_restart_mysqld.inc
+
+insert into `test#_1`.t1 values(2);
+
+drop table `test#_1`.t1;
+drop database `test#_1`;

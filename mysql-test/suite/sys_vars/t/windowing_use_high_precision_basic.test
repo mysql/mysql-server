@@ -1,0 +1,38 @@
+# Check the default value
+SET @orig = @@global.windowing_use_high_precision;
+SELECT @orig;
+
+# Confirm that we can change the value
+SET GLOBAL windowing_use_high_precision = FALSE;
+SELECT @@global.windowing_use_high_precision;
+SET GLOBAL windowing_use_high_precision = TRUE;
+SELECT @@global.windowing_use_high_precision;
+
+# Check the type
+-- error ER_WRONG_TYPE_FOR_VAR, ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL windowing_use_high_precision = 12.34;
+
+-- error ER_WRONG_TYPE_FOR_VAR, ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL windowing_use_high_precision = "foobar";
+
+-- error ER_WRONG_TYPE_FOR_VAR, ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL windowing_use_high_precision = 5;
+
+# Confirm that is is being heeded
+
+CREATE TABLE td(d DOUBLE);
+INSERT INTO td VALUES (1.7976931348623157E+307);
+INSERT INTO td VALUES (1);
+
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+EXPLAIN FORMAT=JSON
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+
+--echo allow unsafe optimization: result changes
+SET SESSION windowing_use_high_precision=FALSE;
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+EXPLAIN FORMAT=JSON
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+SET SESSION windowing_use_high_precision=TRUE; # BACK TO DEFAULT
+
+DROP TABLE td;

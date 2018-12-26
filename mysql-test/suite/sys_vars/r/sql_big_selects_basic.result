@@ -1,0 +1,101 @@
+SET @session_start_value = @@session.sql_big_selects;
+SELECT @session_start_value;
+@session_start_value
+1
+'#--------------------FN_DYNVARS_153_01------------------------#'
+SET @@session.sql_big_selects = 0;
+SET @@session.sql_big_selects = DEFAULT;
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+1
+'#---------------------FN_DYNVARS_153_02-------------------------#'
+SET sql_big_selects = 1;
+SELECT @@sql_big_selects;
+@@sql_big_selects
+1
+SELECT session.sql_big_selects;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT local.sql_big_selects;
+ERROR 42S02: Unknown table 'local' in field list
+SET session sql_big_selects = 0;
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+0
+'#--------------------FN_DYNVARS_153_03------------------------#'
+SET @@session.sql_big_selects = 0;
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+0
+SET @@session.sql_big_selects = 1;
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+1
+'#--------------------FN_DYNVARS_153_04-------------------------#'
+SET @@session.sql_big_selects = -1;
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of '-1'
+SET @@session.sql_big_selects = 2;
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of '2'
+SET @@session.sql_big_selects = "T";
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'T'
+SET @@session.sql_big_selects = "Y";
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'Y'
+SET @@session.sql_big_selects = TRÜE;
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'TRÜE'
+SET @@session.sql_big_selects = ÕN;
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'ÕN'
+SET @@session.sql_big_selects = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@session.sql_big_selects = ÓFF;
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'ÓFF'
+SET @@session.sql_big_selects = '¹';
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of '¹'
+SET @@session.sql_big_selects = NO;
+ERROR 42000: Variable 'sql_big_selects' can't be set to the value of 'NO'
+'#-------------------FN_DYNVARS_153_05----------------------------#'
+SET @@global.sql_big_selects = 1-@@global.sql_big_selects;
+SELECT @@global.sql_big_selects;
+@@global.sql_big_selects
+0
+SET @@global.sql_big_selects = 1-@@global.sql_big_selects;
+'#----------------------FN_DYNVARS_153_06------------------------#'
+SELECT count(VARIABLE_VALUE) 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='sql_big_selects';
+count(VARIABLE_VALUE)
+1
+'#----------------------FN_DYNVARS_153_07------------------------#'
+SELECT IF(@@session.sql_big_selects, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_big_selects';
+IF(@@session.sql_big_selects, "ON", "OFF") = VARIABLE_VALUE
+1
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+1
+SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_big_selects';
+VARIABLE_VALUE
+ON
+'#---------------------FN_DYNVARS_153_08-------------------------#'
+SET @@session.sql_big_selects = OFF;
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+0
+SET @@session.sql_big_selects = ON;
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+1
+'#---------------------FN_DYNVARS_153_09----------------------#'
+SET @@session.sql_big_selects = TRUE;
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+1
+SET @@session.sql_big_selects = FALSE;
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+0
+SET @@session.sql_big_selects = @session_start_value;
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+1

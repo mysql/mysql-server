@@ -1,0 +1,54 @@
+# This is the test for bug 47622. There could be index
+# metadata sequence mismatch between MySQL and Innodb
+# after creating index through FIC interfaces.
+# We resolve the problem by sync the index sequence
+# up when opening the table.
+
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+# Create a table with a non-unique index
+CREATE TABLE bug47622(
+	`rule_key` int(11) NOT NULL DEFAULT '0',
+	`seq` smallint(6) NOT NULL DEFAULT '0',
+	`action` smallint(6) NOT NULL DEFAULT '0',
+	`arg_id` smallint(6) DEFAULT NULL,
+	`else_ind` TINYINT NOT NULL,
+	KEY IDX_A (`arg_id`)
+) ENGINE=InnoDB;
+
+connection a;
+
+# A subsequent creating unique index should not trigger
+# any error message. Unique index would be ranked ahead
+# of regular index.
+ALTER TABLE bug47622 ADD UNIQUE IDX_B (rule_key,else_ind,seq,action,arg_id);
+
+drop index IDX_B on bug47622;
+
+# In another connection, create additional set of normal
+# index and unique index. Again, unique index would be ranked
+# ahead of regular index.
+connection b;
+create index idx on bug47622(seq, arg_id);
+
+ALTER TABLE bug47622 ADD UNIQUE IDX_X (rule_key,else_ind,seq,action);
+
+drop table bug47622;
+
+# Create a table with one Primary key and a non-unique key
+CREATE TABLE bug47622 (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB;
+
+# Add two index with one unique and one non-unique.
+# Index sequence is "PRIMARY", "c", "b" and "d"
+alter table bug47622 add unique index (c), add index (d);
+
+drop table bug47622;

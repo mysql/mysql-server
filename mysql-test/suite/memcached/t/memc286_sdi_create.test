@@ -1,0 +1,81 @@
+# Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+# Memcached SDI APIs are enabled only for debug version
+source include/have_debug.inc;
+# This test uses external $MYSQL client tool to create table
+# with large number of columns(999) from a .sql file.
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
+# Create the memcached tables
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+				  'innodb_only', 'innodb_only', 'innodb_only');
+
+INSERT INTO config_options VALUES('separator', '|');
+
+# describe table for memcache
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+INSERT INTO containers VALUES ('desc_t2', 'test', 't2',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+INSERT INTO containers VALUES ('desc_t3', 'test', 't3',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+INSERT INTO containers VALUES ('desc_t4', 'test', 't4',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+INSERT INTO containers VALUES ('desc_t5', 'test', 't5',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+INSERT INTO containers VALUES ('desc_t6', 'test', 't6',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+INSERT INTO containers VALUES ('desc_t7', 'test', 't7',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+USE test;
+let MEMCACHED_PORT=11286;
+
+SET GLOBAL innodb_file_per_table=OFF;
+--source ../include/sdi_create_alter.inc
+
+SET GLOBAL innodb_file_per_table=ON;
+--source ../include/sdi_create_alter.inc
+
+--echo # Create compressed table
+CREATE TABLE t6 (c1 INT PRIMARY KEY,
+	c2 VARCHAR(30),
+	c3 FLOAT,
+	KEY idx1(c3),
+	KEY idx2(c2(20)))
+ENGINE = INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+let TABLE_NAME = t6;
+let MEMCACHED_TABLE_MAPPING = desc_t6;
+--source ../include/sdi_insert_get_row.inc
+DROP TABLE t6;
+
+--echo # Create SDI in General tablespace
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t6 (c1 INT PRIMARY KEY,
+	c2 VARCHAR(30),
+	c3 FLOAT,
+	KEY idx1(c3),
+	KEY idx2(c2(20)))
+ENGINE = INNODB TABLESPACE=ts1;
+
+let TABLE_NAME = t6;
+let MEMCACHED_TABLE_MAPPING = desc_t6;
+--source ../include/sdi_insert_get_row.inc
+
+DROP TABLE t6;
+DROP TABLESPACE ts1;
+
+DROP DATABASE innodb_memcache;
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+SET GLOBAL innodb_file_per_table = default;

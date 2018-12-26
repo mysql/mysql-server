@@ -1,0 +1,67 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Create table for tests on a multi primary group
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+[connection server3]
+
+# 2. Lock table on a server that will be a secondary and set its
+#    weight to be chosen as primary on single primary mode
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= 90;
+LOCK TABLE t1 READ;
+
+# 3. Insert a row on a group
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+# 4. Invoke a change to single primary selecting server3 as new primary
+SELECT group_replication_switch_to_single_primary_mode("MEMBER3_UUID");
+
+# 5. Check that the other members are waiting to enable
+#    super_read_only and executing primary election
+[connection server2]
+include/assert.inc [The stage should be "Single-primary Switch: executing Primary election"]
+include/assert.inc [The stage should be "stage/sql/Waiting for global read lock"]
+[connection server_1]
+include/assert.inc [The stage should be "Single-primary Switch: executing Primary election"]
+include/assert.inc [The stage should be "Primary Election: waiting for members to enable super_read_only"]
+
+# 6. Kill the primary selected when action was executed. Configure as
+#    single primary
+[connection server3]
+# Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+include/rpl_reconnect.inc
+
+# 7. Wait group detect exit of server3
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 8. Unblock table on member that is blocked
+UNLOCK TABLES;
+
+# 9. Check that the action finishes
+[connection server1]
+group_replication_switch_to_single_primary_mode("MEMBER3_UUID")
+Mode switched to single-primary with reported warnings: The appointed primary being elected exited the group. Check the group member list to see who is the primary.
+Warnings:
+Warning	13223	The appointed primary being elected exited the group. Check the group member list to see who is the primary. There were warnings detected also on other members, check their logs.
+
+# 10. Confirm server2 is the new primary due its weight on member
+#     election
+[connection server2]
+include/gr_assert_primary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+
+# 11. Cleanup
+[connection server3]
+include/start_group_replication.inc
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+DROP TABLE t1;
+include/group_replication_end.inc

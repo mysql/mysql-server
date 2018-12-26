@@ -1,0 +1,37 @@
+#
+# Bug#70867 WRONG OS ERROR NUMBER REPORTED IN ERROR LOG DURING FAILURE AT STARTUP
+#
+
+
+
+# This test uses chmod, can't be run with root permissions
+--source include/not_as_root.inc
+# disabling it on Windows as chmod semantics that we need in test-case
+# is not same as on Windows given the limited ACL bits available on Windows.
+# Aim of the TC is still being served by keep it enabled on other platforms.
+--source include/not_windows.inc
+
+
+#-----------------------------------------------------------------------------
+#
+let $MYSQL_DATA_DIR = `select @@datadir`;
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+let $args = --loose-console --core-file > $SEARCH_FILE 2>&1;
+
+--source include/shutdown_mysqld.inc
+
+--mkdir $MYSQL_DATA_DIR/tmpdata
+--chmod 0400 $MYSQL_DATA_DIR/tmpdata
+--error 1
+--exec $MYSQLD_CMD --innodb_data_home_dir=$MYSQL_DATA_DIR/tmpdata $args
+let SEARCH_PATTERN = returned OS error 113;
+--source ./include/search_pattern.inc
+let SEARCH_PATTERN = The error means mysqld does not have the access rights to;
+--source ./include/search_pattern.inc
+#
+--remove_file $SEARCH_FILE
+--chmod 0777 $MYSQL_DATA_DIR/tmpdata
+--rmdir $MYSQL_DATA_DIR/tmpdata
+#
+
+--source include/start_mysqld.inc

@@ -1,0 +1,20 @@
+# Use default setting for mysqld processes
+!include utf8mb4_mysqld.cnf
+!include utf8mb4_client.cnf
+
+[mysqld.1]
+
+# Run the master.sh script before starting this process
+#!run-master-sh
+
+# Run tests with the performance schema instrumentation
+loose-enable-performance-schema
+
+[mysqlbinlog]
+disable-force-if-open
+
+[ENV]
+MASTER_MYPORT=           @mysqld.1.port
+MASTER_MYSOCK=           @mysqld.1.socket
+MASTER_X_MYPORT=         @mysqld.1.loose-mysqlx-port
+MASTER_X_MYSOCK=         @mysqld.1.loose-mysqlx-socket

@@ -1,0 +1,60 @@
+
+#
+# Display default value
+#
+select @@global.performance_schema_max_statement_stack;
+
+#
+# Only global
+#
+
+select @@global.performance_schema_max_statement_stack;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.performance_schema_max_statement_stack;
+
+show global variables like 'performance_schema_max_statement_stack';
+
+show session variables like 'performance_schema_max_statement_stack';
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_max_statement_stack';
+
+select * from performance_schema.session_variables
+  where variable_name='performance_schema_max_statement_stack';
+--enable_warnings
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global performance_schema_max_statement_stack=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session performance_schema_max_statement_stack=1;
+
+#
+# Check if the value in GLOBAL Table matches value in variable
+#
+
+--disable_warnings
+SELECT @@GLOBAL.performance_schema_max_statement_stack = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='performance_schema_max_statement_stack';
+--enable_warnings
+
+select @@global.performance_schema_max_statement_stack;
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_max_statement_stack';
+--enable_warnings
+
+#
+# Check if accessing variable with and without GLOBAL point to same variable
+#
+
+SELECT @@performance_schema_max_statement_stack = @@GLOBAL.performance_schema_max_statement_stack; 
+

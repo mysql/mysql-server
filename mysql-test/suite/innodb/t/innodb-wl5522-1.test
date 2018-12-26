@@ -1,0 +1,3 @@
+
+--source suite/innodb/include/innodb_import.inc
+

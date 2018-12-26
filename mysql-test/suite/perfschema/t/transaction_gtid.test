@@ -1,0 +1,194 @@
+# ==== Purpose ====
+#
+# Verify that the GTID column of
+# performance_schema.events_transactions_current and
+# performance_schema.events_transactions_history has the correct
+# value, during different parts of the transaction life cycle.
+#
+# There are several cases:
+#
+# - When GTID_MODE=ON, a GTID of the form UUID:NUMBER is generated.
+#   When GTID_MODE=OFF, transactions have the special GTID
+#   "ANONYMOUS".
+#
+# - On a master, the GTID is generated during the transaction commit;
+#   prior to that it is "AUTOMATIC". On a slave, the GTID is specified
+#   (using SET GTID_NEXT) prior to executing the transaction.
+#
+# ==== Implementation ====
+#
+# Execute a transaction like:
+#   BEGIN;
+#   INSERT;
+#   COMMIT;
+# On a different connection, check the GTID columns of the tables
+# between each statement.
+#
+# Transactions to be checked are executed on connection
+# 'default'. Auxiliary statements to read or truncate the tables are
+# executed on connection 'server_1'.
+#
+# Also execute a ROLLBACK transaction.
+#
+# Execute the transaction in these two cases:
+# - GTID_MODE=ON,
+# - GTID_MODE=OFF.
+#
+# Execute the transaction in these two cases:
+# - GTID_NEXT='UUID:NUMBER'/'ANONYMOUS' (when GTID_MODE=ON/OFF)
+# - GTID_NEXT='AUTOMATIC'.
+#
+# Due to implementation details, there is a window in time at the
+# beginning of the transaction when the GTID has not been copied from
+# the server to the performance_schema internal structures.  During
+# this window, the GTID should be AUTOMATIC even if GTID_NEXT is set
+# to 'UUID:NUMBER' or 'ANONYMOUS'.  To verify this, we use a debug
+# sync point during the execution of the BEGIN statement.
+#
+# ==== References ====
+#
+# WL#7592: GTIDS: generate Gtid_log_event and Previous_gtids_log_event always
+# - The current behavior was specified and the test was introduced in
+#   this worklog.
+
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+--let $rpl_topology= none
+--let $rpl_server_count= 1
+--source include/rpl_init.inc
+
+--echo ==== Configure ====
+
+--connection default
+
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+
+--let $thread_id= `SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID()`
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+CREATE TABLE t1 (a INT);
+
+# These are parameters to include/execute_at_sync_point.inc,
+# which will remain the same each time the script is invoked.
+--let $statement_connection= default
+--let $auxiliary_connection= server_1
+--let $auxiliary_file= suite/perfschema/include/show_transaction_gtid.inc
+--let $quiet= 1
+
+--echo ==== Test ====
+
+--let $n= 1
+while ($n <= 4) {
+  if ($n == 1) {
+    --echo ---- Case 1: Specify ANONYMOUS prior to transaction ----
+    --let $gtid= ANONYMOUS
+  }
+  if ($n == 2) {
+    --echo ---- Case 2: Generate ANONYMOUS at commit ----
+    --let $gtid= AUTOMATIC
+  }
+  if ($n == 3) {
+    --let $rpl_gtid_mode= ON
+    --source include/rpl_set_gtid_mode.inc
+    --echo ---- Case 3: Specify GTID prior to transaction ----
+    --let $gtid= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1
+  }
+  if ($n == 4) {
+    --echo ---- Case 4: Generate GTID at commit ----
+    --let $gtid= AUTOMATIC
+  }
+
+  # Execute a transaction, show the GTID column of the tables
+  # after ROLLBACK.
+
+  --echo * BEGIN ... ROLLBACK
+  --source ../include/reset_transaction_gtid.inc
+
+  --source ../include/show_transaction_gtid.inc
+  eval SET SESSION GTID_NEXT = '$gtid';
+  BEGIN;
+  eval INSERT INTO t1 VALUES ($n);
+  ROLLBACK;
+  --source ../include/show_transaction_gtid.inc
+
+  # Same transaction as above, but with a commit. Show the GTID column
+  # of the tables between each statement, as well as in the middle of
+  # the BEGIN statement.
+
+  --echo * BEGIN ... COMMIT
+  --source ../include/reset_transaction_gtid.inc
+
+  --source ../include/show_transaction_gtid.inc
+  eval SET SESSION GTID_NEXT = '$gtid';
+  --source ../include/show_transaction_gtid.inc
+  --let $statement= BEGIN
+  --let $sync_point= after_set_transaction_psi_before_set_transaction_gtid
+  --source include/execute_at_sync_point.inc
+  --source ../include/show_transaction_gtid.inc
+  eval INSERT INTO t1 VALUES ($n);
+  --source ../include/show_transaction_gtid.inc
+  COMMIT;
+  --source ../include/show_transaction_gtid.inc
+
+  # A transaction executed with AUTOCOMMIT=OFF and no BEGIN.  Show the
+  # GTID column between each statement, as well as in the middle of
+  # the first DML statement.
+
+  --echo * AUTOCOMMIT = OFF
+  SET @@SESSION.AUTOCOMMIT = 0;
+  --source ../include/reset_transaction_gtid.inc
+
+  --source ../include/show_transaction_gtid.inc
+  eval SET SESSION GTID_NEXT = '$gtid';
+  --source ../include/show_transaction_gtid.inc
+  --let $statement= INSERT INTO t1 VALUES ($n)
+  --let $sync_point= begin_decide_logging_format
+  --source include/execute_at_sync_point.inc
+  --source ../include/show_transaction_gtid.inc
+  COMMIT;
+  --source ../include/show_transaction_gtid.inc
+
+  # A single-statement transaction executed with AUTOCOMMIT=ON and no
+  # BEGIN.  Show the GTID column before and after, as well as in the
+  # middle of the statement.
+
+  --echo * AUTOCOMMIT = ON
+  SET @@SESSION.AUTOCOMMIT = 1;
+  --source ../include/reset_transaction_gtid.inc
+
+  --source ../include/show_transaction_gtid.inc
+  eval SET SESSION GTID_NEXT = '$gtid';
+  --source ../include/show_transaction_gtid.inc
+  --let $statement= INSERT INTO t1 VALUES ($n)
+  --let $sync_point= begin_decide_logging_format
+  --source include/execute_at_sync_point.inc
+  --source ../include/show_transaction_gtid.inc
+
+  # Disabled because DDL is not inserted into the tables
+  if (0) {
+  # An implicitly committing statement (DDL), no BEGIN.
+  --echo * implicit commit (DDL)
+  --source ../include/reset_transaction_gtid.inc
+
+  --source ../include/show_transaction_gtid.inc
+  eval SET SESSION GTID_NEXT = '$gtid';
+  --source ../include/show_transaction_gtid.inc
+  --let $statement= CREATE TABLE t_$n (a INT)
+  --let $sync_point= begin_decide_logging_format
+  --source include/execute_at_sync_point.inc
+  --source ../include/show_transaction_gtid.inc
+  }
+
+  --inc $n
+}
+
+--echo ==== Clean up ====
+
+DROP TABLE t1;
+# DROP TABLE t_1, t_2, t_3, t_4;
+
+--let $rpl_gtid_mode= OFF
+--source include/rpl_set_gtid_mode.inc
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+
+--source include/rpl_end.inc

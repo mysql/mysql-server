@@ -1,0 +1,168 @@
+############################################################
+# WL#9426: Single Primary Mode in Group Replication
+#
+# This test case starts a group and validates that:
+# 1. There is only one writable primary;
+# 2. If we write to the primary, the secondaries will replicate
+# 3. If we write to the secondaries, we will get errors.
+# 4. Group is shutdown.
+#
+############################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--let $ceiling= `SELECT $rpl_server_count+1`
+
+--echo ########################################################
+--echo # 1. Start a single server
+--echo #######################################################
+
+--echo
+--echo ## START SERVER 1
+--let $rpl_connection_name= server1
+--let $server1_uuid= `SELECT @@server_uuid`
+--source include/rpl_connection.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $group_replication_expected_uuid= $server1_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+--echo
+--echo ## START SERVERS 2-4
+--let $server_num= 2
+
+while($server_num<$ceiling)
+{
+  --let $rpl_connection_name= server$server_num
+  --source include/rpl_connection.inc
+  --source include/start_group_replication.inc
+
+  --let $group_replication_expected_uuid= $server1_uuid
+  --source include/gr_wait_primary_member_uuid.inc
+
+  --inc $server_num
+}
+
+--echo
+--echo ## TRY TO CREATE TABLES test1 TO test4 ON CORESPONDING SERVERS 1-4
+--let $server_num= 1
+
+# First is the primary node
+# we do not expect any errors there !
+--let $expect_error= 0
+while($server_num<$ceiling)
+{
+  --let $rpl_connection_name= server$server_num
+  --source include/rpl_connection.inc
+
+  --error $expect_error
+  --eval CREATE TABLE test$server_num(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL);
+
+  --error $expect_error
+  --eval INSERT INTO test$server_num(`name`) VALUES("First ROW"), ("Second ROW"), ("Third ROW");
+
+  --error $expect_error
+  --eval INSERT INTO test$server_num(`name`) VALUES("First ROW created in second query"), ("Second ROW created in second query");
+
+  --error $expect_error
+  --eval UPDATE test$server_num SET `name`="2 ROW" WHERE `name` LIKE '%Second%';
+
+  --source include/rpl_sync.inc
+  --let $expect_error=ER_OPTION_PREVENTS_STATEMENT
+
+  --inc $server_num
+}
+
+--echo
+--echo ## STOP SERVER 1 AND START IT AGAIN (MAKE IT TO SECONDARY NODE)
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo ## FIND NEW PRIMARY SERVER AND INSERT DATA ON PRIMARY
+--let $rpl_connection_silent=1
+--source include/gr_find_a_primary.inc
+if (!$group_replication_found_primary_out_var)
+{
+  --echo performance_schema.replication_group_members
+  --echo --------------------------------------------
+  --query_vertical SELECT * FROM performance_schema.replication_group_members
+  --die "Unable to find PRIMARY!!"
+}
+--let $rpl_primary_server_name= $group_replication_primary_connection_out_var
+
+--let $rpl_connection_name= $rpl_primary_server_name
+--source include/rpl_connection.inc
+
+INSERT INTO test1(`name`) VALUES("First ROW created in third query"), ("Second ROW created in third query");
+INSERT INTO test1(`name`) VALUES("First ROW created in fourth query"), ("Second ROW created in fourth query");
+UPDATE test1 SET `name`="3 query" WHERE `name` LIKE '%third query%';
+UPDATE test1 SET `name`="Second ROW" WHERE `name` LIKE '%2 ROW%';
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ## CHECK SECONDARY SERVERS THAT ARE SET IN READ ONLY MODE
+--let $server_num= 1
+while($server_num<5)
+{
+  --let $current_server= server$server_num
+
+  if ($current_server !=  $rpl_primary_server_name)
+  {
+    --connection $current_server
+    --error ER_OPTION_PREVENTS_STATEMENT
+    TRUNCATE TABLE `test1`;
+  }
+
+  --inc $server_num
+}
+
+--echo
+--echo ## CHECK IF TABLE test1 IS IT PRESENT ON ALL SERVERS
+--echo [connection new primary]
+--let $rpl_connection_name= $rpl_primary_server_name
+--source include/rpl_connection.inc
+SELECT * FROM test1;
+
+--let $server_num= 2
+while($server_num<$ceiling)
+{
+  --let $diff_tables= server1:test1, server$server_num:test1
+  --source include/diff_tables.inc
+  --inc $server_num
+}
+
+
+--echo
+--echo ## CHECK TABLE test2-4, THEY SHOULDN'T BE THERE
+--let $server_num= 1
+while($server_num<$ceiling)
+{
+  --let $rpl_connection_name= server$server_num
+  --source include/rpl_connection.inc
+
+  --let $assert_text= 'Number of tables in current schema should be equal 1, it should be only "test1" table'
+  --let $assert_cond= [SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = schema(), count, 1] = 1
+  --source include/assert.inc
+  --inc $server_num
+}
+
+--echo
+--echo ## CLEANUP
+--let $rpl_connection_name= $rpl_primary_server_name
+--source include/rpl_connection.inc
+DROP TABLE `test1`;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_silent=0
+
+--source include/group_replication_end.inc

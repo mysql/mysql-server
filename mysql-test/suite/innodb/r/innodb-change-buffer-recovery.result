@@ -1,0 +1,42 @@
+#
+# Bug#69122 - INNODB DOESN'T REDO-LOG INSERT BUFFER MERGE
+#             OPERATION IF IT IS DONE IN-PLACE
+#
+CREATE TABLE t1(
+a INT AUTO_INCREMENT PRIMARY KEY,
+b CHAR(1),
+c INT,
+INDEX(b))
+ENGINE=InnoDB STATS_PERSISTENT=0;
+SET GLOBAL innodb_change_buffering_debug = 1;
+INSERT INTO t1 VALUES(0,'x',1);
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+BEGIN;
+SELECT b FROM t1 LIMIT 3;
+b
+x
+x
+x
+BEGIN;
+DELETE FROM t1 WHERE a=1;
+INSERT INTO t1 VALUES(1,'X',1);
+SET GLOBAL DEBUG='+d,crash_after_log_ibuf_upd_inplace';
+SELECT b FROM t1 LIMIT 3;
+ERROR HY000: Lost connection to MySQL server during query
+Pattern "Wrote log record for ibuf update in place operation" found
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

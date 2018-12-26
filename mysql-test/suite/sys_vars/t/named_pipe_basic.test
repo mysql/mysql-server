@@ -1,0 +1,21 @@
+--source include/windows.inc
+#
+# only global
+#
+select @@global.named_pipe;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.named_pipe;
+show global variables like 'named_pipe';
+show session variables like 'named_pipe';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='named_pipe';
+select * from performance_schema.session_variables where variable_name='named_pipe';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global named_pipe=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session named_pipe=1;

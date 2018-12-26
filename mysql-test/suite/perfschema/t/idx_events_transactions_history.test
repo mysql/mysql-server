@@ -1,0 +1,49 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = END_EVENT_ID;
+let $table = performance_schema.events_transactions_history;
+
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+
+truncate table performance_schema.events_transactions_history;
+
+# Create a new Connection
+connect(con1,localhost,foo,,);
+
+--echo # Connection 1
+--connection con1
+
+select connection_id() into @conid;
+
+let $tid = `select thread_id from performance_schema.threads
+             where PROCESSLIST_ID = @conid`;
+
+start transaction;
+rollback;
+
+--echo # Default connection
+--connection default
+
+--disable_query_log
+--eval select EVENT_ID from performance_schema.events_transactions_history where THREAD_ID = $tid and EVENT_NAME= 'transaction' limit 1 into @eid;
+--eval select $tid into @tid;
+--enable_query_log
+
+###########################################################################
+# Test index on THREAD_ID, EVENT_ID
+###########################################################################
+
+let $column_count = 2;
+let $col1 = THREAD_ID;
+let $col2 = EVENT_ID;
+let $col1_act = @tid;
+let $col2_act = @eid;
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+commit;
+--disconnect con1
+drop user foo@localhost;

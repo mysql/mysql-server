@@ -1,0 +1,142 @@
+#
+# Attempt to load table into an undefined secondary engine.
+#
+CREATE TABLE t1 (a INT);
+ALTER TABLE t1 SECONDARY_LOAD;
+ERROR HY000: Secondary engine operation failed. No secondary engine defined.
+DROP TABLE t1;
+#
+# Attempt to load table into an unknown storage engine.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+ALTER TABLE t1 SECONDARY_LOAD;
+ERROR 42000: Unknown storage engine 'NONEXISTENT'
+DROP TABLE t1;
+#
+# Attempt to load table into an unsupported secondary storage engine.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE InnoDB;
+ALTER TABLE t1 SECONDARY_LOAD;
+ERROR HY000: Secondary engine operation failed. Unsupported secondary storage engine.
+DROP TABLE t1;
+#
+# Create a table with a secondary engine defined.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
+DROP TABLE t1;
+#
+# Attempt to redefine the secondary engine.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+ALTER TABLE t1 SECONDARY_ENGINE ANOTHER_NONEXISTENT;
+ERROR HY000: Secondary engine operation failed. Table already has a secondary engine defined.
+DROP TABLE t1;
+#
+# Define and undefine secondary engine (without loading in-between).
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+ALTER TABLE t1 SECONDARY_ENGINE NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# Attempt to create a temporary table with a secondary engine defined.
+#
+CREATE TEMPORARY TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+ERROR HY000: Secondary engine operation failed. Temporary tables not supported.
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+CREATE TEMPORARY TABLE t2 LIKE t1;
+ERROR HY000: Secondary engine operation failed. Temporary tables not supported.
+DROP TABLE t1;
+#
+# Attempt to create a table with a primary engine that does not support
+# loading tables into a secondary engine.
+CREATE TABLE t1 (a INT) ENGINE MYISAM SECONDARY_ENGINE NONEXISTENT;
+ERROR 42000: The storage engine for the table doesn't support SECONDARY_ENGINE
+#
+# Attempt to change primary storage engine to an engine that does not
+# support loading into a secondary engine.
+#
+CREATE TABLE t1 (a INT) ENGINE InnoDB SECONDARY_ENGINE NONEXISTENT;
+ALTER TABLE t1 ENGINE MYISAM;
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
+DROP TABLE t1;
+#
+# Attempt to use SECONDARY_LOAD when creating table.
+#
+CREATE TABLE t1 (a INT) SECONDARY_LOAD;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SECONDARY_LOAD' at line 1
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT, SECONDARY_LOAD;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SECONDARY_LOAD' at line 1
+#
+# Attempt to alter a table after a secondary engine has been defined.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+ALTER TABLE t1 COMMENT="Test";
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ALTER TABLE t1 COMMENT="Test", ALGORITHM=INPLACE;
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ALTER TABLE t1 COMMENT="Test", ALGORITHM=COPY;
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ALTER TABLE t1 ADD COLUMN (b INT);
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ALTER TABLE t1 ADD COLUMN (b INT), ALGORITHM=INPLACE;
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ALTER TABLE t1 ADD COLUMN (b INT), ALGORITHM=COPY;
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
+DROP TABLE t1;
+#
+# Attempt to alter table after its secondary engine has been removed.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
+ALTER TABLE t1 SECONDARY_ENGINE NULL;
+ALTER TABLE t1 COMMENT="Test";
+ALTER TABLE t1 ADD COLUMN (b INT);
+ALTER TABLE t1 SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Test' SECONDARY_ENGINE=NONEXISTENT
+DROP TABLE t1;
+#
+# Attempt to rename a table with a secondary engine defined.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+RENAME TABLE t1 TO t2;
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+DROP TABLE t1;
+#
+# Attempt to use SECONDARY_LOAD in conjunction with another DDL.
+#
+CREATE TABLE t1 (i INT);
+ALTER TABLE t1 SECONDARY_LOAD, ADD KEY idx(i);
+ERROR HY000: Secondary engine operation failed. No secondary engine defined.
+ALTER TABLE t1 SECONDARY_ENGINE NONEXISTENT;
+ALTER TABLE t1 SECONDARY_LOAD, ADD KEY idx(i);
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+DROP TABLE t1;

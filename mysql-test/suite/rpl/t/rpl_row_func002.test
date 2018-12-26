@@ -1,0 +1,107 @@
+#############################################################################
+# This test is being created to test out the non deterministic items with   #
+# row based replication.                                                    #
+# Original Author: JBM                                                      #
+# Original Date: Aug/10/2005                                                #
+# Update: 08/29/2005 Turn on diff                                           #
+#############################################################################
+# Note: Many lines are commented out in this test case. These were used for #
+#       creating the test case and debugging and are being left for         #
+#       debugging, but they can not be used for the regular testing as the  #
+#       Time changes and is not deteministic, so instead we dump both the   #
+#       master and slave and diff the dumps. If the dumps differ then the   #
+#       test case will fail. To run during diff failuers, comment out the   #
+#       diff.                                                               #
+#############################################################################
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+--error 0,1305
+DROP FUNCTION test.f1;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+
+--enable_warnings
+
+# Section 1 test from Peter G. This test changes uses a stored function to update rows and return the timestamp. We change the value of the time stamp on the master to see what is replicated.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT, t TIMESTAMP, t2 TIMESTAMP, PRIMARY KEY(a));
+CREATE TABLE test.t2 (a INT NOT NULL AUTO_INCREMENT, t TIMESTAMP, t2 TIMESTAMP, PRIMARY KEY(a));
+SET sql_mode = default;
+
+delimiter //;
+create function test.f1() RETURNS TIMESTAMP 
+BEGIN
+UPDATE test.t1 SET t  = CURRENT_TIMESTAMP;
+RETURN CURRENT_TIMESTAMP;
+END//
+delimiter ;//
+
+INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
+#select * from test.t1;
+#save_master_pos;
+#--source include/sync_slave_sql_with_master.inc
+#connection slave;
+#select * from test.t1;
+#connection master;
+
+
+SET TIMESTAMP=2;
+INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
+#select * from test.t1;
+#save_master_pos;
+#--source include/sync_slave_sql_with_master.inc
+#connection slave;
+#select * from test.t1;
+#connection master;
+
+#sleep 3;
+SET TIMESTAMP=1; 
+INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
+#select * from test.t1;
+#save_master_pos;
+#--source include/sync_slave_sql_with_master.inc
+#connection slave;
+#select * from test.t1;
+#connection master;
+
+
+SET TIMESTAMP=333300000;
+INSERT INTO test.t2 VALUES (null,f1(),CURRENT_TIMESTAMP);
+
+# We need a sync to ensure that the slave has caught up before
+# dumping the database.
+--source include/sync_slave_sql_with_master.inc
+
+connection master;
+#Used for debugging
+#show binlog events;
+
+# time to dump the databases and so we can see if they match
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func002_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func002_slave.sql
+
+# Cleanup
+DROP FUNCTION test.f1;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+--source include/sync_slave_sql_with_master.inc
+
+# the test will show that the diff statement failed and no reject file
+# will be created. You will need to go to the mysql-test dir and diff
+# the files your self to see what is not matching :-). The files are located
+# in mysql-test/var/tmp
+
+diff_files $MYSQLTEST_VARDIR/tmp/func002_master.sql $MYSQLTEST_VARDIR/tmp/func002_slave.sql;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/func002_master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/func002_slave.sql
+--source include/rpl_end.inc
+# End of 5.0 test case

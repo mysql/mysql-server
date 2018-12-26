@@ -1,0 +1,59 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+###########################################################
+# 1. No members on group.
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+###########################################################
+# 2. One member on group.
+include/start_and_bootstrap_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+###########################################################
+# 3. Two members on group.
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+###########################################################
+# 4. Three members on group.
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+SELECT CHANNEL_NAME, MEMBER_ID, MEMBER_HOST, MEMBER_PORT, MEMBER_STATE FROM performance_schema.replication_group_members;
+CHANNEL_NAME	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	MEMBER_STATE
+group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE
+group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE
+group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE
+
+###########################################################
+# 5. Two members on group.
+include/stop_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+###########################################################
+# 6. One member on group.
+include/stop_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+###########################################################
+# 7. No members on group.
+include/stop_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/group_replication_end.inc

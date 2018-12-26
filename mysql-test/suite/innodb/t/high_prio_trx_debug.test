@@ -1,0 +1,73 @@
+# Scenario:
+#  T1=({R(B), W(B)})
+#  T2=({R(B), W(B), C}, HIGH_PRIORITY).
+#
+# T2 waits for T1 to exit from InnoDB and T1 trying to enter InnoDB
+# and T1 will wait for async rollback to complete
+#
+# Outcome: T1 must abort, T2 must commit.
+
+--source include/count_sessions.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #21143276	HANGING DUE TO ASYNC_ROLLBACK
+--echo #
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+START TRANSACTION;
+insert into t1 values(1);
+UPDATE t1 SET c1=2 WHERE c1=0;
+SET DEBUG_SYNC='ha_innobase_info_low SIGNAL update_cmd WAIT_FOR enter_innodb';
+--send select * from t1
+
+--echo
+--echo # On connection 1
+--connect(con1,localhost,root,,test)
+--connection con1
+--source include/start_transaction_high_prio.inc
+set debug_sync='now WAIT_FOR update_cmd';
+select * from t1;
+SET DEBUG_SYNC='trx_kill_blocking_enter SIGNAL enter_innodb';
+UPDATE t1 SET c1=2 WHERE c1=0;
+commit;
+
+--connection default
+--error ER_LOCK_DEADLOCK
+--reap
+commit;
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #25032066: PREPARED TRANSACTION SHOULD NOT BE ROLLED BACK
+--echo #
+
+CREATE TABLE t1(col1 int PRIMARY KEY, col2 int);
+INSERT INTO t1 VALUES(1, 10);
+
+XA START 'xid1';
+UPDATE t1 SET col2 = 20;
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--connection con1
+--source include/start_transaction_high_prio.inc
+--send UPDATE t1 SET col2 = 30 WHERE col2 = 10;
+--sleep 1
+
+--connection default
+XA COMMIT 'xid1';
+
+--connection con1
+--reap
+COMMIT;
+
+--connection default
+SELECT * FROM t1;
+
+--disconnect con1
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

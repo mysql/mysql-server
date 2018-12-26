@@ -1,0 +1,10 @@
+# Same as "basic" test, except for the master.opt file
+
+--source include/have_64bit.inc
+--source suite/sys_vars/inc/parser_max_mem_size_basic.inc
+
+SELECT @@global.parser_max_mem_size;
+
+--echo # global default is now "infite", must reset it to silence mtr.
+SET @@global.parser_max_mem_size = 50000000;
+SELECT @@global.parser_max_mem_size;

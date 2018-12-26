@@ -1,0 +1,32 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.mutex_instances limit 1;
+
+select * from performance_schema.mutex_instances
+  where name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.mutex_instances
+  set name='FOO', object_instance_begin=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.mutex_instances
+  set name='FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.mutex_instances
+  where name like "wait/%";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.mutex_instances;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.mutex_instances READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.mutex_instances WRITE;
+UNLOCK TABLES;
+

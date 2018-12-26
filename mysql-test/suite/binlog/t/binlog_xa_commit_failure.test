@@ -1,0 +1,71 @@
+################################################################################
+# BUG#25978684: GR+XA: ASSERT `! IS_SET() AT SQL_ERROR.CC:406 WHEN MEMBER IS IN ERROR/RECOVERING
+# Validate that XA COMMIT does handle a local failure properly.
+#
+# Test:
+# 1. Prepare the data for the test.
+# 2. Execute a XA PREPARE with id '1'.
+# 3. Force a local failure in before_commit listener on the
+#    XA COMMIT.
+# 4. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Prepare the data for the test.
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+
+
+--echo
+--echo ############################################################
+--echo # 2. Execute a XA PREPARE with id '1'.
+--connect (server1_conn2, 127.0.0.1, root, , test, $MASTER_MYPORT,)
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+--disconnect server1_conn2
+
+
+--echo
+--echo ############################################################
+--echo # 3. Force a local failure in before_commit listener on the
+--echo #    XA COMMIT.
+--connection default
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,simulate_failure_in_before_commit_hook';
+
+--error ER_RUN_HOOK_ERROR
+XA COMMIT 'xid1';
+SHOW ERRORS;
+SET @@GLOBAL.DEBUG= @debug_save;
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+DROP TABLE t1;
+
+--source include/restart_mysqld.inc
+
+# This is a temporal workaround for the bug#26962434 (XA INCONSISTENCIES AFTER
+# XA COMMIT ERROR). The workaround suppresses a warning about presence of a
+# prepared XA transaction after server restart and rolls back a prepared XA
+# transaction that  possibly left on Windows platform after XA COMMIT
+# had failed.
+
+# XA ROLLBACK is run in order to finalise XA transaction so that information
+# about this XA transaction wouldn't appear in subsequent test cases where
+# server is restared. Since the test fails on windows and runs successfully
+# on Unix the directive --error added that expects both success and error code
+# ER_XAER_NOTA from invocation of XA ROLLBACK. Added XA ROLLBACK fails on Unix
+# since there isn't any prepared XA transaction with specified xid (and this is
+# expected and correct behaviour) and successes on Windows where prepared XA
+# transaction with xid value 'xid1' exists after server restart
+# (this is incorrect behaviour that must be fixed later).
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
+--error 0,ER_XAER_NOTA
+XA ROLLBACK 'xid1';

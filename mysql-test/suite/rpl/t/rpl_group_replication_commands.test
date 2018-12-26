@@ -1,0 +1,53 @@
+# This test checks the basic functionality of the Group Replication
+# commands introduced to control the plugin
+
+--source include/have_log_bin.inc
+--source include/not_group_replication_plugin.inc
+
+call mtr.add_suppression("Group Replication plugin is not installed.");
+# Start Group Replication without the plugin loaded
+# It shall give a configuration error.
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+# Stop Group Replication without the plugin loaded
+# It shall give a configuration error.
+--error ER_GROUP_REPLICATION_CONFIGURATION
+STOP GROUP_REPLICATION;
+
+
+#########################################################################################
+# This test verify that only user with super privileges can execute following
+# commands"
+# - START GROUP_REPLICATION
+# - STOP GROUP_REPLICATION
+#
+#########################################################################################
+
+CREATE USER 'group_rpl_user' IDENTIFIED BY '';
+--connect (con_group_rpl_user,127.0.0.1,group_rpl_user,,test,$MASTER_MYPORT,,)
+--connection con_group_rpl_user
+
+# Start Group Replication with non-super privilege user
+# It shall give a acess denied error.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+START GROUP_REPLICATION;
+
+# Stop Group Replication with non-super privilege user
+# It shall give a acess denied error.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+STOP GROUP_REPLICATION;
+
+--connection default
+# Start / Stop replication should be possible with the
+# GROUP_REPLICATION_ADMIN command
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO group_rpl_user;
+--connection con_group_rpl_user
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+--error ER_GROUP_REPLICATION_CONFIGURATION
+STOP GROUP_REPLICATION;
+
+--connection default
+--disconnect con_group_rpl_user
+DROP USER group_rpl_user;

@@ -1,0 +1,154 @@
+################# mysql-test\t\innodb_purge_batch_size_basic.test #############
+#                                                                             #
+# Variable Name: innodb_purge_batch_size                                      #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: Numeric                                                          #
+# Default Value: 20                                                           #
+# Range: 0-4294967295                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+#Description:Test Cases of Dynamic System Variable innodb_purge_batch_size    #
+#             that checks the behavior of this variable in the following ways #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#                    START OF innodb_purge_batch_size TESTS            #
+########################################################################
+
+
+############################################################################
+#  Saving initial value of innodb_purge_batch_size in a temporary variable #
+############################################################################
+
+SET @global_start_value = @@global.innodb_purge_batch_size;
+SELECT @global_start_value;
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+########################################################################
+#           Display the DEFAULT value of innodb_purge_batch_size       #
+########################################################################
+
+SET @@global.innodb_purge_batch_size = 1;
+SET @@global.innodb_purge_batch_size = DEFAULT;
+SELECT @@global.innodb_purge_batch_size;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+##############################################################################
+#  Check if innodb_purge_batch_size can be accessed with and without @@ sign #
+##############################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET innodb_purge_batch_size = 1;
+SELECT @@innodb_purge_batch_size;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_purge_batch_size;
+
+SET global innodb_purge_batch_size = 1;
+SELECT @@global.innodb_purge_batch_size;
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+##########################################################################
+#     change the value of innodb_purge_batch_size to a valid value       #
+##########################################################################
+
+SET @@global.innodb_purge_batch_size = 1;
+SELECT @@global.innodb_purge_batch_size;
+
+SET @@global.innodb_purge_batch_size = 5000;
+SELECT @@global.innodb_purge_batch_size;
+SET @@global.innodb_purge_batch_size = 4294967295;
+SELECT @@global.innodb_purge_batch_size;
+
+--echo '#--------------------FN_DYNVARS_046_04-------------------------#'
+###########################################################################
+#       Change the value of innodb_purge_batch_size to invalid value      #
+########################################################################### 
+
+SET @@global.innodb_purge_batch_size = 0;
+SELECT @@global.innodb_purge_batch_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_batch_size = "T";
+SELECT @@global.innodb_purge_batch_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_batch_size = "Y";
+SELECT @@global.innodb_purge_batch_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_batch_size = ' ';
+SELECT @@global.innodb_purge_batch_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_batch_size = " ";
+SELECT @@global.innodb_purge_batch_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_batch_size = 1.1;
+SELECT @@global.innodb_purge_batch_size;
+
+SET @@global.innodb_purge_batch_size = 4294967297;
+SELECT @@global.innodb_purge_batch_size;
+
+--echo '#----------------------FN_DYNVARS_046_05------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT @@global.innodb_purge_batch_size =
+ VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_purge_batch_size';
+--enable_warnings
+SELECT @@global.innodb_purge_batch_size;
+--disable_warnings
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+ WHERE VARIABLE_NAME='innodb_purge_batch_size';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_046_06-------------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_batch_size = OFF;
+SELECT @@global.innodb_purge_batch_size;
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_batch_size = ON;
+SELECT @@global.innodb_purge_batch_size;
+
+--echo '#---------------------FN_DYNVARS_046_07----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+
+SET @@global.innodb_purge_batch_size = TRUE;
+SELECT @@global.innodb_purge_batch_size;
+SET @@global.innodb_purge_batch_size = FALSE;
+SELECT @@global.innodb_purge_batch_size;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.innodb_purge_batch_size = @global_start_value;
+SELECT @@global.innodb_purge_batch_size;
+
+###############################################################
+#                    END OF innodb_purge_batch_size TESTS     #
+############################################################### 

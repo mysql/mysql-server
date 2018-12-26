@@ -1,0 +1,201 @@
+drop table if exists test.marker;
+create table test.marker(a int);
+update performance_schema.setup_consumers set enabled='NO';
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES'
+  where name like "wait/io/table/%";
+truncate table performance_schema.events_waits_history_long;
+flush status;
+flush tables;
+drop table if exists test.t1;
+drop table if exists test.t2;
+create table test.t1 (a int, v int) engine = MyISAM;
+create table test.t2 (b int, v int) engine = MyISAM;
+create trigger t1_bi before insert on t1
+for each row insert into test.t2 set b = new.a, v = 0;
+create trigger t1_ai after insert on t1
+for each row update test.t2 set v = 1 where b = new.a;
+create trigger t1_bu before update on t1
+for each row update test.t2 set v = 3 where b = old.a;
+create trigger t1_au after update on t1
+for each row update test.t2 set v = 4 where b = new.a;
+create trigger t1_bd before delete on t1
+for each row delete from test.t2 where b = old.a;
+create trigger t1_ad after delete on t1
+for each row insert into test.t2 set b = old.a, v = 99;
+update performance_schema.setup_consumers set enabled = 'YES';
+insert into marker set a = 1;
+insert into t1 set a = 1, v = 10;
+insert into marker set a = 1;
+insert into t1 set a = 2, v = 20;
+insert into marker set a = 1;
+select * from t1;
+a	v
+1	10
+2	20
+insert into marker set a = 1;
+select * from t2;
+b	v
+1	1
+2	1
+insert into marker set a = 1;
+update t1 set v = v + 100;
+insert into marker set a = 1;
+select * from t1;
+a	v
+1	110
+2	120
+insert into marker set a = 1;
+select * from t2;
+b	v
+1	4
+2	4
+insert into marker set a = 1;
+delete from t1 where a = 1;
+insert into marker set a = 1;
+select * from t1;
+a	v
+2	120
+insert into marker set a = 1;
+select * from t2;
+b	v
+1	99
+2	4
+insert into marker set a = 1;
+delete from t1 where a = 2;
+insert into marker set a = 1;
+select * from t1;
+a	v
+insert into marker set a = 1;
+select * from t2;
+b	v
+1	99
+2	99
+update performance_schema.setup_consumers set enabled='NO';
+select event_name,
+left(source, locate(":", source)) as short_source,
+object_type, object_schema,
+if (locate("#sql-", object_name), "#sql-XXXX", object_name)
+as pretty_name,
+operation, number_of_bytes
+from performance_schema.events_waits_history_long
+where event_name like 'wait/io/table/%'
+  and object_schema in ("test")
+order by thread_id, event_id;
+event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	update	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	delete	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	delete	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	delete	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	delete	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	2
+show global status like 'performance_schema_%_lost';
+Variable_name	Value
+Performance_schema_accounts_lost	0
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_digest_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
+Performance_schema_index_stat_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_memory_classes_lost	0
+Performance_schema_metadata_lock_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_nested_statement_lost	0
+Performance_schema_prepared_statements_lost	0
+Performance_schema_program_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_lost	0
+Performance_schema_socket_classes_lost	0
+Performance_schema_socket_instances_lost	0
+Performance_schema_stage_classes_lost	0
+Performance_schema_statement_classes_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_table_lock_stat_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
+truncate performance_schema.events_waits_history_long;
+flush status;
+drop table test.t1;
+drop table test.t2;
+update performance_schema.setup_consumers set enabled='NO';
+truncate performance_schema.events_waits_history_long;
+drop table test.marker;
+flush status;
+update performance_schema.setup_instruments set enabled='YES';
+update performance_schema.setup_consumers set enabled='YES';

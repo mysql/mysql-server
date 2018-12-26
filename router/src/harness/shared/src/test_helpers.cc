@@ -1,0 +1,98 @@
+/*
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+#include "test/helpers.h"
+
+#include "dim.h"
+#include "mysql/harness/loader.h"
+#include "mysql/harness/logging/registry.h"
+
+::testing::AssertionResult AssertLoaderSectionAvailable(
+    const char *loader_expr, const char *section_expr,
+    mysql_harness::Loader *loader, const std::string &section_name) {
+  using std::pair;
+  using std::string;
+
+  auto lst = loader->available();
+  auto match_example = [&section_name](const pair<string, string> &elem) {
+    return elem.first == section_name;
+  };
+
+  if (std::count_if(lst.begin(), lst.end(), match_example) > 0)
+    return ::testing::AssertionSuccess();
+
+  std::ostringstream sections;
+  for (auto &name : lst) {
+    sections << " " << name.first;
+    if (!name.second.empty()) {
+      sections << ":" << name.second;
+    }
+  }
+  return ::testing::AssertionFailure()
+         << "Loader '" << loader_expr << "' did not contain section '"
+         << section_name << "' (from expression '" << section_expr << "')\n"
+         << "Sections were: " << sections.str();
+}
+
+void register_test_logger() {
+  mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+  dim.set_LoggingRegistry(
+      []() {
+        static mysql_harness::logging::Registry registry;
+        return &registry;
+      },
+      [](mysql_harness::logging::Registry *) {}  // don't delete our static!
+  );
+}
+
+void init_test_logger(
+    const std::list<std::string> &additional_log_domains /* = {} */,
+    const std::string &log_folder /* = "" */,
+    const std::string &log_filename /* = "" */) {
+  register_test_logger();
+
+  mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+  mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
+
+  mysql_harness::Config config;
+
+  // NOTE: See where g_HACK_default_log_level is set in production code to
+  // understand the hack. One day we will want to revert to something analogous
+  // to what we had before. Original code looked like this:
+  //   config.set_default(mysql_harness::logging::kConfigOptionLogLevel,
+  //   "debug");
+  mysql_harness::logging::g_HACK_default_log_level = "debug";
+
+  std::list<std::string> log_domains(additional_log_domains.begin(),
+                                     additional_log_domains.end());
+  log_domains.push_back(mysql_harness::logging::kMainLogger);
+
+  mysql_harness::logging::clear_registry(registry);
+  mysql_harness::logging::init_loggers(registry, config, log_domains,
+                                       mysql_harness::logging::kMainLogger);
+  mysql_harness::logging::create_main_logfile_handler(registry, log_filename,
+                                                      log_folder, true);
+
+  registry.set_ready();
+}

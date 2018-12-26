@@ -1,0 +1,117 @@
+
+############################################################
+# 1. Create a group with 4 members and a table on it.
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+#
+# Create a table
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection server4]
+set session sql_log_bin=0;
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("The member is leaving a group without being on one");
+call mtr.add_suppression("The member has left the group but the new view will not be installed");
+set session sql_log_bin=1;
+
+############################################################
+# 2. Set group_replication_member_expel_timeout to
+#    300 seconds.
+[connection server1]
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+300
+[connection server2]
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+300
+[connection server3]
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+300
+[connection server4]
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+300
+
+############################################################
+# 3. Suspend server 3 by sending signal SIGSTOP to it.
+#    This will make server 3 not answer to "I am alive"
+#    GCS messages and it will eventually be considered
+#    faulty.
+[connection server3]
+#
+# Get server 3 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+#
+# Suspending server 3...
+
+############################################################
+# 4. Check that all members are still in the group on
+#    servers 1, 2 and 4 which should be ONLINE.
+#    Server 3 should still be in the group but UNREACHABLE.
+[connection server1]
+
+############################################################
+# 5. Make server 4 leave the group and notice that it is
+#    reported as ONLINE and server 3 as UNREACHABLE.
+#
+# Stop GR on server4.
+[connection server4]
+include/stop_group_replication.inc
+[connection server1]
+
+############################################################
+# 6. Reset the group_replication_member_expel_timeout
+#    parameter to 0 seconds thus forcing server 3 to be
+#    expelled.
+#
+# Reset the group_replication_member_expel_timeout to 0.
+[connection server1]
+SET GLOBAL group_replication_member_expel_timeout = 0;
+[connection server2]
+SET GLOBAL group_replication_member_expel_timeout = 0;
+[connection server4]
+SET GLOBAL group_replication_member_expel_timeout = 0;
+#
+# Wait until until server 3 is expelled and 2 servers are online
+[connection server1]
+
+#############################################################
+# 7. Make server 4 successfully join the group after reseting
+#    the above option.
+#
+# Start GR on server4
+[connection server4]
+SET GLOBAL group_replication_group_seeds= "SERVER1_LOCAL_ADDRESS";
+include/start_group_replication.inc
+#############################################################
+# 8. Resume server 3 and make it rejoin the group
+#
+[connection server3]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+#
+# Wait until until all servers are online again
+[connection server1]
+
+############################################################
+# 9. Clean up.
+[connection server1]
+DROP TABLE t1;
+include/rpl_sync.inc
+include/group_replication_end.inc

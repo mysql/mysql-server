@@ -1,0 +1,56 @@
+
+#
+# 2010-01-20 OBN - added check of I_S values after variable value changed
+#
+
+SET @start_global_value = @@global.old_alter_table;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.old_alter_table;
+select @@session.old_alter_table;
+show global variables like 'old_alter_table';
+show session variables like 'old_alter_table';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='old_alter_table';
+select * from performance_schema.session_variables where variable_name='old_alter_table';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global old_alter_table=1;
+set session old_alter_table=ON;
+select @@global.old_alter_table;
+select @@session.old_alter_table;
+show global variables like 'old_alter_table';
+show session variables like 'old_alter_table';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='old_alter_table';
+select * from performance_schema.session_variables where variable_name='old_alter_table';
+--enable_warnings
+
+#
+# Display the default value 
+#
+
+SET @@global.old_alter_table=DEFAULT;
+SELECT @@global.old_alter_table;
+
+SET @@session.old_alter_table=DEFAULT;
+SELECT  @@session.old_alter_table;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global old_alter_table=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global old_alter_table=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global old_alter_table="foo";
+
+SET @@global.old_alter_table = @start_global_value;
+SELECT @@global.old_alter_table;

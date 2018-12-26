@@ -1,0 +1,21 @@
+SELECT * FROM performance_schema.replication_applier_configuration
+LIMIT 1;
+sELECT * FROM performance_schema.replication_applier_configuration
+WHERE desired_delay=12;
+INSERT INTO performance_schema.replication_applier_configuration
+SET desired_delay=2;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
+UPDATE performance_schema.replication_applier_configuration
+SET desired_delay=12 WHERE desired_delay=2;
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
+DELETE FROM performance_schema.replication_applier_configuration
+WHERE desired_delay=12;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
+DELETE FROM performance_schema.replication_applier_configuration;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
+LOCK TABLES performance_schema.replication_applier_configuration READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.replication_applier_configuration WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
+UNLOCK TABLES;

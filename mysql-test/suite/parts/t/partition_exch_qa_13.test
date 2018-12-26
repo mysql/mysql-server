@@ -1,0 +1,10 @@
+# Author: Horst Hunger
+# Created: 2010-07-13
+
+
+let $engine_table= INNODB;
+let $engine_part= INNODB;
+let $engine_subpart= INNODB;
+
+--source suite/parts/inc/part_exch_qa_13.inc
+

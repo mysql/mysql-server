@@ -1,0 +1,148 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testScan
+args: -n InterpretNok6000 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n ReadWithoutGetValue D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n SimpleReadAbortOnError T1 T6 T15
+max-time: 180
+
+cmd: testBasic
+args: -n Commit626 T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n AccCommitOrder T1
+max-time: 180
+
+cmd: testBasic
+args: -n Commit630 T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAbort15 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n CheckAfterTerror T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadError8081 T1 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n Bug28073
+max-time: 180
+
+cmd: testNdbApi
+args: -n Bug51775 T1
+max-time: 180
+
+cmd: testBasicAsynch
+args: -n PkInsertAsynch
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug36247 T1
+max-time: 540
+
+cmd: testBasic
+args: -n PkReadUpdateAndLocker T6 D1 D2
+max-time: 180
+
+cmd: testDict
+args: -n Bug24631 T1
+max-time: 180
+
+cmd: testBasicAsynch
+args: -n PkUpdateAsynch
+max-time: 360
+
+cmd: test_event
+args: -n Bug12598496 T1
+max-time: 360
+
+cmd: testIndexStat
+args:
+max-time: 360
+
+cmd: atrt-testBackup
+args: -n FailSlave T1
+max-time: 180
+
+cmd: testLimits
+args: -n DropSignalFragments T1
+max-time: 900
+
+cmd: testDict
+args: -n CreateAndDropDuring T6 D1 D2
+max-time: 360
+
+cmd: test_event
+args: -n Apiv2EventBufferOverflow T1
+max-time: 360
+
+cmd: testNodeRestart
+args: -n TwoMasterNodeFailure T6 T13
+max-time: 2520
+
+cmd: testNodeRestart
+args: -n CommittedRead T1
+max-time: 720
+
+cmd: testSystemRestart
+args: -n Bug22696 T1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n Bug16944817 T1
+max-time: 1080
+
+cmd: testSystemRestart
+args: -n SR_DD_1 D2
+max-time: 1980
+
+cmd: testSystemRestart
+args: -n SR_DD_3b_LCP D1
+max-time: 1260
+
+cmd: testIndex
+args: -n NF_Mixed T1 T6 T13
+max-time: 1980
+
+cmd: testSystemRestart
+args: -n SR2 T1
+max-time: 3240
+
+cmd: testPartitioning
+args: --forceshortreqs
+max-time: 4320
+

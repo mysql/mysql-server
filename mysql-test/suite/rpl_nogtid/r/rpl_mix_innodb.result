@@ -1,0 +1,138 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t4 (
+id INT(5) unsigned NOT NULL auto_increment,
+name varchar(15) NOT NULL default '',
+number varchar(35) NOT NULL default 'default',
+PRIMARY KEY  (id),
+UNIQUE KEY unique_rec (name,number)
+) ENGINE=InnoDB;
+LOAD DATA
+INFILE '../../std_data/loaddata_pair.dat'  
+REPLACE INTO TABLE t4 
+(name,number);
+SELECT * FROM t4;
+id	name	number
+1	XXX	12345
+2	XXY	12345
+SELECT * FROM t4;
+id	name	number
+1	XXX	12345
+2	XXY	12345
+LOAD DATA
+INFILE '../../std_data/loaddata_pair.dat'  
+REPLACE INTO TABLE t4
+(name,number);
+SELECT * FROM t4;
+id	name	number
+4	XXX	12345
+5	XXY	12345
+SELECT * FROM t4;
+id	name	number
+4	XXX	12345
+5	XXY	12345
+FLUSH LOGS;
+FLUSH LOGS;
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+CREATE TEMPORARY TABLE mysqltest1.tmp (f1 BIGINT);
+CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE="InnoDB";
+SET AUTOCOMMIT = 0;
+-------- switch to slave --------
+ALTER TABLE mysqltest1.t1 ENGINE = MyISAM;
+SHOW CREATE TABLE mysqltest1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` bigint(20) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+-------- switch to master --------
+INSERT INTO mysqltest1.t1 SET f1= 1;
+DROP TEMPORARY TABLE mysqltest1.tmp;
+ROLLBACK;
+Warnings:
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+SHOW CREATE TABLE mysqltest1.tmp;
+ERROR 42S02: Table 'mysqltest1.tmp' doesn't exist
+######### Must return no rows here #########
+SELECT COUNT(*) FROM mysqltest1.t1;
+COUNT(*)
+0
+INSERT INTO mysqltest1.t1 SET f1= 2;
+CREATE TEMPORARY TABLE mysqltest1.tmp2(a INT);
+ROLLBACK;
+Warnings:
+Warning	#	The creation of some temporary tables could not be rolled back.
+SHOW CREATE TABLE mysqltest1.tmp2;
+Table	Create Table
+tmp2	CREATE TEMPORARY TABLE `tmp2` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+######### Must return no rows here #########
+SELECT COUNT(*) FROM mysqltest1.t1;
+COUNT(*)
+0
+-------- switch to slave --------
+SHOW CREATE TABLE mysqltest1.tmp;
+ERROR 42S02: Table 'mysqltest1.tmp' doesn't exist
+SHOW CREATE TABLE mysqltest1.tmp2;
+ERROR 42S02: Table 'mysqltest1.tmp2' doesn't exist
+######### for SBR, t1 has two rows here: the transaction not rolled back since t1 uses MyISAM  #########
+######### for MBR, t1 has zero rows here, as CREATE/DROP TEMPORARY TABLE were not binlogged  #########
+SELECT COUNT(*) FROM mysqltest1.t1;
+COUNT(*)
+0
+FLUSH LOGS;
+-------- switch to master --------
+FLUSH LOGS;
+DROP TEMPORARY TABLE IF EXISTS mysqltest1.tmp2;
+DROP DATABASE mysqltest1;
+End of 5.1 tests
+#
+# Bug#39675 rename tables on innodb tables with pending 
+# transactions causes slave data issue.
+#
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t1 (
+id INT PRIMARY KEY auto_increment,
+b INT DEFAULT NULL
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+id INT PRIMARY KEY auto_increment,
+b INT DEFAULT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (b) VALUES (1),(2),(3);
+BEGIN;
+INSERT INTO t1(b) VALUES (4);
+-------- switch to master1 --------
+RENAME TABLE t1 TO t3, t2 TO t1;;
+-------- switch to master --------
+COMMIT;
+-------- switch to master1 --------
+-------- switch to master --------
+SELECT * FROM t1;
+id	b
+SELECT * FROM t3;
+id	b
+1	1
+2	2
+3	3
+4	4
+-------- switch to slave --------
+SELECT * FROM t1;
+id	b
+SELECT * FROM t3;
+id	b
+1	1
+2	2
+3	3
+4	4
+-------- switch to master --------
+DROP TABLE t1;
+DROP TABLE t3;
+End of 6.0 tests
+include/rpl_end.inc

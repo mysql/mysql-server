@@ -1,0 +1,32 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.table_handles;
+--enable_result_log
+
+select * from performance_schema.table_handles
+  where object_name='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.table_handles
+  set object_name='FOO', owner_event_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.table_handles
+  set owner_event_id=12 where object_name='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.table_handles;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.table_handles
+  where timer_name='CYCLE';
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.table_handles READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.table_handles WRITE;
+UNLOCK TABLES;
+

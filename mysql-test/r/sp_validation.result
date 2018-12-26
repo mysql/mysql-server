@@ -1,0 +1,1790 @@
+
+#
+# WL#4179: Stored programs: validation of stored program statements.
+#
+
+# The test case below demonstrates that meta-data changes are detected
+# by triggers.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t3 (a INT);
+INSERT INTO t2 VALUES (11, 12), (21, 22);
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t3 (a) VALUES (1);
+SELECT * FROM t1;
+a	b
+11	12
+21	22
+SELECT * FROM t2;
+a	b
+11	12
+21	22
+ALTER TABLE t1 ADD COLUMN c INT;
+ALTER TABLE t2 ADD COLUMN c INT;
+INSERT INTO t2 VALUES (31, 32, 33);
+INSERT INTO t3 (a) VALUES (2);
+SELECT * FROM t1;
+a	b	c
+11	12	NULL
+21	22	NULL
+11	12	NULL
+21	22	NULL
+31	32	33
+SELECT * FROM t2;
+a	b	c
+11	12	NULL
+21	22	NULL
+31	32	33
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+# Check that NEW/OLD rows work within triggers.
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1(a) VALUES (1);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+SET @a = OLD.a;
+SET @b = NEW.a;
+SELECT OLD.a INTO @c;
+SELECT NEW.a INTO @d;
+SET NEW.a = NEW.a * 2;
+END|
+UPDATE t1 SET a = a * 10;
+SELECT @a, @c, @b, @d;
+@a	@c	@b	@d
+1	1	10	10
+SELECT a FROM t1;
+a
+20
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE PROCEDURE p1()
+SELECT * FROM t1;
+CALL p1();
+a
+1
+2
+
+# 1.1 Check if added column into table is recognized correctly
+# in a stored procedure.
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 0;
+CALL p1();
+a	b
+1	0
+2	0
+
+# 1.2 Check if dropped column is not appeared in SELECT query
+# executed inside a stored procedure.
+ALTER TABLE t1 DROP COLUMN a;
+CALL p1();
+b
+0
+0
+
+# 1.3 Check if changed column is picked up properly.
+ALTER TABLE t1 CHANGE COLUMN b b VARCHAR(255) DEFAULT 'n/a';
+DELETE FROM t1;
+INSERT INTO t1 VALUES (b), ('hello');
+CALL p1();
+b
+n/a
+hello
+
+# 1.4 Check if table's recreation is handled correctly
+# inside a call of stored procedure. 
+DROP TABLE t1;
+DROP PROCEDURE p1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE PROCEDURE p1()
+SELECT * FROM t1;
+CALL p1();
+a
+1
+2
+DROP TABLE t1;
+CALL p1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CALL p1();
+a
+1
+2
+
+# 1.5 Recreate table t1 with another set of columns and
+# re-call a stored procedure.
+DROP TABLE t1;
+DROP PROCEDURE p1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE PROCEDURE p1()
+SELECT * FROM t1;
+CALL p1();
+a
+1
+2
+DROP TABLE t1;
+CALL p1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TABLE t1 (b VARCHAR(10), c VARCHAR(10));
+INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
+CALL p1();
+b	c
+a	b
+c	d
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+# 2.1 Stored program that uses query like 'SELECT * FROM v' must be
+# re-executed successfully if some columns were added into the view
+# definition by ALTER VIEW;
+CREATE VIEW v1 AS SELECT 1, 2, 3;
+CREATE PROCEDURE p1()
+SELECT * FROM v1;
+CALL p1();
+1	2	3
+1	2	3
+ALTER VIEW v1 AS SELECT 1, 2, 3, 4, 5;
+CALL p1();
+1	2	3	4	5
+1	2	3	4	5
+
+# 2.2 Stored program that uses query like 'SELECT * FROM v' must be
+# re-executed successfully if some columns were removed from the view
+# definition by ALTER VIEW;
+ALTER VIEW v1 AS SELECT 1, 5;
+CALL p1();
+1	5
+1	5
+
+# 2.3 Stored program that uses query like 'SELECT * FROM v' must be
+# re-executed successfully if a base table for the view being used was
+# extended by new columns (by ALTER TABLE);
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+SELECT * FROM v1;
+CALL p1();
+a	b
+1	2
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 3;
+CALL p1();
+a	b
+1	2
+
+# 2.4 Stored program that uses query like 'SELECT * FROM v' must be
+# re-executed successfully if not used columns were removed from the
+# base table of this view (by ALTER TABLE);
+DROP TABLE t1;
+CREATE TABLE t1(a INT, b INT, c INT);
+INSERT INTO t1 VALUES (1, 2, 3);
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT b, c FROM t1;
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+SELECT * FROM v1;
+CALL p1();
+b	c
+2	3
+ALTER TABLE t1 DROP COLUMN a;
+CALL p1();
+b	c
+2	3
+ALTER TABLE t1 DROP COLUMN b;
+CALL p1();
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+
+# 2.5 Stored program that uses query like 'SELECT * FROM v' must be
+# re-executed successfully if a type of some base table's columns were
+# changed (by ALTER TABLE);
+DROP TABLE t1;
+CREATE TABLE t1(a INT, b INT, c INT);
+INSERT INTO t1 VALUES (1, 2, 3);
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT b, c FROM t1;
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+SELECT * FROM v1;
+CALL p1();
+b	c
+2	3
+ALTER TABLE t1 CHANGE COLUMN b b VARCHAR(255) DEFAULT 'n/a';
+DELETE FROM t1;
+INSERT INTO t1(a, c) VALUES (10, 30);
+CALL p1();
+b	c
+n/a	30
+
+# 2.6 Stored program that uses query like 'SELECT * FROM v' must be
+# re-executed successfully if the view 'v' was dropped and created again
+# with the same definition;
+#
+# 2.7 Stored program that uses query like 'SELECT * FROM v' must be
+# re-executed successfully if the view 'v' was dropped and created again
+# with different, but compatible definition.
+DROP VIEW v1;
+DROP TABLE t1;
+DROP PROCEDURE p1;
+CREATE VIEW v1 AS SELECT 1, 2, 3;
+CREATE PROCEDURE p1()
+SELECT * FROM v1;
+CALL p1();
+1	2	3
+1	2	3
+DROP VIEW v1;
+CALL p1();
+ERROR 42S02: Table 'test.v1' doesn't exist
+CREATE VIEW v1 AS SELECT 4, 5, 6;
+CALL p1();
+4	5	6
+4	5	6
+
+# 2.8 Stored program that uses query like 'SELECT * FROM v' must be
+# re-executed successfully if the view base tables have been re-created
+# using the same or compatible definition.
+DROP VIEW v1;
+DROP PROCEDURE p1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE PROCEDURE p1()
+SELECT * FROM v1;
+CALL p1();
+a	b
+1	2
+DROP TABLE t1;
+CALL p1();
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+CREATE TABLE t1(a VARCHAR(255), b VARCHAR(255));
+INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
+CALL p1();
+a	b
+a	b
+c	d
+DROP VIEW v1;
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+# 3.1 Stored program that uses query like 'SELECT * FROM t' must be
+# re-executed successfully if some columns were added into temporary table
+# table 't' (by ALTER TABLE);
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1() SELECT * FROM t1;
+CALL p1();
+a	b
+1	2
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 3;
+CALL p1();
+a	b	c
+1	2	3
+
+# 3.2 Stored program that uses query like 'SELECT * FROM t' must be
+# re-executed successfully if some columns were removed from temporary
+# table 't' (by ALTER TABLE);
+ALTER TABLE t1 DROP COLUMN a;
+CALL p1();
+b	c
+2	3
+
+# 3.3 Stored program that uses query like 'SELECT * FROM t' must be
+# re-executed successfully if a type of some temporary table's columns were
+# changed (by ALTER TABLE);
+ALTER TABLE t1 CHANGE COLUMN b b VARCHAR(255) DEFAULT 'n/a';
+INSERT INTO t1(c) VALUES (4);
+CALL p1();
+b	c
+2	3
+n/a	4
+
+# 3.4 Stored program that uses query like 'SELECT * FROM t' must be
+# re-executed successfully if the temporary table 't' was dropped and
+# created again with the same definition;
+#
+# 3.5 Stored program that uses query like 'SELECT * FROM t' must be
+# re-executed successfully if the temporary table 't' was dropped and
+# created again with different, but compatible definition.
+DROP TEMPORARY TABLE t1;
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CALL p1();
+a	b
+1	2
+DROP TEMPORARY TABLE t1;
+CREATE TEMPORARY TABLE t1(a VARCHAR(255), b VARCHAR(255), c VARCHAR(255));
+INSERT INTO t1 VALUES ('aa', 'bb', 'cc');
+CALL p1();
+a	b	c
+aa	bb	cc
+DROP TEMPORARY TABLE t1;
+DROP PROCEDURE p1;
+
+# 4.1 Stored program must fail when it is re-executed after a table's column
+# that this program is referenced to has been removed;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1() SELECT a, b FROM t1;
+CALL p1();
+a	b
+1	2
+ALTER TABLE t1 DROP COLUMN b;
+CALL p1();
+ERROR 42S22: Unknown column 'b' in 'field list'
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+# 4.2 Stored program must fail when it is re-executed after a temporary
+# table's column that this program is referenced to has been removed;
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1() SELECT a, b FROM t1;
+CALL p1();
+a	b
+1	2
+ALTER TABLE t1 DROP COLUMN b;
+CALL p1();
+ERROR 42S22: Unknown column 'b' in 'field list'
+DROP PROCEDURE p1;
+DROP TEMPORARY TABLE t1;
+
+# 4.3 Stored program must fail when it is re-executed after a view's
+# column that this program is referenced to has been removed;
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+CREATE PROCEDURE p1() SELECT a, b FROM v1;
+CALL p1();
+a	b
+1	2
+ALTER VIEW v1 AS SELECT 1 AS a;
+CALL p1();
+ERROR 42S22: Unknown column 'b' in 'field list'
+DROP PROCEDURE p1;
+DROP VIEW v1;
+
+# 4.4 Stored program must fail when it is re-executed after a regular table
+# that this program referenced to was removed;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1() SELECT a, b FROM t1;
+CALL p1();
+a	b
+1	2
+DROP TABLE t1;
+CALL p1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+DROP PROCEDURE p1;
+
+# 4.5 Stored program must fail when it is re-executed after a view that
+# this program referenced to was removed;
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+CREATE PROCEDURE p1() SELECT a, b FROM v1;
+CALL p1();
+a	b
+1	2
+DROP VIEW v1;
+CALL p1();
+ERROR 42S02: Table 'test.v1' doesn't exist
+DROP PROCEDURE p1;
+
+# 4.6 Stored program must fail when it is re-executed after a temporary
+# table that this program referenced to was removed;
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1() SELECT a, b FROM t1;
+CALL p1();
+a	b
+1	2
+DROP TABLE t1;
+CALL p1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+DROP PROCEDURE p1;
+
+# 4.7 Stored program must fail if the program executes some
+# SQL-statement and afterwards re-executes it again when some table 't'
+# referenced by the statement was dropped in the period between statement
+# execution;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1146
+SELECT 'Table t1 does not exist anymore' as msg;
+SELECT * FROM t1;
+INSERT INTO t2 VALUES (1);
+SELECT GET_LOCK('m1', 10000);
+SELECT * FROM t1;
+END|
+
+# -- connection: con1
+SELECT GET_LOCK('m1', 0);
+GET_LOCK('m1', 0)
+1
+
+# -- connection: default
+CALL p1();
+
+# -- connection: con1
+DROP TABLE t1;
+SELECT RELEASE_LOCK('m1');
+RELEASE_LOCK('m1')
+1
+
+# -- connection: default
+a
+GET_LOCK('m1', 10000)
+1
+msg
+Table t1 does not exist anymore
+DROP TABLE t2;
+DROP PROCEDURE p1;
+
+# 5.1 Regular table -> View
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1() SELECT * FROM t1;
+CALL p1();
+a	b
+1	2
+DROP TABLE t1;
+CREATE VIEW t1 AS SELECT 1 AS a, 2 AS b;
+CALL p1();
+a	b
+1	2
+DROP PROCEDURE p1;
+DROP VIEW t1;
+
+# 5.2 Regular table -> Temporary table
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1() SELECT * FROM t1;
+CALL p1();
+a	b
+1	2
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CALL p1();
+a	b
+1	2
+DROP PROCEDURE p1;
+DROP TEMPORARY TABLE t1;
+
+# 5.3 View -> Regular table
+CREATE VIEW t1 AS SELECT 1 AS a, 2 AS b;
+CREATE PROCEDURE p1() SELECT * FROM t1;
+CALL p1();
+a	b
+1	2
+DROP VIEW t1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CALL p1();
+a	b
+1	2
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+# 5.4 View -> Temporary table
+CREATE VIEW t1 AS SELECT 1 AS a, 2 AS b;
+CREATE PROCEDURE p1() SELECT * FROM t1;
+CALL p1();
+a	b
+1	2
+DROP VIEW t1;
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CALL p1();
+a	b
+1	2
+DROP PROCEDURE p1;
+DROP TEMPORARY TABLE t1;
+
+# 5.5 Temporary table -> View
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1() SELECT * FROM t1;
+CALL p1();
+a	b
+1	2
+DROP TEMPORARY TABLE t1;
+CREATE VIEW t1 AS SELECT 1 AS a, 2 AS b;
+CALL p1();
+a	b
+1	2
+DROP PROCEDURE p1;
+DROP VIEW t1;
+
+# 5.6 Temporary table -> Regular table
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1() SELECT * FROM t1;
+CALL p1();
+a	b
+1	2
+DROP TEMPORARY TABLE t1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CALL p1();
+a	b
+1	2
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+# 6.1 Trigger that uses column 'a' of table 't' via pseudo-variable NEW
+# must be re-executed successfully if the table definition has been changed
+# in a compatible way. "Compatible way" in this case is that if the table
+# 't' still has a column named 'a' and the column type is compatible with
+# the operation that NEW.a takes part of.
+#
+# 6.2 Trigger that uses column 'a' of table 't' via pseudo-variable OLD
+# must be re-executed successfully if the table definition has been changed
+# in a compatible way. "Compatible way" in this case is that if the table
+# 't' still has a column named 'a' and the column type is compatible with
+# the operation that OLD.a takes part of.
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+SET @x = OLD.a;
+SET @y = NEW.a;
+END|
+
+SET @x = 0, @y = 0;
+UPDATE t1 SET a = 3, b = 4;
+SELECT @x, @y;
+@x	@y
+1	3
+
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT -1;
+
+SET @x = 0, @y = 0;
+UPDATE t1 SET a = 5, b = 6;
+SELECT @x, @y;
+@x	@y
+3	5
+
+ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(255);
+
+SET @x = 0, @y = 0;
+UPDATE t1 SET a = CONCAT('xxx_', a), b = 7;
+SELECT @x, @y;
+@x	@y
+5	xxx_5
+
+DROP TABLE t1;
+
+# 6.3 Re-execution of a trigger that uses column 'a' of table 't' via
+# pseudo-variable NEW must fail if the table definition has been changed in
+# the way that the column 'a' does not exist anymore.
+# 
+# 6.4 Re-execution of a trigger that uses column 'a' of table 't' via
+# pseudo-variable OLD must fail if the table definition has been changed in
+# the way that the column 'a' does not exist anymore.
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+SET @x = OLD.a;
+SET @y = NEW.b;
+END|
+
+UPDATE t1 SET a = 3, b = 4;
+
+ALTER TABLE t1 CHANGE COLUMN a a2 INT;
+
+UPDATE t1 SET a2 = 5, b = 6;
+ERROR 42S22: Unknown column 'a' in 'OLD'
+
+ALTER TABLE t1 CHANGE COLUMN a2 a INT;
+ALTER TABLE t1 CHANGE COLUMN b b2 INT;
+
+UPDATE t1 SET a = 5, b2 = 6;
+ERROR 42S22: Unknown column 'b' in 'NEW'
+
+DROP TABLE t1;
+
+# 7.1 Setup:
+#   - stored program 'a', which alters regular table 't' in a compatible
+#     way;
+#   - stored program 'b', which calls 'a' and uses 't' before and after the
+#     call;
+# Stored program 'b' must be executed successfully.
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1()
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 3|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM t1;
+CALL p1();
+SELECT a, b FROM t1;
+END|
+
+CALL p2();
+a	b
+1	2
+a	b
+1	2
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+
+# 7.2 Setup:
+#   - stored program 'a', which alters temporary table 't' in a compatible
+#     way;
+#   - stored program 'b', which calls 'a' and uses 't' before and after the
+#     call;
+# Stored program 'b' must be executed successfully.
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1()
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 3|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM t1;
+CALL p1();
+SELECT a, b FROM t1;
+END|
+
+CALL p2();
+a	b
+1	2
+a	b
+1	2
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TEMPORARY TABLE t1;
+
+# 7.3 Setup:
+#   - stored program 'a', which re-creates regular table 't' in a
+#     compatible way;
+#   - stored program 'b', which calls 'a' and uses 't' before and after the
+#     call;
+# Stored program 'b' must be executed successfully.
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1()
+BEGIN
+DROP TABLE t1;
+CREATE TABLE t1(a INT, b INT, c INT);
+INSERT INTO t1 VALUES (1, 2, 3);
+END|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM t1;
+CALL p1();
+SELECT a, b FROM t1;
+END|
+
+CALL p2();
+a	b
+1	2
+a	b
+1	2
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+
+# 7.4 Setup:
+#   - stored program 'a', which re-creates temporary table 't' in a
+#     compatible way;
+#   - stored program 'b', which calls 'a' and uses 't' before and after the
+#     call;
+# Stored program 'b' must be executed successfully.
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1()
+BEGIN
+DROP TEMPORARY TABLE t1;
+CREATE TEMPORARY TABLE t1(a INT, b INT, c INT);
+INSERT INTO t1 VALUES (1, 2, 3);
+END|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM t1;
+CALL p1();
+SELECT a, b FROM t1;
+END|
+
+CALL p2();
+a	b
+1	2
+a	b
+1	2
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TEMPORARY TABLE t1;
+
+# 7.5 Setup:
+#   - stored program 'a', which re-creates view 'v' in a compatible way;
+#   - stored program 'b', which calls 'a' and uses 'v' before and after the
+#     call;
+# Stored program 'b' must be executed successfully.
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+CREATE PROCEDURE p1()
+BEGIN
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b, 3 AS c;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM v1;
+CALL p1();
+SELECT a, b FROM v1;
+END|
+
+CALL p2();
+a	b
+1	2
+a	b
+1	2
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP VIEW v1;
+
+# 7.6 Setup:
+#   - stored program 'a', which alters regular table 't' in an incompatible
+#     way;
+#   - stored program 'b', which calls 'a' and uses 't' before and after the
+#     call;
+# Stored program 'b' must fail on access to the table after its
+# modification.
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1()
+ALTER TABLE t1 DROP COLUMN a|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM t1;
+CALL p1();
+SELECT a, b FROM t1;
+END|
+
+CALL p2();
+a	b
+1	2
+ERROR 42S22: Unknown column 'a' in 'field list'
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+
+# 7.7 Setup:
+#   - stored program 'a', which alters temporary table 't' in an
+#     incompatible way;
+#   - stored program 'b', which calls 'a' and uses 't' before and after the
+#     call;
+# Stored program 'b' must fail on access to the table after its
+# modification.
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1()
+ALTER TABLE t1 DROP COLUMN a|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM t1;
+CALL p1();
+SELECT a, b FROM t1;
+END|
+
+CALL p2();
+a	b
+1	2
+ERROR 42S22: Unknown column 'a' in 'field list'
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TEMPORARY TABLE t1;
+
+# 7.8 Setup:
+#   - stored program 'a', which re-creates regular table 't' in an
+#     incompatible way;
+#   - stored program 'b', which calls 'a' and uses 't' before and after the
+#     call;
+# Stored program 'b' must fail on access to the table after its
+# modification.
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1()
+BEGIN
+DROP TABLE t1;
+CREATE TABLE t1(b INT, c INT);
+INSERT INTO t1 VALUES (2, 3);
+END|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM t1;
+CALL p1();
+SELECT a, b FROM t1;
+END|
+
+CALL p2();
+a	b
+1	2
+ERROR 42S22: Unknown column 'a' in 'field list'
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+
+# 7.9 Setup:
+#   - stored program 'a', which re-creates temporary table 't' in an
+#     incompatible way;
+#   - stored program 'b', which calls 'a' and uses 't' before and after the
+#     call;
+# Stored program 'b' must fail on access to the table after its
+# modification.
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE PROCEDURE p1()
+BEGIN
+DROP TEMPORARY TABLE t1;
+CREATE TEMPORARY TABLE t1(b INT, c INT);
+INSERT INTO t1 VALUES (2, 3);
+END|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM t1;
+CALL p1();
+SELECT a, b FROM t1;
+END|
+
+CALL p2();
+a	b
+1	2
+ERROR 42S22: Unknown column 'a' in 'field list'
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TEMPORARY TABLE t1;
+
+# 7.10 Setup:
+#   - stored program 'a', which re-creates view 'v' in an incompatible way;
+#   - stored program 'b', which calls 'a' and uses 'v' before and after the
+#     call;
+# Stored program 'b' must fail on access to the view after its
+# modification.
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+CREATE PROCEDURE p1()
+BEGIN
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT 2 AS b, 3 AS c;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT a, b FROM v1;
+CALL p1();
+SELECT a, b FROM v1;
+END|
+
+CALL p2();
+a	b
+1	2
+ERROR 42S22: Unknown column 'a' in 'field list'
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP VIEW v1;
+# 8. Stored program must be executed successfully when:
+#  a. the program uses a table/view/temporary table that doesn't exist
+#     at the time of start program execution
+#  b. failed reference to the missed table/view/temporary table handled
+#     by stored program
+#  c. this table/view/temporary table is created as part of the
+#     program execution
+#  d. stored program gets access to newly created table/view/temporary
+#     table from some SQL-statement during subsequent stored program execution.
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+SELECT 'SQLEXCEPTION caught' AS msg;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+END;
+SELECT * FROM t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+SELECT 'SQLEXCEPTION caught' AS msg;
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+END;
+SELECT * FROM t1;
+SELECT * FROM t1;
+DROP TEMPORARY TABLE t1;
+END|
+CREATE PROCEDURE p3()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+SELECT 'SQLEXCEPTION caught' AS msg;
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+END;
+SELECT * FROM v1;
+SELECT * FROM v1;
+DROP VIEW v1;
+END|
+CALL p1();
+msg
+SQLEXCEPTION caught
+a	b
+1	2
+CALL p2();
+msg
+SQLEXCEPTION caught
+a	b
+1	2
+CALL p3();
+msg
+SQLEXCEPTION caught
+a	b
+1	2
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+
+# 9. Stored program must be executed successfully when
+#    - the stored program has an expression in one of the following
+#      statements
+#      - RETURN
+#      - IF
+#      - CASE
+#      - WHILE
+#      - UNTIL
+#      - SET
+#    - the expression depends on the meta-data of some table/view/temporary table;
+#    - the meta-data of dependent object has changed in a compatible way.
+#
+#    Note, that CASE-expression must be evaluated once even if (some)
+#    CASE-expressions need to be re-parsed.
+#
+# 10. Subsequent executions of a stored program must fail when
+#    - the stored program has an expression in one of the following
+#      statements
+#      - RETURN
+#      - IF
+#      - CASE
+#      - WHILE
+#      - UNTIL
+#      - SET
+#    - the expression depends on the meta-data of some table/view/temporary table;
+#    - the meta-data of dependent object has changed in a non-compatible way.
+#
+#    Note, that CASE-expression must be evaluated once even if (some)
+#    CASE-expressions need to be re-parsed.
+
+# Check IF-statement.
+
+CREATE PROCEDURE p1()
+BEGIN
+IF(SELECT * FROM t1)THEN
+SELECT 1;
+ELSE
+SELECT 2;
+END IF;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE v INT DEFAULT 1;
+IF v * (SELECT * FROM t1) THEN
+SELECT 1;
+ELSE
+SELECT 2;
+END IF;
+END|
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+IF (SELECT * FROM t1) THEN
+RETURN 1;
+ELSE
+RETURN 2;
+END IF;
+RETURN 3;
+END|
+CREATE FUNCTION f2() RETURNS INT
+BEGIN
+DECLARE v INT DEFAULT 1;
+IF v * (SELECT * FROM t1) THEN
+RETURN 1;
+ELSE
+RETURN 2;
+END IF;
+RETURN 3;
+END|
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+
+CALL p1();
+1
+1
+CALL p2();
+1
+1
+SELECT f1();
+f1()
+1
+SELECT f2();
+f2()
+1
+
+UPDATE t1 SET a = 0;
+
+CALL p1();
+2
+2
+CALL p2();
+2
+2
+SELECT f1();
+f1()
+2
+SELECT f2();
+f2()
+2
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 1;
+
+CALL p1();
+ERROR 21000: Operand should contain 1 column(s)
+CALL p2();
+ERROR 21000: Operand should contain 1 column(s)
+SELECT f1();
+ERROR 21000: Operand should contain 1 column(s)
+SELECT f2();
+ERROR 21000: Operand should contain 1 column(s)
+
+ALTER TABLE t1 DROP COLUMN a;
+
+CALL p1();
+1
+1
+CALL p2();
+1
+1
+SELECT f1();
+f1()
+1
+SELECT f2();
+f2()
+1
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+
+# Check WHILE-statement.
+
+CREATE PROCEDURE p1(x INT)
+BEGIN
+WHILE(SELECT * FROM t1)DO
+SELECT x;
+UPDATE t1 SET a = x;
+SET x = x - 1;
+END WHILE;
+END|
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+CALL p1(3);
+UPDATE t1 SET a = 1;
+CALL p1(3);
+x
+3
+x
+2
+x
+1
+x
+0
+UPDATE t1 SET a = 1;
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 1;
+CALL p1(3);
+ERROR 21000: Operand should contain 1 column(s)
+ALTER TABLE t1 DROP COLUMN a;
+CALL p1(3);
+x
+3
+ERROR 42S22: Unknown column 'a' in 'field list'
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+# Check REPEAT-statement.
+
+CREATE PROCEDURE p1(x INT)
+BEGIN
+REPEAT
+SELECT x;
+UPDATE t1 SET a = x;
+SET x = x - 1;
+UNTIL(NOT (SELECT * FROM t1))END REPEAT;
+END|
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+CALL p1(3);
+x
+3
+x
+2
+x
+1
+x
+0
+UPDATE t1 SET a = 1;
+CALL p1(3);
+x
+3
+x
+2
+x
+1
+x
+0
+UPDATE t1 SET a = 1;
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 1;
+CALL p1(3);
+x
+3
+ERROR 21000: Operand should contain 1 column(s)
+ALTER TABLE t1 DROP COLUMN a;
+CALL p1(3);
+x
+3
+ERROR 42S22: Unknown column 'a' in 'field list'
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+# Check CASE-statement (round #1).
+
+CREATE PROCEDURE p1()
+BEGIN
+CASE
+WHEN (SELECT * FROM t1) = 1 THEN SELECT 'a1';
+WHEN (SELECT * FROM t1) = 2 THEN SELECT 'a2';
+WHEN (SELECT * FROM t1) = 3 THEN SELECT 'a3';
+ELSE SELECT 'a4';
+END CASE;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+CASE (SELECT * FROM t1)
+WHEN 1 THEN SELECT 'a1';
+WHEN 2 THEN SELECT 'a2';
+WHEN 3 THEN SELECT 'a3';
+ELSE SELECT 'a4';
+END CASE;
+END|
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+
+CALL p1();
+a4
+a4
+CALL p2();
+a4
+a4
+
+UPDATE t1 SET a = 3;
+
+CALL p1();
+a3
+a3
+CALL p2();
+a3
+a3
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+
+CALL p1();
+ERROR 21000: Operand should contain 2 column(s)
+CALL p2();
+ERROR 21000: Operand should contain 1 column(s)
+
+ALTER TABLE t1 DROP COLUMN a;
+
+CALL p1();
+a2
+a2
+CALL p2();
+a2
+a2
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+
+# Check CASE-statement (round #2).
+#
+# Check that CASE-expression is executed once even if the metadata, used
+# in a WHEN-expression, have changed.
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+SET @x = @x + 1;
+RETURN (SELECT a FROM t1);
+END|
+CREATE PROCEDURE p1()
+BEGIN
+CASE f1()
+WHEN 1 THEN SELECT 'a1';
+WHEN 2 THEN SELECT 'a2';
+WHEN (SELECT * FROM t2) THEN SELECT 'subselect';
+ELSE SELECT 'else';
+END CASE;
+END|
+
+SET @x = 0;
+CALL p1();
+a1
+a1
+SELECT @x;
+@x
+1
+
+UPDATE t1 SET a = 3;
+ALTER TABLE t2 ADD COLUMN b INT DEFAULT 3;
+
+SET @x = 0;
+CALL p1();
+ERROR 21000: Operand should contain 1 column(s)
+SELECT @x;
+@x
+1
+
+ALTER TABLE t2 DROP COLUMN a;
+
+SET @x = 0;
+CALL p1();
+subselect
+subselect
+SELECT @x;
+@x
+1
+
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Check DEFAULT clause.
+#
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v INT DEFAULT (SELECT * FROM t1);
+SELECT v;
+END|
+
+CALL p1();
+v
+1
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+
+CALL p1();
+ERROR 21000: Operand should contain 1 column(s)
+
+ALTER TABLE t1 DROP COLUMN a;
+
+CALL p1();
+v
+2
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+# Check SET.
+#
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (1);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE x INT;
+SET x = (SELECT * FROM t1);
+SELECT x;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+SET @x = NULL;
+SET @x = (SELECT * FROM t1);
+SELECT @x;
+END|
+CREATE TRIGGER t2_bu BEFORE UPDATE ON t2 FOR EACH ROW
+BEGIN
+SET NEW.a = (SELECT * FROM t1) * 2;
+END|
+
+CALL p1();
+x
+1
+
+CALL p2();
+@x
+1
+
+UPDATE t2 SET a = 10;
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+
+CALL p1();
+ERROR 21000: Operand should contain 1 column(s)
+
+CALL p2();
+ERROR 21000: Operand should contain 1 column(s)
+
+UPDATE t2 SET a = 20;
+ERROR 21000: Operand should contain 1 column(s)
+
+ALTER TABLE t1 DROP COLUMN a;
+
+CALL p1();
+x
+2
+
+CALL p2();
+@x
+2
+
+UPDATE t2 SET a = 30;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# 11.1 If metadata of the objects (regular tables, temporary tables,
+# views), used in SELECT-statement changed between DECLARE CURSOR and
+# OPEN statements, the SELECT-statement should be re-parsed to use
+# up-to-date metadata.
+
+
+# - Regular table.
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v INT;
+DECLARE c CURSOR FOR SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+ALTER TABLE t1 DROP COLUMN a;
+OPEN c;
+FETCH c INTO v;
+CLOSE c;
+SELECT v;
+END|
+
+CALL p1();
+v
+2
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+# - Temporary table.
+
+CREATE TEMPORARY TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v INT;
+DECLARE c CURSOR FOR SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+ALTER TABLE t1 DROP COLUMN a;
+OPEN c;
+FETCH c INTO v;
+CLOSE c;
+SELECT v;
+END|
+
+CALL p1();
+v
+2
+
+DROP TEMPORARY TABLE t1;
+DROP PROCEDURE p1;
+
+# 11.2 If the metadata changed between OPEN and FETCH or CLOSE
+# statements, those changes should not be noticed.
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v INT;
+DECLARE c CURSOR FOR SELECT * FROM t1;
+OPEN c;
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+ALTER TABLE t1 DROP COLUMN a;
+FETCH c INTO v;
+CLOSE c;
+SELECT v;
+END|
+
+CALL p1();
+v
+1
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+# 11.3 Re-parsing of the SELECT-statement should be made correctly
+# (in the correct parsing context) if the metadata changed between
+# DECLARE CURSOR and OPEN statements, and those statements reside in different
+# parsing contexts.
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE f1 INT;
+DECLARE f2 INT;
+DECLARE f3 INT;
+DECLARE x INT DEFAULT 1;
+DECLARE y INT DEFAULT 2;
+DECLARE c CURSOR FOR SELECT x, y, t1.a FROM t1;
+ALTER TABLE t1 ADD COLUMN b INT;
+BEGIN
+DECLARE x INT DEFAULT 10;
+DECLARE y INT DEFAULT 20;
+OPEN c;
+FETCH c INTO f1, f2, f3;
+SELECT f1, f2, f3;
+CLOSE c;
+END;
+END|
+
+CALL p1();
+f1	f2	f3
+1	2	1
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+# Test procedure behaviour after view recreation.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE PROCEDURE p1()
+SELECT * FROM v1;
+CALL p1();
+a
+1
+2
+# Alter underlying table and recreate the view.
+ALTER TABLE t1 ADD COLUMN (b INT);
+ALTER VIEW v1 AS SELECT * FROM t1;
+# And check whether the call of stored procedure handles it correctly.
+CALL p1();
+a	b
+1	NULL
+2	NULL
+DROP VIEW v1;
+DROP TABLE t1;
+DROP PROCEDURE p1;
+# Test if metadata changes for temporary table is handled
+# correctly inside a stored procedure.
+CREATE TEMPORARY TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE PROCEDURE p1()
+SELECT * FROM t1;
+CALL p1();
+a
+1
+2
+# Test if added temporary table's column is recognized during
+# procedure invocation.
+ALTER TABLE t1 ADD COLUMN (b INT);
+CALL p1();
+a	b
+1	NULL
+2	NULL
+# Test if dropped temporary table's column is not appeared
+# in procedure's result.
+ALTER TABLE t1 DROP COLUMN a;
+CALL p1();
+b
+NULL
+NULL
+DROP PROCEDURE p1;
+DROP TABLE t1;
+# Test handle of metadata changes with stored function.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+CREATE TEMPORARY TABLE t1_result_set AS SELECT * FROM t1;
+RETURN 0;
+END|
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+a
+1
+2
+DROP TABLE t1_result_set;
+# Check if added column is noticed by invocation of stored function.
+ALTER TABLE t1 ADD COLUMN (b INT);
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+a	b
+1	NULL
+2	NULL
+DROP TABLE t1_result_set;
+# Check if dropped column is noticed by invocation of stored function.
+ALTER TABLE t1 DROP COLUMN a;
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+b
+NULL
+NULL
+DROP TABLE t1_result_set;
+DROP TABLE t1;
+DROP FUNCTION f1;
+# Test if table's recreation is handled correctly
+# inside a stored function. 
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+CREATE TEMPORARY TABLE t1_result_set AS SELECT * FROM t1;
+RETURN 0;
+END|
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+a
+1
+2
+DROP TABLE t1_result_set;
+# Recreate table and check if it is handled correctly
+# by function invocation.
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+a
+1
+2
+DROP TABLE t1_result_set;
+DROP FUNCTION f1;
+DROP TABLE t1;
+# Test if changes in the view's metadata is handled
+# correctly by function call.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+CREATE TEMPORARY TABLE t1_result_set AS SELECT * FROM v1;
+RETURN 0;
+END|
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+a
+1
+2
+DROP TABLE t1_result_set;
+ALTER TABLE t1 ADD COLUMN (b INT);
+ALTER VIEW v1 AS SELECT * FROM t1;
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+a	b
+1	NULL
+2	NULL
+DROP TABLE t1_result_set;
+DROP TABLE t1;
+DROP VIEW v1;
+DROP FUNCTION f1;
+# Check if queried object's type substitution (table->view, view->table,
+# table->temp table, etc.) is handled correctly during invocation of
+# stored function/procedure.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+CREATE TEMPORARY TABLE t1_result_set AS SELECT * FROM t1;
+RETURN 0;
+END|
+CREATE PROCEDURE p1()
+SELECT * FROM t1|
+CALL p1();
+a
+1
+2
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+a
+1
+2
+DROP TABLE t1_result_set;
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CALL p1;
+a
+1
+2
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+a
+1
+2
+DROP TABLE t1_result_set;
+DROP TABLE t1;
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES (1), (2);
+CREATE VIEW t1 AS SELECT * FROM t2;
+CALL p1;
+a
+1
+2
+SELECT f1();
+f1()
+0
+SELECT * FROM t1_result_set;
+a
+1
+2
+DROP TABLE t1_result_set;
+DROP TABLE t2;
+DROP VIEW t1;
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+# Test handle of metadata changes with triggers.
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+SET new.a = new.a + 100;
+INSERT INTO t1 VALUES (1), (2);
+SELECT * FROM t1;
+a
+101
+102
+# Check if added table's column is handled correctly inside trigger.
+ALTER TABLE t1 ADD COLUMN (b INT);
+INSERT INTO t1 VALUES (3, 4);
+SELECT * FROM t1;
+a	b
+101	NULL
+102	NULL
+103	4
+DROP TRIGGER trg1;
+DROP TABLE t1;
+# Test if deleted column is handled correctly by trigger invocation.
+CREATE TABLE t1 (a INT, b INT);
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+SET new.a = new.a + 100;
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+SELECT * FROM t1;
+a	b
+101	2
+103	4
+ALTER TABLE t1 DROP COLUMN b;
+INSERT INTO t1 VALUES (5);
+SELECT * FROM t1;
+a
+101
+103
+105
+DROP TRIGGER trg1;
+DROP TABLE t1;
+# Check if server returns and error when was dropped a column
+# that is used inside a trigger body.
+CREATE TABLE t1 (a INT, b INT);
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+SET new.a = new.a + 100;
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+SELECT * FROM t1;
+a	b
+101	2
+103	4
+ALTER TABLE t1 DROP COLUMN a;
+INSERT INTO t1 VALUES (5);
+ERROR 42S22: Unknown column 'a' in 'NEW'
+DROP TRIGGER trg1;
+DROP TABLE t1;
+
+# Check updateable views inside triggers.
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (1);
+CREATE VIEW v1 AS SELECT a FROM t1;
+CREATE TRIGGER t2_bu BEFORE UPDATE ON t2 FOR EACH ROW
+BEGIN
+INSERT INTO v1 VALUES (NEW.a);
+SET @x = (SELECT CHARSET(a) FROM v1 LIMIT 1);
+END|
+
+SET @x = NULL;
+UPDATE t2 SET a = 10;
+SELECT * FROM v1;
+a
+1
+10
+SELECT @x;
+@x
+binary
+
+ALTER TABLE t1 CHANGE COLUMN a a CHAR(2);
+
+SET @x = NULL;
+UPDATE t2 SET a = 20;
+SELECT * FROM v1;
+a
+1
+10
+20
+SELECT @x;
+@x
+utf8mb4
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP VIEW v1;
+SET sql_mode = default;

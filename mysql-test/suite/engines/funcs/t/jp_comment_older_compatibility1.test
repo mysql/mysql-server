@@ -1,0 +1,40 @@
+--disable_warnings
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+--enable_warnings
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+SET NAMES cp932;
+--character_set cp932
+CREATE TABLE t1 (c1 INTEGER COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ', c12 INTEGER, c13 DATETIME, c14 CHAR(10), PRIMARY KEY(c1), INDEX(c12,c13)) COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ';
+SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
+SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1' order by column_comment;
+--replace_result $ENGINE ENGINE
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN c2 INTEGER COMMENT 'アいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ';
+ALTER TABLE t1 ADD COLUMN c3 INTEGER COMMENT 'あイうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ';
+ALTER TABLE t1 ADD COLUMN c4 INTEGER COMMENT 'あいウえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ';
+ALTER TABLE t1 ADD COLUMN c5 INTEGER COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ';
+SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
+SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1' order by column_comment;
+--replace_result $ENGINE ENGINE
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 MODIFY COLUMN c3 CHAR(10);
+SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
+SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1' order by column_comment;
+--replace_result $ENGINE ENGINE
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 CHANGE COLUMN c4 c4_1 INTEGER COMMENT 'さしすせそたちつてと';
+SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
+SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1' order by column_comment;
+--replace_result $ENGINE ENGINE
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 DROP COLUMN c2;
+SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
+SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1' order by column_comment;
+--replace_result $ENGINE ENGINE
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

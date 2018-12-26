@@ -1,0 +1,202 @@
+# Test of SKIP LOCKED and NOWAIT on partitioned tables.
+# Must have same results as not partitioned tables.
+--source include/count_sessions.inc
+
+set @start_read_only= @@global.read_only;
+set @start_autocommit= @@global.autocommit;
+set @@global.autocommit= 0;
+CREATE USER test@localhost;
+grant CREATE, SELECT, UPDATE on *.* to test@localhost;
+CREATE USER test2@localhost;
+grant CREATE, SELECT, UPDATE on *.* to test2@localhost;
+--enable_connect_log
+
+connection default;
+
+CREATE TABLE t1 (
+a char(2) NOT NULL,
+b char(2) NOT NULL,
+c int(10) unsigned NOT NULL,
+d varchar(255) DEFAULT NULL,
+e varchar(1000) DEFAULT NULL,
+PRIMARY KEY (a, b, c),
+KEY (a),
+KEY (a, b)
+) charset latin1 PARTITION BY KEY (a) PARTITIONS 20;
+
+INSERT INTO t1 (a, b, c, d, e) VALUES
+('07', '03', 343, '1', '07_03_343'),
+('01', '04', 343, '2', '01_04_343'),
+('01', '06', 343, '3', '01_06_343'),
+('01', '07', 343, '4', '01_07_343'),
+('01', '08', 343, '5', '01_08_343'),
+('01', '09', 343, '6', '01_09_343'),
+('03', '03', 343, '7', '03_03_343'),
+('03', '06', 343, '8', '03_06_343'),
+('03', '07', 343, '9', '03_07_343'),
+('04', '03', 343, '10', '04_03_343'),
+('04', '06', 343, '11', '04_06_343'),
+('05', '03', 343, '12', '05_03_343'),
+('11', '03', 343, '13', '11_03_343'),
+('11', '04', 343, '14', '11_04_343')
+;
+
+CREATE TABLE t2 (a int, name VARCHAR(50), purchased DATE)
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (3),
+ PARTITION p1 VALUES LESS THAN (7),
+ PARTITION p2 VALUES LESS THAN (9),
+ PARTITION p3 VALUES LESS THAN (11));
+INSERT INTO t2 VALUES
+(1, 'desk organiser', '2003-10-15'),
+(2, 'CD player', '1993-11-05'),
+(3, 'TV set', '1996-03-10'),
+(4, 'bookcase', '1982-01-10'),
+(5, 'exercise bike', '2004-05-09'),
+(6, 'sofa', '1987-06-05'),
+(7, 'popcorn maker', '2001-11-22'),
+(8, 'acquarium', '1992-08-04'),
+(9, 'study desk', '1984-09-16'),
+(10, 'lava lamp', '1998-12-25');
+
+CREATE TABLE t3 SELECT * FROM t1;
+ALTER TABLE t3 ADD PRIMARY KEY (d);
+ALTER TABLE t3 ADD KEY (a);
+ALTER TABLE t3 ADD KEY (a, b);
+#SELECT * FROM t3;
+
+--echo ########################################################################
+connect (con1,localhost,test,,test);
+BEGIN;
+SELECT d,a,b,c FROM t1 partition (p0);
+SELECT d,a,b,c FROM t1 partition (p1);
+SELECT d,a,b,c FROM t1 partition (p2);
+SELECT d,a,b,c FROM t1 partition (p3);
+SELECT d,a,b,c FROM t1 partition (p4);
+SELECT d,a,b,c FROM t1 partition (p5);
+SELECT d,a,b,c FROM t1 partition (p6);
+SELECT d,a,b,c FROM t1 partition (p7);
+SELECT d,a,b,c FROM t1 partition (p8);
+SELECT d,a,b,c FROM t1 partition (p9);
+SELECT d,a,b,c FROM t1 partition (p10);
+SELECT d,a,b,c FROM t1 partition (p11);
+SELECT d,a,b,c FROM t1 partition (p12);
+SELECT d,a,b,c FROM t1 partition (p13);
+SELECT d,a,b,c FROM t1 partition (p14);
+SELECT d,a,b,c FROM t1 partition (p15);
+SELECT d,a,b,c FROM t1 partition (p16);
+SELECT d,a,b,c FROM t1 partition (p17);
+SELECT d,a,b,c FROM t1 partition (p18);
+SELECT d,a,b,c FROM t1 partition (p19);
+
+SELECT * FROM t1 WHERE a='01' FOR UPDATE ;
+SELECT * FROM t3 WHERE a='01' FOR UPDATE ;
+
+connect (con2,localhost,test,,test);
+BEGIN;
+SET SESSION innodb_lock_wait_timeout=1;
+
+--echo #
+--echo #  SHARE ...
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1 FOR SHARE;
+--error ER_LOCK_NOWAIT
+SELECT * FROM t1 FOR SHARE NOWAIT;
+SELECT * FROM t1 ORDER BY d FOR SHARE SKIP LOCKED;
+SELECT a,count(b) FROM t1 GROUP BY a ORDER BY a FOR SHARE SKIP LOCKED;
+SELECT d,a,b,c FROM t1 partition (p1,p9,p11,p17) ORDER BY d 
+   FOR SHARE SKIP LOCKED;
+SELECT d,a,b,c FROM t1 ORDER BY d FOR SHARE SKIP LOCKED;
+SELECT d,a,b,c FROM t3 ORDER BY d FOR SHARE SKIP LOCKED;
+explain SELECT d,a,b,c FROM t3 ORDER BY d 
+   FOR SHARE SKIP LOCKED;
+
+--echo #
+--echo #  UPDATE ...
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1 FOR UPDATE;
+--error ER_LOCK_NOWAIT
+SELECT * FROM t1 FOR UPDATE NOWAIT;
+SELECT * FROM t1 ORDER BY a FOR UPDATE SKIP LOCKED;
+SELECT a,count(b) FROM t1 GROUP BY a ORDER BY a FOR UPDATE SKIP LOCKED;
+SELECT d,a,b,c FROM t1 partition (p1,p9,p11,p17) ORDER BY d 
+   FOR UPDATE SKIP LOCKED;
+SELECT d,a,b,c FROM t1 ORDER BY d FOR UPDATE SKIP LOCKED;
+SELECT d,a,b,c FROM t3 ORDER BY d FOR UPDATE SKIP LOCKED;
+
+--echo #
+--echo #  Dual locking clauses
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1, t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1, t2 FOR SHARE OF t1 FOR SHARE OF t2;
+--error ER_LOCK_NOWAIT
+SELECT * FROM t1 FOR SHARE OF t1 NOWAIT;
+SELECT * FROM t1 FOR SHARE OF t1 SKIP LOCKED;
+--error ER_LOCK_NOWAIT
+SELECT * FROM t1, t2 FOR SHARE OF t1 NOWAIT FOR SHARE OF t2 NOWAIT;
+COMMIT;
+
+connection con1;
+COMMIT;
+
+connection con1;
+BEGIN;
+SELECT * FROM t1 WHERE a='01' FOR SHARE ;
+SELECT * FROM t3 WHERE a='01' FOR SHARE ;
+
+connection con2;
+BEGIN;
+SET SESSION innodb_lock_wait_timeout=1;
+
+--echo #
+--echo #  SHARE ...
+SELECT * FROM t1 FOR SHARE;
+SELECT * FROM t1 FOR SHARE NOWAIT;
+SELECT * FROM t1 ORDER BY d FOR SHARE SKIP LOCKED;
+SELECT a,count(b) FROM t1 GROUP BY a ORDER BY a FOR SHARE SKIP LOCKED;
+SELECT d,a,b,c FROM t1 partition (p1,p9,p11,p17) ORDER BY d 
+   FOR SHARE SKIP LOCKED;
+SELECT d,a,b,c FROM t1 ORDER BY d FOR SHARE SKIP LOCKED;
+SELECT d,a,b,c FROM t3 ORDER BY d FOR SHARE SKIP LOCKED;
+explain SELECT d,a,b,c FROM t3 ORDER BY d 
+   FOR SHARE SKIP LOCKED;
+
+--echo #
+--echo #  UPDATE ...
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1 FOR UPDATE;
+--error ER_LOCK_NOWAIT
+SELECT * FROM t1 FOR UPDATE NOWAIT;
+SELECT * FROM t1 ORDER BY a FOR UPDATE SKIP LOCKED;
+SELECT a,count(b) FROM t1 GROUP BY a ORDER BY a FOR UPDATE SKIP LOCKED;
+SELECT d,a,b,c FROM t1 partition (p1,p9,p11,p17) ORDER BY d 
+   FOR UPDATE SKIP LOCKED;
+SELECT d,a,b,c FROM t1 ORDER BY d FOR UPDATE SKIP LOCKED;
+SELECT d,a,b,c FROM t3 ORDER BY d FOR UPDATE SKIP LOCKED;
+
+--echo #
+--echo #  Dual locking clauses
+SELECT * FROM t1, t2 FOR SHARE OF t1 FOR UPDATE OF t2;
+SELECT * FROM t1, t2 FOR SHARE OF t1 FOR SHARE OF t2;
+SELECT * FROM t1 FOR SHARE OF t1 NOWAIT;
+SELECT * FROM t1 FOR SHARE OF t1 SKIP LOCKED;
+SELECT * FROM t1, t2 FOR SHARE OF t1 NOWAIT FOR SHARE OF t2 NOWAIT;
+COMMIT;
+
+connection con1;
+COMMIT;
+
+connection default;
+disconnect con1;
+disconnect con2;
+
+DROP TABLE t1, t2, t3;
+
+--disable_connect_log
+
+DROP USER test@localhost;
+DROP USER test2@localhost;
+set @@global.read_only= @start_read_only;
+set @@global.autocommit= @start_autocommit;
+--source include/wait_until_count_sessions.inc

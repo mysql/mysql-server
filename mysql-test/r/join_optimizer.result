@@ -1,0 +1,69 @@
+drop table if exists t0,t1,t2,t3;
+#
+# BUG#38049 incorrect rows estimations with references from preceding table
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a varchar(32));
+insert into t1 values ('owner'),('requester'),('admincc'),('cc');
+CREATE TABLE t2 (
+id int(11) NOT NULL,
+type varchar(32) default NULL,
+PRIMARY KEY  (id)
+);
+insert into t2 values (1,'owner'), (2,'admincc');
+CREATE TABLE t3 (
+id int(11) NOT NULL,
+domain varchar(32) default NULL,
+type varchar(32) default NULL,
+PRIMARY KEY  (id)
+);
+set @domain='system';
+set @pk=0;
+INSERT INTO t3 select @pk:=@pk+1, 'system', t1.a from t1;
+INSERT INTO t3 select @pk:=@pk+1, 'queue', t1.a from t1, t0 where t0.a<3;
+INSERT INTO t3 select @pk:=@pk+1, 'ticket', t1.a from t1, t0 A, t0 B, t0 C;
+CREATE INDEX groups_d ON t3(domain);
+CREATE INDEX groups_t ON t3(type);
+CREATE INDEX groups_td ON t3(type, domain);
+CREATE INDEX groups_dt ON t3(domain, type);
+For table g this must use ref(groups_dt) and #rows should be around 15 and not 335:
+explain 
+SELECT STRAIGHT_JOIN g.id FROM t2 a, t3 g USE INDEX(groups_dt) 
+WHERE g.domain = 'queue' AND g.type = a.type;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	a	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	g	ref	groups_dt	groups_dt	70	const,test.a.type	13	Using index condition
+drop table t0,t1,t2,t3;
+#
+# BUG#47217 Lost optimization caused slowdown & wrong result.
+#
+CREATE TABLE t1 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
+CREATE INDEX ix1 ON t1(v);
+CREATE TABLE t2 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
+CREATE INDEX ix2 ON t2(v);
+INSERT INTO t1 VALUES (1,'a'),(2,NULL);
+INSERT INTO t2 VALUES (1,NULL);
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.v = t2.v ORDER BY 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.v = t2.v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+INSERT INTO t1 VALUES (3,'b'),(4,NULL),(5,'c'),(6,'cc'),(7,'d'),
+(8,'dd'),(9,'e'),(10,'ee');
+INSERT INTO t2 VALUES (2,NULL);
+FLUSH STATUS;
+SELECT * FROM t1 JOIN t2 ON t1.v = t2.v WHERE t2.v IS NULL ORDER BY 1;
+pk	v	pk	v
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1
+DROP TABLE t1, t2;
+# End of test for bug#47217

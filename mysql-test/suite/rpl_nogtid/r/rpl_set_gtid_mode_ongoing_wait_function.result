@@ -1,0 +1,87 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+==== Iteration 0 ====
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON;
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10') * 0;
+SET GLOBAL GTID_MODE = ON;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+include/sync_slave_sql_with_master.inc
+WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10') * 0
+0
+SET GLOBAL GTID_MODE = OFF;
+==== Iteration 1 ====
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON;
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11') * 0;
+SET @@SESSION.DEBUG_SYNC = 'begin_wait_for_executed_gtid_set SIGNAL reached_wait_function';
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:21');
+SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR reached_wait_function';
+SET GLOBAL GTID_MODE = ON;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+include/sync_slave_sql_with_master.inc
+WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11') * 0
+0
+SET GLOBAL GTID_MODE = OFF;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:21';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:21')
+0
+SET GLOBAL GTID_MODE = OFF;
+==== Iteration 2 ====
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON;
+SET @@SESSION.DEBUG_SYNC = 'begin_wait_for_executed_gtid_set SIGNAL reached_wait_function';
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22');
+SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR reached_wait_function';
+SET GLOBAL GTID_MODE = ON;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22')
+0
+SET GLOBAL GTID_MODE = OFF;
+SET GLOBAL GTID_MODE = OFF;
+include/sync_slave_sql_with_master.inc
+#
+# Test that SELECT WAIT_FOR_EXECUTED_GTID_SET() gives an error if
+# gtid-mode=off.
+#
+SELECT WAIT_FOR_EXECUTED_GTID_SET('master_uuid', 1-2);
+ERROR HY000: Cannot use WAIT_FOR_EXECUTED_GTID_SET when GTID_MODE = OFF.
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+include/rpl_end.inc

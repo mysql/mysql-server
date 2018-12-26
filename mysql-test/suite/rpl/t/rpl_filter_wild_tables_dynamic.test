@@ -1,0 +1,77 @@
+#
+# Test if dynamic replication wild table filter rules are properly evaluated.
+#
+
+source include/have_binlog_format_statement.inc;
+source include/master-slave.inc;
+
+connection slave;
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('test.a%');
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('test.b%');
+
+connection slave;
+source include/stop_slave.inc;
+#Bug19711674: Set the values to empty initially
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=();
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=();
+# End of Bug#19711674 test
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('test.a%');
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('test.b%');
+source include/start_slave.inc;
+connection master;
+
+# Table is mentioned in wild-do-table rules
+CREATE TABLE a1 (a INT);
+
+# Table is mentioned in wild-ignore-table rules
+CREATE TABLE b1 (a INT);
+
+# Table is not mentioned in wild-do-table or wild-ignore-table rules
+CREATE TABLE c1 (a INT);
+
+INSERT INTO a1 VALUES (1);
+INSERT INTO b1 VALUES (2);
+INSERT INTO c1 VALUES (3);
+
+# Only a1 should be replicated to slave
+--source include/sync_slave_sql_with_master.inc
+echo [on slave];
+SHOW TABLES LIKE '%1';
+
+# Bug#18095449  REPLICATE_WILD_DO_TABLE AND REPLICATE_WILD_IGNORE_TABLE
+# ACCEPTING INVALID VALUES
+connection slave;
+echo [on slave];
+--let $status_items= Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table
+--source include/show_slave_status.inc
+
+# Try executing CHANGE REPLICATION with invalid values
+source include/stop_slave.inc;
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('testa%');
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('testb%');
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('db1.t1%', 'testa%');
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db2.t2%', 'testb%');
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('');
+source include/start_slave.inc;
+
+# After executing a failed CHANGE REPLICATION FILTER,
+# verify the values.
+--let $status_items= Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table
+--source include/show_slave_status.inc
+
+# Clean up
+connection master;
+echo [on master];
+DROP TABLE IF EXISTS a1,b1,c1;
+--source include/rpl_end.inc
+
+connection slave;
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=();
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=();

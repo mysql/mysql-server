@@ -1,0 +1,180 @@
+####################### mysql-test\t\sql_log_bin_basic.test ###################
+#                                                                             #
+# Variable Name: sql_log_bin                                                  #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value:                                                              #
+# Valid Values: 0,1                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable sql_log_bin              #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF sql_log_bin TESTS                        #
+######################################################################## 
+
+
+############################################################################## 
+#      Saving initial value of sql_log_bin in a temporary variable           #
+##############################################################################
+
+SET @session_start_value = @@session.sql_log_bin;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_156_01------------------------#'
+######################################################################## 
+#           Display the DEFAULT value of sql_log_bin                   #
+######################################################################## 
+
+SET @@session.sql_log_bin = 0;
+SET @@session.sql_log_bin = DEFAULT;
+SELECT @@session.sql_log_bin;
+
+SET @@session.sql_log_bin = 1;
+SET @@session.sql_log_bin = DEFAULT;
+SELECT @@session.sql_log_bin;
+
+
+--echo '#---------------------FN_DYNVARS_156_02-------------------------#'
+############################################################################# 
+#   Check if sql_log_bin can be accessed with and without @@ sign           #
+############################################################################# 
+
+SET sql_log_bin = 1;
+SELECT @@sql_log_bin;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.sql_log_bin;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.sql_log_bin;
+
+SET session sql_log_bin = 0;
+SELECT @@session.sql_log_bin;
+
+
+--echo '#--------------------FN_DYNVARS_156_03------------------------#'
+######################################################################## 
+#      change the value of sql_log_bin to a valid value                #
+######################################################################## 
+
+SET @@session.sql_log_bin = 0;
+SELECT @@session.sql_log_bin;
+SET @@session.sql_log_bin = 1;
+SELECT @@session.sql_log_bin;
+
+
+--echo '#--------------------FN_DYNVARS_156_04-------------------------#'
+########################################################################### 
+#       Change the value of sql_log_bin to invalid value                  #
+########################################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_log_bin = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_log_bin = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_log_bin = "T";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_log_bin = "Y";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_log_bin = TRÜE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_log_bin = ÕN;
+--error ER_PARSE_ERROR
+SET @@session.sql_log_bin = OF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_log_bin = ÓFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_log_bin = '¹';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_log_bin = NO;
+
+
+--echo '#-------------------FN_DYNVARS_156_05----------------------------#'
+########################################################################### 
+#       Test if setting global sql_log_bin gives error,                   #
+#       and there is a deprecation warning on reading it.                 #
+########################################################################### 
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@global.sql_log_bin;
+--Error ER_LOCAL_VARIABLE
+SET @@global.sql_log_bin = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@global.sql_log_bin;
+--Error ER_LOCAL_VARIABLE
+SET @@global.sql_log_bin = 1;
+
+--echo '#----------------------FN_DYNVARS_156_06------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table contains variable value        #
+#########################################################################
+
+--disable_warnings
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='sql_log_bin';
+--enable_warnings
+
+--echo '#----------------------FN_DYNVARS_156_07------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_log_bin';
+--enable_warnings
+SELECT @@session.sql_log_bin;
+--disable_warnings
+SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_log_bin';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_156_08-------------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+################################################################### 
+
+SET @@session.sql_log_bin = OFF;
+SELECT @@session.sql_log_bin;
+SET @@session.sql_log_bin = ON;
+SELECT @@session.sql_log_bin;
+
+--echo '#---------------------FN_DYNVARS_156_09----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@session.sql_log_bin = TRUE;
+SELECT @@session.sql_log_bin;
+SET @@session.sql_log_bin = FALSE;
+SELECT @@session.sql_log_bin;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@session.sql_log_bin = @session_start_value;
+SELECT @@session.sql_log_bin;
+
+###############################################################
+#                    END OF sql_log_bin TESTS                 #
+############################################################### 

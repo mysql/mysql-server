@@ -1,0 +1,45 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = READ_LOCKED_BY_COUNT;
+let $table = performance_schema.rwlock_instances;
+
+select OBJECT_INSTANCE_BEGIN, NAME from performance_schema.rwlock_instances
+  limit 1
+  into @oib, @name;
+
+#TODO : How to get data for this column?
+select WRITE_LOCKED_BY_THREAD_ID  from performance_schema.rwlock_instances
+  where WRITE_LOCKED_BY_THREAD_ID  is not NULL
+  limit 1
+  into @wlbtid;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = @name;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on WRITE_LOCKED_BY_THREAD_ID
+###########################################################################
+
+#let $column_count = 1;
+#let $col1 = WRITE_LOCKED_BY_THREAD_ID;
+#let $col1_act = @wlbtid;
+
+#--source ../include/idx_explain_test.inc

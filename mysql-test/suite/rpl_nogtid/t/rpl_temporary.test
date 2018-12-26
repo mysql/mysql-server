@@ -1,0 +1,375 @@
+# Test need anonymous user when connection are made as "zedjzlcsjhd"
+
+source include/add_anonymous_users.inc;
+-- source include/master-slave.inc
+-- source include/have_myisam.inc
+
+# Clean up old slave's binlogs.
+# The slave is started with --log-slave-updates
+# and this test does SHOW BINLOG EVENTS on the slave's
+# binlog. But previous tests can influence the current test's
+# binlog (e.g. a temporary table in the previous test has not
+# been explicitly deleted, or it has but the slave hasn't had
+# enough time to catch it before STOP SLAVE, 
+# and at the beginning of the current
+# test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
+# We wait for the slave to have written all he wants to the binlog
+# (otherwise RESET MASTER may come too early).
+save_master_pos;
+connection slave;
+
+# Add suppression for expected warning(s) in slaves error log
+call mtr.add_suppression("Slave: Can\'t find record in \'user\' Error_code: 1032");
+
+sync_with_master;
+reset master;
+
+# ##################################################################
+# BUG#41725: slave crashes when inserting into temporary table after
+#            stop/start slave
+#
+#  This test checks that both reported issues (assertion failure and
+#  crash) go away. It is implemented as follows:
+#    
+#    case 1: assertion failure
+#      i) create and insert into temporary table on master
+#     ii) sync slave with master
+#    iii) stop and restart slave
+#     iv) insert into master another value
+#      v) sync slave with master
+#
+#
+#    case 2: crash (SIGSEV)
+#      i) create and insert into temporary table on master (insert
+#         produces warnings)
+#     ii) sync slave with master
+#    iii) stop and restart slave
+#     iv) insert into master more values
+#      v) sync slave with master
+
+# case 1: Assertion in Field_string::store() failed because current 
+#         thread reference differed from table->in_use after slave 
+#         restart
+
+connection master;
+
+--disable_query_log ONCE
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+disable_warnings ONCE;
+DROP TABLE IF EXISTS t1;
+enable_warnings;
+
+CREATE TEMPORARY TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('a');
+--source include/sync_slave_sql_with_master.inc
+
+# Temporary table t1 open when stop slave is done. So we will have a warning here.
+# But this warning is NOT generated in RBR. So the results will be different in
+# SBR and RBR if we dont disable warnings here.
+--disable_warnings
+source include/stop_slave.inc;
+--enable_warnings
+
+source include/start_slave.inc;
+
+connection master;
+INSERT INTO t1 VALUES ('b');
+--source include/sync_slave_sql_with_master.inc
+
+# case 2: crash on sp_rcontext::find_handler because it used 
+#         reference to invalid THD object after slave restart
+
+connection master;
+
+disable_warnings ONCE;
+DROP TABLE IF EXISTS t1;
+enable_warnings;
+CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
+INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
+
+--source include/sync_slave_sql_with_master.inc
+
+# Temporary table `t1` open when stop slave is done. So we will have a warning here.
+# But this warning is NOT generated in RBR. So the results will be different in
+# SBR and RBR if we dont disable warnings here.
+--disable_warnings
+source include/stop_slave.inc;
+--enable_warnings
+
+source include/start_slave.inc;
+
+connection master;
+INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
+--source include/sync_slave_sql_with_master.inc
+
+# cleanup
+
+connection master;
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+connection master;
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+# We want to connect as an unprivileged user. But if we use user="" then this
+# will pick the Unix login, which will cause problems if you're running the test
+# as root.
+connect (con3,localhost,zedjzlcsjhd,,);
+
+# We are going to use SET PSEUDO_THREAD_ID in this test;
+# check that it requires the SUPER privilege.
+
+connection con3;
+SET @save_select_limit=@@session.sql_select_limit;
+--error 1227
+SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
+SELECT @@session.sql_select_limit = @save_select_limit; #shouldn't have changed
+# While we are here we also test that SQL_LOG_BIN can't be set
+--error 1227
+SET @@session.sql_select_limit=10, @@session.sql_log_bin=0;
+SELECT @@session.sql_select_limit = @save_select_limit; #shouldn't have changed
+# Now as root, to be sure it works
+connection con2;
+SET @save_conn_id= connection_id();
+SET @@session.pseudo_thread_id=100;
+SET @@session.pseudo_thread_id=connection_id();
+SET @@session.pseudo_thread_id=@save_conn_id;
+SET @@session.sql_log_bin=0;
+SET @@session.sql_log_bin=1;
+
+connection con3;
+let $VERSION=`select version()`;
+
+--disable_warnings ONCE
+drop table if exists t1,t2;
+
+create table t1(f int);
+create table t2(f int);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+# Auxiliary select (We want that all rows are in the table)
+SELECT COUNT(*) FROM t1;
+
+connection con1;
+create temporary table t3(f int);
+--disable_warnings ONCE
+insert into t3 select * from t1 where f<6;
+let $wait_condition= SELECT COUNT(*) = 5 FROM t3;
+--source include/wait_condition_or_abort.inc
+
+connection con2;
+create temporary table t3(f int);
+
+connection con1;
+--disable_warnings ONCE
+insert into t2 select count(*) from t3;
+let $wait_condition= SELECT COUNT(*) = 1 FROM t2;
+--source include/wait_condition_or_abort.inc
+
+connection con2;
+--disable_warnings ONCE
+insert into t3 select * from t1 where f>=4;
+let $wait_condition= SELECT COUNT(*) = 7 FROM t3;
+--source include/wait_condition_or_abort.inc
+
+connection con1;
+drop temporary table t3;
+
+connection con2;
+--disable_warnings ONCE
+insert into t2 select count(*) from t3;
+drop temporary table t3;
+
+select * from t2 ORDER BY f;
+
+# Commented out 8/30/2005 to make compatable with both sbr and rbr
+#--replace_result $VERSION VERSION
+#--replace_column 2 # 5 #
+#show binlog events;
+
+drop table t1, t2;
+
+use test;
+SET TIMESTAMP=1040323920;
+create table t1(f int);
+SET TIMESTAMP=1040323931;
+create table t2(f int);
+SET TIMESTAMP=1040323938;
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+
+SET TIMESTAMP=1040323945;
+SET @@session.pseudo_thread_id=1;
+create temporary table t3(f int);
+SET TIMESTAMP=1040323952;
+SET @@session.pseudo_thread_id=1;
+--disable_warnings ONCE
+insert into t3 select * from t1 where f<6;
+SET TIMESTAMP=1040324145;
+SET @@session.pseudo_thread_id=2;
+create temporary table t3(f int);
+SET TIMESTAMP=1040324186;
+SET @@session.pseudo_thread_id=1;
+--disable_warnings ONCE
+insert into t2 select count(*) from t3;
+SET TIMESTAMP=1040324200;
+SET @@session.pseudo_thread_id=2;
+--disable_warnings ONCE
+insert into t3 select * from t1 where f>=4;
+SET TIMESTAMP=1040324211;
+SET @@session.pseudo_thread_id=1;
+drop temporary table t3;
+SET TIMESTAMP=1040324219;
+SET @@session.pseudo_thread_id=2;
+--disable_warnings ONCE
+insert into t2 select count(*) from t3;
+SET TIMESTAMP=1040324224;
+SET @@session.pseudo_thread_id=2;
+drop temporary table t3;
+
+select * from t2 ORDER BY f;
+drop table t1,t2;
+
+# Create last a temporary table that is not dropped at end to ensure that we
+# don't get any memory leaks for this
+
+create temporary table t3 (f int);
+--source include/sync_slave_sql_with_master.inc
+
+# The server will now close done
+
+#
+# Bug#17284 erroneous temp table cleanup on slave
+# The test targets at verifying that reconnected slave
+# retained the former session's temporary tables
+#
+connection master;
+create temporary table t4 (f int);
+create table t5 (f int);
+--source include/sync_slave_sql_with_master.inc
+# connection slave
+
+# Temporary table t3,t4 are open when stop slave is done. So we will have a warning here.
+# But this warning is NOT generated in RBR. So the results will be different in
+# SBR and RBR if we dont disable warnings here.
+--disable_warnings
+stop slave;  # to prepare for reconnecting w/o waiting for timeout
+--enable_warnings
+
+connection master;
+--disable_warnings ONCE
+insert into t5 select * from t4;
+save_master_pos;
+
+connection slave;
+start slave;
+sync_with_master;
+select * from t5 /* must be 1 after reconnection */;
+
+connection master;
+drop temporary table t4;
+drop table t5;
+
+#
+# BUG#17263 incorrect generation DROP temp tables
+# Temporary tables of connection are dropped in batches
+# where a batch correspond to pseudo_thread_id
+# value was set up at the moment of temp table creation
+#
+connection con1;
+set @@session.pseudo_thread_id=100;
+create temporary table t101 (id int);
+create temporary table t102 (id int);
+set @@session.pseudo_thread_id=200;
+create temporary table t201 (id int);
+create temporary table `t``201` (id int);
+# emulate internal temp table not to come to binlog
+create temporary table `#sql_not_user_table202` (id int);
+set @@session.pseudo_thread_id=300;
+create temporary table t301 (id int);
+create temporary table t302 (id int);
+create temporary table `#sql_not_user_table303` (id int);
+disconnect con1;
+
+#now do something to show that slave is ok after DROP temp tables
+connection master;
+create table t1(f int);
+insert into t1 values (1);
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+select * from t1 /* must be 1 */;
+
+connection master; 
+drop table t1;
+
+#
+#14157: utf8 encoding in binlog without set character_set_client
+#
+--write_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
+create table t1 (a int);
+set names latin1;
+create temporary table `\E4\F6\FC\C4\D6\DC` (a int);
+insert into `\E4\F6\FC\C4\D6\DC` values (1);
+insert into t1 select * from `\E4\F6\FC\C4\D6\DC`
+EOF
+--exec $MYSQL --character-sets-dir=../share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+select * from t1;
+
+connection master; 
+drop table t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
+--source include/sync_slave_sql_with_master.inc
+
+# Delete the anonymous users.
+
+# Temporary table `\E4\F6\FC\C4\D6\DC` open when stop slave is done. So we will have a warning here.
+# But this warning is NOT generated in RBR. So the results will be different in
+# SBR and RBR if we dont disable warnings here.
+--disable_warnings
+--source include/stop_slave.inc
+--enable_warnings
+
+source include/delete_anonymous_users.inc;
+--connection master
+source include/delete_anonymous_users.inc;
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+
+
+#
+# Bug#43748: crash when non-super user tries to kill the replication threads
+#
+
+--echo -- Bug#43748
+
+--echo -- make a user on the slave that can list but not kill system threads.
+connection slave;
+
+FLUSH PRIVILEGES;
+CREATE USER user43748@127.0.0.1 IDENTIFIED BY 'meow';
+GRANT PROCESS ON *.* TO user43748@127.0.0.1;
+
+--echo -- try to KILL system-thread as that non-privileged user (on slave).
+connect (cont43748,127.0.0.1,user43748,meow,test,$SLAVE_MYPORT,);
+connection cont43748;
+
+SELECT id INTO @id FROM information_schema.processlist WHERE user='system user' LIMIT 1;
+
+--error ER_KILL_DENIED_ERROR,ER_NO_SUCH_THREAD
+KILL @id;
+
+disconnect cont43748;
+
+--echo -- throw out test-user on slave.
+connection slave;
+
+DROP USER user43748@127.0.0.1;
+
+
+--echo End of 5.1 tests
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

@@ -1,0 +1,4 @@
+$VALIDATE_PASSWORD_COMPONENT_OPT
+--ssl-ca=$MYSQL_TEST_DIR/std_data/ca-sha512.pem
+--ssl-key=$MYSQL_TEST_DIR/std_data/server-key-sha512.pem
+--ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-sha512.pem

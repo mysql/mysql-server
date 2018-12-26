@@ -1,0 +1,49 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+DROP DATABASE IF EXISTS federated;
+CREATE DATABASE federated;
+DROP DATABASE IF EXISTS federated;
+CREATE DATABASE federated;
+SET @OLD_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
+SET @@GLOBAL.CONCURRENT_INSERT= 0;
+DROP TABLE IF EXISTS federated.t1;
+Warnings:
+Note	1051	Unknown table 't1'
+DROP TABLE IF EXISTS federated.t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`group` int NOT NULL default 0,
+`tmp` virtual int as (`id` + 1)
+)
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+ERROR HY000: 'Specified storage engine' is not yet supported for generated columns.
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`group` int NOT NULL default 0
+)
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+alter table federated.t1 add column `tmp` virtual int as (`id` + 1);
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+DROP TABLE IF EXISTS federated.t1;
+End of 5.1 tests
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
+SET @@GLOBAL.CONCURRENT_INSERT= @OLD_CONCURRENT_INSERT;
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;

@@ -1,0 +1,28 @@
+RESET MASTER;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+UPDATE t1 SET i= i+1;
+DELETE FROM t1 WHERE i=2;
+[The use <db_name> is not suppressed in the general use of mysqlbinlog]
+Matching lines are:
+use `db1`/*!*/;
+Occurrences of 'use `db1`' in the input file: 1
+[The use <db_name> is suppressed on using rewrite-db option of mysqlbinlog]
+Matching lines are:
+None
+Occurrences of 'use `db1`' in the input file: 0
+CREATE DATABASE db2;
+DROP DATABASE db1;
+RESET MASTER;
+SELECT * FROM db2.t1;
+ERROR 42S02: Table 'db2.t1' doesn't exist
+DROP DATABASE db1;
+RESET MASTER;
+[The event of table db1.t1 has been successfully applied to db2.t1]
+include/assert.inc [Assert that table db2.t1 has no rows after applying the sql file.]
+[CLEANUP]
+DROP DATABASE db1;
+DROP DATABASE db2;

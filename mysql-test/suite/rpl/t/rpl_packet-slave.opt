@@ -1,0 +1,1 @@
+--max_allowed_packet=2048 --net_buffer_length=1024 --slave_max_allowed_packet=2048

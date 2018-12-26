@@ -1,0 +1,142 @@
+###############################################################################
+#Bug#19012085 SETTING GTID_PURGED MAY BREAK AUTO_POSITION AND THUS SLAVES
+# Problem:
+#  When slave asks for GTIDs which were purged by Master, Master is silently
+#  ignoring it and sending the GTIDs whatever is available.
+# Fix:
+#  Slave's I/O thread, when connecting to Master, should be aborted with an
+#  error "Master has purged binary logs containing GTIDs that the slave
+#  requires."
+# Steps to reproduce:
+#  1) Set GTID_PURGED=UUID:1-2 on Master
+#  2) Execute some dummy transactions (GTID:3-4)
+#  3) A new slave request Master to send GTIDs
+#  4) Master should throw error instead of silently sending GTIDs 3 and 4.
+###############################################################################
+
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_statement.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# Step-1) Master wants to set 1 and 2 GTIDs in GTID_PURGED
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--replace_result $master_uuid master_uuid
+--eval SET GLOBAL GTID_PURGED= "$master_uuid:1"
+
+# Verify that the value can begin with a plus sign for setting GTID_PURGED
+--replace_result $master_uuid master_uuid
+--eval SET GLOBAL GTID_PURGED= "+$master_uuid:2"
+
+# Step-2) Do some dummy transactions
+CALL mtr.add_suppression(".*Cannot replicate.*purged required binary logs.*"); # GTID-3
+CREATE TABLE t1(i INT);  # GTID-4
+DROP TABLE t1;           # GTID-5
+
+# Step-3) Start Slave IO thread which will request Master to send all
+# transactions.
+--connection slave
+--replace_result $master_uuid master_uuid
+--eval SET GLOBAL GTID_PURGED = "$master_uuid:1"
+START SLAVE IO_THREAD;
+
+# Step-4)since Master has already purged binary logs  containing GTID 1 and 2,
+# it should throw error and I/O thread should not be started.
+#013114 = ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+--let $slave_io_errno= 13114
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+
+# Fix the problem by setting GTID_PURGED on Slave as well.
+--replace_result $master_uuid master_uuid
+--eval SET GLOBAL GTID_PURGED= "$master_uuid:1-2"
+
+# Now start slave threads. Slave will ask Master to send all GTIDs
+# except GTID:1-2 which should not be a problem and should not throw
+# any errors.
+--source include/start_slave.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= Slave should be able to get GTID-3 and 4 now.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5"
+--source include/assert.inc
+
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_match= .*Cannot replicate to server with server_uuid.*The missing transactions are '$master_uuid:2'.*
+--let $assert_select= Cannot replicate to server with server_uuid
+--let $assert_text= Found warning continaining lost GTIDs
+--source include/assert_grep.inc
+
+###############################################################################
+#Bug #18789758  DATA INCONSISTENCIES WHEN MASTER HAS TRUNCATED BINARY LOG WITH
+# GTID AFTER CRASH
+# Problem:
+#   Master's dump thread is not detecting the case where Slave's gtid executed
+#   set is having more gtids than Master's gtid executed set with respective
+#   to Master's UUID.
+# Fix:
+#   If it happens, dump thread will be stopped during the handshake
+#   with Slave(thus the Slave's I/O thread will be stopped with the
+#   error). Otherwise, it can lead to data inconsistency
+#   between Master and Slave.
+#
+# Steps to reproduce:
+#  1) Execute some sample gtid transactions on Master
+#  2) Let it reach Slave
+#  3) Fake raid failure( by manually deleting binary log file)
+#  4) Restart Master, thus removing those gtids from executed gtid set.
+#  5) Restart slave's I/O thread, Slave sends its gtids which are purged on
+#      Master
+#  6) Make sure I/O thread gets error and informs the situation to the Slave.
+#  7) Verify that situation is recovered back normal after setting GTID_PURGED
+#      value to those purged gtids.
+###############################################################################
+
+# Cleanup from the next test script
+--connection master
+--source include/rpl_reset.inc
+
+# Step-1) Execute some sample gtid transactions on Master
+CREATE TABLE t1(i INT);
+DROP TABLE t1;
+
+# Step-2) Let it reach Slave.
+--sync_slave_with_master
+--source include/stop_slave.inc
+
+# Step-3) Fake raid failure( by manually deleting binary log file)
+--connection master
+--let $master_datadir= `SELECT @@datadir;`
+FLUSH LOGS;
+DELETE FROM mysql.gtid_executed;
+--remove_file $master_datadir/master-bin.000001
+--remove_file $master_datadir/master-bin.000002
+--remove_file $master_datadir/master-bin.index
+
+# Step-4) Restart Master, thus removing those gtids from executed gtid set.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+# Step-5) Restart slave's I/O thread, Slave sends its gtids which are purged on Master
+--connection slave
+START SLAVE IO_THREAD;
+
+# Step-6) Make sure I/O thread gets error and informs the situation to the Slave.
+--let $slave_io_errno=13114
+#convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+call mtr.add_suppression(".*Slave has more GTIDs than the master has.*");
+
+# Step-7) Verify that situation is recovered back normal after setting GTID_PURGED
+#          value to those purged gtids.
+--connection master
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--replace_result $master_uuid master_uuid
+--eval SET GLOBAL GTID_PURGED= "$master_uuid:1-2"
+
+--connection slave
+--source include/start_slave.inc
+
+# Cleanup
+--source include/rpl_end.inc

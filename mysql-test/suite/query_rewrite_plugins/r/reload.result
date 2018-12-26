@@ -1,0 +1,63 @@
+#
+# Reinstalls the plugin while keeping the rules table.
+#
+CREATE TABLE t1 ( c1 VARCHAR(10), c2 VARCHAR(10) );
+INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
+CREATE TABLE t2 ( c1 VARCHAR(10) );
+INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
+# Query rewrite plugin was installed.
+# Insert some rewrite rules in the plugin
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t2',
+'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' );
+CALL query_rewrite.flush_rewrite_rules();
+# Check a query that doesn't have a rewrite rule doesn't get rewritten.
+SELECT c2 FROM test.t1;
+c2
+def
+klm
+qrs
+# Check that we can execute a rewrite rule.
+SELECT * FROM test.t2;
+c1	c2	c1
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by a query rewrite plugin
+DROP PROCEDURE query_rewrite.flush_rewrite_rules;
+DROP FUNCTION load_rewrite_rules;
+UNINSTALL PLUGIN rewriter;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Check that the table is still present and didn't get dropped.
+SELECT pattern, replacement FROM query_rewrite.rewrite_rules;
+pattern	replacement
+SELECT * FROM test.t2	SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1
+# Check that when the plugin is inactive the queries don't get rewritten.
+SELECT * FROM test.t2;
+c1
+abc
+klm
+# Reinstall the plugin. All the rules should still be here from the
+# previous installation.
+Warnings:
+Note	1007	Can't create database 'query_rewrite'; database exists
+Warnings:
+Note	1050	Table 'rewrite_rules' already exists
+# Query rewrite plugin was installed.
+# Check that a query that doesn't have a rewrite rule doesn't get
+# rewritten.
+SELECT c2 FROM test.t1;
+c2
+def
+klm
+qrs
+# Check that we can still execute a rewrite rule.
+SELECT * FROM test.t2;
+c1	c2	c1
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by a query rewrite plugin
+DROP TABLE t1, t2;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

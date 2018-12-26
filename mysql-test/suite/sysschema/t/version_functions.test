@@ -1,0 +1,26 @@
+########### suite/sysschema/t/version_functions.test #############
+#                                                                #
+# Testing of the sys.version_major(), sys.version_minor(),       #
+# and sys.version_patch() functions                              #
+#                                                                #
+# Creation:                                                      #
+# 2015-08-14 jkrogh Implement this test                          #
+#                                                                #
+##################################################################
+
+
+# Sanity check - the functions should not return any warnings or errors
+--disable_result_log
+SELECT sys.version_major();
+SELECT sys.version_minor();
+SELECT sys.version_patch();
+--enable_result_log
+
+# Check that concatenating the three version parts gives the beginning of the output of VERSION()
+# This is not truly an independent test, but there isn't really anywhere else to get the actual version,
+# so it at least verifies that the three parts go back together in the right way.
+let $MY_VERSION=`SELECT CONCAT(sys.version_major(), '.', sys.version_minor(), '.', sys.version_patch())`;
+--disable_query_log ONCE
+eval SET @my_version = '$MY_VERSION';
+
+SELECT @my_version = SUBSTRING(VERSION(), 1, CHAR_LENGTH(@my_version));

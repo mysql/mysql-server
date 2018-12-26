@@ -1,0 +1,217 @@
+#
+# BUG#49562: SBR out of sync when using numeric data types + user variable
+#
+
+-- source include/not_group_replication_plugin.inc
+-- source include/have_binlog_format_statement.inc
+-- source include/have_myisam.inc
+-- source include/master-slave.inc
+
+## Setup user variables for several numeric types, so that we get
+## coverage on the User_var_log_event different val types
+
+-- let $max_unsigned_long= 18446744073709551615
+-- let $min_signed_long= -9223372036854775808
+-- eval SET @positive= $max_unsigned_long
+-- eval SET @negative= $min_signed_long
+
+CREATE TABLE t1 (`tinyint` TINYINT,
+                 `smallint` SMALLINT,
+                 `mediumint` MEDIUMINT, 
+                 `integer` INTEGER,
+                 `bigint` BIGINT,
+                 `utinyint` TINYINT UNSIGNED,
+                 `usmallint` SMALLINT UNSIGNED,
+                 `umediumint` MEDIUMINT UNSIGNED, 
+                 `uinteger` INTEGER UNSIGNED,
+                 `ubigint` BIGINT UNSIGNED,
+                 `double` DOUBLE, 
+                 `float` FLOAT, 
+                 `real` REAL(30,2), 
+                 `decimal` DECIMAL(30,2)) ENGINE = MyISAM;
+
+-- disable_warnings
+
+-- echo ### insert max unsigned
+-- echo ### a) declarative
+-- eval INSERT IGNORE INTO t1 VALUES ($max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long,$max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long);
+
+-- echo #########################################
+-- echo #### [ on master ]
+-- query_vertical SELECT * FROM t1
+--source include/sync_slave_sql_with_master.inc
+-- echo #### [ on slave ]
+-- query_vertical SELECT * FROM t1
+-- echo #########################################
+-- connection master
+-- echo ## assertion: master and slave tables are in sync
+-- let $diff_tables=master:t1,slave:t1
+-- source include/diff_tables.inc
+-- connection master
+TRUNCATE t1;
+
+-- echo ### b) user var
+INSERT IGNORE INTO t1 VALUES (@positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive);
+
+-- echo #########################################
+-- echo #### [ on master ]
+-- query_vertical SELECT * FROM t1
+--source include/sync_slave_sql_with_master.inc
+-- echo #### [ on slave ]
+-- query_vertical SELECT * FROM t1
+-- echo #########################################
+-- connection master
+-- echo ## assertion: master and slave tables are in sync
+-- let $diff_tables=master:t1,slave:t1
+-- source include/diff_tables.inc
+-- connection master
+TRUNCATE t1;
+
+
+-- echo ### insert min signed
+-- echo ### a) declarative
+-- eval INSERT IGNORE INTO t1 VALUES ($min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long,$min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long);
+
+-- echo #########################################
+-- echo #### [ on master ]
+-- query_vertical SELECT * FROM t1
+--source include/sync_slave_sql_with_master.inc
+-- echo #### [ on slave ]
+-- query_vertical SELECT * FROM t1
+-- echo #########################################
+-- connection master
+-- echo ## assertion: master and slave tables are in sync
+-- let $diff_tables=master:t1,slave:t1
+-- source include/diff_tables.inc
+-- connection master
+TRUNCATE t1;
+
+-- echo ### b) user var
+INSERT IGNORE INTO t1 VALUES (@negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative);
+
+-- echo #########################################
+-- echo #### [ on master ]
+-- query_vertical SELECT * FROM t1
+--source include/sync_slave_sql_with_master.inc
+-- echo #### [ on slave ]
+-- query_vertical SELECT * FROM t1
+-- echo #########################################
+-- connection master
+
+-- echo ## assertion: master and slave tables are in sync
+-- let $diff_tables=master:t1,slave:t1
+-- source include/diff_tables.inc
+-- connection master
+TRUNCATE t1;
+
+-- echo ## check: contents of both tables master's and slave's
+-- enable_warnings
+
+## cleanup
+-- connection master
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+#####################################################################
+#
+# BUG#51426
+#
+#####################################################################
+--source include/rpl_reset.inc
+-- connection master
+
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+CREATE TABLE t1 ( c INT, PRIMARY KEY (c)) Engine=MyISAM;
+
+# offending trigger that would reset the unsigned flag for aux before
+# binlogging of User_var_log_event would take place.
+CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW SET @aux = -1 ;
+
+SET @aux = 10294947273192243200;
+SET @aux1= @aux;
+-- error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (@aux) , (@aux1);
+
+--source include/sync_slave_sql_with_master.inc
+
+-- echo ## assertion: master and slave tables are in sync
+-- let $diff_tables=master:t1,slave:t1
+-- source include/diff_tables.inc
+
+--connection master
+DROP TRIGGER tr1;
+DROP TABLE t1;
+
+SET sql_mode = default;
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # The GET DIAGNOSTICS itself is not replicated, but it can set
+--echo # variables which can be used in statements that are replicated.
+--echo
+
+--source include/rpl_reset.inc
+connection master;
+
+CREATE TABLE t1 (a INT, b INT);
+GET DIAGNOSTICS @var1 = NUMBER;
+INSERT INTO t1 VALUES (@var1, 0), (@var1, 0);
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+LANGUAGE SQL
+BEGIN
+  DECLARE count INT;
+  UPDATE t1 SET b = 2 WHERE a = 0;
+  GET DIAGNOSTICS count = ROW_COUNT;
+  INSERT INTO t1 VALUES (1, count);
+END|
+DELIMITER ;|
+
+CALL p1();
+
+--source include/sync_slave_sql_with_master.inc
+
+connection slave;
+--echo # On slave, check if the statement was replicated.
+SELECT * FROM t1 ORDER BY a;
+
+connection master;
+--let $mask_binlog_commit_events= 1
+--echo # Show events and cleanup
+--source include/show_binlog_events.inc
+--let $mask_binlog_commit_events= 0
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

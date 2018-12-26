@@ -1,0 +1,55 @@
+# In old versions that wrote garbage into files, the page size was 16k.
+
+--echo #
+--echo # Bug#20691930 5.7.6 CRASH WHEN RUNNING MYSQL_UPGRADE
+--echo # AFTER BINARY UPGRADE
+--echo #
+
+CREATE TABLE t (a int primary key, b char(255) not null default '', index(b))
+ENGINE=InnoDB;
+
+INSERT t(a) VALUES(1),(2),(3),(4),(5),(6),(7),(8);
+let $MYSQLD_DATADIR=`select @@datadir`;
+let IBD_FILE=$MYSQLD_DATADIR/test/t.ibd;
+let IBD_PAGE_SIZE=`select @@innodb_page_size`;
+
+--source include/shutdown_mysqld.inc
+perl;
+use strict;
+use warnings;
+use Fcntl qw(:DEFAULT :seek);
+my $file = $ENV{IBD_FILE};
+my $size = $ENV{IBD_PAGE_SIZE};
+sysopen FILE, $file, O_RDWR || die "Unable to open $file: $!";
+die "Unable to read $file: $!" unless sysread(FILE, $_, $size*3) == $size*3;
+my $ck = pack("H*", "DEADBEEF");
+my $type = pack("H*", "45BF"); # FIL_PAGE_INDEX
+my $payload = $size-26-8;
+# Change each page type to FIL_PAGE_INDEX, and rewrite the checksum.
+s/....(.{16})(....)..(.{$payload})......../$ck.$1.$2.$type.$3.$ck.$2/ges;
+sysseek(FILE, 0, SEEK_SET) || die "Unable to seek $file: $!";
+syswrite(FILE, $_, $size * 3) || warn "Unable to write $file: $!";
+close(FILE) || die "Unable to close $file: $!";
+EOF
+
+--source include/start_mysqld.inc
+
+INSERT t(a) SELECT a+8 FROM t;
+INSERT t(a) SELECT a+16 FROM t;
+INSERT t(a) SELECT a+32 FROM t;
+INSERT t(a) SELECT a+64 FROM t;
+--source include/shutdown_mysqld.inc
+perl;
+use strict;
+use warnings;
+my $file = $ENV{IBD_FILE};
+my $size = $ENV{IBD_PAGE_SIZE};
+open(FILE, "<$file") || die "Unable to open $file: $!";
+die "Unable to read $file: $!" unless read(FILE, $_, $size*6) == $size*6;
+my $payload = $size-26;
+s/.{24}(..).{$payload}/$1/ges;
+print "# Page types: ", unpack("H*", $_), "\n";
+close(FILE);
+EOF
+--source include/start_mysqld.inc
+DROP TABLE t;

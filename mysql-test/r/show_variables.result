@@ -1,0 +1,12 @@
+SHOW GLOBAL VARIABLES WHERE Variable_name LIKE "abc";
+Variable_name	Value
+SHOW GLOBAL VARIABLES LIKE "abc";
+Variable_name	Value
+SHOW SESSION VARIABLES WHERE Variable_name LIKE "abc";
+Variable_name	Value
+SHOW SESSION VARIABLES LIKE "abc";
+Variable_name	Value
+SHOW VARIABLES WHERE Variable_name LIKE "abc";
+Variable_name	Value
+SHOW VARIABLES LIKE "abc";
+Variable_name	Value

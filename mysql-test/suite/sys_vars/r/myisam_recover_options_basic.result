@@ -1,0 +1,21 @@
+select @@global.myisam_recover_options;
+@@global.myisam_recover_options
+OFF
+select @@session.myisam_recover_options;
+ERROR HY000: Variable 'myisam_recover_options' is a GLOBAL variable
+show global variables like 'myisam_recover_options';
+Variable_name	Value
+myisam_recover_options	OFF
+show session variables like 'myisam_recover_options';
+Variable_name	Value
+myisam_recover_options	OFF
+select * from performance_schema.global_variables where variable_name='myisam_recover_options';
+VARIABLE_NAME	VARIABLE_VALUE
+myisam_recover_options	OFF
+select * from performance_schema.session_variables where variable_name='myisam_recover_options';
+VARIABLE_NAME	VARIABLE_VALUE
+myisam_recover_options	OFF
+set global myisam_recover_options=1;
+ERROR HY000: Variable 'myisam_recover_options' is a read only variable
+set session myisam_recover_options=1;
+ERROR HY000: Variable 'myisam_recover_options' is a read only variable

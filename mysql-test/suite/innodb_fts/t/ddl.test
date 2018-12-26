@@ -1,0 +1,302 @@
+# This is the DDL function tests for innodb FTS
+
+call mtr.add_suppression("Trying to free a missing index of table 'test/fts_test'");
+call mtr.add_suppression("Failed to create index with index id .* of table 'test/fts_test'");
+
+# Create FTS table
+CREATE TABLE fts_test (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+# Insert six rows
+INSERT INTO fts_test (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+# Create the FTS index
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+# Select word "tutorial" in the table
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+
+# Drop the FTS idx
+DROP INDEX idx ON fts_test;
+
+# Continue insert some rows
+INSERT INTO fts_test (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+
+# Recreate the FTS index
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+# Select word "tutorial" in the table
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# Boolean search
+# Select rows contain "MySQL" but not "YourSQL"
+SELECT * FROM fts_test WHERE MATCH (title,body)
+        AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+
+# Truncate table
+TRUNCATE TABLE fts_test;
+
+DROP INDEX idx ON fts_test;
+
+# Continue insert some rows
+INSERT INTO fts_test (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+# Recreate the FTS index
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+# Select word "tutorial" in the table
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE fts_test;
+
+# Create FTS table
+CREATE TABLE fts_test (
+	FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+create unique index FTS_DOC_ID_INDEX on fts_test(FTS_DOC_ID DESC);
+
+# Insert six rows
+INSERT INTO fts_test (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+# Create the FTS index
+# We could support online fulltext index creation when a FTS_DOC_ID
+# column already exists. This has not been implemented yet.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE;
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+ALTER TABLE fts_test DROP INDEX FTS_DOC_ID_INDEX,
+ADD UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID), ALGORITHM=INPLACE;
+
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE;
+ALTER TABLE fts_test ROW_FORMAT=REDUNDANT;
+
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# Drop and recreate
+drop index idx on fts_test;
+
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# Drop the FTS_DOC_ID_INDEX and try again
+drop index idx on fts_test;
+
+drop index FTS_DOC_ID_INDEX on fts_test;
+
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+drop table fts_test;
+
+# Test FTS_DOC_ID and FTS_DOC_ID_INDEX all in the create table clause
+CREATE TABLE fts_test (
+   FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+   title varchar(255) NOT NULL DEFAULT '',
+   text mediumtext NOT NULL,
+   PRIMARY KEY (FTS_DOC_ID),
+   UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+   FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+
+set @@auto_increment_increment=10;
+
+INSERT INTO fts_test (title, text) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...'),
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+-- disable_result_log
+ANALYZE TABLE fts_test;
+-- enable_result_log
+set @@auto_increment_increment=1;
+
+select *, match(title, text)  AGAINST ('database') as score
+from fts_test order by score desc;
+
+drop index idx on fts_test;
+
+drop table fts_test;
+
+# This should fail:
+# Create a FTS_DOC_ID of the wrong type (should be bigint)
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+CREATE TABLE fts_test (
+   FTS_DOC_ID int(20) unsigned NOT NULL AUTO_INCREMENT,
+   title varchar(255) NOT NULL DEFAULT '',
+   text mediumtext NOT NULL,
+   PRIMARY KEY (FTS_DOC_ID),
+   UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+   FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+
+# This should fail:
+# Create a FTS_DOC_ID_INDEX of the wrong type (should be unique)
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+CREATE TABLE fts_test (
+   FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+   title varchar(255) NOT NULL DEFAULT '',
+   text mediumtext NOT NULL,
+   PRIMARY KEY (FTS_DOC_ID),
+   KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+   FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+
+CREATE TABLE articles (
+	FTS_DOC_ID BIGINT UNSIGNED NOT NULL ,
+	title VARCHAR(200),
+	body TEXT
+) ENGINE=InnoDB;
+
+INSERT INTO articles (FTS_DOC_ID, title, body) VALUES
+        (9, 'MySQL Tutorial','DBMS stands for DataBase ...'),
+        (10, 'How To Use MySQL Well','After you went through a ...'),
+        (12, 'Optimizing MySQL','In this tutorial we will show ...'),
+        (14,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        (19, 'MySQL vs. YourSQL','In the following database comparison ...'),
+        (20, 'MySQL Security','When configured properly, MySQL ...');
+
+--error ER_INNODB_FT_LIMIT
+ALTER TABLE articles ADD FULLTEXT INDEX idx3 (title),
+		     ADD FULLTEXT INDEX idx5 (title);
+
+CREATE FULLTEXT INDEX idx on articles (title);
+ALTER TABLE articles ADD FULLTEXT INDEX idx3 (title);
+
+ALTER TABLE articles ADD INDEX t20 (title(20)), LOCK=NONE;
+ALTER TABLE articles DROP INDEX t20;
+
+INSERT INTO articles (FTS_DOC_ID, title, body) VALUES
+        (29, 'MySQL Tutorial','DBMS stands for DataBase ...'),
+        (30, 'How To Use MySQL Well','After you went through a ...'),
+        (32, 'Optimizing MySQL','In this tutorial we will show ...'),
+        (34,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        (39, 'MySQL vs. YourSQL','In the following database comparison ...'),
+        (40, 'MySQL Security','When configured properly, MySQL ...');
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP INDEX idx ON articles;
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+SELECT * FROM articles WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+
+create table articles(`FTS_DOC_ID` serial,
+`col32` timestamp not null,`col115` text) engine=innodb;
+
+create fulltext index `idx5` on articles(`col115`)  ;
+
+alter table articles add primary key  (`col32`)  ;
+
+drop table articles;
+
+# Create a table with FTS index, this will create hidden column FTS_DOC_ID
+CREATE TABLE articles (
+	id INT UNSIGNED NOT NULL,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+INSERT INTO articles VALUES
+	(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	(2, 'How To Use MySQL Well','After you went through a ...'),
+	(3, 'Optimizing MySQL','In this tutorial we will show ...'),
+	(4, '1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	(5, 'MySQL vs. YourSQL','In the following database comparison ...'),
+	(6, 'MySQL Security','When configured properly, MySQL ...');
+
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+# Drop the FTS index, however, this will keep the FTS_DOC_ID hidden
+# column (to avoid a table rebuild)
+DROP INDEX idx ON articles;
+
+# Now create cluster index on id online; The rebuild should still
+# have the FTS_DOC_ID
+CREATE UNIQUE INDEX idx2 ON articles(id);
+
+# Recreate FTS index, this should not require a rebuild,
+# since the FTS_DOC_ID is still there
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+SELECT * FROM articles WHERE MATCH (title, body)
+	AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+
+# This should fail:
+# Create fulltext index when an arbitrary index whose name case-insensitively
+# matches FTS_DOC_ID_INDEX is present
+CREATE TABLE t(t TEXT, FTS_DOC_ID BIGINT UNSIGNED NOT NULL, b INT);
+CREATE UNIQUE INDEX FTS_DOC_Id_INDEX ON t(FTS_DOC_ID DESC);
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+CREATE FULLTEXT INDEX f ON t(t);
+DROP INDEX FTS_DOC_Id_INDEX on t;
+
+# This should fail:
+# Create a fullltext index when FTS_DOC_ID_INDEX is not a single-column
+# ascending unique index on FTS_DOC_ID.
+CREATE UNIQUE INDEX FTS_DOC_ID_INDEX ON t(FTS_DOC_ID DESC, b DESC);
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+CREATE FULLTEXT INDEX f ON t(t);
+DROP TABLE t;
+
+# This should fail:
+# Create a table with a column whose name case-insensitively matches FTS_DOC_ID
+# matches FTS_DOC_ID_INDEX is present
+--error ER_WRONG_COLUMN_NAME
+CREATE TABLE t(t TEXT, FTS_DOC_iD BIGINT UNSIGNED NOT NULL, b INT);

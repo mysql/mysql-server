@@ -1,0 +1,21 @@
+# Tests for the performance schema
+
+--source ../include/table_aggregate_setup.inc
+
+# table io
+update performance_schema.setup_instruments
+  set enabled='NO' where name='wait/lock/table/sql/handler';
+
+# hist by default
+
+# 2users
+delete from performance_schema.setup_actors
+  where user in ('user2', 'user4');
+
+# 2tables
+delete from performance_schema.setup_objects
+  where object_name='t2';
+
+--source ../include/table_aggregate_load.inc
+--source ../include/table_aggregate_cleanup.inc
+

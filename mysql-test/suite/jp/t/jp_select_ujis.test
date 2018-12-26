@@ -1,0 +1,67 @@
+--character_set ujis
+--disable_warnings
+drop table if exists `£Ô£±`;
+drop table if exists `£Ô£²`;
+drop table if exists `£Ô£³`;
+drop table if exists `£Ô£´`;
+drop table if exists `£Ô£µ`;
+drop table if exists `£Ô£¶`;
+drop table if exists `£Ô£·`;
+drop table if exists `£Ô£¸`;
+drop table if exists `£Ô£¹`;
+--enable_warnings
+
+#
+# Test Displaying Japanese charact in ujis encoding 
+#
+
+SET NAMES ujis;
+SET character_set_database = ujis;
+
+CREATE TABLE `£Ô£±` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Ô£²` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Ô£³` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Ô£´` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Ô£µ` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Ô£¶` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Ô£·` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Ô£¸` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Ô£¹` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ujis engine = MEMORY;
+
+#Load the following data in each table
+# jisx0201 hankaku-katakana data
+# jisx0208 data
+# jisx0212 supplemental character data
+
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£±`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£²`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£³`; 
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£´`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£µ`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£¶`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£·`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£¸`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£¹`;
+
+#InnoDB
+SELECT * FROM `£Ô£±`;
+SELECT * FROM `£Ô£²`;
+SELECT * FROM `£Ô£³`;
+#MyISAM
+SELECT * FROM `£Ô£´`;
+SELECT * FROM `£Ô£µ`;
+SELECT * FROM `£Ô£¶`;
+#MEMORY
+SELECT * FROM `£Ô£·`;
+SELECT * FROM `£Ô£¸`;
+SELECT * FROM `£Ô£¹`;
+
+drop table `£Ô£±`;
+drop table `£Ô£²`;
+drop table `£Ô£³`;
+drop table `£Ô£´`;
+drop table `£Ô£µ`;
+drop table `£Ô£¶`;
+drop table `£Ô£·`;
+drop table `£Ô£¸`;
+drop table `£Ô£¹`;

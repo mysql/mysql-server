@@ -1,0 +1,52 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+###################################################
+# Step 1                                          #
+###################################################
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 LONGTEXT);
+Generating 200 transactions on master
+DROP TABLE t1;
+###################################################
+# Step 2                                          #
+###################################################
+CREATE TABLE t2 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT);
+Generating 200 transactions on master using SAVEPOINT/ROLLBACK TO SAVEPOINT
+DROP TABLE t2;
+###################################################
+# Step 3                                          #
+###################################################
+CREATE TABLE t3 (a int);
+CREATE DATABASE db1;
+CREATE TABLE db1.t4 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT);
+Generating 100 transactions on master parallely.
+CALL dml(50);
+[connection master1]
+DROP DATABASE db1;
+[connection master]
+DROP PROCEDURE dml;
+###################################################
+# Step 4                                          #
+###################################################
+CREATE TABLE t5 (a int);
+CREATE TABLE t6 (a int);
+CREATE TRIGGER tr_1 BEFORE INSERT ON t5 FOR EACH ROW
+BEGIN
+INSERT INTO t6 VALUES (1);
+END$$
+Generating 50 transactions on master which initiates the TRIGGER.
+DROP TABLE t5;
+DROP TABLE t6;
+include/sync_slave_sql_with_master.inc
+Asserting all GTID transaction length information in 'slave-bin.000001'
+Inspected 566 transactions, all with correct transaction length.
+Asserting all GTID transaction length information in 'slave-relay-bin.000002'
+Inspected 565 transactions, all with correct transaction length.
+Asserting all GTID transaction length information in 'slave-relay-bin.000001'
+Log file had no transactions with length information.
+[connection master]
+Asserting all GTID transaction length information in 'master-bin.000001'
+Inspected 566 transactions, all with correct transaction length.
+include/rpl_end.inc

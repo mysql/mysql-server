@@ -1,0 +1,100 @@
+include/have_replication_observers_example_plugin.inc
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+############################################################
+# 1. Install the plug-in and add error suppressions on slave
+[connection master]
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression(".*Cannot replicate.*purged required binary logs.*");
+SET SESSION sql_log_bin= 1;
+[connection slave]
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Table 't1' already exists");
+CALL mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log");
+SET SESSION sql_log_bin= 1;
+include/install_replication_observers_example.inc
+
+####################################################################
+# 2. Create a table on master and generate workload to be replicated
+[connection master]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+########################################
+# 3. Create the example_channel on slave
+[connection slave]
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_MYPORT, MASTER_USER='root', MASTER_AUTO_POSITION=1 FOR CHANNEL 'example_channel';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+#######################
+# 4. SQL thread testing
+
+#################################################
+# 4.1 Prepare SQL thread to fail after started up
+SET SESSION sql_log_bin= 0;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION sql_log_bin= 1;
+# Adding debug point 'validate_replication_observers_plugin_server_is_sql_stopping' to @@GLOBAL.debug
+# Adding debug point 'pause_after_sql_thread_stop_hook' to @@GLOBAL.debug
+[connection slave1]
+SET SESSION sql_log_bin= 0;
+INSERT INTO t1 VALUES (0);
+
+#########################################################
+# 4.2 Wait until SQL thread failed trying to apply events
+[connection slave]
+SET DEBUG_SYNC='now WAIT_FOR reached_sql_thread_started';
+include/wait_for_slave_sql_error.inc [errno=1050 FOR CHANNEL 'example_channel']
+# Removing debug point 'pause_after_sql_thread_stop_hook' from @@GLOBAL.debug
+# Removing debug point 'validate_replication_observers_plugin_server_is_sql_stopping' from @@GLOBAL.debug
+[connection slave1]
+SET SESSION sql_log_bin= 1;
+include/stop_slave.inc [FOR CHANNEL 'example_channel']
+RESET SLAVE FOR CHANNEL 'example_channel';
+
+#######################
+# 5. I/O thread testing
+
+##########################################################################
+# 5.1 Rotate and purge the binary log on master to make I/O thread to fail
+[connection master]
+FLUSH BINARY LOGS;
+include/stop_dump_threads.inc
+
+#################################################
+# 5.2 Prepare I/O thread to fail after started up
+[connection slave]
+# Adding debug point 'validate_replication_observers_plugin_server_is_io_stopping' to @@GLOBAL.debug
+# Adding debug point 'pause_after_io_thread_stop_hook' to @@GLOBAL.debug
+[connection slave1]
+SET SESSION sql_log_bin= 0;
+INSERT INTO t1 VALUES (1);
+
+###########################################################
+# 5.3 Wait until I/O thread failed to replicate from master
+[connection slave]
+SET DEBUG_SYNC='now WAIT_FOR reached_io_thread_started';
+include/wait_for_slave_io_error.inc [errno=13114 FOR CHANNEL 'example_channel']
+# Removing debug point 'pause_after_io_thread_stop_hook' from @@GLOBAL.debug
+# Removing debug point 'validate_replication_observers_plugin_server_is_io_stopping' from @@GLOBAL.debug
+[connection slave1]
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+
+############
+# 6. Cleanup
+[connection slave]
+RESET SLAVE ALL FOR CHANNEL 'example_channel';
+include/uninstall_replication_observers_example.inc
+[connection master]
+DROP TABLE t1;
+RESET MASTER;
+[connection slave]
+include/start_slave.inc
+include/rpl_end.inc

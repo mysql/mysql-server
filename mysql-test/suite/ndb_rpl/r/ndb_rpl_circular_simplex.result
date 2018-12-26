@@ -1,0 +1,34 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (a int key, b int) ENGINE=NDB;
+SHOW TABLES;
+Tables_in_test
+t1
+RESET MASTER;
+INSERT INTO t1 VALUES (1,2);
+INSERT INTO t1 VALUES (2,3);
+STOP SLAVE;
+include/rpl_change_topology.inc [new topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE;
+include/wait_for_slave_to_start.inc
+include/check_slave_is_running.inc
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+2	3
+STOP SLAVE;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+2	3
+include/wait_for_slave_to_start.inc
+include/check_slave_is_running.inc
+DROP TABLE t1;
+include/rpl_end.inc

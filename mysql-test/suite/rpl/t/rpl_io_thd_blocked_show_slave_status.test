@@ -1,0 +1,64 @@
+# ==== Purpose ====
+#
+# Check that the execution of SHOW SLAVE STATUS command is not blocked when IO
+# thread is blocked writing an event to the relay log.
+#
+# ==== Implementation ====
+#
+# Simulate a scenario where IO thread is waiting while writing into the relay
+# log, holding LOCK_log. Execute SHOW SLAVE STATUS command after IO thread is
+# blocked writing an event. The command should not be blocked.
+#
+# ==== References ====
+#
+# WL#10406: Improve usability when receiver thread is waiting for disk space
+# BUG#21753696: MAKE SHOW SLAVE STATUS NON BLOCKING IF IO THREAD WAITS FOR
+#               DISK SPACE
+# BUG#25609448: STOP SLAVE IS ACQUIRING THE RELAY LOG->LOG_LOCK EVEN TO STOP
+#               ONLY THE SQL THREAD
+#
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/master-slave.inc
+
+# Generate events to be replicated to the slave
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (1);
+--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--source include/sync_slave_sql_with_master.inc
+
+# Suppression of error messages
+CALL mtr.add_suppression('coordinator and worker threads are stopped');
+
+# Set the debug option that will simulate I/O thread blocked writing
+SET @@GLOBAL.debug="+d,pause_on_queue_event_after_write_buffer";
+
+# Generate events to be replicated to the slave
+--source include/rpl_connection_master.inc
+INSERT INTO t1 (c1) VALUES (2);
+
+--source include/rpl_connection_slave.inc
+# Wait until IO thread is queuing events from master
+SET DEBUG_SYNC="now WAIT_FOR receiver_reached_pause_on_queue_event";
+
+# Notice that this is performed by querying SHOW SLAVE STATUS
+--let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1)
+--let $assert_cond= "$master_log_file" = "$master_file"
+--let $assert_text= Consulting SHOW SLAVE STATUS was successful
+--source include/assert.inc
+
+# We can even stop SQL thread
+--let $slave_sql_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
+--source include/stop_slave_sql.inc
+
+# And we also can start SQL thread again
+--source include/start_slave_sql.inc
+
+# Remove debug instrumentation and let the I/O thread to continue
+SET @@GLOBAL.debug="-d,pause_on_queue_event_after_write_buffer";
+SET DEBUG_SYNC="now SIGNAL receiver_continue_queuing_event";
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

@@ -1,0 +1,311 @@
+SET @file_per_table=@@global.innodb_file_per_table;
+CREATE TABLESPACE table_level ADD DATAFILE 'table.ibd';
+CREATE TABLESPACE partition_level ADD DATAFILE 'partition.ibd';
+CREATE TABLESPACE subpartition_level ADD DATAFILE 'subpartition.ibd';
+CREATE TABLE subpartitioned(a int auto_increment primary key)
+TABLESPACE table_level
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE partition_level
+(SUBPARTITION sp0 TABLESPACE subpartition_level,
+SUBPARTITION sp1),
+PARTITION p1 VALUES LESS THAN (16)
+(SUBPARTITION sp2,
+SUBPARTITION sp3 TABLESPACE innodb_file_per_table),
+PARTITION p2 VALUES LESS THAN (256) TABLESPACE innodb_file_per_table
+(SUBPARTITION sp4 TABLESPACE subpartition_level,
+SUBPARTITION sp5));
+# Subpartitions show the inherited TABLESPACE.
+# Bug#23219564 FIXME: the TABLESPACE of PARTITION should be shown!
+SHOW CREATE TABLE subpartitioned;
+Table	Create Table
+subpartitioned	CREATE TABLE `subpartitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `partition_level` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2 TABLESPACE = `table_level` ENGINE = InnoDB,
+  SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+# The TABLESPACE of PARTITION/TABLE should be inherited for subpartitions
+ALTER TABLE subpartitioned ADD PARTITION (PARTITION p3 VALUES LESS THAN (65536) (SUBPARTITION sp6 TABLESPACE innodb_file_per_table, SUBPARTITION sp7 TABLESPACE innodb_system));
+SHOW CREATE TABLE subpartitioned;
+Table	Create Table
+subpartitioned	CREATE TABLE `subpartitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `partition_level` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2 TABLESPACE = `table_level` ENGINE = InnoDB,
+  SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (65536)
+ (SUBPARTITION sp6 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp7 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
+ALTER TABLE subpartitioned REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN(65536) (SUBPARTITION sp6, SUBPARTITION sp7 TABLESPACE subpartition_level));
+SHOW CREATE TABLE subpartitioned;
+Table	Create Table
+subpartitioned	CREATE TABLE `subpartitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `partition_level` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2 TABLESPACE = `table_level` ENGINE = InnoDB,
+  SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (65536)
+ (SUBPARTITION sp6 TABLESPACE = `table_level` ENGINE = InnoDB,
+  SUBPARTITION sp7 TABLESPACE = `subpartition_level` ENGINE = InnoDB)) */
+ALTER TABLE subpartitioned DROP PARTITION p3;
+SHOW CREATE TABLE subpartitioned;
+Table	Create Table
+subpartitioned	CREATE TABLE `subpartitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `partition_level` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2 TABLESPACE = `table_level` ENGINE = InnoDB,
+  SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 TABLESPACE = `subpartition_level` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+DROP TABLE subpartitioned;
+CREATE TABLE partitioned(a int auto_increment primary key)
+TABLESPACE table_level
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE partition_level,
+PARTITION p1 VALUES LESS THAN (16),
+PARTITION p2 VALUES LESS THAN (256) TABLESPACE innodb_file_per_table);
+# Bug#23219685 FIXME: PARTITION should show inherited TABLESPACE!
+SHOW CREATE TABLE partitioned;
+Table	Create Table
+partitioned	CREATE TABLE `partitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE = `partition_level` ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (16) TABLESPACE = `table_level` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (256) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+DROP TABLE partitioned;
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE subpartitioned(a int auto_increment primary key)
+DATA DIRECTORY 'MYSQL_TMP_DIR/table'
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (0) DATA DIRECTORY 'MYSQL_TMP_DIR/partition'
+ (SUBPARTITION sp0 DATA DIRECTORY 'MYSQL_TMP_DIR/subpartition',
+SUBPARTITION sp1),
+PARTITION p1 VALUES LESS THAN (16)
+TABLESPACE innodb_file_per_table DATA DIRECTORY 'MYSQL_TMP_DIR/partition'
+ (SUBPARTITION sp2,
+SUBPARTITION sp3 DATA DIRECTORY 'MYSQL_TMP_DIR/subpartition'),
+PARTITION p2 VALUES LESS THAN (256)
+(SUBPARTITION sp4 DATA DIRECTORY 'MYSQL_TMP_DIR/subpartition',
+SUBPARTITION sp5));
+# Subpartitions show the inherited DATA DIRECTORY.
+# Bug#23219564 FIXME: the DATA DIRECTORY of PARTITION should be shown!
+SHOW CREATE TABLE subpartitioned;
+Table	Create Table
+subpartitioned	CREATE TABLE `subpartitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition/' ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition/' ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition/' ENGINE = InnoDB,
+  SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition/' ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition/' ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB)) */
+DROP TABLE subpartitioned;
+SET GLOBAL innodb_file_per_table=OFF;
+SET innodb_strict_mode=OFF;
+CREATE TABLE subpartitioned(a int auto_increment primary key)
+DATA DIRECTORY 'MYSQL_TMP_DIR/table'
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (0) DATA DIRECTORY 'MYSQL_TMP_DIR/partition'
+ (SUBPARTITION sp0 DATA DIRECTORY 'MYSQL_TMP_DIR/subpartition',
+SUBPARTITION sp1),
+PARTITION p1 VALUES LESS THAN (16)
+TABLESPACE innodb_file_per_table DATA DIRECTORY 'MYSQL_TMP_DIR/partition'
+ (SUBPARTITION sp2,
+SUBPARTITION sp3 DATA DIRECTORY 'MYSQL_TMP_DIR/subpartition'),
+PARTITION p2 VALUES LESS THAN (256)
+(SUBPARTITION sp4 DATA DIRECTORY 'MYSQL_TMP_DIR/subpartition',
+SUBPARTITION sp5));
+Warnings:
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1618	<DATA DIRECTORY> option ignored
+SET innodb_strict_mode=ON;
+# Subpartitions show the inherited DATA DIRECTORY.
+# Bug#23219564 FIXME: the DATA DIRECTORY of PARTITION should be shown!
+SHOW CREATE TABLE subpartitioned;
+Table	Create Table
+subpartitioned	CREATE TABLE `subpartitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition/' ENGINE = InnoDB,
+  SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition/' ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
+# The DATA DIRECTORY of PARTITION/TABLE should be inherited for subpartitions
+SET GLOBAL innodb_file_per_table=ON;
+ALTER TABLE subpartitioned ADD PARTITION (PARTITION p3 VALUES LESS THAN (65536) TABLESPACE innodb_file_per_table DATA DIRECTORY 'MYSQL_TMP_DIR/partition' (SUBPARTITION sp6, SUBPARTITION sp7));
+SHOW CREATE TABLE subpartitioned;
+Table	Create Table
+subpartitioned	CREATE TABLE `subpartitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition' ENGINE = InnoDB,
+  SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition' ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (65536)
+ (SUBPARTITION sp6 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition' ENGINE = InnoDB,
+  SUBPARTITION sp7 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition' ENGINE = InnoDB)) */
+ALTER TABLE subpartitioned REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN(65536) (SUBPARTITION sp6, SUBPARTITION sp7 DATA DIRECTORY 'MYSQL_TMP_DIR/subpartition'));
+SHOW CREATE TABLE subpartitioned;
+Table	Create Table
+subpartitioned	CREATE TABLE `subpartitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition' ENGINE = InnoDB,
+  SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition' ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (65536)
+ (SUBPARTITION sp6 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp7 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition' ENGINE = InnoDB)) */
+ALTER TABLE subpartitioned DROP PARTITION p3;
+SHOW CREATE TABLE subpartitioned;
+Table	Create Table
+subpartitioned	CREATE TABLE `subpartitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition' ENGINE = InnoDB,
+  SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/subpartition' ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
+DROP TABLE subpartitioned;
+CREATE TABLE partitioned(a int auto_increment primary key)
+DATA DIRECTORY 'MYSQL_TMP_DIR/table'
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE innodb_file_per_table,
+PARTITION p1 VALUES LESS THAN (16)
+TABLESPACE innodb_file_per_table DATA DIRECTORY 'MYSQL_TMP_DIR/partition',
+PARTITION p2 VALUES LESS THAN (256));
+# Bug#23219685 FIXME: PARTITION should show inherited DATA DIRECTORY!
+SHOW CREATE TABLE partitioned;
+Table	Create Table
+partitioned	CREATE TABLE `partitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (16) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition/' ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (256) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB) */
+DROP TABLE partitioned;
+SET GLOBAL innodb_file_per_table=OFF;
+SET innodb_strict_mode=OFF;
+CREATE TABLE partitioned(a int auto_increment primary key)
+DATA DIRECTORY 'MYSQL_TMP_DIR/table'
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE innodb_file_per_table,
+PARTITION p1 VALUES LESS THAN (16)
+TABLESPACE innodb_file_per_table DATA DIRECTORY 'MYSQL_TMP_DIR/partition',
+PARTITION p2 VALUES LESS THAN (256));
+Warnings:
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1618	<DATA DIRECTORY> option ignored
+SET innodb_strict_mode=ON;
+# Bug#23219685 FIXME: PARTITION should show inherited DATA DIRECTORY!
+SHOW CREATE TABLE partitioned;
+Table	Create Table
+partitioned	CREATE TABLE `partitioned` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (16) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition/' ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (256) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
+DROP TABLE partitioned;
+DROP TABLESPACE table_level;
+DROP TABLESPACE partition_level;
+DROP TABLESPACE subpartition_level;
+SET GLOBAL innodb_file_per_table=@file_per_table;

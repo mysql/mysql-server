@@ -1,0 +1,39 @@
+SET default_storage_engine=innodb;
+--source include/gis_generic.inc
+--source include/gis_keys.inc
+
+#
+# Bug #15680 (SPATIAL key in innodb)
+#
+#--error ER_TABLE_CANT_HANDLE_SPKEYS
+create table t1 (g geometry not null SRID 0, spatial gk(g)) engine=innodb;
+
+DROP TABLE t1;
+
+# Test read uncommitted
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+
+connect (a,localhost,root,,);
+connection a;
+
+start transaction;
+insert into t1 values(1, Point(1,1));
+
+
+connect (con1,localhost,root,,);
+connection con1;
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+set transaction isolation level read uncommitted;
+select count(*) from t1 where ST_Within(t1.c2, @g1);
+disconnect con1;
+
+--source include/wait_until_disconnected.inc
+
+connection a;
+commit;
+disconnect a;
+--source include/wait_until_disconnected.inc
+
+connection default;
+drop table t1;
+

@@ -1,0 +1,141 @@
+SET @start_global_value = @@global.max_join_size;
+SELECT @start_global_value;
+@start_global_value
+18446744073709551615
+select @@global.max_join_size;
+@@global.max_join_size
+18446744073709551615
+select @@session.max_join_size;
+@@session.max_join_size
+18446744073709551615
+show global variables like 'max_join_size';
+Variable_name	Value
+max_join_size	18446744073709551615
+show session variables like 'max_join_size';
+Variable_name	Value
+max_join_size	18446744073709551615
+select * from performance_schema.global_variables where variable_name='max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_join_size	18446744073709551615
+select * from performance_schema.session_variables where variable_name='max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_join_size	18446744073709551615
+set global max_join_size=10;
+set session max_join_size=20;
+select @@global.max_join_size;
+@@global.max_join_size
+10
+select @@session.max_join_size;
+@@session.max_join_size
+20
+SET SQL_BIG_SELECTS=1;
+show global variables like 'max_join_size';
+Variable_name	Value
+max_join_size	10
+show session variables like 'max_join_size';
+Variable_name	Value
+max_join_size	20
+SET SQL_BIG_SELECTS=1;
+select * from performance_schema.global_variables where variable_name='max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_join_size	10
+select * from performance_schema.session_variables where variable_name='max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_join_size	20
+SET @@global.max_join_size = 1000;
+SET @@global.max_join_size = DEFAULT;
+SELECT @@global.max_join_size;
+@@global.max_join_size
+18446744073709551615
+SET @@session.max_join_size = 1000;
+SET @@session.max_join_size = DEFAULT;
+SELECT @@session.max_join_size;
+@@session.max_join_size
+18446744073709551615
+SET @@global.max_join_size = DEFAULT;
+SELECT @@global.max_join_size = 4294967295;
+@@global.max_join_size = 4294967295
+0
+SET @@session.max_join_size = DEFAULT;
+SELECT @@session.max_join_size = 4294967295;
+@@session.max_join_size = 4294967295
+0
+SET @@global.max_join_size = 1;
+SELECT @@global.max_join_size;
+@@global.max_join_size
+1
+SET @@global.max_join_size = 4294967295;
+SELECT @@global.max_join_size;
+@@global.max_join_size
+4294967295
+SET @@session.max_join_size = 1;
+SELECT @@session.max_join_size;
+@@session.max_join_size
+1
+SET @@session.max_join_size = 4294967295;
+SELECT @@session.max_join_size;
+@@session.max_join_size
+4294967295
+SET @@global.max_join_size = 0;
+Warnings:
+Warning	1292	Truncated incorrect max_join_size value: '0'
+SELECT @@global.max_join_size;
+@@global.max_join_size
+1
+SET @@global.max_join_size = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_join_size value: '-1024'
+SELECT @@global.max_join_size;
+@@global.max_join_size
+1
+SET @@global.max_join_size = 114294967295;
+SELECT @@global.max_join_size;
+@@global.max_join_size
+114294967295
+SET @@global.max_join_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_join_size'
+SELECT @@global.max_join_size;
+@@global.max_join_size
+114294967295
+SET @@session.max_join_size = 0;
+Warnings:
+Warning	1292	Truncated incorrect max_join_size value: '0'
+SELECT @@session.max_join_size;
+@@session.max_join_size
+1
+SET @@session.max_join_size = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_join_size value: '-1024'
+SELECT @@session.max_join_size;
+@@session.max_join_size
+1
+SET @@session.max_join_size = 114294967295;
+SELECT @@session.max_join_size;
+@@session.max_join_size
+114294967295
+SET @@session.max_join_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_join_size'
+SELECT @@session.max_join_size;
+@@session.max_join_size
+114294967295
+set global max_join_size=1.1;
+ERROR 42000: Incorrect argument type to variable 'max_join_size'
+set global max_join_size=1e1;
+ERROR 42000: Incorrect argument type to variable 'max_join_size'
+set global max_join_size="foo";
+ERROR 42000: Incorrect argument type to variable 'max_join_size'
+select @@sql_big_selects;
+@@sql_big_selects
+0
+set max_join_size=cast(-1 as unsigned int);
+select @@sql_big_selects;
+@@sql_big_selects
+1
+set max_join_size=100;
+select @@sql_big_selects;
+@@sql_big_selects
+0
+SET @@global.max_join_size = @start_global_value;
+SELECT @@global.max_join_size;
+@@global.max_join_size
+18446744073709551615

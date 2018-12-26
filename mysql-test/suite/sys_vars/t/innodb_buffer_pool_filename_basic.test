@@ -1,0 +1,47 @@
+#
+# Basic test for innodb_buffer_pool_filename
+#
+
+# --force-restart from
+# mysql-test/suite/sys_vars/t/innodb_buffer_pool_filename_basic-master.opt
+# does not seem to work on Windows (test being executed without a restart)
+-- source include/not_windows.inc
+
+# Check the default value and save for later restoration
+SET @orig = @@global.innodb_buffer_pool_filename;
+SELECT @orig;
+
+# Make sure that --force-restart in the .opt file has worked and that
+# the value of this status variable is not something like
+# 'Buffer pool(s) dump completed at ' left from previous runs because if
+# it is then the following wait condition may be satisfied without the
+# dump actually being complete and file_exists may fail.
+let $status_var = innodb_buffer_pool_dump_status;
+let $status_var_value = Dumping of buffer pool not started;
+-- source include/wait_for_status_var.inc
+--disable_warnings
+SELECT variable_value
+FROM performance_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--enable_warnings
+
+# Try with a non-default filename
+
+SET GLOBAL innodb_buffer_pool_filename = 'innodb_foobar_dump';
+
+SET GLOBAL innodb_buffer_pool_dump_now = ON;
+-- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
+
+# Wait for the dump to complete
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--disable_warnings
+-- source include/wait_condition.inc
+--enable_warnings
+
+-- file_exists $file
+
+# Restore the env
+SET GLOBAL innodb_buffer_pool_filename = @orig;

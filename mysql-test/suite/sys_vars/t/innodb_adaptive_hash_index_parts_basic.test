@@ -1,0 +1,74 @@
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_adaptive_hash_index_parts);
+--echo 1 Expected
+
+
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_adaptive_hash_index_parts=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.innodb_adaptive_hash_index_parts);
+--echo 1 Expected
+
+
+
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.innodb_adaptive_hash_index_parts = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_adaptive_hash_index_parts';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_adaptive_hash_index_parts);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_adaptive_hash_index_parts';
+--echo 1 Expected
+--enable_warnings
+
+
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_adaptive_hash_index_parts = @@GLOBAL.innodb_adaptive_hash_index_parts;
+--echo 1 Expected
+
+
+
+################################################################################
+#   Check if innodb_adaptive_hash_index_parts can be accessed with and without @@ sign  #
+################################################################################
+
+SELECT COUNT(@@innodb_adaptive_hash_index_parts);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_adaptive_hash_index_parts);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_adaptive_hash_index_parts);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_adaptive_hash_index_parts);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_adaptive_hash_index_parts = @@SESSION.innodb_adaptive_hash_index_parts;
+--echo Expected error 'Readonly variable'
+
+

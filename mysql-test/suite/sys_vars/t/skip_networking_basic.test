@@ -1,0 +1,20 @@
+#
+# only global
+#
+select @@global.skip_networking;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.skip_networking;
+show global variables like 'skip_networking';
+show session variables like 'skip_networking';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='skip_networking';
+select * from performance_schema.session_variables where variable_name='skip_networking';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global skip_networking=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session skip_networking=1;

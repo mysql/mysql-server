@@ -1,0 +1,155 @@
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testScan
+args: -nScanFragRecExhaust T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n MissingOperation T6
+max-time: 180
+
+cmd: testIndex
+args: -n Bug25059 -r 3000 T1
+max-time: 180
+
+cmd: test_event
+args: -n BackwardCompatiblePollNoWait T1
+max-time: 180
+
+cmd: testSpj
+args: -n FeatureDisabled T1
+max-time: 180
+
+cmd: testSpj
+args: -n NegativeJoin T1
+max-time: 180
+
+cmd: testSpj
+args: -n bug#23049170 -l 1 T1
+max-time: 180
+
+cmd: testBasic
+args: -n RollbackNothing T1 T6 D1 D2
+max-time: 180
+
+cmd: testIndex
+args: -n RefreshWithOrderedIndex T2 D2
+max-time: 180
+
+cmd: atrt-testBackup
+args: -n Bug57650 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n TestFragmentedSend T1
+max-time: 180
+
+cmd: testBasic
+args: -n Bug27756
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug36245 T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanRead16
+max-time: 180
+
+cmd: test_event
+args: -n Bug37279 T1
+max-time: 180
+
+cmd: testBasic
+args: -n PkReadAndLocker T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n Bug42559 T6 D1 D2
+max-time: 180
+
+cmd: testSpj
+args: -n LookupJoin
+max-time: 360
+
+cmd: testScan
+args: -n ScanWithLocksAndInserts T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n MassiveRollback2 T1 T6 D1 D2
+max-time: 360
+
+cmd: testBasic
+args: -n PkRead
+max-time: 360
+
+cmd: testNodeRestart
+args: -n Bug29364 T1
+max-time: 1620
+
+cmd: testDict
+args: -n Bug13416603 I2
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug16834416 T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug56044 T1
+max-time: 720
+
+cmd: testSystemRestart
+args: -n Bug41915 D2
+max-time: 720
+
+cmd: testNodeRestart
+args: -n Bug26481 T1
+max-time: 1260
+
+cmd: testNdbApi
+args: -n DeleteNdb T1 T6
+max-time: 1260
+
+cmd: testScan
+args: -n ScanReaderror5022 T1 D1 D2
+max-time: 1800
+
+cmd: testDict
+args: -l 1 -n FailAddFragment
+max-time: 1980
+
+cmd: testSpj
+args: -n NF_Join T6 T13
+max-time: 3780
+
+cmd: testSystemRestart
+args: -n SR_UNDO T6
+max-time: 3060
+
+cmd: testSystemRestart
+args: -n SR_UNDO D2
+max-time: 3060

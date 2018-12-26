@@ -1,0 +1,137 @@
+UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
+UPDATE performance_schema.setup_instruments SET enabled = 'YES'
+WHERE name LIKE 'wait/io/file/%';
+update performance_schema.threads SET instrumented = 'YES'
+  WHERE PROCESSLIST_ID=connection_id();
+truncate table performance_schema.events_statements_summary_by_digest;
+flush status;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
+ENGINE=MyISAM;
+INSERT INTO t1 (id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+TRUNCATE TABLE performance_schema.events_waits_history_long;
+TRUNCATE TABLE performance_schema.events_waits_history;
+TRUNCATE TABLE performance_schema.events_waits_current;
+SELECT * FROM t1 WHERE id = 1;
+id	b
+1	initial value
+SET @before_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.events_waits_history_long
+WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
+AND (OBJECT_NAME LIKE '%t1.MYD'));
+SELECT (@before_count >= 0) as have_before_count;
+have_before_count
+1
+SELECT IF(@before_count > 0, 'Success', 'Failure') has_instrumentation;
+has_instrumentation
+Success
+SELECT * FROM t1 WHERE id < 4;
+id	b
+1	initial value
+2	initial value
+3	initial value
+SET @after_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.events_waits_history_long
+WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
+AND (OBJECT_NAME LIKE '%t1.MYD') AND (1 = 1));
+SELECT (@after_count >= 0) as have_after_count;
+have_after_count
+1
+SELECT IF((@after_count - @before_count) > 0, 'Success', 'Failure') test_ff1_timed;
+test_ff1_timed
+Success
+UPDATE performance_schema.setup_instruments SET enabled='NO';
+SET @before_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.events_waits_history_long
+WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
+AND (OBJECT_NAME LIKE '%t1.MYD') AND (2 = 2));
+SELECT (@before_count >= 0) as have_before_count;
+have_before_count
+1
+SELECT * FROM t1 WHERE id < 6;
+id	b
+1	initial value
+2	initial value
+3	initial value
+4	initial value
+5	initial value
+SET @after_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.events_waits_history_long
+WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
+AND (OBJECT_NAME LIKE '%t1.MYD') AND (3 = 3));
+SELECT (@after_count >= 0) as have_after_count;
+have_after_count
+1
+SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_ff2_timed;
+test_ff2_timed
+Success
+UPDATE performance_schema.setup_instruments SET enabled = 'YES'
+WHERE name LIKE 'wait/io/file/%';
+UPDATE performance_schema.setup_instruments SET timed = 'NO';
+TRUNCATE TABLE performance_schema.events_waits_history_long;
+TRUNCATE TABLE performance_schema.events_waits_history;
+TRUNCATE TABLE performance_schema.events_waits_current;
+SELECT * FROM t1 WHERE id > 4;
+id	b
+5	initial value
+6	initial value
+7	initial value
+8	initial value
+SELECT * FROM performance_schema.events_waits_history_long
+WHERE TIMER_WAIT != NULL
+OR TIMER_START != NULL
+OR TIMER_END != NULL;
+THREAD_ID	EVENT_ID	END_EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	NESTING_EVENT_TYPE	OPERATION	NUMBER_OF_BYTES	FLAGS
+SELECT * FROM performance_schema.events_waits_history
+WHERE TIMER_WAIT != NULL
+OR TIMER_START != NULL
+OR TIMER_END != NULL;
+THREAD_ID	EVENT_ID	END_EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	NESTING_EVENT_TYPE	OPERATION	NUMBER_OF_BYTES	FLAGS
+SELECT * FROM performance_schema.events_waits_current
+WHERE TIMER_WAIT != NULL
+OR TIMER_START != NULL
+OR TIMER_END != NULL;
+THREAD_ID	EVENT_ID	END_EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	NESTING_EVENT_TYPE	OPERATION	NUMBER_OF_BYTES	FLAGS
+UPDATE performance_schema.setup_instruments SET timed = 'YES';
+SELECT * FROM t1 WHERE id < 4;
+id	b
+1	initial value
+2	initial value
+3	initial value
+DROP TABLE t1;
+SELECT SUM(COUNT_READ) AS sum_count_read,
+SUM(COUNT_WRITE) AS sum_count_write,
+SUM(SUM_NUMBER_OF_BYTES_READ) AS sum_num_bytes_read,
+SUM(SUM_NUMBER_OF_BYTES_WRITE) AS sum_num_bytes_write
+FROM performance_schema.file_summary_by_instance
+WHERE FILE_NAME LIKE CONCAT('%', @@tmpdir, '%') ORDER BY NULL;
+SELECT EVENT_NAME, COUNT_STAR, AVG_TIMER_WAIT, SUM_TIMER_WAIT
+FROM performance_schema.events_waits_summary_global_by_event_name
+WHERE COUNT_STAR > 0
+ORDER BY SUM_TIMER_WAIT DESC
+LIMIT 10;
+SELECT p.processlist_user, SUM(TIMER_WAIT) SUM_WAIT
+# ((TIME_TO_SEC(TIMEDIFF(NOW(), i.startup_time)) * 1000) / SUM(TIMER_WAIT)) * 100 WAIT_PERCENTAGE
+FROM performance_schema.events_waits_history_long h
+INNER JOIN performance_schema.threads p USING (THREAD_ID)
+GROUP BY p.processlist_user
+ORDER BY SUM_WAIT DESC
+LIMIT 20;
+SELECT h.EVENT_NAME, SUM(h.TIMER_WAIT) TOTAL_WAIT
+FROM performance_schema.events_waits_history_long h
+INNER JOIN performance_schema.threads p USING (THREAD_ID)
+WHERE p.PROCESSLIST_ID = 1
+GROUP BY h.EVENT_NAME
+HAVING TOTAL_WAIT > 0;
+SELECT p.processlist_user, h.operation, SUM(NUMBER_OF_BYTES) bytes
+FROM performance_schema.events_waits_history_long h
+INNER JOIN performance_schema.threads p USING (THREAD_ID)
+GROUP BY p.processlist_user, h.operation
+HAVING BYTES > 0
+ORDER BY p.processlist_user, h.operation;
+UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+show global status like "performance_schema_file_%_lost";
+Variable_name	Value
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0

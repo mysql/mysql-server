@@ -1,0 +1,236 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for CREATE USER
+CREATE USER userX;
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--echo # Case 1 : Execute CREATE USER for existing user
+--error ER_CANNOT_USER
+CREATE USER userY, userZ, userX;
+--echo # Must not show entries for userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--let $event= !Q(CREATE USER .userX.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 1
+--let $event= !Q(CREATE USER .*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+--source include/save_binlog_position.inc
+
+--echo # Case 2 : Execute CREATE USER for non-existing users
+CREATE USER userY, userZ;
+--echo # Must show entries for userX, userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--let $event= !Q(CREATE USER .userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 3 : Try creating anonymous user with expired password
+--error ER_CANNOT_USER
+CREATE USER ''@localhost,
+            userA IDENTIFIED BY 'abcd'
+            PASSWORD EXPIRE;
+
+--error ER_CANNOT_USER
+CREATE USER ''@'' PASSWORD EXPIRE;
+
+--echo # Must not show ''@localhost or ''@''
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--echo # Case 4 : Try creating user with invalid plugin
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER userA IDENTIFIED BY 'abcd', userB IDENTIFIED WITH 'blahblah';
+
+--echo # Case 5 : Try creating user with invalid hash
+--error ER_PASSWORD_FORMAT
+CREATE USER userA IDENTIFIED BY 'abcd',
+            userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha';
+
+--echo # Must not show userA, userB
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--echo # Check binlog for Cases 3, 4 and 5 above
+--let $invert= 1
+--let $event= !Q(CREATE USER.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Case 6 : Add a row in mysql.user without FLUSH PRIVILEGES and
+--echo #          execute CREATE USER for same user
+
+--echo # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
+CREATE TABLE mysql.tmp_user LIKE mysql.user;
+INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userX';
+UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
+INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
+DROP TABLE mysql.tmp_user;
+
+--source include/save_binlog_position.inc
+
+--echo # Though userW is not present in cache, CREATE USER should fail
+--echo # because we will encounter duplicate key error while inserting entry
+--echo # in mysql.user table for userW.
+--error ER_CANNOT_USER
+CREATE USER userW IDENTIFIED BY 'abcd', userV IDENTIFIED BY 'haha';
+--echo # Must not show userV
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--let $invert= 1
+--let $event= !Q(CREATE USER.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+FLUSH PRIVILEGES;
+
+DROP USER userW, userX, userY, userZ;
+
+--source include/save_binlog_position.inc
+
+--echo # End : Tests for CREATE USER
+
+--echo # ----------------------------------------------------------------------
+
+--echo # BEGIN : Tests for CREATE USER IF NOT EXISTS
+
+CALL mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS but they already exist.");
+
+CREATE USER userX;
+--source include/save_binlog_position.inc
+
+--echo # Case 1 : Execute CREATE USER IF NOT EXISTS for existing user
+CREATE USER IF NOT EXISTS userX, userY, userZ;
+
+--echo # Must show entries for userX, userY, userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--let $event= !Q(CREATE USER IF NOT EXISTS.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Must show warnings about userX, userY and userZ
+CREATE USER IF NOT EXISTS userX, userY, userZ;
+
+--let $event= !Q(CREATE USER IF NOT EXISTS.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 2 : Try creating anonymous user with expired password
+--echo #          using CREATE USER IF NOT EXISTS
+--error ER_CANNOT_USER
+CREATE USER IF NOT EXISTS ''@'' PASSWORD EXPIRE;
+
+--error ER_CANNOT_USER
+CREATE USER IF NOT EXISTS ''@localhost PASSWORD EXPIRE;
+
+--echo # Case 3 : Try creating user with invalid plugin
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER IF NOT EXISTS userA IDENTIFIED BY 'abcd', userB IDENTIFIED WITH 'blahblah', userX;
+
+--echo # Case 4 : Try creating user with invalid hash
+--error ER_PASSWORD_FORMAT
+CREATE USER IF NOT EXISTS userA IDENTIFIED BY 'abcd',
+                          userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha';
+
+--echo # Must not show userA, userB
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--let $invert= 1
+--let $event= !Q(CREATE USER.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Case 6 : Add a row in mysql.user without FLUSH PRIVILEGES and
+--echo #          execute CREATE USER IF NOT for same user
+
+--echo # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
+CREATE TABLE mysql.tmp_user LIKE mysql.user;
+INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userX';
+UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
+INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
+DROP TABLE mysql.tmp_user;
+
+--source include/save_binlog_position.inc
+
+--echo # Though userW is not present in cache, CREATE USER IF NOT EXISTS
+--echo # will skip it because we will encounter duplicate key error while
+--echo # inserting entry in mysql.user table for userW.
+--echo # Must show warning about userW@%.
+
+CREATE USER IF NOT EXISTS userW IDENTIFIED BY 'abcd',
+                          userV IDENTIFIED BY 'haha';
+
+--echo # Must show userV, userW, userX, userY, userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--let $event= !Q(CREATE USER.*userW.*userV.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+DROP USER userV, userW, userX, userY, userZ;
+
+--source include/save_binlog_position.inc
+
+--echo # END : Tests for CREATE USER IF NOT EXISTS
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for CREATE USER with DEFAULT ROLE
+CREATE USER userX;
+CREATE ROLE 'roleX', 'roleY', 'roleZ';
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--echo # Case 1 : Execute CREATE USER for existing user
+--error ER_CANNOT_USER
+CREATE USER userY, userZ, userX DEFAULT ROLE 'roleX';
+--echo # Must not show entries for userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+SELECT user FROM mysql.default_roles where user LIKE 'user%';
+
+--let $invert= 1
+--let $event= !Q(CREATE USER .*userY.*userZ.*.userX)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+--source include/save_binlog_position.inc
+
+--echo # Case 2 : Execute CREATE USER for non-existing users
+CREATE USER userY, userZ DEFAULT ROLE 'roleX', 'roleY';
+--echo # Must show entries for userX, userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+SELECT user FROM mysql.default_roles where user LIKE 'user%';
+
+--let $event= !Q(CREATE USER .userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 3 : Try creating user with invalid hash
+--error ER_PASSWORD_FORMAT
+CREATE USER userA IDENTIFIED BY 'abcd',
+            userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha'
+            DEFAULT ROLE roleX;
+
+--echo # Must not show userA, userB
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+SELECT user FROM mysql.default_roles WHERE user LIKE 'user%';
+
+--echo # Check binlog for Cases 3
+--let $invert= 1
+--let $event= !Q(CREATE USER.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+DROP USER userX, userY, userZ;
+DROP ROLE roleX, roleY, roleZ;
+
+--source include/save_binlog_position.inc
+
+--echo # ----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

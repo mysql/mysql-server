@@ -1,0 +1,20 @@
+#
+# only global
+#
+select @@global.myisam_recover_options;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.myisam_recover_options;
+show global variables like 'myisam_recover_options';
+show session variables like 'myisam_recover_options';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='myisam_recover_options';
+select * from performance_schema.session_variables where variable_name='myisam_recover_options';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global myisam_recover_options=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session myisam_recover_options=1;

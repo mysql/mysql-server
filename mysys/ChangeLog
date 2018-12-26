@@ -1,0 +1,221 @@
+2000-02-16  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added an extra argument to the compare routine for queues to allow
+  more advanced key compare functions.	
+
+2000-02-10  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added THR_READ_NO_INSERT lock privilege to thr_lock.
+
+1999-08-21  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Fix that '-1.49 or -1.49' is true
+* Allow negative hexadecimal numbers (like -0x0f).
+* Fixed problem with auto_increment on float and double.
+	
+Wed Dec 17 02:13:58 1997    <monty@monty.pp.sci.fi>
+
+* Faster flush of keycache.
+
+Sat Dec  2 21:36:20 1995  Michael Widenius  (monty@bitch)
+
+	* array.c  push_element & alloc_element.
+
+Wed Mar  3 00:54:20 1993  Michael Widenius  (monty@bitch)
+
+	* Removed automatic O_TRUNC from my_create.
+
+Wed Oct 28 02:10:56 1992  Michael Widenius  (monty@bitch)
+
+	* Enabled ASNYNC_IO on SUN.
+
+Mon Aug 31 23:51:13 1992  Michael Widenius  (monty@bitch)
+
+	* Changed tree_insert to return element if ok.
+	* Added new define tree_set_pointer().
+	* Chagned delete_queue() to not free if allready freed.
+
+Mon Aug 17 01:46:36 1992  Michael Widenius  (monty@bitch)
+
+	* Added ny cashing-rutine mf_iocash for quicker io.
+
+Wed Aug 12 13:41:18 1992  Michael Widenius  (monty@bitch)
+
+	* Added new function get_copy_of_memory for combined malloc/copy.
+	* Splitted my_malloc to three files.
+
+Thu Jan 23 22:02:37 1992  Michael Widenius  (monty at LYNX)
+
+	* Added range-checks and aligned checks on ptrs to
+	  safe_malloc:free and safe_malloc:realloc to catch more
+	  error nicely without core-dumps.
+
+Wed Nov 13 01:52:18 1991  Michael Widenius  (monty at LYNX)
+
+	* Added use of mysys as a shared library.
+
+Sat Nov  9 14:38:21 1991  Michael Widenius  (monty at LYNX)
+
+	* Added expand of ~username to unpack_dirname.
+
+Tue Sep 17 21:15:08 1991  Michael Widenius  (monty at LYNX)
+
+	* Don't free null-pointers if passed to my_free
+
+Fri May 17 20:11:27 1991  Michael Widenius  (monty at LYNX)
+
+	* Changed all char * to string. (Can't change const char * because
+	  of bug in C-definition.
+
+Tue Apr 30 01:32:56 1991  Michael Widenius  (monty at LYNX)
+
+	* my_path now examines environment for posix variable "_" if
+	  progname is given and has no path.
+
+Mon Apr 22 16:12:56 1991  Michael Widenius  (monty at LYNX)
+
+	* Added function my_load_path() to fix path to a hard-path.
+
+Mon Apr 15 22:08:58 1991  Michael Widenius  (monty at LYNX)
+
+	* Added more info on DBUG-stream when freeing unallocated data.
+
+Wed Apr  3 18:41:28 1991  Michael Widenius  (monty at LYNX)
+
+	* Added global flag sf_malloc_no_sanity to make it possibly
+	  to avoid sanity-checks in right code with uses malloc a lot.
+
+Tue Mar 26 15:09:45 1991  Mikael WIDENIUS  (monty at panther)
+
+	* Made soundex look nicer
+
+Sat Mar 23 10:49:49 1991  Michael Widenius  (monty at LYNX)
+
+	* Added init of alarm variables to skip some warnings from gcc.
+
+Tue Mar  5 16:50:34 1991  Michael Widenius  (monty at LYNX)
+
+	* Our qsort now only test if compare() function returns >= 0
+	  and is optimized for compare() returning > 0.
+
+Fri Nov 23 23:53:46 1990  Michael Widenius  (monty at LYNX)
+
+	* Added function my_set_alarm_variable to get a variable set
+	  on some time.
+	  my_alarm.h added for functions who want to print stat after
+	  a given time or after a number of loops.
+	  Changed my_lock to use new function and use defines in my_alarm.h
+
+Mon Oct  1 13:16:15 1990  Michael Widenius  (monty at LYNX)
+
+	* Added use of asynchronic io in read_cash_record().
+	* Added write_cash and flush_write_cash to record cashing.
+
+Sun Sep 16 22:05:25 1990  Michael Widenius  (monty at LYNX)
+
+	* Added optional alarm to my_lock if one has FCNTL_LOCK. Added new
+	  defines to my_sys.h.
+
+Mon Aug 27 22:20:38 1990  Michael Widenius  (monty at lynx)
+
+	* my_end() now can print output about executed program.
+	* Added parameter-defines for my_end in my_sys.h
+
+Sun Apr  1 23:29:47 1990  Monty  (monty at monty)
+
+	* Changed mf_keydisk.c to have separate functions for read and write.
+	  Read can now return pointer to intern key-buffer to skip
+	  unessessary memcpy-s.
+
+Fri Mar 23 23:03:39 1990  Monty  (monty at monty)
+
+	* function test_if_hard_pathname() added in dirname.c
+	* my_getwd now only saves changed current dir if dir is a
+          hard pathname.
+	* changed my_path() to use test_if_hard_pathname()
+
+Thu Mar  1 14:47:59 1990  Monty  (monty at monty)
+
+	* New function my_path().
+
+Sat Feb 24 02:54:35 1990  Monty  (monty at monty)
+
+	* Added print of my_progname in my_mess.c
+
+Sun Feb 11 17:55:58 1990  David Axmark  (davida at isil)
+
+	* Concatenated libarys my_func and my_sys because of to much
+	  crosswise dependencies.
+	* Fixed varagrs code in mf_fixadr.c
+
+Mon Dec  4 17:36:16 1989  Monty  (monty at monty)
+
+	* Changed safemalloc() to use my_message() if out of memory and
+	  to check MY_WME if we want this error-messages.
+	* Changed my_setwd() to use dos_setdrive() insted of system().
+
+Wed Oct 25 02:56:07 1989  Monty  (monty at monty)
+
+ 	* Changed my_mktmp1() to work like tempnam() with default dirname.
+ 	* Changed name of my_mktmp1.c to my_tempnam.c
+
+Thu Oct 19 16:39:27 1989  David Axmark  (davida at isil)
+
+	* Removed libary mysysnc. Instead added a hook to my_error that
+	  can call my_message if needed.
+
+Thu Oct  5 01:33:29 1989  David Axmark  (davida at isil)
+
+	* Use MY_SEEK_{SET,CUR,END} as arguments to my_seek
+
+	* Added a a array of structs that holds properties of open files.
+	  Removed include file extras.h
+
+Wed Jun 21 01:34:04 1989  Monty  (monty at monty)
+
+	* Added two new malloc-functions: my_once_alloc() and
+	  my_once_free(). These give easyer and quicker startup.
+
+Mon May 22 14:03:44 1989  Monty  (monty at monty)
+
+	* Fixed my_getwd and my_setwd so they work.
+	* Added extern variabel curr_char[] with is set to current
+	  directory after my_getwd() or my_setwd();
+
+Mon Jan 23 03:38:50 1989  Monty  (monty at monty)
+
+	* Changed my_chsize to check if NO_CHSIZE is defined. If new file
+	  should be shorter it fills unused part with null.
+	* Changed my_lock to not check for arg 0 (Functions should use
+	  LK_TO_EOF to lock all file.
+
+Tue Dec  6 15:09:44 1988  Monty  (monty at monty)
+
+	* Added DBUG_PRINT if error in my_seek.
+
+Mon Dec  5 15:58:48 1988  Monty  (monty at monty)
+
+	* Added DBUG_PRINT if not all byte read/written in my_read(),
+	  my_fread(), my_write() and my_fwrite();
+
+Sat Dec  3 01:48:03 1988  Monty  (monty at monty)
+
+	* Fixed bug in Makefile; quick did't work.
+	* Changed safemalloc to use bmove, bfill and memcpy when handling
+	  memoryblocks.
+
+Fri Dec  2 03:29:21 1988  Monty  (monty at monty)
+
+	* Added more defines under MEMORY in my_func.h
+	* Added functions to llib-lmysys.
+	* Removed RCS/* files and installed ewerything as stable.
+	  (Because errors in old RCS-files.
+
+Wed Nov  9 00:32:33 1988  Monty  (monty at monty)
+
+	* Changed realloc for MSDOS; Previous version freed old block on
+	* error, new version (of compiler) dosn't.
+
+Wed Oct 26 21:07:27 1988  Monty  (monty at monty)
+
+	* Fixed missing updateing of my_stream_opened;

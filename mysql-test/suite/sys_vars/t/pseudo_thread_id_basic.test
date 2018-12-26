@@ -1,0 +1,54 @@
+
+#
+# exists as a session only
+#
+# 2010-01-20 OBN - Added check for session I_S values being equal to variable value
+#                - Added check for session variable value being numberic
+#
+ 
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.pseudo_thread_id;
+
+# Check the variable has a valid numeric value (assumed to be less then 10000)
+select @@session.pseudo_thread_id between 1 and 10000;
+
+--echo should be empty
+show global variables like 'pseudo_thread_id';
+
+# Check that shows returns a value (can't confirm the actual one)
+--replace_column 2 #
+show session variables like 'pseudo_thread_id';
+
+# Global I_S variable is empty
+--echo should be empty
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='pseudo_thread_id';
+--enable_warnings
+
+# Check that I_S value is same as variable
+--disable_warnings
+select @@session.pseudo_thread_id = variable_value from performance_schema.session_variables where variable_name='pseudo_thread_id';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set session pseudo_thread_id=42;
+select @@session.pseudo_thread_id;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='pseudo_thread_id';
+select variable_value from performance_schema.session_variables where variable_name='pseudo_thread_id';
+--enable_warnings
+--error ER_LOCAL_VARIABLE
+set global pseudo_thread_id=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set session pseudo_thread_id=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session pseudo_thread_id=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session pseudo_thread_id="foo";
+

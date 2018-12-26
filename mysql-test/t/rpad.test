@@ -1,0 +1,53 @@
+# Test of function RPAD(str, len, padstr)
+
+--echo # The function should return NULL if any of its arguments are NULL.
+SELECT RPAD(NULL, 5, 'x') AS result;
+SELECT RPAD(NULL, NULL, 'x') AS result;
+SELECT RPAD(NULL, NULL, NULL) AS result;
+SELECT RPAD('a', NULL, 'x') AS result;
+SELECT RPAD('a', NULL, NULL) AS result;
+SELECT RPAD('a', 5, NULL) AS result;
+SELECT RPAD(NULL, 5, NULL) AS result;
+
+--echo # The function should return an empty string if len is 0.
+SELECT RPAD('a', 0, 'x') AS result;
+SELECT RPAD('a', 0, '') AS result;
+SELECT RPAD('', 0, 'x') AS result;
+SELECT RPAD('', 0, '') AS result;
+
+--echo # The function should return NULL if len is negative.
+SELECT RPAD('a', -1, 'x');
+--echo # Min signed long long int:
+SELECT RPAD('a', -9223372036854775808, 'x');
+--echo # Min signed long long int - 1
+SELECT RPAD('a', -9223372036854775809, 'x');
+
+--echo # The function should return NULL with a warning if len is larger than
+--echo # max_allowed_packet.
+--echo # Max signed long long int:
+SELECT RPAD('a', 9223372036854775807, 'x');
+--echo # Max signed long long int + 1:
+SELECT RPAD('a', 9223372036854775808, 'x');
+--echo # Max unsigned long long int:
+SELECT RPAD('a', 18446744073709551615, 'x');
+--echo # Max unsigned long long int + 1:
+SELECT RPAD('a', 18446744073709551616, 'x');
+
+--echo # The function should return an empty string if padstr is empty.
+SELECT RPAD('a', 5, '') AS result;
+SELECT RPAD('a', 5, '') AS result;
+
+--echo # The function should do nothing if str is of length len.
+SELECT RPAD('12345', 5, 'x');
+
+--echo # The function should chop the string if len is shorter than the length
+--echo # of str.
+SELECT RPAD('123456787890', 1, 'x');
+SELECT RPAD('123456787890', 5, 'x');
+
+--echo # The function should right pad with padstr so that the string is len
+--echo # bytes long if str is shorter than len.
+SELECT RPAD('123', 5, 'x');
+
+--echo # The function should repeat padstr also if it has mulitplie characters.
+SELECT RPAD('a', 5, 'xy');

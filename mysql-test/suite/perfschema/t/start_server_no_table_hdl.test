@@ -1,0 +1,29 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+# Expect instances
+show global variables like "performance_schema_max_table_instances";
+
+# Expect no handles
+show global variables like "performance_schema_max_table_handles";
+
+# Create an instrumented table
+--disable_warnings
+drop table if exists test.instrument_me;
+--enable_warnings
+
+create table test.instrument_me(a int);
+insert into test.instrument_me values (1), (2), (3);
+select * from test.instrument_me;
+drop table test.instrument_me;
+
+# Expect no instances lost
+show global variables like "performance_schema_max_table_instances";
+
+# We lost all the handles
+--disable_warnings
+select variable_value > 0 from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_TABLE_HANDLES_LOST';
+--enable_warnings
+

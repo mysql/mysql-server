@@ -1,0 +1,30 @@
+
+RESET MASTER;
+SET @start_global_value = @@global.gtid_executed;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.gtid_executed;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.gtid_executed;
+show global variables like 'gtid_executed';
+show session variables like 'gtid_executed';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='gtid_executed';
+select * from performance_schema.session_variables where variable_name='gtid_executed';
+--enable_warnings
+
+#
+# It is not writable.
+#
+select @@global.gtid_executed;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.gtid_executed = '';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@session.gtid_executed = '';
+
+#
+# See rpl_gtid_execution.test for a comprehensive test case.
+#

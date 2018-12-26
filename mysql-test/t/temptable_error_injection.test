@@ -1,0 +1,15 @@
+-- source include/have_debug.inc
+
+CREATE TABLE t (c INT);
+
+INSERT INTO t VALUES (1);
+
+ANALYZE TABLE t;
+
+SET debug = '+d,temptable_create_return_full';
+
+SELECT * FROM t AS t1, t AS t2 ORDER BY 1 LIMIT 1;
+
+SET debug = '-d,temptable_create_return_full';
+
+DROP TABLE t;

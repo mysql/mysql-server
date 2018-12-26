@@ -1,0 +1,716 @@
+drop table if exists `£Τ£±`;
+drop table if exists `£Τ£²`;
+drop table if exists `£Τ£³`;
+drop table if exists `£Τ£΄`;
+drop table if exists `£Τ£µ`;
+drop table if exists `£Τ£¶`;
+drop table if exists `£Τ£·`;
+drop table if exists `£Τ£Έ`;
+drop table if exists `£Τ£Ή`;
+SET NAMES ujis;
+SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET collation_connection = ujis_japanese_ci;
+CREATE TABLE `£Τ£±` (`£Γ£±` char(5)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(5)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£³` (`£Γ£±` char(5)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£΄` (`£Γ£±` char(5)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£µ` (`£Γ£±` char(5)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£¶` (`£Γ£±` char(5)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5)) DEFAULT CHARSET = ujis engine = MEMORY;
+INSERT INTO `£Τ£±` VALUES ('±²³΄µ');
+INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ');
+INSERT INTO `£Τ£΄` VALUES ('±²³΄µ');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ');
+INSERT INTO `£Τ£·` VALUES ('±²³΄µ');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ');
+SELECT INSERT(`£Γ£±`,1,1,'¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,1,'¶')
+¶²³΄µ
+SELECT INSERT(`£Γ£±`,1,2,'¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,2,'¶¶')
+¶¶³΄µ
+SELECT INSERT(`£Γ£±`,1,3,'¶¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,3,'¶¶¶')
+¶¶¶΄µ
+SELECT INSERT(`£Γ£±`,1,4,'¶¶¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,4,'¶¶¶¶')
+¶¶¶¶µ
+SELECT INSERT(`£Γ£±`,1,5,'¶¶¶¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,5,'¶¶¶¶¶')
+¶¶¶¶¶
+SELECT INSERT(`£Γ£±`,2,1,'¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,2,1,'¶')
+±¶³΄µ
+SELECT INSERT(`£Γ£±`,2,2,'¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,2,2,'¶¶')
+±¶¶΄µ
+SELECT INSERT(`£Γ£±`,2,3,'¶¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,2,3,'¶¶¶')
+±¶¶¶µ
+SELECT INSERT(`£Γ£±`,2,4,'¶¶¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,2,4,'¶¶¶¶')
+±¶¶¶¶
+SELECT INSERT(`£Γ£±`,3,1,'¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,3,1,'¶')
+±²¶΄µ
+SELECT INSERT(`£Γ£±`,3,2,'¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,3,2,'¶¶')
+±²¶¶µ
+SELECT INSERT(`£Γ£±`,3,3,'¶¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,3,3,'¶¶¶')
+±²¶¶¶
+SELECT INSERT(`£Γ£±`,4,1,'¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,4,1,'¶')
+±²³¶µ
+SELECT INSERT(`£Γ£±`,4,2,'¶¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,4,2,'¶¶')
+±²³¶¶
+SELECT INSERT(`£Γ£±`,5,1,'¶') FROM `£Τ£±`;
+INSERT(`£Γ£±`,5,1,'¶')
+±²³΄¶
+SELECT INSERT(`£Γ£±`,1,1,' ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,1,' ')
+ ²³΄µ
+SELECT INSERT(`£Γ£±`,1,2,'  ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,2,'  ')
+  ³΄µ
+SELECT INSERT(`£Γ£±`,1,3,'   ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,3,'   ')
+   ΄µ
+SELECT INSERT(`£Γ£±`,1,4,'    ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,4,'    ')
+    µ
+SELECT INSERT(`£Γ£±`,1,5,'     ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,1,5,'     ')
+     
+SELECT INSERT(`£Γ£±`,2,1,' ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,2,1,' ')
+± ³΄µ
+SELECT INSERT(`£Γ£±`,2,2,'  ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,2,2,'  ')
+±  ΄µ
+SELECT INSERT(`£Γ£±`,2,3,'   ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,2,3,'   ')
+±   µ
+SELECT INSERT(`£Γ£±`,2,4,'    ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,2,4,'    ')
+±    
+SELECT INSERT(`£Γ£±`,3,1,' ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,3,1,' ')
+±² ΄µ
+SELECT INSERT(`£Γ£±`,3,2,'  ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,3,2,'  ')
+±²  µ
+SELECT INSERT(`£Γ£±`,3,3,'   ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,3,3,'   ')
+±²   
+SELECT INSERT(`£Γ£±`,4,1,' ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,4,1,' ')
+±²³ µ
+SELECT INSERT(`£Γ£±`,4,2,'  ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,4,2,'  ')
+±²³  
+SELECT INSERT(`£Γ£±`,5,1,' ') FROM `£Τ£±`;
+INSERT(`£Γ£±`,5,1,' ')
+±²³΄ 
+SELECT INSERT(`£Γ£±`,1,1,'¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,1,'¤«')
+¤«¤¤¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,2,'¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,2,'¤«¤«')
+¤«¤«¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,3,'¤«¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,3,'¤«¤«¤«')
+¤«¤«¤«¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,4,'¤«¤«¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,4,'¤«¤«¤«¤«')
+¤«¤«¤«¤«¤ª
+SELECT INSERT(`£Γ£±`,1,5,'¤«¤«¤«¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,5,'¤«¤«¤«¤«¤«')
+¤«¤«¤«¤«¤«
+SELECT INSERT(`£Γ£±`,2,1,'¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,2,1,'¤«')
+¤Ά¤«¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,2,'¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,2,2,'¤«¤«')
+¤Ά¤«¤«¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,3,'¤«¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,2,3,'¤«¤«¤«')
+¤Ά¤«¤«¤«¤ª
+SELECT INSERT(`£Γ£±`,2,4,'¤«¤«¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,2,4,'¤«¤«¤«¤«')
+¤Ά¤«¤«¤«¤«
+SELECT INSERT(`£Γ£±`,3,1,'¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,3,1,'¤«')
+¤Ά¤¤¤«¤¨¤ª
+SELECT INSERT(`£Γ£±`,3,2,'¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,3,2,'¤«¤«')
+¤Ά¤¤¤«¤«¤ª
+SELECT INSERT(`£Γ£±`,3,3,'¤«¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,3,3,'¤«¤«¤«')
+¤Ά¤¤¤«¤«¤«
+SELECT INSERT(`£Γ£±`,4,1,'¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,4,1,'¤«')
+¤Ά¤¤¤¦¤«¤ª
+SELECT INSERT(`£Γ£±`,4,2,'¤«¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,4,2,'¤«¤«')
+¤Ά¤¤¤¦¤«¤«
+SELECT INSERT(`£Γ£±`,5,1,'¤«') FROM `£Τ£²`;
+INSERT(`£Γ£±`,5,1,'¤«')
+¤Ά¤¤¤¦¤¨¤«
+SELECT INSERT(`£Γ£±`,1,1,'΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,1,'΅΅')
+΅΅¤¤¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,2,'΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,2,'΅΅΅΅')
+΅΅΅΅¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,3,'΅΅΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,3,'΅΅΅΅΅΅')
+΅΅΅΅΅΅¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,4,'΅΅΅΅΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,4,'΅΅΅΅΅΅΅΅')
+΅΅΅΅΅΅΅΅¤ª
+SELECT INSERT(`£Γ£±`,1,5,'΅΅΅΅΅΅΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,1,5,'΅΅΅΅΅΅΅΅΅΅')
+΅΅΅΅΅΅΅΅΅΅
+SELECT INSERT(`£Γ£±`,2,1,'΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,2,1,'΅΅')
+¤Ά΅΅¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,2,'΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,2,2,'΅΅΅΅')
+¤Ά΅΅΅΅¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,3,'΅΅΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,2,3,'΅΅΅΅΅΅')
+¤Ά΅΅΅΅΅΅¤ª
+SELECT INSERT(`£Γ£±`,2,4,'΅΅΅΅΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,2,4,'΅΅΅΅΅΅΅΅')
+¤Ά΅΅΅΅΅΅΅΅
+SELECT INSERT(`£Γ£±`,3,1,'΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,3,1,'΅΅')
+¤Ά¤¤΅΅¤¨¤ª
+SELECT INSERT(`£Γ£±`,3,2,'΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,3,2,'΅΅΅΅')
+¤Ά¤¤΅΅΅΅¤ª
+SELECT INSERT(`£Γ£±`,3,3,'΅΅΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,3,3,'΅΅΅΅΅΅')
+¤Ά¤¤΅΅΅΅΅΅
+SELECT INSERT(`£Γ£±`,4,1,'΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,4,1,'΅΅')
+¤Ά¤¤¤¦΅΅¤ª
+SELECT INSERT(`£Γ£±`,4,2,'΅΅΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,4,2,'΅΅΅΅')
+¤Ά¤¤¤¦΅΅΅΅
+SELECT INSERT(`£Γ£±`,5,1,'΅΅') FROM `£Τ£²`;
+INSERT(`£Γ£±`,5,1,'΅΅')
+¤Ά¤¤¤¦¤¨΅΅
+SELECT INSERT(`£Γ£±`,1,1,'°΅') FROM `£Τ£³`;
+INSERT(`£Γ£±`,1,1,'°΅')
+°΅νένήνίνΰ
+SELECT INSERT(`£Γ£±`,1,2,'°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,1,2,'°΅°΅' )
+°΅°΅νήνίνΰ
+SELECT INSERT(`£Γ£±`,1,3,'°΅°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,1,3,'°΅°΅°΅' )
+°΅°΅°΅νίνΰ
+SELECT INSERT(`£Γ£±`,1,4,'°΅°΅°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,1,4,'°΅°΅°΅°΅' )
+°΅°΅°΅°΅νΰ
+SELECT INSERT(`£Γ£±`,1,5,'°΅°΅°΅°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,1,5,'°΅°΅°΅°΅°΅' )
+°΅°΅°΅°΅°΅
+SELECT INSERT(`£Γ£±`,2,1,'°΅') FROM `£Τ£³`;
+INSERT(`£Γ£±`,2,1,'°΅')
+νά°΅νήνίνΰ
+SELECT INSERT(`£Γ£±`,2,2,'°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,2,2,'°΅°΅' )
+νά°΅°΅νίνΰ
+SELECT INSERT(`£Γ£±`,2,3,'°΅°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,2,3,'°΅°΅°΅' )
+νά°΅°΅°΅νΰ
+SELECT INSERT(`£Γ£±`,2,4,'°΅°΅°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,2,4,'°΅°΅°΅°΅' )
+νά°΅°΅°΅°΅
+SELECT INSERT(`£Γ£±`,3,1,'°΅') FROM `£Τ£³`;
+INSERT(`£Γ£±`,3,1,'°΅')
+νάνέ°΅νίνΰ
+SELECT INSERT(`£Γ£±`,3,2,'°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,3,2,'°΅°΅' )
+νάνέ°΅°΅νΰ
+SELECT INSERT(`£Γ£±`,3,3,'°΅°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,3,3,'°΅°΅°΅' )
+νάνέ°΅°΅°΅
+SELECT INSERT(`£Γ£±`,4,1,'°΅') FROM `£Τ£³`;
+INSERT(`£Γ£±`,4,1,'°΅')
+νάνένή°΅νΰ
+SELECT INSERT(`£Γ£±`,4,2,'°΅°΅' ) FROM `£Τ£³`;
+INSERT(`£Γ£±`,4,2,'°΅°΅' )
+νάνένή°΅°΅
+SELECT INSERT(`£Γ£±`,5,1,'°΅') FROM `£Τ£³`;
+INSERT(`£Γ£±`,5,1,'°΅')
+νάνένήνί°΅
+SELECT INSERT(`£Γ£±`,1,1,'¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,1,'¶')
+¶²³΄µ
+SELECT INSERT(`£Γ£±`,1,2,'¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,2,'¶¶')
+¶¶³΄µ
+SELECT INSERT(`£Γ£±`,1,3,'¶¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,3,'¶¶¶')
+¶¶¶΄µ
+SELECT INSERT(`£Γ£±`,1,4,'¶¶¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,4,'¶¶¶¶')
+¶¶¶¶µ
+SELECT INSERT(`£Γ£±`,1,5,'¶¶¶¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,5,'¶¶¶¶¶')
+¶¶¶¶¶
+SELECT INSERT(`£Γ£±`,2,1,'¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,2,1,'¶')
+±¶³΄µ
+SELECT INSERT(`£Γ£±`,2,2,'¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,2,2,'¶¶')
+±¶¶΄µ
+SELECT INSERT(`£Γ£±`,2,3,'¶¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,2,3,'¶¶¶')
+±¶¶¶µ
+SELECT INSERT(`£Γ£±`,2,4,'¶¶¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,2,4,'¶¶¶¶')
+±¶¶¶¶
+SELECT INSERT(`£Γ£±`,3,1,'¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,3,1,'¶')
+±²¶΄µ
+SELECT INSERT(`£Γ£±`,3,2,'¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,3,2,'¶¶')
+±²¶¶µ
+SELECT INSERT(`£Γ£±`,3,3,'¶¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,3,3,'¶¶¶')
+±²¶¶¶
+SELECT INSERT(`£Γ£±`,4,1,'¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,4,1,'¶')
+±²³¶µ
+SELECT INSERT(`£Γ£±`,4,2,'¶¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,4,2,'¶¶')
+±²³¶¶
+SELECT INSERT(`£Γ£±`,5,1,'¶') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,5,1,'¶')
+±²³΄¶
+SELECT INSERT(`£Γ£±`,1,1,' ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,1,' ')
+ ²³΄µ
+SELECT INSERT(`£Γ£±`,1,2,'  ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,2,'  ')
+  ³΄µ
+SELECT INSERT(`£Γ£±`,1,3,'   ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,3,'   ')
+   ΄µ
+SELECT INSERT(`£Γ£±`,1,4,'    ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,4,'    ')
+    µ
+SELECT INSERT(`£Γ£±`,1,5,'     ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,1,5,'     ')
+     
+SELECT INSERT(`£Γ£±`,2,1,' ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,2,1,' ')
+± ³΄µ
+SELECT INSERT(`£Γ£±`,2,2,'  ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,2,2,'  ')
+±  ΄µ
+SELECT INSERT(`£Γ£±`,2,3,'   ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,2,3,'   ')
+±   µ
+SELECT INSERT(`£Γ£±`,2,4,'    ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,2,4,'    ')
+±    
+SELECT INSERT(`£Γ£±`,3,1,' ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,3,1,' ')
+±² ΄µ
+SELECT INSERT(`£Γ£±`,3,2,'  ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,3,2,'  ')
+±²  µ
+SELECT INSERT(`£Γ£±`,3,3,'   ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,3,3,'   ')
+±²   
+SELECT INSERT(`£Γ£±`,4,1,' ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,4,1,' ')
+±²³ µ
+SELECT INSERT(`£Γ£±`,4,2,'  ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,4,2,'  ')
+±²³  
+SELECT INSERT(`£Γ£±`,5,1,' ') FROM `£Τ£΄`;
+INSERT(`£Γ£±`,5,1,' ')
+±²³΄ 
+SELECT INSERT(`£Γ£±`,1,1,'¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,1,'¤«')
+¤«¤¤¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,2,'¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,2,'¤«¤«')
+¤«¤«¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,3,'¤«¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,3,'¤«¤«¤«')
+¤«¤«¤«¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,4,'¤«¤«¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,4,'¤«¤«¤«¤«')
+¤«¤«¤«¤«¤ª
+SELECT INSERT(`£Γ£±`,1,5,'¤«¤«¤«¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,5,'¤«¤«¤«¤«¤«')
+¤«¤«¤«¤«¤«
+SELECT INSERT(`£Γ£±`,2,1,'¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,2,1,'¤«')
+¤Ά¤«¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,2,'¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,2,2,'¤«¤«')
+¤Ά¤«¤«¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,3,'¤«¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,2,3,'¤«¤«¤«')
+¤Ά¤«¤«¤«¤ª
+SELECT INSERT(`£Γ£±`,2,4,'¤«¤«¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,2,4,'¤«¤«¤«¤«')
+¤Ά¤«¤«¤«¤«
+SELECT INSERT(`£Γ£±`,3,1,'¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,3,1,'¤«')
+¤Ά¤¤¤«¤¨¤ª
+SELECT INSERT(`£Γ£±`,3,2,'¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,3,2,'¤«¤«')
+¤Ά¤¤¤«¤«¤ª
+SELECT INSERT(`£Γ£±`,3,3,'¤«¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,3,3,'¤«¤«¤«')
+¤Ά¤¤¤«¤«¤«
+SELECT INSERT(`£Γ£±`,4,1,'¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,4,1,'¤«')
+¤Ά¤¤¤¦¤«¤ª
+SELECT INSERT(`£Γ£±`,4,2,'¤«¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,4,2,'¤«¤«')
+¤Ά¤¤¤¦¤«¤«
+SELECT INSERT(`£Γ£±`,5,1,'¤«') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,5,1,'¤«')
+¤Ά¤¤¤¦¤¨¤«
+SELECT INSERT(`£Γ£±`,1,1,'΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,1,'΅΅')
+΅΅¤¤¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,2,'΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,2,'΅΅΅΅')
+΅΅΅΅¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,3,'΅΅΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,3,'΅΅΅΅΅΅')
+΅΅΅΅΅΅¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,4,'΅΅΅΅΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,4,'΅΅΅΅΅΅΅΅')
+΅΅΅΅΅΅΅΅¤ª
+SELECT INSERT(`£Γ£±`,1,5,'΅΅΅΅΅΅΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,1,5,'΅΅΅΅΅΅΅΅΅΅')
+΅΅΅΅΅΅΅΅΅΅
+SELECT INSERT(`£Γ£±`,2,1,'΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,2,1,'΅΅')
+¤Ά΅΅¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,2,'΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,2,2,'΅΅΅΅')
+¤Ά΅΅΅΅¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,3,'΅΅΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,2,3,'΅΅΅΅΅΅')
+¤Ά΅΅΅΅΅΅¤ª
+SELECT INSERT(`£Γ£±`,2,4,'΅΅΅΅΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,2,4,'΅΅΅΅΅΅΅΅')
+¤Ά΅΅΅΅΅΅΅΅
+SELECT INSERT(`£Γ£±`,3,1,'΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,3,1,'΅΅')
+¤Ά¤¤΅΅¤¨¤ª
+SELECT INSERT(`£Γ£±`,3,2,'΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,3,2,'΅΅΅΅')
+¤Ά¤¤΅΅΅΅¤ª
+SELECT INSERT(`£Γ£±`,3,3,'΅΅΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,3,3,'΅΅΅΅΅΅')
+¤Ά¤¤΅΅΅΅΅΅
+SELECT INSERT(`£Γ£±`,4,1,'΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,4,1,'΅΅')
+¤Ά¤¤¤¦΅΅¤ª
+SELECT INSERT(`£Γ£±`,4,2,'΅΅΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,4,2,'΅΅΅΅')
+¤Ά¤¤¤¦΅΅΅΅
+SELECT INSERT(`£Γ£±`,5,1,'΅΅') FROM `£Τ£µ`;
+INSERT(`£Γ£±`,5,1,'΅΅')
+¤Ά¤¤¤¦¤¨΅΅
+SELECT INSERT(`£Γ£±`,1,1,'°΅') FROM `£Τ£¶`;
+INSERT(`£Γ£±`,1,1,'°΅')
+°΅νένήνίνΰ
+SELECT INSERT(`£Γ£±`,1,2,'°΅°΅' ) FROM `£Τ£¶`;
+INSERT(`£Γ£±`,1,2,'°΅°΅' )
+°΅°΅νήνίνΰ
+SELECT INSERT(`£Γ£±`,1,3,'°΅°΅°΅' ) FROM `£Τ£¶`;
+INSERT(`£Γ£±`,1,3,'°΅°΅°΅' )
+°΅°΅°΅νίνΰ
+SELECT INSERT(`£Γ£±`,1,4,'°΅°΅°΅°΅' ) FROM `£Τ£¶`;
+INSERT(`£Γ£±`,1,4,'°΅°΅°΅°΅' )
+°΅°΅°΅°΅νΰ
+SELECT INSERT(`£Γ£±`,1,5,'°΅°΅°΅°΅°΅' ) FROM `£Τ£¶`;
+INSERT(`£Γ£±`,1,5,'°΅°΅°΅°΅°΅' )
+°΅°΅°΅°΅°΅
+SELECT INSERT(`£Γ£±`,2,1,'°΅') FROM `£Τ£¶`;
+INSERT(`£Γ£±`,2,1,'°΅')
+νά°΅νήνίνΰ
+SELECT INSERT(`£Γ£±`,2,2,'°΅°΅') FROM `£Τ£¶`;
+INSERT(`£Γ£±`,2,2,'°΅°΅')
+νά°΅°΅νίνΰ
+SELECT INSERT(`£Γ£±`,2,3,'°΅°΅°΅' ) FROM `£Τ£¶`;
+INSERT(`£Γ£±`,2,3,'°΅°΅°΅' )
+νά°΅°΅°΅νΰ
+SELECT INSERT(`£Γ£±`,2,4,'°΅°΅°΅°΅' ) FROM `£Τ£¶`;
+INSERT(`£Γ£±`,2,4,'°΅°΅°΅°΅' )
+νά°΅°΅°΅°΅
+SELECT INSERT(`£Γ£±`,3,1,'°΅') FROM `£Τ£¶`;
+INSERT(`£Γ£±`,3,1,'°΅')
+νάνέ°΅νίνΰ
+SELECT INSERT(`£Γ£±`,3,2,'°΅°΅' ) FROM `£Τ£¶`;
+INSERT(`£Γ£±`,3,2,'°΅°΅' )
+νάνέ°΅°΅νΰ
+SELECT INSERT(`£Γ£±`,3,3,'°΅°΅°΅' ) FROM `£Τ£¶`;
+INSERT(`£Γ£±`,3,3,'°΅°΅°΅' )
+νάνέ°΅°΅°΅
+SELECT INSERT(`£Γ£±`,4,1,'°΅') FROM `£Τ£¶`;
+INSERT(`£Γ£±`,4,1,'°΅')
+νάνένή°΅νΰ
+SELECT INSERT(`£Γ£±`,4,2,'°΅°΅' ) FROM `£Τ£¶`;
+INSERT(`£Γ£±`,4,2,'°΅°΅' )
+νάνένή°΅°΅
+SELECT INSERT(`£Γ£±`,5,1,'°΅') FROM `£Τ£¶`;
+INSERT(`£Γ£±`,5,1,'°΅')
+νάνένήνί°΅
+SELECT INSERT(`£Γ£±`,1,1,'¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,1,'¶')
+¶²³΄µ
+SELECT INSERT(`£Γ£±`,1,2,'¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,2,'¶¶')
+¶¶³΄µ
+SELECT INSERT(`£Γ£±`,1,3,'¶¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,3,'¶¶¶')
+¶¶¶΄µ
+SELECT INSERT(`£Γ£±`,1,4,'¶¶¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,4,'¶¶¶¶')
+¶¶¶¶µ
+SELECT INSERT(`£Γ£±`,1,5,'¶¶¶¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,5,'¶¶¶¶¶')
+¶¶¶¶¶
+SELECT INSERT(`£Γ£±`,2,1,'¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,2,1,'¶')
+±¶³΄µ
+SELECT INSERT(`£Γ£±`,2,2,'¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,2,2,'¶¶')
+±¶¶΄µ
+SELECT INSERT(`£Γ£±`,2,3,'¶¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,2,3,'¶¶¶')
+±¶¶¶µ
+SELECT INSERT(`£Γ£±`,2,4,'¶¶¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,2,4,'¶¶¶¶')
+±¶¶¶¶
+SELECT INSERT(`£Γ£±`,3,1,'¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,3,1,'¶')
+±²¶΄µ
+SELECT INSERT(`£Γ£±`,3,2,'¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,3,2,'¶¶')
+±²¶¶µ
+SELECT INSERT(`£Γ£±`,3,3,'¶¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,3,3,'¶¶¶')
+±²¶¶¶
+SELECT INSERT(`£Γ£±`,4,1,'¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,4,1,'¶')
+±²³¶µ
+SELECT INSERT(`£Γ£±`,4,2,'¶¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,4,2,'¶¶')
+±²³¶¶
+SELECT INSERT(`£Γ£±`,5,1,'¶') FROM `£Τ£·`;
+INSERT(`£Γ£±`,5,1,'¶')
+±²³΄¶
+SELECT INSERT(`£Γ£±`,1,1,' ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,1,' ')
+ ²³΄µ
+SELECT INSERT(`£Γ£±`,1,2,'  ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,2,'  ')
+  ³΄µ
+SELECT INSERT(`£Γ£±`,1,3,'   ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,3,'   ')
+   ΄µ
+SELECT INSERT(`£Γ£±`,1,4,'    ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,4,'    ')
+    µ
+SELECT INSERT(`£Γ£±`,1,5,'     ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,1,5,'     ')
+     
+SELECT INSERT(`£Γ£±`,2,1,' ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,2,1,' ')
+± ³΄µ
+SELECT INSERT(`£Γ£±`,2,2,'  ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,2,2,'  ')
+±  ΄µ
+SELECT INSERT(`£Γ£±`,2,3,'   ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,2,3,'   ')
+±   µ
+SELECT INSERT(`£Γ£±`,2,4,'    ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,2,4,'    ')
+±    
+SELECT INSERT(`£Γ£±`,3,1,' ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,3,1,' ')
+±² ΄µ
+SELECT INSERT(`£Γ£±`,3,2,'  ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,3,2,'  ')
+±²  µ
+SELECT INSERT(`£Γ£±`,3,3,'   ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,3,3,'   ')
+±²   
+SELECT INSERT(`£Γ£±`,4,1,' ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,4,1,' ')
+±²³ µ
+SELECT INSERT(`£Γ£±`,4,2,'  ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,4,2,'  ')
+±²³  
+SELECT INSERT(`£Γ£±`,5,1,' ') FROM `£Τ£·`;
+INSERT(`£Γ£±`,5,1,' ')
+±²³΄ 
+SELECT INSERT(`£Γ£±`,1,1,'¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,1,'¤«')
+¤«¤¤¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,2,'¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,2,'¤«¤«')
+¤«¤«¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,3,'¤«¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,3,'¤«¤«¤«')
+¤«¤«¤«¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,4,'¤«¤«¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,4,'¤«¤«¤«¤«')
+¤«¤«¤«¤«¤ª
+SELECT INSERT(`£Γ£±`,1,5,'¤«¤«¤«¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,5,'¤«¤«¤«¤«¤«')
+¤«¤«¤«¤«¤«
+SELECT INSERT(`£Γ£±`,2,1,'¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,2,1,'¤«')
+¤Ά¤«¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,2,'¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,2,2,'¤«¤«')
+¤Ά¤«¤«¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,3,'¤«¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,2,3,'¤«¤«¤«')
+¤Ά¤«¤«¤«¤ª
+SELECT INSERT(`£Γ£±`,2,4,'¤«¤«¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,2,4,'¤«¤«¤«¤«')
+¤Ά¤«¤«¤«¤«
+SELECT INSERT(`£Γ£±`,3,1,'¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,3,1,'¤«')
+¤Ά¤¤¤«¤¨¤ª
+SELECT INSERT(`£Γ£±`,3,2,'¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,3,2,'¤«¤«')
+¤Ά¤¤¤«¤«¤ª
+SELECT INSERT(`£Γ£±`,3,3,'¤«¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,3,3,'¤«¤«¤«')
+¤Ά¤¤¤«¤«¤«
+SELECT INSERT(`£Γ£±`,4,1,'¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,4,1,'¤«')
+¤Ά¤¤¤¦¤«¤ª
+SELECT INSERT(`£Γ£±`,4,2,'¤«¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,4,2,'¤«¤«')
+¤Ά¤¤¤¦¤«¤«
+SELECT INSERT(`£Γ£±`,5,1,'¤«') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,5,1,'¤«')
+¤Ά¤¤¤¦¤¨¤«
+SELECT INSERT(`£Γ£±`,1,1,'΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,1,'΅΅')
+΅΅¤¤¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,2,'΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,2,'΅΅΅΅')
+΅΅΅΅¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,3,'΅΅΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,3,'΅΅΅΅΅΅')
+΅΅΅΅΅΅¤¨¤ª
+SELECT INSERT(`£Γ£±`,1,4,'΅΅΅΅΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,4,'΅΅΅΅΅΅΅΅')
+΅΅΅΅΅΅΅΅¤ª
+SELECT INSERT(`£Γ£±`,1,5,'΅΅΅΅΅΅΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,1,5,'΅΅΅΅΅΅΅΅΅΅')
+΅΅΅΅΅΅΅΅΅΅
+SELECT INSERT(`£Γ£±`,2,1,'΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,2,1,'΅΅')
+¤Ά΅΅¤¦¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,2,'΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,2,2,'΅΅΅΅')
+¤Ά΅΅΅΅¤¨¤ª
+SELECT INSERT(`£Γ£±`,2,3,'΅΅΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,2,3,'΅΅΅΅΅΅')
+¤Ά΅΅΅΅΅΅¤ª
+SELECT INSERT(`£Γ£±`,2,4,'΅΅΅΅΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,2,4,'΅΅΅΅΅΅΅΅')
+¤Ά΅΅΅΅΅΅΅΅
+SELECT INSERT(`£Γ£±`,3,1,'΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,3,1,'΅΅')
+¤Ά¤¤΅΅¤¨¤ª
+SELECT INSERT(`£Γ£±`,3,2,'΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,3,2,'΅΅΅΅')
+¤Ά¤¤΅΅΅΅¤ª
+SELECT INSERT(`£Γ£±`,3,3,'΅΅΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,3,3,'΅΅΅΅΅΅')
+¤Ά¤¤΅΅΅΅΅΅
+SELECT INSERT(`£Γ£±`,4,1,'΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,4,1,'΅΅')
+¤Ά¤¤¤¦΅΅¤ª
+SELECT INSERT(`£Γ£±`,4,2,'΅΅΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,4,2,'΅΅΅΅')
+¤Ά¤¤¤¦΅΅΅΅
+SELECT INSERT(`£Γ£±`,5,1,'΅΅') FROM `£Τ£Έ`;
+INSERT(`£Γ£±`,5,1,'΅΅')
+¤Ά¤¤¤¦¤¨΅΅
+SELECT INSERT(`£Γ£±`,1,1,'°΅') FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,1,1,'°΅')
+°΅νένήνίνΰ
+SELECT INSERT(`£Γ£±`,1,2,'°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,1,2,'°΅°΅' )
+°΅°΅νήνίνΰ
+SELECT INSERT(`£Γ£±`,1,3,'°΅°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,1,3,'°΅°΅°΅' )
+°΅°΅°΅νίνΰ
+SELECT INSERT(`£Γ£±`,1,4,'°΅°΅°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,1,4,'°΅°΅°΅°΅' )
+°΅°΅°΅°΅νΰ
+SELECT INSERT(`£Γ£±`,1,5,'°΅°΅°΅°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,1,5,'°΅°΅°΅°΅°΅' )
+°΅°΅°΅°΅°΅
+SELECT INSERT(`£Γ£±`,2,1,'°΅') FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,2,1,'°΅')
+νά°΅νήνίνΰ
+SELECT INSERT(`£Γ£±`,2,2,'°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,2,2,'°΅°΅' )
+νά°΅°΅νίνΰ
+SELECT INSERT(`£Γ£±`,2,3,'°΅°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,2,3,'°΅°΅°΅' )
+νά°΅°΅°΅νΰ
+SELECT INSERT(`£Γ£±`,2,4,'°΅°΅°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,2,4,'°΅°΅°΅°΅' )
+νά°΅°΅°΅°΅
+SELECT INSERT(`£Γ£±`,3,1,'°΅') FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,3,1,'°΅')
+νάνέ°΅νίνΰ
+SELECT INSERT(`£Γ£±`,3,2,'°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,3,2,'°΅°΅' )
+νάνέ°΅°΅νΰ
+SELECT INSERT(`£Γ£±`,3,3,'°΅°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,3,3,'°΅°΅°΅' )
+νάνέ°΅°΅°΅
+SELECT INSERT(`£Γ£±`,4,1,'°΅') FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,4,1,'°΅')
+νάνένή°΅νΰ
+SELECT INSERT(`£Γ£±`,4,2,'°΅°΅' ) FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,4,2,'°΅°΅' )
+νάνένή°΅°΅
+SELECT INSERT(`£Γ£±`,5,1,'°΅') FROM `£Τ£Ή`;
+INSERT(`£Γ£±`,5,1,'°΅')
+νάνένήνί°΅
+DROP TABLE `£Τ£±`;
+DROP TABLE `£Τ£²`;
+DROP TABLE `£Τ£³`;
+DROP TABLE `£Τ£΄`;
+DROP TABLE `£Τ£µ`;
+DROP TABLE `£Τ£¶`;
+DROP TABLE `£Τ£·`;
+DROP TABLE `£Τ£Έ`;
+DROP TABLE `£Τ£Ή`;

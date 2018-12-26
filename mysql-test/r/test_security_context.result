@@ -1,0 +1,35 @@
+INSTALL PLUGIN test_security_context SONAME 'test_security_context.so';
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME='test_security_context';
+PLUGIN_STATUS
+ACTIVE
+SET @@test_security_context_get_field = "user", @@test_security_context_get_value = "root";
+SELECT "OK";
+OK
+OK
+SET @@test_security_context_get_field = "user", @@test_security_context_get_value = "root-err";
+SELECT "FAIL";
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
+SET @@test_security_context_get_field = "host", @@test_security_context_get_value = "localhost";
+SELECT "OK";
+OK
+OK
+SET @@test_security_context_get_field = "ip";
+SELECT "OK";
+OK
+OK
+SET @@test_security_context_get_field = "priv_user", @@test_security_context_get_value = "root";
+SELECT "OK";
+OK
+OK
+SET @@test_security_context_get_field = "priv_host", @@test_security_context_get_value = "localhost";
+SELECT "OK";
+OK
+OK
+SET @@test_security_context_get_field = "sec_ctx_test";
+SELECT "OK";
+OK
+OK
+UNINSTALL PLUGIN test_security_context;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown

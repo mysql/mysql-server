@@ -1,0 +1,21 @@
+
+# Can only be set from the command line.
+# show the global and session values;
+
+--echo Valid values are 'ON' and 'OFF'
+select @@global.innodb_read_only;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_read_only;
+show global variables like 'innodb_read_only';
+show session variables like 'innodb_read_only';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_read_only';
+select * from performance_schema.session_variables where variable_name='innodb_read_only';
+--enable_warnings
+
+# Show that it's read-only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_read_only=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_read_only=1;
+

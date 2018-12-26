@@ -1,0 +1,292 @@
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug #22876 Four-way deadlock
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+
+--echo # Connection 1
+connection con1;
+set @@autocommit=0;
+CREATE TABLE t1(s1 INT UNIQUE) ENGINE=innodb;
+INSERT INTO t1 VALUES (1);
+
+--echo # Connection 2
+connection con2;
+set @@autocommit=0;
+INSERT INTO t1 VALUES (2);
+--send INSERT INTO t1 VALUES (1)
+
+--echo # Connection 3
+connection con3;
+set @@autocommit=0;
+--send DROP TABLE t1
+
+--echo # Connection 1
+connection con1;
+--echo # Waiting for until transaction will be locked inside innodb subsystem
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.innodb_trx
+  WHERE trx_query = 'INSERT INTO t1 VALUES (1)' AND
+  trx_operation_state = 'inserting' AND
+  trx_state = 'LOCK WAIT';
+--source include/wait_condition.inc
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = "DROP TABLE t1" and 
+  state = "Waiting for table metadata lock";
+--source include/wait_condition.inc
+--echo # Connection 1 is now holding the lock.
+--echo # Issuing insert from connection 1 while connection 2&3 
+--echo # is waiting for the lock should give a deadlock error.
+--error ER_LOCK_DEADLOCK
+INSERT INTO t1 VALUES (2);
+
+--echo # Cleanup
+connection con2;
+--reap
+commit;
+set @@autocommit=1;
+connection con1;
+commit;
+set @@autocommit=1;
+connection con3;
+--reap
+set @@autocommit=1;
+connection default;
+
+disconnect con1;
+disconnect con2;
+disconnect con3;
+
+
+--echo #
+--echo # Test for bug #37346 "innodb does not detect deadlock between update
+--echo #                      and alter table".
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (c1 int primary key, c2 int, c3 int) engine=InnoDB;
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+--echo # Run statement which acquires X-lock on one of table's rows.
+update t1 set c3=c3+1 where c2=3;
+
+--echo #
+--echo # Switching to connection 'con37346'.
+connect (con37346,localhost,root,,test,,);
+connection con37346;
+--echo # The below ALTER TABLE statement should wait till transaction
+--echo # in connection 'default' is complete and then succeed.
+--echo # It should not deadlock or fail with ER_LOCK_DEADLOCK error.
+--echo # Sending:
+--send alter table t1 add column c4 int;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until the above ALTER TABLE gets blocked because this
+--echo # connection holds SW metadata lock on table to be altered.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column c4 int";
+--source include/wait_condition.inc
+
+--echo # The below statement should succeed. It should not
+--echo # deadlock or end with ER_LOCK_DEADLOCK error.
+update t1 set c3=c3+1 where c2=4;
+
+--echo # Unblock ALTER TABLE by committing transaction.
+commit;
+
+--echo #
+--echo # Switching to connection 'con37346'.
+connection con37346;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con37346;
+drop table t1;
+
+
+--echo #
+--echo # Bug#53798 OPTIMIZE TABLE breaks repeatable read
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT) engine=innodb;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo # Connection con1
+connect (con1, localhost, root);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+
+--echo # Connection default
+connection default;
+--echo # This should block
+--echo # Sending:
+--send OPTIMIZE TABLE t1
+
+--echo # Connection con1
+connection con1;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table metadata lock' AND info='OPTIMIZE TABLE t1';
+--source include/wait_condition.inc
+SELECT * FROM t1;
+COMMIT;
+
+--echo # Connection default
+connection default;
+--echo # Reaping OPTIMIZE TABLE t1
+--reap
+disconnect con1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#49891 View DDL breaks REPEATABLE READ
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v2;
+--enable_warnings
+
+CREATE TABLE t1 ( f1 INTEGER ) ENGINE = innodb;
+CREATE TABLE t2 ( f1 INTEGER );
+CREATE VIEW v1 AS SELECT 1 FROM t1;
+
+connect (con2, localhost, root);
+connect (con3, localhost, root);
+
+--echo # Connection con3
+connection con3;
+LOCK TABLE t1 WRITE;
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+# This should block due to t1 being locked.
+--echo # Sending:
+--send SELECT * FROM v1
+
+--echo # Connection con2
+connection con2;
+--echo # Waiting for 'SELECT * FROM v1' to sync in.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND info = "SELECT * FROM v1";
+--source include/wait_condition.inc
+# This should block due to v1 being locked.
+--echo # Sending:
+--send ALTER VIEW v1 AS SELECT 2 FROM t2
+
+--echo # Connection con3
+connection con3;
+--echo # Waiting for 'ALTER VIEW v1 AS SELECT 2 FROM t2' to sync in.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info = "ALTER VIEW v1 AS SELECT 2 FROM t2";
+--source include/wait_condition.inc
+# Unlock t1 allowing SELECT * FROM v1 to proceed.
+UNLOCK TABLES;
+
+--echo # Connection default;
+connection default;
+--echo # Reaping: SELECT * FROM v1
+--reap
+SELECT * FROM v1;
+COMMIT;
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: ALTER VIEW v1 AS SELECT 2 FROM t2
+--reap
+
+--echo # Connection default
+connection default;
+DROP TABLE t1, t2;
+DROP VIEW v1;
+disconnect con2;
+disconnect con3;
+
+
+--echo #
+--echo # Bug#11815600 [ERROR] INNODB COULD NOT FIND INDEX PRIMARY
+--echo #              KEY NO 0 FOR TABLE IN ERROR LOG 
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--connect (con1,localhost,root)
+
+--echo # Connection default
+connection default;
+CREATE TABLE t1 (id INT PRIMARY KEY, value INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 12345);
+START TRANSACTION;
+SELECT * FROM t1;
+
+--echo # Connection con1
+--connection con1
+SET lock_wait_timeout=1;
+# Test with two timeouts, as the first version of this patch
+# only worked with one timeout.
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD INDEX idx(value);
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD INDEX idx(value);
+
+--echo # Connection default
+--connection default
+SELECT * FROM t1;
+COMMIT;
+DROP TABLE t1;
+disconnect con1;
+
+
+--echo #
+--echo # Bug#11747690 33650: MYSQL_ALTER_TABLE() UNNECESSARILY DOES
+--echo #              FULL TABLE COPY 
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT, b VARCHAR(250), PRIMARY KEY(a,b))
+  engine=innodb default charset=utf8;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+
+# Check that 0 rows are affected
+--enable_info
+CREATE INDEX t1ba ON t1(b,a);
+--disable_info
+
+DROP TABLE t1;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

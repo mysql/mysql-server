@@ -1,0 +1,67 @@
+# Tests for PERFORMANCE_SCHEMA
+
+insert into performance_schema.setup_actors values ("host1","user1","%",'YES','YES');
+insert into performance_schema.setup_actors values ("host2","user1","%",'YES','YES');
+insert into performance_schema.setup_actors values ("host3","user1","%",'YES','YES');
+
+# Test index on HOST, USER, `ROLE`
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, `ROLE`
+  from performance_schema.setup_actors
+  where HOST = 'host1';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.setup_actors
+  where HOST = 'host1' and USER = 'user1';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select *
+  from performance_schema.setup_actors
+  where HOST = 'host1' and USER = 'user1'
+        and `ROLE` = 'norole';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, `ROLE`
+  from performance_schema.setup_actors
+  where HOST = 'nohost' and USER = 'user1'
+        and `ROLE` = '%';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, `ROLE`
+  from performance_schema.setup_actors
+  where HOST = 'host1' and USER = 'nouser'
+        and `ROLE` = '%';
+
+--echo ############ Explain for Query ####################################
+--replace_column 10 #
+explain select HOST, USER, `ROLE`
+  from performance_schema.setup_actors
+  where HOST = 'host1' and USER = 'user1'
+        and `ROLE` = '%';
+
+--echo ############# Explain End #########################################
+
+flush status;
+
+select ENABLED, HISTORY
+  from performance_schema.setup_actors
+  where HOST = 'TBALE' and USER = 'user1'
+        and `ROLE` = '%';
+
+show session status like "handler_read%";
+
+select ENABLED, HISTORY
+  from performance_schema.setup_actors
+  where HOST = 'host1' and USER = 'user1'
+        and `ROLE` = '%';
+
+show session status like "handler_read%";
+
+delete from performance_schema.setup_actors where user = 'user1';

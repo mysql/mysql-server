@@ -1,0 +1,88 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Create 20 tables on server1 and wait for group to be
+#    synchronized.
+CREATE TABLE t0 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t4 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t5 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t6 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t7 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t8 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t9 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t10 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t11 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t12 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t13 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t14 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t15 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t16 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t17 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t18 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t19 (c1 INT NOT NULL PRIMARY KEY);
+include/rpl_sync.inc
+
+############################################################
+# 2. Executing the same transaction on both server (almost)
+#    in parallel, one will be committed, the other will be
+#    aborted.
+[connection server1]
+include/sync_slave_sql_with_master.inc
+[connection server2]
+include/sync_slave_sql_with_master.inc
+############################################################
+# 3. Validate servers state is equal.
+[connection server1]
+[connection server2]
+include/assert.inc [server1 GTID_EXECUTED must be equal to server2 GTID_EXECUTED]
+include/diff_tables.inc [server1:t0, server2:t0]
+include/diff_tables.inc [server1:t1, server2:t1]
+include/diff_tables.inc [server1:t2, server2:t2]
+include/diff_tables.inc [server1:t3, server2:t3]
+include/diff_tables.inc [server1:t4, server2:t4]
+include/diff_tables.inc [server1:t5, server2:t5]
+include/diff_tables.inc [server1:t6, server2:t6]
+include/diff_tables.inc [server1:t7, server2:t7]
+include/diff_tables.inc [server1:t8, server2:t8]
+include/diff_tables.inc [server1:t9, server2:t9]
+include/diff_tables.inc [server1:t10, server2:t10]
+include/diff_tables.inc [server1:t11, server2:t11]
+include/diff_tables.inc [server1:t12, server2:t12]
+include/diff_tables.inc [server1:t13, server2:t13]
+include/diff_tables.inc [server1:t14, server2:t14]
+include/diff_tables.inc [server1:t15, server2:t15]
+include/diff_tables.inc [server1:t16, server2:t16]
+include/diff_tables.inc [server1:t17, server2:t17]
+include/diff_tables.inc [server1:t18, server2:t18]
+include/diff_tables.inc [server1:t19, server2:t19]
+
+############################################################
+# 4. Clean up.
+DROP TABLE IF EXISTS t0;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+DROP TABLE IF EXISTS t5;
+DROP TABLE IF EXISTS t6;
+DROP TABLE IF EXISTS t7;
+DROP TABLE IF EXISTS t8;
+DROP TABLE IF EXISTS t9;
+DROP TABLE IF EXISTS t10;
+DROP TABLE IF EXISTS t11;
+DROP TABLE IF EXISTS t12;
+DROP TABLE IF EXISTS t13;
+DROP TABLE IF EXISTS t14;
+DROP TABLE IF EXISTS t15;
+DROP TABLE IF EXISTS t16;
+DROP TABLE IF EXISTS t17;
+DROP TABLE IF EXISTS t18;
+DROP TABLE IF EXISTS t19;
+include/group_replication_end.inc

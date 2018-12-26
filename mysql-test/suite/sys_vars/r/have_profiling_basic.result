@@ -1,0 +1,23 @@
+select @@global.have_profiling="1";
+@@global.have_profiling="1"
+0
+Warnings:
+Warning	1287	'@@have_profiling' is deprecated and will be removed in a future release.
+select @@session.have_profiling;
+ERROR HY000: Variable 'have_profiling' is a GLOBAL variable
+show global variables like 'have_profiling';
+Variable_name	Value
+have_profiling	#
+show session variables like 'have_profiling';
+Variable_name	Value
+have_profiling	#
+select * from performance_schema.global_variables where variable_name='have_profiling';
+VARIABLE_NAME	VARIABLE_VALUE
+have_profiling	#
+select * from performance_schema.session_variables where variable_name='have_profiling';
+VARIABLE_NAME	VARIABLE_VALUE
+have_profiling	#
+set global have_profiling=1;
+ERROR HY000: Variable 'have_profiling' is a read only variable
+set session have_profiling=1;
+ERROR HY000: Variable 'have_profiling' is a read only variable

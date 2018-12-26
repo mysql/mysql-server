@@ -1,0 +1,317 @@
+# Show all hidden columns, so that we can inspect that the column
+# is created with the correct character set/collation, length, data type
+# etc.
+CREATE TABLE t1 (
+str_col VARCHAR(255),
+dbl_col DOUBLE,
+decimal_col DECIMAL(5, 2),
+date_col DATE,
+time_col TIME,
+time_with_fractions_col TIME(6),
+datetime_col DATETIME,
+datetime_with_fractions_col DATETIME(6),
+json_col JSON,
+dbl_with_length DOUBLE(4, 2),
+unsigned_int INT UNSIGNED,
+geometry_col POINT,
+INDEX idx1 ((CONVERT(SUBSTRING(str_col, 2, 1) USING latin1))),
+INDEX idx2 ((ABS(dbl_col))),
+INDEX idx3 ((TRUNCATE(decimal_col, 0))),
+INDEX idx4 ((YEAR(date_col))),
+INDEX idx5 ((ADDTIME('01:00:00', time_col))),
+INDEX idx6 ((ADDTIME('01:00:00', time_with_fractions_col))),
+INDEX idx7 ((DATE_SUB(datetime_col, INTERVAL 30 DAY))),
+INDEX idx8 ((DATE_SUB(datetime_with_fractions_col, INTERVAL 30 DAY))),
+INDEX idx9 ((JSON_VALID(json_col))),
+INDEX idx10 ((ROUND(dbl_col, 2))),
+INDEX idx11 ((dbl_with_length * 2.0)),
+INDEX idx12 ((ABS(unsigned_int))),
+INDEX idx13 ((ST_X(geometry_col)))
+);
+SET SESSION debug="+d,show_hidden_columns";
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `str_col` varchar(255) DEFAULT NULL,
+  `dbl_col` double DEFAULT NULL,
+  `decimal_col` decimal(5,2) DEFAULT NULL,
+  `date_col` date DEFAULT NULL,
+  `time_col` time DEFAULT NULL,
+  `time_with_fractions_col` time(6) DEFAULT NULL,
+  `datetime_col` datetime DEFAULT NULL,
+  `datetime_with_fractions_col` datetime(6) DEFAULT NULL,
+  `json_col` json DEFAULT NULL,
+  `dbl_with_length` double(4,2) DEFAULT NULL,
+  `unsigned_int` int(10) unsigned DEFAULT NULL,
+  `geometry_col` point DEFAULT NULL,
+  `45197ac678c1210c4a64bf22351853e7` varchar(1) CHARACTER SET latin1 GENERATED ALWAYS AS (convert(substr(`str_col`,2,1) using latin1)) VIRTUAL,
+  `5067d63164981f78735a1cbdb19ef208` double GENERATED ALWAYS AS (abs(`dbl_col`)) VIRTUAL,
+  `0bff7277c29f08fcb414d1f41621b86f` decimal(3,0) GENERATED ALWAYS AS (truncate(`decimal_col`,0)) VIRTUAL,
+  `88ad1ce75f21f5ed3c66937d772979b5` int(4) GENERATED ALWAYS AS (year(`date_col`)) VIRTUAL,
+  `9d4481df7b182f78b99e08a25930c91f` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_col`)) VIRTUAL,
+  `97815b7254f7ac7c263d6d590116c8de` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_with_fractions_col`)) VIRTUAL,
+  `c1c817beeba8f7f70efb7dd56df758b0` datetime GENERATED ALWAYS AS ((`datetime_col` - interval 30 day)) VIRTUAL,
+  `b6c099c314e9ecbf27e3385f0ea88fa3` datetime(6) GENERATED ALWAYS AS ((`datetime_with_fractions_col` - interval 30 day)) VIRTUAL,
+  `4ee8f0f5ed62f4898e0e21c8e2595351` bigint(21) GENERATED ALWAYS AS (json_valid(`json_col`)) VIRTUAL,
+  `bf3e30b3724d85afb72714cc5e9d35a7` double(22,2) GENERATED ALWAYS AS (round(`dbl_col`,2)) VIRTUAL,
+  `0be1882145c73aec7ed86aec997ee2c0` double(22,2) GENERATED ALWAYS AS ((`dbl_with_length` * 2.0)) VIRTUAL,
+  `a5848dfab7c8461e1d6bb033aa7afb7e` int(10) GENERATED ALWAYS AS (abs(`unsigned_int`)) VIRTUAL,
+  `2c22eb88800f17d0db6d0dd3fa970987` double GENERATED ALWAYS AS (st_x(`geometry_col`)) VIRTUAL,
+  KEY `idx1` ((convert(substr(`str_col`,2,1) using latin1))),
+  KEY `idx2` ((abs(`dbl_col`))),
+  KEY `idx3` ((truncate(`decimal_col`,0))),
+  KEY `idx4` ((year(`date_col`))),
+  KEY `idx5` ((addtime(_utf8mb4'01:00:00',`time_col`))),
+  KEY `idx6` ((addtime(_utf8mb4'01:00:00',`time_with_fractions_col`))),
+  KEY `idx7` (((`datetime_col` - interval 30 day))),
+  KEY `idx8` (((`datetime_with_fractions_col` - interval 30 day))),
+  KEY `idx9` ((json_valid(`json_col`))),
+  KEY `idx10` ((round(`dbl_col`,2))),
+  KEY `idx11` (((`dbl_with_length` * 2.0))),
+  KEY `idx12` ((abs(`unsigned_int`))),
+  KEY `idx13` ((st_x(`geometry_col`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug="-d,show_hidden_columns";
+DROP TABLE t1;
+# Check that the hidden generated column is renamed if the functional
+# index is renamed.
+CREATE TABLE t1 (col1 INT, INDEX my_index((FLOOR(col1))));
+SET SESSION debug="+d,show_hidden_columns";
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `607d81614fbad46c00e1b881fef889f5` bigint(13) GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
+  KEY `my_index` ((floor(`col1`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 RENAME INDEX my_index TO foobar;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `1f9c2f0af40893b27d4e43cfbd38d0ac` bigint(13) GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
+  KEY `foobar` ((floor(`col1`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug="-d,show_hidden_columns";
+DROP TABLE t1;
+# Check that the hidden generated columns are removed if a functional
+# index is deleted.
+SET SESSION debug="+d,show_hidden_columns";
+CREATE TABLE t1 (
+col1 INT
+, col2 INT
+, INDEX idx1 ((ABS(col1)))
+, INDEX idx2 ((col1 + 1), (col2 + 2)));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `col2` int(11) DEFAULT NULL,
+  `45197ac678c1210c4a64bf22351853e7` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `5067d63164981f78735a1cbdb19ef208` bigint(12) GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `1a0b00fb7838a59dd0c459201c53de8b` bigint(12) GENERATED ALWAYS AS ((`col2` + 2)) VIRTUAL,
+  KEY `idx1` ((abs(`col1`))),
+  KEY `idx2` (((`col1` + 1)),((`col2` + 2)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP INDEX idx2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `col2` int(11) DEFAULT NULL,
+  `45197ac678c1210c4a64bf22351853e7` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  KEY `idx1` ((abs(`col1`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+SET SESSION debug="-d,show_hidden_columns";
+#
+# Bug#28037195 ASSERTION `FALSE' IN IN
+#              ITEM_FIELD::REPLACE_FIELD_PROCESSOR AT SQL_TABLE.CC:5850
+#
+CREATE TABLE t2 (c1 INT);
+CREATE INDEX name_collision ON t2((ABS(cq)));
+ERROR 42S22: Unknown column 'cq' in 'functional index'
+DROP TABLE t2;
+#
+# Bug#28069679 WL#1075 ASSERTION `!M_EXPRESSION->FIXED' FAILED
+#
+CREATE TABLE t1 (
+col1 INT,
+INDEX idx ((PI()))
+);
+DROP TABLE t1;
+#
+# Bug#28069710 WL#1075 ASSERTION
+#              `R0 != STRING_RESULT && R1 != STRING_RESULT'
+#
+CREATE TABLE t1 (
+col1 VARCHAR(255),
+INDEX idx1 ((col1 * col1))
+);
+DROP TABLE t1;
+#
+# Bug#28069731 WL#1075 ASSERTION `!TABLE || (!TABLE->WRITE_SET ||
+#              BITMAP_IS_SET(TABLE->WRITE_SE
+#
+CREATE TABLE table10_innodb_int_autoinc (
+col_int_key int(11) DEFAULT NULL,
+col_char_32_key char(32) DEFAULT NULL,
+col_char_32_not_null_key char(32) NOT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_not_null_key int(11) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_char_32_key (col_char_32_key),
+KEY col_char_32_not_null_key (col_char_32_not_null_key),
+KEY col_int_not_null_key (col_int_not_null_key),
+KEY i1 (((col_int_key + col_int_key))),
+KEY i2 (((col_int_key < 5))),
+KEY i3 (((col_int_key < 9))),
+KEY i5 (((col_int_not_null_key > 1)))
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO table10_innodb_int_autoinc VALUES
+(43,'if','that',1,99)
+, (1,'we','she',2,1203568640)
+, (7,'f','kxc',3,40)
+, (-1846411264,'xce','mean',4,5)
+, (9,'r','c',5,0)
+, (5,'ek','the',6,138)
+, (77,'l','i',7,-1414922240)
+, (1,'k','q',8,1)
+, (-1284505600,'sa','w',9,8)
+, (NULL,'ate','t',10,4);
+HANDLER table10_innodb_int_autoinc OPEN AS alias1 ;
+HANDLER alias1 READ `PRIMARY` NEXT WHERE `col_int_not_null_key` <= 'j' LIMIT 8;
+col_int_key	col_char_32_key	col_char_32_not_null_key	pk	col_int_not_null_key
+9	r	c	5	0
+77	l	i	7	-1414922240
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
+DROP TABLE table10_innodb_int_autoinc;
+# Test that removing and altering functional indexes works correctly
+# with different casing.
+CREATE TABLE t1 (
+col1 INT
+, INDEX myKey ((ABS(col1))));
+# Get the expected name of the hidden generated column.
+SELECT MD5(CONCAT("myKey", "0"));
+MD5(CONCAT("myKey", "0"))
+84a85350b439e4a8875061c9b8a13f70
+SET SESSION debug="+d,show_hidden_columns";
+# Column names aren't case sensitive, so this DDL should find the column
+# and give an error saying that the column cannot be removed due to
+# functional index.
+ALTER TABLE t1 DROP COLUMN 84A85350b439e4a8875061c9b8a13f70;
+ERROR HY000: Cannot drop column '84a85350b439e4a8875061c9b8a13f70' because it is used by a functional index. In order to drop the column, you must remove the functional index.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `84a85350b439e4a8875061c9b8a13f70` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  KEY `myKey` ((abs(`col1`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Index names aren't case sensitive, so this DDL should rename the index
+# and the hidden generated column as well.
+ALTER TABLE t1 RENAME INDEX myKEY TO renaMEDkey;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `ba017fae742f858bd19700513c6b85e5` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  KEY `renaMEDkey` ((abs(`col1`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Index names aren't case sensitive, so this DDL should remove the index
+# and the column.
+ALTER TABLE t1 DROP INDEX renamedkey;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+SET SESSION debug="-d,show_hidden_columns";
+#
+# Bug#28216553 ASSERTION `FIELD_TYPE < (MYSQL_TYPE_BIT + 1) || FIELD_TYPE
+#
+CREATE TABLE table1130 ( pk INTEGER AUTO_INCREMENT, a1 INTEGER NOT NULL, b1
+INTEGER NULL, c1 BLOB NULL, d1 VARCHAR(2) NULL, PRIMARY KEY (pk), KEY
+((COALESCE(a1))));
+DROP TABLE table1130;
+CREATE TABLE table29 (
+pk INTEGER AUTO_INCREMENT
+, a1 VARCHAR(5) NOT NULL
+, PRIMARY KEY (pk)
+, KEY ((a1)));
+ERROR HY000: Functional index on a column is not supported. Consider using a regular index instead.
+#
+# Bug#28226443 VIRTUAL BOOL ITEM_FIELD::REPLACE_FIELD_PROCESSOR(UCHAR*):
+#              ASSERTION `FALSE' FAIL
+#
+CREATE TABLE t1(a INT, b INT, c INT, UNIQUE INDEX i((a+b)));
+ALTER TABLE t1 ADD INDEX p(a9e26254e651465c89ff715d5733e97c);
+ERROR 42000: Key column 'a9e26254e651465c89ff715d5733e97c' doesn't exist in table
+ALTER TABLE t1 ADD INDEX g((a + a9e26254e651465c89ff715d5733e97c));
+ERROR 42S22: Unknown column 'a9e26254e651465c89ff715d5733e97c' in 'functional index'
+DROP TABLE t1;
+#
+# Bug#28263237 ASSERTION `FALSE' IN ITEM_FIELD::REPLACE_FIELD_PROCESSOR
+#              AT SQL_TABLE.CC:6303
+#
+CREATE TABLE table1286 (a1 BIT(24) NULL, KEY ((a1)));
+ERROR HY000: Functional index on a column is not supported. Consider using a regular index instead.
+CREATE TABLE  table276 ( pk INTEGER AUTO_INCREMENT, a1
+SET('Nebraska','gfjzdfpngmbhvftlmiwrgduhdsbnkswbacwjvotkav','fjzdf') NULL,
+PRIMARY KEY (pk), KEY ((a1)) );
+ERROR HY000: Functional index on a column is not supported. Consider using a regular index instead.
+CREATE TABLE t1(
+e ENUM('a', 'bbb', 'cccccc')
+, s SET('a', 'bbb', 'cccccc')
+, b BIT(5)
+, KEY ((NULLIF(e, null)))
+, KEY ((NULLIF(s, null)))
+, KEY ((NULLIF(b, null))));
+SET SESSION debug="+d,show_hidden_columns";
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `e` enum('a','bbb','cccccc') DEFAULT NULL,
+  `s` set('a','bbb','cccccc') DEFAULT NULL,
+  `b` bit(5) DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` varchar(6) GENERATED ALWAYS AS (nullif(`e`,NULL)) VIRTUAL,
+  `0d1cbc68e8957783288d2b71268047c7` varchar(12) GENERATED ALWAYS AS (nullif(`s`,NULL)) VIRTUAL,
+  `e0a812eddbaed00becd72bf920eccab8` int(5) unsigned GENERATED ALWAYS AS (nullif(`b`,NULL)) VIRTUAL,
+  KEY `functional_index` ((nullif(`e`,NULL))),
+  KEY `functional_index_2` ((nullif(`s`,NULL))),
+  KEY `functional_index_3` ((nullif(`b`,NULL)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug="-d,show_hidden_columns";
+DROP TABLE t1;
+CREATE TABLE table121 (
+pk INTEGER AUTO_INCREMENT
+, a1 SET('Michigan','w','d') NOT NULL
+, PRIMARY KEY (pk)
+, KEY ((ST_Centroid(a1))));
+ERROR HY000: Spatial functional index is not supported.
+# Test that the collation is set correctly for numeric columns. If we
+# have forgotten to set the correct collation, the hidden generated
+# column will have a VARBINARY field, and we won't be able to use the
+# index due to collation mismatch.
+CREATE TABLE t1 (
+col1 INT
+, INDEX idx1 ((SOUNDEX(col1))));
+SET SESSION debug="+d,show_hidden_columns";
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `45197ac678c1210c4a64bf22351853e7` varchar(11) GENERATED ALWAYS AS (soundex(`col1`)) VIRTUAL,
+  KEY `idx1` ((soundex(`col1`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug="-d,show_hidden_columns";
+EXPLAIN SELECT * FROM t1 WHERE SOUNDEX(col1) = "aa";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx1	idx1	47	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (soundex(`test`.`t1`.`col1`) = 'aa')
+DROP TABLE t1;

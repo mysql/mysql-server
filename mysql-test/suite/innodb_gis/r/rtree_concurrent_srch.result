@@ -1,0 +1,312 @@
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+insert into t1 values(1, Point(1,1));
+insert into t1 values(2, Point(2,2));
+insert into t1 values(3, Point(3,3));
+insert into t1 values(4, Point(4,4));
+insert into t1 values(5, Point(5,5));
+insert into t1 values(6, Point(6,6));
+insert into t1 values(7, Point(7,7));
+insert into t1 values(8, Point(8,8));
+insert into t1 values(9, Point(9,9));
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+SET SESSION debug="+d,rtr_pcur_move_to_next_return";
+set session transaction isolation level serializable;
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_search_for_mysql_before_return SIGNAL started WAIT_FOR go_ahead';
+select count(*) from t1 where MBRWithin(t1.c2, @g1);;
+# Establish session con1 (user=root)
+set session transaction isolation level serializable;
+SET DEBUG_SYNC = 'now WAIT_FOR started';
+insert into t1 select * from t1;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+count(*)
+576
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+1152
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+4608
+set @g1 = ST_GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+0
+set session transaction isolation level serializable;
+truncate t1;
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(3 3, 160 160)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(4 4, 170 170)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(5 5, 180 180)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(6 6, 190 190)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(7 7, 200 200)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+set session transaction isolation level serializable;
+select @@transaction_isolation;
+@@transaction_isolation
+SERIALIZABLE
+start transaction;
+set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
+select count(*) from t1 where MBRwithin(t1.c2, @g1);
+count(*)
+0
+set session transaction isolation level serializable;
+set session innodb_lock_wait_timeout = 1;
+select @@transaction_isolation;
+@@transaction_isolation
+SERIALIZABLE
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+commit;
+select count(*) from t1;
+count(*)
+896
+insert into t1 values (105, Point(105, 105));
+start transaction;
+set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
+select count(*) from t1 where MBRwithin(t1.c2, @g1);
+count(*)
+1
+select @@innodb_lock_wait_timeout;
+@@innodb_lock_wait_timeout
+1
+select @@transaction_isolation;
+@@transaction_isolation
+SERIALIZABLE
+insert into t1 select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select count(*) from t1;
+count(*)
+897
+select sleep(2);
+sleep(2)
+0
+commit;
+truncate t1;
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(3 3, 160 160)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(4 4, 170 170)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(5 5, 180 180)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(6 6, 190 190)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(7 7, 200 200)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+set session transaction isolation level serializable;
+select @@transaction_isolation;
+@@transaction_isolation
+SERIALIZABLE
+start transaction;
+set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
+select count(*) from t1 where MBRwithin(t1.c2, @g1);
+count(*)
+0
+set session transaction isolation level serializable;
+set session innodb_lock_wait_timeout = 1;
+select @@transaction_isolation;
+@@transaction_isolation
+SERIALIZABLE
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+commit;
+select count(*) from t1;
+count(*)
+1792
+insert into t1 values (105, Point(105, 105));
+start transaction;
+set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
+select count(*) from t1 where MBRwithin(t1.c2, @g1);
+count(*)
+1
+select count(*) from t1 where MBRIntersects(t1.c2, @g1);
+count(*)
+1793
+select @@innodb_lock_wait_timeout;
+@@innodb_lock_wait_timeout
+1
+select @@transaction_isolation;
+@@transaction_isolation
+SERIALIZABLE
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 105, 200 105)'));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select count(*) from t1;
+count(*)
+1793
+select sleep(2);
+sleep(2)
+0
+commit;
+truncate t1;
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(3 3, 160 160)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(5 5, 180 180)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(6 6, 190 190)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(7 7, 200 200)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
+set @g1 = ST_GeomFromText('Polygon((3 3, 3 5, 5 5, 5 3, 3 3))');
+start transaction;
+delete from t1 where MBRWithin(t1.c2, @g1);
+set session innodb_lock_wait_timeout = 1;
+select @@innodb_lock_wait_timeout;
+@@innodb_lock_wait_timeout
+1
+insert into t1 values(4, Point(4,4));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+truncate t1;
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(3 3, 160 160)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(5 5, 180 180)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(6 6, 190 190)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(7 7, 200 200)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
+set @g1 = ST_GeomFromText('Polygon((3 3, 3 5, 5 5, 5 3, 3 3))');
+start transaction;
+select count(*) from t1 where MBRWithin(t1.c2, @g1) for update;
+count(*)
+0
+set session innodb_lock_wait_timeout = 1;
+select @@innodb_lock_wait_timeout;
+@@innodb_lock_wait_timeout
+1
+insert into t1 values(4, Point(4,4));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+truncate t1;
+create procedure insert_t1(IN start int, IN total int)
+begin
+declare i int default 1;
+set i = start;
+while (i <= total) DO
+insert into t1 values (i, Point(i, i));
+set i = i + 1;
+end while;
+end|
+CALL insert_t1(0, 1000);
+set session transaction isolation level serializable;
+select @@transaction_isolation;
+@@transaction_isolation
+SERIALIZABLE
+start transaction;
+set @g1 = ST_GeomFromText('Polygon((800 800, 800 1000, 1000 1000, 1000 800, 800 800))');
+select count(*) from t1 where MBRwithin(t1.c2, @g1);
+count(*)
+199
+CALL insert_t1(1001, 2000);
+set session transaction isolation level serializable;
+set session innodb_lock_wait_timeout = 1;
+insert into t1 values (1200, Point(950, 950));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select sleep(2);
+sleep(2)
+0
+commit;
+SET SESSION debug="-d,rtr_pcur_move_to_next_return";
+drop table t1;
+drop procedure insert_t1;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
+INSERT INTO t1  VALUES (2, ST_GeomFromText('LineString(3 3, 160 160)'));
+INSERT INTO t1  VALUES (2, ST_GeomFromText('LineString(4 4, 170 170)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(5 5, 180 180)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(6 6, 190 190)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(7 7, 200 200)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
+SET SESSION debug="+d,rtr_pcur_move_to_next_return";
+set transaction isolation level serializable;
+start transaction;
+set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
+select count(*) from t1 where MBRwithin(t1.c2, @g1);
+count(*)
+0
+delete from t1 where  c1 = 1;
+commit;
+set transaction isolation level serializable;
+start transaction;
+set @g1 = ST_GeomFromText('Polygon((0 0, 0 300, 300 300, 300 0, 0 0))');
+select count(*) from t1 where MBRwithin(t1.c2, @g1);
+count(*)
+2
+set session innodb_lock_wait_timeout = 1;
+delete from t1 where  c1 = 2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+drop table t1;
+SET DEBUG_SYNC= 'RESET';
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+start transaction;
+insert into t1 values(1, Point(1,1));
+insert into t1 values(2, Point(2,2));
+insert into t1 values(3, Point(3,3));
+insert into t1 values(4, Point(4,4));
+insert into t1 values(5, Point(5,5));
+insert into t1 values(6, Point(6,6));
+insert into t1 values(7, Point(7,7));
+insert into t1 values(8, Point(8,8));
+insert into t1 values(9, Point(9,9));
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+select count(*) from t1;
+count(*)
+4608
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+set transaction isolation level read uncommitted;
+SET DEBUG_SYNC= 'row_search_for_mysql_before_return SIGNAL siga WAIT_FOR sigb';
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+SET DEBUG_SYNC= 'now WAIT_FOR siga';
+rollback;
+SET DEBUG_SYNC= 'now SIGNAL sigb';
+count(*)
+1
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+0
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+create procedure insert_t1(IN total int)
+begin
+declare i int default 1;
+while (i <= total) DO
+insert into t1 values (i, Point(i, i));
+set i = i + 1;
+end while;
+end|
+start transaction;
+CALL insert_t1(100);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 1000,1000 1000,1000 0,0 0))');
+SET DEBUG_SYNC= 'rtr_pcur_move_to_next_return SIGNAL siga WAIT_FOR sigb';
+select count(*) from t1 where MBRWithin(t1.c2, @g1);;
+SET DEBUG_SYNC= 'now WAIT_FOR siga';
+rollback;
+SET DEBUG_SYNC= 'now SIGNAL sigb';
+count(*)
+0
+drop procedure insert_t1;
+DROP TABLE t1;
+SET SESSION debug="-d,rtr_pcur_move_to_next_return";
+SET DEBUG_SYNC = 'RESET';

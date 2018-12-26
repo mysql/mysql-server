@@ -1,0 +1,53 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+SET SESSION sql_log_bin= 1;
+drop database if exists test1;
+create database test1;
+use test1;
+CREATE TABLE `t1` (
+`id` int(10) unsigned NOT NULL auto_increment,
+`fname` varchar(100) default NULL,
+PRIMARY KEY  (`id`)
+) DEFAULT CHARSET=latin1 AUTO_INCREMENT=2 ;
+INSERT INTO `t1` VALUES (1, 'blablabla');
+CREATE TABLE `t2` (
+`id` int(10) NOT NULL auto_increment,
+`comment` varchar(255) NOT NULL default '',
+PRIMARY KEY  (`id`)
+) AUTO_INCREMENT=3 ;
+INSERT INTO `t2` VALUES (1, 'testtest 1');
+INSERT INTO `t2` VALUES (2, 'test 2');
+CREATE PROCEDURE simpleproc3 ()
+NOT DETERMINISTIC
+BEGIN
+INSERT INTO t1 (fname) (SELECT t2.comment FROM t2 WHERE t2.id = '1');
+INSERT INTO t1 (fname) VALUES('test');
+END
+$
+CALL simpleproc3();
+select * from t2;
+id	comment
+1	testtest 1
+2	test 2
+TRUNCATE TABLE `t1`;
+CALL simpleproc3();
+select * from t1;
+id	fname
+1	testtest 1
+2	test
+include/sync_slave_sql_with_master.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+SET SESSION sql_log_bin= 1;
+use test1;
+select * from t1;
+id	fname
+1	testtest 1
+2	test
+drop database test1;
+include/rpl_end.inc

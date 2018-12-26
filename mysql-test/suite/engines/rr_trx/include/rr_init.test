@@ -1,0 +1,115 @@
+#
+# Specify storage engine to use. Variable $engine is set in wrapper test.
+#
+eval SET @@default_storage_engine = $engine;
+if (`SELECT @@default_storage_engine LIKE 'InnoDB' AND @@version LIKE '%6.%'`)
+{
+    # Need this due to Bug#43447 - Crash when executing SELECT ... LIMIT n FOR UPDATE query
+    # Hopefully temporary...
+    # Not applicable to 5.1 server or earlier.
+    --disable_query_log
+    SET GLOBAL optimizer_use_mrr='disable';
+    SET GLOBAL engine_condition_pushdown=off;
+    --enable_query_log
+}
+
+if (`SELECT @@default_storage_engine LIKE 'PBXT' AND @@version LIKE '%5.1%'`)
+{
+    --disable_query_log
+    SET SESSION binlog_format = 'MIXED';
+    SET GLOBAL binlog_format = 'MIXED';
+    --enable_query_log
+}
+
+# Verify default storage engine.
+SHOW VARIABLES LIKE 'default_storage_engine';
+
+# Verify default isolation level
+SHOW VARIABLES LIKE 'transaction_isolation';
+
+#
+# Create table for keeping track of test metadata/statistics (counters etc.).
+# (Need a data structure that will hold across tests, clients, sessions).
+# Expand/modify if needeed, but take care of test files using it.
+#
+# Columns:
+#   deadlocks - keeps track of the total number of deadlocks so far.
+#
+# Using default storage engine (see above).
+CREATE TABLE statistics (
+ tx_errors INTEGER NOT NULL
+);
+
+# Initialize statistics table.
+INSERT INTO statistics (tx_errors) VALUES (0);
+
+#
+# Create main test / data table. Some notes:
+# * timestamp is automatically DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+# * BOOLEAN is TINYINT(1)
+# * `is_consistent` means that the sum of int1* and int2* columns in that row 
+#                   is = 0. NOTE: Do not change meaning unless you take care to 
+#                   change test cases that rely on it (e.g. rr_id_900).
+#                   Set `is_consistent` = 0 if changing a row's sum to non-zero.
+#
+# TODO: Get TID (thread_id) from mysql-stress-test.pl somehow.
+#
+
+CREATE TABLE t1 (
+ `pk` INTEGER AUTO_INCREMENT NOT NULL,
+ `id` INTEGER NOT NULL,
+ `int1` INTEGER,
+ `int1_key` INTEGER,
+ `int1_unique` INTEGER,
+ `int2` INTEGER,
+ `int2_key` INTEGER,
+ `int2_unique` INTEGER,
+ `for_update` BOOLEAN DEFAULT 0,
+ `timestamp` TIMESTAMP,
+ `connection_id` INTEGER,
+ `thread_id` INTEGER DEFAULT 0,
+ `is_uncommitted` BOOLEAN DEFAULT 0,
+ `is_consistent` BOOLEAN DEFAULT 0,
+ KEY (`id`),
+ KEY (`int1_key`),
+ KEY (`int2_key`),
+ UNIQUE (`int1_unique`),
+ UNIQUE (`int2_unique`),
+ PRIMARY KEY (`pk`)
+);
+
+# Check that the table was really created with the intended storage engine.
+SHOW CREATE TABLE t1;
+
+## Procedure for inserting the value 1000 into integer fieds, "rows" times.
+
+--delimiter //
+
+eval CREATE PROCEDURE insertRows(rows INT)
+BEGIN
+  SET @n = 1;
+  REPEAT
+    INSERT INTO t1 (`id`, `int1`, `int1_key`, `int1_unique`, 
+                    `int2`, `int2_key`, `int2_unique`,
+                    `for_update`, `connection_id`, `thread_id`, 
+                    `is_uncommitted`, `is_consistent`) 
+       VALUES (0, 1000, 1000, @n,
+               -1000, -1000, -@n,
+               0, CONNECTION_ID(), 0, 
+               0, 1);
+    SET @n = @n + 1;
+  UNTIL @n > rows
+  END REPEAT;
+END;
+//
+
+--delimiter ;
+
+## Insert 1000 rows.
+CALL insertRows(1000);
+
+## Check the sum of all int columns
+SELECT SUM(`int1` + `int1_key` + `int1_unique`
+         + `int2` + `int2_key` + `int2_unique`) 
+         AS TotalSum 
+         FROM t1;

@@ -1,0 +1,38 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("Unknown table");
+CALL mtr.add_suppression("A commit for an atomic DDL statement was unsuccessful on the master and the slave");
+CALL mtr.add_suppression("Query caused different errors on master and slave.");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+CALL mtr.add_suppression("Slave worker thread has failed to apply an event. As a consequence, the coordinator thread is stopping execution.");
+RESET SLAVE;
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13113]
+include/stop_slave.inc
+include/assert.inc [Check that the failed ddl was rollbacked and is not in the slave gtid_executed set]
+RESET SLAVE;
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT= AUTOMATIC;
+include/start_slave.inc
+DROP TABLE t1;
+include/stop_slave.inc
+RESET SLAVE;
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13113]
+include/assert.inc [Check that the failed ddl was rollbacked and is not in the slave gtid_executed set]
+include/stop_slave.inc
+RESET SLAVE;
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+BEGIN;
+COMMIT;
+SET GTID_NEXT= AUTOMATIC;
+include/start_slave.inc
+DROP VIEW v1;
+include/assert_grep.inc [There shall be an error when the master is 5.7-, the slave is 8.0+, and the latter fails to apply an atomic DDL]
+include/rpl_end.inc

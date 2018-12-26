@@ -1,0 +1,31 @@
+# WL#6841 - GCS Replication: P_S table to show GCS kernel stats
+#
+# This test proofs the existence of the replication_connection_status table
+# and all its fields. Since the table only returns values if the plugin is
+# loaded, all queries will return "No such row" or "0"
+#
+
+--let $channel_name= query_get_value(SELECT Channel_Name from performance_schema.replication_group_members, Channel_Name, 1)
+--let $assert_text= The value of channel name should be empty
+--let $assert_cond= "$channel_name" = "No such row"
+--source include/assert.inc
+
+--let $member_id= query_get_value(SELECT Member_Id from performance_schema.replication_group_members, Member_Id, 1)
+--let $assert_text= The value of member_id should be empty
+--let $assert_cond= "$member_id" = "No such row"
+--source include/assert.inc
+
+--let $member_host= query_get_value(SELECT Member_Host from performance_schema.replication_group_members, Member_Host, 1)
+--let $assert_text= The value of member_host should be empty
+--let $assert_cond= "$member_host" = "No such row"
+--source include/assert.inc
+
+--let $member_port= query_get_value(SELECT Member_Port from performance_schema.replication_group_members, Member_Port, 1)
+--let $assert_text= The value of member_port should be empty
+--let $assert_cond= "$member_port" = "No such row"
+--source include/assert.inc
+
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state should be empty
+--let $assert_cond= "$member_state" = "No such row"
+--source include/assert.inc

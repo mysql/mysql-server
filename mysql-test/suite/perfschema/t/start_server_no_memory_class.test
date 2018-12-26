@@ -1,0 +1,23 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+# Expect no classes
+show global variables like "performance_schema_max_memory_classes";
+
+# Expect builtin memory classes
+select name from performance_schema.setup_instruments
+  where name like "memory/performance_schema/%"
+  order by name;
+
+# Expect no memory classes
+select count(*) from performance_schema.setup_instruments
+  where name like "memory/%"
+    and name not like "memory/performance_schema/%";
+
+# We lost all the classes
+--disable_warnings
+select variable_value > 0 from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_MEMORY_CLASSES_LOST';
+--enable_warnings
+

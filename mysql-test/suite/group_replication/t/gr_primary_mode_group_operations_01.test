@@ -1,0 +1,245 @@
+###############################################################################
+#
+# To execute a configuration change the member must be on ONLINE
+# state and belong to a reachable group majority.
+#
+# Also tested:
+# You cannot execute configuration changes when there is an active
+# table lock
+#
+# Test:
+#   0. The test requires two servers: M1 and M2.
+#   1. Execute a switch to multi primary mode, it must be a no op since the
+#      group is already on multi primary mode.
+#   2. Executing a mode change or primary election on an OFFLINE member must
+#      fail.
+#   3. Stop applier thread on server1 so server2 stays on recovering.
+#   4. Executing a mode change or primary election on a RECOVERING member
+#      must fail.
+#   5. Start applier sql thread on server1 to enable server2 to join the
+#      group.
+#   6. Executing a mode change or primary election on an ERRORed member must
+#      fail. Rectify the cause of error and bring back member ONLINE.
+#   7. Lock a table and try to execute a mode change. It must fail.
+#   8. Kill server1 to create a network partition on group.
+#   9. Executing a mode change or primary election on a network partition
+#      must fail.
+#  10. Cleanup.
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 1. Execute a switch to multi primary mode, it must be a no op since the
+--echo #    group is already on multi primary mode.
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--echo
+--echo # 2. Executing a mode change or primary election on an OFFLINE member
+--echo #    must fail.
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_single_primary_mode();
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 3. Stop applier thread on server1 so server2 stays on recovering.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_stop_applier_sql_thread.inc
+
+--echo
+--echo # 4. Executing a mode change or primary election on a RECOVERING member
+--echo #    must fail.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_single_primary_mode();
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 5. Start applier sql thread on server1 to enable server2 to join the
+--echo #    group.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_start_applier_sql_thread.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 6. Executing a mode change or primary election on an ERRORed member
+--echo #    must fail.
+
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+set session sql_log_bin=0;
+INSERT INTO test.t1 VALUES (1);
+set session sql_log_bin=1;
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO test.t1 VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_single_primary_mode();
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # Rectify the cause of error and bring back member ONLINE.
+--source include/stop_group_replication.inc
+
+set session sql_log_bin=0;
+TRUNCATE TABLE t1;
+set session sql_log_bin=1;
+
+--let $group_replication_start_member_state= ONLINE
+--source include/start_group_replication.inc
+
+--echo
+--echo # 7. Lock a table and try to execute a mode change. It must fail.
+
+LOCK TABLE t1 WRITE;
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_single_primary_mode();
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+--source include/rpl_sync.inc
+
+--echo
+--echo # 8. Kill server1 to create a network partition on group.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $server1_uuid
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 9. Executing a mode change or primary election on a network partition
+--echo #    must fail.
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_single_primary_mode();
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 10. Cleanup.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("Could not execute Write_rows event on table test.t1");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+set session sql_log_bin=1;
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

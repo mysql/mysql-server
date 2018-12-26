@@ -1,0 +1,53 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+flush status;
+include/stop_slave.inc
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @@global.slave_parallel_workers= 4;
+include/start_slave.inc
+create database d2;
+use d2;
+create table d2.t1 (a int auto_increment primary key, b int) engine=innodb;
+insert into d2.t1 (b) select count(*) from tt_##;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+create database d1;
+use d1;
+create table d1.t1 (a int auto_increment primary key, b int) engine=innodb;
+insert into d1.t1 (b) select count(*) from tt_##;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+create database d4;
+use d4;
+create table d4.t1 (a int auto_increment primary key, b int) engine=innodb;
+insert into d4.t1 (b) select count(*) from tt_##;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+create database d3;
+use d3;
+create table d3.t1 (a int auto_increment primary key, b int) engine=innodb;
+insert into d3.t1 (b) select count(*) from tt_##;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:d4.t1, slave:d4.t1]
+include/diff_tables.inc [master:d3.t1, slave:d3.t1]
+include/diff_tables.inc [master:d2.t1, slave:d2.t1]
+include/diff_tables.inc [master:d1.t1, slave:d1.t1]
+use d2;
+use d1;
+drop database d2;
+drop database d1;
+use d4;
+use d3;
+include/sync_slave_sql_with_master.inc
+drop database d4;
+drop database d3;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;

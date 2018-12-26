@@ -1,0 +1,23 @@
+!include ../my.cnf
+
+[mysqld.1]
+binlog-row-image=MINIMAL
+binlog-row-value-options=PARTIAL_JSON
+
+[mysqld.2]
+log-slave-updates
+binlog-row-image=MINIMAL
+
+[mysqld.3]
+log-slave-updates
+binlog-row-image=MINIMAL
+binlog-row-value-options=PARTIAL_JSON
+
+[ENV]
+SERVER_MYPORT_1=		@mysqld.1.port
+SERVER_MYSOCK_1=		@mysqld.1.socket
+SERVER_MYPORT_2=		@mysqld.2.port
+SERVER_MYSOCK_2=		@mysqld.2.socket
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket
+

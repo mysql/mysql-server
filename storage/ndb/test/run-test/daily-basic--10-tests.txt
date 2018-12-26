@@ -1,0 +1,148 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testBasic
+args: -n InsertError2 T1
+max-time: 180
+
+cmd: testLimits
+args: -n ExhaustSegmentedSectionIx WIDE_2COL_IX
+max-time: 180
+
+cmd: testScan
+args: -n Bug48700 T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanDelete2 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n Bug44015 T1
+max-time: 180
+
+cmd: testBasic
+args: -n NoCommitRollback630 T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n OnlyOneOpInScanTrans T6 D1 D2
+max-time: 180
+
+cmd: testSystemRestart
+args: -l 1 -n SR8 T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanUpdateAndScanRead T6 D1 D2
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug36199 T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanUpdateAbort16 T6 D1 D2
+max-time: 180
+
+cmd: testIndex
+args: -n ConstraintDetails
+max-time: 180
+
+cmd: testDict
+args: -n GetTabInfoRef T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug32160 T1
+max-time: 180
+
+cmd: testDict
+args: -n Bug41905 T1
+max-time: 180
+
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwait_Version2 T1
+max-time: 540
+
+cmd: testScan
+args: -n CheckInactivityBeforeClose T6 D1 D2
+max-time: 180
+
+cmd: testDict
+args: -n Bug58277 T1
+max-time: 360
+
+cmd: test_event
+args: -n Bug34853 T1
+max-time: 360
+
+cmd: testOIBasic
+args: -case gz
+max-time: 360
+
+cmd: testBasic
+args: -n DDInsertFailUpdateBatch
+max-time: 900
+
+cmd: atrt-testBackup
+args: -n FailMaster T1
+max-time: 360
+
+cmd: testDict
+args: -n Bug36702 D1
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n Bug25554 T1
+max-time: 1260
+
+cmd: atrt-testBackup
+args: -n NFMasterAsSlave T1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n NoLoad T6
+max-time: 1080
+
+cmd: testIndex
+args: -n NFNR2_O T6 T13
+max-time: 1260
+
+cmd: testNodeRestart
+args: -n Bug48474 T1
+max-time: 1080
+
+cmd: test_event
+args: -n CreateDropNR T1
+max-time: 3240
+
+cmd: testNodeRestart
+args: -n RestartRandomNodeInitial T6 T13
+max-time: 4860
+
+cmd: testNodeRestart
+args: -n FiftyPercentStopAndWait T6 T13
+max-time: 4500
+

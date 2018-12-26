@@ -1,0 +1,213 @@
+# ==== Purpose ====
+#
+# This test case validates the contents of
+# performance_schema.log_status table and the privileges
+# required to query the table. It also validates that the table can be
+# accessed even when MySQL instance is locked for backup and FLUSH TABLES
+# <table list> WITH READ LOCK is in place.
+#
+# In a first step, it generates some workload on the master and then collects
+# the instance log resources status on the slave by querying
+# performance_schema.log_status inserting its contents
+# into a new table.
+#
+# The test case then validates some of the contents inserted into
+# the new table.
+#
+# In a second step, the test case creates an unprivileged user asserting
+# that the server will throw an error when the user tries to query
+# performance_schema.log_status table.
+#
+# A third step queries performance_schema.log_status while other
+# client session locked MySQL instance for backup and did
+# FLUSH TABLE <table list> WITH READ LOCK.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#9452: Log Position Lock
+#
+
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
+
+
+--echo # First step
+
+# Table to collect instance_log_info
+CREATE TABLE ils_copy (
+  uuid VARCHAR(36) PRIMARY KEY,
+  master JSON NOT NULL,
+  channels JSON NOT NULL,
+  storage_engines JSON NOT NULL);
+
+# Table to be listed at FLUSH TABLES <table list> WITH READ LOCK
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+
+--source include/sync_slave_sql_with_master.inc
+# Create a new channel, so we can test a non-empty channel name on results
+CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
+
+# Save current master binary log coordinates and gtid_executed
+--let $_saved_gtids=
+if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
+{
+  --let $use_gtids= 1
+}
+--source include/save_master_pos.inc
+
+# Save current slave relay log coordinates
+--let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--let $ch1_relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 2)
+# As we do not start ch1, we cannot verify its positions accurately for this
+# test case purposes. That is fine as the objective is to test a non-empty
+# channel name.
+
+# Save current InnoDB LSN and LSN_checkpoint before the collection
+--replace_regex /.*Last checkpoint at[[:space:]]*([0-9]+).*/\1/gso
+--let $innodb_seis=`SHOW ENGINE INNODB STATUS`
+# Remove the "InnoDB" from the collected LSN_checkpoint info
+--let $innodb_lsn_checkpoint_before=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`
+--replace_regex /.*Log sequence number[[:space:]]*([0-9]+).*/\1/gso
+--let $innodb_seis=`SHOW ENGINE INNODB STATUS`
+# Remove the "InnoDB" from the collected LSN info
+--let $innodb_lsn_before=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`
+
+# Collect the instance log status into ils_copy table
+--let $ils_dump= $MYSQLTEST_VARDIR/tmp/ils_$server_2_uuid
+--replace_result $ils_dump ILS_DUMP
+--eval SELECT * FROM performance_schema.log_status INTO OUTFILE '$ils_dump'
+if ($rpl_debug)
+{
+  --query_vertical SELECT * FROM ils_copy
+}
+
+# Save current InnoDB LSN and LSN_checkpoint after the collection
+--replace_regex /.*Last checkpoint at[[:space:]]*([0-9]+).*/\1/gso
+--let $innodb_seis=`SHOW ENGINE INNODB STATUS`
+# Remove the "InnoDB" from the collected LSN_checkpoint info
+--let $innodb_lsn_checkpoint_after=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`
+--replace_regex /.*Log sequence number[[:space:]]*([0-9]+).*/\1/gso
+--let $innodb_seis=`SHOW ENGINE INNODB STATUS`
+# Remove the "InnoDB" from the collected LSN info
+--let $innodb_lsn_after=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`
+
+#
+# Validate what was collected from performance_schema.log_status table
+#
+--replace_result $ils_dump ILS_DUMP
+--eval LOAD DATA INFILE '$ils_dump' INTO TABLE ils_copy
+
+--let $assert_text= Collected server UUID is correct
+--let $ils_uuid= `SELECT uuid FROM ils_copy`
+--let $assert_cond= "$ils_uuid" = "$server_2_uuid"
+--source include/assert.inc
+
+--let $assert_text= Collected master binary log file name is correct
+--let $ils_master_file= `SELECT JSON_EXTRACT(master, "$.binary_log_file") FROM ils_copy`
+--let $assert_cond= $ils_master_file = "$_saved_file"
+--source include/assert.inc
+
+--let $assert_text= Collected master binary log file position is correct
+--let $ils_master_pos= `SELECT JSON_EXTRACT(master, "$.binary_log_position") FROM ils_copy`
+--let $assert_cond= $ils_master_pos = $_saved_pos
+--source include/assert.inc
+
+--let $assert_text= Collected master gtid_executed is correct
+--let $ils_gtid_executed= `SELECT JSON_EXTRACT(master, "$.gtid_executed") FROM ils_copy`
+--let $assert_cond= $ils_gtid_executed = "$_saved_gtids"
+--source include/assert.inc
+
+--let $assert_text= Collected default replication channel name is correct
+--let $ils_channel_name= `SELECT JSON_EXTRACT(channels, "$.channels[0].channel_name") FROM ils_copy`
+--let $assert_cond= $ils_channel_name = ""
+--source include/assert.inc
+
+--let $assert_text= Collected default replication channel relay log file name is correct
+--let $ils_relay_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_file") FROM ils_copy`
+--let $assert_cond= $ils_relay_log_file = "$relay_log_file"
+--source include/assert.inc
+
+--let $assert_text= Collected default replication channel relay log file position is correct
+--let $ils_relay_log_pos= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_position") FROM ils_copy`
+--let $assert_cond= $ils_relay_log_pos = $relay_log_pos
+--source include/assert.inc
+
+--let $assert_text= Collected replication channel name for ch1 is correct
+--let $ils_ch1_channel_name= `SELECT JSON_EXTRACT(channels, "$.channels[1].channel_name") FROM ils_copy`
+--let $assert_cond= $ils_ch1_channel_name = "ch1"
+--source include/assert.inc
+
+--let $assert_text= Collected replication channel relay log file name for ch1 is correct
+--let $ils_ch1_relay_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[1].relay_log_file") FROM ils_copy`
+--let $assert_cond= $ils_ch1_relay_log_file = "$ch1_relay_log_file"
+--source include/assert.inc
+
+--let $assert_text= Collected InnoDB LSN is in correct boundaries
+--let $ils_innodb_lsn= `SELECT JSON_EXTRACT(storage_engines, "$.InnoDB.LSN") FROM ils_copy`
+--let $assert_cond= $innodb_lsn_after >= $ils_innodb_lsn AND $ils_innodb_lsn >= $innodb_lsn_before
+--source include/assert.inc
+
+--let $assert_text= Collected InnoDB LSN_checkpoint is in correct boundaries
+--let $ils_innodb_lsn_checkpoint = `SELECT JSON_EXTRACT(storage_engines, "$.InnoDB.LSN_checkpoint") FROM ils_copy`
+--let $assert_cond= $innodb_lsn_checkpoint_after >= $ils_innodb_lsn_checkpoint AND $ils_innodb_lsn_checkpoint >= $innodb_lsn_checkpoint_before
+--source include/assert.inc
+
+
+--echo # Second step
+
+#
+# Check that unprivileged access to
+# performance_schema.log_status table fails
+#
+
+# Create a new user and allow it to query any table
+CREATE USER user1@'%';
+GRANT SELECT ON *.* TO user1@'%';
+
+# Connect the slave as the new user
+--connect (user1,127.0.0.1,user1,,test,$SLAVE_MYPORT,)
+--connection user1
+# Ensure user1 has access to performance_schema tables.
+# Disabling result log as it is not deterministic.
+--disable_result_log
+SELECT COUNT(*) FROM performance_schema.global_variables;
+--enable_result_log
+# Querying performance_schema.log_status should fail
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--query_vertical SELECT * FROM performance_schema.log_status
+
+--source include/rpl_connection_slave.inc
+--disconnect user1
+DROP USER user1@'%';
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+
+--echo # Third step
+
+#
+# Check that performance_schema.log_status can be accessed
+# even when MySQL instance is locked for backup and
+# FLUSH TABLES <table list> WITH READ LOCK is in place.
+#
+--source include/rpl_connection_slave1.inc
+LOCK INSTANCE FOR BACKUP;
+FLUSH TABLES test.t1 WITH READ LOCK;
+--source include/rpl_connection_slave.inc
+# The content of the result is not important in this step
+--disable_result_log
+SELECT * FROM performance_schema.log_status;
+--enable_result_log
+--source include/rpl_connection_slave1.inc
+UNLOCK TABLES;
+UNLOCK INSTANCE;
+
+
+# Cleanup
+--source include/rpl_connection_slave.inc
+--remove_file $ils_dump
+--source include/rpl_connection_master.inc
+DROP TABLE ils_copy, t1;
+
+--source include/rpl_end.inc

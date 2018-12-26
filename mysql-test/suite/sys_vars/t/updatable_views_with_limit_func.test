@@ -1,0 +1,143 @@
+############ mysql-test\t\updatable_views_with_limit_func.test #################
+#                                                                              #
+#Variable Name: updatable_views_with_limit                                     #
+#Scope: SESSION                                                                #
+#Access Type: Dynamic                                                          #
+#Data Type: Enumeration                                                        #
+#Default Value: -                                                              #
+#Values:      -                                                                #
+#                                                                              #
+#                                                                              #
+#Creation Date: 2008-03-02                                                     #
+#Author:  Sharique Abdullah                                                        #
+#                                                                              #
+#Description: Test Cases of Dynamic System Variable "updatable_views_with_limit#
+#             that checks behavior of this variable in the following ways      #
+#             * Functionality based on different values                        #
+#                                                                              #
+#Reference: http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html#
+#option_mysqld_updatable_views_with_limit                                      #
+#                                                                              #
+################################################################################
+
+#
+# Setup
+#
+
+SET @session_updatable_views_with_limit = @@Session.UPDATABLE_VIEWS_WITH_LIMIT;
+
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+################################
+#      Creating table          #
+################################
+
+CREATE TABLE t1 (a INT, b INT, c INT, PRIMARY KEY(a,b));
+
+##################################
+#  Inserting values in the table #
+##################################
+
+
+INSERT INTO t1 VALUES (10,2,-1), (20,3,-2),
+                      (30,4,-3), (40,5,-4);
+
+
+####################################
+#    Creating views                #
+####################################
+CREATE VIEW v1 (x,y) AS SELECT a, c FROM t1;
+
+
+--echo ** Connecting test_con1 using username 'root' **
+CONNECT (test_con1,localhost,root,,);
+--echo ** Connection test_con1 **
+CONNECTION test_con1;
+
+SET @@Session.UPDATABLE_VIEWS_WITH_LIMIT=YES;
+
+#
+# Testing WITH a limit clause
+#
+
+--echo Warning expected, 'View does not contain complete key of the table'
+UPDATE v1 SET x=x+6 LIMIT 1;
+
+SELECT * FROM t1;
+
+#
+# Testing WITHOUT a limit clause
+#
+
+UPDATE v1 SET x=x+5;
+
+SELECT * FROM t1;
+
+--echo ** Connecting test_con2 using username 'root' **
+CONNECT (test_con2,localhost,root,,);
+--echo ** Connection test_con2 **
+CONNECTION test_con2;
+
+SET @@Session.UPDATABLE_VIEWS_WITH_LIMIT=NO;
+
+SELECT @@SESSION.UPDATABLE_VIEWS_WITH_LIMIT;
+
+--ERROR ER_NON_UPDATABLE_TABLE
+UPDATE v1 SET x=x+10 LIMIT 1;
+--echo Expected error 'Non updatable table'
+
+SELECT * FROM t1;
+
+
+--echo '#---------------------FN_DYNVARS_039_01----------------------#'
+######################################
+#   Setting value to NO              #
+######################################
+
+SET UPDATABLE_VIEWS_WITH_LIMIT=NO;
+
+-- error ER_NON_UPDATABLE_TABLE
+UPDATE v1 SET x=x+1 LIMIT 1;
+--echo Expected error 'Non updatable table'
+
+SET UPDATABLE_VIEWS_WITH_LIMIT=0;
+
+-- error ER_NON_UPDATABLE_TABLE
+UPDATE v1 SET x=x+1 LIMIT 1;
+--echo Expected error 'Non updatable table'
+
+--echo '#---------------------FN_DYNVARS_039_02----------------------#'
+######################################
+#   Setting value to Default         #
+######################################
+
+--echo Warning expected, 'View does not contain complete key of the table'
+SET UPDATABLE_VIEWS_WITH_LIMIT=DEFAULT;
+UPDATE v1 SET x=x+1 LIMIT 1;
+
+
+--echo Warning expected, 'View does not contain complete key of the table'
+SET UPDATABLE_VIEWS_WITH_LIMIT=YES;
+UPDATE v1 SET x=x+2 LIMIT 1;
+
+#
+# Cleanup
+#
+
+--echo ** Connection default **
+connection default;
+
+--echo ** Disconnecting test_con1, test_con2 **
+disconnect test_con1;
+disconnect test_con2;
+
+SET @@SESSION.updatable_views_with_limit = @session_updatable_views_with_limit;
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+

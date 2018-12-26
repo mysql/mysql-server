@@ -1,0 +1,32 @@
+# Save the initial number of concurrent sessions
+# Establish connection con1 (user=root)
+# Establish connection con2 (user=root)
+# Switch to connection con1
+CREATE TABLE t1 (a INT) ENGINE=innodb;
+RESET MASTER;
+SET AUTOCOMMIT=0;
+SELECT 1;
+1
+1
+# Switch to connection con2
+FLUSH TABLES WITH READ LOCK;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+# Switch to connection con1
+INSERT INTO t1 VALUES (1);
+# Switch to connection con2
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+UNLOCK TABLES;
+# Switch to connection con1
+DROP TABLE t1;
+SET AUTOCOMMIT=1;
+create table t1 (a int) engine=innodb;
+flush tables with read lock;
+begin;
+insert into t1 values (1);;
+unlock tables;
+commit;
+drop table t1;
+# Switch to connection default and close connections con1 and con2
+# Wait till all disconnects are completed

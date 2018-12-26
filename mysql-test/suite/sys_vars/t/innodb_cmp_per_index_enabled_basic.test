@@ -1,0 +1,64 @@
+# CREATE TABLE ... KEY_BLOCK_SIZE=8; does not work with page size = 4k
+
+# Check the default value
+SELECT @@global.innodb_cmp_per_index_enabled;
+
+# should be a boolean
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_stats_persistent=123;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_stats_persistent='foo';
+
+# Check that changing value works and that setting the same value again
+# is as expected
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SELECT @@global.innodb_cmp_per_index_enabled;
+
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SELECT @@global.innodb_cmp_per_index_enabled;
+
+SET GLOBAL innodb_cmp_per_index_enabled=OFF;
+SELECT @@global.innodb_cmp_per_index_enabled;
+
+SET GLOBAL innodb_cmp_per_index_enabled=OFF;
+SELECT @@global.innodb_cmp_per_index_enabled;
+
+-- vertical_results
+
+# Check that enabling after being disabled resets the stats
+
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+
+CREATE TABLE t (a INT) ENGINE=INNODB KEY_BLOCK_SIZE=8;
+
+INSERT INTO t VALUES (1);
+
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+SET GLOBAL innodb_cmp_per_index_enabled=OFF;
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+DROP TABLE t;
+
+# Check that enabling after being enabled does not reset the stats
+
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+
+CREATE TABLE t (a INT) ENGINE=INNODB KEY_BLOCK_SIZE=8;
+
+INSERT INTO t VALUES (1);
+
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+DROP TABLE t;
+
+#
+
+SET GLOBAL innodb_cmp_per_index_enabled=default;

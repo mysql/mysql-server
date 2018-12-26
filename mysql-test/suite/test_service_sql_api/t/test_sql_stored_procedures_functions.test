@@ -1,0 +1,121 @@
+
+CREATE TABLE t (c1 INT,
+                c2 DATE,
+                c3 VARCHAR(128));
+
+--echo # Creating procedures
+DELIMITER |;
+CREATE PROCEDURE proc()
+BEGIN
+  INSERT INTO t VALUES (1, '2015-07-06', 'abc');
+  INSERT INTO t VALUES (2, '2015-07-07', 'def');
+  INSERT INTO t VALUES (3, '2015-07-08', 'ijk');
+  INSERT INTO t VALUES (4, '2015-07-09', 'lmn');
+  INSERT INTO t VALUES (5, '2015-07-10', 'opq');
+END |
+
+CREATE PROCEDURE sp_no_results()
+BEGIN
+END|
+
+CREATE PROCEDURE sp_one_result()
+BEGIN
+  select 1;
+END|
+
+CREATE PROCEDURE sp_two_results()
+BEGIN
+  select 1;
+  select 2;
+END|
+
+CREATE PROCEDURE sp_no_results_out(OUT a int)
+BEGIN
+  set a=123;
+END|
+
+CREATE PROCEDURE sp_one_result_out(OUT a int)
+BEGIN
+  set a=234;
+  select 1;
+END|
+
+CREATE PROCEDURE sp_two_results_out(OUT a int)
+BEGIN
+  set a=456;
+  select 1;
+  select 2;
+END|
+
+CREATE PROCEDURE sp_with_error()
+BEGIN
+  show tables from `invalid`;
+END|
+
+CREATE PROCEDURE sp_result_error()
+BEGIN
+  select 5;
+  show tables from `invalid`;
+END|
+
+DELIMITER ;|
+
+--echo # Creating a function
+DELIMITER |;
+CREATE FUNCTION avg_func(n1 INT, n2 INT) RETURNS INT
+DETERMINISTIC
+BEGIN
+  DECLARE avg INT;
+  SET avg = (n1 + n2)/2;
+  RETURN avg;
+END |
+DELIMITER ;|
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SQL_STORED_PROCEDURES_FUNCTIONS TEST_SQL_STORED_PROCEDURES_FUNCTIONS
+eval INSTALL PLUGIN test_sql_stored_procedures_functions SONAME '$TEST_SQL_STORED_PROCEDURES_FUNCTIONS';
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_sql_stored_procedures_functions;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_stored_procedures_functions.log;
+remove_file $MYSQLD_DATADIR/test_sql_stored_procedures_functions.log;
+
+--echo # Checking whether procedure is executed when called in the plugin
+SELECT * FROM t;
+
+--echo # Calling the procedure
+CALL proc;
+SELECT * FROM t;
+
+--echo # Calling the function
+SELECT avg_func(10, 20);
+
+--echo ##########################################
+--echo # Cleanup
+--echo ##########################################
+
+--echo # Dropping the created procedures
+DROP PROCEDURE proc;
+DROP PROCEDURE sp_no_results;
+DROP PROCEDURE sp_one_result;
+DROP PROCEDURE sp_two_results;
+DROP PROCEDURE sp_no_results_out;
+DROP PROCEDURE sp_one_result_out;
+DROP PROCEDURE sp_two_results_out;
+DROP PROCEDURE sp_with_error;
+DROP PROCEDURE sp_result_error;
+
+--echo # Dropping the created function
+DROP FUNCTION avg_func;
+
+--echo # Dropping the created table
+DROP TABLE t;

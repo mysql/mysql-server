@@ -1,0 +1,162 @@
+################################################################################
+# This test evaluates a live switch of the recovery_complete_at option.
+# The member is recovering and waiting for the execution of cached transactions,
+# and while doing this, the user can switch to wait for certification only.
+#
+# Test:
+#   0. The test requires two servers.
+#   1. Start group replication on server1 and create 2 tables (t1,t2)
+#      Replicate the tables to server2.
+#   2. Insert a row on table t1 on server1.
+#      Lock table t1 and t2 on server2 and start group replication.
+#      Recovery will get stuck as the member can't execute data on t1.
+#   3. Insert a row on table t2 on server1.
+#      This transaction will be executed after state transfer ends on server2.
+#   4. Unlock t1 and recovery first phase will unblock.
+#      Recovery is still stuck on server2 waiting for the transaction on t2.
+#   5. Change the recovery policy to wait for certification only
+#      Recovery should end and the member is online.
+#   6. Test that all is fine and clean the setup.
+#   7. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--let $group_replication_group_name= 93150a70-b30b-11e5-a837-0800200c9a66
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo #
+--echo # Create t1 and t2 on server 1.
+--echo # Replicate it to server 2 but stop the group replication again.
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+#sync the tables
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # Insert a row on table 1 in server 1.
+--echo # Lock table t1 and t2 on server 2 and start group replication.
+--echo # Server 2 recovery is stuck on state transfer as it cannot execute on t1.
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+LOCK TABLE t1 WRITE;
+
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
+
+LOCK TABLE t2 WRITE;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL debug= '+d,group_replication_skip_read_mode';
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Insert a row on table t2 in server 1.
+--echo # This row is a cached row to be executed when the state transfer ends.
+--echo # On server 2, the queue contains a VCLevent and this transaction
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Wait for the View Change event to reach the binlog.
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:4')
+INSERT INTO t2 VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+ # Wait for the the 2 transaction to be in the queue
+ --let $wait_condition= SELECT count_transactions_in_queue=2 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
+ --source include/wait_condition.inc
+
+--echo #
+--echo # Unlock table t1, state transfer will end on server 2.
+--echo # Everything in the queue is certified
+--echo # Recovery is still stuck on server 2 waiting for the transaction on t2.
+--echo #
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+UNLOCK TABLES;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Everything should be certified at this point.
+--let $wait_condition= SELECT count_transactions_in_queue=0 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--let $group_replication_member_state= RECOVERING
+--source include/gr_wait_for_member_state.inc
+
+--echo #
+--echo # Change the recovery policy.
+--echo # As it only depends on certified transactions, recovery ends.
+--echo #
+
+SET @configured_rec_policy= @@GLOBAL.group_replication_recovery_complete_at;
+SET GLOBAL group_replication_recovery_complete_at= "transactions_certified";
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--echo #
+--echo # Test all is fine
+--echo #
+
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
+
+UNLOCK TABLES;
+
+INSERT INTO t2 VALUES (2);
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# The data should be there.
+--let $wait_condition= SELECT COUNT(*) = 2 FROM t2;
+--source include/wait_condition.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL debug= '-d,group_replication_skip_read_mode';
+SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/group_replication_end.inc

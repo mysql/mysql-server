@@ -1,0 +1,1152 @@
+CREATE TABLE t (a INT, b INT, c INT, d INT, e INT, PRIMARY KEY(a, b, c, d), KEY(b, d)) ENGINE=innodb;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET optimizer_switch = 'skip_scan=on';
+SET optimizer_trace="enabled=on,one_line=off";
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 2 AND d >= 98 AND e = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	250	3.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`e` = 2) and (`test`.`t`.`a` = 2) and (`test`.`t`.`d` >= 98))
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%query_references_nonkey_column%';
+count(*)
+1
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 OR b = 2 AND d >= 98;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index_merge	PRIMARY,b	b,PRIMARY	8,4	NULL	251	100.00	Using sort_union(b,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) or ((`test`.`t`.`b` = 2) and (`test`.`t`.`d` >= 98)))
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%disjuntive_predicate_present%';
+count(*)
+1
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 OR b = 2 OR d >= 98;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	PRIMARY,b	b	8	NULL	2500	52.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) or (`test`.`t`.`b` = 2) or (`test`.`t`.`d` >= 98))
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%disjuntive_predicate_present%';
+count(*)
+1
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 OR d >= 98;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	PRIMARY	b	8	NULL	2500	40.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) or (`test`.`t`.`d` >= 98))
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%disjuntive_predicate_present%';
+count(*)
+1
+EXPLAIN SELECT a, b, c, d FROM t WHERE ((a = 5 AND b = 2) OR a = 2) and d >= 98;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY,b	PRIMARY	8	NULL	300	33.33	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((((`test`.`t`.`b` = 2) and (`test`.`t`.`a` = 5)) or (`test`.`t`.`a` = 2)) and (`test`.`t`.`d` >= 98))
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%keypart_in_disjunctive_query%';
+count(*)
+1
+EXPLAIN SELECT a, b, c, d FROM t WHERE a > 2 AND d >= 98;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	80.00	Using where; Using index for skip scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` > 2) and (`test`.`t`.`d` >= 98))
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%prefix_not_const_equality%';
+count(*)
+1
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 2 AND (d >= 98 OR d < 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	PRIMARY	PRIMARY	4	const	250	55.55	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 2) and ((`test`.`t`.`d` >= 98) or (`test`.`t`.`d` < 2)))
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%range_predicate_too_complex%';
+count(*)
+1
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 2 AND b = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	PRIMARY,b	PRIMARY	8	const,const	50	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`a` = 2))
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%no_range_predicate%';
+count(*)
+1
+EXPLAIN SELECT a, b, c, d FROM t WHERE (a < 1 OR a = 4 OR a = 5) AND b IN (1, 2, 3) AND d >= 98;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	3	46.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where (((`test`.`t`.`a` < 1) or (`test`.`t`.`a` = 4) or (`test`.`t`.`a` = 5)) and (`test`.`t`.`b` in (1,2,3)) and (`test`.`t`.`d` >= 98))
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%prefix_not_const_equality%';
+count(*)
+1
+EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY,b	b	12	NULL	3	50.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,2,3,4,5)) and (`test`.`t`.`b` in (1,2,3)) and (`test`.`t`.`d` >= 98))
+SELECT * FROM information_schema.optimizer_trace;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "IN_uses_bisection": true
+          },
+          {
+            "IN_uses_bisection": true
+          },
+          {
+            "expanded_query": "/* select#1 */ select `t`.`a` AS `a`,`t`.`b` AS `b`,`t`.`c` AS `c`,`t`.`d` AS `d` from `t` where ((`t`.`a` in (1,2,3,4,5)) and (`t`.`b` in (1,2,3)) and (`t`.`d` >= 98))"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`t`.`a` in (1,2,3,4,5)) and (`t`.`b` in (1,2,3)) and (`t`.`d` >= 98))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((`t`.`a` in (1,2,3,4,5)) and (`t`.`b` in (1,2,3)) and (`t`.`d` >= 98))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((`t`.`a` in (1,2,3,4,5)) and (`t`.`b` in (1,2,3)) and (`t`.`d` >= 98))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((`t`.`a` in (1,2,3,4,5)) and (`t`.`b` in (1,2,3)) and (`t`.`d` >= 98))"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 2500,
+                    "cost": 254.6
+                  },
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "a",
+                        "b",
+                        "c",
+                        "d"
+                      ]
+                    },
+                    {
+                      "index": "b",
+                      "usable": true,
+                      "key_parts": [
+                        "b",
+                        "d",
+                        "a",
+                        "c"
+                      ]
+                    }
+                  ],
+                  "best_covering_index_scan": {
+                    "index": "b",
+                    "cost": 252.08,
+                    "chosen": true
+                  },
+                  "setup_range_conditions": [
+                  ],
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  },
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "tree_travel_cost": 0.6,
+                        "num_groups": 76,
+                        "rows": 249,
+                        "cost": 129.04
+                      },
+                      {
+                        "index": "b",
+                        "usable": false,
+                        "cause": "prefix_not_const_equality"
+                      }
+                    ]
+                  },
+                  "best_skip_scan_summary": {
+                    "type": "skip_scan",
+                    "index": "PRIMARY",
+                    "key_parts_used_for_access": [
+                      "a",
+                      "b",
+                      "c",
+                      "d"
+                    ],
+                    "prefix ranges": [
+                      "1 <= a <= 1 AND 1 <= b <= 1",
+                      "1 <= a <= 1 AND 2 <= b <= 2",
+                      "1 <= a <= 1 AND 3 <= b <= 3",
+                      "2 <= a <= 2 AND 1 <= b <= 1",
+                      "2 <= a <= 2 AND 2 <= b <= 2",
+                      "2 <= a <= 2 AND 3 <= b <= 3",
+                      "3 <= a <= 3 AND 1 <= b <= 1",
+                      "3 <= a <= 3 AND 2 <= b <= 2",
+                      "3 <= a <= 3 AND 3 <= b <= 3",
+                      "4 <= a <= 4 AND 1 <= b <= 1",
+                      "4 <= a <= 4 AND 2 <= b <= 2",
+                      "4 <= a <= 4 AND 3 <= b <= 3",
+                      "5 <= a <= 5 AND 1 <= b <= 1",
+                      "5 <= a <= 5 AND 2 <= b <= 2",
+                      "5 <= a <= 5 AND 3 <= b <= 3"
+                    ],
+                    "range": [
+                      "98 <= d"
+                    ],
+                    "chosen": true
+                  },
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "PRIMARY",
+                        "ranges": [
+                          "1 <= a <= 1 AND 1 <= b <= 1",
+                          "1 <= a <= 1 AND 2 <= b <= 2",
+                          "1 <= a <= 1 AND 3 <= b <= 3",
+                          "2 <= a <= 2 AND 1 <= b <= 1",
+                          "2 <= a <= 2 AND 2 <= b <= 2",
+                          "2 <= a <= 2 AND 3 <= b <= 3",
+                          "3 <= a <= 3 AND 1 <= b <= 1",
+                          "3 <= a <= 3 AND 2 <= b <= 2",
+                          "3 <= a <= 3 AND 3 <= b <= 3",
+                          "4 <= a <= 4 AND 1 <= b <= 1",
+                          "4 <= a <= 4 AND 2 <= b <= 2",
+                          "4 <= a <= 4 AND 3 <= b <= 3",
+                          "5 <= a <= 5 AND 1 <= b <= 1",
+                          "5 <= a <= 5 AND 2 <= b <= 2",
+                          "5 <= a <= 5 AND 3 <= b <= 3"
+                        ],
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
+                        "index_only": true,
+                        "rows": 750,
+                        "cost": 79.008,
+                        "chosen": true
+                      },
+                      {
+                        "index": "b",
+                        "ranges": [
+                          "1 <= b <= 1 AND 98 <= d",
+                          "2 <= b <= 2 AND 98 <= d",
+                          "3 <= b <= 3 AND 98 <= d"
+                        ],
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
+                        "index_only": true,
+                        "rows": 3,
+                        "cost": 0.5615,
+                        "chosen": true
+                      }
+                    ],
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    }
+                  },
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "b",
+                      "rows": 3,
+                      "ranges": [
+                        "1 <= b <= 1 AND 98 <= d",
+                        "2 <= b <= 2 AND 98 <= d",
+                        "3 <= b <= 3 AND 98 <= d"
+                      ]
+                    },
+                    "rows_for_plan": 3,
+                    "cost_for_plan": 0.5615,
+                    "chosen": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ],
+                      "final_filtering_effect": 0.5,
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "b"
+                      },
+                      "resulting_rows": 1.5,
+                      "cost": 0.8615,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 1.5,
+                "cost_for_plan": 0.8615,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`t`.`a` in (1,2,3,4,5)) and (`t`.`b` in (1,2,3)) and (`t`.`d` >= 98))",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": "((`t`.`a` in (1,2,3,4,5)) and (`t`.`b` in (1,2,3)) and (`t`.`d` >= 98))"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY,b	PRIMARY	12	NULL	83	33.33	Using where; Using index for skip scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 4) and (`test`.`t`.`d` < 3))
+SELECT * FROM information_schema.optimizer_trace;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t`.`b` AS `b`,`t`.`c` AS `c`,`t`.`d` AS `d` from `t` where ((`t`.`a` = 5) and (`t`.`c` > 4) and (`t`.`d` < 3))"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`t`.`a` = 5) and (`t`.`c` > 4) and (`t`.`d` < 3))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((`t`.`c` > 4) and (`t`.`d` < 3) and multiple equal(5, `t`.`a`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((`t`.`c` > 4) and (`t`.`d` < 3) and multiple equal(5, `t`.`a`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((`t`.`c` > 4) and (`t`.`d` < 3) and multiple equal(5, `t`.`a`))"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "table": "`t`",
+                "field": "a",
+                "equals": "5",
+                "null_rejecting": false
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 2500,
+                    "cost": 254.6
+                  },
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "a",
+                        "b",
+                        "c",
+                        "d"
+                      ]
+                    },
+                    {
+                      "index": "b",
+                      "usable": true,
+                      "key_parts": [
+                        "b",
+                        "d",
+                        "a",
+                        "c"
+                      ]
+                    }
+                  ],
+                  "best_covering_index_scan": {
+                    "index": "b",
+                    "cost": 252.08,
+                    "chosen": true
+                  },
+                  "setup_range_conditions": [
+                  ],
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  },
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "tree_travel_cost": 0.6,
+                        "num_groups": 6,
+                        "rows": 83,
+                        "cost": 19.98
+                      },
+                      {
+                        "index": "b",
+                        "tree_travel_cost": 0.6,
+                        "num_groups": 6,
+                        "rows": 833,
+                        "cost": 133.01
+                      }
+                    ]
+                  },
+                  "best_skip_scan_summary": {
+                    "type": "skip_scan",
+                    "index": "PRIMARY",
+                    "key_parts_used_for_access": [
+                      "a",
+                      "b",
+                      "c"
+                    ],
+                    "prefix ranges": [
+                      "5 <= a <= 5"
+                    ],
+                    "range": [
+                      "4 < c"
+                    ],
+                    "chosen": true
+                  },
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "PRIMARY",
+                        "ranges": [
+                          "5 <= a <= 5"
+                        ],
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
+                        "index_only": true,
+                        "rows": 250,
+                        "cost": 25.343,
+                        "chosen": false,
+                        "cause": "cost"
+                      },
+                      {
+                        "index": "b",
+                        "chosen": false,
+                        "cause": "no_valid_range_for_this_index"
+                      }
+                    ],
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    }
+                  },
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "skip_scan",
+                      "index": "PRIMARY",
+                      "key_parts_used_for_access": [
+                        "a",
+                        "b",
+                        "c"
+                      ],
+                      "prefix ranges": [
+                        "5 <= a <= 5"
+                      ],
+                      "range": [
+                        "4 < c"
+                      ]
+                    },
+                    "rows_for_plan": 83,
+                    "cost_for_plan": 19.98,
+                    "chosen": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "PRIMARY",
+                      "rows": 250,
+                      "cost": 25.492,
+                      "chosen": true
+                    },
+                    {
+                      "rows_to_scan": 83,
+                      "filtering_effect": [
+                      ],
+                      "final_filtering_effect": 0.3333,
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "index_for_skip_scan(PRIMARY)"
+                      },
+                      "resulting_rows": 27.664,
+                      "cost": 28.28,
+                      "chosen": false
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 11.109,
+                "rows_for_plan": 27.772,
+                "cost_for_plan": 25.492,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "access_type_changed": {
+              "table": "`t`",
+              "index": "PRIMARY",
+              "old_type": "ref",
+              "new_type": "range",
+              "cause": "uses_more_keyparts"
+            }
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`t`.`a` = 5) and (`t`.`c` > 4) and (`t`.`d` < 3))",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": "((`t`.`a` = 5) and (`t`.`c` > 4) and (`t`.`d` < 3))"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	PRIMARY,b	PRIMARY	4	const	250	33.33	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
+SELECT * FROM information_schema.optimizer_trace;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t`.`b` AS `b`,`t`.`c` AS `c`,`t`.`d` AS `d` from `t` where ((`t`.`a` = 5) and (`t`.`d` < 3))"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`t`.`a` = 5) and (`t`.`d` < 3))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((`t`.`d` < 3) and multiple equal(5, `t`.`a`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((`t`.`d` < 3) and multiple equal(5, `t`.`a`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((`t`.`d` < 3) and multiple equal(5, `t`.`a`))"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "table": "`t`",
+                "field": "a",
+                "equals": "5",
+                "null_rejecting": false
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 2500,
+                    "cost": 254.6
+                  },
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "a",
+                        "b",
+                        "c",
+                        "d"
+                      ]
+                    },
+                    {
+                      "index": "b",
+                      "usable": true,
+                      "key_parts": [
+                        "b",
+                        "d",
+                        "a",
+                        "c"
+                      ]
+                    }
+                  ],
+                  "best_covering_index_scan": {
+                    "index": "b",
+                    "cost": 252.08,
+                    "chosen": true
+                  },
+                  "setup_range_conditions": [
+                  ],
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  },
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "tree_travel_cost": 0.6,
+                        "num_groups": 26,
+                        "rows": 83,
+                        "cost": 43.98
+                      },
+                      {
+                        "index": "b",
+                        "tree_travel_cost": 0.6,
+                        "num_groups": 6,
+                        "rows": 833,
+                        "cost": 133.01
+                      }
+                    ]
+                  },
+                  "best_skip_scan_summary": {
+                    "type": "skip_scan",
+                    "index": "PRIMARY",
+                    "key_parts_used_for_access": [
+                      "a",
+                      "b",
+                      "c",
+                      "d"
+                    ],
+                    "prefix ranges": [
+                      "5 <= a <= 5"
+                    ],
+                    "range": [
+                      "d < 3"
+                    ],
+                    "chosen": true
+                  },
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "PRIMARY",
+                        "ranges": [
+                          "5 <= a <= 5"
+                        ],
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
+                        "index_only": true,
+                        "rows": 250,
+                        "cost": 25.343,
+                        "chosen": true
+                      },
+                      {
+                        "index": "b",
+                        "chosen": false,
+                        "cause": "no_valid_range_for_this_index"
+                      }
+                    ],
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    }
+                  },
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "PRIMARY",
+                      "rows": 250,
+                      "ranges": [
+                        "5 <= a <= 5"
+                      ]
+                    },
+                    "rows_for_plan": 250,
+                    "cost_for_plan": 25.343,
+                    "chosen": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "PRIMARY",
+                      "rows": 250,
+                      "cost": 25.492,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      },
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 33.33,
+                "rows_for_plan": 83.325,
+                "cost_for_plan": 25.492,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`t`.`a` = 5) and (`t`.`d` < 3))",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": "(`t`.`d` < 3)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+ANALYZE TABLE t UPDATE HISTOGRAM ON d WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t	histogram	status	Histogram statistics created for column 'd'.
+EXPLAIN SELECT b FROM t WHERE d < 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	250	100.00	Using where; Using index for skip scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`d` < 2)
+SELECT * FROM information_schema.optimizer_trace;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT b FROM t WHERE d < 2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t`.`b` AS `b` from `t` where (`t`.`d` < 2)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t`.`d` < 2)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t`.`d` < 2)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t`.`d` < 2)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t`.`d` < 2)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 2500,
+                    "cost": 254.6
+                  },
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "a",
+                        "b",
+                        "c",
+                        "d"
+                      ]
+                    },
+                    {
+                      "index": "b",
+                      "usable": true,
+                      "key_parts": [
+                        "b",
+                        "d",
+                        "a",
+                        "c"
+                      ]
+                    }
+                  ],
+                  "best_covering_index_scan": {
+                    "index": "b",
+                    "cost": 252.08,
+                    "chosen": true
+                  },
+                  "setup_range_conditions": [
+                  ],
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  },
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "histogram_selectivity": {
+                          "condition": "(`t`.`d` < 2)",
+                          "histogram_selectivity": 0.1
+                        },
+                        "tree_travel_cost": 0.6,
+                        "num_groups": 251,
+                        "rows": 250,
+                        "cost": 339.19
+                      },
+                      {
+                        "index": "b",
+                        "histogram_selectivity": {
+                          "condition": "(`t`.`d` < 2)",
+                          "histogram_selectivity": 0.1
+                        },
+                        "tree_travel_cost": 0.6,
+                        "num_groups": 6,
+                        "rows": 250,
+                        "cost": 45.132
+                      }
+                    ]
+                  },
+                  "best_skip_scan_summary": {
+                    "type": "skip_scan",
+                    "index": "b",
+                    "key_parts_used_for_access": [
+                      "b",
+                      "d"
+                    ],
+                    "range": [
+                      "d < 2"
+                    ],
+                    "chosen": true
+                  },
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "PRIMARY",
+                        "chosen": false,
+                        "cause": "no_valid_range_for_this_index"
+                      },
+                      {
+                        "index": "b",
+                        "chosen": false,
+                        "cause": "no_valid_range_for_this_index"
+                      }
+                    ],
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    }
+                  },
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "skip_scan",
+                      "index": "b",
+                      "key_parts_used_for_access": [
+                        "b",
+                        "d"
+                      ],
+                      "range": [
+                        "d < 2"
+                      ]
+                    },
+                    "rows_for_plan": 250,
+                    "cost_for_plan": 45.132,
+                    "chosen": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 250,
+                      "filtering_effect": [
+                      ],
+                      "final_filtering_effect": 1,
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "index_for_skip_scan(b)"
+                      },
+                      "resulting_rows": 250,
+                      "cost": 70.132,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 250,
+                "cost_for_plan": 70.132,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t`.`d` < 2)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": "(`t`.`d` < 2)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+SET optimizer_trace="enabled=off";
+DROP TABLE t;
+SET optimizer_switch = 'skip_scan=on';
+SET optimizer_trace="enabled=on,one_line=off";
+CREATE TABLE t1 (f1 VARCHAR(10), f2 CHAR(10), f3 INT, KEY(f1, f2, f3));
+INSERT INTO t1 VALUES ('a', 'aaaa', 1);
+EXPLAIN SELECT /*+ SKIP_SCAN(t1) */ count(*) FROM t1 WHERE f1 BETWEEN 'a' and 'a ' AND f3 > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	f1	f1	89	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t1`@`select#1`) */ count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f1` between 'a' and 'a ') and (`test`.`t1`.`f3` > 0))
+SELECT count(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE WHERE trace LIKE '%prefix_not_const_equality%';
+count(*)
+1
+DROP TABLE t1;
+SET optimizer_trace="enabled=off";

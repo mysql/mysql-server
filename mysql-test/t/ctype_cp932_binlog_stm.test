@@ -1,0 +1,163 @@
+# This is a wrapper for binlog.test so that the same test case can be used 
+# For both statement and row based bin logs 11/07/2005 [jbm]
+
+-- source include/force_binlog_format_statement.inc
+-- source extra/binlog_tests/ctype_cp932_binlog.test
+-- source include/big_test.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
+#
+# Bug#18293: Values in stored procedure written to binlog unescaped
+#
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+--delimiter |
+CREATE TABLE t4 (s1 CHAR(50) CHARACTER SET latin1,
+                 s2 CHAR(50) CHARACTER SET cp932,
+                 d DECIMAL(10,2))|
+CREATE PROCEDURE bug18293 (IN ins1 CHAR(50),
+                           IN ins2 CHAR(50) CHARACTER SET cp932,
+                           IN ind DECIMAL(10,2))
+  BEGIN
+    INSERT INTO t4 VALUES (ins1, ins2, ind);
+  END|
+--delimiter ;
+CALL bug18293("Foo's a Bar", _cp932 0xED40ED41ED42, 47.93);
+SELECT HEX(s1),HEX(s2),d FROM t4;
+DROP PROCEDURE bug18293;
+DROP TABLE t4;
+--source include/show_binlog_events.inc
+
+--echo End of 5.0 tests
+
+--echo Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
+CREATE TABLE t1 (a varchar(16)) character set cp932;
+INSERT INTO t1 VALUES (0x8372835E),(0x8352835E);
+SELECT hex(a), hex(lower(a)), hex(upper(a)) FROM t1 ORDER BY binary(a);
+DROP TABLE t1;
+
+--echo End of 5.1 tests
+
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # Testing WL#4583 Case conversion in Asian character sets 
+--echo #
+#
+# Populate t1 with all hex digits
+#
+SET NAMES utf8;
+SET collation_connection=cp932_japanese_ci;
+CREATE TABLE t1 (b VARCHAR(2));
+INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+#
+# Populate tables head and tail with values '00'-'FF'
+#
+--disable_warnings
+CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 b2;
+CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
+--enable_warnings
+DROP TABLE t1;
+#
+# Populate table t1 with all codes [80..FF][20..FF]
+# excluding Half Width Kana [A1..DF]
+# Expected valid cp932 multibyte codes:
+# [81..9F,E0..FC][40..7E,80..fC]   (60x188=11280 characters)
+#
+CREATE TABLE t1 AS
+SELECT concat(head, tail) AS code, ' ' AS a
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (head NOT BETWEEN 'A1' AND 'DF')
+AND (tail BETWEEN '20' AND 'FF')
+ORDER BY head, tail;
+#
+# Populate t1 with Half Width Kana [A1..DF]
+#
+--disable_warnings
+INSERT t1 (code) SELECT head FROM head
+WHERE (head BETWEEN 'A1' AND 'DF')
+ORDER BY head;
+--enable_warnings
+DROP TEMPORARY TABLE head, tail;
+SHOW CREATE TABLE t1;
+
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
+UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = default;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=1;
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=2;
+#
+# Display all characters that have upper or lower case mapping.
+#
+SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1
+WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a))
+ORDER BY code;
+#
+# Make sure all possible conversion happened
+#
+# Expect U+212B ANGSTROM SIGN
+#
+SELECT * FROM t1
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+#
+# Expect no results
+#
+SELECT * FROM t1
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+
+--echo #
+--echo # WL#3090 Japanese Character Set adjustments
+--echo # Test cp932->Unicode conversion
+--echo #
+SELECT HEX(a), HEX(CONVERT(a USING utf8)) as b FROM t1
+WHERE a<>'' HAVING b<>'3F' ORDER BY code;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # WL#3090 Japanese Character Set adjustments
+--echo # Test Unicode->cp932 conversion
+--echo #
+--source include/ctype_utf8_table.inc
+SELECT HEX(a), HEX(CONVERT(a using cp932)) as b FROM t1 HAVING b<>'3F' ORDER BY BINARY a;
+DROP TABLE t1;
+
+
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set names cp932;
+--source include/weight_string.inc
+--source include/weight_string_8140.inc
+
+set collation_connection=cp932_bin;
+--source include/weight_string.inc
+--source include/weight_string_8140.inc
+
+--echo #
+--echo # End of 5.6 tests
+--echo #
+--source include/restore_default_binlog_format.inc

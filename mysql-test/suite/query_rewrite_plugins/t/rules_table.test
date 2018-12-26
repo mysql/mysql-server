@@ -1,0 +1,30 @@
+--echo #
+--echo # Test of a rules table with columns in different order.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+--echo # Here we create a rules table with columns in different order.
+CREATE DATABASE query_rewrite;
+CREATE TABLE IF NOT EXISTS query_rewrite.rewrite_rules (
+  pattern_database VARCHAR(20),
+  enabled ENUM('YES', 'NO') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
+    DEFAULT 'YES',
+  replacement VARCHAR(1000),
+  message VARCHAR(100),
+  pattern VARCHAR(1000)
+);
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "rewrite me"', 'SELECT "rewritten"' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT pattern, pattern_database, replacement, message
+FROM query_rewrite.rewrite_rules;
+
+SELECT "rewrite me";
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

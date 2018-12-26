@@ -1,0 +1,60 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--source include/big_test.inc
+--disable_query_log
+CALL mtr.add_suppression("\\[ERROR\\]  Could not find a valid tablespace file for");
+CALL mtr.add_suppression("\\[ERROR\\].*MLOG_FILE_RENAME: Invalid to file name.* File name in the redo log is ''");
+--enable_query_log
+
+LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
+
+let $table_name= t1;
+
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL)
+PARTITION BY HASH(a) PARTITIONS 3;
+
+let $insert_statement= INSERT INTO t1 VALUES (1, "Filler1", 1),
+(2, "filler2", 2), (3, "FILLER3", 3), (4, "Filler4", 4), (5, "5", 5),
+(6, "filler6", 6);
+
+
+let $test_free= 1;
+let $test_delete= 0;
+let $test_rename= 0;
+let $test_drop= 1;
+let $crash_statement= ALTER TABLE $table_name ADD INDEX (b), ALGORITHM=INPLACE;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 1;
+let $test_drop= 0;
+let $crash_statement= ALTER TABLE $table_name ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+let $test_free= 1;
+let $test_delete= 0;
+let $test_rename= 0;
+let $test_drop= 0;
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c)) PARTITION BY HASH(a) PARTITIONS 3;
+let $crash_statement= ALTER TABLE $table_name DROP INDEX b, ADD INDEX(c, b), ALGORITHM=INPLACE;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 1;
+let $test_drop= 0;
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL)
+PARTITION BY HASH(a) PARTITIONS 3;
+let $crash_statement= ALTER TABLE $table_name ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $innodb_ddl_log_crash_reset_debug_orig;
+

@@ -1,0 +1,45 @@
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+select 1;
+SHOW STATUS LIKE 'Last_query_partial_plans';
+select 2;
+SHOW STATUS LIKE 'Last_query_cost';
+
+flush status;
+
+SHOW STATUS LIKE 'Created_tmp_tables';
+
+--echo
+--echo ================================================================================
+--echo Bug#21789221 SHOW STATUS FAILS WITH LOCK TABLES AND SHOW_COMPATIBILITY_56=OFF
+--echo ================================================================================
+--echo Verify that SHOW STATUS and SHOW VARIABLES works under LOCK TABLES mode
+--echo
+CREATE TABLE test.t1 (s1 INT);
+LOCK TABLE test.t1 READ;
+--echo
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+--echo
+UNLOCK TABLES;
+--echo
+LOCK TABLE test.t1 WRITE;
+--echo
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+--echo
+UNLOCK TABLES;
+
+DROP TABLE test.t1;
+

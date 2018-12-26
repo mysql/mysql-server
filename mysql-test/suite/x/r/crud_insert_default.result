@@ -1,0 +1,216 @@
+DROP SCHEMA IF EXISTS xtest;
+Warnings:
+Note	1008	Can't drop database 'xtest'; database doesn't exist
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.table (id INT DEFAULT 0, name VARCHAR(40) DEFAULT 'Bob', value FLOAT DEFAULT 3.14 );
+CREATE TABLE xtest.fault (value INT NOT NULL);
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "table"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "id"
+  }
+  projection {
+    name: "name"
+  }
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Ann"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_FLOAT
+        v_float: 10.1
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "default"
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Cezar"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_FLOAT
+        v_float: 10.2
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 2
+      }
+    }
+    field {
+      type: OPERATOR
+      operator {
+        name: "default"
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_FLOAT
+        v_float: 10.3
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 3
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Don"
+        }
+      }
+    }
+    field {
+      type: OPERATOR
+      operator {
+        name: "default"
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "default"
+      }
+    }
+    field {
+      type: OPERATOR
+      operator {
+        name: "default"
+      }
+    }
+    field {
+      type: OPERATOR
+      operator {
+        name: "default"
+      }
+    }
+  }
+}
+
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "fault"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "default"
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 1364
+  msg: "Field \'value\' doesn\'t have a default value"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "fault"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "value"
+  }
+  row {
+    field {
+      type: OPERATOR
+      operator {
+        name: "default"
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: 3
+          }
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5151
+  msg: "Nullary operator require no operands in expression"
+  sql_state: "HY000"
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SELECT * FROM xtest.table;
+id	name	value
+1	Ann	10.1
+0	Cezar	10.2
+2	Bob	10.3
+3	Don	3.14
+0	Bob	3.14
+SELECT * FROM xtest.fault;
+value
+DROP SCHEMA IF EXISTS xtest;

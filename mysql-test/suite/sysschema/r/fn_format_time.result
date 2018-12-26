@@ -1,0 +1,57 @@
+SELECT sys.format_time(NULL);
+sys.format_time(NULL)
+NULL
+SELECT sys.format_time(1);
+sys.format_time(1)
+1 ps
+SELECT sys.format_time(999);
+sys.format_time(999)
+999 ps
+SELECT sys.format_time(1000);
+sys.format_time(1000)
+1.00 ns
+SELECT sys.format_time(999999);
+sys.format_time(999999)
+1000.00 ns
+SELECT sys.format_time(1000000);
+sys.format_time(1000000)
+1.00 us
+SELECT sys.format_time(999999999);
+sys.format_time(999999999)
+1000.00 us
+SELECT sys.format_time(1000000000);
+sys.format_time(1000000000)
+1.00 ms
+SELECT sys.format_time(999999999999);
+sys.format_time(999999999999)
+1000.00 ms
+SELECT sys.format_time(1000000000000);
+sys.format_time(1000000000000)
+1.00 s
+SELECT sys.format_time(59999999999999);
+sys.format_time(59999999999999)
+60.00 s
+SELECT sys.format_time(60000000000000);
+sys.format_time(60000000000000)
+1.00 m
+SELECT sys.format_time(3599999999999999);
+sys.format_time(3599999999999999)
+60.00 m
+SELECT sys.format_time(3600000000000000);
+sys.format_time(3600000000000000)
+1.00 h
+SELECT sys.format_time(86399999999999988);
+sys.format_time(86399999999999988)
+24.00 h
+SELECT sys.format_time(86400000000000000);
+sys.format_time(86400000000000000)
+1.00 d
+SELECT sys.format_time(604799999999999888);
+sys.format_time(604799999999999888)
+7.00 d
+SELECT sys.format_time(604800000000000000);
+sys.format_time(604800000000000000)
+1.00 w
+SELECT sys.format_time(2389472398472389748237429837423984728374);
+sys.format_time(2389472398472389748237429837423984728374)
+3950847219696411300000.00 w

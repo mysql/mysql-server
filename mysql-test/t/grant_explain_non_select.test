@@ -1,0 +1,262 @@
+
+#
+# Privilege-specific tests for WL#4897: Add EXPLAIN INSERT/UPDATE/DELETE
+#
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+CREATE DATABASE privtest_db;
+
+CREATE TABLE privtest_db.t1 (a INT);
+CREATE TABLE privtest_db.t2 (a INT);
+INSERT INTO privtest_db.t2 VALUES (1), (2), (3);
+
+CREATE USER 'privtest'@'localhost';
+GRANT SELECT ON privtest_db.t2 TO 'privtest'@'localhost';
+
+connect(con1,localhost,privtest,,);
+connection con1;
+
+USE privtest_db;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO t1 VALUES (10);
+--error ER_TABLEACCESS_DENIED_ERROR
+        INSERT INTO t1 VALUES (10);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN INSERT INTO t1 SELECT * FROM t2;
+--error ER_TABLEACCESS_DENIED_ERROR
+        INSERT INTO t1 SELECT * FROM t2;
+
+connection default;
+GRANT INSERT ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+EXPLAIN INSERT INTO t1 VALUES (10);
+        INSERT INTO t1 VALUES (10);
+
+--replace_column 10 # 11 #
+EXPLAIN INSERT INTO t1 SELECT * FROM t2;
+        INSERT INTO t1 SELECT * FROM t2;
+
+
+connection default;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+connection con1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN REPLACE INTO t1 VALUES (10);
+--error ER_TABLEACCESS_DENIED_ERROR
+        REPLACE INTO t1 VALUES (10);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
+--error ER_TABLEACCESS_DENIED_ERROR
+        REPLACE INTO t1 SELECT * FROM t2;
+
+connection default;
+GRANT INSERT ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN REPLACE INTO t1 VALUES (10);
+--error ER_TABLEACCESS_DENIED_ERROR
+        REPLACE INTO t1 VALUES (10);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
+--error ER_TABLEACCESS_DENIED_ERROR
+        REPLACE INTO t1 SELECT * FROM t2;
+
+connection default;
+REVOKE INSERT ON privtest_db.t1 FROM 'privtest'@'localhost';
+GRANT DELETE ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN REPLACE INTO t1 VALUES (10);
+--error ER_TABLEACCESS_DENIED_ERROR
+        REPLACE INTO t1 VALUES (10);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
+--error ER_TABLEACCESS_DENIED_ERROR
+        REPLACE INTO t1 SELECT * FROM t2;
+
+connection default;
+GRANT INSERT, DELETE ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+EXPLAIN REPLACE INTO t1 VALUES (10);
+        REPLACE INTO t1 VALUES (10);
+
+--replace_column 10 # 11 #
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
+        REPLACE INTO t1 SELECT * FROM t2;
+
+connection default;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+connection con1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN UPDATE t1 SET a = a + 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+        UPDATE t1 SET a = a + 1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+--error ER_TABLEACCESS_DENIED_ERROR
+        UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+
+connection default;
+GRANT UPDATE ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXPLAIN UPDATE t1 SET a = a + 1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+        UPDATE t1 SET a = a + 1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+--error ER_COLUMNACCESS_DENIED_ERROR
+        UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+
+connection default;
+REVOKE UPDATE ON privtest_db.t1 FROM 'privtest'@'localhost';
+GRANT SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN UPDATE t1 SET a = a + 1;
+--error ER_TABLEACCESS_DENIED_ERROR
+        UPDATE t1 SET a = a + 1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+--error ER_COLUMNACCESS_DENIED_ERROR
+        UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+
+connection default;
+GRANT UPDATE, SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+--replace_column 10 x 11 x
+EXPLAIN UPDATE t1 SET a = a + 1;
+        UPDATE t1 SET a = a + 1;
+
+--replace_column 10 x 11 x
+EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+        UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+
+connection default;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+connection con1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM t1 WHERE a = 10;
+--error ER_TABLEACCESS_DENIED_ERROR
+        DELETE FROM t1 WHERE a = 10;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+--error ER_TABLEACCESS_DENIED_ERROR
+        DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+
+connection default;
+GRANT DELETE ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM t1 WHERE a = 10;
+--error ER_COLUMNACCESS_DENIED_ERROR
+        DELETE FROM t1 WHERE a = 10;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+--error ER_TABLEACCESS_DENIED_ERROR
+        DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+
+connection default;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+GRANT SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM t1 WHERE a = 10;
+--error ER_TABLEACCESS_DENIED_ERROR
+        DELETE FROM t1 WHERE a = 10;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+--error ER_TABLEACCESS_DENIED_ERROR
+        DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+
+connection default;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+GRANT DELETE, SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
+connection con1;
+
+--replace_column 10 x 11 x
+EXPLAIN DELETE FROM t1 WHERE a = 10;
+        DELETE FROM t1 WHERE a = 10;
+
+--replace_column 10 x 11 x
+EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+        DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+
+# Views
+
+connection default;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+CREATE VIEW privtest_db.v1 (a) AS SELECT a FROM privtest_db.t1;
+GRANT SELECT, INSERT, UPDATE, DELETE ON privtest_db.v1 TO 'privtest'@'localhost';
+connection con1;
+
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN SELECT * FROM v1;
+        SELECT * FROM v1;
+
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN INSERT INTO v1 VALUES (10);
+        INSERT INTO v1 VALUES (10);
+
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN INSERT INTO v1 SELECT * FROM t2;
+        INSERT INTO v1 SELECT * FROM t2;
+
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN REPLACE  INTO v1 VALUES (10);
+        REPLACE  INTO v1 VALUES (10);
+
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN REPLACE INTO v1 SELECT * FROM t2;
+        REPLACE INTO v1 SELECT * FROM t2;
+
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN UPDATE v1 SET a = a + 1;
+        UPDATE v1 SET a = a + 1;
+
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN UPDATE v1, t2 SET v1.a = v1.a + 1 WHERE v1.a = t2.a;
+        UPDATE v1, t2 SET v1.a = v1.a + 1 WHERE v1.a = t2.a;
+
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN DELETE FROM v1 WHERE a = 10;
+        DELETE FROM v1 WHERE a = 10;
+
+--error ER_VIEW_NO_EXPLAIN
+EXPLAIN DELETE FROM v1 USING v1, t2 WHERE v1.a = t2.a;
+        DELETE FROM v1 USING v1, t2 WHERE v1.a = t2.a;
+
+connection default;
+disconnect con1;
+
+DROP USER 'privtest'@localhost;
+USE test;
+DROP DATABASE privtest_db;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc 

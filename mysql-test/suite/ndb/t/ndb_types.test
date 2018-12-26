@@ -1,0 +1,166 @@
+--source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# Test creation of different column types in NDB
+#
+CREATE TABLE t1 (
+  auto int(5) unsigned NOT NULL auto_increment,
+  string char(10) default "hello",
+  vstring varchar(10) default "hello",
+  bin binary(2),
+  vbin varbinary(7),
+  tiny tinyint(4) DEFAULT '0' NOT NULL ,
+  short smallint(6) DEFAULT '1' NOT NULL ,
+  medium mediumint(8) DEFAULT '0' NOT NULL,
+  long_int int(11) DEFAULT '0' NOT NULL,
+  longlong bigint(13) DEFAULT '0' NOT NULL,
+  real_float float(13,1) DEFAULT 0.0 NOT NULL,
+  real_double double(16,4),
+  real_decimal decimal(16,4),
+  utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+  ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+  umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+  ulong int(11) unsigned DEFAULT '0' NOT NULL,
+  ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+  bits bit(3),		
+  options enum('one','two','tree') not null,
+  flags set('one','two','tree') not null,
+  date_field date,	
+  year_field year,
+  time_field time,	
+  date_time datetime,
+  time_stamp timestamp not null default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY (auto),
+  KEY (utiny),
+  KEY (tiny),
+  KEY (short),
+  KEY any_name (medium),
+  KEY (longlong),
+  KEY (real_float),
+  KEY (ushort),
+  KEY (umedium),
+  KEY (ulong),
+  KEY (ulonglong,ulong),
+  KEY (options,flags)
+);
+
+set @now = now();
+--sleep 1.5
+insert into t1 
+(string,vstring,bin,vbin,tiny,short,medium,long_int,longlong,
+ real_float,real_double, real_decimal,utiny, ushort, umedium,ulong,ulonglong,
+ bits,options,flags,date_field,year_field,time_field,date_time)
+values
+("aaaa","aaaa",0xAAAA,0xAAAA,-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1, 
+ b'001','one','one', '1901-01-01','1901','01:01:01','1901-01-01 01:01:01');
+
+select auto,string,vstring,hex(bin),hex(vbin),tiny,short,medium,long_int,longlong,
+ real_float,real_double,real_decimal,utiny,ushort,umedium,ulong,ulonglong,
+ bin(bits),options,flags,date_field,year_field,time_field,date_time
+from t1;
+select time_stamp>@now from t1;
+
+set @now = now();
+--sleep 1.5
+update t1 set string="bbbb",vstring="bbbb",bin=0xBBBB,vbin=0xBBBB,
+tiny=-2,short=-2,medium=-2,long_int=-2,longlong=-2,real_float=2.2,
+real_double=2.2,real_decimal=2.2,utiny=2,ushort=2,umedium=2,ulong=2,
+ulonglong=2, bits=b'010',
+options='one',flags='one', date_field='1902-02-02',year_field='1902',
+time_field='02:02:02',date_time='1902-02-02 02:02:02' where auto=1;
+
+select auto,string,vstring,hex(bin),hex(vbin),tiny,short,medium,long_int,longlong,
+ real_float,real_double,real_decimal,utiny,ushort,umedium,ulong,ulonglong,
+ bin(bits),options,flags,date_field,year_field,time_field,date_time
+from t1;
+select time_stamp>@now from t1;
+
+drop table t1;
+
+--echo End of 4.1 tests
+
+# Bug#14798022 : "CHAR (0)" DATATYPE CAUSING ERROR 1296 (HY000): GOT ERROR 4547 
+
+create table t1 (
+  a int primary key,
+  b char(0),
+  c char(1)
+)engine NDB;
+
+--echo #test for insertion in char(0) column
+insert into t1 values(1, '', 'a'), (2, NULL, 'b');
+
+--echo #testing values stored in the table t1
+select * from t1 order by a;
+select count(*) from t1 where b = '';
+select count(*) from t1 where b is null;
+
+drop table t1;
+
+--echo #testing bit(1) with char(0)
+create table t1 (
+  a int primary key,
+  b char(0),
+  c bit(1)
+)engine NDB;
+
+--echo #testing insertion
+insert into t1 values(1, '', 0),
+                     (2, '', 1),
+                     (3, '', NULL),
+                     (4, NULL, 0),
+                     (5, NULL, 1),
+                     (6, NULL, NULL);
+
+--echo #verify data in table
+select a,b,bin(c) from t1 where b = '' and c is null order by a;
+select a,b,bin(c) from t1 where b is null and c is null order by a;
+select a,b,bin(c) from t1 where b = '' and c = 0 order by a;
+select a,b,bin(c) from t1 where b is null and c = 0 order by a;
+select a,b,bin(c) from t1 where b = '' and c = 1 order by a;
+select a,b,bin(c) from t1 where b is null and c = 1 order by a;
+
+drop table t1;
+
+--echo #testing char(0) not null
+create table t1 (
+  a int primary key,
+  b char(0) not null,
+  c char(1)
+)engine NDB;
+
+insert into t1 values(1, '', 'a'), (2, '', 'b');
+
+--echo #testing values stored in the table t1
+select * from t1 order by a;
+select count(*) from t1 where b = '';
+select count(*) from t1 where b is null;
+
+drop table t1;
+
+#
+# Check that the default "dummy" timestamp is still allowed
+# when you turn off flag in sql_mode which prevent it
+#
+--disable_query_log
+set @save_sql_mode=@@sql_mode;
+set sql_mode=(select replace(@@sql_mode,'NO_ZERO_DATE',''));
+--enable_query_log
+create table t1 (
+  a int primary key,
+  b timestamp not null default '0000-00-00 00:00:00',
+  c timestamp not null,
+  d timestamp NULL
+) engine = NDB;
+insert into t1 (a,c) values (37, '0000-00-00 00:00:00');
+select b,c,d from t1;
+drop table t1;
+--disable_query_log
+set sql_mode=@save_sql_mode;
+--enable_query_log
+
+

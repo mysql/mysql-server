@@ -1,0 +1,179 @@
+# ==== Purpose ====
+#
+# With the server restart, the default channel is created and configured from
+# repository during server startup, verify that per-channel replication
+# filters can be configured with startup options: --replicate-* without
+# specifying channel_name in filter variable and CHANGE REPLICATION FILTER ...
+# FOR CHANNEL '', and do not copy global replication filters to its per-channel
+# replication filters if there are per-channel replication filters on the
+# filter type. We also verify that SHOW SLAVE STATUS FOR CHANNEL '' and
+# P_S.replication_applier_filters display correct per-channel replication
+# filters on the configured default channel.
+#
+# ==== Implementation ====
+#
+# 0. Restart the server, so that the default channel is created and
+#    configured from repository during server startup.
+#
+# 1. On the configured default channel, verify that per-channel
+#    replication filters can be configured with startup options:
+#    --replicate-* without specifying channel_name in filter variable.
+#    SHOW SLAVE STATUS FOR CHANNEL '' displays correct per-channel
+#    replication filters.
+#
+# 2. Verify that performance_schema.replication_applier_filters can
+#    display correct per-channel replication filters with
+#    CONFIGURED_BY 'STARTUP_OPTIONS_FOR_CHANNEL' on default channel.
+#
+# 3. Check that database test is replicated and both db1 and db11 are filtered
+#    out on default channel with the the following per-channel filters setting:
+#    --replicate-do-db=:test
+#    --replicate-do-db=:my_db2
+#    --replicate-do-db=:my_db3
+#    --replicate-ignore-db=:db1
+#    --replicate-ignore-db=:db11
+#    --replicate-ignore-db=:my_db6
+#
+# 4. Verify that CHANGE REPLICATION FILTER FOR CHANNEL '' shall
+#    change per-channel replication filters on default channel.
+#    SHOW SLAVE STATUS FOR CHANNEL '' displays correct replication
+#    filters.
+#
+# 5. Verify that performance_schema.replication_applier_filters can
+#    display correct per-channel replication filters with
+#    CONFIGURED_BY 'CHANGE_REPLICATION_FILTER_FOR_CHANNEL' on default
+#    channel after executing CHANGE REPLICATION FILTER FOR CHANNEL ''.
+#
+# ==== References ====
+#
+# WL#7361 MSR: per-channel replication filters
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # 0. Restart the server, so that the default channel is created and
+--echo # configured from repository during server startup.
+--echo #
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --replicate-do-db=:test --replicate-do-db=:my_db2 --replicate-do-db=:my_db3 --replicate-ignore-db=:db1 --replicate-ignore-db=:db11 --replicate-ignore-db=:my_db6 --replicate-do-table=:test.t1 --replicate-do-table=:test.t2 --replicate-ignore-table=:test.t11 --replicate-ignore-table=:test.t22 --replicate-wild-do-table=:test.t% --replicate-wild-do-table=:test.s% --replicate-wild-ignore-table=:test.m% --replicate-wild-ignore-table=:test.n% --replicate-rewrite-db=:my_db7->rewrite_db7 --replicate-rewrite-db=:my_db8->rewrite_db8 --replicate-do-db=global_test --replicate-ignore-db=global_db1 --replicate-do-table=global_test.t1 --replicate-ignore-table=global_test.t11 --replicate-wild-do-table=global_test.t% --replicate-wild-ignore-table=global_test.m% --replicate-rewrite-db=global_my_db7->global_rewrite_db7
+--source include/rpl_restart_server.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--echo #
+--echo # 1. On the configured default channel, verify that per-channel
+--echo # replication filters can be configured with startup options:
+--echo # --replicate-* without specifying channel_name in filter variable.
+--echo # SHOW SLAVE STATUS FOR CHANNEL '' displays
+--echo # the following per-channel replication filters:
+--echo # Replicate_Do_DB = 'test,my_db2,my_db3'
+--echo # Replicate_Ignore_DB = 'db1,db11,my_db6'
+--echo # Replicate_Do_Table = 'test.t1,test.t2'
+--echo # Replicate_Ignore_Table = 'test.t22,test.t11'
+--echo # Replicate_Wild_Do_Table = 'test.t%,test.s%'
+--echo # Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+--echo # Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+--echo #
+--let $channel_name= ''
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 2. Verify that performance_schema.replication_applier_filters can
+--echo # display correct per-channel replication filters with
+--echo # CONFIGURED_BY 'STARTUP_OPTIONS_FOR_CHANNEL' on default channel.
+--echo #
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--source include/rpl_connection_master.inc
+
+use test;
+CREATE TABLE test.t1 (c1 INT);
+CREATE TABLE test.t2 (c1 INT);
+INSERT INTO test.t1 VALUES (1);
+INSERT INTO test.t2 VALUES (1);
+CREATE DATABASE db1;
+CREATE DATABASE db11;
+
+# --connection slave and sync with master
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 3. Check that database test is replicated and both db1 and db11
+--echo # are filtered out on default channel with the the following
+--echo # per-channel filters setting:
+--echo # --replicate-do-db=:test
+--echo # --replicate-do-db=:my_db2
+--echo # --replicate-do-db=:my_db3
+--echo # --replicate-ignore-db=:db1
+--echo # --replicate-ignore-db=:db11
+--echo # --replicate-ignore-db=:my_db6
+--echo # --replicate-do-table=:test.t1
+--echo # --replicate-do-table=:test.t2
+--echo # --replicate-ignore-table=:test.t11
+--echo # --replicate-ignore-table=:test.t22
+--echo # --replicate-wild-do-table=:test.t%
+--echo # --replicate-wild-do-table=:test.s%
+--echo # --replicate-wild-ignore-table=:test.m%
+--echo # --replicate-wild-ignore-table=:test.n%
+--echo # --replicate-rewrite-db=:my_db7->rewrite_db7
+--echo # --replicate-rewrite-db=:my_db8->rewrite_db8
+--echo #
+SHOW DATABASES;
+
+--echo #
+--echo # Stop slave.
+--echo #
+--source include/stop_slave.inc
+
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3) FOR CHANNEL '';
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('te%.t%') FOR CHANNEL '';
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1,db2,`db32`,`db,3`),
+REPLICATE_DO_DB = (`:test`,my_db3,my_db4),
+REPLICATE_IGNORE_DB = (my_initfiledb3) FOR CHANNEL '';
+--echo #
+--echo # 4. Verify that CHANGE REPLICATION FILTER FOR CHANNEL '' shall
+--echo # change per-channel replication filters on default channel.
+--echo # SHOW SLAVE STATUS FOR CHANNEL '' displays the following
+--echo # filters:
+--echo # Replicate_Do_DB = ':test,my_db3,my_db4'
+--echo # Replicate_Ignore_DB = 'my_initfiledb3'
+--echo # Replicate_Do_Table = 'test.t1,test.t2'
+--echo # Replicate_Ignore_Table = 'db3.initfilet3'
+--echo # Replicate_Wild_Do_Table = 'te%.t%'
+--echo # Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
+--echo # Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
+--echo #
+#--let $channel_name= ''
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 5. Verify that performance_schema.replication_applier_filters can
+--echo # display correct per-channel replication filters with
+--echo # CONFIGURED_BY 'CHANGE_REPLICATION_FILTER_FOR_CHANNEL' on default
+--echo # channel after executing CHANGE REPLICATION FILTER FOR CHANNEL ''.
+--echo #
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--source include/start_slave.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP DATABASE db1;
+DROP DATABASE db11;
+#--connection slave and sync with master
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

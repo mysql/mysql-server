@@ -1,0 +1,28 @@
+--source include/have_ndb.inc
+# Test is using debug only features
+--source include/have_debug.inc
+
+--echo # Emulate failure to start the NDB schema transaction
+--echo # when creating a table. Note that no NDB error really occured
+--echo # and it's thus normal to have error 0.
+SET SESSION debug="+d,ndb_schema_trans_start_fail";
+--error 1296
+CREATE TABLE t1(a int primary key) engine = NDB;
+SHOW WARNINGS;
+SET SESSION debug="-d,ndb_schema_trans_start_fail";
+
+--echo # Check that table does not exist
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+
+--echo # Emulate failure to commit the NDB schema transaction
+--echo # when creating a table.
+SET SESSION debug="+d,ndb_schema_trans_commit_fail";
+--error 1296
+CREATE TABLE t1(a int primary key) engine = NDB;
+SHOW WARNINGS;
+SET SESSION debug="-d,ndb_schema_trans_commit_fail";
+
+--echo # Check that table does not exist
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;

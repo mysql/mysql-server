@@ -1,0 +1,63 @@
+#
+#  2011-08-01  Added
+#
+
+
+SET @start_global_value = @@global.innodb_api_trx_level;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are zero or above
+SELECT @@global.innodb_api_trx_level >=0;
+SELECT @@global.innodb_api_trx_level <=3;
+SELECT @@global.innodb_api_trx_level;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_api_trx_level;
+SHOW global variables LIKE 'innodb_api_trx_level';
+SHOW session variables LIKE 'innodb_api_trx_level';
+--disable_warnings
+SELECT * FROM performance_schema.global_variables 
+WHERE variable_name='innodb_api_trx_level';
+SELECT * FROM performance_schema.session_variables 
+WHERE variable_name='innodb_api_trx_level';
+--enable_warnings
+
+#
+# show that it's writable
+#
+SET global innodb_api_trx_level=100;
+SELECT @@global.innodb_api_trx_level;
+--disable_warnings
+SELECT * FROM performance_schema.global_variables 
+WHERE variable_name='innodb_api_trx_level';
+SELECT * FROM performance_schema.session_variables 
+WHERE variable_name='innodb_api_trx_level';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+SET session innodb_api_trx_level=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_api_trx_level=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_api_trx_level=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_api_trx_level="foo";
+SET global innodb_api_trx_level=-7;
+SELECT @@global.innodb_api_trx_level;
+--disable_warnings
+SELECT * FROM performance_schema.global_variables 
+WHERE variable_name='innodb_api_trx_level';
+--enable_warnings
+
+#
+# cleanup
+#
+
+SET @@global.innodb_api_trx_level = @start_global_value;
+SELECT @@global.innodb_api_trx_level;

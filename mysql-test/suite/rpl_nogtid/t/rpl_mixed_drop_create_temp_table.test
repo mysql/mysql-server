@@ -1,0 +1,13 @@
+-- source include/big_test.inc
+###################################################################################
+# This test cases evaluates the mixture of non-transactional and transcational
+# tables. Specifically when drop temporary tables and create temporary tables
+# are used.
+###################################################################################
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_mixed.inc
+# Needed since test uses CREATE TEMPORARY/DROP TEMPORARY inside a transaction
+--source include/master-slave.inc
+
+--source extra/rpl_tests/rpl_drop_create_temp_table.test
+--source include/rpl_end.inc

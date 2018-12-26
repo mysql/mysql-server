@@ -1,0 +1,92 @@
+###############################################################################
+#
+# Any local failure in a configuration change that prevents its progress
+# shall make the server abort (if configured to) as its
+# configuration may have deviated from the group.
+#
+# Test:
+#   0. This test requires three servers in single primary mode
+#   1. Start the servers, server 2 is configured to abort
+#   2. Stop the applier sql thread in server2
+#   3. Change to multi primary mode
+#   4. Server2 shall abort and 'exit' the group
+#   5. Wait for server 2 to disconnect/abort and restart
+#   6. Cleanup
+#
+###############################################################################
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start the servers, server 2 is configured to abort
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during a Group Replication configuration change. *");
+set session sql_log_bin=1;
+
+SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Stop the applier sql thread in server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_stop_applier_sql_thread.inc
+
+# Inform MTR that we are expecting an abort and that it should wait before
+# restarting the aborting member
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+
+--echo
+--echo # 3. Change to multi primary mode
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 4. Server2 shall abort and 'exit' the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 5. Wait for server 2 to disconnect/abort and restart
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/wait_until_disconnected.inc
+# Inform MTR that it should restart the aborted member
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # 6. Cleanup
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication_end.inc

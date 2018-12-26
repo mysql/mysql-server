@@ -1,0 +1,32 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("unsafe because it uses SKIP LOCKED");
+# Case-1: BINLOG_STMT_UNSAFE_SKIP_LOCKED
+#   Statement is unsafe because it uses SKIP LOCKED.
+# Step-1.1: Create and populate a table.
+connection master;
+CREATE TABLE t1( a INT PRIMARY KEY, b INT );
+INSERT INTO t1 VALUES (1, 1), (2, 1), (3, 1);
+CREATE TABLE t2( a INT, b INT );
+CREATE TABLE t3( a INT, b INT );
+# Step-1.2: Lock a row in said table.
+START TRANSACTION;
+SELECT * FROM t1 WHERE a = 2 FOR UPDATE;
+a	b
+2	1
+# Step-1.3: Populate another table with the unlocked rows.
+connect  conn, localhost, root,;
+INSERT INTO t2 SELECT * FROM t1 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+INSERT INTO t2 SELECT * FROM t1 FOR UPDATE SKIP LOCKED;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses SKIP LOCKED. The set of inserted values is non-deterministic.
+disconnect conn;
+connection master;
+ROLLBACK;
+# Step-1.4: Cleanup
+DROP TABLE t1, t2, t3;
+include/rpl_end.inc

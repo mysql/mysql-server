@@ -1,0 +1,124 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the variable Slave_open_temp_tables is set
+# to the correct number of temporary tables open in the slave and if
+# the corresponding warning is correctly issued according to the number
+# of temporary tables open in the channel in a multi-source scenario.
+#
+# ==== Implementation ====
+#
+# In this multi source scenario, a slave replicates from three channels.
+# A temporary table is created in two of these three channels.
+# Replication is stopped in the channel with no open temp table and no
+# warning is issued. Warnings are issued for the other two channels if
+# replication is stopped or upon a CHANGE MASTER command in case of open
+# temporary tables in the corresponding channel.
+#
+#
+# ==== References ====
+#
+# Bug#21357008: SLAVE_OPEN_TEMP_TABLES WRONG AFTER RESET SLAVE WHEN
+#               USING MULTI-SOURCE
+
+
+--source include/have_binlog_format_statement.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
+--let $rpl_multi_source= 1
+--let $rpl_topology= 1->2, 3->2, 4->2
+--source include/rpl_init.inc
+
+# Create temporary tables on two channels.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+CREATE TEMPORARY TABLE t1 (a INT);
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+CREATE TEMPORARY TABLE t3 (a INT);
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# Only one warning should be issued when stopping all channels
+--let $rpl_channel_name=
+--echo Stopping slave on all channels
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--let $rpl_channel_name= 'channel_4'
+# No warning is issued as there is no temp table open in this channel
+--echo Stopping slave on channel_4 only
+--source include/stop_slave.inc
+
+--let $status= SHOW STATUS LIKE 'Slave_open_temp_tables'
+--let $num_open_tables= query_get_value($status, Value, 1)
+--let $correct_num_open_tables= 2
+--let $assert_cond= $correct_num_open_tables = $num_open_tables
+--let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after creating temp tables
+--source include/assert.inc
+
+# Stopping the replication thread does not delete tables and does not
+# affect the status variable. It also generates a warning because there
+# are open temporary tables in that channel.
+--echo Stopping slave on channel_1 only
+--let $rpl_channel_name= 'channel_1'
+--source include/stop_slave.inc
+--let $num_open_tables= query_get_value($status, Value, 1)
+--let $assert_cond= $correct_num_open_tables = $num_open_tables
+--let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after stopping replication thread
+--source include/assert.inc
+
+# Resetting slave for channel_1 causes t1 to be dropped
+RESET SLAVE FOR CHANNEL 'channel_1';
+--let $num_open_tables= query_get_value($status, Value, 1)
+--let $correct_num_open_tables= 1
+--let $assert_cond= $correct_num_open_tables = $num_open_tables
+--let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after resetting channel
+--source include/assert.inc
+
+# STOP SLAVE generates a warning because there are open temp tables in the channel.
+--echo Stopping slave on channel_3 only
+--let $rpl_channel_name= 'channel_3'
+--source include/stop_slave.inc
+
+# CHANGE MASTER TO generates a warning because there are open temp tables in the channel.
+--disable_query_log
+eval CHANGE MASTER TO MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL 'channel_3';
+--enable_query_log
+
+# Dropping the table that is still open will decrease the value to zero.
+--let $rpl_channel_name= 'channel_3'
+--source include/start_slave.inc
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+DROP TEMPORARY TABLE t3;
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+--let $num_open_tables= query_get_value($status, Value, 1)
+--let $correct_num_open_tables= 0
+--let $assert_cond= $correct_num_open_tables = $num_open_tables
+--let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after dropping last temp table
+--source include/assert.inc
+
+# STOP SLAVE will not generate a warning because there are no open temp tables in the channel.
+--echo Stopping slave on channel_3 only
+--let $rpl_channel_name= 'channel_3'
+--source include/stop_slave.inc
+
+# CHANGE MASTER TO will not generate a warning because there are no open temp tables in
+# the channel.
+CHANGE MASTER TO MASTER_PORT = 4711 FOR CHANNEL 'channel_3';
+
+RESET SLAVE ALL;
+--let $rpl_skip_sync= 1
+--let $rpl_skip_delete_channels= 1
+--let $rpl_only_running_threads= 1
+--let $rpl_group_replication= 1
+--source include/rpl_end.inc

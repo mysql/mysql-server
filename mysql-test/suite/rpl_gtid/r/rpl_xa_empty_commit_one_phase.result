@@ -1,0 +1,34 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1) Start with a GTID_NEXT value of 'AUTOMATIC',
+#    start a XA transaction,
+#    and end the transaction with 'XA COMMIT ONE PHASE'.
+#
+[connection master]
+include/save_binlog_position.inc
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+XA START 'trx';
+XA END 'trx';
+XA COMMIT 'trx' ONE PHASE;
+include/save_binlog_position.inc
+include/assert.inc [Empty transaction, binlog position is the same]
+include/sync_slave_sql_with_master.inc
+[connection master]
+#
+# 2) Start with a GTID_NEXT value set manually,
+#    start a XA transaction,
+#    and end the transaction with 'XA COMMIT ONE PHASE'.
+#
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+XA START 'trx';
+XA END 'trx';
+XA COMMIT 'trx' ONE PHASE;
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+include/assert.inc [Transaction is present in GTID_EXECUTED]
+include/assert_binlog_events.inc [Gtid/SET.* # Query/BEGIN # Query/COMMIT]
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

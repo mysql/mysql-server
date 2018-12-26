@@ -1,0 +1,111 @@
+SET @@session.default_storage_engine = 'InnoDB';
+drop table if exists t1;
+# Case 1. Partitioning by RANGE based on a non-stored generated column.
+CREATE TABLE t1 (
+a DATE NOT NULL,
+b int generated always as (year(a)) virtual
+)
+PARTITION BY RANGE( b ) (
+PARTITION p0 VALUES LESS THAN (2006),
+PARTITION p2 VALUES LESS THAN (2008)
+);
+insert into t1 values ('2006-01-01',default);
+insert into t1 values ('2007-01-01',default);
+insert into t1 values ('2005-01-01',default);
+select * from t1;
+a	b
+2005-01-01	2005
+2006-01-01	2006
+2007-01-01	2007
+# Modify the expression of generated column b
+ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
+select * from t1;
+a	b
+2005-01-01	2004
+2006-01-01	2005
+2007-01-01	2006
+drop table t1;
+# Case 2. Partitioning by LIST based on a stored generated column.
+CREATE TABLE t1 (a int, b int generated always as (a % 3 ) stored)
+PARTITION BY LIST (a+1)
+(PARTITION p1 VALUES IN (1), PARTITION p2 VALUES IN (2));
+insert into t1 values (1,default);
+select * from t1;
+a	b
+1	1
+select * from t1;
+a	b
+1	1
+drop table t1;
+# Case 3. Partitioning by HASH based on a non-stored generated column.
+CREATE TABLE t1 (
+a DATE NOT NULL,
+b int generated always as (year(a)) virtual
+)
+PARTITION BY HASH( b % 3 ) PARTITIONS 3;
+insert into t1 values ('2005-01-01',default);
+insert into t1 values ('2006-01-01',default);
+select * from t1;
+a	b
+2005-01-01	2005
+2006-01-01	2006
+# Modify the expression of generated column b
+ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
+select * from t1;
+a	b
+2005-01-01	2004
+2006-01-01	2005
+drop table t1;
+#
+# Bug#21779011 INVALID READS AND SENDING RANDOM SERVER MEMORY BACK
+#              TO CLIENT
+#
+CREATE TABLE t (
+c INTEGER GENERATED ALWAYS AS (2) VIRTUAL,
+d INTEGER,
+KEY (d)
+) PARTITION BY KEY (d) PARTITIONS 2;
+INSERT INTO t (d) VALUES (1),(1),(2),(2);
+SELECT c FROM t WHERE d >= 1 GROUP BY d LIMIT 2;
+c
+2
+2
+DROP TABLE t;
+#
+# Bug#21779554: CHECK_MISPLACED_ROWS BOGUS "FOUND A MISPLACED ROW"
+#               AND CRASHES
+#
+CREATE TABLE t(a INT,b INT GENERATED ALWAYS AS (1) VIRTUAL,c INT)
+PARTITION BY KEY (b)PARTITIONS 6;
+INSERT INTO t VALUES();
+CHECK TABLE t EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+FLUSH TABLES;
+CHECK TABLE t EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+#
+# Bug#22574695 ASSERTION `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET, FIELD_I
+#
+CREATE TABLE t1(
+col1 VARCHAR(500),
+col2 INT,
+col5 VARCHAR(500) GENERATED ALWAYS AS
+(SUBSTR(col1,1,500)) VIRTUAL
+) ENGINE = InnoDB PARTITION BY KEY(col5) PARTITIONS 2;
+INSERT INTO test . t1 SET col1 = REPEAT('_', 500);
+COMMIT;
+UPDATE t1 SET col2 = 1;
+SELECT 'Obviously no crash';
+Obviously no crash
+Obviously no crash
+DROP TABLE t1;
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;

@@ -1,0 +1,29 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Suppress expected error messages
+############################################################
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'read failed'");
+call mtr.add_suppression("Plugin group_replication reported: '\\[GCS\\] read failed'");
+call mtr.add_suppression("Plugin group_replication reported: 'Timeout on wait for view after joining group'");
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+SET SESSION sql_log_bin= 1;
+############################################################
+# 2. Define and setup seeds to force self connect
+############################################################
+SET @@global.group_replication_group_name="GROUP_REPLICATION_GROUP_NAME";
+SET @@global.group_replication_group_seeds=`localhost:XCOM_PORT, 127.0.0.1:XCOM_PORT`;
+############################################################
+# 3. Start the node and expect it to fail
+############################################################
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+############################################################
+# 4. Clean up
+############################################################
+include/group_replication_end.inc

@@ -1,0 +1,20 @@
+-- source include/have_ndb.inc
+
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
+
+create table t1 (a bigint, primary key (a)) engine=ndb;
+create table t2 (a bigint, primary key (a)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t3 (a bigint, primary key (a)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+create table t4 (a bigint, primary key (a)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
+create table t5 (a bigint, primary key (a)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
+
+--let ndb_desc_opts= -d test t1 t2 t3 t4 t5
+--source suite/ndb/include/ndb_desc_print.inc
+
+drop table t1, t2, t3, t4, t5;
+
+--source suite/ndb/include/restore_ndb_read_backup.inc

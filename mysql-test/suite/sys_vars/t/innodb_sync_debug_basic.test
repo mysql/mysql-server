@@ -1,0 +1,15 @@
+--echo #
+--echo # Basic test for innodb_sync_debug
+--echo #
+
+
+# The config variable is a debug read-only variable
+-- source include/have_debug.inc
+
+SELECT @@global.innodb_sync_debug;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_sync_debug = 1;
+
+SELECT @@global.innodb_sync_debug;
+

@@ -1,0 +1,58 @@
+#############################################################################
+# This test is being created to test out the non deterministic items with   #
+# row based replication.                                                    #
+# Original Author: JBM                                                      #
+# Original Date: Aug/10/2005                                                #
+# Update: 08/29/2005 change name to initails                                #
+#############################################################################
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+--error 0,1305
+DROP FUNCTION test.f1;
+DROP TABLE IF EXISTS test.t1;
+
+
+--enable_warnings
+
+# Section 1 test from bug #12487 Uses stored function to insert rows to see what is replicated.
+
+create table test.t1 (a int, PRIMARY KEY(a));
+
+delimiter //;
+create function test.f1(i int) returns int
+begin
+insert into test.t1 values(i);
+return 0;
+end//
+delimiter ;//
+
+select test.f1(1);
+select test.f1(2);
+select * from test.t1;
+
+save_master_pos;
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+#show create table test.t1;
+select * from test.t1;
+
+connection master;
+
+#Used for debugging
+#show binlog events;
+
+# Cleanup
+
+DROP FUNCTION test.f1;
+DROP TABLE test.t1;
+--source include/sync_slave_sql_with_master.inc
+
+# End of 5.0 test case
+--source include/rpl_end.inc

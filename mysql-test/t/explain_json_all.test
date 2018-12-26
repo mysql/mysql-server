@@ -1,0 +1,9 @@
+# 
+# Run explain_json.inc with all of the so-called 6.0 features.
+--source include/have_64bit.inc
+
+set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on';
+
+--source include/explain_json.inc
+
+set optimizer_switch=default;

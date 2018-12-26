@@ -1,0 +1,31 @@
+create table t1(a int primary key, b int not null, index(b)) engine = ndb;
+insert into t1 values (1,1), (2,2);
+set autocommit=0;
+begin;
+select count(*) from t1;
+count(*)
+2
+ALTER TABLE t1 algorithm=copy, ADD COLUMN c int;
+select a from t1 where b = 2;
+a
+2
+commit;
+show tables;
+Tables_in_test
+t1
+drop table t1;
+create table t1 (
+col0 int, col1 int, col2 int, col3 int,
+col4 int, col5 int, col6 int, col7 int,
+col8 int, col9 int, col10 int, col11 int,
+col12 int, col13 int, col14 int, col15 int,
+col16 int, col17 int, col18 int, col19 int,
+col20 int, col21 int, col22 int, col23 int,
+col24 int, col25 int, col26 int, col27 int,
+col28 int, col29 int, col30 int, col31 int,
+primary key(col0)) engine = ndb;
+begin;
+insert into t1 (col0) values (1);
+alter table t1 algorithm=inplace, add column col32 int COLUMN_FORMAT DYNAMIC;
+commit;
+drop table t1;

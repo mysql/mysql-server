@@ -1,0 +1,887 @@
+# File containing different lossy and non-lossy type conversions.
+
+# Integral conversion testing, we do not reduce the test using
+# transitivity of conversions since the implementation is not using a
+# transitivity strategy. Instead we do an exhaustive testing.
+
+# Using begin_include_file/end_include_file to prevent output from all
+# the rpl_sync_slave_sql_with_master, etc.
+--let $include_silent= 1
+--source include/begin_include_file.inc
+--let $include_silent= 0
+
+disable_query_log;
+connection slave;
+--let $conv = `select @@slave_type_conversions`
+--echo **** Running tests with @@SLAVE_TYPE_CONVERSIONS = '$conv' ****
+
+let $if_is_lossy = `SELECT FIND_IN_SET('ALL_LOSSY', @@SLAVE_TYPE_CONVERSIONS)`;
+let $if_is_non_lossy = `SELECT FIND_IN_SET('ALL_NON_LOSSY', @@SLAVE_TYPE_CONVERSIONS)`;
+
+# TINYBLOB
+
+let $source_type  = TINYBLOB;
+let $target_type  = TINYBLOB;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert   = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYBLOB;
+let $target_type= BLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYBLOB;
+let $target_type= MEDIUMBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYBLOB;
+let $target_type= LONGBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+# BLOB
+
+let $source_type  = BLOB;
+let $target_type  = TINYBLOB;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert   = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BLOB;
+let $target_type= BLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BLOB;
+let $target_type= MEDIUMBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BLOB;
+let $target_type= LONGBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+# MEDIUMBLOB
+
+let $source_type  = MEDIUMBLOB;
+let $target_type  = TINYBLOB;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert   = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMBLOB;
+let $target_type= BLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMBLOB;
+let $target_type= MEDIUMBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMBLOB;
+let $target_type= LONGBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+# LONGBLOB
+
+let $source_type  = LONGBLOB;
+let $target_type  = TINYBLOB;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert   = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= LONGBLOB;
+let $target_type= BLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= LONGBLOB;
+let $target_type= MEDIUMBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= LONGBLOB;
+let $target_type= LONGBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= 1;
+source extra/rpl_tests/check_type.inc;
+
+# BUG#49836 (additional tests - GEOMETRY TYPE)
+
+let $source_type  = GEOMETRY;
+let $target_type  = BLOB;
+let $source_value = ST_PointFromText('POINT(10 10)');
+let $target_value = ST_PointFromText('POINT(10 10)');
+let $can_convert  = 0;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = BLOB;
+let $target_type  = GEOMETRY;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert  = 0;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = GEOMETRY;
+let $target_type  = GEOMETRY;
+let $source_value = ST_PointFromText('POINT(10 10)');
+let $target_value = ST_PointFromText('POINT(10 10)');
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = BIT(1);
+let $target_type  = BIT(1);
+let $source_value = b'1';
+let $target_value = b'1';
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = DATE;
+let $target_type  = DATE;
+let $source_value = '2009-11-21';
+let $target_value = '2009-11-21';
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = ENUM('master','slave');
+let $target_type  = ENUM('master','slave');
+let $source_value = 'master';
+let $target_value = 'master';
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = CHAR(10);
+let $target_type  = ENUM('master','slave');
+let $source_value = 'master';
+let $target_value = 'master';
+let $can_convert  = 0;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = CHAR(10);
+let $target_type  = SET('master','slave');
+let $source_value = 'master';
+let $target_value = 'master';
+let $can_convert  = 0;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = ENUM('master','slave');
+let $target_type  = CHAR(10);
+let $source_value = 'master';
+let $target_value = 'master';
+let $can_convert  = 0;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('master','slave');
+let $target_type  = CHAR(10);
+let $source_value = 'master';
+let $target_value = 'master';
+let $can_convert  = 0;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('master','slave');
+let $target_type  = SET('master','slave');
+let $source_value = '';
+let $target_value = '';
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('master','slave');
+let $target_type  = SET('master','slave');
+let $source_value = 'master,slave';
+let $target_value = 'master,slave';
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('0','1','2','3','4','5','6');
+let $target_type  = SET('0','1','2','3','4','5','6');
+let $source_value = '5';
+let $target_value = '5';
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('0','1','2','3','4','5','6');
+let $target_type  = SET('0','1','2','3','4','5','6','7','8','9','10');
+let $source_value = '5';
+let $target_value = '5';
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('0','1','2','3','4','5','6','7','8','9','10');
+let $target_type  = SET('0','1','2','3','4','5','6');
+let $source_value = '5';
+let $target_value = '5';
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('0','1','2','3','4','5','6','7','8','9','10');
+let $target_type  = SET('0','1','2','3','4','5','6');
+let $source_value = '7';
+let $target_value = '';
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = TINYINT;
+let $target_type  = TINYINT;
+let $source_value = 1;
+let $target_value = 1;
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = TINYINT;
+let $target_type  = SMALLINT;
+let $source_value = 1;
+let $target_value = 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYINT;
+let $target_type= MEDIUMINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYINT;
+let $target_type= INT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYINT;
+let $target_type= BIGINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= SMALLINT;
+let $target_type= TINYINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= SMALLINT;
+let $target_type= TINYINT;
+let $source_value= 1 << 9;
+let $target_value= (1 << 7) - 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= SMALLINT;
+let $target_type= TINYINT UNSIGNED;
+let $source_value= 1 << 9;
+let $target_value= (1 << 8) - 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= SMALLINT;
+let $target_type= SMALLINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= SMALLINT;
+let $target_type= MEDIUMINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= SMALLINT;
+let $target_type= INT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= SMALLINT;
+let $target_type= BIGINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMINT;
+let $target_type= TINYINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMINT;
+let $target_type= TINYINT;
+let $source_value= 1 << 20;
+let $target_value= (1 << 7) - 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMINT;
+let $target_type= TINYINT UNSIGNED;
+let $source_value= 1 << 20;
+let $target_value= (1 << 8) - 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMINT;
+let $target_type= SMALLINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMINT;
+let $target_type= MEDIUMINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMINT;
+let $target_type= INT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMINT;
+let $target_type= BIGINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= INT;
+let $target_type= TINYINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= INT;
+let $target_type= TINYINT;
+let $source_value= (1 << 30);
+let $target_value= (1 << 7) - 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= INT;
+let $target_type= TINYINT UNSIGNED;
+let $source_value= (1 << 30);
+let $target_value= (1 << 8) - 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= INT;
+let $target_type= SMALLINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= INT;
+let $target_type= MEDIUMINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= INT;
+let $target_type= INT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= INT;
+let $target_type= BIGINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIGINT;
+let $target_type= TINYINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIGINT;
+let $target_type= SMALLINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIGINT;
+let $target_type= MEDIUMINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIGINT;
+let $target_type= INT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIGINT;
+let $target_type= BIGINT;
+let $source_value= 1;
+let $target_value= 1;
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= CHAR(20);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= CHAR(30);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= CHAR(10);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnood';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= VARCHAR(20);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= VARCHAR(30);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= VARCHAR(10);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnood';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= TINYTEXT;
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= TEXT;
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= MEDIUMTEXT;
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= CHAR(20);
+let $target_type= LONGTEXT;
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(20);
+let $target_type= VARCHAR(20);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(20);
+let $target_type= VARCHAR(30);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(20);
+let $target_type= VARCHAR(10);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnood';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(20);
+let $target_type= CHAR(30);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(20);
+let $target_type= CHAR(10);
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnood';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(20);
+let $target_type= TINYTEXT;
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(20);
+let $target_type= TEXT;
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(20);
+let $target_type= MEDIUMTEXT;
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(20);
+let $target_type= LONGTEXT;
+let $source_value= 'Smoothnoodlemaps';
+let $target_value= 'Smoothnoodlemaps';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $blob = `select repeat('abcd', 125)`;
+let $truncated_blob = `select left('$blob', 255)`;
+
+let $source_type= VARCHAR(500);
+let $target_type= VARCHAR(500);
+let $source_value= '$blob';
+let $target_value= '$blob';
+let $can_convert = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(500);
+let $target_type= VARCHAR(510);
+let $source_value= '$blob';
+let $target_value= '$blob';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(500);
+let $target_type= VARCHAR(255);
+let $source_value= '$blob';
+let $target_value= '$truncated_blob';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(500);
+let $target_type= TINYTEXT;
+let $source_value= '$blob';
+let $target_value= '$truncated_blob';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(500);
+let $target_type= TEXT;
+let $source_value= '$blob';
+let $target_value= '$blob';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(500);
+let $target_type= MEDIUMTEXT;
+let $source_value= '$blob';
+let $target_value= '$blob';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= VARCHAR(500);
+let $target_type= LONGTEXT;
+let $source_value= '$blob';
+let $target_value= '$blob';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $tiny_blob = `select repeat('tiny blob ', 25)`;
+let $truncated_tiny_blob = `select left('$tiny_blob', 254)`;
+
+let $source_type= TINYTEXT;
+let $target_type= VARCHAR(500);
+let $source_value= '$tiny_blob';
+let $target_value= '$tiny_blob';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TEXT;
+let $target_type= VARCHAR(500);
+let $source_value= '$blob';
+let $target_value= '$blob';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMTEXT;
+let $target_type= VARCHAR(500);
+let $source_value= '$blob';
+let $target_value= '$blob';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= LONGTEXT;
+let $target_type= VARCHAR(500);
+let $source_value= '$blob';
+let $target_value= '$blob';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYTEXT;
+let $target_type= CHAR(255);
+let $source_value= '$tiny_blob';
+let $target_value= '$tiny_blob';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYTEXT;
+let $target_type= CHAR(250);
+let $source_value= '$tiny_blob';
+let $target_value= left('$tiny_blob', 250);
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TEXT;
+let $target_type= CHAR(255);
+let $source_value= '$blob';
+let $target_value= left('$blob', 255);
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMTEXT;
+let $target_type= CHAR(255);
+let $source_value= '$blob';
+let $target_value= left('$blob', 255);
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= LONGTEXT;
+let $target_type= CHAR(255);
+let $source_value= '$blob';
+let $target_value= left('$blob', 255);
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYTEXT;
+let $target_type= TINYTEXT;
+let $source_value= '$tiny_blob';
+let $target_value= '$tiny_blob';
+let $can_convert = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYTEXT;
+let $target_type= TEXT;
+let $source_value= '$tiny_blob';
+let $target_value= '$tiny_blob';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TEXT;
+let $target_type= TINYTEXT;
+let $source_value= '$blob';
+let $target_value= left('$blob',255);
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DECIMAL(10,5);
+let $target_type= DECIMAL(10,5);
+let $source_value= 3.14159;
+let $target_value= 3.14159;
+let $can_convert = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DECIMAL(10,5);
+let $target_type= DECIMAL(10,6);
+let $source_value= 3.14159;
+let $target_value= 3.141590;
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DECIMAL(10,5);
+let $target_type= DECIMAL(11,5);
+let $source_value= 3.14159;
+let $target_value= 3.14159;
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DECIMAL(10,5);
+let $target_type= DECIMAL(11,6);
+let $source_value= 3.14159;
+let $target_value= 3.141590;
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DECIMAL(10,5);
+let $target_type= DECIMAL(10,4);
+let $source_value= 3.14159;
+let $target_value= 3.1416;
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DECIMAL(10,5);
+let $target_type= DECIMAL(9,5);
+let $source_value= 3.14159;
+let $target_value= 3.14159;
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DECIMAL(10,5);
+let $target_type= DECIMAL(9,4);
+let $source_value= 3.14159;
+let $target_value= 3.1416;
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= FLOAT;
+let $target_type= DECIMAL(10,5);
+let $source_value= 3.15625;
+let $target_value= 3.15625;
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DOUBLE;
+let $target_type= DECIMAL(10,5);
+let $source_value= 3.15625;
+let $target_value= 3.15625;
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DECIMAL(10,5);
+let $target_type= FLOAT;
+let $source_value= 3.15625;
+let $target_value= 3.15625;
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DECIMAL(10,5);
+let $target_type= DOUBLE;
+let $source_value= 3.15625;
+let $target_value= 3.15625;
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= FLOAT;
+let $target_type= FLOAT;
+let $source_value= 3.15625;
+let $target_value= 3.15625;
+let $can_convert = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DOUBLE;
+let $target_type= DOUBLE;
+let $source_value= 3.15625;
+let $target_value= 3.15625;
+let $can_convert = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= FLOAT;
+let $target_type= DOUBLE;
+let $source_value= 3.15625;
+let $target_value= 3.15625;
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= DOUBLE;
+let $target_type= FLOAT;
+let $source_value= 3.15625;
+let $target_value= 3.15625;
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIT(5);
+let $target_type= BIT(5);
+let $source_value= b'11001';
+let $target_value= b'11001';
+let $can_convert = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIT(5);
+let $target_type= BIT(6);
+let $source_value= b'11001';
+let $target_value= b'11001';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIT(6);
+let $target_type= BIT(5);
+let $source_value= b'111001';
+let $target_value= b'11111';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIT(5);
+let $target_type= BIT(12);
+let $source_value= b'11001';
+let $target_value= b'11001';
+let $can_convert = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BIT(12);
+let $target_type= BIT(5);
+let $source_value= b'101100111000';
+let $target_value= b'11111';
+let $can_convert = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+--source include/rpl_reset.inc
+
+
+--source include/end_include_file.inc

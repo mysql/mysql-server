@@ -1,0 +1,147 @@
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 1000) DO
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+SELECT @@innodb_fill_factor;
+@@innodb_fill_factor
+100
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1000
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+/* Check table. */
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 500;
+class	id	title
+500	500	a500
+SELECT * FROM t1 WHERE title = 'a500';
+class	id	title
+500	500	a500
+SELECT * FROM t1 WHERE id = 1000;
+class	id	title
+1000	1000	a1000
+SELECT * FROM t1 WHERE title = 'a1000';
+class	id	title
+1000	1000	a1000
+SELECT * FROM t1 WHERE id = 1010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a1010';
+class	id	title
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES
+(1, REPEAT('a',10000), 'a'),
+(2, REPEAT('b',20000), 'b'),
+(3, REPEAT('c',40000), 'c'),
+(4, REPEAT('d',60000), 'd');
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=default;
+SET GLOBAL innodb_file_per_table=1;
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1000
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+/* Check table. */
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 500;
+class	id	title
+500	500	a500
+SELECT * FROM t1 WHERE title = 'a500';
+class	id	title
+500	500	a500
+SELECT * FROM t1 WHERE id = 1000;
+class	id	title
+1000	1000	a1000
+SELECT * FROM t1 WHERE title = 'a1000';
+class	id	title
+1000	1000	a1000
+SELECT * FROM t1 WHERE id = 1010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a1010';
+class	id	title
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+INSERT INTO t1 VALUES
+(1, REPEAT('a',10000), 'a'),
+(2, REPEAT('b',20000), 'b'),
+(3, REPEAT('c',40000), 'c'),
+(4, REPEAT('d',60000), 'd');
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=default;
+DROP PROCEDURE populate_t1;

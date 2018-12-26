@@ -1,0 +1,197 @@
+-- source include/have_multi_ndb.inc
+-- source include/have_binlog_format_row.inc
+
+##
+# Testing of flush tables with read lock and Ndb
+#
+# Not complete, but aims to capture some of the
+# Ndb behaviour, including
+# 
+# - FLUSH TABLES WITH READ LOCK affects only 1
+#   server attached to a cluster, others can 
+#   continue to write to tables
+# - FLUSH TABLES WITH READ LOCK blocks binlogging
+#   on the server where it runs
+# - FLUSH TABLES WITH READ LOCK does not affect
+#   binlogging on other servers on the cluster
+# - FLUSH TABLES WITH READ LOCK does not wait
+#   for all previously committed transactions
+#   to be included in the local Binlog before 
+#   locking the local Binlog.
+#
+
+--connection server1
+reset master;
+
+--connection server2
+reset master;
+
+--connection server1
+
+--echo Initial setup
+--echo Create some tables and put some data in them
+use test;
+
+create table test.ndbt1 (a int primary key, b int) engine=ndb;
+create table test.myisamt3s1 (a int primary key, b int) engine=myisam;
+
+--connection server2
+create table test.myisamt3s2 (a int primary key, b int) engine=myisam;
+
+--connection server1
+
+insert into ndbt1 values (1,1);
+
+--echo Show + reset Binlog contents on Server 1
+--source include/show_binlog_events.inc
+reset master;
+
+--echo Show + reset Binlog contents on Server 2
+--connection server2
+--source include/show_binlog_events.inc
+reset master;
+
+--echo Now perform MyIsam table change followed by 
+--echo flush tables with read lock on Server 1
+--connection server1
+
+insert into test.myisamt3s1 values (3,3);
+FLUSH TABLES WITH READ LOCK;
+
+--echo The MyIsam change definitely will be in the local
+--echo binlog as it occurred 'before' the lock
+--source include/show_binlog_events.inc
+
+--echo Show that Ndb and local tables are still 
+--echo Read-Write from Server2
+--connection server2
+use test;
+insert into ndbt1 values (4,4);
+
+--echo Look at the Binlog events on Server 2 - contains
+--echo rows written at Server2
+--source include/show_binlog_events.inc
+
+insert into myisamt3s2 values (5,5);
+
+--echo Look at the Binlog events on Server 2 - contains
+--echo rows written at Server2
+--source include/show_binlog_events.inc
+
+--echo Now look at the Binlog events on Server 1
+--connection server1
+# Note that this will not block waiting for binlog
+# sync as the latest ndb transaction from the p.o.v
+# of Server 1 is already in the binlog.
+--source include/show_binlog_events.inc
+
+--echo Now remove the read lock at server 1
+unlock tables;
+
+--echo Local event to ensure show binlog events sees
+--echo 'latest' binlog
+
+insert into ndbt1 values (6,6);
+
+--echo Show that server 1 binlog now contains all the relevant
+--echo events.
+--source include/show_binlog_events.inc
+
+--echo Reset both binlogs;
+--connection server1
+reset master;
+
+--connection server2
+reset master;
+
+--connection server1
+
+--echo Now show that a Server 1 Ndb update can
+--echo be committed, but won't always make it to
+--echo the Binlog
+
+--echo This is not 100% guaranteed as in theory
+--echo a commit can occur, and be Binlogged before
+--echo the read lock stops the binlog injector.
+--echo but in reality its very likely
+--echo To remove any uncertainty we loop until 
+--echo we see a case where a committed ndb insert
+--echo is not binlogged by the server.
+--echo We do this work on Server2 as it doesn't have
+--echo a read lock :)
+
+create table ndbt2 (a int primary key, b varchar(100)) engine=ndb;
+
+--disable_query_log
+--disable_result_log
+
+let $not_proven = 1;
+let $server1_has_insert = 0;
+let $server2_has_insert = 0;
+
+while ($not_proven)
+{
+  --connection server1
+  let $SERVER1_DATADIR= `select @@datadir;`;
+  delete from test.ndbt2;
+  reset master;
+
+  --connection server2
+  let $SERVER2_DATADIR= `select @@datadir;`;
+  delete from test.ndbt2;
+  reset master;
+
+  --connection server1
+
+  insert into test.ndbt2 values (123, "A most unlikely sequence if I may say so");
+  flush tables with read lock;
+
+  # Allow some time(100ms) to elapse to let the insert reach server 2 binlog
+  --sleep 0.1
+
+  --connection server2
+  #--echo Disable binlogging of the binlog examination on server2
+  set sql_log_bin=0;
+
+  create table raw_binlog_rows_server1 (txt varchar(1000));
+  create table raw_binlog_rows_server2 (txt varchar(1000));
+
+  --exec $MYSQL_BINLOG --verbose $SERVER1_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql
+  --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql' into table raw_binlog_rows_server1 columns terminated by '\n';
+  --exec $MYSQL_BINLOG --verbose $SERVER2_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql
+  --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql' into table raw_binlog_rows_server2 columns terminated by '\n';
+
+
+  let $server1_has_insert = `select @s1_has_ins:=count(1) > 0 from raw_binlog_rows_server1 where txt like '%A most unlikely sequence if I may say so%'`;
+  let $server2_has_insert = `select @s2_has_ins:=count(1) > 0 from raw_binlog_rows_server2 where txt like '%A most unlikely sequence if I may say so%'`;
+  
+  # We succeed when server 1 does not have the insert, but server 2 does.
+  select @proven:= (@s1_has_ins = 0 and @s2_has_ins != 0);
+  let $not_proven = `select @proven = 0`;  
+
+  drop table raw_binlog_rows_server1;
+  drop table raw_binlog_rows_server2;
+
+  set sql_log_bin=1;
+
+  --connection server1
+  unlock tables;
+}
+
+--enable_result_log
+--enable_query_log
+
+--echo Outcome
+--echo Server 1 has insert : $server1_has_insert
+--echo Server 2 has insert : $server2_has_insert
+
+--echo Now cleanup
+--connection server1
+drop table ndbt1;
+drop table ndbt2;
+drop table myisamt3s1;
+
+--connection server2
+drop table myisamt3s2;
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp ndb_binlog_mysqlbinlog*.sql
+

@@ -1,0 +1,117 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(test.t1,test.t2,test.t3);
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(test.t4,test.t5,test.t6);
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=();
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=();
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(test.t1,test.t2,test.t3);
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(test.t4,test.t5,test.t6);
+include/start_slave.inc
+CREATE TABLE t1 (id int, a int);
+CREATE TABLE t2 (id int, b int);
+CREATE TABLE t3 (id int, c int);
+CREATE TABLE t4 (id int, d int);
+CREATE TABLE t5 (id int, e int);
+CREATE TABLE t6 (id int, f int);
+CREATE TABLE t7 (id int, g int);
+CREATE TABLE t8 (id int, h int);
+CREATE TABLE t9 (id int, i int);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t3 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t4 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t5 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t6 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t7 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t8 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t9 VALUES (1, 1), (2, 2), (3, 3);
+[on slave]
+SHOW TABLES LIKE 't%';
+Tables_in_test (t%)
+t1
+t2
+t3
+[on master]
+UPDATE t7 LEFT JOIN t4 ON (t4.id=t7.id) SET d=0, g=0 where t7.id=1;
+UPDATE t7 LEFT JOIN (t4, t5, t6) ON (t7.id=t4.id and t7.id=t5.id and t7.id=t6.id) SET d=0, e=0, f=0, g=0 where t7.id=1;
+UPDATE t4 LEFT JOIN (t7, t8, t9) ON (t4.id=t7.id and t4.id=t8.id and t4.id=t9.id) SET d=0, g=0, h=0, i=0 where t4.id=1;
+UPDATE t7 LEFT JOIN (t8, t9) ON (t7.id=t8.id and t7.id=t9.id) SET g=0, h=0, i=0 where t7.id=1;
+UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET d=0 where t1.id=1;
+UPDATE t1 LEFT JOIN t7 ON (t1.id=t7.id) SET g=0 where t1.id=1;
+UPDATE t1 LEFT JOIN (t4, t5, t6) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t6.id) SET d=0, e=0, f=0 where t1.id=1;
+UPDATE t1 LEFT JOIN (t4, t5, t8) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t8.id) SET d=0, e=0, h=0 where t1.id=1;
+UPDATE t1 LEFT JOIN (t7, t8, t5) ON (t1.id=t7.id and t1.id=t8.id and t1.id=t5.id) SET g=0, h=0, e=0 where t1.id=1;
+UPDATE t1 LEFT JOIN (t2, t3, t5) ON (t1.id=t2.id and t1.id=t3.id and t1.id=t5.id) SET e=0 where t1.id=1;
+UPDATE t4 LEFT JOIN t1 ON (t1.id=t4.id) SET a=0, d=0 where t4.id=1;
+UPDATE t4 LEFT JOIN (t1, t7) ON (t4.id=t1.id and t7.id=t4.id) SET a = 0, d=0, g=0 where t4.id=1;
+UPDATE t4 LEFT JOIN (t1, t2, t3) ON (t1.id=t4.id and t2.id=t4.id and t3.id=t4.id) SET a=0, b=0, c=0, d=0 where t4.id=1;
+UPDATE t4 LEFT JOIN (t1, t2, t5) ON (t1.id=t4.id and t2.id=t4.id and t5.id=t4.id) SET a=0, b=0, e=0, d=0 where t4.id=1;
+UPDATE t4 LEFT JOIN (t1, t6, t7) ON (t4.id=t1.id and t4.id=t6.id and t4.id=t7.id) SET a=0, d=0, f=0, g=0 where t4.id=1;
+UPDATE t7 LEFT JOIN (t4, t1, t2) ON (t7.id=t4.id and t7.id=t1.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1;
+UPDATE t7 LEFT JOIN (t8, t4, t1) ON (t7.id=t8.id and t7.id=t4.id and t7.id=t1.id) SET a=0, d=0, g=0, h=0 where t7.id=1;
+call mtr.add_suppression("Slave SQL.*Error .Table .test.t[47]. doesn.t exist. on query.* Error_code: MY-001146");
+UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t1 LEFT JOIN (t4, t7) ON (t1.id=t4.id and t1.id=t7.id) SET a=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t1 LEFT JOIN (t2, t4, t7) ON (t1.id=t2.id and t1.id=t4.id and t1.id=t7.id) SET a=0, b=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t1 LEFT JOIN (t2, t3, t7) ON (t1.id=t2.id and t1.id=t3.id and t1.id=t7.id) SET a=0, b=0, c=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t1 LEFT JOIN t7 ON (t1.id=t7.id) SET a=0, g=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t7 LEFT JOIN t1 ON (t1.id=t7.id) SET a=0, g=0 where t7.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t1 LEFT JOIN (t4, t5, t7) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t7.id) SET a=0, g=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t1 LEFT JOIN (t4, t7, t8) ON (t1.id=t4.id and t1.id=t7.id and t1.id=t8.id) SET a=0, g=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t1 LEFT JOIN (t7, t8, t9) ON (t1.id=t7.id and t1.id=t8.id and t1.id=t9.id) SET a=0, g=0, h=0, i=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t7 LEFT JOIN (t1, t2, t3) ON (t7.id=t1.id and t7.id=t2.id and t7.id=t3.id) SET g=0, a=0, b=0, c=0 where t7.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t7 LEFT JOIN (t4, t5, t3) ON (t7.id=t4.id and t7.id=t5.id and t7.id=t3.id) SET g=0, c=0 where t7.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t7 LEFT JOIN (t8, t9, t3) ON (t7.id=t8.id and t7.id=t9.id and t7.id=t3.id) SET g=0, h=0, i=0, c=0 where t7.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0, d=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t1 LEFT JOIN (t4, t5, t6) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t6.id) SET a=0, d=0, e=0, f=0 where t1.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t4 LEFT JOIN (t1, t5, t6) ON (t4.id=t1.id and t4.id=t5.id and t4.id=t6.id) SET a=0, e=0, f=0 where t4.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+UPDATE t7 LEFT JOIN (t1, t4, t2) ON (t7.id=t1.id and t7.id=t4.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+[on slave]
+show tables like 't%';
+Tables_in_test (t%)
+t1
+t2
+t3
+SELECT * FROM t1;
+id	a
+1	1
+2	2
+3	3
+SELECT * FROM t2;
+id	b
+1	1
+2	2
+3	3
+SELECT * FROM t3;
+id	c
+1	1
+2	2
+3	3
+[on master]
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+include/rpl_end.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=();
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=();

@@ -1,0 +1,69 @@
+
+--disable_warnings
+drop database if exists `mysqltest1`;
+drop database if exists `mysqltest-1`;
+drop database if exists `#mysql50#mysqltest-1`;
+--enable_warnings
+
+#
+# Special handling of the #mysql50# prefix has been removed.
+# It is now treated as any other identifier part. I.e. it has to
+# be quoted and will remain part of the identifier name.
+#
+
+create database `mysqltest1`;
+create database `#mysql50#mysqltest-1`;
+create table `mysqltest1`.`t1` (a int);
+create table `mysqltest1`.`#mysql50#t-1` (a int);
+create table `#mysql50#mysqltest-1`.`t1` (a int);
+create table `#mysql50#mysqltest-1`.`#mysql50#t-1` (a int);
+show create database `mysqltest1`;
+--error 1049
+show create database `mysqltest-1`;
+show create database `#mysql50#mysqltest-1`;
+show tables in `mysqltest1`;
+show tables in `#mysql50#mysqltest-1`;
+
+show create database `mysqltest1`;
+show create database `#mysql50#mysqltest-1`;
+show tables in `mysqltest1`;
+show tables in `#mysql50#mysqltest-1`;
+drop database `mysqltest1`;
+drop database `#mysql50#mysqltest-1`;
+
+#
+# Bug#17142: Crash if create with encoded name
+#
+--disable_warnings
+drop table if exists `txu@0023p@0023p1`;
+drop table if exists `txu#p#p1`;
+--enable_warnings
+create table `txu#p#p1` (s1 int);
+insert into `txu#p#p1` values (1);
+--error 1146
+select * from `txu@0023p@0023p1`;
+create table `txu@0023p@0023p1` (s1 int);
+insert into `txu@0023p@0023p1` values (2);
+select * from `txu@0023p@0023p1`;
+select * from `txu#p#p1`;
+drop table `txu@0023p@0023p1`;
+drop table `txu#p#p1`;
+use test;
+
+--echo # End of 5.0 tests
+
+--echo #
+--echo # Bug #53804: serious flaws in the alter database .. upgrade data
+--echo #             directory name command
+--echo #
+
+# ... UPGRADE DATA DICTIONARY NAME syntax has been removed.
+
+# #mysql50# is now treated as any other db name
+--error ER_BAD_DB_ERROR
+USE `#mysql50#.`;
+--error ER_BAD_DB_ERROR
+USE `#mysql50#../blablabla`;
+
+--echo # End of 5.1 tests
+

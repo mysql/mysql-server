@@ -1,0 +1,67 @@
+--source include/no_valgrind_without_big.inc
+--vertical_results
+let $engine_type= 'innodb';
+
+######## Creat Table Section #########
+use test;
+
+eval CREATE TABLE test.part_tbl(id MEDIUMINT NOT NULL AUTO_INCREMENT,
+                           dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
+                           fkid MEDIUMINT, filler VARCHAR(255),
+                           PRIMARY KEY(id)) ENGINE=$engine_type
+                                PARTITION BY RANGE(id)
+                                SUBPARTITION BY hash(id) subpartitions 2
+                                (PARTITION pa3 values less than (42),
+                                 PARTITION pa6 values less than (60),
+                                 PARTITION pa7 values less than (70),
+                                 PARTITION pa8 values less than (80),
+                                 PARTITION pa9 values less than (90),
+                                 PARTITION pa10 values less than (100),
+                                 PARTITION pa11 values less than MAXVALUE);
+
+######## Create SPs, Functions, Views and Triggers Section ##############
+
+delimiter |;
+
+CREATE PROCEDURE test.proc_part()
+BEGIN
+   DECLARE ins_count INT DEFAULT 1000;
+   DECLARE del_count INT;
+   DECLARE cur_user VARCHAR(255);
+   DECLARE local_uuid VARCHAR(255);
+   DECLARE local_time TIMESTAMP;
+
+   SET local_time= NOW();
+   SET cur_user= CURRENT_USER();
+   SET local_uuid= UUID();
+
+   WHILE ins_count > 0 DO
+     INSERT INTO test.part_tbl VALUES (NULL, NOW(), USER() , UUID(),
+                                   ins_count,'Going to test MBR for MySQL');
+     SET ins_count = ins_count - 1;
+   END WHILE;
+   SELECT MAX(id) FROM test.part_tbl INTO del_count;
+   WHILE del_count > 0 DO
+     DELETE FROM test.part_tbl WHERE id = del_count;
+     select count(*) as internal_count, del_count  -- these two lines are for
+     FROM test.part_tbl;                           -- debug to show the problem
+     SET del_count = del_count - 2;
+   END WHILE;
+END|
+
+delimiter ;|
+
+############ Finish Setup Section ###################
+
+############ Test Section ###################
+--horizontal_results
+
+CALL test.proc_part();
+
+select count(*) as Part from test.part_tbl;
+
+###### CLEAN UP SECTION ##############
+
+DROP PROCEDURE test.proc_part;
+DROP TABLE test.part_tbl;
+

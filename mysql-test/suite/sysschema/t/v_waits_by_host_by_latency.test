@@ -1,0 +1,21 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.waits_by_host_by_latency view
+
+# Ensure structure changes don't slip in
+DESC sys.waits_by_host_by_latency;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.waits_by_host_by_latency;
+--enable_result_log
+
+
+# Ensure structure changes don't slip in
+DESC sys.x$waits_by_host_by_latency;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$waits_by_host_by_latency;
+--enable_result_log
+

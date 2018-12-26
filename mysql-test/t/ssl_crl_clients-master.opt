@@ -1,0 +1,4 @@
+--ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem
+--ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-revoked-key.pem
+--ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-revoked-cert.pem
+--ssl-crl=$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl

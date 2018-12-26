@@ -1,0 +1,19 @@
+#### suite/funcs_1/t/myisam_cursors.test
+
+# MyISAM tables should be used
+#
+# Set $engine_type
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+--source include/have_myisam.inc
+let $engine_type= myisam;
+
+let $message= NOT YET IMPLEMENTED: cursor tests;
+--source include/show_msg80.inc
+exit;
+
+# Create some objects needed in many testcases
+USE test;
+--source suite/funcs_1/include/myisam_tb1.inc
+
+--source suite/funcs_1/cursors/cursors_master.test
+

@@ -1,0 +1,229 @@
+############## mysql-test\t\block_encryption_mode_basic.test ###################
+#                                                                              #
+# Variable Name: block_encryption_mode                                         #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Enum                                                              #
+# Default Value: aes-128-ecb                                                   #
+#                                                                              #
+#                                                                              #
+#                                                                              #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+#####################################################################
+#           START OF block_encryption_mode TESTS                    #
+#####################################################################
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.block_encryption_mode;
+SELECT @start_global_value;
+SET @start_session_value = @@session.block_encryption_mode;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_002_01-------------------------#'
+#####################################################################
+#     Display the DEFAULT value of block_encryption_mode            #
+#####################################################################
+
+SET @@global.block_encryption_mode = 'aes-192-ecb';
+SET @@global.block_encryption_mode = DEFAULT;
+SELECT @@global.block_encryption_mode;
+
+SET @@session.block_encryption_mode = 'aes-192-ecb';
+SET @@session.block_encryption_mode = DEFAULT;
+SELECT @@session.block_encryption_mode;
+
+
+--echo '#--------------------FN_DYNVARS_002_02-------------------------#'
+#####################################################################
+#     Check the DEFAULT value of block_encryption_mode              #
+#####################################################################
+
+SET @@global.block_encryption_mode = @start_global_value;
+SELECT @@global.block_encryption_mode = 'aes-128-ecb';
+SET @@session.block_encryption_mode = @start_session_value;
+SELECT @@session.block_encryption_mode = 'aes-128-ecb';
+
+
+--echo '#--------------------FN_DYNVARS_002_03-------------------------#'
+###############################################################################
+# Change the value of block_encryption_mode to a valid value for GLOBAL Scope #
+###############################################################################
+
+SET @@global.block_encryption_mode = 'aes-128-ecb';
+SELECT @@global.block_encryption_mode;
+SET @@global.block_encryption_mode = 'aes-256-ecb';
+SELECT @@global.block_encryption_mode;
+SET @@global.block_encryption_mode = 'aes-256-cbc';
+SELECT @@global.block_encryption_mode;
+
+
+--echo '#--------------------FN_DYNVARS_002_04-------------------------#'
+###############################################################################
+# Change the value of block_encryption_mode to a valid value for SESSION Scope#
+###############################################################################
+
+SET @@session.block_encryption_mode = 'aes-128-ecb';
+SELECT @@session.block_encryption_mode;
+SET @@session.block_encryption_mode = 'aes-256-ecb';
+SELECT @@session.block_encryption_mode;
+SET @@session.block_encryption_mode = 'aes-256-cbc';
+SELECT @@session.block_encryption_mode;
+
+
+--echo '#------------------FN_DYNVARS_002_05-----------------------#'
+#################################################################
+# Change the value of block_encryption_mode to an invalid value #
+#################################################################
+# for global scope
+SET @@global.block_encryption_mode = 0;
+SELECT @@global.block_encryption_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.block_encryption_mode = -1024;
+SELECT @@global.block_encryption_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.block_encryption_mode = 65536;
+SELECT @@global.block_encryption_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.block_encryption_mode = 4294967295;
+SELECT @@global.block_encryption_mode;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.block_encryption_mode = 65535.4;
+SELECT @@global.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.block_encryption_mode = ON;
+SELECT @@global.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.block_encryption_mode = OFF;
+SELECT @@global.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.block_encryption_mode = test;
+SELECT @@global.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.block_encryption_mode = 'des-128-ecb';
+SELECT @@global.block_encryption_mode;
+# for session scope
+SET @@session.block_encryption_mode = 0;
+SELECT @@session.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.block_encryption_mode = -1024;
+SELECT @@session.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.block_encryption_mode = 65536;
+SELECT @@session.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.block_encryption_mode = 4294967295;
+SELECT @@session.block_encryption_mode;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.block_encryption_mode = 65535.4;
+SELECT @@session.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.block_encryption_mode = ON;
+SELECT @@session.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.block_encryption_mode = OFF;
+SELECT @@session.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.block_encryption_mode = test;
+SELECT @@session.block_encryption_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.block_encryption_mode = 'des-128-ecb';
+SELECT @@session.block_encryption_mode;
+
+
+
+--echo '#------------------FN_DYNVARS_002_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@global.block_encryption_mode = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='block_encryption_mode';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_002_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@session.block_encryption_mode = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='block_encryption_mode';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_002_08-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.block_encryption_mode = TRUE;
+SELECT @@global.block_encryption_mode;
+SET @@global.block_encryption_mode = FALSE;
+SELECT @@global.block_encryption_mode;
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+###############################################################################
+#  Check if global and session variables are independant of each other        #
+###############################################################################
+
+SET @@global.block_encryption_mode = 'aes-192-ecb';
+SET @@session.block_encryption_mode = 'aes-256-cbc';
+SELECT @@block_encryption_mode = @@global.block_encryption_mode;
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+#    to same session variable                                                #
+##############################################################################
+
+SET @@block_encryption_mode = 'aes-192-cbc';
+SELECT @@block_encryption_mode = @@local.block_encryption_mode;
+SELECT @@local.block_encryption_mode = @@session.block_encryption_mode;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+###############################################################################
+#   Check if block_encryption_mode can be accessed with and without @@ sign   #
+###############################################################################
+
+SET block_encryption_mode = 'aes-128-cbc';
+SELECT @@block_encryption_mode;
+--Error ER_UNKNOWN_TABLE
+SELECT local.block_encryption_mode;
+--Error ER_UNKNOWN_TABLE
+SELECT session.block_encryption_mode;
+--Error ER_BAD_FIELD_ERROR
+SELECT block_encryption_mode = @@session.block_encryption_mode;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.block_encryption_mode = @start_global_value;
+SELECT @@global.block_encryption_mode;
+SET @@session.block_encryption_mode = @start_session_value;
+SELECT @@session.block_encryption_mode;
+
+
+###################################################
+#          END OF block_encryption_mode TESTS     #
+###################################################
+
+--echo #
+--echo # End of 5.7 tests
+--echo #

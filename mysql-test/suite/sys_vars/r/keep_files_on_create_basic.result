@@ -1,0 +1,163 @@
+SET @start_global_value = @@global.keep_files_on_create;
+SELECT @start_global_value;
+@start_global_value
+0
+SET @start_session_value = @@session.keep_files_on_create;
+SELECT @start_session_value;
+@start_session_value
+0
+'#--------------------FN_DYNVARS_054_01-------------------------#'
+SET @@global.keep_files_on_create = ON;
+SET @@global.keep_files_on_create = DEFAULT;
+SELECT @@global.keep_files_on_create;
+@@global.keep_files_on_create
+0
+SET @@session.keep_files_on_create = ON;
+SET @@session.keep_files_on_create = DEFAULT;
+SELECT @@session.keep_files_on_create;
+@@session.keep_files_on_create
+0
+'#--------------------FN_DYNVARS_054_02-------------------------#'
+SET @@global.keep_files_on_create = DEFAULT;
+SELECT @@global.keep_files_on_create = 'OFF';
+@@global.keep_files_on_create = 'OFF'
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'OFF'
+SET @@session.keep_files_on_create = DEFAULT;
+SELECT @@session.keep_files_on_create = 'OFF';
+@@session.keep_files_on_create = 'OFF'
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'OFF'
+'#--------------------FN_DYNVARS_054_03-------------------------#'
+SET @@global.keep_files_on_create = ON;
+SELECT @@global.keep_files_on_create;
+@@global.keep_files_on_create
+1
+SET @@global.keep_files_on_create = OFF;
+SELECT @@global.keep_files_on_create;
+@@global.keep_files_on_create
+0
+SET @@global.keep_files_on_create = 0;
+SELECT @@global.keep_files_on_create;
+@@global.keep_files_on_create
+0
+SET @@global.keep_files_on_create = 1;
+SELECT @@global.keep_files_on_create;
+@@global.keep_files_on_create
+1
+SET @@global.keep_files_on_create = TRUE;
+SELECT @@global.keep_files_on_create;
+@@global.keep_files_on_create
+1
+SET @@global.keep_files_on_create = FALSE;
+SELECT @@global.keep_files_on_create;
+@@global.keep_files_on_create
+0
+'#--------------------FN_DYNVARS_054_04-------------------------#'
+SET @@session.keep_files_on_create = ON;
+SELECT @@session.keep_files_on_create;
+@@session.keep_files_on_create
+1
+SET @@session.keep_files_on_create = OFF;
+SELECT @@session.keep_files_on_create;
+@@session.keep_files_on_create
+0
+SET @@session.keep_files_on_create = 0;
+SELECT @@session.keep_files_on_create;
+@@session.keep_files_on_create
+0
+SET @@session.keep_files_on_create = 1;
+SELECT @@session.keep_files_on_create;
+@@session.keep_files_on_create
+1
+SET @@session.keep_files_on_create = TRUE;
+SELECT @@session.keep_files_on_create;
+@@session.keep_files_on_create
+1
+SET @@session.keep_files_on_create = FALSE;
+SELECT @@session.keep_files_on_create;
+@@session.keep_files_on_create
+0
+'#------------------FN_DYNVARS_054_05-----------------------#'
+SET @@global.keep_files_on_create = 'ONN';
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'ONN'
+SET @@global.keep_files_on_create = "OFFF";
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'OFFF'
+SET @@global.keep_files_on_create = TTRUE;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'TTRUE'
+SET @@global.keep_files_on_create = FELSE;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'FELSE'
+SET @@global.keep_files_on_create = -1024;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of '-1024'
+SET @@global.keep_files_on_create = 65536;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of '65536'
+SET @@global.keep_files_on_create = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'keep_files_on_create'
+SET @@global.keep_files_on_create = test;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'test'
+SET @@session.keep_files_on_create = ONN;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'ONN'
+SET @@session.keep_files_on_create = ONF;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'ONF'
+SET @@session.keep_files_on_create = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@session.keep_files_on_create = 'OFN';
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'OFN'
+SET @@session.keep_files_on_create = -2;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of '-2'
+SET @@session.keep_files_on_create = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'keep_files_on_create'
+SET @@session.keep_files_on_create = 65550;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of '65550'
+SET @@session.keep_files_on_create = test;
+ERROR 42000: Variable 'keep_files_on_create' can't be set to the value of 'test'
+SELECT @@session.keep_files_on_create;
+@@session.keep_files_on_create
+0
+'#------------------FN_DYNVARS_054_06-----------------------#'
+SELECT IF(@@global.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='keep_files_on_create';
+IF(@@global.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_054_07-----------------------#'
+SELECT IF(@@session.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='keep_files_on_create';
+IF(@@session.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_001_08----------------------#'
+SET @@keep_files_on_create = OFF;
+SET @@global.keep_files_on_create = ON;
+SELECT @@keep_files_on_create = @@global.keep_files_on_create;
+@@keep_files_on_create = @@global.keep_files_on_create
+0
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@keep_files_on_create = ON;
+SELECT @@keep_files_on_create = @@local.keep_files_on_create;
+@@keep_files_on_create = @@local.keep_files_on_create
+1
+SELECT @@local.keep_files_on_create = @@session.keep_files_on_create;
+@@local.keep_files_on_create = @@session.keep_files_on_create
+1
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET keep_files_on_create = 1;
+SELECT @@keep_files_on_create;
+@@keep_files_on_create
+1
+SELECT local.keep_files_on_create;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.keep_files_on_create;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT keep_files_on_create = @@session.keep_files_on_create;
+ERROR 42S22: Unknown column 'keep_files_on_create' in 'field list'
+SET @@global.keep_files_on_create = @start_global_value;
+SELECT @@global.keep_files_on_create;
+@@global.keep_files_on_create
+0
+SET @@session.keep_files_on_create = @start_session_value;
+SELECT @@session.keep_files_on_create;
+@@session.keep_files_on_create
+0

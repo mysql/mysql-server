@@ -1,0 +1,364 @@
+SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = on;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 TEXT NOT NULL)
+ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,1,''), (2,2,''), (3,3,''), (4,4,''), (5,5,'');
+SET GLOBAL innodb_monitor_enable = module_ddl;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'write_row_noreplace SIGNAL have_handle WAIT_FOR go_ahead';
+INSERT INTO t1 VALUES(1,2,3);
+# Establish session con1 (user=root)
+SET DEBUG_SYNC = 'now WAIT_FOR have_handle';
+SET lock_wait_timeout = 1;
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+# session default
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+# session con1
+SET SESSION DEBUG = '+d,innodb_OOM_prepare_inplace_alter';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET SESSION DEBUG = '-d,innodb_OOM_prepare_inplace_alter';
+SET SESSION DEBUG = '+d,innodb_OOM_inplace_alter';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET SESSION DEBUG = '-d,innodb_OOM_inplace_alter';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+# session default
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` text NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+BEGIN;
+INSERT INTO t1 VALUES(7,4,2);
+# session con1
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL scanned WAIT_FOR insert_done';
+ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# session default
+COMMIT;
+# session con1
+ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
+ERROR 23000: Duplicate entry '4' for key 'c2'
+# session default
+DELETE FROM t1 WHERE c1 = 7;
+# session con1
+ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2), ROW_FORMAT=COMPACT,
+LOCK = SHARED, ALGORITHM = INPLACE;
+ALTER TABLE t1 ADD UNIQUE INDEX(c2),
+LOCK = EXCLUSIVE, ALGORITHM = INPLACE;
+Warnings:
+Warning	1831	Duplicate index 'c2_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` text NOT NULL,
+  UNIQUE KEY `c2` (`c2`),
+  UNIQUE KEY `c2_2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+ALTER TABLE t1 DROP INDEX c2, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Dropping a primary key is not allowed without also adding a new primary key. Try ALGORITHM=COPY.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` text NOT NULL,
+  UNIQUE KEY `c2` (`c2`),
+  UNIQUE KEY `c2_2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+ALTER TABLE t1 DROP INDEX c2, ADD PRIMARY KEY(c1);
+# session default
+SET DEBUG_SYNC = 'now WAIT_FOR scanned';
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+BEGIN;
+INSERT INTO t1 VALUES(4,7,2);
+SET DEBUG_SYNC = 'now SIGNAL insert_done';
+# session con1
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+# session default
+ROLLBACK;
+# session con1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` text NOT NULL,
+  UNIQUE KEY `c2` (`c2`),
+  UNIQUE KEY `c2_2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2), ALGORITHM = INPLACE;
+ERROR 42000: Can't DROP 'PRIMARY'; check that column/key exists
+ALTER TABLE t1 DROP INDEX c2, ADD PRIMARY KEY(c1), ALGORITHM = INPLACE;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+# session default
+INSERT INTO t1 VALUES(6,3,1);
+ERROR 23000: Duplicate entry '3' for key 'c2_2'
+INSERT INTO t1 VALUES(7,4,2);
+ERROR 23000: Duplicate entry '4' for key 'c2_2'
+DROP INDEX c2_2 ON t1;
+BEGIN;
+INSERT INTO t1 VALUES(7,4,2);
+ROLLBACK;
+# session con1
+KILL QUERY @id;
+ERROR 70100: Query execution was interrupted
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt WAIT_FOR kill_done';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+# session default
+SET DEBUG_SYNC = 'now WAIT_FOR rebuilt';
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+KILL QUERY @id;
+SET DEBUG_SYNC = 'now SIGNAL kill_done';
+# session con1
+ERROR 70100: Query execution was interrupted
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+# session default
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 SELECT  5 + c1, c2, c3 FROM t1;
+INSERT INTO t1 SELECT 10 + c1, c2, c3 FROM t1;
+INSERT INTO t1 SELECT 20 + c1, c2, c3 FROM t1;
+INSERT INTO t1 SELECT 40 + c1, c2, c3 FROM t1;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	80	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`c2` > 3)
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# session con1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` text NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt2 WAIT_FOR dml2_done';
+SET lock_wait_timeout = 10;
+ALTER TABLE t1 ROW_FORMAT=COMPACT, ALGORITHM = INPLACE;
+# session default
+INSERT INTO t1 SELECT  80 + c1, c2, c3 FROM t1;
+INSERT INTO t1 SELECT 160 + c1, c2, c3 FROM t1;
+UPDATE t1 SET c2 = c2 + 1;
+SET DEBUG_SYNC = 'now WAIT_FOR rebuilt2';
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+BEGIN;
+DELETE FROM t1;
+ROLLBACK;
+UPDATE t1 SET c2 = c2 + 1;
+BEGIN;
+UPDATE t1 SET c2 = c2 + 1;
+DELETE FROM t1;
+ROLLBACK;
+BEGIN;
+DELETE FROM t1;
+ROLLBACK;
+UPDATE t1 SET c2 = c2 + 1;
+BEGIN;
+UPDATE t1 SET c2 = c2 + 1;
+DELETE FROM t1;
+ROLLBACK;
+BEGIN;
+DELETE FROM t1;
+ROLLBACK;
+UPDATE t1 SET c2 = c2 + 1;
+BEGIN;
+UPDATE t1 SET c2 = c2 + 1;
+DELETE FROM t1;
+ROLLBACK;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+SET DEBUG_SYNC = 'now SIGNAL dml2_done';
+# session con1
+ERROR HY000: Creating index 'PRIMARY' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again.
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt3 WAIT_FOR dml3_done';
+ALTER TABLE t1 ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
+ERROR 42000: Multiple primary key defined
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f,c4(5)),
+CHANGE c2 c22f INT, CHANGE c3 c3 TEXT NULL, CHANGE c1 c1 INT AFTER c22f,
+ADD COLUMN c4 VARCHAR(6) DEFAULT 'Online';
+# session default
+SET DEBUG_SYNC = 'now WAIT_FOR rebuilt3';
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+BEGIN;
+INSERT INTO t1 SELECT 320 + c1, c2, c3 FROM t1 WHERE c1 > 240;
+DELETE FROM t1 WHERE c1 > 320;
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET c2 = c2 + 1;
+DELETE FROM t1;
+ROLLBACK;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+ddl_online_create_index	1
+ddl_pending_alter_table	1
+SET DEBUG_SYNC = 'now SIGNAL dml3_done';
+# session con1
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+SELECT COUNT(c22f) FROM t1;
+COUNT(c22f)
+320
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5));
+ERROR 23000: Duplicate entry '' for key 'PRIMARY'
+UPDATE t1 SET c3 = NULL WHERE c3 = '';
+SET lock_wait_timeout = 1;
+ALTER TABLE t1 DROP COLUMN c22f, ADD PRIMARY KEY c3p5(c3(5));
+ERROR 42000: Multiple primary key defined
+ALTER TABLE t1 DROP COLUMN c22f, DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5)),
+ALGORITHM = INPLACE;
+ERROR 22004: Invalid use of NULL value
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
+ERROR 22004: Invalid use of NULL value
+UPDATE t1 SET c3=CONCAT(c1,REPEAT('foo',c1)) WHERE c3 IS NULL;
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created0 WAIT_FOR ins_done0';
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL, DROP COLUMN c22f,
+ADD COLUMN c5 CHAR(5) DEFAULT 'tired' FIRST;
+# session default
+SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created0';
+BEGIN;
+INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','YLETV2');
+INSERT INTO t1 VALUES(33101,347,NULL,'');
+SET DEBUG_SYNC = 'now SIGNAL ins_done0';
+# session con1
+ERROR 22004: Invalid use of NULL value
+# session default
+ROLLBACK;
+# session con1
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created WAIT_FOR ins_done';
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c22f,
+ADD COLUMN c6 VARCHAR(1000) DEFAULT
+'I love tracking down hard-to-reproduce bugs.',
+ADD PRIMARY KEY c3p5(c3(5), c6(2));
+# session default
+SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
+SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
+INSERT INTO t1 VALUES(347,33101,NULL,'');
+ERROR 23000: Column 'c3' cannot be null
+INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','');
+# session con1
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC = 'now SIGNAL ddl_timed_out';
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+name	count
+# session default
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+321
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+SELECT * FROM t1 LIMIT 10;
+c22f	c1	c3	c4
+5	1	1foo	Online
+6	2	2foofoo	Online
+7	3	3foofoofoo	Online
+8	4	4foofoofoofoo	Online
+9	5	5foofoofoofoofoo	Online
+5	6	6foofoofoofoofoofoo	Online
+6	7	7foofoofoofoofoofoofoo	Online
+7	8	8foofoofoofoofoofoofoofoo	Online
+8	9	9foofoofoofoofoofoofoofoofoo	Online
+9	10	10foofoofoofoofoofoofoofoofoofoo	Online
+# session con1
+ALTER TABLE t1 DISCARD TABLESPACE;
+# session default
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c22f` int(11) NOT NULL,
+  `c1` int(11) NOT NULL,
+  `c3` text NOT NULL,
+  `c4` varchar(6) NOT NULL DEFAULT 'Online',
+  PRIMARY KEY (`c1`,`c22f`,`c4`(5))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+DROP TABLE t1;
+#
+# Bug#18894337 ONLINE ALTER TABLE LOG APPLY FAILS TO SKIP LOCKING
+#
+# session con1
+CREATE TABLE t1 (a SERIAL, c64 VARCHAR(64) UNIQUE) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(0, NULL);
+SET DEBUG='+d,innodb_trx_duplicates';
+SET DEBUG_SYNC='row_log_table_apply1_before SIGNAL t1_ddl WAIT_FOR t1_dml';
+ALTER TABLE t1 ENGINE=InnoDB;
+# session default
+SET DEBUG_SYNC='now WAIT_FOR t1_ddl';
+INSERT INTO t1 VALUES(0, NULL), (0, NULL);
+SET DEBUG_SYNC='now SIGNAL t1_dml';
+# session con1
+# Disconnect session con1
+# session default
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG = '';
+SET GLOBAL innodb_monitor_disable = module_ddl;
+SET GLOBAL DEBUG = '';
+SET GLOBAL innodb_file_per_table = @global_innodb_file_per_table_orig;
+SET GLOBAL innodb_monitor_enable  = default;
+SET GLOBAL innodb_monitor_disable = default;

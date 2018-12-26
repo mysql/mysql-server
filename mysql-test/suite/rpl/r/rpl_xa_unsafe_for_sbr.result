@@ -1,0 +1,52 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+#
+# Step 1 - XA + SBR = warning
+#
+SET SESSION binlog_format = 'STATEMENT';
+XA START 'a';
+SET @one = (SELECT SUBSTRING('11', 1, 1));
+INSERT INTO t1 VALUES (@one);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+include/assert.inc [Any DML shall throw warning inside XA with SBR]
+SET @two = (SELECT SUBSTRING('22', 1, 1));
+INSERT INTO t1 VALUES (@two);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+XA END 'a';
+XA PREPARE 'a';
+XA COMMIT 'a';
+SET SESSION binlog_format = DEFAULT;
+#
+# Step 2 - XA + MIXED != deadlock
+#
+BEGIN;
+INSERT INTO t1 VALUES (7);
+INSERT INTO t1 VALUES (8);
+COMMIT;
+XA START 'a';
+INSERT INTO t1 VALUES (5);
+[connection master1]
+XA START 'b';
+DELETE FROM t1 WHERE c1 > 5 AND c1 < 8;
+XA END 'b';
+XA PREPARE 'b';
+[connection master]
+XA END 'a';
+XA PREPARE 'a';
+XA COMMIT 'a';
+[connection master1]
+XA COMMIT 'b';
+#
+# Cleanup
+#
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

@@ -1,0 +1,26 @@
+# Tests for PERFORMANCE_SCHEMA table io
+
+# Tests for PERFORMANCE_SCHEMA table io
+
+--source ../include/table_io_setup_helper.inc
+let $engine_type= CSV;
+let $table_item= test.no_index_tab;
+--disable_warnings
+eval drop table if exists $table_item;
+--enable_warnings
+
+# Start recording events
+update performance_schema.setup_consumers set enabled='YES';
+insert into marker set a = 1;
+eval create table $table_item
+( a varchar(255) not null, b int not null) engine = $engine_type;
+insert into marker set a = 1;
+eval show create table $table_item;
+--source ../include/table_io_basic_dml.inc
+eval drop table $table_item;
+
+# Stop recording events + pull result
+--source ../include/table_io_result_helper.inc
+
+# Cleanup
+--source ../include/table_io_cleanup_helper.inc

@@ -1,0 +1,87 @@
+
+
+# 2010-01-27 - Added
+#
+
+
+SET @start_io_capacity = @@global.innodb_io_capacity;
+SELECT @start_io_capacity;
+
+SET @start_max_io_capacity = @@global.innodb_io_capacity_max;
+SELECT @start_max_io_capacity;
+
+#
+# exists as global only
+#
+--echo Valid value 100 or more
+select @@global.innodb_io_capacity > 99;
+select @@global.innodb_io_capacity;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_io_capacity;
+show global variables like 'innodb_io_capacity';
+show session variables like 'innodb_io_capacity';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
+select * from performance_schema.session_variables where variable_name='innodb_io_capacity';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_io_capacity=123;
+select @@global.innodb_io_capacity;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
+select * from performance_schema.session_variables where variable_name='innodb_io_capacity';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session innodb_io_capacity=233;
+
+#
+# check the default value
+#
+
+set @@global.innodb_io_capacity=100;
+set @@global.innodb_io_capacity=DEFAULT;
+select @@global.innodb_io_capacity;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_io_capacity=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_io_capacity=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_io_capacity="foo";
+
+set global innodb_io_capacity=7;
+select @@global.innodb_io_capacity;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
+--enable_warnings
+set global innodb_io_capacity=-7;
+select @@global.innodb_io_capacity;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
+--enable_warnings
+
+#
+# min/max values
+#
+set global innodb_io_capacity=100;
+select @@global.innodb_io_capacity;
+set global innodb_io_capacity=@start_max_io_capacity;
+select @@global.innodb_io_capacity;
+set global innodb_io_capacity=@start_max_io_capacity + 1;
+select @@global.innodb_io_capacity;
+
+#
+# cleanup
+#
+
+SET @@global.innodb_io_capacity = @start_io_capacity;
+SELECT @@global.innodb_io_capacity;
+
+SET @@global.innodb_io_capacity_max = @start_max_io_capacity;
+SELECT @@global.innodb_io_capacity_max;

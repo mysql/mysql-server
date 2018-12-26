@@ -1,0 +1,262 @@
+drop table if exists `‚s‚P`;
+drop table if exists `‚s‚Q`;
+drop table if exists `‚s‚R`;
+drop table if exists `‚s‚S`;
+drop table if exists `‚s‚T`;
+drop table if exists `‚s‚U`;
+drop table if exists `‚s‚V`;
+drop table if exists `‚s‚W`;
+drop table if exists `‚s‚X`;
+SET NAMES sjis;
+SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `‚s‚P` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Q` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚R` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚S` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚T` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚U` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚V` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚W` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚X` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚S`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚T`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE ' %';
+‚b‚P
+ !"#$%&'()*+,-./
+ ¡¢£¤¥¦§¨©ª«¬­®¯
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '% %';
+‚b‚P
+ !"#$%&'()*+,-./
+ ¡¢£¤¥¦§¨©ª«¬­®¯
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '% ';
+‚b‚P
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE 'À%';
+‚b‚P
+ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '%×Ø%';
+‚b‚P
+ÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '%¿';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '°±²³´µ¶·¸¹º»¼½¾¿%';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿%';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '@%';
+‚b‚P
+@@ABCDEFGHIJKLMNOPQR
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%@%';
+‚b‚P
+@@ABCDEFGHIJKLMNOPQR
+EEðñòóôõö÷EEEEüEEEE@
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%@';
+‚b‚P
+EEðñòóôõö÷EEEEüEEEE@
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '‚Æ%';
+‚b‚P
+‚Æ‚Ç‚È‚É‚Ê‚Ë‚Ì‚Í‚Î‚Ï‚Ð‚Ñ‚Ò‚Ó‚Ô‚Õ‚Ö‚×‚Ø‚Ù
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%‚ %';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%‚í';
+‚b‚P
+‚Ú‚Û‚Ü‚Ý‚Þ‚ß‚à‚á‚â‚ã‚ä‚å‚æ‚ç‚è‚é‚ê‚ë‚ì‚í
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE 'E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE 'ƒ\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE '%–\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE '%ž\';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE 'ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE ' %';
+‚b‚P
+ !"#$%&'()*+,-./
+ ¡¢£¤¥¦§¨©ª«¬­®¯
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '% %';
+‚b‚P
+ !"#$%&'()*+,-./
+ ¡¢£¤¥¦§¨©ª«¬­®¯
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '% ';
+‚b‚P
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE 'À%';
+‚b‚P
+ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '%×Ø%';
+‚b‚P
+ÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '%¿';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '°±²³´µ¶·¸¹º»¼½¾¿%';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿%';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '@%';
+‚b‚P
+@@ABCDEFGHIJKLMNOPQR
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%@%';
+‚b‚P
+@@ABCDEFGHIJKLMNOPQR
+EEðñòóôõö÷EEEEüEEEE@
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%@';
+‚b‚P
+EEðñòóôõö÷EEEEüEEEE@
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '‚Æ%';
+‚b‚P
+‚Æ‚Ç‚È‚É‚Ê‚Ë‚Ì‚Í‚Î‚Ï‚Ð‚Ñ‚Ò‚Ó‚Ô‚Õ‚Ö‚×‚Ø‚Ù
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%‚ %';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%‚í';
+‚b‚P
+‚Ú‚Û‚Ü‚Ý‚Þ‚ß‚à‚á‚â‚ã‚ä‚å‚æ‚ç‚è‚é‚ê‚ë‚ì‚í
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE 'E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE 'ƒ\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE '%–\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE '%ž\';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE 'ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE ' %';
+‚b‚P
+ !"#$%&'()*+,-./
+ ¡¢£¤¥¦§¨©ª«¬­®¯
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '% %';
+‚b‚P
+ !"#$%&'()*+,-./
+ ¡¢£¤¥¦§¨©ª«¬­®¯
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '% ';
+‚b‚P
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE 'À%';
+‚b‚P
+ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '%×Ø%';
+‚b‚P
+ÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '%¿';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '°±²³´µ¶·¸¹º»¼½¾¿%';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿%';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '@%';
+‚b‚P
+@@ABCDEFGHIJKLMNOPQR
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%@%';
+‚b‚P
+@@ABCDEFGHIJKLMNOPQR
+EEðñòóôõö÷EEEEüEEEE@
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%@';
+‚b‚P
+EEðñòóôõö÷EEEEüEEEE@
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '‚Æ%';
+‚b‚P
+‚Æ‚Ç‚È‚É‚Ê‚Ë‚Ì‚Í‚Î‚Ï‚Ð‚Ñ‚Ò‚Ó‚Ô‚Õ‚Ö‚×‚Ø‚Ù
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%‚ %';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%‚í';
+‚b‚P
+‚Ú‚Û‚Ü‚Ý‚Þ‚ß‚à‚á‚â‚ã‚ä‚å‚æ‚ç‚è‚é‚ê‚ë‚ì‚í
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE 'E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±%';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` LIKE '%E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE 'ƒ\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%–\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%ž\';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE 'ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\%';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\';
+‚b‚P
+ƒ\\•\—\\‰\Ž\\“\”\–\˜\‘\’\™\š\›\œ\\ž\
+DROP TABLE `‚s‚P`;
+DROP TABLE `‚s‚Q`;
+DROP TABLE `‚s‚R`;
+DROP TABLE `‚s‚S`;
+DROP TABLE `‚s‚T`;
+DROP TABLE `‚s‚U`;
+DROP TABLE `‚s‚V`;
+DROP TABLE `‚s‚W`;
+DROP TABLE `‚s‚X`;

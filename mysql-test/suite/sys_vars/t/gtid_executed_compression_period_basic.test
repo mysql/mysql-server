@@ -1,0 +1,77 @@
+################################################################################
+# gtid_executed_compression_period
+#
+# It is a global variable only and can be set dynamically.
+# It has UINT type and accepts numbers from 0 to 4294967295. Default value is 1000.
+#
+# This test verifies the variable can be set, selected and showed correctly.
+################################################################################
+
+SET @start_global_value = @@global.gtid_executed_compression_period;
+SELECT @start_global_value;
+
+--echo #
+--echo # It exists as a global variable
+--echo #
+SELECT @@GLOBAL.gtid_executed_compression_period;
+
+SHOW GLOBAL VARIABLES LIKE 'gtid_executed_compression_period';
+
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE
+  VARIABLE_NAME = 'gtid_executed_compression_period';
+--enable_warnings
+
+--echo #
+--echo # It is not a session variable
+--echo #
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.gtid_executed_compression_period;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION gtid_executed_compression_period= 2;
+SHOW SESSION VARIABLES LIKE 'gtid_executed_compression_period';
+
+SHOW SESSION VARIABLES LIKE 'gtid_executed_compression_period';
+
+--disable_warnings
+SELECT * FROM performance_schema.session_variables WHERE
+  VARIABLE_NAME ='gtid_executed_compression_period';
+--enable_warnings
+
+--echo #
+--echo # Verify that it's writable
+--echo #
+SET GLOBAL gtid_executed_compression_period= 0;
+SELECT @@GLOBAL.gtid_executed_compression_period;
+
+SET GLOBAL gtid_executed_compression_period= 5000;
+SELECT @@GLOBAL.gtid_executed_compression_period;
+
+SET GLOBAL gtid_executed_compression_period= 4294967295;
+SELECT @@GLOBAL.gtid_executed_compression_period;
+
+
+--echo #
+--echo # Verify that it could not bet set with invalid values
+--echo #
+
+# Allowed value range: (0, UINT_MAX32)
+# Value lower than allowed range
+SET GLOBAL gtid_executed_compression_period= -1;
+SELECT @@GLOBAL.gtid_executed_compression_period;
+
+# Value higher than allowed range
+SET GLOBAL gtid_executed_compression_period= 4294967296;
+SELECT @@GLOBAL.gtid_executed_compression_period;
+
+# Incompatible value types
+--error ER_WRONG_TYPE_FOR_VAR
+set global gtid_executed_compression_period= 1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global gtid_executed_compression_period= 1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global gtid_executed_compression_period= "foobar";
+
+SET @@global.gtid_executed_compression_period= @start_global_value;
+SELECT @@global.gtid_executed_compression_period;

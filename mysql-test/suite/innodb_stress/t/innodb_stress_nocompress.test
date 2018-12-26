@@ -1,0 +1,33 @@
+# stress tests: blobs=no, crash=no, compress=no
+
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+--source include/master-slave.inc
+
+let $MYSQL_BASEDIR = `SELECT @@BASEDIR`;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# create the actual table
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY,
+                msg_prefix VARCHAR(255),
+                msg VARCHAR(255),
+                msg_length int,
+                msg_checksum varchar(128),
+                KEY msg_i(msg_prefix))
+ENGINE=INNODB;
+
+let $use_blob=0;
+let $do_crash=0;
+let $do_compress=0;
+
+--let $num_crashes = 1
+--let $num_workers = 2
+--let $num_transactions = 10
+--let $kill_db_after = 0
+--let $num_records = 1000
+--let $max_rows = 4096
+
+--source suite/innodb_stress/include/innodb_stress.inc

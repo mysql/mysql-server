@@ -1,0 +1,46 @@
+#
+# Test the persistent stats auto recalc
+#
+
+# Page numbers printed by this test depend on the page size
+
+-- vertical_results
+
+-- let $check_stats1 = SELECT n_rows, clustered_index_size FROM mysql.innodb_table_stats WHERE table_name = 'autorecalc'
+-- let $check_stats2 = SELECT index_name, stat_name, stat_value FROM mysql.innodb_index_stats WHERE table_name = 'autorecalc'
+
+CREATE TABLE autorecalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
+
+# the CREATE should have inserted zeroed stats
+-- eval $check_stats1
+-- eval $check_stats2
+
+INSERT INTO autorecalc VALUES (1);
+INSERT INTO autorecalc VALUES (2);
+
+# wait for the bg stats thread to update the stats, notice we wait on
+# innodb_index_stats because innodb_table_stats gets updated first and
+# it is possible that (if we wait on innodb_table_stats) the wait cond
+# gets satisfied before innodb_index_stats is updated
+let $wait_condition = SELECT stat_value = 2 FROM mysql.innodb_index_stats WHERE table_name = 'autorecalc' AND index_name = 'PRIMARY' AND stat_name = 'n_diff_pfx01';
+-- source include/wait_condition.inc
+
+# the second INSERT from above should have triggered an auto-recalc
+-- eval $check_stats1
+-- eval $check_stats2
+
+# now DELETE the rows and trigger a second auto-recalc, InnoDB may wait a
+# few seconds before triggering an auto-recalc again (it tries not to be too
+# aggressive)
+
+DELETE FROM autorecalc;
+
+let $wait_timeout = 25;
+let $wait_condition = SELECT stat_value = 0 FROM mysql.innodb_index_stats WHERE table_name = 'autorecalc' AND index_name = 'PRIMARY' AND stat_name = 'n_diff_pfx01';
+-- source include/wait_condition.inc
+
+# the DELETE from above should have triggered an auto-recalc
+-- eval $check_stats1
+-- eval $check_stats2
+
+DROP TABLE autorecalc;

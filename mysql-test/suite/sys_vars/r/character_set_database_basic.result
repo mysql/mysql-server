@@ -1,0 +1,746 @@
+SET @global_start_value = @@global.character_set_database;
+SELECT @global_start_value;
+@global_start_value
+utf8mb4
+SET @session_start_value = @@character_set_database;
+SELECT @session_start_value;
+@session_start_value
+utf8mb4
+SET @session_start_value = @@local.character_set_database;
+SELECT @session_start_value;
+@session_start_value
+utf8mb4
+SET @session_start_value = @@session.character_set_database;
+SELECT @session_start_value;
+@session_start_value
+utf8mb4
+'#--------------------FN_DYNVARS_012_01------------------#'
+SELECT character_set_database;
+ERROR 42S22: Unknown column 'character_set_database' in 'field list'
+SET character_set_database=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+utf8
+SET global.character_set_database=utf8;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_database=utf8' at line 1
+SET session character_set_database=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT session character_set_database;
+ERROR 42S22: Unknown column 'session' in 'field list'
+SET global character_set_database=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT global character_set_database;
+ERROR 42S22: Unknown column 'global' in 'field list'
+'#--------------------FN_DYNVARS_012_02-------------------------#'
+SET @@character_set_database = latin5;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET @@character_set_database = DEFAULT;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@character_set_database AS DEFAULT_VALUE;
+DEFAULT_VALUE
+utf8mb4
+SET @@global.character_set_database = latin5;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET @@global.character_set_database = DEFAULT;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+utf8mb4
+'#--------------------FN_DYNVARS_012_03-------------------------#'
+SET @@session.character_set_database = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+utf8
+SET @@global.character_set_database = latin2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+latin2
+SELECT @@session.character_set_database AS res_is_utf8;
+res_is_utf8
+utf8
+SET @@session.character_set_database = latin5;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+latin5
+SELECT @@global.character_set_database AS res_is_latin2;
+res_is_latin2
+latin2
+SELECT @@global.character_set_database=@@session.character_set_database
+AS res_is_false;
+res_is_false
+0
+'#--------------------FN_DYNVARS_012_04-------------------------#'
+SELECT @@character_set_database = @@session.character_set_database AS res;
+res
+1
+SELECT @@character_set_database = @@local.character_set_database AS res;
+res
+1
+'#--------------------FN_DYNVARS_012_05-------------------------#'
+SET @@character_set_database = utf8 + latin2;
+ERROR 42S22: Unknown column 'utf8' in 'field list'
+'#--------------------FN_DYNVARS_012_06-------------------------#'
+SET @@session.character_set_database = big5;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+big5
+SET @@session.character_set_database = dec8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+dec8
+SET @@session.character_set_database = cp850;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+cp850
+SET @@session.character_set_database = hp8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+hp8
+SET @@session.character_set_database = koi8r;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+koi8r
+SET @@session.character_set_database = latin1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+latin1
+SET @@session.character_set_database = latin2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+latin2
+SET @@session.character_set_database = swe7;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+swe7
+SET @@session.character_set_database = ascii;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+ascii
+SET @@session.character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+ujis
+SET @@session.character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+sjis
+SET @@session.character_set_database = hebrew;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+hebrew
+SET @@session.character_set_database = tis620;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+tis620
+SET @@session.character_set_database = euckr;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+euckr
+SET @@session.character_set_database = koi8u;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+koi8u
+SET @@session.character_set_database = gb2312;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+gb2312
+SET @@session.character_set_database = greek;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+greek
+SET @@session.character_set_database = cp1250;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+cp1250
+SET @@session.character_set_database = gbk;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+gbk
+SET @@session.character_set_database = gb18030;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+gb18030
+SET @@session.character_set_database = latin5;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+latin5
+SET @@session.character_set_database = armscii8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+armscii8
+SET @@session.character_set_database = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+utf8
+SET @@session.character_set_database = utf8mb4;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+utf8mb4
+SET @@session.character_set_database = ucs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+ucs2
+SET @@session.character_set_database = cp866;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+cp866
+SET @@session.character_set_database = keybcs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+keybcs2
+SET @@session.character_set_database = macce;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+macce
+SET @@session.character_set_database = macroman;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+macroman
+SET @@session.character_set_database = cp852;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+cp852
+SET @@session.character_set_database = latin7;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+latin7
+SET @@session.character_set_database = cp1251;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+cp1251
+SET @@session.character_set_database = cp1256;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+cp1256
+SET @@session.character_set_database = cp1257;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+cp1257
+SET @@session.character_set_database = binary;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+binary
+SET @@session.character_set_database = geostd8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+geostd8
+SET @@session.character_set_database = cp932;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+cp932
+SET @@session.character_set_database = eucjpms;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+eucjpms
+'#--------------------FN_DYNVARS_012_07-------------------------#'
+SET @@global.character_set_database = big5;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+big5
+SET @@global.character_set_database = dec8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+dec8
+SET @@global.character_set_database = cp850;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp850
+SET @@global.character_set_database = hp8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+hp8
+SET @@global.character_set_database = koi8r;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+koi8r
+SET @@global.character_set_database = latin1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+latin1
+SET @@global.character_set_database = latin2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+latin2
+SET @@global.character_set_database = swe7;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+swe7
+SET @@global.character_set_database = ascii;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+ascii
+SET @@global.character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+ujis
+SET @@global.character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+sjis
+SET @@global.character_set_database = hebrew;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+hebrew
+SET @@global.character_set_database = tis620;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+tis620
+SET @@global.character_set_database = euckr;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+euckr
+SET @@global.character_set_database = koi8u;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+koi8u
+SET @@global.character_set_database = gb2312;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+gb2312
+SET @@global.character_set_database = greek;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+greek
+SET @@global.character_set_database = cp1250;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp1250
+SET @@global.character_set_database = gbk;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+gbk
+SET @@global.character_set_database = gb18030;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+gb18030
+SET @@global.character_set_database = latin5;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+latin5
+SET @@global.character_set_database = armscii8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+armscii8
+SET @@global.character_set_database = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+utf8
+SET @@global.character_set_database = utf8mb4;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+utf8mb4
+SET @@global.character_set_database = ucs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+ucs2
+SET @@global.character_set_database = cp866;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp866
+SET @@global.character_set_database = keybcs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+keybcs2
+SET @@global.character_set_database = macce;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+macce
+SET @@global.character_set_database = macroman;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+macroman
+SET @@global.character_set_database = cp852;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp852
+SET @@global.character_set_database = latin7;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+latin7
+SET @@global.character_set_database = cp1251;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp1251
+SET @@global.character_set_database = cp1256;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp1256
+SET @@global.character_set_database = cp1257;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp1257
+SET @@global.character_set_database = binary;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+binary
+SET @@global.character_set_database = geostd8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+geostd8
+SET @@global.character_set_database = cp932;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp932
+SET @@global.character_set_database = eucjpms;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+eucjpms
+'#--------------------FN_DYNVARS_012_08-------------------------#'
+SET @@character_set_database = UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@character_set_database;
+@@character_set_database
+utf8
+SET @@character_set_database = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@character_set_database;
+@@character_set_database
+utf8
+SET @@global.character_set_database = uTf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+utf8
+'#--------------------FN_DYNVARS_012_09-------------------------#'
+SET @@character_set_database = 1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@character_set_database;
+@@character_set_database
+big5
+SET @@character_set_database = 2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@character_set_database;
+@@character_set_database
+latin2
+SET @@character_set_database = 3;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@character_set_database;
+@@character_set_database
+dec8
+SET @@character_set_database = 36;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@character_set_database;
+@@character_set_database
+cp866
+SET @@character_set_database = 99;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@character_set_database;
+@@character_set_database
+cp1250
+SET @@character_set_database = 100;
+ERROR 42000: Unknown character set: '100'
+SET @@global.character_set_database = 1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+big5
+SET @@global.character_set_database = 2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+latin2
+SET @@global.character_set_database = 3;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+dec8
+SET @@global.character_set_database = 36;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp866
+SET @@global.character_set_database = 99;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+cp1250
+SET @@global.character_set_database = 100;
+ERROR 42000: Unknown character set: '100'
+SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
+SELECT @total_charset;
+@total_charset
+41
+'#--------------------FN_DYNVARS_012_10-------------------------#'
+SET @@character_set_database = "grek";
+ERROR 42000: Unknown character set: 'grek'
+SET @@character_set_database = utf 8;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '8' at line 1
+SET @@character_set_database = 0;
+ERROR 42000: Unknown character set: '0'
+SET @@character_set_database = 1.1;
+ERROR 42000: Incorrect argument type to variable 'character_set_database'
+SET @@character_set_database = -1;
+ERROR 42000: Unknown character set: '-1'
+SET @@character_set_database = '';
+ERROR 42000: Unknown character set: ''
+SET @@character_set_database = 'latin 2';
+ERROR 42000: Unknown character set: 'latin 2'
+SET @@character_set_database = true;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@character_set_database AS res_with_true;
+res_with_true
+big5
+SET @@character_set_database = ON;
+ERROR 42000: Unknown character set: 'ON'
+SET @@character_set_database = repeat('e', 256);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@character_set_database = repeat('e', 1024);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+'#--------------------FN_DYNVARS_012_11-------------------------#'
+SET @@global.character_set_database = abc;
+ERROR 42000: Unknown character set: 'abc'
+SET @@global.character_set_database = 1utf8;
+ERROR 42000: Unknown character set: '1utf8'
+SET @@global.character_set_database = 0;
+ERROR 42000: Unknown character set: '0'
+SET @@global.character_set_database = 1.1;
+ERROR 42000: Incorrect argument type to variable 'character_set_database'
+SET @@global.character_set_database = -1;
+ERROR 42000: Unknown character set: '-1'
+SET @@global.character_set_database = '';
+ERROR 42000: Unknown character set: ''
+SET @@global.character_set_database = 'utf';
+ERROR 42000: Unknown character set: 'utf'
+SET @@global.character_set_database = true;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET @@global.character_set_database = ON;
+ERROR 42000: Unknown character set: 'ON'
+SET @@global.character_set_database = repeat('e', 256);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@global.character_set_database = repeat('e', 1024);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+'#--------------------FN_DYNVARS_012_12-------------------------#'
+SELECT @@global.character_set_database =
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='character_set_database') AS res;
+res
+1
+SET @@global.character_set_database = 1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+big5
+SELECT @@global.character_set_database =
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='character_set_database') AS res;
+res
+1
+'#--------------------FN_DYNVARS_012_13-------------------------#'
+SELECT @@character_set_database =
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='character_set_database') AS res;
+res
+1
+SELECT @@local.character_set_database =
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='character_set_database') AS res;
+res
+1
+SELECT @@session.character_set_database =
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='character_set_database') AS res;
+res
+1
+SET @@global.character_set_database = @global_start_value;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+utf8mb4
+SET @@session.character_set_database = @session_start_value;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+utf8mb4

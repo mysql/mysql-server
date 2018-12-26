@@ -1,0 +1,50 @@
+# Variable Name: mysqlx_ssl_capath                                                   #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+
+SELECT COUNT(@@GLOBAL.mysqlx_ssl_capath);
+--echo 0 Expected
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.mysqlx_ssl_capath=1;
+--echo Expected error 'Read only variable'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+--disable_warnings
+SELECT @@GLOBAL.mysqlx_ssl_capath = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='mysqlx_ssl_capath';
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='mysqlx_ssl_capath';
+--enable_warnings
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@mysqlx_ssl_capath = @@GLOBAL.mysqlx_ssl_capath;
+################################################################################
+#   Check if mysqlx_ssl_capath can be accessed with and without @@ sign               #
+################################################################################
+
+SELECT COUNT(@@mysqlx_ssl_capath);
+--echo 0 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.mysqlx_ssl_capath);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.mysqlx_ssl_capath);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.mysqlx_ssl_capath);
+--echo 0 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT mysqlx_ssl_capath = @@SESSION.mysqlx_ssl_capath;
+--echo Expected error 'Readonly variable'
+

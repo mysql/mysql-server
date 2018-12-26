@@ -1,0 +1,12 @@
+# Tests for sys schema
+# Verify the sys.ps_thread_account() function perfoms as expected
+
+# Passing NULL, or an unknown connection id, should return NULL
+SELECT sys.ps_thread_account(NULL);
+SELECT sys.ps_thread_account(234623462376);
+
+-- error 1264
+SELECT sys.ps_thread_account(-1);
+
+# Check result
+SELECT sys.ps_thread_account(sys.ps_thread_id(NULL));

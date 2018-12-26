@@ -1,0 +1,81 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create view coord_wait_list  as SELECT id from Information_Schema.processlist where state like 'Waiting for Slave Worker%';
+include/stop_slave.inc
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @@global.slave_parallel_workers= 4;
+include/start_slave.inc
+create database d1;
+create database d2;
+create database d3;
+create table d1.t1 (a int auto_increment primary key) engine=innodb;
+create table d2.t1 (a int auto_increment primary key) engine=innodb;
+create table d3.t1 (a int auto_increment primary key) engine=innodb;
+include/sync_slave_sql_with_master.inc
+begin;
+insert into d2.t1 values (1);
+begin;
+use d1;
+insert into d1.t1 values (null);
+use d2;
+insert into d2.t1 values (1);
+commit;
+begin;
+use d3;
+insert into d3.t1 values (null);
+use d1;
+insert into d1.t1 values (null);
+commit;
+*** Coordinator must be in waiting for a Worker to unassign from a partition ***
+rollback;
+include/sync_slave_sql_with_master.inc
+select count(*) from d1.t1 into @d1;
+select count(*) from d2.t1 into @d2;
+select count(*) from d3.t1 into @d3;
+use d1;
+create table `exists_only_on_slave` (a int);
+begin;
+insert into d1.t1 values (null);
+insert into d2.t1 values (null);
+insert into d3.t1 values (null);
+begin;
+use d1;
+insert into d1.t1 values (null);
+commit;
+begin;
+use d2;
+insert into d2.t1 values (null);
+commit;
+begin;
+use d3;
+insert into d3.t1 values (null);
+commit;
+use d1;
+drop table if exists `exists_only_on_slave`;
+select sleep(1);
+sleep(1)
+0
+select count(*) - @d1 as 'zero' from d1.t1;
+zero
+0
+select count(*) - @d2 as 'zero' from d2.t1;
+zero
+0
+select count(*) - @d3 as 'zero' from d3.t1;
+zero
+0
+use d1;
+select count(*) as 'zero' from `exists_only_on_slave`;
+zero
+0
+rollback;
+drop database d1;
+drop database d2;
+drop database d3;
+include/sync_slave_sql_with_master.inc
+drop view coord_wait_list;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+include/rpl_end.inc

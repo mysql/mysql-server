@@ -1,0 +1,86 @@
+###############################################################################
+# Bug#21507981: REPLICATION POSITION LOST AFTER CRASH ON MTS CONFIGURED SLAVE
+#
+# Problem:
+# ========
+# Enable MTS along with crash-safe replication tables. Make sure that the server
+# is busily inserting data with multiple threads in parallel. Shutdown mysqld
+# uncleanly (kill -9 or power off server without notice).
+#
+# Now users are restarting the server with --relay-log-recovery=1 to recover the
+# crashed slave.
+#
+# This results in following error:
+# ================================
+# 2015-06-24 13:49:03 3895 [ERROR] --relay-log-recovery cannot
+# be executed when the slave was stopped with an error or
+# killed in MTS mode; consider using RESET SLAVE or restart
+# the server with --relay-log-recovery = 0 followed by
+# START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+#
+# i.e relay-log-recovery will not work in MTS mode.
+###############################################################################
+# Following test demonstrates that when gaps are generated due to MTS crash
+# but not due to an error then recovery should be successful with
+# --relay-log-recovery=1 option.
+#
+# ==== Usage ====
+# --let $skip_slave_start_var= BOOL [ TRUE / FALSE ]
+# --source extra/rpl_tests/rpl_mts_relay_log_recovery.test
+#
+# Parameters:
+#
+#   $skip_slave_start_var
+#     Boolean that specifies if 'skip_slave_start' server parameter should be
+#     TRUE or FALSE.
+#
+# Testing Method:
+# ===============
+# It first creates two databases (d1 and d2) and setup slave to use two parallel
+# workers. The test case then insert on the slave a tuple that will block
+# writes on d2 and generate gaps. Crash the slave server at this point and
+# bring it back with --relay-log-recovery=1 and crash safe tables. Recovery
+# should be successful.
+
+--source extra/rpl_tests/rpl_generate_mts_gap.test
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Recovery from master pos");
+# Kill the slave server
+--source include/kill_mysqld.inc
+
+# Restart the slave server
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --skip_slave_start=$skip_slave_start_var --sync_master_info=1 --relay-log-recovery=1
+--source include/rpl_start_server.inc
+
+--exec echo "After restart gaps should be filled."
+
+--let $assert_text= Table d1.t should contain 2 rows.
+--let $assert_cond= [select count(*) from d1.t] = 2
+--source include/assert.inc
+
+--let $assert_text= Table d2.t should contain 3 rows.
+--let $assert_cond= [select count(*) from d2.t] = 3
+--source include/assert.inc
+
+if ($skip_slave_start_var == TRUE)
+{
+--source include/start_slave.inc
+}
+
+# Check consistency
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:d1.t, slave:d1.t
+--source include/diff_tables.inc
+
+--let $diff_tables= master:d2.t, slave:d2.t
+--source include/diff_tables.inc
+
+#
+# Cleanup
+#
+--source include/rpl_connection_master.inc
+DROP DATABASE d1;
+DROP DATABASE d2;

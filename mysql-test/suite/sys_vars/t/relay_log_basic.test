@@ -1,0 +1,20 @@
+#
+# only global
+#
+select @@global.relay_log;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.relay_log;
+show global variables like 'relay_log';
+show session variables like 'relay_log';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='relay_log';
+select * from performance_schema.session_variables where variable_name='relay_log';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global relay_log=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session relay_log=1;

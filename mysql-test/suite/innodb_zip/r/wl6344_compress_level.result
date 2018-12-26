@@ -1,0 +1,141 @@
+USE test;
+DROP TABLE IF EXISTS tab5;
+Warnings:
+Note	1051	Unknown table 'test.tab5'
+DROP TABLE IF EXISTS tab6;
+Warnings:
+Note	1051	Unknown table 'test.tab6'
+#set the other madatory flags before test starts
+SET GLOBAL Innodb_file_per_table=on;
+#set the compression level=0  (No compress)
+SET global innodb_compression_level=0;
+#check the compression level and the compressed_pages is default
+SELECT @@innodb_compression_level;
+@@innodb_compression_level
+0
+SELECT @@Innodb_file_per_table;
+@@Innodb_file_per_table
+1
+#create table with 1K block size
+CREATE TABLE tab5 (col_1 CHAR (255) ,
+col_2 VARCHAR (255), col_3 longtext,
+col_4 longtext,col_5 longtext,
+col_6 longtext , col_7 longtext ,
+col_8 longtext ,col_9 longtext ,
+col_10 longtext ,col_11  int auto_increment primary key) 
+ENGINE = innodb ROW_FORMAT=compressed key_block_size=1;
+#create indexes
+CREATE INDEX idx1 ON tab5(col_4(10));
+CREATE INDEX idx2 ON tab5(col_5(10));
+CREATE INDEX idx3 ON tab5(col_6(10));
+CREATE INDEX idx4 ON tab5(col_7(10));
+CREATE INDEX idx5 ON tab5(col_8(10));
+CREATE INDEX idx6 ON tab5(col_11);
+#load the with repeat function
+SET @col_1 = repeat('a', 100);
+SET @col_2 = repeat('b', 100);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+SET @col_7 = repeat('g', 100);
+SET @col_8 = repeat('h', 100);
+SET @col_9 = repeat('i', 100);
+SET @col_10 = repeat('j', 100);
+#insert  10 records 
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab5(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+#set the compression level=9 (High compress) 
+SET global innodb_compression_level=9;
+#create table with 1K block size
+CREATE TABLE tab6 (col_1 CHAR (255) ,
+col_2 VARCHAR (255), col_3 longtext,
+col_4 longtext,col_5 longtext,
+col_6 longtext , col_7 longtext ,
+col_8 longtext ,col_9 longtext ,
+col_10 longtext ,col_11  int auto_increment primary key) 
+ENGINE = innodb ROW_FORMAT=compressed key_block_size=1;
+#create indexes
+CREATE INDEX idx1 ON tab6(col_4(10));
+CREATE INDEX idx2 ON tab6(col_5(10));
+CREATE INDEX idx3 ON tab6(col_6(10));
+CREATE INDEX idx4 ON tab6(col_7(10));
+CREATE INDEX idx5 ON tab6(col_8(10));
+CREATE INDEX idx6 ON tab6(col_11);
+#load the with repeat function
+SET @col_1 = repeat('a', 100);
+SET @col_2 = repeat('b', 100);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+SET @col_7 = repeat('g', 100);
+SET @col_8 = repeat('h', 100);
+SET @col_9 = repeat('i', 100);
+SET @col_10 = repeat('j', 100);
+#insert  10 records 
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+INSERT INTO tab6(col_1,col_2,col_3,col_4,col_5,col_6,col_7,col_8,col_9,col_10)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9,@col_10);
+ANALYZE TABLE tab5;
+Table	Op	Msg_type	Msg_text
+test.tab5	analyze	status	OK
+ANALYZE TABLE tab6;
+Table	Op	Msg_type	Msg_text
+test.tab6	analyze	status	OK
+#diff the sizes of the No compressed table and high compressed table
+SET @size=(SELECT 
+(SELECT (SUM(DATA_LENGTH+INDEX_LENGTH)/1024/1024) 
+FROM INFORMATION_SCHEMA.TABLES 
+WHERE table_name='tab5' AND ENGINE='InnoDB'  AND table_schema='test')
+-
+(SELECT SUM(DATA_LENGTH+INDEX_LENGTH)/1024/1024 
+FROM INFORMATION_SCHEMA.TABLES 
+WHERE table_name='tab6' AND ENGINE='InnoDB' AND table_schema='test')
+FROM DUAL);
+#check the size of the table, it should not be Negative value 
+#The results of this query Test pass = 1 and fail=0
+SELECT @size >= 0;
+@size >= 0
+1
+#
+# Cleanup
+#
+DROP TABLE tab5;
+DROP TABLE tab6;
+#reset back the compression_level to default.

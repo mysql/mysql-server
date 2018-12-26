@@ -1,0 +1,222 @@
+###############################################################################
+# This testcase aims to test error cases for global and per channel filter
+# rules at server startup.
+# Following filter rules will be tested here:-
+# replicate-do-table, replicate-ignore-table, replicate-wild-do-table,
+# replicate-wild-ignore-table, replicate-rewrite-db.
+#
+# Test:
+# 1. Test global filter rules for replicate-do-table, replicate-ignore-table,
+#    replicate-wild-do-table, replicate-wild-ignore-table
+# 2. Test per channel filter rules for replicate-do-table, replicate-ignore-table,
+#    replicate-wild-do-table, replicate-wild-ignore-table
+# 3. Test global filter rule for replicate-rewrite-db.
+# 4. Test per channel filter rule for replicate-rewrite-db.
+#
+# ==== References ====
+# WL#7361: MSR: per-channel replication filters
+# Bug#25651992 - ON MYSQLD START CHANNEL SPECIFIC FILTERS FAILS WITH ERROR 139
+#                INSTEAD OF 1
+###############################################################################
+--source include/not_group_replication_plugin.inc
+--source include/not_windows.inc
+--source include/big_test.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+# Clean all configuration changes after running the test.
+--source include/force_restart.inc
+
+--let $error_log= $MYSQLTEST_VARDIR/tmp/rpl_filter_error_cases.err
+--source include/shutdown_mysqld.inc
+
+--echo #
+--echo # 1. Test global replicate-do-table, replicate-ignore-table,
+--echo #    replicate-wild-do-table, replicate-wild-ignore-table filter rules.
+--echo #
+# --replicate-do-table
+--let $server_filter_params= --replicate-do-table=''
+let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Could not add do table rule ''!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# --replicate-ignore-table
+--let $server_filter_params= --replicate-ignore-table=''
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Could not add ignore table rule ''!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# --replicate-wild-do-table
+--let $server_filter_params= --replicate-wild-do-table=''
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Could not add wild do table rule ''!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# --replicate-wild-ignore-table
+--let $server_filter_params= --replicate-wild-ignore-table=''
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Could not add wild ignore table rule ''!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# The server restart aborts. Count should be 4.
+--let $grep_pattern= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborting
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo #
+--echo # 2. Test per channel replicate-do-table, replicate-ignore-table,
+--echo #    replicate-wild-do-table, replicate-wild-ignore-table filter rules.
+--echo #
+# --replicate-do-table
+--let $server_filter_params= --replicate-do-table=:''
+let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Could not add do table rule ''!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# --replicate-ignore-table
+--let $server_filter_params= --replicate-ignore-table=:''
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Could not add ignore table rule ''!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# --replicate-wild-do-table
+--let $server_filter_params= --replicate-wild-do-table=:''
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Could not add wild do table rule ''!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# --replicate-wild-ignore-table
+--let $server_filter_params= --replicate-wild-ignore-table=:''
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Could not add wild ignore table rule ''!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# The server restart aborts. Count should be 4.
+--let $grep_pattern= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborting
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo #
+--echo # 3. Test global replicate-rewrite-db rule.
+--echo #
+--let $server_filter_params= --replicate-rewrite-db='db1 db2'
+let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Bad syntax in replicate-rewrite-db - missing '->'!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--let $server_filter_params= --replicate-rewrite-db='->db2'
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Bad syntax in replicate-rewrite-db - empty FROM db!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--let $server_filter_params= --replicate-rewrite-db='db1->'
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Bad syntax in replicate-rewrite-db - empty TO db!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# The server restart aborts. Count should be 3.
+--let $grep_pattern= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborting
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo #
+--echo # 4. Test per channel replicate-rewrite-db rule.
+--echo #
+--let $server_filter_params= --replicate-rewrite-db=:'db1 db2'
+let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Bad syntax in replicate-rewrite-db - missing '->'!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--let $server_filter_params= --replicate-rewrite-db=:'->db2'
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Bad syntax in replicate-rewrite-db - empty FROM db!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--let $server_filter_params= --replicate-rewrite-db=:'db1->'
+let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_params;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=Bad syntax in replicate-rewrite-db - empty TO db!
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# The server restart aborts. Count should be 3.
+--let $grep_pattern= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborting
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# Clean up.
+# Restart master server
+--source include/start_mysqld.inc
+--source include/wait_until_connected_again.inc
+--let $server_filter_params=
+--let $error_log=
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_filter_error_cases.err
+

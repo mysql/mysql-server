@@ -1,0 +1,25 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+# Expect no enabled stages instruments
+select * from performance_schema.setup_instruments
+  where name like "stage/%" and enabled='YES';
+
+# Expect no stage statistics collected
+
+select * from performance_schema.events_stages_summary_global_by_event_name
+  where count_star > 0;
+
+select * from performance_schema.events_stages_summary_by_thread_by_event_name
+  where count_star > 0;
+
+select * from performance_schema.events_stages_summary_by_user_by_event_name
+  where count_star > 0;
+
+select * from performance_schema.events_stages_summary_by_host_by_event_name
+  where count_star > 0;
+
+select * from performance_schema.events_stages_summary_by_account_by_event_name
+  where count_star > 0;
+

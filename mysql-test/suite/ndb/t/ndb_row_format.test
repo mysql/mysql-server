@@ -1,0 +1,123 @@
+-- source include/have_ndb.inc
+
+#
+# some negative tests
+#
+
+# cannot have ROW_FORMAT=FIXED and var attrs mixed
+CREATE TABLE t1 (
+  a INT KEY,
+  b VARCHAR(10)
+)
+ROW_FORMAT=FIXED
+ENGINE=NDB;
+
+# warnings give more detail on the conflict
+SHOW WARNINGS;
+source show_varpart.inc;
+
+# Turn off strict mode since INSERT intentionally truncate data
+--source suite/ndb/include/turn_off_strict_sql_mode.inc
+INSERT INTO t1 values(0,''),(2,"**"),(4,"****"),(6,"******"),(8,"********"),(10,"**********"),(12,"************");
+--source suite/ndb/include/restore_sql_mode_after_turn_off_strict.inc
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+#
+# Check force var part for different ROW_FORMAT
+#
+
+# default => ForceVarPart: 1
+CREATE TABLE t1 (
+  a INT KEY,
+  b INT
+)
+ENGINE=NDB;
+source show_varpart.inc;
+DROP TABLE t1;
+
+# explicit DEFAULT => ForceVarPart: 1
+CREATE TABLE t1(
+  a INT KEY,
+  b INT
+)
+ROW_FORMAT=DEFAULT
+ENGINE=NDB;
+source show_varpart.inc;
+DROP TABLE t1;
+
+# FIXED => ForceVarPart: 0
+CREATE TABLE t1(
+  a INT KEY,
+  b INT
+)
+ROW_FORMAT=FIXED
+ENGINE=NDB;
+source show_varpart.inc;
+DROP TABLE t1;
+
+# DYNAMIC => ForceVarPart: 1
+CREATE TABLE t1(
+  a INT KEY,
+  b INT
+)
+ROW_FORMAT=DYNAMIC
+ENGINE=NDB;
+source show_varpart.inc;
+DROP TABLE t1;
+
+# test of bug
+create table t1 (
+  a int auto_increment primary key,
+  b varchar(1000) character set latin1
+) engine = ndb;
+insert into t1(b) values ('0123456789');
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+insert into t1(b) select b from t1;
+select count(*) from t1;
+begin;
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+update t1 set b = concat(b,b);
+rollback;
+select count(*),b from t1 group by b;
+drop table t1;
+
+#
+# Bug#27230898 Check create table with different row_format options
+#
+
+CREATE TABLE t1(a int primary key,b int) ROW_FORMAT=DEFAULT engine = NDB;
+
+CREATE TABLE t2(a int primary key,b int) ROW_FORMAT=DYNAMIC engine = NDB;
+
+CREATE TABLE t3(a int primary key,b int) ROW_FORMAT=FIXED engine = NDB;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t4(a int primary key,b int) ROW_FORMAT=COMPRESSED engine = NDB;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t5(a int primary key,b int) ROW_FORMAT=REDUNDANT engine = NDB;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t6(a int primary key,b int) ROW_FORMAT=COMPACT engine = NDB;
+
+SELECT table_name, row_format FROM information_schema.tables
+       WHERE TABLE_SCHEMA = 'test' order by TABLE_NAME;
+
+# Check that atler table with unsupported row_format options fails
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t2 ALGORITHM=COPY,ROW_FORMAT=COMPRESSED;
+
+# Clean up.
+DROP TABLE t1,t2,t3;

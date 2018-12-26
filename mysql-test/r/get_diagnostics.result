@@ -1,0 +1,908 @@
+#
+# WL#2111: GET DIAGNOSTICS tests
+#
+#
+# Test reserved keywords: GET
+#
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1 (get INT);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'get INT)' at line 1
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE get INT DEFAULT 1;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'get INT DEFAULT 1;
+END' at line 3
+# Quoting
+CREATE TABLE t1 (`get` INT);
+INSERT INTO t1 (`get`) values (1);
+SELECT `get` FROM t1 WHERE `get` = 1;
+get
+1
+DROP TABLE t1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE `get` INT DEFAULT 1;
+SELECT `get`;
+END|
+CALL p1();
+`get`
+1
+DROP PROCEDURE p1;
+#
+# Test non-reserved keywords: CURRENT, DIAGNOSTICS, NUMBER, RETURNED_SQLSTATE
+#
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1 (current INT, diagnostics INT, number INT, returned_sqlstate INT);
+INSERT INTO t1 (current, diagnostics, number, returned_sqlstate) values (1,2,3,4);
+SELECT current, diagnostics, number, returned_sqlstate FROM t1 WHERE number = 3;
+current	diagnostics	number	returned_sqlstate
+1	2	3	4
+SELECT `current`, `number` FROM t1 WHERE `current` = 1 AND `number` = 3;
+current	number
+1	3
+DROP TABLE t1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE current INT DEFAULT 1;
+DECLARE diagnostics INT DEFAULT 2;
+DECLARE number INT DEFAULT 3;
+DECLARE returned_sqlstate INT DEFAULT 4;
+SELECT current, diagnostics, number, returned_sqlstate;
+END|
+CALL p1();
+current	diagnostics	number	returned_sqlstate
+1	2	3	4
+DROP PROCEDURE p1;
+#
+# Test GET DIAGNOSTICS syntax
+#
+DROP PROCEDURE IF EXISTS p1;
+GET;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET CURRENT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET CURRENT DIAGNOSTICS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+
+# Statement information syntax
+
+GET DIAGNOSTICS @var;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS var;
+ERROR 42000: Undeclared variable: var
+CREATE PROCEDURE p1()
+BEGIN
+GET DIAGNOSTICS var;
+END|
+ERROR 42000: Undeclared variable: var
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var INT;
+GET DIAGNOSTICS var;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+END' at line 4
+GET DIAGNOSTICS @var =;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS @var = INVALID;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID' at line 1
+GET DIAGNOSTICS @var = MORE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MORE' at line 1
+GET DIAGNOSTICS @var = CLASS_ORIGIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CLASS_ORIGIN' at line 1
+GET DIAGNOSTICS @var = INVALID,;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID,' at line 1
+GET DIAGNOSTICS @var1 = NUMBER, @var2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS @var1 = NUMBER, @var2 = INVALID;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID' at line 1
+GET DIAGNOSTICS @@var1 = NUMBER;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@var1 = NUMBER' at line 1
+GET DIAGNOSTICS @var1 = NUMBER, @@var2 = NUMBER;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@var2 = NUMBER' at line 1
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var INT;
+GET DIAGNOSTICS var = INVALID;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID;
+END' at line 4
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var CONDITION FOR SQLSTATE '12345';
+GET DIAGNOSTICS var = NUMBER;
+END|
+ERROR 42000: Undeclared variable: var
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var INT;
+GET DIAGNOSTICS var = NUMBER, var1 = ROW_COUNT;
+END|
+ERROR 42000: Undeclared variable: var1
+GET DIAGNOSTICS @var = NUMBER;
+GET DIAGNOSTICS @var = ROW_COUNT;
+GET DIAGNOSTICS @var1 = NUMBER, @var2 = ROW_COUNT;
+GET DIAGNOSTICS @var1 = ROW_COUNT, @var2 = NUMBER;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var  INT;
+DECLARE var1 INT;
+DECLARE var2 INT;
+GET DIAGNOSTICS var = NUMBER;
+GET DIAGNOSTICS var = ROW_COUNT;
+GET DIAGNOSTICS var1 = NUMBER, var2 = ROW_COUNT;
+GET DIAGNOSTICS var1 = ROW_COUNT, var2 = NUMBER;
+END|
+DROP PROCEDURE p1;
+
+# Condition information syntax
+
+GET DIAGNOSTICS CONDITION;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS CONDITION a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS CONDITION 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS CONDITION 1 @var;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS CONDITION 1 var;
+ERROR 42000: Undeclared variable: var
+CREATE PROCEDURE p1()
+BEGIN
+GET DIAGNOSTICS CONDITION 1 var;
+END|
+ERROR 42000: Undeclared variable: var
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var INT;
+GET DIAGNOSTICS CONDITION 1 var;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+END' at line 4
+GET DIAGNOSTICS CONDITION 1 @var =;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS CONDITION 1 @var = INVALID;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID' at line 1
+GET DIAGNOSTICS CONDITION 1 @var = NUMBER;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NUMBER' at line 1
+GET DIAGNOSTICS CONDITION 1 @var = INVALID,;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID,' at line 1
+GET DIAGNOSTICS CONDITION 1 @var1 = CLASS_ORIGIN, @var2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET DIAGNOSTICS CONDITION 1 @var1 = CLASS_ORIGIN, @var2 = INVALID;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID' at line 1
+GET DIAGNOSTICS CONDITION 1 @@var1 = CLASS_ORIGIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@var1 = CLASS_ORIGIN' at line 1
+GET DIAGNOSTICS CONDITION 1 @var1 = CLASS_ORIGIN, @@var2 = CLASS_ORIGIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@var2 = CLASS_ORIGIN' at line 1
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var INT;
+GET DIAGNOSTICS CONDITION 1 var = INVALID;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID;
+END' at line 4
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var CONDITION FOR SQLSTATE '12345';
+GET DIAGNOSTICS CONDITION 1 var = NUMBER;
+END|
+ERROR 42000: Undeclared variable: var
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var INT;
+GET DIAGNOSTICS CONDITION 1 var = CLASS_ORIGIN, var1 = SUBCLASS_ORIGIN;
+END|
+ERROR 42000: Undeclared variable: var1
+GET DIAGNOSTICS CONDITION 1 @var = CLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION 1 @var = SUBCLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION 1 @var1 = CLASS_ORIGIN, @var2 = SUBCLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION 1 @var1 = SUBCLASS_ORIGIN, @var2 = CLASS_ORIGIN;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var  INT;
+DECLARE var1 INT;
+DECLARE var2 INT;
+GET DIAGNOSTICS CONDITION 1 var = CLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION 1 var = SUBCLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION 1 var1 = CLASS_ORIGIN, var2 = SUBCLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION 1 var1 = SUBCLASS_ORIGIN, var2 = CLASS_ORIGIN;
+END|
+DROP PROCEDURE p1;
+# Condition number expression
+GET DIAGNOSTICS CONDITION -1 @var = CLASS_ORIGIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1 @var = CLASS_ORIGIN' at line 1
+GET DIAGNOSTICS CONDITION 1+1 @var = CLASS_ORIGIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+1 @var = CLASS_ORIGIN' at line 1
+GET DIAGNOSTICS CONDITION ? @var = CLASS_ORIGIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? @var = CLASS_ORIGIN' at line 1
+GET DIAGNOSTICS CONDITION (1) @var = CLASS_ORIGIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(1) @var = CLASS_ORIGIN' at line 1
+GET DIAGNOSTICS CONDITION p1() @var = CLASS_ORIGIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '() @var = CLASS_ORIGIN' at line 1
+GET DIAGNOSTICS CONDITION ABS(2) @var = CLASS_ORIGIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(2) @var = CLASS_ORIGIN' at line 1
+GET DIAGNOSTICS CONDITION 1.1 @var = CLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION "1" @var = CLASS_ORIGIN;
+SELECT COUNT(max_questions) INTO @var FROM mysql.user;
+GET DIAGNOSTICS CONDITION 9999 @var = CLASS_ORIGIN;
+Warnings:
+Error	1758	Invalid condition number
+GET DIAGNOSTICS CONDITION NULL @var = CLASS_ORIGIN;
+Warnings:
+Error	1758	Invalid condition number
+Error	1758	Invalid condition number
+GET DIAGNOSTICS CONDITION a @var = CLASS_ORIGIN;
+Warnings:
+Error	1758	Invalid condition number
+Error	1758	Invalid condition number
+Error	1054	Unknown column 'a' in 'field list'
+SELECT COUNT(max_questions) INTO @var FROM mysql.user;
+SET @cond = 1;
+GET DIAGNOSTICS CONDITION @cond @var1 = CLASS_ORIGIN;
+Warnings:
+Error	1758	Invalid condition number
+SET @cond = "invalid";
+GET DIAGNOSTICS CONDITION @cond @var1 = CLASS_ORIGIN;
+Warnings:
+Error	1758	Invalid condition number
+SELECT COUNT(max_questions) INTO @var FROM mysql.user;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE cond INT DEFAULT 1;
+DECLARE var INT;
+GET DIAGNOSTICS CONDITION cond var = CLASS_ORIGIN;
+END|
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE cond TEXT;
+DECLARE var INT;
+GET DIAGNOSTICS CONDITION cond var = CLASS_ORIGIN;
+END|
+CALL p1();
+Warnings:
+Error	1758	Invalid condition number
+DROP PROCEDURE p1;
+#
+# Test GET DIAGNOSTICS runtime
+#
+
+# GET DIAGNOSTICS cannot be the object of a PREPARE statement.
+
+PREPARE stmt FROM "GET DIAGNOSTICS CONDITION 1 @var = CLASS_ORIGIN";
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+PREPARE stmt FROM "GET DIAGNOSTICS @var = NUMBER";
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+
+# GET DIAGNOSTICS does not clear the diagnostics area.
+
+SELECT CAST(-19999999999999999999 AS SIGNED);
+CAST(-19999999999999999999 AS SIGNED)
+-9223372036854775808
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+GET DIAGNOSTICS @var = NUMBER;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+#
+# If GET DIAGNOSTICS itself causes an error, an error message is appended.
+#
+SELECT CAST(-19999999999999999999 AS SIGNED);
+CAST(-19999999999999999999 AS SIGNED)
+-9223372036854775808
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+GET DIAGNOSTICS CONDITION 99999 @var = CLASS_ORIGIN;
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+Error	1758	Invalid condition number
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+Error	1758	Invalid condition number
+
+# Statement information runtime
+
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SELECT CAST(-19999999999999999999 AS SIGNED),
+CAST(-19999999999999999999 AS SIGNED);
+CAST(-19999999999999999999 AS SIGNED)	CAST(-19999999999999999999 AS SIGNED)
+-9223372036854775808	-9223372036854775808
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+GET DIAGNOSTICS @var = NUMBER;
+SELECT @var;
+@var
+2
+SELECT COUNT(max_questions) INTO @var FROM mysql.user;
+GET DIAGNOSTICS @var = NUMBER;
+SELECT @var;
+@var
+0
+SELECT 1;
+1
+1
+GET DIAGNOSTICS @var = ROW_COUNT;
+SELECT @var;
+@var
+-1
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+GET DIAGNOSTICS @var = ROW_COUNT;
+SELECT @var;
+@var
+3
+DROP TABLE t1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE number INT;
+DECLARE row_count INT;
+SELECT CAST(-19999999999999999999 AS SIGNED),
+CAST(-19999999999999999999 AS SIGNED);
+GET DIAGNOSTICS number = NUMBER;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+GET DIAGNOSTICS row_count = ROW_COUNT;
+DROP TABLE t1;
+SELECT number, row_count;
+END|
+CALL p1();
+CAST(-19999999999999999999 AS SIGNED)	CAST(-19999999999999999999 AS SIGNED)
+-9223372036854775808	-9223372036854775808
+number	row_count
+2	3
+DROP PROCEDURE p1;
+
+# Condition information runtime
+
+SELECT CAST(-19999999999999999999 AS SIGNED);
+CAST(-19999999999999999999 AS SIGNED)
+-9223372036854775808
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+GET DIAGNOSTICS CONDITION 1
+@class_origin = CLASS_ORIGIN,
+@subclass_origin = SUBCLASS_ORIGIN,
+@constraint_catalog = CONSTRAINT_CATALOG,
+@constraint_schema = CONSTRAINT_SCHEMA,
+@constraint_name = CONSTRAINT_NAME,
+@catalog_name = CATALOG_NAME,
+@schema_name = SCHEMA_NAME,
+@table_name = TABLE_NAME,
+@column_name = COLUMN_NAME,
+@cursor_name = CURSOR_NAME,
+@message_text = MESSAGE_TEXT,
+@mysql_errno = MYSQL_ERRNO,
+@returned_sqlstate = RETURNED_SQLSTATE;
+SELECT
+@class_origin,
+@subclass_origin,
+@constraint_catalog,
+@constraint_schema,
+@constraint_name,
+@catalog_name,
+@schema_name,
+@table_name,
+@column_name,
+@cursor_name,
+@message_text,
+@mysql_errno,
+@returned_sqlstate;
+@class_origin	ISO 9075
+@subclass_origin	ISO 9075
+@constraint_catalog	
+@constraint_schema	
+@constraint_name	
+@catalog_name	
+@schema_name	
+@table_name	
+@column_name	
+@cursor_name	
+@message_text	Truncated incorrect DECIMAL value: '-19999999999999999999'
+@mysql_errno	1292
+@returned_sqlstate	22007
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE class_origin TEXT DEFAULT "a";
+DECLARE subclass_origin TEXT DEFAULT "a";
+DECLARE constraint_catalog TEXT DEFAULT "a";
+DECLARE constraint_schema TEXT DEFAULT "a";
+DECLARE constraint_name TEXT DEFAULT "a";
+DECLARE catalog_name TEXT DEFAULT "a";
+DECLARE schema_name TEXT DEFAULT "a";
+DECLARE table_name TEXT DEFAULT "a";
+DECLARE column_name TEXT DEFAULT "a";
+DECLARE cursor_name TEXT DEFAULT "a";
+DECLARE message_text TEXT DEFAULT "a";
+DECLARE mysql_errno INT DEFAULT 1;
+DECLARE returned_sqlstate TEXT DEFAULT "a";
+SELECT CAST(-19999999999999999999 AS SIGNED);
+GET DIAGNOSTICS CONDITION 1
+class_origin = CLASS_ORIGIN,
+subclass_origin = SUBCLASS_ORIGIN,
+constraint_catalog = CONSTRAINT_CATALOG,
+constraint_schema = CONSTRAINT_SCHEMA,
+constraint_name = CONSTRAINT_NAME,
+catalog_name = CATALOG_NAME,
+schema_name = SCHEMA_NAME,
+table_name = TABLE_NAME,
+column_name = COLUMN_NAME,
+cursor_name = CURSOR_NAME,
+message_text = MESSAGE_TEXT,
+mysql_errno = MYSQL_ERRNO,
+returned_sqlstate = RETURNED_SQLSTATE;
+SELECT
+class_origin,
+subclass_origin,
+constraint_catalog,
+constraint_schema,
+constraint_name,
+catalog_name,
+schema_name,
+table_name,
+column_name,
+cursor_name,
+message_text,
+mysql_errno,
+returned_sqlstate;
+END|
+CALL p1();
+CAST(-19999999999999999999 AS SIGNED)	-9223372036854775808
+class_origin	ISO 9075
+subclass_origin	ISO 9075
+constraint_catalog	
+constraint_schema	
+constraint_name	
+catalog_name	
+schema_name	
+table_name	
+column_name	
+cursor_name	
+message_text	Truncated incorrect DECIMAL value: '-19999999999999999999'
+mysql_errno	1292
+returned_sqlstate	22007
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE errno1 INT;
+DECLARE errno2 INT;
+DECLARE msg1 TEXT;
+DECLARE msg2 TEXT;
+SELECT CAST(-19999999999999999999 AS SIGNED);
+GET DIAGNOSTICS CONDITION 99999 msg1 = MESSAGE_TEXT;
+GET DIAGNOSTICS CONDITION 1 errno1 = MYSQL_ERRNO, msg1 = MESSAGE_TEXT;
+GET DIAGNOSTICS CONDITION 2 errno2 = MYSQL_ERRNO, msg2 = MESSAGE_TEXT;
+SELECT errno1, msg1, errno2, msg2;
+END|
+CALL p1();
+CAST(-19999999999999999999 AS SIGNED)	-9223372036854775808
+errno1	1292
+msg1	Truncated incorrect DECIMAL value: '-19999999999999999999'
+errno2	1758
+msg2	Invalid condition number
+DROP PROCEDURE p1;
+
+# Interaction with SIGNAL
+
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE errno INT DEFAULT 0;
+DECLARE msg TEXT DEFAULT "foo";
+DECLARE cond CONDITION FOR SQLSTATE "01234";
+DECLARE CONTINUE HANDLER for 1012
+BEGIN
+GET DIAGNOSTICS CONDITION 1 errno = MYSQL_ERRNO, msg = MESSAGE_TEXT;
+END;
+SIGNAL cond SET MESSAGE_TEXT = "Signal message", MYSQL_ERRNO = 1012;
+SELECT errno, msg;
+END|
+CALL p1();
+errno	1012
+msg	Signal message
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+BEGIN
+SIGNAL SQLSTATE '77777' SET MYSQL_ERRNO = 1000, MESSAGE_TEXT='ÁÂÃÅÄ';
+END|
+CALL p1();
+ERROR 77777: ÁÂÃÅÄ
+GET DIAGNOSTICS CONDITION 1
+@mysql_errno = MYSQL_ERRNO, @message_text = MESSAGE_TEXT,
+@returned_sqlstate = RETURNED_SQLSTATE, @class_origin = CLASS_ORIGIN;
+SELECT @mysql_errno, @message_text, @returned_sqlstate, @class_origin;
+@mysql_errno	1000
+@message_text	ÁÂÃÅÄ
+@returned_sqlstate	77777
+@class_origin	
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE cond CONDITION FOR SQLSTATE '12345';
+SIGNAL cond SET
+CLASS_ORIGIN = 'CLASS_ORIGIN text',
+SUBCLASS_ORIGIN = 'SUBCLASS_ORIGIN text',
+CONSTRAINT_CATALOG = 'CONSTRAINT_CATALOG text',
+CONSTRAINT_SCHEMA = 'CONSTRAINT_SCHEMA text',
+CONSTRAINT_NAME = 'CONSTRAINT_NAME text',
+CATALOG_NAME = 'CATALOG_NAME text',
+SCHEMA_NAME = 'SCHEMA_NAME text',
+TABLE_NAME = 'TABLE_NAME text',
+COLUMN_NAME = 'COLUMN_NAME text',
+CURSOR_NAME = 'CURSOR_NAME text',
+MESSAGE_TEXT = 'MESSAGE_TEXT text',
+MYSQL_ERRNO = 9999;
+END|
+CALL p1();
+ERROR 12345: MESSAGE_TEXT text
+GET DIAGNOSTICS CONDITION 1
+@class_origin = CLASS_ORIGIN,
+@subclass_origin = SUBCLASS_ORIGIN,
+@constraint_catalog = CONSTRAINT_CATALOG,
+@constraint_schema = CONSTRAINT_SCHEMA,
+@constraint_name = CONSTRAINT_NAME,
+@catalog_name = CATALOG_NAME,
+@schema_name = SCHEMA_NAME,
+@table_name = TABLE_NAME,
+@column_name = COLUMN_NAME,
+@cursor_name = CURSOR_NAME,
+@message_text = MESSAGE_TEXT,
+@mysql_errno = MYSQL_ERRNO,
+@returned_sqlstate = RETURNED_SQLSTATE;
+SELECT
+@class_origin,
+@subclass_origin,
+@constraint_catalog,
+@constraint_schema,
+@constraint_name,
+@catalog_name,
+@schema_name,
+@table_name,
+@column_name,
+@cursor_name,
+@message_text,
+@mysql_errno,
+@returned_sqlstate;
+@class_origin	CLASS_ORIGIN text
+@subclass_origin	SUBCLASS_ORIGIN text
+@constraint_catalog	CONSTRAINT_CATALOG text
+@constraint_schema	CONSTRAINT_SCHEMA text
+@constraint_name	CONSTRAINT_NAME text
+@catalog_name	CATALOG_NAME text
+@schema_name	SCHEMA_NAME text
+@table_name	TABLE_NAME text
+@column_name	COLUMN_NAME text
+@cursor_name	CURSOR_NAME text
+@message_text	MESSAGE_TEXT text
+@mysql_errno	9999
+@returned_sqlstate	12345
+DROP PROCEDURE p1;
+#
+# Demonstration
+#
+
+# The same statement information item can be used multiple times.
+
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var INT;
+GET DIAGNOSTICS var = NUMBER, @var = NUMBER;
+SELECT var, @var;
+END|
+CALL p1();
+var	@var
+0	0
+DROP PROCEDURE p1;
+
+# Setting TABLE_NAME is currently not implemented.
+
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v VARCHAR(64);
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+GET DIAGNOSTICS CONDITION 1 v = TABLE_NAME;
+DROP TABLE no_such_table;
+SELECT v;
+END|
+CALL p1();
+v
+
+DROP PROCEDURE p1;
+
+# Message is truncated to fit into target. No truncation warning.
+
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v CHAR(1);
+CREATE TABLE IF NOT EXISTS t1 (a INT);
+GET DIAGNOSTICS CONDITION 1 v = MESSAGE_TEXT;
+SELECT v;
+END|
+CREATE TABLE t1 (a INT);
+CALL p1();
+v
+T
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+# Returns number of rows updated by the UPDATE statements.
+
+CREATE PROCEDURE p1(IN param INT)
+LANGUAGE SQL
+BEGIN
+DECLARE v INT DEFAULT 0;
+DECLARE rcount_each INT;
+DECLARE rcount_total INT DEFAULT 0;
+WHILE v < 5 DO
+UPDATE t1 SET a = a * 1.1  WHERE b = param;
+GET DIAGNOSTICS rcount_each = ROW_COUNT;
+SET rcount_total = rcount_total + rcount_each;
+SET v = v + 1;
+END WHILE;
+SELECT rcount_total;
+END|
+CREATE TABLE t1 (a REAL, b INT);
+INSERT INTO t1 VALUES (1.1, 1);
+CALL p1(1);
+rcount_total
+5
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+# GET DIAGNOSTICS doesn't clear the diagnostics area.
+
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+GET CURRENT DIAGNOSTICS CONDITION 1 @x = RETURNED_SQLSTATE;
+SIGNAL SQLSTATE '01002';
+GET CURRENT DIAGNOSTICS CONDITION 1 @y = RETURNED_SQLSTATE;
+END;
+SIGNAL SQLSTATE '01001';
+END|
+CALL p1();
+Warnings:
+Warning	1642	Unhandled user-defined warning condition
+SELECT @x, @y;
+@x	@y
+01001	01002
+DROP PROCEDURE p1;
+
+# Using OUT and INOUT parameters as the target variables.
+
+CREATE PROCEDURE p1(OUT number INT, INOUT message TEXT)
+BEGIN
+DECLARE warn CONDITION FOR SQLSTATE "01234";
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+GET DIAGNOSTICS number = NUMBER;
+GET DIAGNOSTICS CONDITION 1 message = MESSAGE_TEXT;
+END;
+SELECT message;
+SIGNAL warn SET MESSAGE_TEXT = "inout parameter";
+END|
+SET @var1 = 0;
+SET @var2 = "message text";
+CALL p1(@var1, @var2);
+message
+message text
+SELECT @var1, @var2;
+@var1	@var2
+1	inout parameter
+DROP PROCEDURE p1;
+
+# Using an IN parameter as the target variable.
+
+CREATE PROCEDURE p1(IN number INT)
+BEGIN
+SELECT number;
+GET DIAGNOSTICS number = NUMBER;
+SELECT number;
+END|
+SET @var1 = 9999;
+CALL p1(@var1);
+number
+9999
+number
+0
+SELECT @var1;
+@var1
+9999
+DROP PROCEDURE p1;
+
+# Using GET DIAGNOSTICS in a stored function.
+
+CREATE FUNCTION f1() RETURNS TEXT
+BEGIN
+DECLARE message TEXT;
+DECLARE warn CONDITION FOR SQLSTATE "01234";
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+GET DIAGNOSTICS CONDITION 1 message = MESSAGE_TEXT;
+END;
+SIGNAL warn SET MESSAGE_TEXT = "message text";
+return message;
+END|
+SELECT f1();
+f1()
+message text
+DROP FUNCTION f1;
+
+# Using GET DIAGNOSTICS in a trigger.
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+DECLARE var INT DEFAULT row_count();
+GET DIAGNOSTICS @var1 = ROW_COUNT;
+SET @var2 = var;
+END|
+SET @var1 = 9999, @var2 = 9999;
+INSERT INTO t1 VALUES (1), (2);
+SELECT @var1, @var2;
+@var1	@var2
+0	0
+DROP TRIGGER trg1;
+DROP TABLE t1;
+
+# GET DIAGNOSTICS does not reset ROW_COUNT
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+GET DIAGNOSTICS @var1 = ROW_COUNT;
+GET DIAGNOSTICS @var2 = ROW_COUNT;
+SELECT @var1, @var2;
+@var1	@var2
+1	1
+DROP TABLE t1;
+
+# Items are UTF8 (utf8_general_ci default collation)
+
+SELECT CAST(-19999999999999999999 AS SIGNED);
+CAST(-19999999999999999999 AS SIGNED)
+-9223372036854775808
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
+GET DIAGNOSTICS CONDITION 1 @var1 = MESSAGE_TEXT, @var2 = CLASS_ORIGIN;
+SELECT CHARSET(@var1), COLLATION(@var1), COERCIBILITY(@var1);
+CHARSET(@var1)	COLLATION(@var1)	COERCIBILITY(@var1)
+utf8	utf8_general_ci	2
+SELECT CHARSET(@var2), COLLATION(@var2), COERCIBILITY(@var2);
+CHARSET(@var2)	COLLATION(@var2)	COERCIBILITY(@var2)
+utf8	utf8_general_ci	2
+#
+# Command statistics
+#
+FLUSH STATUS;
+SHOW STATUS LIKE 'Com%get_diagnostics';
+Variable_name	Value
+Com_get_diagnostics	0
+GET DIAGNOSTICS @var1 = NUMBER;
+SHOW STATUS LIKE 'Com%get_diagnostics';
+Variable_name	Value
+Com_get_diagnostics	1
+#
+# WL#6406 Stacked diagnostic areas
+#
+#
+# Test non-reserved keywords: STACKED
+CREATE TABLE t1 (stacked INT);
+INSERT INTO t1 (stacked) values (1);
+SELECT stacked FROM t1 WHERE stacked = 1;
+stacked
+1
+SELECT `stacked` FROM t1 WHERE `stacked` = 1;
+stacked
+1
+DROP TABLE t1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE stacked INT DEFAULT 1;
+SELECT stacked;
+END|
+CALL p1();
+stacked
+1
+DROP PROCEDURE p1;
+#
+# Test GET STACKED DIAGNOSTICS syntax
+GET STACKED;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+GET STACKED DIAGNOSTICS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+#
+# Error if used without active HANDLER
+GET STACKED DIAGNOSTICS @var1 = NUMBER;
+ERROR 0Z002: GET STACKED DIAGNOSTICS when handler not active
+CREATE PROCEDURE p1() GET STACKED DIAGNOSTICS @var1 = NUMBER;
+CALL p1();
+ERROR 0Z002: GET STACKED DIAGNOSTICS when handler not active
+DROP PROCEDURE p1;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+GET STACKED DIAGNOSTICS @var1 = NUMBER;
+RETURN 1;
+END|
+SELECT f1();
+ERROR 0Z002: GET STACKED DIAGNOSTICS when handler not active
+DROP FUNCTION f1;
+#
+# GET CURRENT DIAGNOSTICS = GET STACKED DIAGNOSTICS
+# when handler is first activated
+# GET STACKED DIAGNOSTICS doesn't change during handler
+CREATE TABLE t1(a INT);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+# Should be identical
+GET CURRENT DIAGNOSTICS CONDITION 1 @msg1 = MESSAGE_TEXT, @errno1 = MYSQL_ERRNO;
+GET STACKED DIAGNOSTICS CONDITION 1 @msg2 = MESSAGE_TEXT, @errno2 = MYSQL_ERRNO;
+SELECT @msg1, @errno1;
+SELECT @msg2, @errno2;
+SELECT * FROM t1;   # Clear first diagnostics area
+# CURRENT should be empty, STACKED unchanged
+GET CURRENT DIAGNOSTICS @cno = NUMBER;
+SELECT @cno;
+GET STACKED DIAGNOSTICS CONDITION 1 @msg4 = MESSAGE_TEXT, @errno4 = MYSQL_ERRNO;
+SELECT @msg4, @errno4;
+END;
+DROP TABLE non_existent;
+END|
+CALL p1();
+@msg1	@errno1
+Unknown table 'test.non_existent'	1051
+@msg2	@errno2
+Unknown table 'test.non_existent'	1051
+a
+@cno
+0
+@msg4	@errno4
+Unknown table 'test.non_existent'	1051
+DROP PROCEDURE p1;
+DROP TABLE t1;
+#
+# RESIGNAL of a warning should modify the warning both in first and
+# second diagnostics area.
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+# Should be identical
+GET CURRENT DIAGNOSTICS CONDITION 1 @msg1 = MESSAGE_TEXT, @errno1 = MYSQL_ERRNO;
+SELECT @msg1, @errno1;
+GET STACKED DIAGNOSTICS CONDITION 1 @msg2 = MESSAGE_TEXT, @errno2 = MYSQL_ERRNO;
+SELECT @msg2, @errno2;
+RESIGNAL SET MYSQL_ERRNO= 9999, MESSAGE_TEXT= 'Changed by resignal';
+# Should be changed, but still identical
+GET CURRENT DIAGNOSTICS CONDITION 1 @msg3 = MESSAGE_TEXT, @errno3 = MYSQL_ERRNO;
+SELECT @msg3, @errno3;
+GET STACKED DIAGNOSTICS CONDITION 1 @msg4 = MESSAGE_TEXT, @errno4 = MYSQL_ERRNO;
+SELECT @msg4, @errno4;
+RESIGNAL SET MYSQL_ERRNO= 9999, MESSAGE_TEXT= 'Changed by resignal, for caller';
+END;
+SELECT 10 + 'a';
+END|
+CALL p1();
+10 + 'a'
+10
+@msg1	@errno1
+Truncated incorrect DOUBLE value: 'a'	1292
+@msg2	@errno2
+Truncated incorrect DOUBLE value: 'a'	1292
+@msg3	@errno3
+Changed by resignal	9999
+@msg4	@errno4
+Changed by resignal	9999
+Warnings:
+Warning	9999	Changed by resignal, for caller
+DROP PROCEDURE p1;
+SET sql_mode = default;

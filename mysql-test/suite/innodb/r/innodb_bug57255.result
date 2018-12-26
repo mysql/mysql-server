@@ -1,0 +1,10 @@
+create table A(id int not null primary key) engine=innodb;
+create table B(id int not null auto_increment primary key, f1 int not null, foreign key(f1) references A(id) on delete cascade) engine=innodb;
+create table C(id int not null auto_increment primary key, f1 int not null, foreign key(f1) references B(id) on delete cascade) engine=innodb;
+insert into A values(1), (2);
+DELETE FROM A where id = 1;
+DELETE FROM C where f1 = 2;
+DELETE FROM A where id = 1;
+DROP TABLE C;
+DROP TABLE B;
+DROP TABLE A;

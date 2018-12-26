@@ -1,0 +1,1039 @@
+# t/innodb_mysql.test
+#
+# Last update:
+# 2006-07-26 ML test refactored (MySQL 5.1)
+#               main testing code t/innodb_mysql.test -> include/mix1.inc
+#
+
+#Want to skip this test from daily Valgrind execution.
+--source include/no_valgrind_without_big.inc
+# Adding big test option for this test.
+--source include/big_test.inc
+
+let $engine_type= InnoDB;
+let $other_engine_type= MEMORY;
+# InnoDB does support FOREIGN KEYs
+let $test_foreign_keys= 1;
+--source include/mix1.inc
+
+--echo #
+--echo # BUG#35850: Performance regression in 5.1.23/5.1.24
+--echo #
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, pk int, key(a,b), primary key(pk)) engine=innodb;
+insert into t2 select @a:=A.a+10*(B.a + 10*C.a),@a, @a from t1 A, t1 B, t1 C;
+--echo # this must use key 'a', not PRIMARY:
+--replace_column 10 #
+explain select a from t2 where a=b;
+drop table t1, t2;
+
+--echo #
+--echo # Bug #40360: Binlog related errors with binlog off
+--echo #
+# This bug is triggered when the binlog format is STATEMENT and the
+# binary log is turned off. In this case, no error should be shown for
+# the statement since there are no replication issues.
+SET @save_log_bin= @@sql_log_bin;
+SET @save_binlog_format=@@binlog_format;
+SET @@sql_log_bin = 0;
+
+SET SESSION BINLOG_FORMAT=STATEMENT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+query_vertical select @@session.sql_log_bin, @@session.binlog_format, @@session.transaction_isolation;
+CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+
+SET @@sql_log_bin=@save_log_bin;
+SET @@binlog_format=@save_binlog_format;
+
+--echo #
+--echo # Bug#37284 Crash in Field_string::type()
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (a char(50)) ENGINE=InnoDB;
+CREATE INDEX i1 on t1 (a(3));
+SELECT * FROM t1 WHERE a = 'abcde';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #37742: HA_EXTRA_KEYREAD flag is set when key contains only prefix of
+--echo # requested column
+--echo #
+
+CREATE TABLE foo (a int, b int, c char(10),
+                  PRIMARY KEY (c(3)),
+                  KEY b (b)
+) engine=innodb;
+
+CREATE TABLE foo2 (a int, b int, c char(10),
+                  PRIMARY KEY (c),
+                  KEY b (b)
+) engine=innodb;
+
+CREATE TABLE bar (a int, b int, c char(10),
+                  PRIMARY KEY (c(3)),
+                  KEY b (b)
+) engine=myisam;
+
+INSERT INTO foo VALUES
+   (1,2,'abcdefghij'), (2,3,''), (3,4,'klmnopqrst'),
+   (4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe'), (5,6,'trondheim'),
+   (6,7,'stockholm'), (7,8,'copenhagen'), (8,9,'helsinki'),
+   (9,10,'reykjavik');
+
+INSERT INTO bar SELECT * FROM foo;
+INSERT INTO foo2 SELECT * FROM foo;
+
+-- disable_result_log
+ANALYZE TABLE bar;
+ANALYZE TABLE foo;
+ANALYZE TABLE foo2;
+-- enable_result_log
+
+--query_vertical EXPLAIN SELECT c FROM bar WHERE b>2;
+--query_vertical EXPLAIN SELECT c FROM foo WHERE b>2;
+--query_vertical EXPLAIN SELECT c FROM foo2 WHERE b>2;
+
+--query_vertical EXPLAIN SELECT c FROM bar WHERE c>2;
+--query_vertical EXPLAIN SELECT c FROM foo WHERE c>2;
+--query_vertical EXPLAIN SELECT c FROM foo2 WHERE c>2;
+
+DROP TABLE foo, bar, foo2;
+
+
+--echo #
+--echo # Bug#41348: INSERT INTO tbl SELECT * FROM temp_tbl overwrites locking type of temp table
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t3,t2;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+DELIMITER |;
+CREATE FUNCTION f1() RETURNS VARCHAR(250)
+ BEGIN
+     return 'hhhhhhh' ;
+ END|
+DELIMITER ;|
+
+CREATE TABLE t1 (a VARCHAR(20), b VARCHAR(20), c VARCHAR(20)) ENGINE=INNODB;
+
+BEGIN WORK;
+
+CREATE TEMPORARY TABLE t2 (a VARCHAR(20), b VARCHAR(20), c varchar(20)) ENGINE=INNODB;
+CREATE TEMPORARY TABLE t3 LIKE t2;
+
+INSERT INTO t1 VALUES ('a','b',NULL),('c','d',NULL),('e','f',NULL);
+
+SET @stmt := CONCAT('INSERT INTO t2 SELECT tbl.a, tbl.b, f1()',' FROM t1 tbl');
+PREPARE stmt1 FROM @stmt;
+
+SET @stmt := CONCAT('INSERT INTO t3', ' SELECT * FROM t2');
+PREPARE stmt3 FROM @stmt;
+
+EXECUTE stmt1;
+
+COMMIT;
+
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt3;
+
+DROP TABLE t1,t3,t2;
+DROP FUNCTION f1;
+
+--echo #
+--echo # Bug#37016: TRUNCATE TABLE removes some rows but not all
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY,
+                 t1_id INT, INDEX par_ind (t1_id),
+                 FOREIGN KEY (t1_id) REFERENCES t1(id)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (3,2);
+
+SET AUTOCOMMIT = 0;
+
+START TRANSACTION;
+--error ER_TRUNCATE_ILLEGAL_FK
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+COMMIT;
+SELECT * FROM t1;
+
+START TRANSACTION;
+--error ER_TRUNCATE_ILLEGAL_FK
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+ROLLBACK;
+SELECT * FROM t1;
+
+SET AUTOCOMMIT = 1;
+
+START TRANSACTION;
+SELECT * FROM t1;
+COMMIT;
+
+--error ER_TRUNCATE_ILLEGAL_FK
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+DELETE FROM t2 WHERE id = 3;
+
+START TRANSACTION;
+SELECT * FROM t1;
+--error ER_TRUNCATE_ILLEGAL_FK
+TRUNCATE TABLE t1;
+ROLLBACK;
+SELECT * FROM t1;
+TRUNCATE TABLE t2;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#40127 Multiple table DELETE IGNORE hangs on foreign key constraint violation on 5.0
+--echo #
+CREATE TABLE t1 (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        aid INT UNSIGNED NOT NULL,
+        PRIMARY KEY (id),
+        FOREIGN KEY (aid) REFERENCES t1 (id)
+) ENGINE=InnoDB;
+
+CREATE TABLE t3 (
+        bid INT UNSIGNED NOT NULL,
+        FOREIGN KEY (bid) REFERENCES t2 (id)
+) ENGINE=InnoDB;
+
+CREATE TABLE t4 (
+  a INT
+) ENGINE=InnoDB;
+
+CREATE TABLE t5 (
+  a INT
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t2 (id, aid) VALUES (1, 1),(2,1),(3,1),(4,1);
+INSERT INTO t3 (bid) VALUES (1);
+
+INSERT INTO t4 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t5 VALUES (1);
+
+DELETE t5 FROM t4 LEFT JOIN t5 ON t4.a= t5.a;
+
+--error ER_ROW_IS_REFERENCED_2
+DELETE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
+--error ER_ROW_IS_REFERENCED_2
+DELETE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
+
+DELETE IGNORE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
+
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP TABLES t4,t5;
+
+--echo # Bug#40127 Multiple table DELETE IGNORE hangs on foreign key constraint violation on 5.0
+--echo # Testing for any side effects of IGNORE on AFTER DELETE triggers used with
+--echo # transactional tables.
+--echo #
+CREATE TABLE t1 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (a VARCHAR(100)) ENGINE=InnoDB;
+CREATE TABLE t3 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t4 (i INT NOT NULL PRIMARY KEY, t1i INT,
+  FOREIGN KEY (t1i) REFERENCES t1(i))
+  ENGINE=InnoDB;
+delimiter ||;
+CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW
+BEGIN
+  SET @b:='EXECUTED TRIGGER';
+  INSERT INTO t2 VALUES (@b);
+  SET @a:= error_happens_here;
+END||
+delimiter ;||
+
+SET @b:="";
+SET @a:="";
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t3 SELECT * FROM t1;
+--echo ** An error in a trigger causes rollback of the statement.
+--error ER_BAD_FIELD_ERROR
+DELETE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
+SELECT @a,@b;
+SELECT * FROM t2;
+SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
+
+--echo ** Same happens with the IGNORE option
+--error ER_BAD_FIELD_ERROR
+DELETE IGNORE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
+SELECT * FROM t2;
+SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
+
+--echo **
+--echo ** The following is an attempt to demonstrate
+--echo ** error handling inside a row iteration.
+--echo **
+DROP TRIGGER trg;
+DELETE FROM t1;
+DELETE FROM t2;
+DELETE FROM t3;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t3 VALUES (1),(2),(3),(4);
+INSERT INTO t4 VALUES (3,3),(4,4);
+
+delimiter ||;
+CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW
+BEGIN
+  SET @b:= CONCAT('EXECUTED TRIGGER FOR ROW ',CAST(OLD.i AS CHAR));
+  INSERT INTO t2 VALUES (@b);
+END||
+delimiter ;||
+
+--echo ** DELETE is prevented by foreign key constrains but errors are silenced.
+--echo ** The AFTER trigger isn't fired.
+DELETE IGNORE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
+--echo ** Tables are modified by best effort:
+SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
+--echo ** The AFTER trigger was only executed on successful rows:
+SELECT * FROM t2;
+
+DROP TRIGGER trg;
+
+--echo **
+--echo ** Induce an error midway through an AFTER-trigger
+--echo **
+DELETE FROM t4;
+DELETE FROM t1;
+DELETE FROM t3;
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t3 VALUES (1),(2),(3),(4);
+delimiter ||;
+CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW
+BEGIN
+  SET @a:= @a+1;
+  IF @a > 2 THEN
+    INSERT INTO t4 VALUES (5,5);
+  END IF;
+END||
+delimiter ;||
+
+SET @a:=0;
+--echo ** Errors in the trigger causes the statement to abort.
+--error ER_NO_REFERENCED_ROW_2
+DELETE IGNORE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
+SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
+SELECT * FROM t4;
+
+DROP TRIGGER trg;
+DROP TABLE t4;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--echo #
+--echo # Bug#43580: Issue with Innodb on multi-table update
+--echo #
+CREATE TABLE t1 (a INT, b INT, KEY (a)) ENGINE = INNODB;
+CREATE TABLE t2 (a INT KEY, b INT, KEY (b)) ENGINE = INNODB;
+
+CREATE TABLE t3 (a INT, b INT KEY, KEY (a)) ENGINE = INNODB;
+CREATE TABLE t4 (a INT KEY, b INT, KEY (b)) ENGINE = INNODB;
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+INSERT INTO t3 VALUES (1, 101), (2, 102), (3, 103), (4, 104), (5, 105), (6, 106);
+INSERT INTO t4 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+# Because t1.a changes and t2.b changes based on t1.a, the result
+# depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE t2 straight_join t1 SET t1.a = t1.a + 100, t2.b = t1.a + 10
+WHERE t1.a BETWEEN 2 AND 4 AND t2.a = t1.b;
+--sorted_result
+SELECT * FROM t2;
+
+# Because t1.a changes and t2.b changes based on t1.a, the result
+# depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE t4 straight_join t3 SET t3.a = t3.a + 100, t4.b = t3.a + 10
+WHERE t3.a BETWEEN 2 AND 4 AND t4.a = t3.b - 100;
+--sorted_result
+SELECT * FROM t4;
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug#44886: SIGSEGV in test_if_skip_sort_order() -
+--echo #            uninitialized variable used as subscript
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, c INT, d INT, PRIMARY KEY (b), KEY (a,c))
+  ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,1,0);
+
+CREATE TABLE t2 (a INT, b INT, e INT, KEY (e)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1,2);
+
+CREATE TABLE t3 (a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1, 1);
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SELECT * FROM t1, t2, t3
+  WHERE t1.a = t3.a AND (t1.b = t3.b OR t1.d) AND t2.b = t1.b AND t2.e = 2
+  GROUP BY t1.b;
+SET sql_mode=default;
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #45828: Optimizer won't use partial primary key if another
+--echo # index can prevent filesort
+--echo #
+
+# Create the table
+CREATE TABLE `t1` (
+  c1 int NOT NULL,
+  c2 int NOT NULL,
+  c3 int NOT NULL,
+  PRIMARY KEY (c1,c2),
+  KEY  (c3)
+) ENGINE=InnoDB;
+
+# populate with data
+INSERT INTO t1 VALUES (5,2,1246276747);
+INSERT INTO t1 VALUES (2,1,1246281721);
+INSERT INTO t1 VALUES (7,3,1246281756);
+INSERT INTO t1 VALUES (4,2,1246282139);
+INSERT INTO t1 VALUES (3,1,1246282230);
+INSERT INTO t1 VALUES (1,0,1246282712);
+INSERT INTO t1 VALUES (8,3,1246282765);
+INSERT INTO t1 SELECT c1+10,c2+10,c3+10 FROM t1;
+INSERT INTO t1 SELECT c1+100,c2+100,c3+100 from t1;
+INSERT INTO t1 SELECT c1+1000,c2+1000,c3+1000 from t1;
+INSERT INTO t1 SELECT c1+10000,c2+10000,c3+10000 from t1;
+INSERT INTO t1 SELECT c1+100000,c2+100000,c3+100000 from t1;
+INSERT INTO t1 SELECT c1+1000000,c2+1000000,c3+1000000 from t1;
+ANALYZE TABLE t1;
+# query and no rows will match the c1 condition, whereas all will match c3
+SELECT * FROM t1 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+
+# SHOULD use the pk.
+# index on c3 will be used instead of primary key
+EXPLAIN SELECT * FROM t1 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+
+# if we force the primary key, we can see the estimate is 1
+EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+
+
+CREATE TABLE t2 (
+  c1 int NOT NULL,
+  c2 int NOT NULL,
+  c3 int NOT NULL,
+  KEY (c1,c2),
+  KEY (c3)
+) ENGINE=InnoDB;
+
+# SHOULD use the pk.
+# if we switch it from a primary key to a regular index, it works correctly as well
+explain SELECT * FROM t2 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+
+DROP TABLE t1,t2;
+
+
+--echo #
+--echo # 36259: Optimizing with ORDER BY
+--echo #
+
+CREATE TABLE t1 (
+  a INT NOT NULL AUTO_INCREMENT,
+  b INT NOT NULL,
+  c INT NOT NULL,
+  d VARCHAR(5),
+  e INT NOT NULL,
+  PRIMARY KEY (a), KEY i2 (b,c,d)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (b,c,d,e) VALUES (1,1,'a',1), (2,2,'b',2);
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+EXPLAIN SELECT * FROM t1 WHERE b=1 AND c=1 ORDER BY a;
+EXPLAIN SELECT * FROM t1 FORCE INDEX(i2) WHERE b=1 and c=1 ORDER BY a;
+# With 4k pages, the 'rows' column in the output below is either 120 or 138,
+# not 128 as it is with 8k and 16k. Bug#12602606
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #47963: Wrong results when index is used
+--echo #
+CREATE TABLE t1(
+  a VARCHAR(5) NOT NULL,
+  b VARCHAR(5) NOT NULL,
+  c DATETIME NOT NULL,
+  KEY (c)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES('TEST', 'TEST', '2009-10-09 00:00:00');
+SELECT * FROM t1 WHERE a = 'TEST' AND
+  c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00';
+SELECT * FROM t1 WHERE a = 'TEST' AND
+  c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00.0';
+SELECT * FROM t1 WHERE a = 'TEST' AND
+  c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00';
+SELECT * FROM t1 WHERE a = 'TEST' AND
+  c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00.0';
+SELECT * FROM t1 WHERE a = 'TEST' AND
+  c >= '2009-10-09 00:00:00.000' AND c <= '2009-10-09 00:00:00.000';
+SELECT * FROM t1 WHERE a = 'TEST' AND
+  c >= '2009-10-09 00:00:00.00' AND c <= '2009-10-09 00:00:00.001';
+SELECT * FROM t1 WHERE a = 'TEST' AND
+  c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
+EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND
+  c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #46175: NULL read_view and consistent read assertion
+--echo #
+
+CREATE TABLE t1(a CHAR(13),KEY(a)) ENGINE=innodb;
+CREATE TABLE t2(b DATETIME,KEY(b)) ENGINE=innodb;
+INSERT INTO t1 VALUES (),();
+INSERT INTO t2 VALUES (),();
+CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2
+  WHERE b =(SELECT a FROM t1 LIMIT 1);
+
+CONNECT (con1, localhost, root,,);
+CONNECTION default;
+
+DELIMITER |;
+CREATE PROCEDURE p1(num INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  REPEAT
+    SHOW CREATE VIEW v1;
+    SET i:=i+1;
+  UNTIL i>num END REPEAT;
+END|
+DELIMITER ;|
+
+--echo # Should not crash
+--disable_query_log
+--disable_result_log
+--send CALL p1(1000)
+CONNECTION con1;
+--echo # Should not crash
+CALL p1(1000);
+
+CONNECTION default;
+--reap
+--enable_query_log
+--enable_result_log
+
+DISCONNECT con1;
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+
+--echo #
+--echo # Bug #49324: more valgrind errors in test_if_skip_sort_order
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb ;
+--echo # should not cause valgrind warnings
+SELECT 1 FROM t1 JOIN t1 a USING(a) GROUP BY t1.a,t1.a;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#50843: Filesort used instead of clustered index led to
+--echo #            performance degradation.
+--echo #
+create table t1(f1 int not null primary key, f2 int) engine=innodb;
+create table t2(f1 int not null, key (f1)) engine=innodb;
+insert into t1 values (1,1),(2,2),(3,3);
+insert into t2 values (1),(2),(3);
+-- disable_result_log
+analyze table t1;
+analyze table t2;
+-- enable_result_log
+explain select t1.* from t1 left join t2 using(f1) group by t1.f1;
+drop table t1,t2;
+--echo #
+
+
+--echo #
+--echo # Bug #39653: find_shortest_key in sql_select.cc does not consider
+--echo #             clustered primary keys
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT, f INT,
+                 KEY (b,c)) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1,1,1,1,1,1), (2,2,2,2,2,2), (3,3,3,3,3,3),
+                      (4,4,4,4,4,4), (5,5,5,5,5,5), (6,6,6,6,6,6),
+      (7,7,7,7,7,7), (8,8,8,8,8,8), (9,9,9,9,9,9),
+      (11,11,11,11,11,11);
+
+ANALYZE TABLE t1;
+
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
+--echo #   corrupt definition at engine
+--echo #
+
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b))
+  ENGINE=InnoDB;
+
+ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
+
+ANALYZE TABLE t1;
+
+--query_vertical SHOW INDEXES FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #53334: wrong result for outer join with impossible ON condition
+--echo # (see the same test case for MyISAM in join.test)
+--echo #
+
+CREATE TABLE t1 (id INT PRIMARY KEY);
+CREATE TABLE t2 (id INT);
+
+INSERT INTO t1 VALUES (75);
+INSERT INTO t1 VALUES (79);
+INSERT INTO t1 VALUES (78);
+INSERT INTO t1 VALUES (77);
+REPLACE INTO t1 VALUES (76);
+REPLACE INTO t1 VALUES (76);
+INSERT INTO t1 VALUES (104);
+INSERT INTO t1 VALUES (103);
+INSERT INTO t1 VALUES (102);
+INSERT INTO t1 VALUES (101);
+INSERT INTO t1 VALUES (105);
+INSERT INTO t1 VALUES (106);
+INSERT INTO t1 VALUES (107);
+
+INSERT INTO t2 VALUES (107),(75),(1000);
+
+SELECT t1.id,t2.id FROM t2 LEFT JOIN t1 ON t1.id>=74 AND t1.id<=0
+  WHERE t2.id=75 AND t1.id IS NULL;
+EXPLAIN SELECT t1.id,t2.id FROM t2 LEFT JOIN t1 ON t1.id>=74 AND t1.id<=0
+  WHERE t2.id=75 AND t1.id IS NULL;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#38999 valgrind warnings for update statement in function compare_record()
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 values (1),(2),(3),(4),(5);
+INSERT INTO t2 values (1);
+
+SELECT * FROM t1 WHERE a = 2;
+UPDATE t1,t2 SET t1.a = t1.a + 100 WHERE t1.a = 1;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #53830: !table || (!table->read_set || bitmap_is_set(table->read_set, field_index))
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, c INT, d INT,
+                 PRIMARY KEY(a,b,c), KEY(b,d))
+                 ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 77, 1, 3);
+
+UPDATE t1 SET d = 0 WHERE b = 77 AND c = 25;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#50389 Using intersect does not return all rows
+--echo #
+
+CREATE TABLE t1 (
+  f1 INT(10) NOT NULL,
+  f2 INT(10),
+  f3 INT(10),
+  f4 TINYINT(4),
+  f5 VARCHAR(50),
+  PRIMARY KEY (f1),
+  KEY idx1 (f2,f5,f4),
+  KEY idx2 (f2,f4)
+) ENGINE=InnoDB;
+
+LOAD DATA INFILE '../../std_data/intersect-bug50389.tsv' INTO TABLE t1;
+
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+
+SELECT * FROM t1 WHERE f1 IN
+(3305028,3353871,3772880,3346860,4228206,3336022,
+ 3470988,3305175,3329875,3817277,3856380,3796193,
+ 3784744,4180925,4559596,3963734,3856391,4494153)
+AND f5 = 'abcdefghijklmnopwrst' AND f2 = 1221457 AND f4 = 0 ;
+
+EXPLAIN SELECT * FROM t1 WHERE f1 IN
+(3305028,3353871,3772880,3346860,4228206,3336022,
+ 3470988,3305175,3329875,3817277,3856380,3796193,
+ 3784744,4180925,4559596,3963734,3856391,4494153)
+AND f5 = 'abcdefghijklmnopwrst' AND f2 = 1221457 AND f4 = 0 ;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#51431 Wrong sort order after import of dump file
+--echo #
+
+CREATE TABLE t1 (
+  f1 INT(11) NOT NULL,
+  f2 int(11) NOT NULL,
+  f3 int(11) NOT NULL,
+  f4 tinyint(1) NOT NULL,
+  PRIMARY KEY (f1),
+  UNIQUE KEY (f2, f3),
+  KEY (f4)
+) ENGINE=InnoDB STATS_PERSISTENT=0;
+
+INSERT INTO t1 VALUES
+(1,1,991,1), (2,1,992,1), (3,1,993,1), (4,1,994,1), (5,1,995,1),
+(6,1,996,1), (7,1,997,1), (8,1,998,1), (10,1,999,1), (11,1,9910,1),
+(16,1,9911,1), (17,1,9912,1), (18,1,9913,1), (19,1,9914,1), (20,1,9915,1),
+(21,1,9916,1), (22,1,9917,1), (23,1,9918,1), (24,1,9919,1), (25,1,9920,1),
+(26,1,9921,1), (27,1,9922,1);
+
+FLUSH TABLES;
+
+SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
+ORDER BY f1 DESC LIMIT 5;
+EXPLAIN SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
+ORDER BY f1 DESC LIMIT 5;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#54117 crash in thr_multi_unlock, temporary table
+--echo #
+
+CREATE TEMPORARY TABLE t1(a INT) ENGINE = InnoDB;
+
+LOCK TABLES t1 READ;
+ALTER TABLE t1 COMMENT 'test';
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#55656: mysqldump can be slower after bug #39653 fix
+--echo #
+
+CREATE TABLE t1 (a INT , b INT, c INT, d INT,
+  KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB STATS_PERSISTENT=0;
+INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c,d);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#55826: create table .. select crashes with when KILL_BAD_DATA
+--echo #  is returned
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+--error ER_TRUNCATED_WRONG_VALUE
+CREATE TABLE t2
+  SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#56862 Moved to innodb_16k.test
+--echo #
+--echo #
+--echo # Test for bug #39932 "create table fails if column for FK is in different
+--echo #                      case than in corr index".
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (pk int primary key) engine=InnoDB;
+# Even although the below statement uses uppercased field names in
+# foreign key definition it still should be able to find explicitly
+# created supporting index. So it should succeed and should not
+# create any additional supporting indexes.
+# TODO: NewDD: Bug 25587256 - NEWDD: FK: NEED TO SET PROPER REFERENCED
+# COLUMN CASE 
+
+create table t2 (fk int, key x (fk),
+                 constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
+show create table t2;
+drop table t2, t1;
+
+
+--echo #
+--echo # Test for bug #11762012 - "54553: INNODB ASSERTS IN HA_INNOBASE::
+--echo #                           UPDATE_ROW, TEMPORARY TABLE, TABLE LOCK".
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TEMPORARY TABLE t1 (c int) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1);
+LOCK TABLES t1 READ;
+--echo # Even though temporary table was locked for READ we
+--echo # still allow writes to it to be compatible with MyISAM.
+--echo # This is possible since due to fact that temporary tables
+--echo # are specific to connection and therefore locking for them
+--echo # is irrelevant.
+UPDATE t1 SET c = 5;
+UNLOCK TABLES;
+DROP TEMPORARY TABLE t1;
+
+--echo # End of 5.1 tests
+
+
+--echo #
+--echo # Bug#49604 "6.0 processing compound WHERE clause incorrectly
+--echo #            with Innodb - extra rows"
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT NOT NULL,
+  c2 INT,
+  PRIMARY KEY (c1),
+  KEY k1 (c2)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (12,1);
+INSERT INTO t1 VALUES (15,1);
+INSERT INTO t1 VALUES (16,1);
+INSERT INTO t1 VALUES (22,1);
+INSERT INTO t1 VALUES (20,2);
+
+CREATE TABLE t2 (
+  c1 INT NOT NULL,
+  c2 INT,
+  PRIMARY KEY (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,2);
+INSERT INTO t2 VALUES (2,9);
+
+SELECT STRAIGHT_JOIN t2.c2, t1.c2, t2.c1
+FROM t1 JOIN t2 ON t1.c2 = t2.c1
+WHERE t2.c1 IN (2, 1, 6) OR t2.c1 NOT IN (1);
+
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#44613 SELECT statement inside FUNCTION takes a shared lock
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+CREATE TABLE t1(x INT PRIMARY KEY, y INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (1, 0), (2, 0);
+
+CREATE FUNCTION f1(z INT) RETURNS INT READS SQL DATA
+  RETURN (SELECT x FROM t1 WHERE x = z);
+
+--echo # Connection default
+START TRANSACTION;
+SELECT f1(1);
+
+--echo # Connection con2
+--disable_query_log
+connect (con2, localhost, root);
+--enable_query_log
+START TRANSACTION;
+SELECT f1(1);
+# This next statement used to block.
+UPDATE t1 SET y = 1 WHERE x = 1;
+
+COMMIT;
+
+disconnect con2;
+--source include/wait_until_disconnected.inc
+--echo # Connection default
+connection default;
+COMMIT;
+DROP TABLE t1;
+DROP FUNCTION f1;
+--echo #
+--echo # Bug#42744: Crash when using a join buffer to join a table with a blob
+--echo # column and an additional column used for duplicate elimination.
+--echo #
+
+CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
+CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('1'), (NULL);
+INSERT INTO t2 VALUES (1, '1');
+
+EXPLAIN
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#48093: 6.0 Server not processing equivalent IN clauses properly
+--echo #            with Innodb tables
+--echo #
+
+CREATE TABLE t1 (
+  i int(11) DEFAULT NULL,
+  v1 varchar(1) DEFAULT NULL,
+  v2 varchar(20) DEFAULT NULL,
+  KEY i (i),
+  KEY v (v1,i)
+) ENGINE=innodb;
+
+INSERT INTO t1 VALUES (1,'f','no');
+INSERT INTO t1 VALUES (2,'u','yes-u');
+INSERT INTO t1 VALUES (2,'h','yes-h');
+INSERT INTO t1 VALUES (3,'d','no');
+
+--echo
+SELECT v2
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+
+--echo
+--echo # Should not use index_merge
+EXPLAIN
+SELECT v2
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#54606 innodb fast alter table + pack_keys=0
+--echo #           prevents adding new indexes
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b))
+  ENGINE=InnoDB
+  PACK_KEYS=0;
+CREATE INDEX a ON t1 (a);
+CREATE INDEX c on t1 (c);
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Additional coverage for refactoring which is made as part
+--echo # of fix for Bug#27480 "Extend CREATE TEMPORARY TABLES privilege
+--echo # to allow temp table operations".
+--echo #
+--echo # Check that OPTIMIZE table works for temporary InnoDB tables.
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TEMPORARY TABLE t1 (a INT) ENGINE=InnoDB;
+OPTIMIZE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#11762345 54927: DROPPING AND ADDING AN INDEX IN ONE
+--echo #              COMMAND CAN FAIL IN INNODB PLUGIN 1.0
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id int, a  int, b  int, PRIMARY KEY (id),
+                 INDEX a (a)) ENGINE=innodb;
+
+ALTER TABLE t1 DROP INDEX a, ADD INDEX a (b, a);
+# This used to fail
+ALTER TABLE t1 DROP INDEX a, ADD INDEX (a, b);
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Check the prefix index on BLOB could not be promoted to PRIMARY KEY
+--echo #
+CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, b TEXT NOT NULL, c TEXT,
+UNIQUE KEY (b(8) desc, a asc, d)) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25650516. The problem is the index order for the old and new
+--echo # dd::Table are different
+--echo #
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB;
+ALTER TABLE t1 ADD UNIQUE KEY uidx ( col2 );
+ALTER TABLE t1 ADD UNIQUE KEY uidx ( col1 ), RENAME KEY uidx TO new_uidx;
+ALTER TABLE t1 ADD PRIMARY KEY ( col1 );
+# This will pass different index order for old and new table
+ALTER TABLE t1 ALTER COLUMN col1 DROP DEFAULT;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG 25674492 - INNODB: ASSERTION FAILURE: HA_INNODB.CC:13881
+--echo # :DD_TABLE_MATCH(TABLE, DD_TABLE)
+--echo #
+CREATE TABLE t1 (col1 INT, col4 TEXT) ENGINE = InnoDB ROW_FORMAT = COMPACT;
+ALTER TABLE t1 ADD KEY idx ( col1 ), ADD FULLTEXT KEY ftidx ( col4 );
+ALTER TABLE t1 DROP KEY ftidx;
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+
+--echo End of 6.0 tests

@@ -1,0 +1,1381 @@
+######## suite/innodb/t/innodb_prefix_index_liftedlimit.test ##########
+#                                                                    #
+# Testcase for worklog WL#5743: Lift the limit of index key prefixes #
+# Accorrding to WL#5743 - prefix index limit is increased from 767   #
+# to 3072 for innodb. This change is applicable with Barracuda file  #
+# format.                                                            #
+# All sub-test in this file focus on prefix index along with other   #
+# operations                                                         #
+#                                                                    #
+#                                                                    #
+# Creation:                                                          #
+# 2011-05-19 Implemented this test as part of WL#5743                #
+#                                                                    #
+######################################################################
+
+
+# Save innodb variables
+--disable_query_log
+let $innodb_file_per_table_orig = `select @@innodb_file_per_table`;
+--enable_query_log
+
+set global innodb_file_per_table=1;
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+#------------------------------------------------------------------------------
+# Prefix index with VARCHAR data type , primary/secondary index and DML ops
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY (col_1_varchar(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (3072));
+# check IS
+--sorted_result
+SELECT COLUMN_NAME,INDEX_NAME,SUB_PART,INDEX_TYPE FROM
+INFORMATION_SCHEMA.STATISTICS WHERE table_name = 'worklog5743' ;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_varchar = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_varchar = REPEAT("c", 4000)
+WHERE col_1_varchar = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varchar = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_varchar = REPEAT("b", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
+--error ER_TOO_LONG_KEY
+ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;
+--error ER_TOO_LONG_KEY
+ALTER TABLE worklog5743 ROW_FORMAT=COMPACT;
+ALTER TABLE worklog5743 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
+DROP TABLE worklog5743;
+
+
+#------------------------------------------------------------------------------
+# Prefix index with TEXT data type , primary/secondary index and DML ops
+CREATE TABLE worklog5743 (
+col_1_text TEXT (4000) , col_2_text TEXT (4000) ,
+PRIMARY KEY (col_1_text(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_text (3072));
+# check IS
+--sorted_result
+SELECT COLUMN_NAME,INDEX_NAME,SUB_PART,INDEX_TYPE FROM
+INFORMATION_SCHEMA.STATISTICS WHERE table_name = 'worklog5743' ;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_text = REPEAT("a", 4000) , col_2_text = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000) AND col_2_text = REPEAT("o", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("b", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# Prefix index with MEDIUMTEXT data type , primary/secondary index and DML ops
+CREATE TABLE worklog5743 (
+col_1_mediumtext MEDIUMTEXT , col_2_mediumtext MEDIUMTEXT ,
+PRIMARY KEY (col_1_mediumtext(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_mediumtext (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_mediumtext = REPEAT("a", 4000),col_2_mediumtext = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_mediumtext = REPEAT("c", 4000)
+WHERE col_1_mediumtext = REPEAT("a", 4000)
+AND col_2_mediumtext = REPEAT("o", 4000);
+SELECT col_1_mediumtext = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_mediumtext = REPEAT("c", 4000)
+AND col_2_mediumtext = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_mediumtext = REPEAT("b", 4000);
+SELECT col_1_mediumtext = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+
+#------------------------------------------------------------------------------
+# Prefix index with LONGTEXT data type , primary/secondary index and DML ops
+CREATE TABLE worklog5743 (
+col_1_longtext LONGTEXT , col_2_longtext LONGTEXT ,
+PRIMARY KEY (col_1_longtext(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_longtext (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_longtext = REPEAT("a", 4000) , col_2_longtext = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_longtext = REPEAT("c", 4000)
+WHERE col_1_longtext = REPEAT("a", 4000)
+AND col_2_longtext = REPEAT("o", 4000);
+SELECT col_1_longtext = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_longtext = REPEAT("c", 4000)
+AND col_2_longtext = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_longtext = REPEAT("b", 4000);
+SELECT col_1_longtext = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+
+#------------------------------------------------------------------------------
+# Prefix index with BLOB data type , primary/secondary index and DML ops
+CREATE TABLE worklog5743 (
+col_1_blob BLOB (4000) , col_2_blob BLOB (4000) ,
+PRIMARY KEY (col_1_blob(3072))
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_blob (3072));
+# check IS
+--sorted_result
+SELECT COLUMN_NAME,INDEX_NAME,SUB_PART,INDEX_TYPE FROM
+INFORMATION_SCHEMA.STATISTICS WHERE table_name = 'worklog5743' ;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_blob = REPEAT("a", 4000) , col_2_blob = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_blob = REPEAT("c", 4000)
+WHERE col_1_blob = REPEAT("a", 4000) AND col_2_blob = REPEAT("o", 4000);
+SELECT col_1_blob = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_blob = REPEAT("c", 4000) AND col_2_blob = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_blob = REPEAT("b", 4000);
+SELECT col_1_blob = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+
+#------------------------------------------------------------------------------
+# Prefix index with MEDIUMBLOB data type , primary/secondary index and DML ops
+CREATE TABLE worklog5743 (
+col_1_mediumblob MEDIUMBLOB  , col_2_mediumblob MEDIUMBLOB  ,
+PRIMARY KEY (col_1_mediumblob(3072))
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_mediumblob (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_mediumblob = REPEAT("a", 4000),col_2_mediumblob = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_mediumblob = REPEAT("c", 4000)
+WHERE col_1_mediumblob = REPEAT("a", 4000)
+AND col_2_mediumblob = REPEAT("o", 4000);
+SELECT col_1_mediumblob = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_mediumblob = REPEAT("c", 4000)
+AND col_2_mediumblob = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_mediumblob = REPEAT("b", 4000);
+SELECT col_1_mediumblob = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# Prefix index with LONGBLOB data type , primary/secondary index and DML ops
+CREATE TABLE worklog5743 (
+col_1_longblob LONGBLOB  , col_2_longblob LONGBLOB  ,
+PRIMARY KEY (col_1_longblob(3072))
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_longblob (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_longblob = REPEAT("a", 4000) , col_2_longblob = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_longblob = REPEAT("c", 4000)
+WHERE col_1_longblob = REPEAT("a", 4000)
+AND col_2_longblob = REPEAT("o", 4000);
+SELECT col_1_longblob = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_longblob = REPEAT("c", 4000)
+AND col_2_longblob = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_longblob = REPEAT("b", 4000);
+SELECT col_1_longblob = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# Prefix index with VARBINARY data type , primary/secondary index and DML ops
+CREATE TABLE worklog5743 (
+col_1_varbinary VARBINARY (4000) , col_2_varbinary VARBINARY (4000) ,
+PRIMARY KEY (col_1_varbinary(3072))
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_varbinary (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_varbinary = REPEAT("a", 4000) , col_2_varbinary = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000)
+AND col_2_varbinary = REPEAT("o", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varbinary = REPEAT("c", 4000)
+AND col_2_varbinary = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_varbinary = REPEAT("b", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# Prefix index with CHAR data type , composite index and DML ops
+CREATE TABLE worklog5743 (col_1_char CHAR (255) , col_2_char CHAR (255),
+col_3_char CHAR (255), col_4_char CHAR (255),col_5_char CHAR (255),
+col_6_char CHAR (255), col_7_char CHAR (255),col_8_char CHAR (255),
+col_9_char CHAR (255), col_10_char CHAR (255),col_11_char CHAR (255),
+col_12_char CHAR (255), col_13_char CHAR (255),col_14_char CHAR (255)
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 255) , REPEAT("o", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255)
+);
+# Create index with total prefix index length = 3072
+CREATE INDEX prefix_idx ON worklog5743(col_1_char(250),col_2_char(250),
+col_3_char(250),col_4_char(250),col_5_char(250),col_6_char(250),
+col_7_char(250),col_8_char(250),col_9_char(250),col_10_char(250),
+col_11_char(250),col_12_char(250),col_13_char(72)
+);
+INSERT INTO worklog5743 VALUES(REPEAT("b", 255) , REPEAT("p", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255)
+);
+SELECT col_1_char = REPEAT("a", 255) , col_2_char = REPEAT("o", 255) FROM worklog5743;
+UPDATE worklog5743 SET col_1_char = REPEAT("c", 255)
+WHERE col_1_char = REPEAT("a", 255) AND col_2_char = REPEAT("o", 255);
+SELECT col_1_char = REPEAT("c", 255) FROM worklog5743
+WHERE col_1_char = REPEAT("c", 255) AND col_2_char = REPEAT("o", 255);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 255) , REPEAT("o", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255),REPEAT("a", 255)
+);
+DELETE FROM worklog5743 WHERE col_1_char = REPEAT("b", 255);
+SELECT col_1_char = REPEAT("c", 255) FROM worklog5743;
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# Prefix index with BINARY data type , composite index and DML ops
+CREATE TABLE worklog5743 (col_1_binary BINARY (255) , col_2_binary BINARY (255),
+col_3_binary BINARY(255),col_4_binary BINARY (255),col_5_binary BINARY (255),
+col_6_binary BINARY(255),col_7_binary BINARY (255),col_8_binary BINARY (255),
+col_9_binary BINARY(255),col_10_binary BINARY (255),col_11_binary BINARY (255),
+col_12_binary BINARY(255),col_13_binary BINARY (255),col_14_binary BINARY (255)
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 255) , REPEAT("o", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255)
+);
+# Create index with total prefix index length = 3072
+CREATE INDEX prefix_idx ON worklog5743(col_1_binary (250),col_2_binary (250),
+col_3_binary (250),col_4_binary (250),col_5_binary (250),
+col_6_binary (250),col_7_binary (250),col_8_binary (250),
+col_9_binary (250),col_10_binary (250),col_11_binary (250),
+col_12_binary (250),col_13_binary (72)
+);
+INSERT INTO worklog5743 VALUES(REPEAT("b", 255) , REPEAT("p", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255)
+);
+SELECT col_1_binary = REPEAT("a", 255) , col_2_binary = REPEAT("o", 255) FROM worklog5743;
+UPDATE worklog5743 SET col_1_binary = REPEAT("c", 255)
+WHERE col_1_binary = REPEAT("a", 255)
+AND col_2_binary = REPEAT("o", 255);
+SELECT col_1_binary = REPEAT("c", 255) FROM worklog5743
+WHERE col_1_binary = REPEAT("c", 255)
+AND col_2_binary = REPEAT("o", 255);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 255) , REPEAT("o", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255),
+REPEAT("a", 255) , REPEAT("o", 255), REPEAT("a", 255)
+);
+DELETE FROM worklog5743 WHERE col_1_binary = REPEAT("b", 255);
+SELECT col_1_binary = REPEAT("c", 255) FROM worklog5743;
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# Prefix index with VARCHAR data type , primary/seconday index , DML ops
+# and COMPRESSED row format. KEY_BLOCK_SIZE is varied as 2 , 4 , 8.
+
+# With KEY_BLOCK_SIZE = 2,prefix index limit comes around ~948 for following
+CREATE TABLE worklog5743_key2 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY (col_1_varchar(948))
+) charset latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2, engine = innodb;
+INSERT INTO worklog5743_key2 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743_key2 (col_1_varchar (767));
+INSERT INTO worklog5743_key2 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_varchar  = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743_key2;
+UPDATE worklog5743_key2 SET col_1_varchar = REPEAT("c", 4000)
+WHERE col_1_varchar = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743_key2
+WHERE col_2_varchar = REPEAT("o", 4000);
+INSERT INTO worklog5743_key2 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743_key2 WHERE col_1_varchar = REPEAT("b", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743_key2;
+DROP TABLE worklog5743_key2;
+
+# With KEY_BLOCK_SIZE = 4,prefix index limit comes around ~1964 for following
+CREATE TABLE worklog5743_key4 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY (col_1_varchar(1964))
+) charset latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4, engine = innodb;
+INSERT INTO worklog5743_key4 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743_key4 (col_1_varchar (767));
+INSERT INTO worklog5743_key4 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_varchar  = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743_key4;
+UPDATE worklog5743_key4 SET col_1_varchar = REPEAT("c", 4000)
+WHERE col_1_varchar = REPEAT("a", 4000)
+AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varchar = REPEAT("b", 3500) FROM worklog5743_key4
+WHERE col_1_varchar = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+INSERT INTO worklog5743_key4 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743_key4 WHERE col_1_varchar = REPEAT("b", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743_key4;
+DROP TABLE worklog5743_key4;
+
+# With KEY_BLOCK_SIZE = 8,prefix index limit comes around ~3072 for following
+CREATE TABLE worklog5743_key8 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY (col_1_varchar(3072))
+) charset latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8, engine = innodb;
+INSERT INTO worklog5743_key8 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743_key8 (col_1_varchar (767));
+INSERT INTO worklog5743_key8 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_varchar  = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743_key8;
+UPDATE worklog5743_key8 SET col_1_varchar = REPEAT("c", 4000)
+WHERE col_1_varchar = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varchar = REPEAT("b", 3500) FROM worklog5743_key8
+WHERE col_1_varchar = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+INSERT INTO worklog5743_key8 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743_key8 WHERE col_1_varchar = REPEAT("b", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743_key8;
+DROP TABLE worklog5743_key8;
+
+# Prefix index with TEXT data type , primary/seconday index , DML ops
+# and COMPRESSED row format. KEY_BLOCK_SIZE is varied as 2 , 4 , 8.
+
+# With KEY_BLOCK_SIZE = 2,prefix index limit comes around ~948 for following
+CREATE TABLE worklog5743_key2 (
+col_1_text TEXT (4000) , col_2_text TEXT (4000) ,
+PRIMARY KEY (col_1_text(948))
+) charset latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2, engine = innodb;
+INSERT INTO worklog5743_key2 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743_key2 (col_1_text (767));
+INSERT INTO worklog5743_key2 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_text  = REPEAT("a", 4000) , col_2_text = REPEAT("o", 4000)
+FROM worklog5743_key2;
+UPDATE worklog5743_key2 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000) AND col_2_text = REPEAT("o", 4000);
+SELECT col_1_text = REPEAT("b", 3500) FROM worklog5743_key2
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+INSERT INTO worklog5743_key2 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743_key2 WHERE col_1_text = REPEAT("b", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743_key2;
+DROP TABLE worklog5743_key2;
+
+# With KEY_BLOCK_SIZE = 4,prefix index limit comes around ~1964 for following
+CREATE TABLE worklog5743_key4 (
+col_1_text TEXT (4000) , col_2_text TEXT (4000) ,
+PRIMARY KEY (col_1_text(1964))
+) charset latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4, engine = innodb;
+INSERT INTO worklog5743_key4 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743_key4 (col_1_text (767));
+INSERT INTO worklog5743_key4 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_text  = REPEAT("a", 4000) , col_2_text = REPEAT("o", 4000)
+FROM worklog5743_key4;
+UPDATE worklog5743_key4 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000) AND col_2_text = REPEAT("o", 4000);
+SELECT col_1_text = REPEAT("b", 3500) FROM worklog5743_key4
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+INSERT INTO worklog5743_key4 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743_key4 WHERE col_1_text = REPEAT("b", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743_key4;
+DROP TABLE worklog5743_key4;
+
+# With KEY_BLOCK_SIZE = 8,prefix index limit comes around ~3072 for following
+CREATE TABLE worklog5743_key8 (
+col_1_text TEXT (4000) , col_2_text TEXT (4000) ,
+PRIMARY KEY (col_1_text(3072))
+) charset latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8, engine = innodb;
+INSERT INTO worklog5743_key8 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743_key8 (col_1_text (767));
+INSERT INTO worklog5743_key8 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_text  = REPEAT("a", 4000) , col_2_text = REPEAT("o", 4000)
+FROM worklog5743_key8;
+UPDATE worklog5743_key8 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000) AND col_2_text = REPEAT("o", 4000);
+SELECT col_1_text = REPEAT("b", 3500) FROM worklog5743_key8
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+INSERT INTO worklog5743_key8 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743_key8 WHERE col_1_text = REPEAT("b", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743_key8;
+DROP TABLE worklog5743_key8;
+
+# Prefix index with BLOB data type , primary/seconday index , DML ops
+# and COMPRESSED row format. KEY_BLOCK_SIZE is varied as 2 , 4 , 8.
+
+# With KEY_BLOCK_SIZE = 2,prefix index limit comes around ~948 for following
+CREATE TABLE worklog5743_key2 (
+col_1_blob BLOB (4000) , col_2_blob BLOB (4000) ,
+PRIMARY KEY (col_1_blob(948))
+) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2, engine = innodb;
+INSERT INTO worklog5743_key2 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743_key2 (col_1_blob (767));
+INSERT INTO worklog5743_key2 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_blob  = REPEAT("a", 4000) , col_2_blob = REPEAT("o", 4000)
+FROM worklog5743_key2;
+UPDATE worklog5743_key2 SET col_1_blob = REPEAT("c", 4000)
+WHERE col_1_blob = REPEAT("a", 4000) AND col_2_blob = REPEAT("o", 4000);
+SELECT col_1_blob = REPEAT("b", 3500) FROM worklog5743_key2
+WHERE col_1_blob = REPEAT("c", 4000) AND col_2_blob = REPEAT("o", 4000);
+INSERT INTO worklog5743_key2 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743_key2 WHERE col_1_blob = REPEAT("b", 4000);
+SELECT col_1_blob = REPEAT("c", 4000) FROM worklog5743_key2;
+DROP TABLE worklog5743_key2;
+
+# With KEY_BLOCK_SIZE = 4,prefix index limit comes around ~1964 for following
+CREATE TABLE worklog5743_key4 (
+col_1_blob BLOB (4000) , col_2_blob BLOB (4000) ,
+PRIMARY KEY (col_1_blob(1964))
+) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4, engine = innodb;
+INSERT INTO worklog5743_key4 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743_key4 (col_1_blob (767));
+INSERT INTO worklog5743_key4 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_blob  = REPEAT("a", 4000) , col_2_blob = REPEAT("o", 4000)
+FROM worklog5743_key4;
+UPDATE worklog5743_key4 SET col_1_blob = REPEAT("c", 4000)
+WHERE col_1_blob = REPEAT("a", 4000) AND col_2_blob = REPEAT("o", 4000);
+SELECT col_1_blob = REPEAT("b", 3500) FROM worklog5743_key4
+WHERE col_1_blob = REPEAT("c", 4000) AND col_2_blob = REPEAT("o", 4000);
+INSERT INTO worklog5743_key4 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743_key4 WHERE col_1_blob = REPEAT("b", 4000);
+SELECT col_1_blob = REPEAT("c", 4000) FROM worklog5743_key4;
+DROP TABLE worklog5743_key4;
+
+# With KEY_BLOCK_SIZE = 8,prefix index limit comes around ~3072 for following
+CREATE TABLE worklog5743_key8 (
+col_1_blob BLOB (4000) , col_2_blob BLOB (4000) ,
+PRIMARY KEY (col_1_blob(3072))
+) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8, engine = innodb;
+INSERT INTO worklog5743_key8 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743_key8 (col_1_blob (767));
+INSERT INTO worklog5743_key8 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_blob  = REPEAT("a", 4000) , col_2_blob = REPEAT("o", 4000)
+FROM worklog5743_key8;
+UPDATE worklog5743_key8 SET col_1_blob = REPEAT("c", 4000)
+WHERE col_1_blob = REPEAT("a", 4000) AND col_2_blob = REPEAT("o", 4000);
+SELECT col_1_blob = REPEAT("b", 3500) FROM worklog5743_key8
+WHERE col_1_blob = REPEAT("c", 4000) AND col_2_blob = REPEAT("o", 4000);
+INSERT INTO worklog5743_key8 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743_key8 WHERE col_1_blob = REPEAT("b", 4000);
+SELECT col_1_blob = REPEAT("c", 4000) FROM worklog5743_key8;
+DROP TABLE worklog5743_key8;
+
+
+#------------------------------------------------------------------------------
+# Create mutiple prefix index. We can not create prefix index length > 16K
+# as index is written in undo log page which of 16K size.
+# So we can create max 2 prefix index of length 3072 on table
+CREATE TABLE worklog5743 (
+col_1_varbinary VARBINARY (4000) , col_2_varchar VARCHAR (4000) ,
+col_3_text TEXT (4000), col_4_blob BLOB (4000), col_5_text TEXT (4000),
+col_6_varchar VARCHAR (4000), col_7_binary BINARY (255)
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) ,  REPEAT("a", 255)
+);
+
+# Update reports ER_UNDO_RECORD_TOO_BIG if we create more than 2 indexes.
+# Bug#12547647 - UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
+CREATE INDEX prefix_idx1 ON worklog5743(col_1_varbinary (3072));
+CREATE INDEX prefix_idx2 ON worklog5743(col_2_varchar (3072));
+
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) , REPEAT("a", 255)
+);
+SELECT col_1_varbinary = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varbinary = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) , REPEAT("a", 255)
+);
+DELETE FROM worklog5743 WHERE col_1_varbinary = REPEAT("b", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743;
+
+# Add 3 more indexes.
+# Update used to hang but now ER_UNDO_RECORD_TOO_BIG is reported;
+# Bug#12547647 - UPDATE LOGGING COULD EXCEED UNDO LOG PAGE SIZE
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) ,  REPEAT("a", 255)
+);
+CREATE INDEX prefix_idx3 ON worklog5743(col_3_text (3072));
+CREATE INDEX prefix_idx4 ON worklog5743(col_4_blob (3072));
+CREATE INDEX prefix_idx5 ON worklog5743(col_5_text (3072));
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+SHOW WARNINGS;
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# Create mutiple prefix index. We can not create prefix index length > 16K as
+# we write in undo log page which of 16K size.
+# so we can create max 5 prefix index of length 3072 on table.
+# Similar to above case but with transactions
+CREATE TABLE worklog5743 (
+col_1_varbinary VARBINARY (4000) , col_2_varchar VARCHAR (4000) ,
+col_3_text TEXT (4000), col_4_blob BLOB (4000),col_5_text TEXT (4000),
+col_6_varchar VARCHAR (4000), col_7_binary BINARY (255)
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+
+
+# Update used to hang if we create following 5 indexes. Fixed in;
+# Bug#12547647 - UPDATE LOGGING COULD EXCEED UNDO LOG PAGE SIZE
+CREATE INDEX prefix_idx1 ON worklog5743(col_1_varbinary (3072));
+CREATE INDEX prefix_idx2 ON worklog5743(col_2_varchar (3072));
+CREATE INDEX prefix_idx3 ON worklog5743(col_3_text (3072));
+CREATE INDEX prefix_idx4 ON worklog5743(col_4_blob (3072));
+CREATE INDEX prefix_idx5 ON worklog5743(col_5_text (3072));
+
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) ,  REPEAT("a", 255)
+);
+SELECT col_1_varbinary = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+ROLLBACK;
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) ,  REPEAT("a", 255)
+);
+COMMIT;
+SELECT col_1_varbinary = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) , REPEAT("a", 255)
+);
+ROLLBACK;
+# Bug#12547647 - UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
+# Instead of this error, it would hang before this fix.
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000)
+AND col_2_varchar = REPEAT("o", 4000);
+SHOW WARNINGS;
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varbinary = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) , REPEAT("a", 255)
+);
+DELETE FROM worklog5743 WHERE col_1_varbinary = REPEAT("b", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# Prefix index with utf8 charset
+# utf8 charcter takes 3 bytes in mysql so prefix index limit is 3072/3 = 1024
+CREATE TABLE worklog5743 (
+col_1_text TEXT (4000) CHARACTER SET 'utf8',
+col_2_text TEXT (4000) CHARACTER SET 'utf8',
+PRIMARY KEY (col_1_text(1024))
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_text (1024));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_text = REPEAT("a", 4000) , col_2_text = REPEAT("o", 4000) FROM worklog5743;
+UPDATE worklog5743 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000) AND col_2_text = REPEAT("o", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("b", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+# Prefix index with utf8 charset + varchar.
+CREATE TABLE worklog5743 (col_1_varchar VARCHAR (4000) CHARACTER SET 'utf8',
+col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8' ,
+PRIMARY KEY (col_1_varchar(1024))
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1024));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_varchar = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000) FROM worklog5743;
+UPDATE worklog5743 SET col_1_varchar = REPEAT("c", 4000)
+WHERE col_1_varchar = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varchar = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_varchar = REPEAT("b", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# prefinx index on utf8 charset with transaction
+CREATE TABLE worklog5743 (
+col_1_varbinary VARBINARY (4000) ,
+col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8',
+col_3_text TEXT (4000) CHARACTER SET 'utf8',
+col_4_blob BLOB (4000),col_5_text TEXT (4000),
+col_6_varchar VARCHAR (4000), col_7_binary BINARY (255)
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+
+
+CREATE INDEX prefix_idx2 ON worklog5743(col_2_varchar (500));
+CREATE INDEX prefix_idx3 ON worklog5743(col_3_text (500));
+
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) ,  REPEAT("a", 255)
+);
+SELECT col_1_varbinary = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+ROLLBACK;
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) ,  REPEAT("a", 255)
+);
+COMMIT;
+SELECT col_1_varbinary = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) , REPEAT("a", 255)
+);
+ROLLBACK;
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varbinary = REPEAT("c", 4000)
+AND col_2_varchar = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) , REPEAT("a", 255)
+);
+DELETE FROM worklog5743 WHERE col_1_varbinary = REPEAT("b", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+
+#------------------------------------------------------------------------------
+# Prefix index with utf8 charset on TEXT data type with actual utf8 character
+# like "स" and "क"
+CREATE TABLE worklog5743 (
+col_1_text TEXT (4000) CHARACTER SET 'utf8',
+col_2_text TEXT (4000) ,
+PRIMARY KEY (col_1_text(1024))
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("स", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_text (1024));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_text = REPEAT("स", 4000) , col_2_text = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_text = REPEAT("क", 4000)
+WHERE col_1_text = REPEAT("स", 4000) AND col_2_text = REPEAT("o", 4000);
+SELECT col_1_text = REPEAT("क", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("b", 4000);
+SELECT col_1_text = REPEAT("क", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+
+#------------------------------------------------------------------------------
+# Prefix index with transaction when 2 client are ruuning there transaction
+# in different sessions.With ISOLATION LEVEL as REPEATABLE READ and
+# READ UNCOMMITTED.
+CREATE TABLE worklog5743 (
+col_1_text TEXT(4000) , col_2_text TEXT(4000) ,
+PRIMARY KEY (col_1_text(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 200) , REPEAT("o", 200));
+SELECT col_1_text = REPEAT("a", 200) , col_2_text  = REPEAT("o", 200) FROM
+worklog5743;
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SELECT col_1_text = REPEAT("a", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+
+
+--echo "In connection 2"
+--connect (con2,localhost,root,,)
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 200) , REPEAT("o", 200));
+# Uncomment after Bug#12552164 - TRANSACTION CAN NOT SEE OLD VERSION ROWS THAT
+# BEING UPDATED
+#UPDATE worklog5743 SET col_1_varchar = REPEAT("d", 200) WHERE col_1_varchar =
+#REPEAT("a", 200) AND col_2_varchar = REPEAT("o", 200);
+SELECT col_1_text = REPEAT("a", 200) , col_2_text  = REPEAT("o", 200) FROM
+worklog5743;
+
+
+--echo "In connection 1"
+--connection con1
+select @@session.transaction_isolation;
+SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+START TRANSACTION;
+
+SELECT col_1_text = REPEAT("a", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+
+--echo "In connection 2"
+--connection con2
+COMMIT;
+# Wait for commit
+let $wait_condition=SELECT COUNT(*)=0 FROM information_schema.processlist
+WHERE info='COMMIT';
+--source include/wait_condition.inc
+
+--echo "In connection 1"
+--connection con1
+SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SELECT col_1_text = REPEAT("a", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+COMMIT;
+
+--connection default
+DROP TABLE worklog5743;
+
+
+#------------------------------------------------------------------------------
+# Prefix index with transaction when 2 client are ruuning there transaction
+# in different sessions.With ISOLATION LEVEL as REPEATABLE READ and
+# READ UNCOMMITTED. Same as above case but con2 starts tnx before con1
+
+CREATE TABLE worklog5743 (
+col_1_text TEXT(4000) , col_2_text TEXT(4000) ,
+PRIMARY KEY (col_1_text(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 200) , REPEAT("o", 200));
+SELECT col_1_text = REPEAT("a", 200) , col_2_text  = REPEAT("o", 200) FROM
+worklog5743;
+
+--echo "In connection 1"
+--connection con1
+SELECT col_1_text = REPEAT("a", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+START TRANSACTION;
+
+
+--echo "In connection 2"
+--connection con2
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 200) , REPEAT("o", 200));
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("a", 200);
+SELECT col_1_text = REPEAT("a", 200) , col_2_text  = REPEAT("o", 200) FROM
+worklog5743;
+COMMIT;
+# Wait for commit
+let $wait_condition=SELECT COUNT(*)=0 FROM information_schema.processlist
+WHERE info='COMMIT';
+--source include/wait_condition.inc 
+
+
+--echo "In connection 1"
+--connection con1
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+COMMIT;
+
+--connection default
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+
+# Prefix index with transaction when 2 client are ruuning there transaction
+# in different sessions.With ISOLATION LEVEL as REPEATABLE READ and
+# READ UNCOMMITTED. Same as above cases but with ROLLBACK
+
+CREATE TABLE worklog5743 (
+col_1_text TEXT(4000) , col_2_text TEXT(4000) ,
+PRIMARY KEY (col_1_text(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 200) , REPEAT("o", 200));
+SELECT col_1_text = REPEAT("a", 200) , col_2_text  = REPEAT("o", 200) FROM
+worklog5743;
+
+--echo "In connection 1"
+--connection con1
+SELECT col_1_text = REPEAT("a", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+START TRANSACTION;
+
+
+--echo "In connection 2"
+--connection con2
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 200) , REPEAT("o", 200));
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("a", 200);
+SELECT col_1_text = REPEAT("a", 200) , col_2_text  = REPEAT("o", 200) FROM
+worklog5743;
+ROLLBACK;
+# Wait for rollback
+let $wait_condition=SELECT COUNT(*)=0 FROM information_schema.processlist
+WHERE info='COMMIT';
+--source include/wait_condition.inc 
+
+
+--echo "In connection 1"
+--connection con1
+SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+COMMIT;
+
+--echo "Disconnect the connections 1 and 2"
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP TABLE worklog5743;
+
+
+#------------------------------------------------------------------------------
+# Select queries on prefix index column as index will be used in queries.
+# Use few select functions , join condition , subqueries.
+
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY (col_1_varchar(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_varchar = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_varchar = REPEAT("c", 4000)
+WHERE col_1_varchar = REPEAT("a", 4000)
+AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varchar = REPEAT("c", 4000)
+AND col_2_varchar = REPEAT("o", 4000);
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
+
+# Select with Join
+SELECT tbl1.col_1_varchar = tbl2.col_1_varchar
+FROM worklog5743 tbl1 , worklog5743 tbl2
+WHERE tbl1.col_1_varchar = tbl2.col_1_varchar ;
+
+# Select in subquey
+SELECT tbl1.col_1_varchar = REPEAT("c", 4000) FROM worklog5743 tbl1
+WHERE col_1_varchar IN (SELECT tbl2.col_1_varchar FROM worklog5743 tbl2) ;
+SELECT tbl1.col_1_varchar = REPEAT("c", 4000) FROM worklog5743 tbl1
+WHERE col_1_varchar NOT IN (SELECT tbl2.col_1_varchar FROM worklog5743 tbl2) ;
+SELECT tbl1.col_1_varchar = REPEAT("c", 4000) FROM worklog5743 tbl1 WHERE
+col_1_varchar IN (SELECT tbl2.col_1_varchar FROM worklog5743 tbl2)
+AND col_1_varchar = REPEAT("c", 4000);
+SELECT tbl1.col_1_varchar = REPEAT("c", 4000) FROM worklog5743 tbl1
+WHERE col_1_varchar in (
+SELECT tbl2.col_1_varchar FROM worklog5743 tbl2
+WHERE tbl1.col_1_varchar != tbl2.col_1_varchar
+) ;
+SELECT tbl1.col_1_varchar = REPEAT("c", 4000) FROM worklog5743 tbl1
+WHERE col_1_varchar in (
+SELECT tbl2.col_1_varchar FROM worklog5743 tbl2
+WHERE tbl1.col_1_varchar = tbl2.col_1_varchar
+) ;
+
+# function
+SELECT
+REVERSE(col_1_varchar) = REPEAT("c", 4000) ,
+REVERSE(REVERSE(col_1_varchar)) = REPEAT("c", 4000)
+FROM worklog5743;
+SELECT
+UPPER(col_1_varchar) = REPEAT("c", 4000) ,
+UPPER(col_1_varchar) = REPEAT("C", 4000) ,
+LOWER(UPPER(col_1_varchar)) = REPEAT("c", 4000)
+FROM worklog5743;
+SELECT
+col_1_varchar = REPEAT("c", 4000)
+FROM worklog5743 WHERE col_1_varchar like '%c__%';
+SELECT SUBSTRING(INSERT(col_1_varchar, 1, 4, 'kkkk'),1,10) FROM worklog5743 ;
+SELECT CONCAT(SUBSTRING(col_1_varchar,-5,3),'append') FROM worklog5743 ;
+
+
+DROP TABLE worklog5743;
+
+#------------------------------------------------------------------------------
+# Prefix index with NULL values
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) ,
+col_2_varchar VARCHAR (4000) ,
+UNIQUE INDEX (col_1_varchar(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743
+VALUES(concat(REPEAT("a", 2000),REPEAT("b", 1000),REPEAT("c", 1000)), REPEAT("o", 4000));
+INSERT INTO worklog5743
+VALUES(concat(REPEAT("a", 2000),REPEAT("b", 2000)), REPEAT("o", 4000));
+INSERT INTO worklog5743 VALUES(NULL,NULL);
+INSERT INTO worklog5743 VALUES(NULL,NULL);
+# check IS
+--sorted_result
+SELECT COLUMN_NAME,INDEX_NAME,SUB_PART,INDEX_TYPE
+FROM INFORMATION_SCHEMA.STATISTICS WHERE table_name = 'worklog5743' ;
+SELECT col_1_varchar FROM worklog5743 WHERE col_1_varchar IS NULL;
+SELECT col_1_varchar = concat(REPEAT("a", 2000),REPEAT("b", 2000))
+FROM worklog5743 WHERE col_1_varchar IS NOT NULL ORDER BY 1;
+
+
+DROP TABLE worklog5743;
+
+# -----------------------------------------------------------------------------
+#  Try drop and add secondary prefix index
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY (col_1_varchar(3072))) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+# Create index
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+# Drop index
+DROP INDEX prefix_idx ON worklog5743;
+
+SELECT col_1_varchar = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_varchar = REPEAT("c", 4000)
+WHERE col_1_varchar = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varchar = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+# Again add index
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_varchar = REPEAT("b", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+# -----------------------------------------------------------------------------
+
+#  Try drop and add primary prefix index
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY `prefix_primary` (col_1_varchar(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+# Create index
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+# Drop index
+ALTER TABLE worklog5743 DROP PRIMARY KEY;
+
+SELECT col_1_varchar = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_varchar = REPEAT("c", 4000)
+WHERE col_1_varchar = REPEAT("a", 4000)
+AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varchar = REPEAT("c", 4000)
+AND col_2_varchar = REPEAT("o", 4000);
+# Again add index
+ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_varchar(3072));
+
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+--error ER_DUP_ENTRY
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_varchar = REPEAT("b", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+
+# -----------------------------------------------------------------------------
+
+#  Try drop and add both (primary/secondary) prefix index
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY `prefix_primary` (col_1_varchar(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+# Create index
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+# Drop primary index
+ALTER TABLE worklog5743 DROP PRIMARY KEY;
+# Drop secondary index
+DROP INDEX prefix_idx ON worklog5743;
+
+SELECT col_1_varchar = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_varchar = REPEAT("c", 4000)
+WHERE col_1_varchar = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varchar = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+# Again add index
+ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_varchar(3072));
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (3072));
+
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+--error ER_DUP_ENTRY
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+DELETE FROM worklog5743 WHERE col_1_varchar = REPEAT("b", 4000);
+SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
+DROP TABLE worklog5743;
+
+
+# -----------------------------------------------------------------------------
+# Drop index from differnt session
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR(4000) , col_2_varchar VARCHAR(4000) ,
+PRIMARY KEY (col_1_varchar (3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("c", 3500) , REPEAT("o", 3500));
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (3072));
+
+# Start new session
+--connect (con1,localhost,root,,)
+
+
+--echo " Switching to con1 connection For select "
+--connection con1
+SELECT col_1_varchar = REPEAT("c", 3500) , col_2_varchar = REPEAT("o", 3500)
+FROM worklog5743;
+
+--echo " Switching to default connection For DMLs "
+--connection default
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 3500) , REPEAT("o", 3500));
+SELECT col_1_varchar = REPEAT("b", 3500) FROM worklog5743
+WHERE col_2_varchar = REPEAT("o", 3500);
+COMMIT;
+
+--echo " Switching to con1 connection For Dropping index and some DMLs "
+--connection con1
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("k", 3500),REPEAT("p", 3500));
+# Drop primary index
+ALTER TABLE worklog5743 DROP PRIMARY KEY;
+UPDATE worklog5743 SET col_1_varchar  = REPEAT("b", 3500)
+WHERE col_1_varchar = REPEAT("a", 3500)
+AND col_2_varchar = REPEAT("o", 3500);
+SELECT col_1_varchar = REPEAT("b", 3500) FROM worklog5743
+WHERE col_2_varchar = REPEAT("o", 3500);
+
+--echo " Switching to default connection For DELETE "
+--connection default
+DELETE FROM worklog5743 WHERE col_1_varchar  = REPEAT("b", 3500);
+SELECT col_1_varchar = REPEAT("a", 3500) FROM worklog5743
+WHERE col_2_varchar = REPEAT("p", 3500);
+
+--echo " Switching to con1 connection to commit changes "
+--connection con1
+COMMIT;
+--disconnect con1
+
+--echo " Switching to default connection to drop and end sub-test "
+--connection default
+DROP TABLE worklog5743;
+
+
+
+# -----------------------------------------------------------------------------
+#  Create prefix index with length < 3072 , length = 3072 , length > 3072
+# - varbinary data type + secondary index
+CREATE TABLE worklog5743 (
+col_1_varbinary VARBINARY (4000) , col_2_varbinary VARBINARY (4000) ,
+PRIMARY KEY (col_1_varbinary(3072))) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+# Create index of 3072
+CREATE INDEX prefix_idx ON worklog5743(col_1_varbinary (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_varbinary = REPEAT("a", 4000) , col_2_varbinary = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000)
+AND col_2_varbinary = REPEAT("o", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varbinary = REPEAT("c", 4000)
+AND col_2_varbinary = REPEAT("o", 4000);
+DELETE FROM worklog5743 WHERE col_1_varbinary = REPEAT("c", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varbinary = REPEAT("c", 4000)
+AND col_2_varbinary = REPEAT("o", 4000);
+# Drop index
+DROP INDEX prefix_idx ON worklog5743;
+SELECT col_1_varbinary = REPEAT("b", 4000) FROM worklog5743
+WHERE col_1_varbinary = REPEAT("b", 4000)
+AND col_2_varbinary = REPEAT("p", 4000);
+
+
+# Again add index length < 3072
+CREATE INDEX prefix_idx ON worklog5743(col_1_varbinary (2000));
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+SELECT col_1_varbinary = REPEAT("a", 4000) FROM worklog5743;
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000)
+AND col_2_varbinary = REPEAT("o", 4000);
+DELETE FROM worklog5743 WHERE col_1_varbinary = REPEAT("c", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varbinary = REPEAT("c", 4000)
+AND col_2_varbinary = REPEAT("o", 4000);
+# Drop index
+DROP INDEX prefix_idx ON worklog5743;
+
+# Again add index length > 3072.
+# Index prefix larger than 3072 will be truncated to 3072.
+# If the table is REDUNDANT or COMPACT, which do
+# not support prefix > 767, the create index will be rejected.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE INDEX prefix_idx ON worklog5743(col_1_varbinary (4000));
+SET sql_mode = default;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+SELECT col_1_varbinary = REPEAT("a", 4000) FROM worklog5743;
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000)
+AND col_2_varbinary = REPEAT("o", 4000);
+DELETE FROM worklog5743 WHERE col_1_varbinary = REPEAT("c", 4000);
+SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_varbinary = REPEAT("c", 4000)
+AND col_2_varbinary = REPEAT("o", 4000);
+
+
+DROP TABLE worklog5743;
+
+# -----------------------------------------------------------------------------
+# Create prefix index with length < 3072 , length = 3072 , length > 3072
+#  text data type + secondary index
+CREATE TABLE worklog5743 (col_1_text TEXT (4000) , col_2_text TEXT (4000) ,
+PRIMARY KEY (col_1_text(500))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+# Create index of 3072
+CREATE INDEX prefix_idx ON worklog5743(col_1_text (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_text = REPEAT("a", 4000) , col_2_text = REPEAT("o", 4000)
+FROM worklog5743;
+UPDATE worklog5743 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000)
+AND col_2_text = REPEAT("o", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("c", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+# Drop index
+DROP INDEX prefix_idx ON worklog5743;
+SELECT col_1_text = REPEAT("b", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("b", 4000) AND col_2_text = REPEAT("p", 4000);
+
+# Again add index length < 3072
+CREATE INDEX prefix_idx ON worklog5743(col_1_text (1000));
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+SELECT col_1_text = REPEAT("a", 4000) FROM worklog5743;
+UPDATE worklog5743 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000) AND col_2_text = REPEAT("o", 4000);
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("c", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+# Drop index
+DROP INDEX prefix_idx ON worklog5743;
+
+# Again add index length > 3072.
+# Index prefix larger than 3072 will be truncated to 3072.
+# In innodb_strict_mode, the statement will fail with error.
+# If the table is REDUNDANT or COMPACT, which do not support
+# prefix > 767, the create index will be rejected.
+--error ER_TOO_LONG_KEY
+CREATE INDEX prefix_idx ON worklog5743(col_1_text (4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_text (3072));
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+SELECT col_1_text = REPEAT("a", 4000) FROM worklog5743;
+UPDATE worklog5743 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000) AND col_2_text = REPEAT("o", 4000);
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("c", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
+
+DROP TABLE worklog5743;
+
+
+# -----------------------------------------------------------------------------
+# Create prefix index with length < 948 , length = 948 , length > 948
+# For compressed row type + primary key
+CREATE TABLE worklog5743 (
+col_1_text TEXT (4000) , col_2_text TEXT (4000) ,
+PRIMARY KEY (col_1_text(948))
+) charset latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+# Create index of 767
+INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+SELECT col_1_text = REPEAT("a", 4000) , col_2_text = REPEAT("o", 4000) FROM worklog5743;
+UPDATE worklog5743 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000)
+AND col_2_text = REPEAT("o", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000)
+AND col_2_text = REPEAT("o", 4000);
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("c", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000)
+AND col_2_text = REPEAT("o", 4000);
+# Drop index
+#DROP INDEX prefix_idx ON worklog5743;
+ALTER TABLE worklog5743 DROP PRIMARY KEY;
+SELECT col_1_text = REPEAT("b", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("b", 4000)
+AND col_2_text = REPEAT("p", 4000);
+
+# Again add index length < 767
+ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_text (700));
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+SELECT col_1_text = REPEAT("a", 4000) FROM worklog5743;
+UPDATE worklog5743 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000)
+AND col_2_text = REPEAT("o", 4000);
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("c", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000)
+AND col_2_text = REPEAT("o", 4000);
+# Drop index
+ALTER TABLE worklog5743 DROP PRIMARY KEY;
+
+# Again add index length > 948. Expect error 'to big row ' due to exceed
+# in key length.
+-- error ER_TOO_BIG_ROWSIZE
+ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_text (950));
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+SELECT col_1_text = REPEAT("a", 4000) FROM worklog5743;
+UPDATE worklog5743 SET col_1_text = REPEAT("c", 4000)
+WHERE col_1_text = REPEAT("a", 4000)
+AND col_2_text = REPEAT("o", 4000);
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("c", 4000);
+SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743
+WHERE col_1_text = REPEAT("c", 4000)
+AND col_2_text = REPEAT("o", 4000);
+
+DROP TABLE worklog5743;
+
+# -----------------------------------------------------------------------------
+#  Create prefix index with length < 3072 , length = 3072 , length > 3072
+# data types VARCHAR
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) , PRIMARY KEY (col_1_varchar(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+ALTER TABLE worklog5743 DROP PRIMARY KEY;
+ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_varchar (900));
+ALTER TABLE worklog5743 DROP PRIMARY KEY;
+# Again add index length > 3072. Expect error.Length exceeds maximum supported
+# key length
+# Again add index length > 3072.
+# Index prefix larger than 3072 will be truncated to 3072.
+# If the table is REDUNDANT or COMPACT, which do
+# not support prefix > 767, the create index will be rejected.
+# Index length is truncated only for 'create index' , but error if we add
+# prefix index with length > 3072
+--error ER_TOO_LONG_KEY
+ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_varchar (3073));
+DROP TABLE worklog5743;
+
+
+CREATE TABLE worklog5743 (
+col_1_BLOB BLOB (4000) , PRIMARY KEY (col_1_BLOB(3072))
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+ALTER TABLE worklog5743 DROP PRIMARY KEY;
+ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_BLOB (500));
+ALTER TABLE worklog5743 DROP PRIMARY KEY;
+# Negative case
+# Again add index length > 3072. Expect error.Length exceeds maximum supported
+# key length
+# Index length is truncated only for 'create index' , but error if we add
+# prefix index with length > 3072
+--error ER_TOO_LONG_KEY
+ALTER TABLE worklog5743 ADD PRIMARY KEY (col_1_BLOB (3073));
+
+DROP TABLE worklog5743;
+
+# -----------------------------------------------------------------------------
+# Error on adding larger prefix if violates unique index.
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000)
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743
+VALUES(concat(REPEAT("a", 2000),REPEAT("b", 1000),REPEAT("c", 1000)),
+REPEAT("o", 4000));
+INSERT INTO worklog5743
+VALUES(concat(REPEAT("a", 2000),REPEAT("b", 2000)), REPEAT("o", 4000));
+--error ER_DUP_ENTRY
+ALTER TABLE worklog5743 ADD PRIMARY KEY `pk_idx` (col_1_varchar(3000));
+DROP TABLE worklog5743;
+
+# -----------------------------------------------------------------------------
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY (col_1_varchar(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+SHOW CREATE TABLE worklog5743;
+DROP TABLE worklog5743;
+
+
+# -----------------------------------------------------------------------------
+# Backward compatibility test - Index lenghth > 767 is truncated for REDUNDANT
+# and COMPACT
+CREATE TABLE worklog5743 (
+col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
+PRIMARY KEY (col_1_varchar(767))
+) charset latin1 engine = innodb ROW_FORMAT=COMPACT;
+INSERT INTO worklog5743 VALUES(REPEAT('a',4000),REPEAT('b',4000));
+# Prefix index > 767 is truncated with REDUNDANT and COMPACT
+--enable_info
+--error ER_TOO_LONG_KEY
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (767));
+ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;
+--disable_info
+SHOW CREATE TABLE worklog5743;
+DROP TABLE worklog5743;
+#------------------------------------------------------------------------------
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
+
+--disable_query_log
+eval set global innodb_file_per_table = $innodb_file_per_table_orig;

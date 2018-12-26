@@ -1,0 +1,160 @@
+##############################################################################
+# This test checks the basic functionality of replication with Xplugin setup.
+#
+# NOTE : All queries will run through mysqlx plugin using MYSQLXTEST --ssl-mode=REQUIRED.
+#
+# Steps involved in this test :
+# 0. This test requires 2 servers.
+# 1. Set up master and slave servers.
+# 2. Start the slave server.
+# 3. Perform ddl and dml operations on master and slave servers.
+#    a) master : Create table T1 and perform ddl on T1.
+#    b) slave : Create table T2 and perform ddl on T1 & T2.
+# 4. Assert for values on on tables from slave server.
+# 5. Stop slave through mysqlx.
+# 6. uninstall mysqlx plugin on both master and slave servers.
+# 7. clean-up
+##############################################################################
+
+--source include/have_mysqlx_plugin.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+
+# Install Mysqlx plugin on both master and slave servers.
+
+--source include/rpl_connection_master.inc
+--source include/xplugin_wait_for_interfaces.inc
+
+--source include/rpl_connection_slave.inc
+--source include/xplugin_wait_for_interfaces.inc
+
+# File for starting slave through X-protocol
+
+--write_file $MYSQL_TMP_DIR/start_slave.tmp
+-->sql
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_USER= 'root';
+START SLAVE;
+-->endsql
+EOF
+
+# Starting the slave through mysqlx
+--echo Starting the slave server
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/start_slave.tmp 2>&1
+
+# Temp file for performing ddl and dml on master
+
+--source include/rpl_connection_master.inc
+--write_file $MYSQL_TMP_DIR/ddl_dml_on_master.tmp
+-->sql
+USE test;
+CREATE TABLE T1 (C1 INT PRIMARY KEY, C2 INT );
+
+XA START 'xstatement1';
+INSERT INTO T1 VALUES (1,12);
+INSERT INTO T1 VALUES (2,1234);
+INSERT INTO T1 VALUES (3,98765);
+UPDATE T1 SET C2 = C2 - 10;
+XA END 'xstatement1';
+XA PREPARE 'xstatement1';
+XA COMMIT 'xstatement1';
+
+DELETE FROM T1 WHERE C2 = 0;
+-->endsql
+EOF
+
+--disable_result_log
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$MASTER_X_MYPORT --file=$MYSQL_TMP_DIR/ddl_dml_on_master.tmp 2>&1
+--enable_result_log
+
+# Wait Until slave is in sync with master
+
+--source include/sync_slave_sql_with_master.inc
+
+# Temp file for performing ddl and dml on slave
+
+--write_file $MYSQL_TMP_DIR/ddl_dml_on_slave.tmp
+-->sql
+USE test;
+CREATE TABLE T2 (C1 CHAR(20) PRIMARY KEY, C2 INT );
+INSERT INTO T2 VALUES ('ABC',23);
+UPDATE T2 SET C2 = C2 + 27;
+INSERT INTO T1 VALUES (4,34);
+INSERT INTO T2 VALUES ('ABCDEF',23);
+INSERT INTO T1 VALUES (5,1234);
+INSERT INTO T2 VALUES ('ABCDEFGHIJ',23);
+DELETE FROM T2 WHERE C1 = 'ABC';
+INSERT INTO T2 VALUES ('XYZ',23);
+UPDATE T2 SET C1 = 'ABC' WHERE C1 ='XYZ';
+-->endsql
+EOF
+
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/ddl_dml_on_slave.tmp 2>&1
+
+# Asserts for values on each table.
+
+--write_file $MYSQL_TMP_DIR/assert.tmp
+
+-->echo Checking the value on T1
+-->wait_for 2	SELECT C2 FROM test.T1 WHERE C1=1
+
+-->echo Checking the value on T2
+-->wait_for 23	SELECT C2 FROM test.T2 WHERE C1="ABC"
+EOF
+
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/assert.tmp 2>&1
+
+
+# Temp for drop table on slave.
+--write_file $MYSQL_TMP_DIR/delete_tables_slave.tmp
+-->sql
+USE test;
+DROP TABLE T2;
+-->endsql
+EOF
+
+# Deleting second table on slave.
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/delete_tables_slave.tmp 2>&1
+
+# Temp for drop table.
+--write_file $MYSQL_TMP_DIR/delete_tables.tmp
+-->sql
+USE test;
+DROP TABLE T1;
+-->endsql
+EOF
+
+--source include/rpl_connection_master.inc
+# Deleting table
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$MASTER_X_MYPORT --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
+
+--source include/sync_slave_sql_with_master.inc
+
+# Creating temp file to stop slave.
+--write_file $MYSQL_TMP_DIR/stop_slave.tmp
+-->stmtsql STOP SLAVE;
+-->recvresult
+EOF
+
+# Stopping slave
+--echo Stopping slave
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/stop_slave.tmp 2>&1
+
+
+--source include/rpl_connection_master.inc
+
+--source include/rpl_connection_slave.inc
+
+# clean-up
+--remove_file $MYSQL_TMP_DIR/start_slave.tmp
+--remove_file $MYSQL_TMP_DIR/ddl_dml_on_master.tmp
+--remove_file $MYSQL_TMP_DIR/ddl_dml_on_slave.tmp
+--remove_file $MYSQL_TMP_DIR/delete_tables.tmp
+--remove_file $MYSQL_TMP_DIR/delete_tables_slave.tmp
+--remove_file $MYSQL_TMP_DIR/assert.tmp
+--remove_file $MYSQL_TMP_DIR/stop_slave.tmp
+
+--source include/start_slave.inc
+--source include/rpl_end.inc

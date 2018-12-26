@@ -1,0 +1,171 @@
+SET @start_global_value = @@global.default_week_format;
+SELECT @start_global_value;
+@start_global_value
+0
+SET @start_session_value = @@session.default_week_format;
+SELECT @start_session_value;
+@start_session_value
+0
+'#--------------------FN_DYNVARS_022_01-------------------------#'
+SET @@global.default_week_format = 100;
+Warnings:
+Warning	1292	Truncated incorrect default_week_format value: '100'
+SET @@global.default_week_format = DEFAULT;
+SELECT @@global.default_week_format;
+@@global.default_week_format
+0
+SET @@session.default_week_format = 200;
+Warnings:
+Warning	1292	Truncated incorrect default_week_format value: '200'
+SET @@session.default_week_format = DEFAULT;
+SELECT @@session.default_week_format;
+@@session.default_week_format
+0
+'#--------------------FN_DYNVARS_022_02-------------------------#'
+SET @@global.default_week_format = @start_global_value;
+SELECT @@global.default_week_format = 0;
+@@global.default_week_format = 0
+1
+SET @@session.default_week_format = @start_global_value;
+SELECT @@session.default_week_format = 0;
+@@session.default_week_format = 0
+1
+'#--------------------FN_DYNVARS_022_03-------------------------#'
+SET @@global.default_week_format = 1;
+SELECT @@global.default_week_format;
+@@global.default_week_format
+1
+SET @@global.default_week_format = 0;
+SELECT @@global.default_week_format;
+@@global.default_week_format
+0
+SET @@global.default_week_format = 7;
+SELECT @@global.default_week_format;
+@@global.default_week_format
+7
+'#--------------------FN_DYNVARS_022_04-------------------------#'
+SET @@session.default_week_format = 1;
+SELECT @@session.default_week_format;
+@@session.default_week_format
+1
+SET @@session.default_week_format = 0;
+SELECT @@session.default_week_format;
+@@session.default_week_format
+0
+SET @@session.default_week_format = 7;
+SELECT @@session.default_week_format;
+@@session.default_week_format
+7
+'#------------------FN_DYNVARS_022_05-----------------------#'
+SET @@global.default_week_format = 8;
+Warnings:
+Warning	1292	Truncated incorrect default_week_format value: '8'
+SELECT @@global.default_week_format;
+@@global.default_week_format
+7
+SET @@global.default_week_format = -1024;
+Warnings:
+Warning	1292	Truncated incorrect default_week_format value: '-1024'
+SELECT @@global.default_week_format;
+@@global.default_week_format
+0
+SET @@global.default_week_format = 65536;
+Warnings:
+Warning	1292	Truncated incorrect default_week_format value: '65536'
+SELECT @@global.default_week_format;
+@@global.default_week_format
+7
+SET @@global.default_week_format = 65530.30;
+ERROR 42000: Incorrect argument type to variable 'default_week_format'
+SELECT @@global.default_week_format;
+@@global.default_week_format
+7
+SET @@global.default_week_format = OFF;
+ERROR 42000: Incorrect argument type to variable 'default_week_format'
+SELECT @@global.default_week_format;
+@@global.default_week_format
+7
+SET @@session.default_week_format = ON;
+ERROR 42000: Incorrect argument type to variable 'default_week_format'
+SELECT @@session.default_week_format;
+@@session.default_week_format
+7
+SET @@session.default_week_format = 65530.30;
+ERROR 42000: Incorrect argument type to variable 'default_week_format'
+SELECT @@session.default_week_format;
+@@session.default_week_format
+7
+SET @@session.default_week_format = 10;
+Warnings:
+Warning	1292	Truncated incorrect default_week_format value: '10'
+SELECT @@session.default_week_format;
+@@session.default_week_format
+7
+SET @@session.default_week_format = -2;
+Warnings:
+Warning	1292	Truncated incorrect default_week_format value: '-2'
+SELECT @@session.default_week_format;
+@@session.default_week_format
+0
+SET @@session.default_week_format = 65550;
+Warnings:
+Warning	1292	Truncated incorrect default_week_format value: '65550'
+SELECT @@session.default_week_format;
+@@session.default_week_format
+7
+'#------------------FN_DYNVARS_022_06-----------------------#'
+SELECT @@global.default_week_format = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='default_week_format';
+@@global.default_week_format = VARIABLE_VALUE
+1
+SELECT @@session.default_week_format = VARIABLE_VALUE 
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='default_week_format';
+@@session.default_week_format = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_022_07-----------------------#'
+SET @@global.default_week_format = TRUE;
+SELECT @@global.default_week_format;
+@@global.default_week_format
+1
+SET @@global.default_week_format = FALSE;
+SELECT @@global.default_week_format;
+@@global.default_week_format
+0
+'#---------------------FN_DYNVARS_001_08----------------------#'
+SET @@global.default_week_format = 0;
+SELECT @@default_week_format = @@global.default_week_format;
+@@default_week_format = @@global.default_week_format
+0
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@default_week_format = 1;
+SELECT @@default_week_format = @@local.default_week_format;
+@@default_week_format = @@local.default_week_format
+1
+SELECT @@local.default_week_format = @@session.default_week_format;
+@@local.default_week_format = @@session.default_week_format
+1
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET default_week_format = 1;
+SELECT @@default_week_format;
+@@default_week_format
+1
+SET local.default_week_format = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.default_week_format = 1' at line 1
+SELECT local.default_week_format;
+ERROR 42S02: Unknown table 'local' in field list
+SET session.default_week_format = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.default_week_format = 1' at line 1
+SELECT session.default_week_format;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT default_week_format = @@session.default_week_format;
+ERROR 42S22: Unknown column 'default_week_format' in 'field list'
+SET @@global.default_week_format = @start_global_value;
+SELECT @@global.default_week_format;
+@@global.default_week_format
+0
+SET @@session.default_week_format = @start_session_value;
+SELECT @@session.default_week_format;
+@@session.default_week_format
+0

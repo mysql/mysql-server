@@ -1,0 +1,18 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+OPTIMIZE TABLE non_existing;
+Table	Op	Msg_type	Msg_text
+test.non_existing	optimize	Error	Table 'test.non_existing' doesn't exist
+test.non_existing	optimize	status	Operation failed
+select * from t1;
+a
+1
+commit;
+drop table t1;
+include/rpl_end.inc

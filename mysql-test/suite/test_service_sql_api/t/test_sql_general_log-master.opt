@@ -1,0 +1,2 @@
+$TEST_SQL_2_SESSIONS_OPT 
+--local-infile=true

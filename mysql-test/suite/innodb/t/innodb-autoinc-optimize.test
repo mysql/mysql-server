@@ -1,0 +1,16 @@
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Bug 34286
+#
+create table t1(a int not null auto_increment primary key) engine=innodb;
+insert into t1 set a = -1;
+# NOTE: The database needs to be shutdown and restarted (here) for
+# the test to work. It's included for reference only.
+optimize table t1;
+
+--echo ==== clean up ====
+DROP TABLE t1;

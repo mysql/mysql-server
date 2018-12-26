@@ -1,0 +1,62 @@
+# Check the replication of the FOREIGN_KEY_CHECKS variable.
+
+-- source include/master-slave.inc
+
+eval CREATE TABLE t1 (a INT AUTO_INCREMENT KEY) ENGINE=$engine_type;
+eval CREATE TABLE t2 (b INT AUTO_INCREMENT KEY, c INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE=$engine_type;
+
+SET FOREIGN_KEY_CHECKS=0;
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t2 VALUES (5,0);
+INSERT INTO t2 VALUES (NULL,LAST_INSERT_ID());
+SET FOREIGN_KEY_CHECKS=1;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY b;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY b;
+
+connection master;
+SET TIMESTAMP=1000000000;
+CREATE TABLE t3 ( a INT UNIQUE );
+SET FOREIGN_KEY_CHECKS=0;
+# Had to add 1022 for run with ndb as ndb uses different
+# error and error code for error ER_DUP_ENTRY. Bug 16677
+--error 1022, ER_DUP_ENTRY
+INSERT INTO t3 VALUES (1),(1);
+--source include/sync_slave_sql_with_master.inc
+
+connection master;
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE IF EXISTS t1,t2,t3;
+SET FOREIGN_KEY_CHECKS=1;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Bug #32468 delete rows event on a table with foreign key constraint fails
+#
+
+connection master;
+
+eval create table t1 (b int primary key) engine = $engine_type;
+eval create table t2 (a int primary key, b int, foreign key (b) references t1(b))
+       engine = $engine_type;
+
+insert into t1 set b=1;
+insert into t2 set a=1, b=1;
+
+set foreign_key_checks=0;
+delete from t1;
+
+--echo must sync w/o a problem (could not with the buggy code)
+--source include/sync_slave_sql_with_master.inc
+select count(*) from t1 /* must be zero */;
+
+
+# cleanup for bug#32468
+
+connection master;
+drop table t2,t1;
+
+--source include/rpl_end.inc

@@ -1,0 +1,166 @@
+# ==== Purpose ====
+#
+# Verify that SET @@session.binlog_format must be
+# disallowed if session has open temporary table(s).
+#
+# ==== Implementation ====
+#
+# 1. SET @@session.binlog_format= STATEMENT;
+# 2. Verify that SET @@session.binlog_format is disallowed
+#    when the session has open temporary table(s).
+# 3. SET @@session.binlog_format= ROW;
+# 4. Verify that SET @@session.binlog_format is disallowed
+#    when the session has open temporary table(s).
+# 5. SET @@session.binlog_format= MIXED;
+# 6. Verify that SET @@session.binlog_format is disallowed
+#    when the session has open temporary table(s).
+#
+# ==== References ====
+#
+# Wl#8872 Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+--source include/have_log_bin.inc
+
+--let $i= 1
+
+while ($i < 4)
+{
+  if ($i == 1)
+  {
+    --let $binlog_format_select_stmt= @@SESSION.binlog_format
+    --let $binlog_format_set_stmt= SESSION binlog_format
+  }
+  if ($i == 2)
+  {
+    --let $binlog_format_select_stmt= @@SESSION.binlog_format
+    --let $binlog_format_set_stmt= @@SESSION.binlog_format
+  }
+  if ($i == 3)
+  {
+    --let $binlog_format_select_stmt= @@binlog_format
+    --let $binlog_format_set_stmt= @@binlog_format
+  }
+
+  --eval SET $binlog_format_set_stmt = 'STATEMENT'
+  --let $assert_text= assert that @@SESSION.binlog_format is STATEMENT
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "STATEMENT"
+  --source include/assert.inc
+
+  CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
+
+  --echo #
+  --echo # Test switching binlog_format from STATEMENT to STATEMENT
+  --echo # is disallowed when the session has open temporary table(s).
+  --echo #
+  --error ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  --eval SET $binlog_format_set_stmt = STATEMENT
+  --let $assert_text= assert that @@SESSION.binlog_format is not changed
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "STATEMENT"
+  --source include/assert.inc
+
+  --echo #
+  --echo # Test switching binlog_format from STATEMENT to 'ROW'
+  --echo # is disallowed when the session has open temporary table(s).
+  --echo #
+  --error ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  --eval SET $binlog_format_set_stmt = 'ROW'
+  --let $assert_text= assert that @@SESSION.binlog_format is not changed
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "STATEMENT"
+  --source include/assert.inc
+
+  --echo #
+  --echo # Test switching binlog_format from STATEMENT to MIXED
+  --echo # is disallowed when the session has open temporary table(s).
+  --echo #
+  --error ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  --eval SET $binlog_format_set_stmt = MIXED
+  --let $assert_text= assert that @@SESSION.binlog_format is not changed
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "STATEMENT"
+  --source include/assert.inc
+
+  --echo # Set binlog_format to ROW
+  DROP TEMPORARY TABLE t1;
+  --eval SET $binlog_format_set_stmt = 'ROW'
+  --let $assert_text= assert that @@SESSION.binlog_format is set to ROW
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "ROW"
+  --source include/assert.inc
+
+  CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
+  --echo #
+  --echo # Test switching binlog_format from ROW to MIXED
+  --echo # is disallowed when the session has open temporary table(s).
+  --echo #
+  --error ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  --eval SET $binlog_format_set_stmt = MIXED
+  --let $assert_text= assert that @@SESSION.binlog_format is not changed
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "ROW"
+  --source include/assert.inc
+
+  --echo #
+  --echo # Test switching binlog_format from ROW to STATEMENT
+  --echo # is disallowed when the session has open temporary table(s).
+  --echo #
+  --error ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  --eval SET $binlog_format_set_stmt = STATEMENT
+  --let $assert_text= assert that @@SESSION.binlog_format is not changed
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "ROW"
+  --source include/assert.inc
+
+  --echo #
+  --echo # Test switching binlog_format from ROW to ROW
+  --echo # is disallowed when the session has open temporary table(s).
+  --echo #
+  --error ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  --eval SET $binlog_format_set_stmt = ROW
+  --let $assert_text= assert that @@SESSION.binlog_format is not changed
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "ROW"
+  --source include/assert.inc
+
+  --echo # Set binlog_format to MIXED
+  DROP TEMPORARY TABLE t1;
+  --eval SET $binlog_format_set_stmt = 'MIXED'
+  --let $assert_text= assert that @@SESSION.binlog_format is set to MIXED
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "MIXED"
+  --source include/assert.inc
+
+  CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
+  --echo #
+  --echo # Test switching binlog_format from MIXED to MIXED
+  --echo # is disallowed when the session has open temporary table(s).
+  --echo #
+  --error ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  --eval SET $binlog_format_set_stmt = MIXED
+  --let $assert_text= assert that @@SESSION.binlog_format is not changed
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "MIXED"
+  --source include/assert.inc
+
+  --echo #
+  --echo # Test switching binlog_format from MIXED to STATEMENT
+  --echo # is disallowed when the session has open temporary table(s).
+  --echo #
+  --error ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  --eval SET $binlog_format_set_stmt = STATEMENT
+  --let $assert_text= assert that @@SESSION.binlog_format is not changed
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "MIXED"
+  --source include/assert.inc
+
+  --echo #
+  --echo # Test switching binlog_format from MIXED to ROW
+  --echo # is disallowed when the session has open temporary table(s).
+  --echo #
+  --error ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  --eval SET $binlog_format_set_stmt = ROW
+  --let $assert_text= assert that @@SESSION.binlog_format is not changed
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "MIXED"
+  --source include/assert.inc
+
+  --echo # Reset binlog_format to STATEMENT
+  DROP TEMPORARY TABLE t1;
+  --eval SET $binlog_format_set_stmt = STATEMENT
+  --let $assert_text= assert that @@SESSION.binlog_format is set to STATEMENT
+  --let $assert_cond= "[SELECT $binlog_format_select_stmt]" = "STATEMENT"
+  --source include/assert.inc
+  --inc $i
+}

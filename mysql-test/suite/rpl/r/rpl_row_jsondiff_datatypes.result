@@ -1,0 +1,811 @@
+include/rpl_init.inc [topology=1->2->3->4->5->6]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_default_connections.inc
+######## INITIALIZE ########
+include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = PARTIAL_JSON;
+SET @@GLOBAL.BINLOG_ROW_IMAGE = MINIMAL;
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = PARTIAL_JSON;
+]
+include/rpl_stop_slaves.inc
+include/rpl_start_slaves.inc
+******** Data types ********
+include/rpl_for_each_server_stmt.inc [SET SQL_LOG_BIN = 0;
+DROP TABLE IF EXISTS t;
+CREATE TABLE t (
+i INT ,
+j JSON,
+nullint INT DEFAULT NULL,
+emptystring CHAR(0) DEFAULT '',
+quotestring VARCHAR(100), # No default
+bit_ BIT DEFAULT 1,
+bit_50_ BIT(50) DEFAULT b'1111100000111110000011111000001111100000',
+bool_false BOOL DEFAULT false,
+bool_true BOOL DEFAULT true,
+tinyint_ TINYINT DEFAULT -100,
+tinyint_1_ TINYINT(1) DEFAULT -9,
+tinyint_u_ TINYINT UNSIGNED DEFAULT 250,
+tinyint_1_u_ TINYINT(1) UNSIGNED DEFAULT 9,
+smallint_ SMALLINT DEFAULT -12345,
+smallint_3_ SMALLINT(3) DEFAULT -987,
+smallint_u_ SMALLINT UNSIGNED DEFAULT 45678,
+smallint_3_u_ SMALLINT(3) UNSIGNED DEFAULT 987,
+int_ INT DEFAULT -1234567,
+int_6_ INT(6) DEFAULT -123456,
+int_u_ INT UNSIGNED DEFAULT 3222111000,
+int_6_u_ INT(6) UNSIGNED DEFAULT 987654,
+bigint_ BIGINT DEFAULT -5444333222111,
+bigint_12_ BIGINT(16) DEFAULT -6555444333222111,
+bigint_u_ BIGINT UNSIGNED DEFAULT 5444333222111,
+bigint_12_u_ BIGINT(12) UNSIGNED DEFAULT 6555444333222111,
+decimal_ DECIMAL DEFAULT -987654321,
+decimal_10_5_ DECIMAL(10, 5) DEFAULT -12345.6789,
+decimal_u_ DECIMAL UNSIGNED DEFAULT 987654321,
+decimal_10_5_u_ DECIMAL(10, 5) UNSIGNED DEFAULT 12345.6789,
+float_ FLOAT DEFAULT -5.4321e+20,
+float_4_2_ FLOAT(4, 2) DEFAULT -43.21,
+float_u_ FLOAT UNSIGNED DEFAULT 6.54321e+10,
+float_4_2_u_ FLOAT(4, 2) UNSIGNED DEFAULT 12.34,
+double_ DOUBLE DEFAULT -9.87654321e+300,
+double_20_10_ DOUBLE(20, 10) DEFAULT -9.8765e+9,
+double_u_ DOUBLE UNSIGNED DEFAULT 9.87654321e+300,
+double_20_10_u_ DOUBLE(20, 10) UNSIGNED DEFAULT 9.8765e+9,
+date_ DATE DEFAULT '2017-05-19',
+datetime_ DATETIME DEFAULT '2017-05-20 6:00:00',
+datetime_6_ DATETIME(6) DEFAULT '2017-05-21 7:01:01.000001',
+timestamp_ TIMESTAMP DEFAULT '2017-05-22 8:02:02',
+timestamp_6_ TIMESTAMP(6) DEFAULT '2017-05-23 9:03:03.000003',
+time_ TIME DEFAULT '10:04:04',
+time_6_ TIME(6) DEFAULT '10:05:05.000005',
+year_ YEAR DEFAULT 2018,
+binary_ BINARY DEFAULT 'a',
+binary_10_ BINARY(10) DEFAULT '\x00\x01',
+varbinary_1000_ VARBINARY(1000) DEFAULT '\xaa',
+tinyblob_ TINYBLOB, # cannot have default
+blob_ BLOB, # cannot have default
+blob_10_ BLOB(10), # cannot have default
+mediumblob_ MEDIUMBLOB, # cannot have default
+longblob_ LONGBLOB, # cannot have default
+char_ CHAR DEFAULT 'g',
+char_10_ CHAR(10) DEFAULT 'hij',
+varchar_1000_ VARCHAR(1000) DEFAULT 'klm',
+tinytext_ TINYTEXT, # cannot have default
+text_ TEXT, # cannot have default
+text_10_ TEXT(10), # cannot have default
+mediumtext_ MEDIUMTEXT, # cannot have default
+longtext_ LONGTEXT, # cannot have default
+enum_ ENUM('abc', 'def', 'ghi') DEFAULT 'def',
+set_ SET('jkl', 'mno', 'pqr') DEFAULT 'jkl,pqr',
+json_ JSON # cannot have default
+);
+# Doing explicit insert instead of setting the rows variable, since
+# mtr gets confused by escapes and to easier make use of default
+# values.
+INSERT INTO t SET
+i = 1,
+j = '["xyzw", 0]',
+# Using numeric character codes to not confuse mtr.  Omitting
+# CHAR(1) and \f because there is no escape sequence that mysql
+# understands for them.  Omitting CHAR(0) and \Z becuase
+# mysqlbinlog -v does not output the escape sequence that mysql
+# understands for them.  This is not supposed to be exact SQL
+# anyways.
+#                   backslash  quote    doublequote backtick dollar
+quotestring = CONCAT(CHAR(92), CHAR(39), CHAR(34), CHAR(96), CHAR(36), '%', '_', '\b\n\r\t'),
+tinyblob_ = CHAR(0xbb),
+blob_ = CHAR(0xcc),
+blob_10_ = CHAR(0xdd),
+mediumblob_ = CHAR(0xee),
+longblob_ = CHAR(0xff),
+tinytext_ = 'nop',
+text_ = 'qrs',
+text_10_ = 'tuv',
+mediumtext_ = 'wxy',
+longtext_ = 'z',
+json_ = '{ "a" : [ 1, 2.3, null, false, "text" ] }';
+SET SQL_LOG_BIN = 1;
+]
+---- 1. Update from int(11) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 0]
+UPDATE t SET j = JSON_SET(j, '$[1]', nullint ) WHERE i = 1
+# After update
+j
+["xyzw", null]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', null) WHERE i=1 AND j=CAST('["xyzw", 0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 2. Update from char(0) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", null]
+UPDATE t SET j = JSON_SET(j, '$[1]', emptystring ) WHERE i = 1
+# After update
+j
+["xyzw", ""]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '') WHERE i=1 AND j=CAST('["xyzw", null]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 3. Update from varchar(100) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", ""]
+UPDATE t SET j = JSON_SET(j, '$[1]', quotestring ) WHERE i = 1
+# After update
+j
+["xyzw", "\\'\"`$%_\b\n\r\t"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '\\\'"`$%_\b\n\r\t') WHERE i=1 AND j=CAST('["xyzw", ""]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 4. Update from bit(1) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "\\'\"`$%_\b\n\r\t"]
+UPDATE t SET j = JSON_SET(j, '$[1]', bit_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type16:AQ=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type16:AQ==') WHERE i=1 AND j=CAST('["xyzw", "\\\\\'\\"`$%_\\b\\n\\r\\t"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 5. Update from bit(50) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type16:AQ=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', bit_50_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type16:AAD4Pg+D4A=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type16:AAD4Pg+D4A==') WHERE i=1 AND j=CAST('["xyzw", "base64:type16:AQ=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 6. Update from tinyint(1) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type16:AAD4Pg+D4A=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', bool_false ) WHERE i = 1
+# After update
+j
+["xyzw", 0]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 0) WHERE i=1 AND j=CAST('["xyzw", "base64:type16:AAD4Pg+D4A=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 7. Update from tinyint(1) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 0]
+UPDATE t SET j = JSON_SET(j, '$[1]', bool_true ) WHERE i = 1
+# After update
+j
+["xyzw", 1]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 1) WHERE i=1 AND j=CAST('["xyzw", 0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 8. Update from tinyint(4) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 1]
+UPDATE t SET j = JSON_SET(j, '$[1]', tinyint_ ) WHERE i = 1
+# After update
+j
+["xyzw", -100]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -100) WHERE i=1 AND j=CAST('["xyzw", 1]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 9. Update from tinyint(1) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -100]
+UPDATE t SET j = JSON_SET(j, '$[1]', tinyint_1_ ) WHERE i = 1
+# After update
+j
+["xyzw", -9]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -9) WHERE i=1 AND j=CAST('["xyzw", -100]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 10. Update from tinyint(3) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -9]
+UPDATE t SET j = JSON_SET(j, '$[1]', tinyint_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 250]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 250) WHERE i=1 AND j=CAST('["xyzw", -9]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 11. Update from tinyint(1) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 250]
+UPDATE t SET j = JSON_SET(j, '$[1]', tinyint_1_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 9]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 9) WHERE i=1 AND j=CAST('["xyzw", 250]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 12. Update from smallint(6) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 9]
+UPDATE t SET j = JSON_SET(j, '$[1]', smallint_ ) WHERE i = 1
+# After update
+j
+["xyzw", -12345]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -12345) WHERE i=1 AND j=CAST('["xyzw", 9]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 13. Update from smallint(3) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -12345]
+UPDATE t SET j = JSON_SET(j, '$[1]', smallint_3_ ) WHERE i = 1
+# After update
+j
+["xyzw", -987]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -987) WHERE i=1 AND j=CAST('["xyzw", -12345]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 14. Update from smallint(5) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -987]
+UPDATE t SET j = JSON_SET(j, '$[1]', smallint_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 45678]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 45678) WHERE i=1 AND j=CAST('["xyzw", -987]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 15. Update from smallint(3) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 45678]
+UPDATE t SET j = JSON_SET(j, '$[1]', smallint_3_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 987]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 987) WHERE i=1 AND j=CAST('["xyzw", 45678]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 16. Update from int(11) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 987]
+UPDATE t SET j = JSON_SET(j, '$[1]', int_ ) WHERE i = 1
+# After update
+j
+["xyzw", -1234567]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -1234567) WHERE i=1 AND j=CAST('["xyzw", 987]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 17. Update from int(6) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -1234567]
+UPDATE t SET j = JSON_SET(j, '$[1]', int_6_ ) WHERE i = 1
+# After update
+j
+["xyzw", -123456]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -123456) WHERE i=1 AND j=CAST('["xyzw", -1234567]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 18. Update from int(10) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -123456]
+UPDATE t SET j = JSON_SET(j, '$[1]', int_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 3222111000]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 3222111000) WHERE i=1 AND j=CAST('["xyzw", -123456]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 19. Update from int(6) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 3222111000]
+UPDATE t SET j = JSON_SET(j, '$[1]', int_6_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 987654]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 987654) WHERE i=1 AND j=CAST('["xyzw", 3222111000]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 20. Update from bigint(20) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 987654]
+UPDATE t SET j = JSON_SET(j, '$[1]', bigint_ ) WHERE i = 1
+# After update
+j
+["xyzw", -5444333222111]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -5444333222111) WHERE i=1 AND j=CAST('["xyzw", 987654]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 21. Update from bigint(16) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -5444333222111]
+UPDATE t SET j = JSON_SET(j, '$[1]', bigint_12_ ) WHERE i = 1
+# After update
+j
+["xyzw", -6555444333222111]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -6555444333222111) WHERE i=1 AND j=CAST('["xyzw", -5444333222111]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 22. Update from bigint(20) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -6555444333222111]
+UPDATE t SET j = JSON_SET(j, '$[1]', bigint_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 5444333222111]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 5444333222111) WHERE i=1 AND j=CAST('["xyzw", -6555444333222111]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 23. Update from bigint(12) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 5444333222111]
+UPDATE t SET j = JSON_SET(j, '$[1]', bigint_12_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 6555444333222111]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 6555444333222111) WHERE i=1 AND j=CAST('["xyzw", 5444333222111]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 24. Update from decimal(10,0) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 6555444333222111]
+UPDATE t SET j = JSON_SET(j, '$[1]', decimal_ ) WHERE i = 1
+# After update
+j
+["xyzw", -987654321]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -987654321) WHERE i=1 AND j=CAST('["xyzw", 6555444333222111]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 25. Update from decimal(10,5) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -987654321]
+UPDATE t SET j = JSON_SET(j, '$[1]', decimal_10_5_ ) WHERE i = 1
+# After update
+j
+["xyzw", -12345.67890]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -12345.67890) WHERE i=1 AND j=CAST('["xyzw", -987654321]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 26. Update from decimal(10,0) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -12345.67890]
+UPDATE t SET j = JSON_SET(j, '$[1]', decimal_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 987654321]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 987654321) WHERE i=1 AND j=CAST('["xyzw", -12345.67890]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 27. Update from decimal(10,5) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 987654321]
+UPDATE t SET j = JSON_SET(j, '$[1]', decimal_10_5_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 12345.67890]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 12345.67890) WHERE i=1 AND j=CAST('["xyzw", 987654321]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 28. Update from float column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 12345.67890]
+UPDATE t SET j = JSON_SET(j, '$[1]', float_ ) WHERE i = 1
+# After update
+j
+["xyzw", -5.432100077514774e20]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -5.432100077514774e20) WHERE i=1 AND j=CAST('["xyzw", 12345.67890]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 29. Update from float(4,2) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -5.432100077514774e20]
+UPDATE t SET j = JSON_SET(j, '$[1]', float_4_2_ ) WHERE i = 1
+# After update
+j
+["xyzw", -43.209999084472656]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -43.209999084472656) WHERE i=1 AND j=CAST('["xyzw", -5.432100077514774e20]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 30. Update from float unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -43.209999084472656]
+UPDATE t SET j = JSON_SET(j, '$[1]', float_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 65432100864.0]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 65432100864.0) WHERE i=1 AND j=CAST('["xyzw", -43.209999084472656]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 31. Update from float(4,2) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 65432100864.0]
+UPDATE t SET j = JSON_SET(j, '$[1]', float_4_2_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 12.34000015258789]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 12.34000015258789) WHERE i=1 AND j=CAST('["xyzw", 65432100864.0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 32. Update from double column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 12.34000015258789]
+UPDATE t SET j = JSON_SET(j, '$[1]', double_ ) WHERE i = 1
+# After update
+j
+["xyzw", -9.87654321e300]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -9.87654321e300) WHERE i=1 AND j=CAST('["xyzw", 12.34000015258789]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 33. Update from double(20,10) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -9.87654321e300]
+UPDATE t SET j = JSON_SET(j, '$[1]', double_20_10_ ) WHERE i = 1
+# After update
+j
+["xyzw", -9876500000.0]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -9876500000.0) WHERE i=1 AND j=CAST('["xyzw", -9.87654321e300]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 34. Update from double unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", -9876500000.0]
+UPDATE t SET j = JSON_SET(j, '$[1]', double_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 9.87654321e300]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 9.87654321e300) WHERE i=1 AND j=CAST('["xyzw", -9876500000.0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 35. Update from double(20,10) unsigned column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 9.87654321e300]
+UPDATE t SET j = JSON_SET(j, '$[1]', double_20_10_u_ ) WHERE i = 1
+# After update
+j
+["xyzw", 9876500000.0]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 9876500000.0) WHERE i=1 AND j=CAST('["xyzw", 9.87654321e300]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 36. Update from date column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", 9876500000.0]
+UPDATE t SET j = JSON_SET(j, '$[1]', date_ ) WHERE i = 1
+# After update
+j
+["xyzw", "2017-05-19"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-19') WHERE i=1 AND j=CAST('["xyzw", 9876500000.0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 37. Update from datetime column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "2017-05-19"]
+UPDATE t SET j = JSON_SET(j, '$[1]', datetime_ ) WHERE i = 1
+# After update
+j
+["xyzw", "2017-05-20 06:00:00.000000"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-20 06:00:00.000000') WHERE i=1 AND j=CAST('["xyzw", "2017-05-19"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 38. Update from datetime(6) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "2017-05-20 06:00:00.000000"]
+UPDATE t SET j = JSON_SET(j, '$[1]', datetime_6_ ) WHERE i = 1
+# After update
+j
+["xyzw", "2017-05-21 07:01:01.000001"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-21 07:01:01.000001') WHERE i=1 AND j=CAST('["xyzw", "2017-05-20 06:00:00.000000"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 39. Update from timestamp column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "2017-05-21 07:01:01.000001"]
+UPDATE t SET j = JSON_SET(j, '$[1]', timestamp_ ) WHERE i = 1
+# After update
+j
+["xyzw", "2017-05-22 08:02:02.000000"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-22 08:02:02.000000') WHERE i=1 AND j=CAST('["xyzw", "2017-05-21 07:01:01.000001"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 40. Update from timestamp(6) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "2017-05-22 08:02:02.000000"]
+UPDATE t SET j = JSON_SET(j, '$[1]', timestamp_6_ ) WHERE i = 1
+# After update
+j
+["xyzw", "2017-05-23 09:03:03.000003"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-23 09:03:03.000003') WHERE i=1 AND j=CAST('["xyzw", "2017-05-22 08:02:02.000000"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 41. Update from time column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "2017-05-23 09:03:03.000003"]
+UPDATE t SET j = JSON_SET(j, '$[1]', time_ ) WHERE i = 1
+# After update
+j
+["xyzw", "10:04:04.000000"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '10:04:04.000000') WHERE i=1 AND j=CAST('["xyzw", "2017-05-23 09:03:03.000003"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 42. Update from time(6) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "10:04:04.000000"]
+UPDATE t SET j = JSON_SET(j, '$[1]', time_6_ ) WHERE i = 1
+# After update
+j
+["xyzw", "10:05:05.000005"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '10:05:05.000005') WHERE i=1 AND j=CAST('["xyzw", "10:04:04.000000"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 43. Update from year(4) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "10:05:05.000005"]
+UPDATE t SET j = JSON_SET(j, '$[1]', year_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type13:MjAxOA=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type13:MjAxOA==') WHERE i=1 AND j=CAST('["xyzw", "10:05:05.000005"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 44. Update from binary(1) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type13:MjAxOA=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', binary_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type254:YQ=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type254:YQ==') WHERE i=1 AND j=CAST('["xyzw", "base64:type13:MjAxOA=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 45. Update from binary(10) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type254:YQ=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', binary_10_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type254:eDAweDAxAAAAAA=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type254:eDAweDAxAAAAAA==') WHERE i=1 AND j=CAST('["xyzw", "base64:type254:YQ=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 46. Update from varbinary(1000) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type254:eDAweDAxAAAAAA=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', varbinary_1000_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type15:eGFh"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type15:eGFh') WHERE i=1 AND j=CAST('["xyzw", "base64:type254:eDAweDAxAAAAAA=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 47. Update from tinyblob column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type15:eGFh"]
+UPDATE t SET j = JSON_SET(j, '$[1]', tinyblob_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type249:uw=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type249:uw==') WHERE i=1 AND j=CAST('["xyzw", "base64:type15:eGFh"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 48. Update from blob column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type249:uw=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', blob_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type252:zA=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type252:zA==') WHERE i=1 AND j=CAST('["xyzw", "base64:type249:uw=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 49. Update from tinyblob column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type252:zA=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', blob_10_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type249:3Q=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type249:3Q==') WHERE i=1 AND j=CAST('["xyzw", "base64:type252:zA=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 50. Update from mediumblob column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type249:3Q=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', mediumblob_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type250:7g=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type250:7g==') WHERE i=1 AND j=CAST('["xyzw", "base64:type249:3Q=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 51. Update from longblob column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type250:7g=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', longblob_ ) WHERE i = 1
+# After update
+j
+["xyzw", "base64:type251:/w=="]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type251:/w==') WHERE i=1 AND j=CAST('["xyzw", "base64:type250:7g=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 52. Update from char(1) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "base64:type251:/w=="]
+UPDATE t SET j = JSON_SET(j, '$[1]', char_ ) WHERE i = 1
+# After update
+j
+["xyzw", "g"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'g') WHERE i=1 AND j=CAST('["xyzw", "base64:type251:/w=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 53. Update from char(10) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "g"]
+UPDATE t SET j = JSON_SET(j, '$[1]', char_10_ ) WHERE i = 1
+# After update
+j
+["xyzw", "hij"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'hij') WHERE i=1 AND j=CAST('["xyzw", "g"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 54. Update from varchar(1000) column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "hij"]
+UPDATE t SET j = JSON_SET(j, '$[1]', varchar_1000_ ) WHERE i = 1
+# After update
+j
+["xyzw", "klm"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'klm') WHERE i=1 AND j=CAST('["xyzw", "hij"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 55. Update from tinytext column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "klm"]
+UPDATE t SET j = JSON_SET(j, '$[1]', tinytext_ ) WHERE i = 1
+# After update
+j
+["xyzw", "nop"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'nop') WHERE i=1 AND j=CAST('["xyzw", "klm"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 56. Update from text column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "nop"]
+UPDATE t SET j = JSON_SET(j, '$[1]', text_ ) WHERE i = 1
+# After update
+j
+["xyzw", "qrs"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'qrs') WHERE i=1 AND j=CAST('["xyzw", "nop"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 57. Update from tinytext column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "qrs"]
+UPDATE t SET j = JSON_SET(j, '$[1]', text_10_ ) WHERE i = 1
+# After update
+j
+["xyzw", "tuv"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'tuv') WHERE i=1 AND j=CAST('["xyzw", "qrs"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 58. Update from mediumtext column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "tuv"]
+UPDATE t SET j = JSON_SET(j, '$[1]', mediumtext_ ) WHERE i = 1
+# After update
+j
+["xyzw", "wxy"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'wxy') WHERE i=1 AND j=CAST('["xyzw", "tuv"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 59. Update from longtext column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "wxy"]
+UPDATE t SET j = JSON_SET(j, '$[1]', longtext_ ) WHERE i = 1
+# After update
+j
+["xyzw", "z"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'z') WHERE i=1 AND j=CAST('["xyzw", "wxy"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 60. Update from enum('abc','def','ghi') column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "z"]
+UPDATE t SET j = JSON_SET(j, '$[1]', enum_ ) WHERE i = 1
+# After update
+j
+["xyzw", "def"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'def') WHERE i=1 AND j=CAST('["xyzw", "z"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 61. Update from set('jkl','mno','pqr') column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "def"]
+UPDATE t SET j = JSON_SET(j, '$[1]', set_ ) WHERE i = 1
+# After update
+j
+["xyzw", "jkl,pqr"]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'jkl,pqr') WHERE i=1 AND j=CAST('["xyzw", "def"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+---- 62. Update from json column ----
+include/rpl_row_jsondiff_scenario.inc
+# Before update
+j
+["xyzw", "jkl,pqr"]
+UPDATE t SET j = JSON_SET(j, '$[1]', json_ ) WHERE i = 1
+# After update
+j
+["xyzw", {"a": [1, 2.3, null, false, "text"]}]
+# Decoded rows
+UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON)) WHERE i=1 AND j=CAST('["xyzw", "jkl,pqr"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+######## CLEAN UP ########
+include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = FULL;
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = '';
+SET @@GLOBAL.BINLOG_ROW_IMAGE = FULL;
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = '';
+SET SESSION SQL_LOG_BIN = 0; DROP TABLE test.t; SET SESSION SQL_LOG_BIN = 1;
+]
+include/rpl_end.inc

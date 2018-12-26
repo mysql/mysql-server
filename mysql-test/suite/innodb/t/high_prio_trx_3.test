@@ -1,0 +1,73 @@
+# Scenario:
+#  T1= ({R(Z), R(B), W(Z), W(B)})
+#  T2= ({R(C), R(B), W(B)})
+#  T3= ({R(B), W(B), C}, HIGH_PRIORITY)
+#
+# Outcome: T1 must abort, T3 must commit, T2 must commit
+#          after T3.
+#
+# Lock -> {T1 granted, T2 waiting, T3 waiting};
+# Then T3 jumps the queue:
+# Lock -> {T1 granted, T3 waiting, T2 waiting};
+# T3 Rolls back T1
+# Lock -> {T3 granted, T2 waiting}
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 0, 0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+--connect(con3,localhost,root,,test)
+
+--echo
+--echo # On connection 1
+--connection con1
+START TRANSACTION;
+UPDATE t1 SET c1=1, c2=1 WHERE c1=0 AND c2=0;
+
+--echo
+--echo # On connection 2
+--connection con2
+START TRANSACTION;
+--send UPDATE t1 SET c2=2 WHERE c1=0 AND c2=3
+
+--echo
+--echo # On connection 3
+--connection con3
+--source include/start_transaction_high_prio.inc
+UPDATE t1 SET c2=3 WHERE c2=0;
+COMMIT;
+--disconnect con3
+
+--echo
+--echo # On connection 1
+--connection con1
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+--disconnect con1
+
+--echo
+--echo # On connection 2
+--connection con2
+--reap
+COMMIT;
+--disconnect con2
+
+--connection default
+--let $assert_text= 'There is no 3 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 0 AND t1.c2 = 3 AND t1.c3 = 0, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is a 2 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 0 AND t1.c2 = 2 AND t1.c3 = 0, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is no 1 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1 AND t1.c2 = 1 AND t1.c3 = 0, count, 1] = 0
+--source include/assert.inc
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

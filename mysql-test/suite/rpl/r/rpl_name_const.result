@@ -1,0 +1,29 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Initialize ====
+[on master]
+create table t1 (id int);
+==== create a procedure that has a column aliase in a subquery ====
+drop procedure if exists test_procedure;
+create procedure test_procedure(_id int)
+begin
+insert into t1 (id)
+select a.id
+from 
+( select _id as id ) a;
+end;$$
+==== enable the binary log, then call the procedure ====
+call test_procedure(1234);
+[on slave]
+include/sync_slave_sql_with_master.inc
+select * from t1 order by id;
+id
+1234
+==== Clean up ====
+[on master]
+drop table t1;
+drop procedure test_procedure;
+include/rpl_end.inc

@@ -1,0 +1,465 @@
+#
+# WL#8688: Support ability to persist SET GLOBAL settings
+#
+CALL mtr.add_suppression("Failed to set up SSL because of the following *");
+CALL mtr.add_suppression("One can only use the --user switch.*");
+# Syntax check for PERSIST option
+SET PERSIST auto_increment_increment=10;
+SET @@persist.event_scheduler=0;
+SET PERSIST slave_compressed_protocol=1;
+# Invalid syntax cases.
+SET GLOBAL PERSIST slave_compressed_protocol=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PERSIST slave_compressed_protocol=1' at line 1
+SET PERSIST @@global.slave_compressed_protocol=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@global.slave_compressed_protocol=1' at line 1
+SET PERSIST @@session.slave_compressed_protocol=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@session.slave_compressed_protocol=1' at line 1
+SET @@persist.@@slave_compressed_protocol=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@slave_compressed_protocol=1' at line 1
+# Variables_info table should include info for
+SET SESSION auto_increment_increment=3;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'auto_increment_increment';
+VARIABLE_NAME	VARIABLE_SOURCE
+auto_increment_increment	DYNAMIC
+# Setting multiple variables value as PERSIST.
+SET PERSIST innodb_checksum_algorithm=strict_crc32,
+PERSIST innodb_default_row_format=COMPACT,
+PERSIST sql_mode=ANSI_QUOTES,PERSIST innodb_fast_shutdown=0;
+SET PERSIST innodb_flush_log_at_trx_commit=0,join_buffer_size=262144;
+# SET PERSIST invalid case for multiple variable set.
+SET PERSIST innodb_thread_concurrency=32, PERSIST innodb_write_io_threads=32,
+PERSIST innodb_read_io_threads=invalid_val;
+ERROR HY000: Variable 'innodb_write_io_threads' is a read only variable
+# Restart server with --no-defaults.
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+1
+SELECT @@global.innodb_default_row_format;
+@@global.innodb_default_row_format
+dynamic
+SELECT @@global.sql_mode;
+@@global.sql_mode
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+SELECT @@global.innodb_flush_log_at_trx_commit;
+@@global.innodb_flush_log_at_trx_commit
+1
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+262144
+SELECT @@global.innodb_checksum_algorithm;
+@@global.innodb_checksum_algorithm
+crc32
+# Return 0 rows
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'PERSISTED'
+  ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_SOURCE
+# Restart server with --defaults-file.
+# Check values after restart.
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SELECT @@global.innodb_default_row_format;
+@@global.innodb_default_row_format
+compact
+SELECT @@global.sql_mode;
+@@global.sql_mode
+ANSI_QUOTES
+SELECT @@global.innodb_checksum_algorithm;
+@@global.innodb_checksum_algorithm
+strict_crc32
+SELECT @@global.innodb_flush_log_at_trx_commit;
+@@global.innodb_flush_log_at_trx_commit
+0
+SELECT @@global.max_digest_length;
+@@global.max_digest_length
+2024
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+262144
+SELECT @@global.sort_buffer_size;
+@@global.sort_buffer_size
+462144
+SELECT VARIABLE_NAME,VARIABLE_SOURCE,MIN_VALUE,MAX_VALUE
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('innodb_fast_shutdown','sql_mode',
+'innodb_default_row_format','max_digest_length',
+'innodb_flush_log_at_trx_commit',
+'disconnect_on_expired_password',
+'innodb_checksum_algorithm')
+ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_SOURCE	MIN_VALUE	MAX_VALUE
+disconnect_on_expired_password	EXPLICIT	0	0
+innodb_checksum_algorithm	PERSISTED	0	0
+innodb_default_row_format	PERSISTED	0	0
+innodb_fast_shutdown	PERSISTED	0	2
+innodb_flush_log_at_trx_commit	PERSISTED	0	2
+max_digest_length	EXPLICIT	0	1048576
+sql_mode	PERSISTED	0	0
+SET PERSIST max_connections=500;
+SET PERSIST autocommit=OFF;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_NAME	VARIABLE_SOURCE
+max_connections	DYNAMIC
+SET GLOBAL max_connections=DEFAULT;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('max_connections','autocommit');
+VARIABLE_NAME	VARIABLE_SOURCE
+autocommit	DYNAMIC
+max_connections	DYNAMIC
+CREATE TABLE t1 (col1 INT);
+DROP TABLE t1;
+SET PERSIST log_bin_trust_function_creators=1;
+# SET PERSIST statement should not be bin logged.
+# Show binlog events
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (col1 INT)
+binlog.000001	#	Query	#	#	use `test`; DROP TABLE "t1" /* generated by server */
+SET PERSIST block_encryption_mode= 'aes-128-ecb';
+SET PERSIST ft_boolean_syntax= '+ -><()~*:""&|',
+PERSIST log_error_services=DEFAULT;
+SET PERSIST innodb_max_dirty_pages_pct=80.99;
+SET PERSIST slow_query_log=ON;
+SET PERSIST slow_query_log_file='MYSQLTEST_VARDIR/log/slow_query_on.log;';
+# Restart server cmd line and mysql-auto.cnf testing.
+# Check values after restart.
+SET PERSIST slow_query_log_file=DEFAULT;
+RESET PERSIST slow_query_log_file;
+SET PERSIST slow_query_log=DEFAULT;
+SELECT @@global.block_encryption_mode;
+@@global.block_encryption_mode
+aes-128-ecb
+SELECT @@global.ft_boolean_syntax;
+@@global.ft_boolean_syntax
++ -><()~*:""&|
+SELECT @@global.log_error_services;
+@@global.log_error_services
+log_filter_internal; log_sink_internal
+SELECT @@global.innodb_max_dirty_pages_pct;
+@@global.innodb_max_dirty_pages_pct
+80.990000
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, MIN_VALUE, MAX_VALUE
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('block_encryption_mode',
+'ft_boolean_syntax','log_error_services','innodb_max_dirty_pages_pct')
+ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_SOURCE	MIN_VALUE	MAX_VALUE
+block_encryption_mode	PERSISTED	0	0
+ft_boolean_syntax	PERSISTED	0	0
+innodb_max_dirty_pages_pct	PERSISTED	0	99
+log_error_services	PERSISTED	0	0
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SELECT @@global.innodb_default_row_format;
+@@global.innodb_default_row_format
+compact
+SELECT @@global.sql_mode;
+@@global.sql_mode
+ANSI_QUOTES
+SELECT @@global.innodb_checksum_algorithm;
+@@global.innodb_checksum_algorithm
+strict_crc32
+SELECT @@global.max_digest_length;
+@@global.max_digest_length
+1024
+SELECT @@global.max_connections;
+@@global.max_connections
+500
+SELECT @@global.innodb_flush_log_at_trx_commit;
+@@global.innodb_flush_log_at_trx_commit
+0
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+262144
+SELECT @@global.innodb_flush_sync;
+@@global.innodb_flush_sync
+1
+SELECT @@global.autocommit;
+@@global.autocommit
+0
+SELECT @@session.autocommit;
+@@session.autocommit
+0
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, MIN_VALUE, MAX_VALUE
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('innodb_fast_shutdown','sql_mode',
+'innodb_default_row_format','max_digest_length','max_connections',
+'innodb_flush_log_at_trx_commit','innodb_flush_sync',
+'autocommit','innodb_checksum_algorithm')
+ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_SOURCE	MIN_VALUE	MAX_VALUE
+autocommit	PERSISTED	0	0
+innodb_checksum_algorithm	PERSISTED	0	0
+innodb_default_row_format	PERSISTED	0	0
+innodb_fast_shutdown	PERSISTED	0	2
+innodb_flush_log_at_trx_commit	PERSISTED	0	2
+innodb_flush_sync	COMPILED	0	0
+max_connections	PERSISTED	1	100000
+max_digest_length	COMPILED	0	1048576
+sql_mode	PERSISTED	0	0
+SELECT VARIABLE_NAME,VARIABLE_SOURCE
+FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'LOGIN';
+VARIABLE_NAME	VARIABLE_SOURCE
+TRUNCATE TABLE mysql.general_log;
+--------------- general log ---------------------------------------
+SET @old_log_output=    @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+SET GLOBAL general_log_file = 'MYSQLTEST_VARDIR/log/persist_general.log';
+SET PERSIST log_output =       'FILE,TABLE';
+SET PERSIST general_log=       'ON';
+SET PERSIST innodb_io_capacity=225;
+SET PERSIST innodb_flush_sync=DEFAULT;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN('innodb_io_capacity','innodb_flush_sync');
+VARIABLE_NAME	VARIABLE_SOURCE
+innodb_flush_sync	DYNAMIC
+innodb_io_capacity	DYNAMIC
+# SET PERSIST statement should not be bin logged.
+# Show binlog events
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+Show what is logged:
+------ rewrite ------
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PERSIST %';
+argument
+SET PERSIST general_log=       'ON'
+SET PERSIST innodb_io_capacity=225
+SET PERSIST innodb_flush_sync=DEFAULT
+------ done ------
+SET PERSIST general_log_file = 'MYSQLTEST_VARDIR/log/persist_general.log';
+RESET PERSIST general_log_file;
+SET PERSIST log_output=DEFAULT ,PERSIST general_log=DEFAULT;
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+SET PERSIST block_encryption_mode=DEFAULT, PERSIST ft_boolean_syntax=DEFAULT,
+PERSIST innodb_checksum_algorithm=DEFAULT,
+PERSIST log_error_services=DEFAULT,
+PERSIST innodb_max_dirty_pages_pct=DEFAULT;
+SET PERSIST innodb_fast_shutdown=DEFAULT,PERSIST innodb_default_row_format=DEFAULT,
+PERSIST sql_mode=DEFAULT,PERSIST innodb_flush_log_at_trx_commit=DEFAULT,
+PERSIST max_connections=default, PERSIST join_buffer_size=default,
+PERSIST innodb_flush_sync=DEFAULT,PERSIST innodb_io_capacity=DEFAULT,
+PERSIST log_bin_trust_function_creators=DEFAULT, PERSIST autocommit=DEFAULT;
+WL#9720 - SET PERSIST to capture user, host and timestamp
+show create table performance_schema.variables_info;
+Table	Create Table
+variables_info	CREATE TABLE "variables_info" (
+  "VARIABLE_NAME" varchar(64) NOT NULL,
+  "VARIABLE_SOURCE" enum('COMPILED','GLOBAL','SERVER','EXPLICIT','EXTRA','USER','LOGIN','COMMAND_LINE','PERSISTED','DYNAMIC') DEFAULT 'COMPILED',
+  "VARIABLE_PATH" varchar(1024) DEFAULT NULL,
+  "MIN_VALUE" varchar(64) DEFAULT NULL,
+  "MAX_VALUE" varchar(64) DEFAULT NULL,
+  "SET_TIME" timestamp(6) NULL DEFAULT NULL,
+  "SET_USER" char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  "SET_HOST" char(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass1';
+GRANT ALL ON *.* TO 'user1'@'localhost';
+SET @@global.max_connections = 100;
+SET @@persist.event_scheduler=DEFAULT;
+SET PERSIST auto_increment_increment=10;
+SET PERSIST innodb_checksum_algorithm=strict_crc32;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('max_connections','event_scheduler',
+'auto_increment_increment','innodb_checksum_algorithm');
+VARIABLE_NAME	VARIABLE_SOURCE	SET_USER	SET_HOST
+auto_increment_increment	DYNAMIC	user1	localhost
+event_scheduler	DYNAMIC	user1	localhost
+innodb_checksum_algorithm	DYNAMIC	user1	localhost
+max_connections	DYNAMIC	user1	localhost
+RESET PERSIST auto_increment_increment;
+RESET PERSIST innodb_checksum_algorithm;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('auto_increment_increment',
+'innodb_checksum_algorithm');
+VARIABLE_NAME	VARIABLE_SOURCE	SET_USER	SET_HOST
+auto_increment_increment	DYNAMIC	user1	localhost
+innodb_checksum_algorithm	DYNAMIC	user1	localhost
+select @@global.max_connections into @saved_max_connections;
+select @@global.autocommit into @saved_autocommit;
+CREATE USER 'internal_proxied'@'%' IDENTIFIED BY 'proxy_password';
+CREATE USER 'external_u1'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
+CREATE USER 'external_u2'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
+GRANT PROXY ON 'internal_proxied'@'%' TO 'external_u1'@'%','external_u2'@'%';
+GRANT ALL ON *.* TO 'internal_proxied'@'%';
+SET @@global.max_connections=50;
+SET @@global.autocommit=1;
+SELECT VARIABLE_NAME, SET_USER, SET_HOST, SET_TIME from
+performance_schema.variables_info where variable_name='max_connections' or
+variable_name='autocommit';
+VARIABLE_NAME	SET_USER	SET_HOST	SET_TIME
+autocommit	external_u2	localhost	#
+max_connections	external_u1	localhost	#
+# Cleanup
+drop USER 'user1'@'localhost';
+drop USER 'internal_proxied'@'%';
+drop USER 'external_u1'@'%';
+drop USER 'external_u2'@'%';
+SET GLOBAL max_connections = @saved_max_connections;
+SET GLOBAL autocommit = @saved_autocommit;
+#
+# Bug#25563891: OPTION SET BY !INCLUDE OR !INCLUDEDIR SHOWED AS 'COMPILED'
+#               IN P_S.VARIABLES_INFO
+#
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+('sort_buffer_size', 'max_connections', 'max_digest_length',
+'innodb_fast_shutdown', 'innodb_default_row_format', 'innodb_flush_log_at_trx_commit');
+VARIABLE_NAME	VARIABLE_SOURCE
+innodb_default_row_format	DYNAMIC
+innodb_fast_shutdown	DYNAMIC
+innodb_flush_log_at_trx_commit	DYNAMIC
+max_connections	DYNAMIC
+max_digest_length	COMPILED
+sort_buffer_size	COMPILED
+SELECT @@sort_buffer_size, @@max_connections, @@max_digest_length;
+@@sort_buffer_size	@@max_connections	@@max_digest_length
+262144	100	1024
+SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_at_trx_commit;
+@@innodb_fast_shutdown	@@innodb_default_row_format	@@innodb_flush_log_at_trx_commit
+1	dynamic	1
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+('sort_buffer_size', 'max_connections', 'max_digest_length',
+'innodb_fast_shutdown', 'innodb_default_row_format', 'innodb_flush_log_at_trx_commit');
+VARIABLE_NAME	VARIABLE_SOURCE
+innodb_default_row_format	EXPLICIT
+innodb_fast_shutdown	EXPLICIT
+innodb_flush_log_at_trx_commit	EXPLICIT
+max_connections	EXPLICIT
+max_digest_length	EXPLICIT
+sort_buffer_size	EXPLICIT
+SELECT @@sort_buffer_size, @@max_connections, @@max_digest_length;
+@@sort_buffer_size	@@max_connections	@@max_digest_length
+314156	51	2024
+SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_at_trx_commit;
+@@innodb_fast_shutdown	@@innodb_default_row_format	@@innodb_flush_log_at_trx_commit
+1	redundant	2
+# Cleanup
+# Restart server with all defaults
+# restart
+#
+# BUG#26085774: SERVER CRASHES WHEN STARTED USING CORRUPTED MYSQLD-AUTO.CNF
+#
+# this is the wrong format with event_scheduler value not being string
+# server should fail to start
+# on windows even though server fails to start return code is 0, thus expecting error to be 0 or 1
+# this is the wrong format with binlog_gtid_simple_recovery value not being string
+# server should fail to start
+# this is the wrong format with no ',' between key/value pair
+# server should fail to start
+# this is the wrong format with wrong static variables group name
+# server should fail to start
+# this is the wrong format with group name
+# server should fail to start
+# start server with all defaults
+# restart
+#
+# Bug#26100122: SERVER CRASHES WHEN SET PERSIST CALLS WITH A LONG STATEMENT
+#
+set @a=repeat('A',2000);
+SET PERSIST init_connect=@a;;
+set @b=repeat('A',24000);
+SET PERSIST init_connect=@b;;
+# Cleanup
+SET GLOBAL init_connect=default;
+RESET PERSIST;
+#
+# Bug#25677422: SET_TIME IN VARIABLES_INFO REFLECTS RESTART TIME FOR
+#               PERSISTED VARIABLES
+#
+RESET PERSIST;
+CREATE USER bug25677422;
+GRANT ALL ON *.* TO bug25677422;
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST_ONLY innodb_read_io_threads= 16;
+SET PERSIST long_query_time= 8.3452;
+SET PERSIST_ONLY innodb_log_file_size= 4194304, ft_query_expansion_limit= 80;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+'ft_query_expansion_limit');
+VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
+ft_query_expansion_limit	COMPILED	root
+innodb_log_file_size	EXPLICIT	root
+innodb_read_io_threads	COMPILED	bug25677422
+long_query_time	DYNAMIC	root
+max_heap_table_size	DYNAMIC	bug25677422
+slave_net_timeout	DYNAMIC	bug25677422
+sort_buffer_size	DYNAMIC	bug25677422
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+'ft_query_expansion_limit');
+VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
+ft_query_expansion_limit	COMPILED	root
+innodb_log_file_size	EXPLICIT	root
+innodb_read_io_threads	COMPILED	bug25677422
+long_query_time	DYNAMIC	root
+max_heap_table_size	DYNAMIC	bug25677422
+slave_net_timeout	DYNAMIC	bug25677422
+sort_buffer_size	DYNAMIC	bug25677422
+# Restart server
+# restart
+SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE
+VARIABLE_SOURCE = 'PERSISTED';
+VARIABLE_NAME
+ft_query_expansion_limit
+innodb_log_file_size
+innodb_read_io_threads
+long_query_time
+max_heap_table_size
+slave_net_timeout
+sort_buffer_size
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+'ft_query_expansion_limit');
+VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
+ft_query_expansion_limit	PERSISTED	root
+innodb_log_file_size	PERSISTED	root
+innodb_read_io_threads	PERSISTED	bug25677422
+long_query_time	PERSISTED	root
+max_heap_table_size	PERSISTED	bug25677422
+slave_net_timeout	PERSISTED	bug25677422
+sort_buffer_size	PERSISTED	bug25677422
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+'ft_query_expansion_limit');
+VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
+ft_query_expansion_limit	PERSISTED	root
+innodb_log_file_size	PERSISTED	root
+innodb_read_io_threads	PERSISTED	bug25677422
+long_query_time	PERSISTED	root
+max_heap_table_size	PERSISTED	bug25677422
+slave_net_timeout	PERSISTED	bug25677422
+sort_buffer_size	PERSISTED	bug25677422
+DROP USER bug25677422;
+RESET PERSIST;
+SET GLOBAL sort_buffer_size=DEFAULT, max_heap_table_size=DEFAULT,
+slave_net_timeout=DEFAULT, long_query_time=DEFAULT;
+# Restart server with defaults
+# restart
+SELECT 'END OF TEST';
+END OF TEST
+END OF TEST

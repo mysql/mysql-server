@@ -1,0 +1,13 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = LOW_COUNT_USED;
+let $table = performance_schema.memory_summary_global_by_event_name;
+
+# Test index on EVENT_NAME
+
+let $column_count = 1;
+let $col1 = EVENT_NAME;
+let $col1_act = "memory/performance_schema/users";
+
+--source ../include/idx_explain_test.inc

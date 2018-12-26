@@ -1,0 +1,34 @@
+-- source include/have_ndb.inc
+
+# Turn off ndb_read_backup to avoid result diffs from ndb_desc
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
+
+#
+# BUG 14695968
+# - If a table has a tinyblob column and one uses 'ndb_desc -pb'
+#   to dump both extra information about partitions and blob
+#   tables, ndb_desc crashes.
+#
+--echo # bug#14695968
+--echo "ndb_desc -pb with tinyblob column"
+
+CREATE TABLE test.t1 (a int primary key, b tinyblob)engine=ndbcluster;
+
+## Check details of partitioning
+--let $ndb_desc_opts= -pb -dtest t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+--echo "ndb_desc -pb with all types of blob and text columns"
+
+CREATE TABLE test.t2 (a int primary key, b tinyblob, c mediumblob,
+d blob, e longblob,f tinytext, g text, h mediumtext, i longtext)
+engine=ndbcluster;
+
+## Check details of partitioning
+--let $ndb_desc_opts= -pb -dtest t2
+--source suite/ndb/include/ndb_desc_print.inc
+
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+
+--source suite/ndb/include/restore_ndb_read_backup.inc

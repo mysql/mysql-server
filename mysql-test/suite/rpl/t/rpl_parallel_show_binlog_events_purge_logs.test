@@ -1,0 +1,37 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+# BUG#13979418: SHOW BINLOG EVENTS MAY CRASH THE SERVER
+#
+# The function mysql_show_binlog_events has a local stack variable
+# 'LOG_INFO linfo;', which is assigned to thd->current_linfo, however
+# this variable goes out of scope and is destroyed before clean
+# thd->current_linfo.
+#
+# This test case runs SHOW BINLOG EVENTS and FLUSH LOGS to make sure
+# that with the fix local variable linfo is valid along all
+# mysql_show_binlog_events function scope.
+#
+--source include/have_debug_sync.inc
+--source include/master-slave.inc
+
+--echo [connection slave]
+--connection slave
+SET DEBUG_SYNC= 'after_show_binlog_events SIGNAL on_show_binlog_events WAIT_FOR end';
+--send SHOW BINLOG EVENTS
+
+--connection slave1
+--echo [connection slave1]
+SET DEBUG_SYNC= 'now WAIT_FOR on_show_binlog_events';
+FLUSH LOGS;
+SET DEBUG_SYNC= 'now SIGNAL end';
+SET DEBUG_SYNC= 'RESET';
+
+--echo [connection slave]
+--connection slave
+--disable_result_log
+--reap
+--enable_result_log
+SET DEBUG_SYNC= 'RESET';
+
+--connection master
+--source include/rpl_end.inc

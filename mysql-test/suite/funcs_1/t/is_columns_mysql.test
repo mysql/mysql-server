@@ -1,0 +1,14 @@
+# suite/funcs_1/t/is_columns_mysql.test
+#
+# Check the content of information_schema.columns about tables within
+# the database mysql.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+
+let $my_where = WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index';
+--source suite/funcs_1/datadict/columns.inc

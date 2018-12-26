@@ -1,0 +1,125 @@
+# suite/funcs_1/t/is_engines.test
+#
+# Check the layout of information_schema.engines
+#
+# Note:
+#    This test is not intended
+#    - to show information about the all time existing tables
+#      within the databases information_schema and mysql
+#    - for checking storage engine properties
+#      Therefore please do not alter $engine_type and $other_engine_type.
+#      Some results of the subtests depend on the storage engines assigned.
+#
+# Author:
+# 2008-02-29 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#
+
+
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
+
+let $is_table = ENGINES;
+
+# The table INFORMATION_SCHEMA.ENGINES must exist
+eval SHOW TABLES FROM information_schema LIKE '$is_table';
+
+--echo #######################################################################
+--echo # Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+--echo #######################################################################
+# Ensure that every INFORMATION_SCHEMA table can be queried with a SELECT
+# statement, just as if it were an ordinary user-defined table.
+#
+--source suite/funcs_1/datadict/is_table_query.inc
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.12.1: INFORMATION_SCHEMA.ENGINES layout
+--echo #########################################################################
+# Ensure that the INFORMATION_SCHEMA.ENGINES table has the following columns,
+# in the following order:
+#
+# ENGINE
+# SUPPORT
+# COMMENT
+# TRANSACTIONS
+# XA
+# SAVEPOINTS
+#
+# Value      Meaning
+# YES        The feature is supported and is active.
+# NO         The feature is not supported = The server was compiled without
+#            support for the feature.
+# DISABLED   The feature is supported but has been disabled.
+#
+eval DESCRIBE          information_schema.$is_table;
+eval SHOW CREATE TABLE information_schema.$is_table;
+eval SHOW COLUMNS FROM information_schema.$is_table;
+
+# Note: Retrieval of information within information_schema.columns about
+#       information_schema.engines is in is_columns_is.test.
+
+# FIXME: Check the regression tests and implement tests checking the
+#        functionality if missing.
+
+
+--echo ########################################################################
+--echo # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+--echo #           DDL on INFORMATION_SCHEMA tables are not supported
+--echo ########################################################################
+# 3.2.1.3:  Ensure that no user may execute an INSERT statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.4:  Ensure that no user may execute an UPDATE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.5:  Ensure that no user may execute a DELETE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.8:  Ensure that no user may create an index on an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.9:  Ensure that no user may alter the definition of an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.10: Ensure that no user may drop an INFORMATION_SCHEMA table.
+# 3.2.1.11: Ensure that no user may move an INFORMATION_SCHEMA table to any
+#           other database.
+# 3.2.1.12: Ensure that no user may directly add to, alter, or delete any data
+#           in an INFORMATION_SCHEMA table.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE db_datadict.t1 (f1 BIGINT)
+ENGINE = $engine_type;
+
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.engines
+SELECT * FROM information_schema.engines;
+
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.engines SET engine = '1234567';
+
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM information_schema.engines WHERE support IN ('DEFAULT','YES');
+--error ER_DBACCESS_DENIED_ERROR
+TRUNCATE information_schema.engines;
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE INDEX my_idx_on_engines ON information_schema.engines(engine);
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.engines DROP PRIMARY KEY;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.engines ADD f1 INT;
+
+--error ER_DBACCESS_DENIED_ERROR
+DROP TABLE information_schema.engines;
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.engines RENAME db_datadict.engines;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.engines RENAME information_schema.xengines;
+
+# Cleanup
+DROP DATABASE db_datadict;
+

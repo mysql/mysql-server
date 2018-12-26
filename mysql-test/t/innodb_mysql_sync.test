@@ -1,0 +1,1135 @@
+#
+# Test file for InnoDB tests that require the debug sync facility
+#
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+
+--echo #
+--echo # Bug 42074 concurrent optimize table and 
+--echo # alter table = Assertion failed: thd->is_error()
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo # Create InnoDB table
+CREATE TABLE t1 (id INT) engine=innodb;
+connect (con2, localhost, root);
+
+--echo # Connection 1
+--echo # Start optimizing table
+connection default;
+SET DEBUG_SYNC='ha_admin_try_alter SIGNAL optimize_started WAIT_FOR table_altered';
+--send OPTIMIZE TABLE t1
+
+--echo # Connection 2
+--echo # Change table to engine=memory
+connection con2;
+SET DEBUG_SYNC='now WAIT_FOR optimize_started';
+ALTER TABLE t1 engine=memory;
+SET DEBUG_SYNC='now SIGNAL table_altered';
+
+--echo # Connection 1
+--echo # Complete optimization
+connection default;
+--replace_regex /'Unknown error.*'/'Unknown error'/
+--reap
+
+disconnect con2;
+DROP TABLE t1;
+SET DEBUG_SYNC='RESET';
+
+
+--echo #
+--echo # Bug#47459 Assertion in Diagnostics_area::set_eof_status on
+--echo #           OPTIMIZE TABLE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect (con1, localhost, root);
+connection default;
+
+CREATE TABLE t1(a INT) ENGINE= InnoDB;
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "ha_admin_open_ltable SIGNAL opening WAIT_FOR dropped";
+--echo # Sending:
+--send OPTIMIZE TABLE t1
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR opening";
+DROP TABLE t1;
+SET DEBUG_SYNC= "now SIGNAL dropped";
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: OPTIMIZE TABLE t1
+--reap
+
+--echo # Connection default
+connection default;
+disconnect con1;
+SET DEBUG_SYNC= "RESET";
+
+
+--echo #
+--echo # Bug#53757 assert in mysql_truncate_by_delete
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1(a INT) Engine=InnoDB;
+CREATE TABLE t2(id INT);
+INSERT INTO t1 VALUES (1), (2);
+
+connect (con1, localhost, root);
+INSERT INTO t2 VALUES(connection_id());
+SET DEBUG_SYNC= "open_and_process_table SIGNAL opening WAIT_FOR killed";
+--echo # Sending: (not reaped since connection is killed later)
+--send TRUNCATE t1
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR opening";
+SELECT ((@id := id) - id) FROM t2; 
+KILL @id;
+SET DEBUG_SYNC= "now SIGNAL killed";
+DROP TABLE t1, t2;
+disconnect con1;
+--source include/wait_until_count_sessions.inc
+SET DEBUG_SYNC= "RESET";
+
+
+--echo #
+--echo # Bug#58933 Assertion `thd- >is_error()' fails on shutdown with ongoing
+--echo #           OPTIMIZE TABLE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2);
+
+--echo # Connection con1
+connect (con1,localhost,root);
+let $ID= `SELECT connection_id()`;
+SET DEBUG_SYNC= 'ha_admin_open_ltable SIGNAL waiting WAIT_FOR killed';
+--echo # Sending:
+--send OPTIMIZE TABLE t1
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR waiting';
+--replace_result $ID ID
+eval KILL QUERY $ID;
+SET DEBUG_SYNC= 'now SIGNAL killed';
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: OPTIMIZE TABLE t1
+--reap
+
+--echo # Connection default
+connection default;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+
+
+--echo #
+--echo # Bug#42230 during add index, cannot do queries on storage engines
+--echo #           that implement add_index
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect(con1,localhost,root);
+connect(con2,localhost,root);
+
+--echo # Test 1: Secondary index, should not block reads (original test case).
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, value INT) engine=innodb;
+INSERT INTO db1.t1(value) VALUES (1), (2);
+SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
+--echo # Sending:
+--send ALTER TABLE db1.t1 ADD INDEX(value)
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+# Neither of these two statements should be blocked
+USE db1;
+SELECT * FROM t1;
+SET DEBUG_SYNC= "now SIGNAL query";
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER TABLE db1.t1 ADD INDEX(value)
+--reap
+DROP DATABASE db1;
+
+--echo # Test 2: Primary index (implicit), should block writes.
+
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
+SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
+--echo # Sending:
+--send ALTER TABLE t1 ADD UNIQUE INDEX(a), LOCK=SHARED
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+USE test;
+SELECT * FROM t1;
+--echo # Sending:
+--send UPDATE t1 SET a=NULL
+
+--echo # Connection con2
+connection con2;
+--echo # Waiting for SELECT to be blocked by the metadata lock on t1
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for table metadata lock'
+  AND info='UPDATE t1 SET a=NULL';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= "now SIGNAL query";
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER TABLE t1 ADD UNIQUE INDEX(a)
+--reap
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: UPDATE t1 SET a=NULL
+--reap
+
+--echo # Test 3: Primary index (explicit), should block writes.
+
+--echo # Connection default
+connection default;
+ALTER TABLE t1 DROP INDEX a;
+SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
+--echo # Sending:
+--send ALTER TABLE t1 ADD PRIMARY KEY (a), LOCK=SHARED
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+SELECT * FROM t1;
+--echo # Sending:
+--send UPDATE t1 SET a=NULL
+
+--echo # Connection con2
+connection con2;
+--echo # Waiting for SELECT to be blocked by the metadata lock on t1
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for table metadata lock'
+  AND info='UPDATE t1 SET a=NULL';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= "now SIGNAL query";
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER TABLE t1 ADD PRIMARY KEY (a)
+--reap
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: UPDATE t1 SET a=NULL
+--reap
+
+--echo # Test 4: Secondary unique index, should not block reads.
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
+--echo # Sending:
+--send ALTER TABLE t1 ADD UNIQUE (b)
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+SELECT * FROM t1;
+SET DEBUG_SYNC= "now SIGNAL query";
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER TABLE t1 ADD UNIQUE (b)
+--reap
+
+disconnect con1;
+disconnect con2;
+SET DEBUG_SYNC= "RESET";
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#11853126 RE-ENABLE CONCURRENT READS WHILE CREATING SECONDARY INDEX
+--echo #              IN INNODB
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
+INSERT INTO t1 VALUES (1, 12345), (2, 23456);
+
+--echo # Connection con1
+--connect (con1,localhost,root)
+SET SESSION debug= "+d,alter_table_rollback_new_index";
+--error ER_UNKNOWN_ERROR
+ALTER TABLE t1 ADD PRIMARY KEY(a);
+SELECT * FROM t1;
+
+--echo # Connection default
+--connection default
+SELECT * FROM t1;
+DROP TABLE t1;
+disconnect con1;
+
+
+--echo #
+--echo # Bug#13417754 ASSERT IN ROW_DROP_DATABASE_FOR_MYSQL DURING DROP SCHEMA
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP DATABASE IF EXISTS db1;
+--enable_warnings
+
+CREATE TABLE t1(a int) engine=InnoDB;
+CREATE DATABASE db1;
+
+connect(con1, localhost, root);
+connect(con2, localhost, root);
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= 'after_innobase_rename_table SIGNAL locked WAIT_FOR continue';
+--echo # Sending:
+--send ALTER TABLE t1 RENAME db1.t1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # DROP DATABASE db1 should now be blocked by ALTER TABLE
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection default
+connection default;
+--echo # Check that DROP DATABASE is blocked by IX lock on db1
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for schema metadata lock" and
+        info = "DROP DATABASE db1";
+--source include/wait_condition.inc
+--echo # Resume ALTER TABLE
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: ALTER TABLE t1 RENAME db1.t1;
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection default;
+connection default;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+
+--echo #
+--echo # WL#5534 Online ALTER, Phase 1
+--echo #
+
+--echo # Multi thread tests.
+--echo # See alter_table.test for single thread tests.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) engine=InnoDB;
+INSERT INTO t1 VALUES (1,1), (2,2);
+SET DEBUG_SYNC= 'RESET';
+connect (con1, localhost, root);
+SET SESSION lock_wait_timeout= 1;
+
+--echo #
+--echo # 1: In-place + writes blocked.
+--echo #
+
+--echo # Connection default
+--connection default
+SET DEBUG_SYNC= 'alter_opened_table SIGNAL opened WAIT_FOR continue1';
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_upgrade SIGNAL upgraded WAIT_FOR continue2';
+SET DEBUG_SYNC= 'alter_table_inplace_before_commit SIGNAL beforecommit WAIT_FOR continue3';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog SIGNAL binlog WAIT_FOR continue4';
+--echo # Sending:
+--send ALTER TABLE t1 ADD INDEX i1(b), ALGORITHM= INPLACE, LOCK= SHARED
+
+--echo # Connection con1;
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+--echo # At this point, neither reads nor writes should be blocked.
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (3,3);
+
+SET DEBUG_SYNC= 'now SIGNAL continue1';
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+--echo # Now both reads and writes should be blocked
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (4,4);
+
+SET DEBUG_SYNC= 'now SIGNAL continue2';
+SET DEBUG_SYNC= 'now WAIT_FOR beforecommit';
+--echo # Still both reads and writes should be blocked.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (5,5);
+
+SET DEBUG_SYNC= 'now SIGNAL continue3';
+SET DEBUG_SYNC= 'now WAIT_FOR binlog';
+--echo # Same here.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (6,6);
+
+SET DEBUG_SYNC= 'now SIGNAL continue4';
+--echo # Connection default
+--connection default
+--echo # Reaping ALTER TABLE ...
+--reap
+SET DEBUG_SYNC= 'RESET';
+DELETE FROM t1 WHERE a= 3;
+
+--echo #
+--echo # 2: Copy + writes blocked.
+--echo #
+
+SET DEBUG_SYNC= 'alter_opened_table SIGNAL opened WAIT_FOR continue1';
+SET DEBUG_SYNC= 'alter_table_copy_after_lock_upgrade SIGNAL upgraded WAIT_FOR continue2';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog SIGNAL binlog WAIT_FOR continue3';
+--echo # Sending:
+--send ALTER TABLE t1 ADD INDEX i2(b), ALGORITHM= COPY, LOCK= SHARED
+
+--echo # Connection con1;
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+--echo # At this point, neither reads nor writes should be blocked.
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (3,3);
+
+SET DEBUG_SYNC= 'now SIGNAL continue1';
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+--echo # Now writes should be blocked, reads still allowed.
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (4,4);
+
+SET DEBUG_SYNC= 'now SIGNAL continue2';
+SET DEBUG_SYNC= 'now WAIT_FOR binlog';
+--echo # Now both reads and writes should be blocked.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1 limit 1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (5,5);
+
+SET DEBUG_SYNC= 'now SIGNAL continue3';
+--echo # Connection default
+--connection default
+--echo # Reaping ALTER TABLE ...
+--reap
+SET DEBUG_SYNC= 'RESET';
+DELETE FROM t1 WHERE a= 3;
+
+--echo #
+--echo # 3: In-place + writes allowed.
+--echo #
+
+--echo # TODO: Enable this test once WL#5526 is pushed
+--disable_testcase BUG#0000
+
+--echo # Connection default
+--connection default
+SET DEBUG_SYNC= 'alter_opened_table SIGNAL opened WAIT_FOR continue1';
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_upgrade SIGNAL upgraded WAIT_FOR continue2';
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue3';
+SET DEBUG_SYNC= 'alter_table_inplace_before_commit SIGNAL beforecommit WAIT_FOR continue4';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog SIGNAL binlog WAIT_FOR continue5';
+--echo # Sending:
+--send ALTER TABLE t1 ADD INDEX i3(b), ALGORITHM= INPLACE, LOCK= NONE
+
+--echo # Connection con1;
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+--echo # At this point, neither reads nor writes should be blocked.
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (3,3);
+
+SET DEBUG_SYNC= 'now SIGNAL continue1';
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+--echo # Now writes should be blocked, reads still allowed.
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (4,4);
+
+SET DEBUG_SYNC= 'now SIGNAL continue2';
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+--echo # Now writes should be allowed again.
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (5,5);
+
+SET DEBUG_SYNC= 'now SIGNAL continue3';
+SET DEBUG_SYNC= 'now WAIT_FOR beforecommit';
+--echo # Now both reads and writes should be blocked.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (6,6);
+
+SET DEBUG_SYNC= 'now SIGNAL continue4';
+SET DEBUG_SYNC= 'now WAIT_FOR binlog';
+--echo # Same here.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (7,7);
+
+SET DEBUG_SYNC= 'now SIGNAL continue5';
+--echo # Connection default
+--connection default
+--echo # Reaping ALTER TABLE ...
+--reap
+SET DEBUG_SYNC= 'RESET';
+DELETE FROM t1 WHERE a= 3 OR a= 4;
+
+--echo # TODO: Enable this test once WL#5526 is pushed
+--enable_testcase
+
+--echo #
+--echo # 4: In-place + reads and writes blocked.
+--echo #
+
+--echo # Connection default
+--connection default
+SET DEBUG_SYNC= 'alter_opened_table SIGNAL opened WAIT_FOR continue1';
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_upgrade SIGNAL upgraded WAIT_FOR continue2';
+SET DEBUG_SYNC= 'alter_table_inplace_before_commit SIGNAL beforecommit WAIT_FOR continue3';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog SIGNAL binlog WAIT_FOR continue4';
+--echo # Sending:
+--send ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= INPLACE, LOCK= EXCLUSIVE
+
+--echo # Connection con1;
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+--echo # At this point, neither reads nor writes should be blocked.
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (3,3);
+
+SET DEBUG_SYNC= 'now SIGNAL continue1';
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+--echo # Now both reads and writes should be blocked.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (4,4);
+
+SET DEBUG_SYNC= 'now SIGNAL continue2';
+SET DEBUG_SYNC= 'now WAIT_FOR beforecommit';
+--echo # Same here.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (5,5);
+
+SET DEBUG_SYNC= 'now SIGNAL continue3';
+SET DEBUG_SYNC= 'now WAIT_FOR binlog';
+--echo # Same here.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (6,6);
+
+SET DEBUG_SYNC= 'now SIGNAL continue4';
+--echo # Connection default
+--connection default
+--echo # Reaping ALTER TABLE ...
+--reap
+SET DEBUG_SYNC= 'RESET';
+
+--connection default
+--disconnect con1
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo #
+--echo #BUG#13975225:ONLINE OPTIMIZE TABLE FOR INNODB TABLES
+--echo #
+
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+connect(con1,localhost,root,,);
+
+--echo #Setting up INNODB table.
+CREATE TABLE t1(fld1 INT, fld2 INT, fld3 INT) ENGINE= INNODB;
+INSERT INTO t1 VALUES (155, 45, 55);
+
+--echo #Concurrent INSERT, UPDATE, SELECT and DELETE is supported 
+--echo #during OPTIMIZE TABLE operation for INNODB tables.
+--enable_connect_log
+--connection default
+--echo #OPTIMIZE TABLE operation.
+--send OPTIMIZE TABLE t1
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+--echo # With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (10, 11, 12);
+UPDATE t1 SET fld1= 20 WHERE fld1= 155;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--connection default
+--reap
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+
+--echo #Concurrent INSERT, UPDATE, SELECT and DELETE is supported
+--echo #during OPTIMIZE TABLE operation for Partitioned table.
+
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+--echo #Setup PARTITIONED table.
+CREATE TABLE t1(fld1 INT) ENGINE= INNODB PARTITION BY HASH(fld1) PARTITIONS 4;
+INSERT INTO t1 VALUES(10);
+
+--echo #OPTIMIZE TABLE operation.
+--send OPTIMIZE TABLE t1
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+--echo # With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (30);
+UPDATE t1 SET fld1= 20 WHERE fld1= 10;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--connection default
+--reap
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+
+--echo #ALTER TABLE FORCE and ALTER TABLE ENGINE uses online rebuild
+--echo #of the table.
+
+CREATE TABLE t1(fld1 INT, fld2 INT);
+INSERT INTO t1 VALUES(10, 20);
+
+--enable_info
+ALTER TABLE t1 FORCE;
+ALTER TABLE t1 ENGINE=INNODB;
+
+--echo #ALTER TABLE FORCE, ALTER TABLE ENGINE and OPTIMIZE TABLE uses
+--echo #table copy when the old_alter_table enabled.
+SET SESSION old_alter_table= TRUE;
+ALTER TABLE t1 FORCE;
+ALTER TABLE t1 ENGINE= INNODB;
+
+SET DEBUG_SYNC= 'alter_table_copy_after_lock_upgrade SIGNAL upgraded';
+--echo #OPTIMIZE TABLE operation using table copy.
+--send OPTIMIZE TABLE t1
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+INSERT INTO t1 VALUES(10, 20);
+
+--connection default
+--reap
+SET DEBUG_SYNC= 'RESET';
+SET SESSION old_alter_table= FALSE;
+
+--echo #ALTER TABLE FORCE and ALTER TABLE ENGINE uses table copy
+--echo #when ALGORITHM COPY is used.
+ALTER TABLE t1 FORCE, ALGORITHM= COPY;
+ALTER TABLE t1 ENGINE= INNODB, ALGORITHM= COPY;
+--disable_info
+
+#cleanup
+DROP TABLE t1;
+
+--echo #OPTIMIZE TABLE on a table with FULLTEXT index uses
+--echo #ALTER TABLE FORCE using COPY algorithm here. This
+--echo #test case ensures the COPY table debug sync point is hit.
+
+SET DEBUG_SYNC= 'alter_table_copy_after_lock_upgrade SIGNAL upgraded';
+
+--echo #Setup a table with FULLTEXT index.
+--connection default
+CREATE TABLE t1(fld1 CHAR(10), FULLTEXT(fld1)) ENGINE= INNODB;
+INSERT INTO t1 VALUES("String1");
+
+--echo #OPTIMIZE TABLE operation.
+--send OPTIMIZE TABLE t1
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+INSERT INTO t1 VALUES("String2");
+
+--connection default
+--reap
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+
+--echo #Test which demonstrates that ALTER TABLE, OPTIMIZE PARTITION
+--echo #takes OPTIMIZE TABLE code path, hence does an online rebuild
+--echo #of the table with the patch. 
+
+--connection default
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+--echo #Setup PARTITIONED table.
+CREATE TABLE t1(fld1 INT) ENGINE= INNODB PARTITION BY HASH(fld1) PARTITIONS 4;
+INSERT INTO t1 VALUES(10);
+
+--echo #OPTIMIZE ALL PARTITIONS operation.
+--send ALTER TABLE t1 OPTIMIZE PARTITION ALL
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+--echo # With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (30);
+UPDATE t1 SET fld1= 20 WHERE fld1= 10;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--connection default
+--reap
+SET DEBUG_SYNC= 'RESET';
+
+--echo #OPTIMIZE PER PARTITION operation.
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+--send ALTER TABLE t1 OPTIMIZE PARTITION p0
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+--echo # With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (30);
+UPDATE t1 SET fld1= 20 WHERE fld1= 10;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--connection default
+--reap
+SET DEBUG_SYNC= 'RESET';
+
+--echo # Test case for Bug#11938817 (ALTER BEHAVIOR DIFFERENT THEN DOCUMENTED).
+--enable_info
+--echo # This should not do anything
+ALTER TABLE t1;
+--disable_info
+
+#Note that sync point is activated in the online rebuild code path.
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuild';
+
+--echo # Check that we rebuild the table
+--send ALTER TABLE t1 engine=innodb
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR rebuild';
+
+--connection default
+--reap
+
+SET DEBUG_SYNC= 'RESET';
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuild';
+
+--echo # Check that we rebuild the table
+--send ALTER TABLE t1 FORCE
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR rebuild';
+
+--connection default
+--reap
+
+--disable_connect_log
+--disconnect con1
+
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#20367116: ALTER TABLE BREAKS ON DELETE CASCADE FOREIGN KEY
+--echo #               CONSTRAINT
+
+
+--echo # Test case to ensure there are no orphaned rows.
+--echo # (ALTER TABLE, COPY) Algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1)) ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, foreign key(f2) REFERENCES t1(f1)
+                ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+--enable_connect_log
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent WAIT_FOR delete_child';
+--send ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=COPY
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC= 'now WAIT_FOR delete_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below
+--echo # times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL delete_child';
+
+connection con1;
+--reap
+
+connection default;
+--reap
+
+--echo # Without the patch, there will be an orphaned row in table 't2'.
+SELECT * FROM t2;
+SELECT * FROM t1;
+DROP TABLE t2, t1;
+
+--echo # Cleanup
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case to ensure there is no deadlock.
+--echo # (ALTER TABLE, INPLACE) algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, FOREIGN KEY(f2) REFERENCES t1(f1) ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL delete_parent WAIT_FOR alter_child';
+--send ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=INPLACE
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC='now WAIT_FOR delete_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now signal alter_child';
+
+connection con1;
+--reap
+
+--echo # Cleanup
+connection default;
+--reap
+DROP TABLE t2, t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case to ensure that the parent's parent is also locked.
+--echo # (ALTER TABLE, COPY) Algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1)) ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, f3 INT NOT NULL, FOREIGN KEY(f2)
+                REFERENCES t1(f1) ON DELETE CASCADE,
+                PRIMARY KEY(f3))ENGINE=INNODB;
+CREATE TABLE t3(f4 INT NOT NULL, FOREIGN KEY(f4) REFERENCES t2(f3)
+                ON DELETE CASCADE) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, 2);
+INSERT INTO t3 VALUES(2);
+
+--enable_connect_log
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+--send ALTER TABLE t3 ADD f5 INT NOT NULL, ALGORITHM=COPY
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC= 'now WAIT_FOR delete_parent_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below
+--echo # times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL delete_child';
+
+connection con1;
+--reap
+
+connection default;
+--reap
+
+--echo # Without the patch, there will be an orphaned row in table 't3'.
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+
+DROP TABLE t3, t2, t1;
+
+--echo # Cleanup
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case to ensure there is no deadlock by locking parent's parent.
+--echo # (ALTER TABLE, INPLACE) algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, f3 INT NOT NULL, FOREIGN KEY(f2)
+                REFERENCES t1(f1) ON DELETE CASCADE,
+                PRIMARY KEY(f3))ENGINE=INNODB;
+CREATE TABLE t3(f4 INT NOT NULL, FOREIGN KEY(f4) REFERENCES t2(f3)
+                ON DELETE CASCADE) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, 2);
+INSERT INTO t3 VALUES(2);
+
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL delete_parent_parent WAIT_FOR alter_child';
+--send ALTER TABLE t3 ADD f3 INT NOT NULL, ALGORITHM=INPLACE
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC='now WAIT_FOR delete_parent_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now signal alter_child';
+
+connection con1;
+--reap
+
+--echo # Cleanup
+connection default;
+--reap
+DROP TABLE t3, t2, t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case where ALTER is performed under LOCK TABLES.
+--echo # (ALTER TABLE, COPY) Algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1)) ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, FOREIGN KEY(f2) REFERENCES t1(f1)
+                ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+--enable_connect_log
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+LOCK TABLES t2 WRITE;
+--send ALTER TABLE t2 ADD f5 INT NOT NULL, ALGORITHM=COPY
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC= 'now WAIT_FOR delete_parent_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below
+--echo # times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL delete_child';
+
+connection default;
+--reap
+
+UNLOCK TABLES;
+
+connection con1;
+--reap
+
+connection default;
+--echo # Without the patch, there will be an orphaned row in table 't2'.
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t2, t1;
+
+--echo # Cleanup
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--echo # Test case where ALTER is performed under LOCK TABLES.
+--echo # (ALTER TABLE, INPLACE) algorithm.
+
+CREATE TABLE t1(f1 INT NOT NULL, PRIMARY KEY(f1))ENGINE=INNODB;
+CREATE TABLE t2(f2 INT NOT NULL, FOREIGN KEY(f2) REFERENCES t1(f1)
+                ON DELETE CASCADE)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL delete_parent_parent WAIT_FOR alter_child';
+LOCK TABLES t2 WRITE;
+--send ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=INPLACE
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC='now WAIT_FOR delete_parent_parent';
+--send DELETE FROM t1 WHERE f1 = 1
+
+--echo # Without the patch, there is no table MDL wait, so the below times out.
+connect (con2, localhost, root,,);
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+                     WHERE INFO='DELETE FROM t1 WHERE f1 = 1' and
+                     STATE='Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now signal alter_child';
+
+connection default;
+--reap
+UNLOCK TABLES;
+
+connection con1;
+--reap
+
+connection default;
+--echo # Cleanup
+DROP TABLE t2, t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+--disable_connect_log
+
+--echo #
+--echo # BUG#21631284: DROP VIRTUAL COLUMN RESULT IN DROP WRONG INDEX.
+--echo #
+
+--echo # Index is not rebuilt, since there is no change in the definition.
+CREATE TABLE t1 (fld1 VARCHAR(300), fld2 INT, KEY idx1(fld2, fld1(200)))
+ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+
+--echo #Without the patch, an error is reported.
+ALTER TABLE t1 FORCE;
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";
+
+--echo # Index is rebuilt since the index is changed from prefixed
+--echo # to non-prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+
+--echo #Without the patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+
+--echo # Coverage test cases.
+
+--echo # Index is rebuilt since the index is changed from non-prefixed
+--echo # to prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1)) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+
+--echo #In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+
+--echo # Index is not rebuilt since the index prefix length is
+--echo # the same.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+
+--echo #In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(20);
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";
+
+
+--echo #
+--echo # BUG#26848813: INDEXED COLUMN CAN'T BE CHANGED FROM VARCHAR(15)
+--echo #               TO VARCHAR(40) INSTANTANEOUSLY
+
+CREATE TABLE t1(fld1 VARCHAR(5), KEY(fld1)) ENGINE= InnoDB;
+SET DEBUG="+d,innodb_index_drop_count_zero";
+
+--echo # Without patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(7), ALGORITHM= INPLACE;
+
+--echo # Scenario where non-packed keys is converted to packed keys
+--echo # before the patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(9), ALGORITHM= INPLACE;
+
+SET DEBUG="-d,innodb_index_drop_count_zero";
+
+--echo # Tests added for covering cases where rebuild is required.
+
+--echo # Reducing the size of the field.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY fld1 VARCHAR(3), ALGORITHM= INPLACE;
+
+--echo # Increasing the size of the field to boundary condition.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY fld1 VARCHAR(256), ALGORITHM= INPLACE;
+
+DROP TABLE t1;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

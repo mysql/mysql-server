@@ -1,0 +1,46 @@
+include/rpl_init.inc [topology=1->2,3->2,4->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_1]
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+[connection server_2]
+include/start_slave.inc [FOR CHANNEL 'channel_1']
+# Adding debug point 'updating_received_transaction_set' to @@GLOBAL.debug
+[connection server_1]
+INSERT INTO t1 VALUES(2);
+[connection server_2]
+SET DEBUG_SYNC="now WAIT_FOR reached_updating_received_transaction_set";
+# Removing debug point 'updating_received_transaction_set' from @@GLOBAL.debug
+[connection server_4]
+CREATE TABLE t4 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t4 VALUES(1);
+DROP TABLE t4;
+[connection server_2]
+START SLAVE FOR CHANNEL 'channel_4';
+Wait until channel_4 be synchronized with master
+[connection server_3]
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES(1);
+INSERT INTO t2 VALUES(2);
+[connection server_2]
+include/assert.inc [Restoring backup is successful]
+SET DEBUG_SYNC="now SIGNAL continue_updating_received_transaction_set";
+[connection server_1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+DROP TABLE t2;
+[connection server_2]
+include/start_slave.inc [FOR CHANNEL 'channel_3']
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_4';

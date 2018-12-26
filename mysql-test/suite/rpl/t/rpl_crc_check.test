@@ -1,0 +1,67 @@
+# ==== Purpose ====
+#
+# Bug #20644100  "Event crc check failed" when master disable binlog_checksum
+#
+# Starting slave sql_thread to apply events will cause event crc check
+# failure when master disables binlog_checksum.
+#
+# Currently relay logs have the following sequence (starting from
+# position 4):
+# Format_desc (of slave)
+# Previous-GTIDs (of slave, if GTIDs are enabled)
+# Rotate (of master)
+# Format_desc (of master)
+# The Format_desc which really describes the rest of the relay
+# log is the 4rd event, which is from master.
+# Relay_log_info::init_relay_log_pos(...) will look for a
+# Format_description_log_event from master. We only need this when
+# slave applier thread starts and opens an existing relay log and
+# has to execute it (possibly from an offset >4), because we need
+# to read the description event of the relay log to be able to
+# parse the events we have to execute.
+# But the current code supposed that relay logs have the following
+# sequence (starting from position 4):
+# Format_desc (of slave)
+# Rotate (of master)
+# Format_desc (of master)
+# So the function failed to find the Format_description_log_event
+# from master when slave applier thread starts and opens an existing
+# relay log and has to execute it, which causes some failures.
+# The event crc check failure is one of them.
+#
+# Fix code to let slave applier thread also skip the Previous-GTIDs
+# log event to find the correct Format_description_log_event from
+# master when it is starting and opening an existing relay log.
+#
+# Steps to reproduce:
+# 1) Start master and slave servers
+# 2) Stop slave applier thread.
+# 3) Write an event into binary log on master
+#    when master disables binlog_checksum.
+# 4) Start slave applier thread to verify that
+#    their is no event crc check failure.
+#
+
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun them for every format.
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+
+--echo #
+--echo # Start slave applier thread to verify that
+--echo # their is no event crc check failure.
+--echo #
+--source include/rpl_connection_slave.inc
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

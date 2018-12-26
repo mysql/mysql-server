@@ -1,0 +1,1850 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#########################################################################
+#                            CONFIGURATION
+#########################################################################
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+SET @commands= 'configure';
+CREATE TABLE tt_xx_1 ( id INT ) ENGINE = Innodb;
+CREATE TABLE nt_xx_1 ( id INT ) ENGINE = MyIsam;
+CREATE TABLE tt_error_1 ( id INT, PRIMARY KEY (id) ) ENGINE = Innodb;
+CREATE TABLE nt_error_1 ( id INT, PRIMARY KEY (id) ) ENGINE = MyIsam;
+CREATE TABLE tt_error_2 ( id INT, PRIMARY KEY (id) ) ENGINE = Innodb;
+CREATE TABLE nt_error_2 ( id INT, PRIMARY KEY (id) ) ENGINE = MyIsam;
+CREATE TRIGGER tr_i_nt_2_to_tt_2 AFTER INSERT ON nt_error_2 FOR EACH ROW
+BEGIN
+DECLARE in_stmt_id INTEGER;
+INSERT INTO tt_error_2(id) VALUES (NEW.id);
+END|
+CREATE TEMPORARY TABLE nt_tmp_xx_1 ( id INT ) ENGINE = MyIsam;
+CREATE TEMPORARY TABLE tt_tmp_xx_1 ( id INT ) ENGINE = Innodb;
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_2;
+Warnings:
+Note	1051	Unknown table 'test.nt_tmp_2'
+CREATE TEMPORARY TABLE nt_tmp_2 ( id INT ) ENGINE = MyIsam;
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_1;
+Warnings:
+Note	1051	Unknown table 'test.nt_tmp_1'
+CREATE TEMPORARY TABLE nt_tmp_1 ( id INT ) ENGINE = MyIsam;
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_2;
+Warnings:
+Note	1051	Unknown table 'test.tt_tmp_2'
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) ENGINE = Innodb;
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_tmp_1'
+CREATE TEMPORARY TABLE tt_tmp_1 ( id INT ) ENGINE = Innodb;
+DROP TABLE IF EXISTS nt_2;
+Warnings:
+Note	1051	Unknown table 'test.nt_2'
+CREATE TABLE nt_2 ( id INT ) ENGINE = MyIsam;
+DROP TABLE IF EXISTS nt_1;
+Warnings:
+Note	1051	Unknown table 'test.nt_1'
+CREATE TABLE nt_1 ( id INT ) ENGINE = MyIsam;
+DROP TABLE IF EXISTS tt_2;
+Warnings:
+Note	1051	Unknown table 'test.tt_2'
+CREATE TABLE tt_2 ( id INT ) ENGINE = Innodb;
+DROP TABLE IF EXISTS tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+CREATE TABLE tt_1 ( id INT ) ENGINE = Innodb;
+SET @commands= '';
+#########################################################################
+#           1 - Tables dropped by "DROP TEMPORARY TABLE"
+#########################################################################
+
+#
+#1) Generates in the binlog what follows:
+#
+SET @commands= 'Drop-Temp-T-Temp';
+DROP TEMPORARY TABLE tt_tmp_2;
+-b-b-b-b-b-b-b-b-b-b-b- >>  << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >>  << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-N-Temp';
+DROP TEMPORARY TABLE nt_tmp_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-N-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-N-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-Xe-Temp';
+DROP TEMPORARY TABLE tt_xx_1;
+ERROR 42S02: Unknown table 'test.tt_xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-Xe-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-Xe-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-If-Xe-Temp';
+DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-If-Xe-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-If-Xe-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-TXe-Temp';
+DROP TEMPORARY TABLE tt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-TXe-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-TXe-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-If-TXe-Temp';
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-If-TXe-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-If-TXe-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-NXe-Temp';
+DROP TEMPORARY TABLE nt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-NXe-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-NXe-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-If-NXe-Temp';
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-If-NXe-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-If-NXe-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-TN-Temp';
+DROP TEMPORARY TABLE tt_tmp_2, nt_tmp_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-TN-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-TN-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-TT-Temp';
+DROP TEMPORARY TABLE tt_tmp_1, tt_tmp_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-TT-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-TT-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-NN-Temp';
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-NN-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-NN-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+
+#
+#2) Generates in the binlog what follows:
+#
+SET @commands= 'B T Drop-Temp-T-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-T-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-T-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-T-Temp N Drop-Temp-T-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-T-Temp N Drop-Temp-T-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-T-Temp N Drop-Temp-T-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-N-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-N-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-N-Temp N Drop-Temp-N-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-N-Temp N Drop-Temp-N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-N-Temp N Drop-Temp-N-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-Xe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_xx_1;
+ERROR 42S02: Unknown table 'test.tt_xx_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-Xe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-Xe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-Xe-Temp N Drop-Temp-Xe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_xx_1;
+ERROR 42S02: Unknown table 'test.tt_xx_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_xx_1;
+ERROR 42S02: Unknown table 'test.tt_xx_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-Xe-Temp N Drop-Temp-Xe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-Xe-Temp N Drop-Temp-Xe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-Xe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_xx_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-Xe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-Xe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-Xe-Temp N Drop-Temp-If-Xe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_xx_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_xx_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-Xe-Temp N Drop-Temp-If-Xe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-Xe-Temp N Drop-Temp-If-Xe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TXe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TXe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TXe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TXe-Temp N Drop-Temp-TXe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TXe-Temp N Drop-Temp-TXe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TXe-Temp N Drop-Temp-TXe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-TXe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-TXe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-TXe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-TXe-Temp N Drop-Temp-If-TXe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_1, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-TXe-Temp N Drop-Temp-If-TXe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-TXe-Temp N Drop-Temp-If-TXe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NXe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NXe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NXe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NXe-Temp N Drop-Temp-NXe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NXe-Temp N Drop-Temp-NXe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NXe-Temp N Drop-Temp-NXe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-NXe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-NXe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-NXe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-NXe-Temp N Drop-Temp-If-NXe-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_1, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-NXe-Temp N Drop-Temp-If-NXe-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-NXe-Temp N Drop-Temp-If-NXe-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TN-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2, nt_tmp_2;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TN-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TN-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TN-Temp N Drop-Temp-TN-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1, nt_tmp_1;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TN-Temp N Drop-Temp-TN-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TN-Temp N Drop-Temp-TN-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TT-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1, tt_tmp_2;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TT-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TT-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TT-Temp N Drop-Temp-TT-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1, tt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TT-Temp N Drop-Temp-TT-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TT-Temp N Drop-Temp-TT-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Ne C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_error_1() VALUES (1), (1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Ne C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Ne C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Te C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO tt_error_1() VALUES (1), (1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Te C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Te C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp NeT-trig C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_error_1() VALUES (2), (2);
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp NeT-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp NeT-trig C << -e-e-e-e-e-e-e-e-e-e-e-
+
+
+#
+#3) Generates in the binlog what follows:
+#
+SET @commands= 'B T Drop-Temp-T-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2;
+ROLLBACK;
+Warnings:
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-T-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-T-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-T-Temp N Drop-Temp-T-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1;
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-T-Temp N Drop-Temp-T-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-T-Temp N Drop-Temp-T-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-N-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2;
+ROLLBACK;
+Warnings:
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-N-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-N-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-N-Temp N Drop-Temp-N-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1;
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-N-Temp N Drop-Temp-N-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-N-Temp N Drop-Temp-N-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-Xe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_xx_1;
+ERROR 42S02: Unknown table 'test.tt_xx_1'
+ROLLBACK;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-Xe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-Xe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-Xe-Temp N Drop-Temp-Xe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_xx_1;
+ERROR 42S02: Unknown table 'test.tt_xx_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_xx_1;
+ERROR 42S02: Unknown table 'test.tt_xx_1'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-Xe-Temp N Drop-Temp-Xe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-Xe-Temp N Drop-Temp-Xe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-Xe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_xx_1'
+ROLLBACK;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-Xe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-Xe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-Xe-Temp N Drop-Temp-If-Xe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_xx_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_xx_1'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-Xe-Temp N Drop-Temp-If-Xe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-Xe-Temp N Drop-Temp-If-Xe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TXe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+ROLLBACK;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TXe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TXe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TXe-Temp N Drop-Temp-TXe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TXe-Temp N Drop-Temp-TXe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TXe-Temp N Drop-Temp-TXe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-TXe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+ROLLBACK;
+Warnings:
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-TXe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-TXe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-TXe-Temp N Drop-Temp-If-TXe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_1, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-TXe-Temp N Drop-Temp-If-TXe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-TXe-Temp N Drop-Temp-If-TXe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NXe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+ROLLBACK;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NXe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NXe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NXe-Temp N Drop-Temp-NXe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, tt_1;
+ERROR 42S02: Unknown table 'test.tt_1'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NXe-Temp N Drop-Temp-NXe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NXe-Temp N Drop-Temp-NXe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-NXe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+ROLLBACK;
+Warnings:
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-NXe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-NXe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-If-NXe-Temp N Drop-Temp-If-NXe-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_2, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_1, tt_1;
+Warnings:
+Note	1051	Unknown table 'test.tt_1'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-If-NXe-Temp N Drop-Temp-If-NXe-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-If-NXe-Temp N Drop-Temp-If-NXe-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TN-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2, nt_tmp_2;
+ROLLBACK;
+Warnings:
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TN-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TN-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TN-Temp N Drop-Temp-TN-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_2, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1, nt_tmp_1;
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TN-Temp N Drop-Temp-TN-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TN-Temp N Drop-Temp-TN-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TT-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1, tt_tmp_2;
+ROLLBACK;
+Warnings:
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TT-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TT-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-TT-Temp N Drop-Temp-TT-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE tt_tmp_1, tt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TT-Temp N Drop-Temp-TT-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-TT-Temp N Drop-Temp-TT-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+ROLLBACK;
+Warnings:
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Ne R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_error_1() VALUES (3), (3);
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Ne R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Ne R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Te R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO tt_error_1() VALUES (2), (2);
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Te R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Te R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp NeT-trig R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_error_1() VALUES (4), (4);
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp NeT-trig R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp NeT-trig R << -e-e-e-e-e-e-e-e-e-e-e-
+
+#########################################################################
+#                   2 - Tables dropped by "DROP TABLE"
+#########################################################################
+
+#
+#1) Generates in the binlog what follows:
+#
+SET @commands= 'Drop-T';
+DROP TABLE tt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-T << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `tt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-T << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-N';
+DROP TABLE nt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-N << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-N << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Xe';
+DROP TABLE xx_1;
+ERROR 42S02: Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Xe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Xe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-If-Xe';
+DROP TABLE IF EXISTS xx_1;
+Warnings:
+Note	1051	Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-If-Xe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `xx_1` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-If-Xe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-TXe';
+DROP TABLE tt_2, xx_1;
+ERROR 42S02: Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-TXe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-TXe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-If-TXe';
+DROP TABLE IF EXISTS tt_2, xx_1;
+Warnings:
+Note	1051	Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-If-TXe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_2`,`xx_1` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-If-TXe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-NXe';
+DROP TABLE nt_2, xx_1;
+ERROR 42S02: Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-NXe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-NXe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-If-NXe';
+DROP TABLE IF EXISTS nt_2, xx_1;
+Warnings:
+Note	1051	Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-If-NXe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `nt_2` /* generated by server */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `xx_1` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-If-NXe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-TN';
+DROP TABLE tt_2, nt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-TN << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_2` /* generated by server */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `tt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-TN << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-TT';
+DROP TABLE tt_1, tt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-TT << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `tt_1`,`tt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-TT << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-NN';
+DROP TABLE nt_1, nt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-NN << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_1` /* generated by server */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-NN << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-N-TN-Temp';
+DROP TABLE tt_tmp_2, nt_tmp_2, nt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-N-TN-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-N-TN-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-TN-Temp';
+DROP TABLE tt_tmp_2, nt_tmp_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-TN-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-TN-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+
+#
+#2) Generates in the binlog what follows:
+#
+SET @commands= 'B T Drop-T';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE tt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-T << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `tt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-T << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-N';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE nt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-N << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-N << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-Xe';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE xx_1;
+ERROR 42S02: Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Xe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Xe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-If-Xe';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE IF EXISTS xx_1;
+Warnings:
+Note	1051	Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-If-Xe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `xx_1` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-If-Xe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-TXe';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE tt_2, xx_1;
+ERROR 42S02: Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-TXe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-TXe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-If-TXe';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE IF EXISTS tt_2, xx_1;
+Warnings:
+Note	1051	Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-If-TXe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_2`,`xx_1` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-If-TXe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-NXe';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE nt_2, xx_1;
+ERROR 42S02: Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-NXe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-NXe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-If-NXe';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE IF EXISTS nt_2, xx_1;
+Warnings:
+Note	1051	Unknown table 'test.xx_1'
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-If-NXe << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `nt_2` /* generated by server */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `xx_1` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-If-NXe << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-TN';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE tt_2, nt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-TN << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_2` /* generated by server */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `tt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-TN << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-TT';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE tt_1, tt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-TT << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `tt_1`,`tt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-TT << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-NN';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE nt_1, nt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-NN << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_1` /* generated by server */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-NN << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-N-TN-Temp';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE tt_tmp_2, nt_tmp_2, nt_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-N-TN-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `nt_2` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-N-TN-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B T Drop-TN-Temp';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TABLE tt_tmp_2, nt_tmp_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-TN-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-TN-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+#########################################################################
+#                      3 - CREATE TEMPORARY TABLE
+#########################################################################
+
+#
+#1) Generates in the binlog what follows:
+#
+SET @commands= 'Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-Temp';
+DROP TEMPORARY TABLE nt_tmp_2;
+CREATE TEMPORARY TABLE nt_tmp_2 ( id INT ) engine= MyIsam;
+DROP TEMPORARY TABLE nt_tmp_1;
+DROP TEMPORARY TABLE nt_tmp_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp';
+DROP TEMPORARY TABLE tt_tmp_2;
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
+DROP TEMPORARY TABLE tt_tmp_1;
+DROP TEMPORARY TABLE tt_tmp_2;
+-b-b-b-b-b-b-b-b-b-b-b- >> Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp << -e-e-e-e-e-e-e-e-e-e-e-
+
+
+#
+#2) Generates in the binlog what follows:
+#
+SET @commands= 'B T Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-Temp C';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2;
+CREATE TEMPORARY TABLE nt_tmp_2 ( id INT ) engine= MyIsam;
+DROP TEMPORARY TABLE nt_tmp_1;
+DROP TEMPORARY TABLE nt_tmp_2;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp C';
+BEGIN;
+DROP TEMPORARY TABLE tt_tmp_2;
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
+DROP TEMPORARY TABLE tt_tmp_1;
+DROP TEMPORARY TABLE tt_tmp_2;
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Ne C';
+BEGIN;
+DROP TEMPORARY TABLE tt_tmp_2;
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
+DROP TEMPORARY TABLE tt_tmp_1;
+DROP TEMPORARY TABLE tt_tmp_2;
+INSERT INTO nt_error_1() VALUES (5), (5);
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Ne C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Ne C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Te C';
+BEGIN;
+DROP TEMPORARY TABLE tt_tmp_2;
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
+DROP TEMPORARY TABLE tt_tmp_1;
+DROP TEMPORARY TABLE tt_tmp_2;
+INSERT INTO tt_error_1() VALUES (3), (3);
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Te C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Te C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp NeT-trig C';
+BEGIN;
+DROP TEMPORARY TABLE tt_tmp_2;
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
+DROP TEMPORARY TABLE tt_tmp_1;
+DROP TEMPORARY TABLE tt_tmp_2;
+INSERT INTO nt_error_1() VALUES (6), (6);
+ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp NeT-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp NeT-trig C << -e-e-e-e-e-e-e-e-e-e-e-
+
+
+#
+#3) Generates in the binlog what follows:
+#
+SET @commands= 'B T Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-Temp R';
+BEGIN;
+INSERT INTO tt_xx_1() VALUES (1);
+DROP TEMPORARY TABLE nt_tmp_2;
+CREATE TEMPORARY TABLE nt_tmp_2 ( id INT ) engine= MyIsam;
+DROP TEMPORARY TABLE nt_tmp_1;
+DROP TEMPORARY TABLE nt_tmp_2;
+ROLLBACK;
+Warnings:
+Warning	#	The creation of some temporary tables could not be rolled back.
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B T Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp R';
+BEGIN;
+DROP TEMPORARY TABLE tt_tmp_2;
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
+DROP TEMPORARY TABLE tt_tmp_1;
+DROP TEMPORARY TABLE tt_tmp_2;
+ROLLBACK;
+Warnings:
+Warning	#	The creation of some temporary tables could not be rolled back.
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Ne R';
+BEGIN;
+DROP TEMPORARY TABLE tt_tmp_2;
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
+DROP TEMPORARY TABLE tt_tmp_1;
+DROP TEMPORARY TABLE tt_tmp_2;
+INSERT INTO nt_error_1() VALUES (7), (7);
+ERROR 23000: Duplicate entry '7' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	The creation of some temporary tables could not be rolled back.
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Ne R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Ne R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Te R';
+BEGIN;
+DROP TEMPORARY TABLE tt_tmp_2;
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
+DROP TEMPORARY TABLE tt_tmp_1;
+DROP TEMPORARY TABLE tt_tmp_2;
+INSERT INTO tt_error_1() VALUES (4), (4);
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	#	The creation of some temporary tables could not be rolled back.
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Te R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Te R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp NeT-trig R';
+BEGIN;
+DROP TEMPORARY TABLE tt_tmp_2;
+CREATE TEMPORARY TABLE tt_tmp_2 ( id INT ) engine= Innodb;
+DROP TEMPORARY TABLE tt_tmp_1;
+DROP TEMPORARY TABLE tt_tmp_2;
+INSERT INTO nt_error_1() VALUES (8), (8);
+ERROR 23000: Duplicate entry '8' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	The creation of some temporary tables could not be rolled back.
+Warning	#	Some temporary tables were dropped, but these operations could not be rolled back.
+-b-b-b-b-b-b-b-b-b-b-b- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp NeT-trig R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp NeT-trig R << -e-e-e-e-e-e-e-e-e-e-e-
+
+#########################################################################
+#                     4 -  CHANGING TEMPORARY TABLES
+#########################################################################
+
+#
+#1) Generates in the binlog what follows:
+#
+SET @commands= 'B N N-Temp N-SELECT-N-Temp N-Temp C';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO nt_xx_1 SELECT * FROM nt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp N-SELECT-N-Temp N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp N-SELECT-N-Temp N-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-N-Temp N-Temp C';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM nt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-N-Temp N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-N-Temp N-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp N-SELECT-T-Temp N-Temp C';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO nt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp N-SELECT-T-Temp N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp N-SELECT-T-Temp N-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp C';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-T-Temp N-Temp C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp Ne C';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO nt_error_1() VALUES (9), (9);
+ERROR 23000: Duplicate entry '9' for key 'PRIMARY'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp Ne C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-T-Temp N-Temp Ne C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp Te C';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_error_1() VALUES (5), (5);
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp Te C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-T-Temp N-Temp Te C << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp NeT-trig C';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO nt_error_1() VALUES (10), (10);
+ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
+COMMIT;
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp NeT-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-T-Temp N-Temp NeT-trig C << -e-e-e-e-e-e-e-e-e-e-e-
+
+
+
+#
+#2) Generates in the binlog what follows:
+#
+SET @commands= 'B N N-Temp N-SELECT-N-Temp N-Temp R';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO nt_xx_1 SELECT * FROM nt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp N-SELECT-N-Temp N-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp N-SELECT-N-Temp N-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-N-Temp N-Temp R';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM nt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-N-Temp N-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-N-Temp N-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp N-SELECT-T-Temp N-Temp R';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO nt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp N-SELECT-T-Temp N-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp N-SELECT-T-Temp N-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp R';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-T-Temp N-Temp R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp Ne R';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO nt_error_1() VALUES (11), (11);
+ERROR 23000: Duplicate entry '11' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp Ne R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-T-Temp N-Temp Ne R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp Te R';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_error_1() VALUES (6), (6);
+ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp Te R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-T-Temp N-Temp Te R << -e-e-e-e-e-e-e-e-e-e-e-
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp NeT-trig R';
+BEGIN;
+INSERT INTO nt_xx_1() VALUES (1);
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+INSERT INTO nt_tmp_xx_1() VALUES (1);
+INSERT INTO nt_error_1() VALUES (12), (12);
+ERROR 23000: Duplicate entry '12' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+-b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp NeT-trig R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_error_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B N N-Temp T-SELECT-T-Temp N-Temp NeT-trig R << -e-e-e-e-e-e-e-e-e-e-e-
+
+###################################################################################
+#                               CHECK CONSISTENCY
+###################################################################################
+#########################################################################
+#                           CLEAN
+#########################################################################
+SET @commands= 'clean';
+DROP TABLE IF EXISTS tt_xx_1;
+DROP TABLE IF EXISTS nt_xx_1;
+DROP TABLE IF EXISTS tt_error_1;
+DROP TABLE IF EXISTS nt_error_1;
+DROP TABLE IF EXISTS tt_error_2;
+DROP TABLE IF EXISTS nt_error_2;
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_xx_1;
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_xx_1;
+DROP TABLE IF EXISTS nt_2;
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_2;
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_2;
+DROP TABLE IF EXISTS nt_1;
+DROP TEMPORARY TABLE IF EXISTS tt_tmp_1;
+DROP TEMPORARY TABLE IF EXISTS nt_tmp_1;
+DROP TABLE IF EXISTS tt_2;
+DROP TABLE IF EXISTS tt_1;
+SET @commands= '';
+include/rpl_end.inc

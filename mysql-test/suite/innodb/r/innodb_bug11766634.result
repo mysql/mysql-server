@@ -1,0 +1,11 @@
+# This test case needs the innodb_file_per_table option to be disabled.
+set global innodb_file_per_table = 0;
+show variables like 'innodb_file_per_table';
+Variable_name	Value
+innodb_file_per_table	OFF
+create table t1 (f1 char(255)) engine innodb;
+drop table t1;
+create table t1 (f1 char(255)) engine innodb;
+Difference in ibdata1 file size: 0
+drop table t1;
+set global innodb_file_per_table = 1;

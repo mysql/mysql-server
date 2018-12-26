@@ -1,0 +1,165 @@
+ #############mysql-test\t\log_bin_trust_function_creators_basic.test ########
+#                                                                             #
+# Variable Name: log_bin_trust_function_creators                              #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: False                                                        #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-11                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable                          #
+#              log_bin_trust_function_creators that checks the behavior of    #
+#              this variable in the following ways                            #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/server-system             #
+#            -variables.html#option_mysqld_log-bin-trust-function-ceators     #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+####################################################################
+#   START OF log_bin_trust_function_creators TESTS                 #
+####################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.log_bin_trust_function_creators;
+SELECT @start_global_value;
+
+--echo '#--------------------FN_DYNVARS_063_01-------------------------#'
+########################################################################
+#     Display the DEFAULT value of log_bin_trust_function_creators     #
+########################################################################
+
+SET @@global.log_bin_trust_function_creators = TRUE;
+SET @@global.log_bin_trust_function_creators = DEFAULT;
+SELECT @@global.log_bin_trust_function_creators;
+
+--echo '#--------------------FN_DYNVARS_063_02-------------------------#'
+###############################################################################
+#     Check the DEFAULT value of log_bin_trust_function_creators              #
+###############################################################################
+
+SET @@global.log_bin_trust_function_creators = DEFAULT;
+SELECT @@global.log_bin_trust_function_creators = 'FALSE';
+
+
+--echo '#--------------------FN_DYNVARS_063_03-------------------------#'
+##################################################################
+# Change the value of variable to a valid value for GLOBAL Scope #
+##################################################################
+
+SET @@global.log_bin_trust_function_creators = ON;
+SELECT @@global.log_bin_trust_function_creators;
+SET @@global.log_bin_trust_function_creators = OFF;
+SELECT @@global.log_bin_trust_function_creators;
+SET @@global.log_bin_trust_function_creators = 0;
+SELECT @@global.log_bin_trust_function_creators;
+SET @@global.log_bin_trust_function_creators = 1;
+SELECT @@global.log_bin_trust_function_creators;
+SET @@global.log_bin_trust_function_creators = TRUE;
+SELECT @@global.log_bin_trust_function_creators;
+SET @@global.log_bin_trust_function_creators = FALSE;
+SELECT @@global.log_bin_trust_function_creators;
+
+
+--echo '#-------------------FN_DYNVARS_063_04----------------------------#'
+###############################################################################
+#     Test if accessing session log_bin_trust_function_creators gives error   #
+###############################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.log_bin_trust_function_creators = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_bin_trust_function_creators;
+
+--echo '#------------------FN_DYNVARS_063_05-----------------------#'
+###########################################################################
+# Change the value of log_bin_trust_function_creators to an invalid value #
+###########################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_bin_trust_function_creators = 'ONN';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_bin_trust_function_creators = "OFFF";
+--error ER_PARSE_ERROR
+SET @@global.log_bin_trust_function_creators = OF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_bin_trust_function_creators = TTRUE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_bin_trust_function_creators = FELSE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_bin_trust_function_creators = -1024;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_bin_trust_function_creators = 65536;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.log_bin_trust_function_creators = 65530.34;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_bin_trust_function_creators = test;
+
+--echo '#------------------FN_DYNVARS_063_06-----------------------#'
+##############################################################################
+#   Check if the value in GLOBAL & SESSION Tables matches value in variable   #
+###############################################################################
+
+
+--disable_warnings
+SELECT IF(@@global.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='log_bin_trust_function_creators';
+--enable_warnings
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT IF(@@session.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='log_bin_trust_function_creators';
+
+--echo '#---------------------FN_DYNVARS_063_07----------------------#'
+###############################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable #
+###############################################################################
+
+
+SET @@global.log_bin_trust_function_creators = TRUE;
+SELECT @@log_bin_trust_function_creators = @@global.log_bin_trust_function_creators;
+
+
+--echo '#---------------------FN_DYNVARS_063_08----------------------#'
+###################################################################
+#   Check if variable can be accessed with and without @@ sign    #
+###################################################################
+
+SET @@global.log_bin_trust_function_creators = TRUE;
+SELECT @@log_bin_trust_function_creators;
+--Error ER_UNKNOWN_TABLE
+SELECT local.log_bin_trust_function_creators;
+--Error ER_UNKNOWN_TABLE
+SELECT session.log_bin_trust_function_creators;
+--Error ER_BAD_FIELD_ERROR
+SELECT log_bin_trust_function_creators = @@session.log_bin_trust_function_creators;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.log_bin_trust_function_creators = @start_global_value;
+SELECT @@global.log_bin_trust_function_creators;
+
+
+#########################################################
+#      END OF log_bin_trust_function_creators TESTS     #
+#########################################################
+

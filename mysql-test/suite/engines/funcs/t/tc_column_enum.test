@@ -1,0 +1,15 @@
+--disable_warnings
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+--enable_warnings
+
+--disable_warnings
+DROP TABLE IF EXISTS t6;
+--enable_warnings
+CREATE TABLE t6(c1 ENUM('a','b','c') NULL);
+SHOW TABLES;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t6; DROP TABLE t6; SHOW TABLES;
+CREATE TABLE t6(c1 ENUM('a','b','c') NOT NULL);
+SHOW TABLES;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t6; DROP TABLE t6; SHOW TABLES;

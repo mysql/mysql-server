@@ -1,0 +1,51 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = END_EVENT_ID;
+let $table = performance_schema.events_waits_current;
+
+create database explain_test_db;
+create table explain_test_db.t1 (c int);
+insert into explain_test_db.t1 values ('1');
+
+truncate table performance_schema.events_waits_current;
+
+# Create a new Connection
+connect(con1,127.0.0.1,root,,);
+
+--echo # Connection 1
+--connection con1
+
+select connection_id() into @conid;
+
+let $tid = `select thread_id from performance_schema.threads
+            where PROCESSLIST_ID = @conid`;
+
+select * from explain_test_db.t1;
+
+--echo # Default connection
+--connection default
+
+--disable_query_log
+--eval select $tid into @tid;
+--let $wait_condition = select count(*) > 0 from performance_schema.events_waits_current where THREAD_ID = @tid
+--source include/wait_condition.inc
+select EVENT_ID from performance_schema.events_waits_current where THREAD_ID = @tid limit 1 into @eid;
+--enable_query_log
+
+###########################################################################
+# Test index on THREAD_ID, EVENT_ID
+###########################################################################
+
+let $column_count = 2;
+let $col1 = THREAD_ID;
+let $col2 = EVENT_ID;
+let $col1_act = @tid;
+let $col2_act = @eid;
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+--disconnect con1
+drop table explain_test_db.t1;
+drop database explain_test_db;

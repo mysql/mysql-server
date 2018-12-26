@@ -1,0 +1,7 @@
+--source include/have_myisam.inc
+--source include/not_group_replication_plugin.inc
+# Separated testcases for MyISAM and InnoDB because result file 
+# differs. (Reason: Non Transactional and Trasactional differences)
+
+--let $DEFAULT_ENGINE = myisam
+--source extra/rpl_tests/rpl_sp.test

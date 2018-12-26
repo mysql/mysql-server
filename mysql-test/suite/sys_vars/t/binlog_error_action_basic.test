@@ -1,0 +1,70 @@
+################## mysql-test\t\binlog_error_action_basic.test ################
+#                                                                             #
+# Variable Name: binlog_error_action                                          #
+# Scope: Global                                                               #
+# Data Type: enumeration                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-09-11                                                   #
+# Author : Sujatha Sivakumar                                                  #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable binlog_error_action       #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+###############################################################################
+
+
+SELECT @@GLOBAL.binlog_error_action;
+--echo ABORT_SERVER Expected
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.binlog_error_action;
+
+SET @start_value= @@global.binlog_error_action;
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SHOW GLOBAL VARIABLES LIKE 'binlog_error_action';
+
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+SET @@GLOBAL.binlog_error_action=IGNORE_ERROR;
+SELECT @@GLOBAL.binlog_error_action;
+--echo IGNORE_ERROR Expected
+
+SET @@GLOBAL.binlog_error_action=ABORT_SERVER;
+SELECT @@GLOBAL.binlog_error_action;
+--echo ABORT_SERVER Expected
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.binlog_error_action = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='binlog_error_action';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.binlog_error_action);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='binlog_error_action';
+--echo 1 Expected
+--enable_warnings
+
+################################################################################
+#   Check if binlog_error_action can be accessed with @@ sign           #
+################################################################################
+
+SELECT COUNT(@@binlog_error_action);
+--echo 1 Expected
+SELECT COUNT(@@GLOBAL.binlog_error_action);
+--echo 1 Expected
+
+SET @@global.binlog_error_action= @start_value;

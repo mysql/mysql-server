@@ -1,0 +1,77 @@
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+CREATE TABLE t (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 INT) ENGINE=InnoDB;
+INSERT INTO t VALUES (1,2,3),(4,5,6),(7,8,9);
+
+--enable_info
+# This one will be a no-op. Instead of implicitly refusing to modify the
+# PRIMARY KEY column c1 from NOT NULL to NULL, we now get an error for this
+# operation with the patch for Bug#16545198.
+--error ER_PRIMARY_CANT_HAVE_NULL
+ALTER TABLE t CHANGE c1 c1 INT NULL FIRST, ALGORITHM=INPLACE;
+
+# NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
+--disable_info
+--enable_info
+ALTER TABLE t MODIFY c3 INT NOT NULL, ALGORITHM=INPLACE;
+--disable_info
+--enable_info
+
+# Request some conflicting changes for a single column.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t CHANGE c2 c2 INT, CHANGE c2 c2 INT NOT NULL;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t MODIFY c2 INT, MODIFY c2 INT NOT NULL;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t MODIFY c2 INT UNSIGNED, MODIFY c2 INT;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t MODIFY c2 CHAR(1) NOT NULL, MODIFY c2 INT NOT NULL;
+
+# No-ops.
+ALTER TABLE t CHANGE c2 c2 INT NOT NULL;
+ALTER TABLE t MODIFY c2 INT NOT NULL;
+--disable_info
+
+connect (con1,localhost,root,,);
+connection con1;
+
+
+--error ER_BAD_NULL_ERROR
+UPDATE t SET c2=NULL;
+
+SELECT * FROM t;
+
+connection default;
+
+# This should change the column to NULL.
+ALTER TABLE t MODIFY c2 INT, ALGORITHM=INPLACE;
+
+connection con1;
+BEGIN;
+UPDATE t SET c2=NULL;
+SELECT * FROM t;
+ROLLBACK;
+SELECT * FROM t;
+
+disconnect con1;
+connection default;
+
+# This should be no-op.
+ALTER TABLE t MODIFY c2 INT NULL, ALGORITHM=INPLACE;
+
+--replace_column 1 # 5 #
+SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME='test/t';
+
+DROP TABLE t;
+
+CREATE TABLE t1(c1 INT);
+ALTER TABLE t1 ADD CONSTRAINT UNIQUE KEY i1(c1);
+ALTER TABLE t1 CHANGE c1 c1 INT SIGNED NOT NULL,ADD KEY(c1);
+DROP TABLE t1;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

@@ -1,0 +1,28 @@
+
+#
+# Tests which require ucs2 character set and myisam engine
+#
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+let $engine_type= MyISAM;
+let $other_engine_type= MEMORY;
+# There are unfortunately only MyISAM and MEMORY all time available
+# Therefore use here MEMORY again.
+let $other_engine_type1= MEMORY;
+let $other_non_trans_engine_type= MEMORY;
+let $other_non_live_chks_engine_type= MEMORY;
+# Therefore use here MyISAM again.
+let $other_live_chks_engine_type= MyISAM;
+# MyISAM does not support transactions
+let $test_transactions= 0;
+# MyISAM does not support FOREIGN KEYFOREIGN KEYs
+let $test_foreign_keys= 0;
+# MyISAM supports fulltext queries
+let $fulltext_query_unsupported= 0;
+# MyISAM internal autoincrement values are updated during updates
+let $no_autoinc_update= 0;
+# MyISAM supports keys on spatial data types
+let $no_spatial_key= 0;
+
+-- source include/mix2_ucs2.inc

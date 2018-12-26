@@ -1,0 +1,124 @@
+SET @global_start_value = @@global.innodb_max_purge_lag;
+SELECT @global_start_value;
+@global_start_value
+0
+'#--------------------FN_DYNVARS_046_01------------------------#'
+SET @@global.innodb_max_purge_lag = 0;
+SET @@global.innodb_max_purge_lag = DEFAULT;
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+'#---------------------FN_DYNVARS_046_02-------------------------#'
+SET innodb_max_purge_lag = 1;
+ERROR HY000: Variable 'innodb_max_purge_lag' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@innodb_max_purge_lag;
+@@innodb_max_purge_lag
+0
+SELECT local.innodb_max_purge_lag;
+ERROR 42S02: Unknown table 'local' in field list
+SET global innodb_max_purge_lag = 0;
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+'#--------------------FN_DYNVARS_046_03------------------------#'
+SET @@global.innodb_max_purge_lag = 0;
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = 1;
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+1
+SET @@global.innodb_max_purge_lag = 4294967295;
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+4294967295
+'#--------------------FN_DYNVARS_046_04------------------------#'
+SET @@global.innodb_max_purge_lag = 4294967296;
+SELECT @@global.innodb_max_purge_lag IN (4294967296,4294967295);
+@@global.innodb_max_purge_lag IN (4294967296,4294967295)
+1
+SET @@global.innodb_max_purge_lag = 12345678901;
+SELECT @@global.innodb_max_purge_lag IN (12345678901,4294967295);
+@@global.innodb_max_purge_lag IN (12345678901,4294967295)
+1
+SET @@global.innodb_max_purge_lag = 18446744073709551615;
+SELECT @@global.innodb_max_purge_lag IN (18446744073709551615,4294967295);
+@@global.innodb_max_purge_lag IN (18446744073709551615,4294967295)
+1
+'#--------------------FN_DYNVARS_046_05-------------------------#'
+SET @@global.innodb_max_purge_lag = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_max_purge_lag value: '-1'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = -1024;
+Warnings:
+Warning	1292	Truncated incorrect innodb_max_purge_lag value: '-1024'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = "T";
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = "Y";
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+'#----------------------FN_DYNVARS_046_06------------------------#'
+SELECT @@global.innodb_max_purge_lag =
+VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_max_purge_lag';
+@@global.innodb_max_purge_lag =
+VARIABLE_VALUE
+1
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_max_purge_lag';
+VARIABLE_VALUE
+0
+'#---------------------FN_DYNVARS_046_07-------------------------#'
+SET @@global.innodb_max_purge_lag = OFF;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+'#---------------------FN_DYNVARS_046_08----------------------#'
+SET @@global.innodb_max_purge_lag = TRUE;
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+1
+SET @@global.innodb_max_purge_lag = FALSE;
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = @global_start_value;
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0

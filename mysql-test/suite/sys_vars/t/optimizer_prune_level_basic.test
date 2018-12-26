@@ -1,0 +1,230 @@
+############## mysql-test\t\optimizer_prune_level_basic.test ##################
+#                                                                             #
+# Variable Name: optimizer_prune_level                                        #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: 1                                                            #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-14                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable optimizer_prune_level    #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html#option_mysqld_optimizer_prune_level           #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+###################################################
+#      START OF optimizer_prune_level TESTS       # 
+###################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.optimizer_prune_level;
+SELECT @start_global_value;
+SET @start_session_value = @@session.optimizer_prune_level;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_115_01-------------------------#'
+###########################################################
+#     Display the DEFAULT value of optimizer_prune_level  #
+###########################################################
+
+SET @@global.optimizer_prune_level = 0;
+SET @@global.optimizer_prune_level = DEFAULT;
+SELECT @@global.optimizer_prune_level;
+
+SET @@session.optimizer_prune_level = 0;
+SET @@session.optimizer_prune_level = DEFAULT;
+SELECT @@session.optimizer_prune_level;
+
+
+--echo '#--------------------FN_DYNVARS_115_02-------------------------#'
+###########################################################
+#     Check the DEFAULT value of optimizer_prune_level    #
+###########################################################
+
+SET @@global.optimizer_prune_level = DEFAULT;
+SELECT @@global.optimizer_prune_level = 1;
+
+SET @@session.optimizer_prune_level = DEFAULT;
+SELECT @@session.optimizer_prune_level = 1;
+
+
+--echo '#--------------------FN_DYNVARS_115_03-------------------------#'
+###############################################################################
+# Change the value of optimizer_prune_level to a valid value for GLOBAL Scope #
+###############################################################################
+
+
+SELECT @@global.optimizer_prune_level;
+SET @@global.optimizer_prune_level = 0;
+SELECT @@global.optimizer_prune_level;
+SET @@global.optimizer_prune_level = 1;
+SELECT @@global.optimizer_prune_level;
+SET @@global.optimizer_prune_level = TRUE;
+SELECT @@global.optimizer_prune_level;
+SET @@global.optimizer_prune_level = FALSE;
+SELECT @@global.optimizer_prune_level;
+
+
+
+--echo '#--------------------FN_DYNVARS_115_04-------------------------#'
+###############################################################################
+# Change the value of optimizer_prune_level to a valid value for SESSION Scope#
+###############################################################################
+ 
+SELECT @@session.optimizer_prune_level;
+SET @@session.optimizer_prune_level = 0;
+SELECT @@session.optimizer_prune_level;
+SET @@session.optimizer_prune_level = 1;
+SELECT @@session.optimizer_prune_level;
+SET @@session.optimizer_prune_level = TRUE;
+SELECT @@session.optimizer_prune_level;
+SET @@session.optimizer_prune_level = FALSE;
+SELECT @@session.optimizer_prune_level;
+
+
+--echo '#------------------FN_DYNVARS_115_05-----------------------#'
+#################################################################
+# Change the value of optimizer_prune_level to an invalid value #
+#################################################################
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.optimizer_prune_level = ON;
+--echo 'Bug# 34840: Since it is a boolean variable, it should not give errors on 'ON' & 'OFF' values';
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.optimizer_prune_level = OFF;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.optimizer_prune_level = 'ONN';
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.optimizer_prune_level = "OFFF";
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.optimizer_prune_level = TTRUE;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.optimizer_prune_level = FELSE;
+
+SET @@global.optimizer_prune_level = -1024;
+SELECT @@global.optimizer_prune_level;
+
+--echo 'Bug# 34840: Since it is a boolean variable, it should give errors on numeric values';
+
+SET @@global.optimizer_prune_level = 65536;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.optimizer_prune_level = 65530.34;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.optimizer_prune_level = test;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_prune_level = ON;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_prune_level = OFF;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_prune_level = ONN;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_prune_level = ONF;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_prune_level = ON;
+--Error ER_WRONG_TYPE_FOR_VAR
+--error ER_PARSE_ERROR
+SET @@session.optimizer_prune_level = OF;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_prune_level = 'OFN';
+SET @@session.optimizer_prune_level = -2;
+SELECT @@session.optimizer_prune_level;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_prune_level = 65530.34;
+
+SET @@session.optimizer_prune_level = 65550;
+SELECT @@session.optimizer_prune_level;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_prune_level = test;
+
+--echo '#------------------FN_DYNVARS_115_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@global.optimizer_prune_level = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='optimizer_prune_level';
+--enable_warnings
+
+--echo '#------------------FN_DYNVARS_115_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@session.optimizer_prune_level = VARIABLE_VALUE
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='optimizer_prune_level';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_115_08----------------------#'
+###############################################################################
+#  Check if global and session variable are independent of each other         #
+###############################################################################
+
+SET @@optimizer_prune_level = 0;
+SET @@global.optimizer_prune_level = 1;
+SELECT @@optimizer_prune_level = @@global.optimizer_prune_level;
+
+
+--echo '#---------------------FN_DYNVARS_115_09----------------------#'
+###############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points  #
+#    to same session variable                                                 #
+###############################################################################
+
+SET @@optimizer_prune_level = 1;
+SELECT @@optimizer_prune_level = @@local.optimizer_prune_level;
+SELECT @@local.optimizer_prune_level = @@session.optimizer_prune_level;
+
+
+--echo '#---------------------FN_DYNVARS_115_10----------------------#'
+###############################################################################
+#   Check if optimizer_prune_level can be accessed with and without @@ sign   #
+###############################################################################
+
+SET optimizer_prune_level = 1;
+SELECT @@optimizer_prune_level;
+--Error ER_UNKNOWN_TABLE
+SELECT local.optimizer_prune_level;
+--Error ER_UNKNOWN_TABLE
+SELECT session.optimizer_prune_level;
+--Error ER_BAD_FIELD_ERROR
+SELECT optimizer_prune_level = @@session.optimizer_prune_level;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.optimizer_prune_level = @start_global_value;
+SELECT @@global.optimizer_prune_level;
+SET @@session.optimizer_prune_level = @start_session_value;
+SELECT @@session.optimizer_prune_level;
+
+##########################################################
+#                 END OF optimizer_prune_level TESTS     #
+##########################################################
+

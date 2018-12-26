@@ -1,0 +1,398 @@
+--source include/have_debug_sync.inc
+
+let $innodb_metrics_select=
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
+
+# DISCARD TABLESPACE needs file-per-table
+SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = on;
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 TEXT NOT NULL)
+ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,1,''), (2,2,''), (3,3,''), (4,4,''), (5,5,'');
+
+SET GLOBAL innodb_monitor_enable = module_ddl;
+eval $innodb_metrics_select;
+
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'write_row_noreplace SIGNAL have_handle WAIT_FOR go_ahead';
+--send
+INSERT INTO t1 VALUES(1,2,3);
+
+--echo # Establish session con1 (user=root)
+connect (con1,localhost,root,,);
+connection con1;
+
+# This should block at the end because of the INSERT in connection default
+# is holding a metadata lock.
+SET DEBUG_SYNC = 'now WAIT_FOR have_handle';
+SET lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+--echo # session default
+connection default;
+--error ER_DUP_ENTRY
+reap;
+eval $innodb_metrics_select;
+
+--echo # session con1
+connection con1;
+SET SESSION DEBUG = '+d,innodb_OOM_prepare_inplace_alter';
+--error ER_OUT_OF_RESOURCES
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+SET SESSION DEBUG = '-d,innodb_OOM_prepare_inplace_alter';
+SET SESSION DEBUG = '+d,innodb_OOM_inplace_alter';
+--error ER_OUT_OF_RESOURCES
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+SET SESSION DEBUG = '-d,innodb_OOM_inplace_alter';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+
+--echo # session default
+connection default;
+SHOW CREATE TABLE t1;
+# Insert a duplicate entry (4) for the upcoming UNIQUE INDEX(c2).
+BEGIN;
+INSERT INTO t1 VALUES(7,4,2);
+
+--echo # session con1
+connection con1;
+# This DEBUG_SYNC should not kick in yet, because the duplicate key will be
+# detected before we get a chance to apply the online log.
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL scanned WAIT_FOR insert_done';
+# This will be a lock wait timeout on the meta-data lock,
+# because the transaction inserting (7,4,2) is still active.
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
+
+--echo # session default
+connection default;
+COMMIT;
+
+--echo # session con1
+connection con1;
+--error ER_DUP_ENTRY
+ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
+
+--echo # session default
+connection default;
+DELETE FROM t1 WHERE c1 = 7;
+
+--echo # session con1
+connection con1;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2), ROW_FORMAT=COMPACT,
+LOCK = SHARED, ALGORITHM = INPLACE;
+
+# The previous DEBUG_SYNC should be ignored, because an exclusive lock
+# has been requested and the online log is not being allocated.
+ALTER TABLE t1 ADD UNIQUE INDEX(c2),
+LOCK = EXCLUSIVE, ALGORITHM = INPLACE;
+
+SHOW CREATE TABLE t1;
+# We do not support plain DROP_PK_INDEX without ADD_PK_INDEX.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 DROP INDEX c2, ALGORITHM = INPLACE;
+SHOW CREATE TABLE t1;
+# Now the previous DEBUG_SYNC should kick in.
+--send
+ALTER TABLE t1 DROP INDEX c2, ADD PRIMARY KEY(c1);
+
+--echo # session default
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR scanned';
+eval $innodb_metrics_select;
+
+# Insert a duplicate entry (4) for the already started UNIQUE INDEX(c1).
+BEGIN;
+INSERT INTO t1 VALUES(4,7,2);
+SET DEBUG_SYNC = 'now SIGNAL insert_done';
+
+--echo # session con1
+connection con1;
+# Because the modification log will be applied in order and we did
+# not roll back before the log apply, there will be a duplicate key
+# error on the (4,7,2).
+--error ER_DUP_ENTRY
+reap;
+
+--echo # session default
+connection default;
+ROLLBACK;
+
+--echo # session con1
+connection con1;
+SHOW CREATE TABLE t1;
+# Now, rebuild the table without any concurrent DML, while no duplicate exists.
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2), ALGORITHM = INPLACE;
+ALTER TABLE t1 DROP INDEX c2, ADD PRIMARY KEY(c1), ALGORITHM = INPLACE;
+eval $innodb_metrics_select;
+
+--echo # session default
+connection default;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES(6,3,1);
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES(7,4,2);
+DROP INDEX c2_2 ON t1;
+BEGIN;
+INSERT INTO t1 VALUES(7,4,2);
+ROLLBACK;
+
+--echo # session con1
+connection con1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+--error ER_QUERY_INTERRUPTED
+KILL QUERY @id;
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt WAIT_FOR kill_done';
+--send
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+
+--echo # session default
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR rebuilt';
+eval $innodb_metrics_select;
+let $ignore= `SELECT @id := $ID`;
+KILL QUERY @id;
+SET DEBUG_SYNC = 'now SIGNAL kill_done';
+
+--echo # session con1
+connection con1;
+--error ER_QUERY_INTERRUPTED
+reap;
+eval $innodb_metrics_select;
+
+--echo # session default
+connection default;
+CHECK TABLE t1;
+INSERT INTO t1 SELECT  5 + c1, c2, c3 FROM t1;
+INSERT INTO t1 SELECT 10 + c1, c2, c3 FROM t1;
+INSERT INTO t1 SELECT 20 + c1, c2, c3 FROM t1;
+INSERT INTO t1 SELECT 40 + c1, c2, c3 FROM t1;
+# Purge may or may not have cleaned up the DELETE FROM t1 WHERE c1 = 7;
+--replace_result 81 80
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
+ANALYZE TABLE t1;
+
+--echo # session con1
+connection con1;
+SHOW CREATE TABLE t1;
+
+# Exceed the configured innodb_online_alter_log_max_size.
+# The actual limit is a multiple of innodb_sort_buf_size,
+# because that is the size of the in-memory log buffers.
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt2 WAIT_FOR dml2_done';
+# Ensure that the ALTER TABLE will be executed even with some concurrent DML.
+SET lock_wait_timeout = 10;
+--send
+ALTER TABLE t1 ROW_FORMAT=COMPACT, ALGORITHM = INPLACE;
+
+# Generate some log (delete-mark, delete-unmark, insert etc.)
+# while the index creation is blocked. Some of this may run
+# in parallel with the clustered index scan.
+--echo # session default
+connection default;
+INSERT INTO t1 SELECT  80 + c1, c2, c3 FROM t1;
+INSERT INTO t1 SELECT 160 + c1, c2, c3 FROM t1;
+UPDATE t1 SET c2 = c2 + 1;
+SET DEBUG_SYNC = 'now WAIT_FOR rebuilt2';
+# At this point, the clustered index scan must have completed,
+# but the modification log keeps accumulating due to the DEBUG_SYNC.
+eval $innodb_metrics_select;
+let $c= 3;
+while ($c)
+{
+  BEGIN;
+  DELETE FROM t1;
+  ROLLBACK;
+  UPDATE t1 SET c2 = c2 + 1;
+  BEGIN;
+  UPDATE t1 SET c2 = c2 + 1;
+  DELETE FROM t1;
+  ROLLBACK;
+  dec $c;
+}
+# Temporary table should exist until the DDL thread notices the overflow.
+eval $innodb_metrics_select;
+
+# Release con1.
+SET DEBUG_SYNC = 'now SIGNAL dml2_done';
+
+--echo # session con1
+connection con1;
+# If the following fails with the wrong error, it probably means that
+# you should rerun with a larger mtr --debug-sync-timeout.
+--error ER_INNODB_ONLINE_LOG_TOO_BIG
+reap;
+# The table should have been dropped from the data dictionary
+# when the above error was noticed.
+eval $innodb_metrics_select;
+
+# Accumulate and apply some modification log.
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt3 WAIT_FOR dml3_done';
+--error ER_MULTIPLE_PRI_KEY
+ALTER TABLE t1 ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
+--error ER_DUP_ENTRY
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
+--send
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f,c4(5)),
+CHANGE c2 c22f INT, CHANGE c3 c3 TEXT NULL, CHANGE c1 c1 INT AFTER c22f,
+ADD COLUMN c4 VARCHAR(6) DEFAULT 'Online';
+
+--echo # session default
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR rebuilt3';
+# Generate some log (delete-mark, delete-unmark, insert etc.)
+eval $innodb_metrics_select;
+BEGIN;
+INSERT INTO t1 SELECT 320 + c1, c2, c3 FROM t1 WHERE c1 > 240;
+DELETE FROM t1 WHERE c1 > 320;
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET c2 = c2 + 1;
+DELETE FROM t1;
+ROLLBACK;
+eval $innodb_metrics_select;
+# Release con1.
+SET DEBUG_SYNC = 'now SIGNAL dml3_done';
+
+--echo # session con1
+connection con1;
+reap;
+eval $innodb_metrics_select;
+SELECT COUNT(c22f) FROM t1;
+CHECK TABLE t1;
+
+# Create a column prefix index.
+--error ER_DUP_ENTRY
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5));
+UPDATE t1 SET c3 = NULL WHERE c3 = '';
+SET lock_wait_timeout = 1;
+--error ER_MULTIPLE_PRI_KEY
+ALTER TABLE t1 DROP COLUMN c22f, ADD PRIMARY KEY c3p5(c3(5));
+# NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
+# And adding a PRIMARY KEY will also add NOT NULL implicitly!
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t1 DROP COLUMN c22f, DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5)),
+ALGORITHM = INPLACE;
+
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
+UPDATE t1 SET c3=CONCAT(c1,REPEAT('foo',c1)) WHERE c3 IS NULL;
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created0 WAIT_FOR ins_done0';
+# NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
+--send
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL, DROP COLUMN c22f,
+ADD COLUMN c5 CHAR(5) DEFAULT 'tired' FIRST;
+
+--echo # session default
+connection default;
+
+SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created0';
+BEGIN;
+INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','YLETV2');
+INSERT INTO t1 VALUES(33101,347,NULL,'');
+SET DEBUG_SYNC = 'now SIGNAL ins_done0';
+
+--echo # session con1
+connection con1;
+--error ER_INVALID_USE_OF_NULL
+reap;
+
+--echo # session default
+connection default;
+ROLLBACK;
+
+--echo # session con1
+connection con1;
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created WAIT_FOR ins_done';
+--send
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c22f,
+ADD COLUMN c6 VARCHAR(1000) DEFAULT
+'I love tracking down hard-to-reproduce bugs.',
+ADD PRIMARY KEY c3p5(c3(5), c6(2));
+
+--echo # session default
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
+SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES(347,33101,NULL,'');
+--send
+INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','');
+
+--echo # session con1
+connection con1;
+--error ER_LOCK_WAIT_TIMEOUT
+reap;
+SET DEBUG_SYNC = 'now SIGNAL ddl_timed_out';
+eval $innodb_metrics_select;
+
+--echo # session default
+connection default;
+reap;
+SELECT COUNT(*) FROM t1;
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+SELECT * FROM t1 LIMIT 10;
+
+--echo # session con1
+connection con1;
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # session default
+connection default;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#18894337 ONLINE ALTER TABLE LOG APPLY FAILS TO SKIP LOCKING
+--echo #
+
+--echo # session con1
+connection con1;
+CREATE TABLE t1 (a SERIAL, c64 VARCHAR(64) UNIQUE) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(0, NULL);
+SET DEBUG='+d,innodb_trx_duplicates';
+SET DEBUG_SYNC='row_log_table_apply1_before SIGNAL t1_ddl WAIT_FOR t1_dml';
+--send
+ALTER TABLE t1 ENGINE=InnoDB;
+
+--echo # session default
+connection default;
+
+SET DEBUG_SYNC='now WAIT_FOR t1_ddl';
+INSERT INTO t1 VALUES(0, NULL), (0, NULL);
+SET DEBUG_SYNC='now SIGNAL t1_dml';
+
+--echo # session con1
+connection con1;
+reap;
+--echo # Disconnect session con1
+disconnect con1;
+--echo # session default
+connection default;
+DROP TABLE t1;
+
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG = '';
+SET GLOBAL innodb_monitor_disable = module_ddl;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
+
+SET GLOBAL DEBUG = '';
+SET GLOBAL innodb_file_per_table = @global_innodb_file_per_table_orig;
+--disable_warnings
+SET GLOBAL innodb_monitor_enable  = default;
+SET GLOBAL innodb_monitor_disable = default;
+--enable_warnings

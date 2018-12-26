@@ -1,0 +1,68 @@
+--source include/have_ndb.inc
+--source include/not_windows.inc
+--source suite/ndb/include/ndb_error_reporter.inc
+
+--echo #######################################################
+--echo Running ndb_error_reporter help  
+--echo #######################################################
+--error 1
+--exec perl $NDB_ERROR_REPORTER --help 2>&1
+
+--echo #######################################################
+--echo Running ndb_error_reporter with nonexistent config file
+--echo #######################################################
+--error 1
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/t/ndb_error_reporter_notexist.ini 2>&1 
+
+--echo #######################################################
+--echo Running ndb_error_reporter with missing config filename
+--echo #######################################################
+--error 1
+--exec perl $NDB_ERROR_REPORTER --fs 2>&1
+
+--echo #######################################################
+--echo Running ndb_error_reporter with username
+--echo #######################################################
+--replace_regex /2[0-9][0-9][0-9]+/x/
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/t/ndb_error_reporter.ini mysql --dry-scp 2>&1 | grep -v ndb_error_reporter.ini
+
+--echo #######################################################
+--echo Running ndb_error_reporter with filesystem
+--echo #######################################################
+--replace_regex /2[0-9][0-9][0-9]+/x/
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/t/ndb_error_reporter.ini --fs --dry-scp 2>&1 | grep -v ndb_error_reporter.ini
+
+--echo #######################################################
+--echo Running ndb_error_reporter with connection timeout
+--echo #######################################################
+--replace_regex /2[0-9][0-9][0-9]+/x/
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/t/ndb_error_reporter.ini --connection-timeout=1 --dry-scp 2>&1 | grep -v ndb_error_reporter.ini
+
+--echo #######################################################
+--echo Running ndb_error_reporter to skip one data node
+--echo #######################################################
+--replace_regex /2[0-9][0-9][0-9]+/x/
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/t/ndb_error_reporter.ini --skip-nodegroup=65536 --dry-scp 2>&1 | grep -v ndb_error_reporter.ini
+
+--echo #######################################################
+--echo Running ndb_error_reporter to skip both data nodes
+--echo #######################################################
+--replace_regex /2[0-9][0-9][0-9]+/x/
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/t/ndb_error_reporter.ini --skip-nodegroup=65536 --skip-nodegroup=0 --dry-scp 2>&1 | grep -v ndb_error_reporter.ini
+
+--echo #######################################################
+--echo Running ndb_error_reporter with all options used
+--echo #######################################################
+--replace_regex /2[0-9][0-9][0-9]+/x/
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/t/ndb_error_reporter.ini mysql --fs --connection-timeout=1 --skip-nodegroup=0 --dry-scp 2>&1 | grep -v ndb_error_reporter.ini
+
+--echo #######################################################
+--echo Running ndb_error_reporter with a junk config file
+--echo #######################################################
+--replace_regex /2[0-9][0-9][0-9]+/x/
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/include/ndb_error_reporter.inc --dry-scp 2>&1 | grep -v ndb_error_reporter.inc | grep -v ERROR
+
+--echo #######################################################
+--echo Cleaning up ndb_error_report_YYYYMMDDHHMMSS.tar.bz2 
+--echo #######################################################
+--remove_files_wildcard $MYSQL_TEST_DIR ndb_error_report_*.tar.bz2

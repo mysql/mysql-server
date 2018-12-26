@@ -1,0 +1,61 @@
+# Default values that applies to all MySQL Servers
+[mysqld]
+
+# Increase default connect_timeout to avoid intermittent
+# disconnects when test servers are put under load see BUG#28359
+connect-timeout=            60
+character-set-server= utf8mb4
+# collation_server= utf8mb4_0900_ai_ci
+# When binary logging is enabled, this variable controls whether
+# stored function creators can be trusted not to create stored
+# functions that will cause unsafe events to be written to the binary log.
+# Set it to 1 so that no restrictions are enforced on
+# stored function creation.
+log-bin-trust-function-creators=1
+
+innodb-buffer-pool-size=24M
+innodb-log-file-size=5M
+# MAINTAINER:
+# the loose- syntax is to make sure the cnf file is also
+# valid when building without the performance schema.
+
+# Run tests with the performance schema instrumentation
+loose-enable-performance-schema
+# Run tests with a small number of instrumented objects
+# to limit memory consumption with MTR
+loose-performance-schema-accounts-size=100
+loose-performance-schema-digests-size=200
+loose-performance-schema-hosts-size=100
+loose-performance-schema-users-size=100
+loose-performance-schema-setup-actors-size=100
+loose-performance-schema-setup-objects-size=100
+
+loose-performance-schema-events-waits-history-size=10
+loose-performance-schema-events-waits-history-long-size=10000
+loose-performance-schema-events-stages-history-size=10
+loose-performance-schema-events-stages-history-long-size=1000
+loose-performance-schema-events-statements-history-size=10
+loose-performance-schema-events-statements-history-long-size=1000
+loose-performance-schema-events-transactions-history-size=10
+loose-performance-schema-events-transactions-history-long-size=1000
+loose-performance-schema-session-connect-attrs-size=2048
+
+# Enable everything, for maximun code exposure during testing
+
+loose-performance-schema-instrument='%=ON'
+
+loose-performance-schema-consumer-events-stages-current=ON
+loose-performance-schema-consumer-events-stages-history=ON
+loose-performance-schema-consumer-events-stages-history-long=ON
+loose-performance-schema-consumer-events-statements-current=ON
+loose-performance-schema-consumer-events-statements-history=ON
+loose-performance-schema-consumer-events-statements-history-long=ON
+loose-performance-schema-consumer-events-transactions-current=ON
+loose-performance-schema-consumer-events-transactions-history=ON
+loose-performance-schema-consumer-events-transactions-history-long=ON
+loose-performance-schema-consumer-events-waits-current=ON
+loose-performance-schema-consumer-events-waits-history=ON
+loose-performance-schema-consumer-events-waits-history-long=ON
+loose-performance-schema-consumer-global-instrumentation=ON
+loose-performance-schema-consumer-thread-instrumentation=ON
+

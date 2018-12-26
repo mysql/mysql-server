@@ -1,0 +1,29 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+drop table if exists t1, t2;
+drop view if exists v1, v2, v3, not_exist_view;
+create table t1 (a int);
+create table t2 (b int);
+create table t3 (c int);
+create view v1 as select * from t1;
+create view v2 as select * from t2;
+create view v3 as select * from t3;
+drop view not_exist_view;
+ERROR 42S02: Unknown table 'test.not_exist_view'
+drop view v1, not_exist_view;
+ERROR 42S02: Unknown table 'test.not_exist_view'
+drop view v1, v2, v3;
+include/sync_slave_sql_with_master.inc
+select * from v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+select * from v2;
+ERROR 42S02: Table 'test.v2' doesn't exist
+select * from v3;
+ERROR 42S02: Table 'test.v3' doesn't exist
+==== clean up ====
+drop table t1, t2, t3;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

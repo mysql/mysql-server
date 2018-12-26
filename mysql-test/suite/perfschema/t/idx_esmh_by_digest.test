@@ -1,0 +1,39 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/no_protocol.inc
+
+#setup
+let $select_column = COUNT_BUCKET;
+let $table = performance_schema.events_statements_histogram_by_digest;
+
+let $olddb = `select database()`;
+create database explain_test_db;
+use explain_test_db;
+
+# truncate table performance_schema.events_statements_histogram_by_digest;
+truncate table performance_schema.events_statements_summary_by_digest;
+
+select 1;
+
+select digest from performance_schema.events_statements_histogram_by_digest
+  where SCHEMA_NAME = 'explain_test_db' limit 1
+  into @digest;
+
+eval use $olddb;
+
+###########################################################################
+# Test index on SCHEMA_NAME, DIGEST, BUCKET_NUMBER
+###########################################################################
+
+let $column_count = 3;
+let $col1 = SCHEMA_NAME;
+let $col2 = DIGEST;
+let $col3 = BUCKET_NUMBER;
+let $col1_act = "explain_test_db";
+let $col2_act = @digest;
+let $col3_act = 0;
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+drop database explain_test_db;

@@ -1,0 +1,28 @@
+include/rpl_init.inc [topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+show variables like 'relay_log%';
+Variable_name	Value
+relay_log	master-relay-bin
+relay_log_basename	MYSQLD_DATADIR/master-relay-bin
+relay_log_index	MYSQLD_DATADIR/master-relay-bin.index
+relay_log_info_file	relay-log.info
+relay_log_info_repository	FILE
+relay_log_purge	ON
+relay_log_recovery	OFF
+relay_log_space_limit	0
+CREATE TABLE t1 (a INT KEY) ENGINE= MyISAM;
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1 VALUE(1);
+FLUSH LOGS;
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1 VALUE(2);
+include/sync_slave_sql_with_master.inc
+include/check_slave_is_running.inc
+Relay_Log_File = 'master-relay-bin.000003'
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

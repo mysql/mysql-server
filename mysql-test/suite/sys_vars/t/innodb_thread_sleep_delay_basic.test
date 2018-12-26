@@ -1,0 +1,81 @@
+
+#
+# 2010-01-27 - Added
+#
+
+
+SET @start_global_value = @@global.innodb_thread_sleep_delay;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are zero or above
+select @@global.innodb_thread_sleep_delay >=0;
+select @@global.innodb_thread_sleep_delay;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_thread_sleep_delay;
+show global variables like 'innodb_thread_sleep_delay';
+show session variables like 'innodb_thread_sleep_delay';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+select * from performance_schema.session_variables where variable_name='innodb_thread_sleep_delay';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_thread_sleep_delay=10;
+select @@global.innodb_thread_sleep_delay;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+select * from performance_schema.session_variables where variable_name='innodb_thread_sleep_delay';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session innodb_thread_sleep_delay=1;
+
+#
+# show the default value
+# 
+set global innodb_thread_sleep_delay=DEFAULT;
+select @@global.innodb_thread_sleep_delay;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_thread_sleep_delay=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_thread_sleep_delay=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_thread_sleep_delay="foo";
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_thread_sleep_delay=18446744073709551616;
+
+set global innodb_thread_sleep_delay=-7;
+select @@global.innodb_thread_sleep_delay;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+--enable_warnings
+
+#
+# correct/overflowed values
+#
+set global innodb_thread_sleep_delay=0;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=1000;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=1000000;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=1000001;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=4294967295;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=555;
+select @@global.innodb_thread_sleep_delay;
+
+#
+# cleanup
+#
+SET @@global.innodb_thread_sleep_delay = @start_global_value;
+SELECT @@global.innodb_thread_sleep_delay;

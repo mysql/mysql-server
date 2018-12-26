@@ -1,0 +1,58 @@
+# ==== Purpose ====
+#
+# Test that nondeterministic system functions are correctly replicated.
+#
+# (Some functions are only correctly replicated if binlog_format=MIXED
+# or ROW.  See binlog_unsafe.test for a test that those variables are
+# indeed unsafe.)
+#
+# ==== Implementation ====
+#
+# We insert the values of each unsafe function into a table. Then we
+# replicate and check that the table is identical on slave.
+#
+# ==== Related bugs ====
+#
+# BUG#47995
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');
+
+CREATE TABLE t1 (a VARCHAR(1000));
+
+# We replicate the connection_id in the query_log_event
+INSERT INTO t1 VALUES (CONNECTION_ID());
+--connection master1
+INSERT INTO t1 VALUES (CONNECTION_ID());
+
+# We replicate the TIMESTAMP variable, so the following functions that
+# are affected by the TIMESTAMP variable should be safe to replicate.
+INSERT INTO t1 VALUES
+  (CURDATE()),
+  (CURRENT_DATE()),
+  (CURRENT_TIME()),
+  (CURRENT_TIMESTAMP()),
+  (CURTIME()),
+  (LOCALTIME()),
+  (LOCALTIMESTAMP()),
+  (NOW()),
+  (UNIX_TIMESTAMP()),
+  (UTC_DATE()),
+  (UTC_TIME()),
+  (UTC_TIMESTAMP());
+
+# We replicate the random seed in a rand_log_event
+--disable_warnings
+INSERT INTO t1 VALUES (RAND());
+--enable_warnings
+# We replicate the last_insert_id in an intvar_log_event
+INSERT INTO t1 VALUES (LAST_INSERT_ID());
+
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+--connection master
+DROP TABLE t1;
+--source include/rpl_end.inc

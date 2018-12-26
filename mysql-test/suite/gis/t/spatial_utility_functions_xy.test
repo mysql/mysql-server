@@ -1,0 +1,245 @@
+###############################################################################
+#                                                                             #
+# This test is aimed to focus on the properties and attributes of the         #
+# Mutator ST_X and ST_Y                                                       #
+# point Geometry classes, and the functionality of ST_X() and ST_Y().         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2016-07-25                                                   #
+# Author : Jens Even Berg Blomsøy                                             #
+#                                                                             #
+###############################################################################
+
+
+###############################################################################
+# Creating the spatial objects                                                #
+###############################################################################
+
+--echo # Creating the spatial objects
+
+CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
+
+
+###############################################################################
+# Inserting POINT Geometry values                                             #
+###############################################################################
+
+--echo # Inserting POINT Geometry Values
+
+INSERT INTO gis_point VALUES
+    (101, ST_POINTFROMTEXT('POINT(0 0)')),
+    (102, ST_POINTFROMTEXT('POINT(1 0)')),
+    (103, ST_POINTFROMTEXT('POINT(0 1)')),
+    (104, ST_POINTFROMTEXT('POINT(1 1)')),
+    (105, ST_POINTFROMTEXT('POINT(-1 1)'));
+
+INSERT INTO gis_point VALUES
+    (106, ST_POINTFROMWKB(ST_ASWKB(POINT(0,0)))),
+    (107, ST_POINTFROMWKB(ST_ASWKB(POINT(10,0)))),
+    (108, ST_POINTFROMWKB(ST_ASWKB(POINT(0,10)))),
+    (109, ST_POINTFROMWKB(ST_ASWKB(POINT(-10,0)))),
+    (110, ST_POINTFROMWKB(ST_ASWKB(POINT(0,-10))));
+
+INSERT INTO gis_point VALUES
+    (111, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1 1)')))),
+    (112, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1e308 1e308)')))),
+    (113, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1e308 -1e308)')))),
+    (114, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(-1e308 1e308)')))),
+    (115, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(-1e308 -1e308)'))));
+
+--echo # Displaying the inserted POINT Geometry Data
+SELECT fid, ST_ASTEXT(g) FROM gis_point;
+
+###############################################################################
+# POINT geometry property functions                                           #
+###############################################################################
+
+--echo #=======================================================================
+--echo # ST_X(point)
+--echo #=======================================================================
+
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMTEXT('POINT(0 0)'),5));
+
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMTEXT('POINT(10 10)'), 5));
+
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMTEXT('POINT(1e308 1e308)'), 1e205));
+
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(1.1111,-1.1111))), 5.5555));
+
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(10.0000,10.0000))), 50.0000));
+
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(-1e308,-1e308))), -1e205));
+
+--echo #=======================================================================
+--echo # ST_Y(point)
+--echo #=======================================================================
+
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMTEXT('POINT(0 0)'),5));
+
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMTEXT('POINT(10 10)'), 5));
+
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMTEXT('POINT(1e308 1e308)'), 1e205));
+
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(1.1111,-1.1111))), 5.5555));
+
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(10.0000,10.0000))), 50.0000));
+
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(-1e308,-1e308))), -1e205));
+
+--echo #=======================================================================
+--echo # ST_X(point)
+--echo #=======================================================================
+
+########################################
+# Null value testing                   #
+########################################
+
+SELECT ST_ASTEXT(ST_X(NULL, 5));
+SELECT ST_ASTEXT(ST_X(POINT(4, 5), NULL));
+SELECT ST_ASTEXT(ST_X(NULL, NULL));
+
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMWKB(NULL), NULL));
+
+--error ER_PARSE_ERROR
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(1)), 5)));
+
+--error ER_PARSE_ERROR
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(1)), )));
+
+--error ER_BAD_FIELD_ERROR
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(1, 2)), a)));
+
+--error ER_BAD_FIELD_ERROR
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(a,b)), c)));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMTEXT('NULL'), NULL));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMTEXT('POINT()'), 5));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_X(ST_POINTFROMTEXT('POINT(1)'), 5));
+
+--echo #=======================================================================
+--echo # ST_Y(point)
+--echo #=======================================================================
+
+########################################
+# Null value testing                   #
+########################################
+
+SELECT ST_ASTEXT(ST_Y(NULL, 5));
+SELECT ST_ASTEXT(ST_Y(POINT(4, 5), NULL));
+SELECT ST_ASTEXT(ST_Y(NULL, NULL));
+
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMWKB(NULL), NULL));
+
+--error ER_PARSE_ERROR
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(1)), 5)));
+
+--error ER_PARSE_ERROR
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(1)), )));
+
+--error ER_BAD_FIELD_ERROR
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(1, 2)), a)));
+
+--error ER_BAD_FIELD_ERROR
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(a,b)), c)));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMTEXT('NULL'), NULL));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMTEXT('POINT()'), 5));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_Y(ST_POINTFROMTEXT('POINT(1)'), 5));
+
+
+###############################################################################
+# Invalid range testing                                                       #
+###############################################################################
+--echo # Try to use ST_X and ST_Y with out of range point values.
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_X(POINT(pow(2, 2048), 4), 5);
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_Y(POINT(pow(2, 2048), 4), 5);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_Y(POINT(4, pow(2, 2048)), 5);
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_X(POINT(4, pow(2, 2048)), 5);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_X(POINT(4, 5), pow(2, 2048));
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_Y(POINT(4, 5), pow(2, 2048));
+
+###############################################################################
+# Invalid geometry testing                                                    #
+###############################################################################
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_X(ST_GeomFromText('LINESTRING(0 0, 1 1)'), 5);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_Y(ST_GeomFromText('LINESTRING(0 0, 1 1)'), 5);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_X(ST_GEOMFROMTEXT('POLYGON((0 0,2 2,0 2,0 0))'), -1024);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_Y(ST_GEOMFROMTEXT('POLYGON((0 0,2 2,0 2,0 0))'), -1024);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_X(ST_GEOMFROMTEXT('MULTIPOINT(10 40, 40 30, 20 20, 30 10)'), 1024);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_Y(ST_GEOMFROMTEXT('MULTIPOINT(10 40, 40 30, 20 20, 30 10)'), 1024);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_X(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40)," 
+"(40 40, 30 30, 40 20, 30 10))"), 1024);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_Y(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40)," 
+"(40 40, 30 30, 40 20, 30 10))"), 1024);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_X(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40))," 
+"((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"), -1024);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_Y(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40))," 
+"((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"), -1024);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_X(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION("
+                               "POINT(4 6),"
+                               "LINESTRING(4 6,7 10),"
+                               "POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10)),"
+                               "MULTIPOINT (10 40, 40 30, 20 20, 30 10),"
+                               "MULTILINESTRING ((10 10, 20 20, 10 40),"
+                                 "(40 40, 30 30, 40 20, 30 10)),"
+                               "MULTIPOLYGON (((30 20, 45 40, 10 40, 30 20)),"
+                                 "((15 5, 40 10, 10 20, 5 10, 15 5)))"
+                               ")"
+                             ), 1024);
+
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+SELECT ST_Y(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION("
+                               "POINT(4 6),"
+                               "LINESTRING(4 6,7 10),"
+                               "POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10)),"
+                               "MULTIPOINT (10 40, 40 30, 20 20, 30 10),"
+                               "MULTILINESTRING ((10 10, 20 20, 10 40),"
+                                 "(40 40, 30 30, 40 20, 30 10)),"
+                               "MULTIPOLYGON (((30 20, 45 40, 10 40, 30 20)),"
+                                 "((15 5, 40 10, 10 20, 5 10, 15 5)))"
+                               ")"
+                             ), 1024);
+
+--echo # Final cleanup
+DROP TABLE gis_point;

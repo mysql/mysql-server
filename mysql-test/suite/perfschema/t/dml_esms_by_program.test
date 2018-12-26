@@ -1,0 +1,41 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+ --source include/have_myisam.inc
+
+# Tests for PERFORMANCE_SCHEMA
+
+#--disable_result_log 
+select * from performance_schema.events_statements_summary_by_program
+  where object_name like 'XXYYZZ%' limit 1;
+
+select * from performance_schema.events_statements_summary_by_program
+  where object_name='XXYYZZ';
+#--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.events_statements_summary_by_program
+  set object_name='XXYYZZ', count_star=1, sum_timer_wait=2, min_timer_wait=3,
+  avg_timer_wait=4, max_timer_wait=5;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_statements_summary_by_program
+  set count_star=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_statements_summary_by_program
+  set count_star=12 where object_name like "XXYYZZ";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_statements_summary_by_program
+  where count_star=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_statements_summary_by_program;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_statements_summary_by_program READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_statements_summary_by_program WRITE;
+UNLOCK TABLES;
+

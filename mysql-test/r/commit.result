@@ -1,0 +1,576 @@
+#
+# Bug#20837 Apparent change of isolation level 
+#           during transaction
+#
+# Bug#53343 completion_type=1, COMMIT/ROLLBACK 
+#           AND CHAIN don't preserve the isolation 
+#           level
+connection default;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+CREATE TABLE t1 (s1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2);
+COMMIT;
+START TRANSACTION;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+ERROR 25001: Transaction characteristics can't be changed while a transaction is in progress
+COMMIT;
+SET @@autocommit=0;
+COMMIT;
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+SELECT @@transaction_isolation;
+@@transaction_isolation
+REPEATABLE-READ
+Should be REPEATABLE READ
+SELECT * FROM t1;
+s1
+1
+2
+SELECT @@transaction_isolation;
+@@transaction_isolation
+REPEATABLE-READ
+Should be REPEATABLE READ
+INSERT INTO t1 VALUES (-1);
+SELECT @@transaction_isolation;
+@@transaction_isolation
+REPEATABLE-READ
+Should be REPEATABLE READ
+COMMIT;
+START TRANSACTION;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1000);
+COMMIT;
+connection default
+We should not be able to read the '1000'
+SELECT * FROM t1;
+s1
+1
+2
+-1
+COMMIT;
+Now, the '1000' should appear.
+START TRANSACTION;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1000
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+connection default
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT COUNT(*) FROM t1 WHERE s1 = 1001;
+COUNT(*)
+1
+Should be 1
+COMMIT AND CHAIN;
+connection con1
+INSERT INTO t1 VALUES (1002);
+COMMIT;
+connection default
+SELECT COUNT(*) FROM t1 WHERE s1 = 1002;
+COUNT(*)
+1
+Should be 1
+COMMIT;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1000
+1001
+1002
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT;
+connection default
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT COUNT(*) FROM t1 WHERE s1 = 1001;
+COUNT(*)
+1
+Should be 1
+ROLLBACK AND CHAIN;
+connection con1
+INSERT INTO t1 VALUES (1002);
+COMMIT;
+connection default
+SELECT COUNT(*) FROM t1 WHERE s1 = 1002;
+COUNT(*)
+1
+Should be 1
+COMMIT;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1001
+1002
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT;
+SET @@completion_type=1;
+connection default
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+Should see 1001
+COMMIT AND NO CHAIN;
+default transaction is now in REPEATABLE READ
+connection con1
+INSERT INTO t1 VALUES (1002);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+1002
+Should see 1001 and 1002
+connection con1
+INSERT INTO t1 VALUES (1003);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+1002
+Should see 1001 and 1002, but NOT 1003
+COMMIT;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1001
+1002
+1003
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT AND NO CHAIN;
+SET @@completion_type=0;
+COMMIT;
+connection default
+SET @@completion_type=1;
+COMMIT AND NO CHAIN;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+Should see 1001
+ROLLBACK AND NO CHAIN;
+default transaction is now in REPEATABLE READ
+connection con1
+INSERT INTO t1 VALUES (1002);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+1002
+Should see 1001 and 1002
+connection con1
+INSERT INTO t1 VALUES (1003);
+COMMIT;
+connection default
+SELECT * FROM t1 WHERE s1 >= 1000;
+s1
+1001
+1002
+Should see 1001 and 1002, but NOT 1003
+COMMIT;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+1001
+1002
+1003
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT AND NO CHAIN;
+SET @@completion_type=0;
+COMMIT;
+connection default
+SET TRANSACTION ISOLATION LEVEL	READ COMMITTED;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT * FROM t1;
+s1
+1
+2
+-1
+connection con1
+INSERT INTO t1 VALUES (1000);
+COMMIT;
+connection default
+SELECT * FROM t1;
+s1
+1
+2
+-1
+Should get same result as above (i.e should not read '1000')
+COMMIT;
+DELETE FROM t1 WHERE s1 >= 1000;
+COMMIT;
+SET @@completion_type=1;
+COMMIT AND NO CHAIN;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES (1000);
+SELECT * FROM t1;
+s1
+1000
+Should read '1000'
+connection con1
+INSERT INTO t1 VALUES (1001);
+COMMIT;
+connection default
+SELECT * FROM t1;
+s1
+1000
+Should only read the '1000' as this transaction is now in REP READ
+COMMIT AND NO CHAIN;
+SET @@completion_type=0;
+COMMIT AND NO CHAIN;
+SET @@autocommit=1;
+COMMIT;
+DROP TABLE t1;
+#
+# End of test cases for Bug#20837
+#
+#
+# WL#5968 Implement START TRANSACTION READ (WRITE|ONLY);
+#
+#
+# Test 1: Check supported syntax
+START TRANSACTION;
+COMMIT;
+START TRANSACTION READ ONLY;
+COMMIT;
+START TRANSACTION READ WRITE;
+COMMIT;
+START TRANSACTION READ ONLY, READ WRITE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+START TRANSACTION READ ONLY, WITH CONSISTENT SNAPSHOT;
+COMMIT;
+START TRANSACTION READ WRITE, WITH CONSISTENT SNAPSHOT;
+COMMIT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY;
+COMMIT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT, READ WRITE;
+COMMIT;
+START TRANSACTION READ ONLY, WITH CONSISTENT SNAPSHOT, READ WRITE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SET TRANSACTION READ ONLY;
+SET TRANSACTION READ WRITE;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ WRITE;
+SET TRANSACTION READ ONLY, ISOLATION LEVEL READ COMMITTED;
+SET TRANSACTION READ WRITE, ISOLATION LEVEL READ COMMITTED;
+SET TRANSACTION READ ONLY, READ WRITE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'READ WRITE' at line 1
+COMMIT;
+#
+# Test 2: Check setting of variable.
+SET SESSION TRANSACTION READ WRITE;
+SELECT @@transaction_read_only;
+@@transaction_read_only
+0
+SET SESSION TRANSACTION READ ONLY;
+SELECT @@transaction_read_only;
+@@transaction_read_only
+1
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE;
+SELECT @@transaction_read_only;
+@@transaction_read_only
+0
+SET SESSION TRANSACTION READ ONLY, ISOLATION LEVEL REPEATABLE READ;
+SELECT @@transaction_read_only;
+@@transaction_read_only
+1
+START TRANSACTION;
+# Not allowed inside a transaction
+SET TRANSACTION READ ONLY;
+ERROR 25001: Transaction characteristics can't be changed while a transaction is in progress
+# But these are allowed.
+SET SESSION TRANSACTION READ ONLY;
+SET GLOBAL TRANSACTION READ ONLY;
+COMMIT;
+SET SESSION TRANSACTION READ WRITE;
+SET GLOBAL TRANSACTION READ WRITE;
+#
+# Test 3: Test that write operations are properly blocked.
+CREATE TABLE t1(a INT);
+CREATE TEMPORARY TABLE temp_t2(a INT);
+SET SESSION TRANSACTION READ ONLY;
+# 1: DDL should be blocked, also on temporary tables.
+CREATE TABLE t3(a INT);
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+ALTER TABLE t1 COMMENT "Test";
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+DROP TABLE t1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+CREATE TEMPORARY TABLE temp_t3(a INT);
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+ALTER TABLE temp_t2 COMMENT "Test";
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+DROP TEMPORARY TABLE temp_t2;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+DROP FUNCTION f1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+CREATE PROCEDURE p1() BEGIN END;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+DROP PROCEDURE p1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+CREATE VIEW v1 AS SELECT 1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+SET SESSION TRANSACTION READ WRITE;
+CREATE VIEW v1 AS SELECT 1;
+SET SESSION TRANSACTION READ ONLY;
+DROP VIEW v1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+SET SESSION TRANSACTION READ WRITE;
+DROP VIEW v1;
+SET SESSION TRANSACTION READ ONLY;
+RENAME TABLE t1 TO t2;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+RENAME TABLE temp_t2 TO temp_t3;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+TRUNCATE TABLE t1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+CREATE DATABASE db1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+DROP DATABASE db1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+SET SESSION TRANSACTION READ WRITE;
+# 2: DML should be blocked on non-temporary tables.
+START TRANSACTION READ ONLY;
+INSERT INTO t1 VALUES (1), (2);
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+UPDATE t1 SET a= 3;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+DELETE FROM t1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+# 3: DML should be allowed on temporary tables.
+INSERT INTO temp_t2 VALUES (1), (2);
+UPDATE temp_t2 SET a= 3;
+DELETE FROM temp_t2;
+# 4: Queries should not be blocked.
+SELECT * FROM t1;
+a
+SELECT * FROM temp_t2;
+a
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+a
+HANDLER t1 CLOSE;
+HANDLER temp_t2 OPEN;
+HANDLER temp_t2 READ FIRST;
+a
+HANDLER temp_t2 CLOSE;
+# 5: Prepared statements
+PREPARE stmt FROM "DELETE FROM t1";
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+PREPARE stmt FROM "DELETE FROM temp_t2";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+COMMIT;
+# 6: Stored routines
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+DELETE FROM t1;
+RETURN 1;
+END|
+CREATE FUNCTION f2() RETURNS INT
+BEGIN
+DELETE FROM temp_t2;
+RETURN 1;
+END|
+CREATE PROCEDURE p1() DELETE FROM t1;
+CREATE PROCEDURE p2() DELETE FROM temp_t2;
+START TRANSACTION READ ONLY;
+SELECT f1();
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+SELECT f2();
+f2()
+1
+CALL p1();
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+CALL p2();
+COMMIT;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+# 7: Views
+CREATE VIEW v1 AS SELECT a FROM t1;
+START TRANSACTION READ ONLY;
+INSERT INTO v1 VALUES (1), (2);
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+SELECT * FROM v1;
+a
+COMMIT;
+DROP VIEW v1;
+# 8: LOCK TABLE
+SET SESSION TRANSACTION READ ONLY;
+LOCK TABLE t1 WRITE;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+LOCK TABLE t1 READ;
+UNLOCK TABLES;
+SET SESSION TRANSACTION READ WRITE;
+DROP TABLE temp_t2, t1;
+#
+# Test 4: SET TRANSACTION, CHAINing transactions
+CREATE TABLE t1(a INT);
+SET SESSION TRANSACTION READ ONLY;
+START TRANSACTION;
+DELETE FROM t1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+COMMIT;
+START TRANSACTION READ WRITE;
+DELETE FROM t1;
+COMMIT;
+SET SESSION TRANSACTION READ WRITE;
+SET TRANSACTION READ ONLY;
+START TRANSACTION;
+DELETE FROM t1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+COMMIT;
+START TRANSACTION READ WRITE;
+DELETE FROM t1;
+COMMIT;
+START TRANSACTION READ ONLY;
+SELECT * FROM t1;
+a
+COMMIT AND CHAIN;
+DELETE FROM t1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+COMMIT;
+START TRANSACTION READ ONLY;
+SELECT * FROM t1;
+a
+ROLLBACK AND CHAIN;
+DELETE FROM t1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+COMMIT;
+DROP TABLE t1;
+#
+# Test 5: Test that reserved keyword ONLY is still allowed as
+#         identifier - both directly and in SPs.
+SET @only= 1;
+CREATE TABLE t1 (only INT);
+INSERT INTO t1 (only) values (1);
+SELECT only FROM t1 WHERE only = 1;
+only
+1
+DROP TABLE t1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE only INT DEFAULT 1;
+END|
+CALL p1();
+DROP PROCEDURE p1;
+#
+# Test 6: Check that XA transactions obey default access mode.
+CREATE TABLE t1(a INT);
+SET TRANSACTION READ ONLY;
+XA START 'test1';
+INSERT INTO t1 VALUES (1);
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+UPDATE t1 SET a=2;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+DELETE FROM t1;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+XA END 'test1';
+XA PREPARE 'test1';
+XA COMMIT 'test1';
+DROP TABLE t1;
+#
+# Test 7: SET TRANSACTION inside stored routines
+CREATE PROCEDURE p1() SET SESSION TRANSACTION READ ONLY;
+CALL p1();
+SELECT @@transaction_read_only;
+@@transaction_read_only
+1
+SET SESSION TRANSACTION READ WRITE;
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1() SET SESSION TRANSACTION READ ONLY,
+ISOLATION LEVEL SERIALIZABLE;
+CALL p1();
+SELECT @@transaction_read_only;
+@@transaction_read_only
+1
+SET SESSION TRANSACTION READ WRITE, ISOLATION LEVEL REPEATABLE READ;
+DROP PROCEDURE p1;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+SET SESSION TRANSACTION READ ONLY;
+RETURN 1;
+END|
+SELECT f1();
+f1()
+1
+SELECT @@transaction_read_only;
+@@transaction_read_only
+1
+SET SESSION TRANSACTION READ WRITE;
+DROP FUNCTION f1;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY;
+RETURN 1;
+END|
+SELECT f1();
+f1()
+1
+SELECT @@transaction_read_only;
+@@transaction_read_only
+1
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE;
+DROP FUNCTION f1;
+#
+# Test 8: SET TRANSACTION and auto-commit
+SELECT @@autocommit;
+@@autocommit
+1
+CREATE TABLE t1(a INT) engine=InnoDB;
+SET TRANSACTION READ ONLY;
+SELECT * FROM t1;
+a
+# This statement should work, since last statement committed.
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;

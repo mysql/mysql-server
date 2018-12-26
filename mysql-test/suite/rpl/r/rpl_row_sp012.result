@@ -1,0 +1,61 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP PROCEDURE IF EXISTS test.p3;
+CREATE USER user1@localhost;
+flush privileges;
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+SELECT USER();
+USER()
+root@localhost
+CREATE PROCEDURE test.p1 () SQL SECURITY INVOKER SELECT CURRENT_USER(), USER();
+CREATE PROCEDURE test.p2 () SQL SECURITY DEFINER CALL test.p1();
+CREATE PROCEDURE test.p3 () SQL SECURITY INVOKER CALL test.p1();
+GRANT EXECUTE ON PROCEDURE p1 TO user1@localhost;
+GRANT EXECUTE ON PROCEDURE p2 TO user1@localhost;
+GRANT EXECUTE ON PROCEDURE p3 TO user1@localhost;
+include/sync_slave_sql_with_master.inc
+
+<********  Master user1 p3 & p2 calls *******>
+----------------------------------------------
+SELECT CURRENT_USER();
+CURRENT_USER()
+user1@localhost
+SELECT USER();
+USER()
+user1@localhost
+CALL test.p3();
+CURRENT_USER()	USER()
+user1@localhost	user1@localhost
+CALL test.p2();
+CURRENT_USER()	USER()
+root@localhost	user1@localhost
+
+<********  Slave user1 p3 & p2 calls *******>
+---------------------------------------------
+SELECT CURRENT_USER();
+CURRENT_USER()
+user1@localhost
+SELECT USER();
+USER()
+user1@localhost
+CALL test.p3();
+CURRENT_USER()	USER()
+user1@localhost	user1@localhost
+CALL test.p2();
+CURRENT_USER()	USER()
+root@localhost	user1@localhost
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p3;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+DROP USER user1@localhost;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

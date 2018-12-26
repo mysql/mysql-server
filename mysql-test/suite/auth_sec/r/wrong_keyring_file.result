@@ -1,0 +1,2 @@
+call mtr.add_suppression("Plugin keyring reported: \'Keyring initialization failure\'");
+call mtr.add_suppression("Plugin \'keyring\' init function returned error");

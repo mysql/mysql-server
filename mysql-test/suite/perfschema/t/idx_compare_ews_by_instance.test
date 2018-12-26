@@ -1,0 +1,45 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "events_waits_summary_by_instance";
+let $target_name = wait/synch/mutex/mysys/THR_LOCK::mutex;
+let $name_column = EVENT_NAME;
+
+--echo TABLE: $table
+--echo INDEXES: PK (OBJECT_INSTANCE_BEGIN), KEY (EVENT_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--disable_query_log
+# Get an object_instance_begin
+eval SELECT object_instance_begin INTO @object_instance_begin
+  FROM performance_schema.events_waits_summary_by_instance
+  WHERE event_name = '$target_name' LIMIT 1;
+--enable_query_log
+
+--echo ## Test OBJECT_INSTANCE_BEGIN
+let $key_group = 12;
+
+--source ../include/idx_compare_load.inc
+
+--echo ## Test EVENT_NAME
+let $key_group = 13;
+
+let $target_name = wait/synch/mutex/mysys/THR_LOCK::mutex;
+--source ../include/idx_compare_load.inc
+
+let $target_name = wait/synch/cond/sql/COND_thd_list;
+--source ../include/idx_compare_load.inc
+
+let $target_name = wait/synch/rwlock/sql/MDL_lock::rwlock;
+--source ../include/idx_compare_load.inc
+
+let $target_name = wait/io/socket/sql/client_connection;
+--source ../include/idx_compare_load.inc
+
+let $target_name = wait/io/file/mysys/charset;
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

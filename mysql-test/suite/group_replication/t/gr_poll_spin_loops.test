@@ -1,0 +1,87 @@
+################################################################################
+# Verify that group_replication_poll_spin_loops validates its input values.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Set invalid values to group_replication_poll_spin_loops. Expect error.
+# 2. Set invalid values to group_replication_poll_spin_loops that will be
+#    truncated.
+# 3. Set valid values to group_replication_poll_spin_loops. Expect success.
+# 4. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+SET @group_replication_poll_spin_loops_save= @@GLOBAL.group_replication_poll_spin_loops;
+
+
+--echo
+--echo ############################################################
+--echo # 1. Set invalid values to group_replication_poll_spin_loops.
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_poll_spin_loops= ON;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_poll_spin_loops= OFF;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_poll_spin_loops= " ";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_poll_spin_loops= "a";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_poll_spin_loops= 1.0;
+
+
+--echo
+--echo ############################################################
+--echo # 2. Set invalid values to group_replication_poll_spin_loops
+--echo #    that will be truncated.
+SET GLOBAL group_replication_poll_spin_loops= -1;
+--let $assert_text= group_replication_poll_spin_loops is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_poll_spin_loops] = 0
+--source include/assert.inc
+
+# With a 64 bit mysqld:18446744073709551615, with a 32 bit mysqld: 4294967295
+--disable_warnings
+SET GLOBAL group_replication_poll_spin_loops= 4294967296;
+--enable_warnings
+SELECT @@GLOBAL.group_replication_poll_spin_loops IN (4294967296,4294967295);
+
+--disable_warnings
+SET GLOBAL group_replication_poll_spin_loops= 12345678901;
+--enable_warnings
+SELECT @@GLOBAL.group_replication_poll_spin_loops IN (12345678901,4294967295);
+
+
+--echo
+--echo ############################################################
+--echo # 3. Set valid values to group_replication_poll_spin_loops.
+SET GLOBAL group_replication_poll_spin_loops= 0;
+--let $assert_text= group_replication_poll_spin_loops is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_poll_spin_loops] = 0
+--source include/assert.inc
+
+SET GLOBAL group_replication_poll_spin_loops= 1;
+--let $assert_text= group_replication_poll_spin_loops is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_poll_spin_loops] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_poll_spin_loops= 65535;
+--let $assert_text= group_replication_poll_spin_loops is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_poll_spin_loops] = 65535
+--source include/assert.inc
+
+SET GLOBAL group_replication_poll_spin_loops= 4294967295;
+--let $assert_text= group_replication_poll_spin_loops is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_poll_spin_loops] = 4294967295
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+SET GLOBAL group_replication_poll_spin_loops= @group_replication_poll_spin_loops_save;
+--source include/group_replication_end.inc

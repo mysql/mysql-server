@@ -1,0 +1,234 @@
+############################################################
+# 0. Check that there are no persisted variable settings.
+include/assert.inc ['Expect 0 persisted variables.']
+
+############################################################
+# 1. Initialization. Test SET PERSIST_ONLY. Verify persisted
+#    variables.
+CALL mtr.add_suppression("Unsafe statement written to the binary log");
+# Install semi-sync related plugins
+CREATE TABLE rplvars (id INT PRIMARY KEY AUTO_INCREMENT, varname VARCHAR(64), varvalue VARCHAR(256));
+INSERT INTO rplvars (varname, varvalue)
+SELECT * FROM performance_schema.global_variables
+WHERE (VARIABLE_NAME LIKE '%binlog%' OR
+VARIABLE_NAME LIKE '%gtid%' OR
+VARIABLE_NAME LIKE '%log_bin%' OR
+VARIABLE_NAME LIKE '%master%' OR
+VARIABLE_NAME LIKE '%relay%' OR
+VARIABLE_NAME LIKE '%rpl%' OR
+VARIABLE_NAME LIKE '%semi_sync%' OR
+VARIABLE_NAME LIKE '%slave%') AND
+(VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
+'innodb_master_thread_disabled_debug'))
+ORDER BY VARIABLE_NAME;
+
+include/assert.inc ['Expect 80 variables in the table.']
+
+# Test SET PERSIST_ONLY
+SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
+SET PERSIST_ONLY binlog_checksum = @@GLOBAL.binlog_checksum;
+SET PERSIST_ONLY binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
+SET PERSIST_ONLY binlog_error_action = @@GLOBAL.binlog_error_action;
+SET PERSIST_ONLY binlog_expire_logs_seconds = @@GLOBAL.binlog_expire_logs_seconds;
+SET PERSIST_ONLY binlog_format = @@GLOBAL.binlog_format;
+SET PERSIST_ONLY binlog_group_commit_sync_delay = @@GLOBAL.binlog_group_commit_sync_delay;
+SET PERSIST_ONLY binlog_group_commit_sync_no_delay_count = @@GLOBAL.binlog_group_commit_sync_no_delay_count;
+SET PERSIST_ONLY binlog_gtid_simple_recovery = @@GLOBAL.binlog_gtid_simple_recovery;
+SET PERSIST_ONLY binlog_max_flush_queue_time = @@GLOBAL.binlog_max_flush_queue_time;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+SET PERSIST_ONLY binlog_order_commits = @@GLOBAL.binlog_order_commits;
+SET PERSIST_ONLY binlog_row_image = @@GLOBAL.binlog_row_image;
+SET PERSIST_ONLY binlog_row_metadata = @@GLOBAL.binlog_row_metadata;
+SET PERSIST_ONLY binlog_row_value_options = @@GLOBAL.binlog_row_value_options;
+SET PERSIST_ONLY binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_events;
+SET PERSIST_ONLY binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
+SET PERSIST_ONLY binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
+SET PERSIST_ONLY binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET PERSIST_ONLY enforce_gtid_consistency = @@GLOBAL.enforce_gtid_consistency;
+SET PERSIST_ONLY gtid_executed = @@GLOBAL.gtid_executed;
+ERROR HY000: Variable 'gtid_executed' is a non persistent read only variable
+SET PERSIST_ONLY gtid_executed_compression_period = @@GLOBAL.gtid_executed_compression_period;
+SET PERSIST_ONLY gtid_mode = @@GLOBAL.gtid_mode;
+SET PERSIST_ONLY gtid_owned = @@GLOBAL.gtid_owned;
+ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
+SET PERSIST_ONLY gtid_purged = @@GLOBAL.gtid_purged;
+SET PERSIST_ONLY init_slave = @@GLOBAL.init_slave;
+SET PERSIST_ONLY log_bin = @@GLOBAL.log_bin;
+ERROR HY000: Variable 'log_bin' is a non persistent read only variable
+SET PERSIST_ONLY log_bin_basename = @@GLOBAL.log_bin_basename;
+ERROR HY000: Variable 'log_bin_basename' is a non persistent read only variable
+SET PERSIST_ONLY log_bin_index = @@GLOBAL.log_bin_index;
+ERROR HY000: Variable 'log_bin_index' is a non persistent read only variable
+SET PERSIST_ONLY log_bin_trust_function_creators = @@GLOBAL.log_bin_trust_function_creators;
+SET PERSIST_ONLY log_bin_use_v1_row_events = @@GLOBAL.log_bin_use_v1_row_events;
+SET PERSIST_ONLY log_slave_updates = @@GLOBAL.log_slave_updates;
+SET PERSIST_ONLY log_slow_slave_statements = @@GLOBAL.log_slow_slave_statements;
+SET PERSIST_ONLY log_statements_unsafe_for_binlog = @@GLOBAL.log_statements_unsafe_for_binlog;
+SET PERSIST_ONLY master_info_repository = @@GLOBAL.master_info_repository;
+SET PERSIST_ONLY master_verify_checksum = @@GLOBAL.master_verify_checksum;
+SET PERSIST_ONLY max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
+SET PERSIST_ONLY max_binlog_size = @@GLOBAL.max_binlog_size;
+SET PERSIST_ONLY max_binlog_stmt_cache_size = @@GLOBAL.max_binlog_stmt_cache_size;
+SET PERSIST_ONLY max_relay_log_size = @@GLOBAL.max_relay_log_size;
+SET PERSIST_ONLY relay_log = @@GLOBAL.relay_log;
+ERROR HY000: Variable 'relay_log' is a non persistent read only variable
+SET PERSIST_ONLY relay_log_basename = @@GLOBAL.relay_log_basename;
+ERROR HY000: Variable 'relay_log_basename' is a non persistent read only variable
+SET PERSIST_ONLY relay_log_index = @@GLOBAL.relay_log_index;
+ERROR HY000: Variable 'relay_log_index' is a non persistent read only variable
+SET PERSIST_ONLY relay_log_info_file = @@GLOBAL.relay_log_info_file;
+ERROR HY000: Variable 'relay_log_info_file' is a non persistent read only variable
+SET PERSIST_ONLY relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
+SET PERSIST_ONLY relay_log_purge = @@GLOBAL.relay_log_purge;
+SET PERSIST_ONLY relay_log_recovery = @@GLOBAL.relay_log_recovery;
+SET PERSIST_ONLY relay_log_space_limit = @@GLOBAL.relay_log_space_limit;
+SET PERSIST_ONLY rpl_read_size = @@GLOBAL.rpl_read_size;
+SET PERSIST_ONLY rpl_semi_sync_master_enabled = @@GLOBAL.rpl_semi_sync_master_enabled;
+SET PERSIST_ONLY rpl_semi_sync_master_timeout = @@GLOBAL.rpl_semi_sync_master_timeout;
+SET PERSIST_ONLY rpl_semi_sync_master_trace_level = @@GLOBAL.rpl_semi_sync_master_trace_level;
+SET PERSIST_ONLY rpl_semi_sync_master_wait_for_slave_count = @@GLOBAL.rpl_semi_sync_master_wait_for_slave_count;
+SET PERSIST_ONLY rpl_semi_sync_master_wait_no_slave = @@GLOBAL.rpl_semi_sync_master_wait_no_slave;
+SET PERSIST_ONLY rpl_semi_sync_master_wait_point = @@GLOBAL.rpl_semi_sync_master_wait_point;
+SET PERSIST_ONLY rpl_semi_sync_slave_enabled = @@GLOBAL.rpl_semi_sync_slave_enabled;
+SET PERSIST_ONLY rpl_semi_sync_slave_trace_level = @@GLOBAL.rpl_semi_sync_slave_trace_level;
+SET PERSIST_ONLY rpl_stop_slave_timeout = @@GLOBAL.rpl_stop_slave_timeout;
+SET PERSIST_ONLY session_track_gtids = @@GLOBAL.session_track_gtids;
+SET PERSIST_ONLY slave_allow_batching = @@GLOBAL.slave_allow_batching;
+SET PERSIST_ONLY slave_checkpoint_group = @@GLOBAL.slave_checkpoint_group;
+SET PERSIST_ONLY slave_checkpoint_period = @@GLOBAL.slave_checkpoint_period;
+SET PERSIST_ONLY slave_compressed_protocol = @@GLOBAL.slave_compressed_protocol;
+SET PERSIST_ONLY slave_exec_mode = @@GLOBAL.slave_exec_mode;
+SET PERSIST_ONLY slave_load_tmpdir = @@GLOBAL.slave_load_tmpdir;
+ERROR HY000: Variable 'slave_load_tmpdir' is a non persistent read only variable
+SET PERSIST_ONLY slave_max_allowed_packet = @@GLOBAL.slave_max_allowed_packet;
+SET PERSIST_ONLY slave_net_timeout = @@GLOBAL.slave_net_timeout;
+SET PERSIST_ONLY slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET PERSIST_ONLY slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET PERSIST_ONLY slave_pending_jobs_size_max = @@GLOBAL.slave_pending_jobs_size_max;
+SET PERSIST_ONLY slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
+SET PERSIST_ONLY slave_rows_search_algorithms = @@GLOBAL.slave_rows_search_algorithms;
+SET PERSIST_ONLY slave_skip_errors = @@GLOBAL.slave_skip_errors;
+SET PERSIST_ONLY slave_sql_verify_checksum = @@GLOBAL.slave_sql_verify_checksum;
+SET PERSIST_ONLY slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET PERSIST_ONLY slave_type_conversions = @@GLOBAL.slave_type_conversions;
+SET PERSIST_ONLY sql_slave_skip_counter = @@GLOBAL.sql_slave_skip_counter;
+SET PERSIST_ONLY sync_binlog = @@GLOBAL.sync_binlog;
+SET PERSIST_ONLY sync_master_info = @@GLOBAL.sync_master_info;
+SET PERSIST_ONLY sync_relay_log = @@GLOBAL.sync_relay_log;
+SET PERSIST_ONLY sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
+
+include/assert.inc ['Expect 70 persisted variables in persisted_variables table.']
+
+############################################################
+# 2. Restart server, it must preserve the persisted variable
+#    settings. Verify persisted configuration.
+# restart
+
+include/assert.inc ['Expect 70 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 70 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 70 persisted variables with matching peristed and global values.']
+
+############################################################
+# 3. Test RESET PERSIST. Verify persisted variable settings
+#    are removed.
+RESET PERSIST binlog_cache_size;
+RESET PERSIST binlog_checksum;
+RESET PERSIST binlog_direct_non_transactional_updates;
+RESET PERSIST binlog_error_action;
+RESET PERSIST binlog_expire_logs_seconds;
+RESET PERSIST binlog_format;
+RESET PERSIST binlog_group_commit_sync_delay;
+RESET PERSIST binlog_group_commit_sync_no_delay_count;
+RESET PERSIST binlog_gtid_simple_recovery;
+RESET PERSIST binlog_max_flush_queue_time;
+RESET PERSIST binlog_order_commits;
+RESET PERSIST binlog_row_image;
+RESET PERSIST binlog_row_metadata;
+RESET PERSIST binlog_row_value_options;
+RESET PERSIST binlog_rows_query_log_events;
+RESET PERSIST binlog_stmt_cache_size;
+RESET PERSIST binlog_transaction_dependency_history_size;
+RESET PERSIST binlog_transaction_dependency_tracking;
+RESET PERSIST enforce_gtid_consistency;
+RESET PERSIST gtid_executed;
+ERROR HY000: Variable gtid_executed does not exist in persisted config file
+RESET PERSIST gtid_executed_compression_period;
+RESET PERSIST gtid_mode;
+RESET PERSIST gtid_owned;
+ERROR HY000: Variable gtid_owned does not exist in persisted config file
+RESET PERSIST gtid_purged;
+RESET PERSIST init_slave;
+RESET PERSIST log_bin;
+ERROR HY000: Variable log_bin does not exist in persisted config file
+RESET PERSIST log_bin_basename;
+ERROR HY000: Variable log_bin_basename does not exist in persisted config file
+RESET PERSIST log_bin_index;
+ERROR HY000: Variable log_bin_index does not exist in persisted config file
+RESET PERSIST log_bin_trust_function_creators;
+RESET PERSIST log_bin_use_v1_row_events;
+RESET PERSIST log_slave_updates;
+RESET PERSIST log_slow_slave_statements;
+RESET PERSIST log_statements_unsafe_for_binlog;
+RESET PERSIST master_info_repository;
+RESET PERSIST master_verify_checksum;
+RESET PERSIST max_binlog_cache_size;
+RESET PERSIST max_binlog_size;
+RESET PERSIST max_binlog_stmt_cache_size;
+RESET PERSIST max_relay_log_size;
+RESET PERSIST relay_log;
+ERROR HY000: Variable relay_log does not exist in persisted config file
+RESET PERSIST relay_log_basename;
+ERROR HY000: Variable relay_log_basename does not exist in persisted config file
+RESET PERSIST relay_log_index;
+ERROR HY000: Variable relay_log_index does not exist in persisted config file
+RESET PERSIST relay_log_info_file;
+ERROR HY000: Variable relay_log_info_file does not exist in persisted config file
+RESET PERSIST relay_log_info_repository;
+RESET PERSIST relay_log_purge;
+RESET PERSIST relay_log_recovery;
+RESET PERSIST relay_log_space_limit;
+RESET PERSIST rpl_read_size;
+RESET PERSIST rpl_semi_sync_master_enabled;
+RESET PERSIST rpl_semi_sync_master_timeout;
+RESET PERSIST rpl_semi_sync_master_trace_level;
+RESET PERSIST rpl_semi_sync_master_wait_for_slave_count;
+RESET PERSIST rpl_semi_sync_master_wait_no_slave;
+RESET PERSIST rpl_semi_sync_master_wait_point;
+RESET PERSIST rpl_semi_sync_slave_enabled;
+RESET PERSIST rpl_semi_sync_slave_trace_level;
+RESET PERSIST rpl_stop_slave_timeout;
+RESET PERSIST session_track_gtids;
+RESET PERSIST slave_allow_batching;
+RESET PERSIST slave_checkpoint_group;
+RESET PERSIST slave_checkpoint_period;
+RESET PERSIST slave_compressed_protocol;
+RESET PERSIST slave_exec_mode;
+RESET PERSIST slave_load_tmpdir;
+ERROR HY000: Variable slave_load_tmpdir does not exist in persisted config file
+RESET PERSIST slave_max_allowed_packet;
+RESET PERSIST slave_net_timeout;
+RESET PERSIST slave_parallel_type;
+RESET PERSIST slave_parallel_workers;
+RESET PERSIST slave_pending_jobs_size_max;
+RESET PERSIST slave_preserve_commit_order;
+RESET PERSIST slave_rows_search_algorithms;
+RESET PERSIST slave_skip_errors;
+RESET PERSIST slave_sql_verify_checksum;
+RESET PERSIST slave_transaction_retries;
+RESET PERSIST slave_type_conversions;
+RESET PERSIST sql_slave_skip_counter;
+RESET PERSIST sync_binlog;
+RESET PERSIST sync_master_info;
+RESET PERSIST sync_relay_log;
+RESET PERSIST sync_relay_log_info;
+
+include/assert.inc ['Expect 0 persisted variables.']
+
+############################################################
+# 4. Clean up.
+SET @varvalues= NULL;
+UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+DROP TABLE rplvars;

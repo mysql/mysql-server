@@ -1,0 +1,1 @@
+--log-error=$MYSQLTEST_VARDIR/tmp/binlog_transaction_dependency_tracking.err

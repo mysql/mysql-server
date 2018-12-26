@@ -1,0 +1,37 @@
+!include include/default_mysqld.cnf
+#include include/default_ndbd.cnf
+
+#To test multi-tc take over in various manners we create one node with a TC that
+#has only 1 TC but have more transactions that can be handled in one go by the
+#takeover TC. The other node have both multiple TCs and also more operations than
+#can be handled in one go. So it has to both handle each TC takeover instance in
+#multiple steps and it has to handle multiple instances.
+
+[cluster_config.1]
+MaxNoOfConcurrentTransactions= 100
+MaxNoOfConcurrentOperations=   200
+MaxNoOfLocalOperations=        10000
+NoOfReplicas=                 2
+ThreadConfig=main={count=1},tc={count=1},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
+Checksum=1
+
+ndbd=,,,
+ndb_mgmd=
+mysqld=
+ndbapi=
+
+[mysqld]
+ndbcluster
+
+[cluster_config.ndbd.2.1]
+MaxNoOfConcurrentOperations=1000
+MaxNoOfConcurrentTransactions=500
+
+[cluster_config.ndbd.4.1]
+MaxNoOfConcurrentOperations=1000
+ThreadConfig=main={count=1},tc={count=4},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
+
+[ENV]
+NDB_CONNECTSTRING=@mysql_cluster.1.ndb_connectstring
+# Use the multithreaded scheduler whenever available
+MTR_NDBMTD= 1

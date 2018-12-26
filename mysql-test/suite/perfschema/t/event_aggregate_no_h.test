@@ -1,0 +1,6 @@
+# Tests for the performance schema
+
+--source ../include/event_aggregate_setup.inc
+--source ../include/event_aggregate_load.inc
+--source ../include/event_aggregate_cleanup.inc
+

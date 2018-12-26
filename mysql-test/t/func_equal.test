@@ -1,0 +1,47 @@
+
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+#
+# Testing of the <=> operator
+#
+
+#
+# First some simple tests
+#
+
+select 0<=>0,0.0<=>0.0,0E0=0E0,"A"<=>"A",NULL<=>NULL;
+select 1<=>0,0<=>NULL,NULL<=>0;
+select 1.0<=>0.0,0.0<=>NULL,NULL<=>0.0;
+select "A"<=>"B","A"<=>NULL,NULL<=>"A";
+select 0<=>0.0, 0.0<=>0E0, 0E0<=>"0", 10.0<=>1E1, 10<=>10.0, 10<=>1E1;
+select 1.0<=>0E1,10<=>NULL,NULL<=>0.0, NULL<=>0E0;
+
+#
+# Test with tables
+#
+
+create table t1 (id int, value int);
+create table t2 (id int, value int);
+
+insert into t1 values (1,null);
+insert into t2 values (1,null);
+
+select t1.*, t2.*, t1.value<=>t2.value from t1, t2 where t1.id=t2.id and t1.id=1;
+select * from t1 where id <=>id;
+select * from t1 where value <=> value;
+select * from t1 where id <=> value or value<=>id;
+drop table t1,t2;
+
+#
+# Bug #12612: quoted bigint unsigned value and the use of "in" in where clause
+#
+create table t1 (a bigint unsigned);
+insert into t1 values (4828532208463511553);
+select * from t1 where a = '4828532208463511553';
+select * from t1 where a in ('4828532208463511553');
+drop table t1;
+
+# End of 4.1 tests

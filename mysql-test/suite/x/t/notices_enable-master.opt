@@ -1,0 +1,1 @@
+${?PB_HOST_SPECIFIC_MYSQLD_ARGS} --thread_stack=655360

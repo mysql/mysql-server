@@ -1,0 +1,7 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+#######
+DataMemory=50M
+MaxNoOfOrderedIndexes = 150
+#

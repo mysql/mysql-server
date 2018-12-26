@@ -1,0 +1,45 @@
+# Test needs myisam for some myisam specific testcases
+--source include/have_myisam.inc
+#
+# Some special cases with empty tables
+#
+
+call mtr.add_suppression("The table 't1' is full");
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+set global myisam_data_pointer_size=2;
+CREATE TABLE t1 (a int auto_increment primary key not null, b longtext) ENGINE=MyISAM;
+
+--disable_query_log
+let $1= 303;
+while ($1)
+{
+  INSERT INTO t1 SET b=repeat('a',200);
+  dec $1;
+}
+--enable_query_log
+
+DELETE FROM t1 WHERE a=1 or a=5;
+
+--error 1114
+INSERT INTO t1 SET b=repeat('a',600);
+CHECK TABLE t1 EXTENDED;
+
+--error 1114
+UPDATE t1 SET b=repeat('a', 800) where a=10;
+CHECK TABLE t1 EXTENDED;
+
+INSERT INTO t1 SET b=repeat('a',400);
+CHECK TABLE t1 EXTENDED;
+
+DELETE FROM t1 WHERE a=2 or a=6;
+UPDATE t1 SET b=repeat('a', 600) where a=11;
+CHECK TABLE t1 EXTENDED;
+drop table t1;
+
+set global myisam_data_pointer_size=default;
+
+# End of 4.1 tests

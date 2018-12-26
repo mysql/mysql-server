@@ -1,0 +1,37 @@
+
+#
+#  2013-05-09 - Added
+#
+
+
+#
+# show the global and session values;
+#
+select @@global.innodb_ft_result_cache_limit;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_ft_result_cache_limit;
+show global variables like 'innodb_ft_result_cache_limit';
+show session variables like 'innodb_ft_result_cache_limit';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_ft_result_cache_limit';
+select * from performance_schema.session_variables where variable_name='innodb_ft_result_cache_limit';
+--enable_warnings
+
+#
+# test default, min, max value
+#
+let $innodb_ft_result_cache_limit_orig=`select @@innodb_ft_result_cache_limit`;
+
+set global innodb_ft_result_cache_limit=900000;
+select @@innodb_ft_result_cache_limit;
+
+set global innodb_ft_result_cache_limit=1000000;
+select @@innodb_ft_result_cache_limit;
+
+set global innodb_ft_result_cache_limit=4294967295;
+select @@innodb_ft_result_cache_limit;
+
+set global innodb_ft_result_cache_limit=4*1024*1024*1024;
+select @@innodb_ft_result_cache_limit;
+
+eval set global innodb_ft_result_cache_limit=$innodb_ft_result_cache_limit_orig;

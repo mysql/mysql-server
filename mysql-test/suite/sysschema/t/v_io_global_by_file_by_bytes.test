@@ -1,0 +1,21 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.io_global_by_file_by_bytes view
+
+# Ensure structure changes don't slip in
+DESC sys.io_global_by_file_by_bytes;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.io_global_by_file_by_bytes;
+--enable_result_log
+
+
+# Ensure structure changes don't slip in
+DESC sys.x$io_global_by_file_by_bytes;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$io_global_by_file_by_bytes;
+--enable_result_log
+

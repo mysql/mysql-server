@@ -1,0 +1,52 @@
+[Verification of Mysqlx.Crud.Insert::upsert (18.6)]
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+    condition_value: "18.6"
+  }
+}
+
+ok
+
+[Verification of Mysqlx.Crud.Find::locking (17.12)]
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+    condition_value: "17.12"
+  }
+}
+
+ok
+
+[Verification of Mysqlx.Crud.Find::locking_options (17.13)]
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+    condition_value: "17.13"
+  }
+}
+
+ok
+
+[Verification of all features in single request]
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+    condition_value: "18.6"
+  }
+  cond {
+    condition_key: 2
+    condition_value: "17.12"
+  }
+  cond {
+    condition_key: 2
+    condition_value: "17.13"
+  }
+}
+
+ok
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

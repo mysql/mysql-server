@@ -1,0 +1,105 @@
+# Tests for sys schema
+# Verify the sys.ps_thread_trx_info() function perfoms as expected
+
+# Performance schema tracks prepared statements separately, and does not
+# yet have a summary view that we can use for this view.
+# Until then, we disable this test with --ps-protocol
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+-- source include/no_protocol.inc
+
+# Passing unknown connection id should return NULL
+--disable_warnings
+SELECT sys.ps_thread_trx_info(234623462376);
+--enable_warnings
+
+# Make sure current thread returns a valid JSON object
+SELECT JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)));
+
+# Dummy up some transactions and inspect
+CREATE DATABASE trx;
+CREATE TABLE trx.info (id INT PRIMARY KEY, info VARCHAR(20));
+
+--echo # Warm-up data-dictionary cache.
+--disable_query_log
+--disable_result_log
+SELECT * FROM trx.info;
+--enable_result_log
+--enable_query_log
+
+--connect(con1,localhost,root,,)
+connection con1;
+let $NEW_TRX_ID=`SELECT thread_id FROM performance_schema.threads
+  WHERE PROCESSLIST_ID = connection_id()`;
+
+USE trx;
+START TRANSACTION;
+INSERT INTO info VALUES (1, 'foo');
+COMMIT;
+START TRANSACTION;
+INSERT INTO info VALUES (2, 'bar');
+COMMIT;
+
+connection default;
+--disable_query_log ONCE
+eval SET @ps_thread_id = $NEW_TRX_ID;
+
+# Get the JSON dump of the transaction info
+SET @json_doc := sys.ps_thread_trx_info(@ps_thread_id);
+
+# JSON should be valid
+SELECT JSON_VALID(@json_doc);
+
+# Should have two transactions in the array
+SELECT JSON_LENGTH(@json_doc);
+
+# Expected keys are returned for first transaction details
+SELECT JSON_KEYS(JSON_EXTRACT(@json_doc, '$[0]'));
+
+# Expected values are returned for the transaction details
+SELECT JSON_CONTAINS_PATH(@json_doc, 'one',          '$[0].time');
+SELECT JSON_CONTAINS(@json_doc, '"COMMITTED"',       '$[0].state');
+SELECT JSON_CONTAINS(@json_doc, '"READ WRITE"',      '$[0].mode');
+SELECT JSON_CONTAINS(@json_doc, '"NO"',              '$[0].autocommitted');
+# gtid can be "AUTOMATIC", "ANONYMOUS", or "<server_uuid>:<number>",
+# depending on whether binlog and/or GTIDs are enabled
+--let $server_uuid= `SELECT @@global.server_uuid`
+--let $replace_pattern= /$server_uuid:[0-9][0-9]*|AUTOMATIC|ANONYMOUS/GTID/
+--replace_regex $replace_pattern
+SELECT JSON_EXTRACT(@json_doc, '$[0].gtid');
+SELECT JSON_CONTAINS(@json_doc, '"REPEATABLE READ"', '$[0].isolation');
+
+# Expected keys are returned for first transaction statements_executed details
+SELECT JSON_KEYS(JSON_EXTRACT(@json_doc, '$[0].statements_executed[0]'));
+
+# Confirm statement details values
+SELECT JSON_CONTAINS_PATH(@json_doc, 'one',                               '$[0].statements_executed[0].time');
+SELECT JSON_CONTAINS(@json_doc, '"INSERT INTO info VALUES (1, \'foo\')"', '$[0].statements_executed[0].sql_text');
+SELECT JSON_CONTAINS(@json_doc, '"trx"',                                  '$[0].statements_executed[0].schema');
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].rows_examined');
+SELECT JSON_CONTAINS(@json_doc, '1',                                      '$[0].statements_executed[0].rows_affected');
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].rows_sent');
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].tmp_tables');
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].tmp_disk_tables');
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].sort_rows');
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].sort_merge_passes');
+
+# Second statement in transaction should be a COMMIT
+SELECT JSON_CONTAINS(@json_doc, '"COMMIT"', '$[0].statements_executed[1].sql_text');
+
+# Simulate a truncated set of output by lowering the @sys.ps_thread_trx_info.max_length user variable
+# This also tests the user variable works appropriately, incidentally
+
+SET @sys.ps_thread_trx_info.max_length = 100;
+
+# Should return an error JSON object
+--replace_regex /Row 1[1-2] was/Row 1X was/
+SELECT sys.ps_thread_trx_info(@ps_thread_id);
+
+# Setting the user variable back to NULL should reset to 65535 from sys_config, and no truncation
+SET @sys.ps_thread_trx_info.max_length = NULL;
+SELECT JSON_VALID(sys.ps_thread_trx_info(@ps_thread_id));
+
+# Clean up
+
+disconnect con1;
+DROP DATABASE trx;

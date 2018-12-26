@@ -1,0 +1,118 @@
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
+# This is a MyISAM specific test as in MyISAM INSERT INTO .. SELECT FROM takes a read lock on the source table whereas in InnoDB row-level locking is used.
+
+--source include/have_log_bin.inc
+# Test sets its own binlog_format, so we restrict it to run only once
+--source include/have_binlog_format_row.inc
+
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+# Get rid of previous tests binlog
+--disable_query_log
+reset master;
+--enable_query_log
+
+#
+# Bug#34306: Can't make copy of log tables when server binary log is enabled
+#
+# This is an additional test for Bug#34306 in order to ensure that INSERT INTO
+# .. SELECT FROM is properly replicated under SBR and RBR and that the proper
+# read lock type are acquired.
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+set @saved_global_binlog_format = @@global.binlog_format;
+set @saved_local_binlog_format = @@session.binlog_format;
+SET GLOBAL BINLOG_FORMAT = STATEMENT;
+SET SESSION BINLOG_FORMAT = STATEMENT;
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 LIKE t1;
+select @@SESSION.BINLOG_FORMAT;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(2);
+
+--connect(con1,localhost,root,,)
+--connect(con2,localhost,root,,)
+
+--echo #
+--echo # Ensure that INSERT INTO .. SELECT FROM under SBR takes a read
+--echo # lock that will prevent the source table from being modified.
+--echo #
+
+--connection con1
+--echo # con1
+SELECT GET_LOCK('Bug#34306', 120);
+--connection con2
+--echo # con2
+PREPARE stmt FROM "INSERT INTO t1 SELECT * FROM t2 WHERE GET_LOCK('Bug#34306', 120)";
+--send EXECUTE stmt;
+--connection default
+--echo # default
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE
+  state = "User lock" AND
+  info = "INSERT INTO t1 SELECT * FROM t2 WHERE GET_LOCK('Bug#34306', 120)";
+--source include/wait_condition_or_abort.inc
+--send INSERT INTO t2 VALUES (3);
+--connection con1
+--echo # con1
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE
+  state = "Waiting for table level lock" and info = "INSERT INTO t2 VALUES (3)";
+--source include/wait_condition_or_abort.inc
+SELECT RELEASE_LOCK('Bug#34306');
+--connection con2
+--echo # con2
+--reap
+SELECT RELEASE_LOCK('Bug#34306');
+--connection default
+--echo # default
+--reap
+
+--echo #
+--echo # Ensure that INSERT INTO .. SELECT FROM prepared under SBR does
+--echo # not prevent the source table from being modified if under RBR.
+--echo #
+
+--connection con2
+--echo # con2
+SET SESSION BINLOG_FORMAT = 'ROW';
+--connection con1
+--echo # con1
+SELECT GET_LOCK('Bug#34306', 120);
+--connection con2
+--echo # con2
+--send EXECUTE stmt;
+--connection default
+--echo # default
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE
+  state = "User lock" AND
+  info = "INSERT INTO t1 SELECT * FROM t2 WHERE GET_LOCK('Bug#34306', 120)";
+--source include/wait_condition_or_abort.inc
+--connection con1
+--echo # con1
+INSERT INTO t2 VALUES (4);
+SELECT RELEASE_LOCK('Bug#34306');
+--connection con2
+--echo # con2
+--reap
+
+--disconnect con1
+--disconnect con2
+--connection default
+--echo # default
+
+--echo # Show binlog events
+source include/show_binlog_events.inc;
+
+DROP TABLE t1;
+DROP TABLE t2;
+SET GLOBAL BINLOG_FORMAT = @saved_global_binlog_format;
+SET SESSION BINLOG_FORMAT = @saved_local_binlog_format;

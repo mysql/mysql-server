@@ -1,0 +1,130 @@
+--echo #########################################################################
+--echo # Verify:
+--echo #  Relay log file names are properly set for multisource replication
+--echo #  In this tests we test if relay log files per channel based
+--echo #  on --relay-log-index and --relay-log is properly set.
+--echo # 1. The slave is started with --relay-log=msr-relay
+--echo # 2. the slave is restarted with --relay-log-index=idx-msr-relay
+--echo # 3. the slave is restarted with --relay-log-index=idx-msr-relay.idx
+--echo #     and --relay-log=msr-relay.log
+--echo #########################################################################
+
+#Skip on group replication runs
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--let $datadir= `SELECT @@GLOBAL.datadir`
+
+# add new channel
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+
+--echo #
+--echo # Check that the names of relay log files per channel are properly set
+--echo #
+#verify the index file and relay log file name of ch1 is properly set with
+#channel name appended
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS FOR CHANNEL "channel1";
+
+--let $relay_log_file_channel1=`SELECT CONCAT('$datadir','msr-relay-channel1.000001')`
+--file_exists $relay_log_file_channel1
+
+--let $relay_log_index_channel1= `SELECT CONCAT('$datadir', 'msr-relay-channel1.index')`
+--file_exists $relay_log_index_channel1
+
+--echo #
+--echo # RESET SLAVE ALL for next test;
+--echo #
+--source include/rpl_stop_slaves.inc
+RESET SLAVE ALL;
+
+--echo #
+--echo # 2. Shutdown server. Remove relay log files. Start server with
+--echo #     --relay-log-index
+--echo #
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+--remove_files_wildcard $datadir *msr-relay*
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=--relay-log-index=idx-msr-relay
+--source include/rpl_start_server.inc
+
+# add new channel
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+
+--echo #
+--echo # Check that the names of relay log files per channel are properly set
+--echo #
+#verify the index file and relay log file name of ch1 and default is properly set with
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS FOR CHANNEL "channel1";
+
+--let $relay_log_file_channel1=`SELECT CONCAT('$datadir','msr-relay-channel1.000001')`
+--file_exists $relay_log_file_channel1
+
+--let $relay_log_index_channel1= `SELECT CONCAT('$datadir', 'idx-msr-relay-channel1.index')`
+--file_exists $relay_log_index_channel1
+
+--echo #
+--echo # RESET SLAVE ALL cleaningup.
+--echo #
+--source include/rpl_stop_slaves.inc
+RESET SLAVE ALL;
+
+--echo #
+--echo # 3. Shutdown server. Remove relay log files. Start server with
+--echo #    --relay-log-index and --relay-log with extensions.
+--echo #    These extensions shall be stripped off
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+--remove_files_wildcard $datadir *msr-relay*
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=--relay-log-index=idx-msr-relay.index1 --relay-log=msr-relay.log1
+--source include/rpl_start_server.inc
+
+# add new channel
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+
+--echo #
+--echo # Check that the names of relay log files per channel are properly set
+--echo #
+#verify the index file and relay log file name of ch1 and default is properly set with
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS FOR CHANNEL "channel1";
+
+--let $relay_log_file_channel1=`SELECT CONCAT('$datadir','msr-relay-channel1.000001')`
+--file_exists $relay_log_file_channel1
+
+--let $relay_log_index_channel1= `SELECT CONCAT('$datadir', 'idx-msr-relay-channel1.index')`
+--file_exists $relay_log_index_channel1
+
+--echo #
+--echo # RESET SLAVE ALL cleaningup.
+--echo #
+--source include/rpl_stop_slaves.inc
+RESET SLAVE ALL;
+
+--echo #
+--echo # We have to reset the --relay-log and --relay-log-index options,
+--echo # so that in the  next test case if the server restarts there is no mismatch
+--echo # with the current options and the default option (i.e relay-log=slave-relay-bin)
+--echo #
+--source include/force_restart.inc
+
+--disable_warnings
+--replace_result $MASTER_MYPORT MYPORT
+eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=$MASTER_MYPORT,
+          MASTER_USER="root";
+--enable_warnings
+
+--source include/start_slave.inc
+--source include/rpl_end.inc
+

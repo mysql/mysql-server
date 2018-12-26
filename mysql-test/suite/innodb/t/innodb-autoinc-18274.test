@@ -1,0 +1,22 @@
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Bug #18274	InnoDB auto_increment field reset on OPTIMIZE TABLE
+SET @@SESSION.AUTO_INCREMENT_INCREMENT=1, @@SESSION.AUTO_INCREMENT_OFFSET=1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (null);
+SHOW CREATE TABLE t1;
+DELETE FROM t1;
+OPTIMIZE TABLE t1;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(null);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# restore environment to the state it was before this test execution
+#
+
+-- disable_query_log

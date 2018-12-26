@@ -1,0 +1,162 @@
+############## mysql-test\t\unique_checks_basic.test ##########################
+#                                                                             #
+# Variable Name: unique_checks                                                #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: 1                                                            #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-14                                                   #
+# Author:  Sharique Abdullah                                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable unique_checks            #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html#option_mysqld_UNIQUE_CHECKS                   #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+########################################################################
+#           START OF transaction_allow_batching TESTS                  #
+########################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_session_value = @@session.unique_checks;
+SELECT @start_session_value;
+
+--echo '#--------------------FN_DYNVARS_005_01-------------------------#'
+############################################################
+#     Display the DEFAULT value of unique_checks           #
+############################################################
+
+
+SET @@session.unique_checks= 1;
+SET @@session.unique_checks= DEFAULT;
+SELECT @@session.unique_checks;
+
+--echo '#--------------------FN_DYNVARS_005_04-------------------------#'
+########################################################################
+# Change the value of unique_checks to a valid value for SESSION Scope #
+########################################################################
+ 
+SET @@session.unique_checks =1;
+SELECT @@session.unique_checks;
+
+SET @@session.unique_checks = 0;
+SELECT @@session.unique_checks;
+
+SET @@session.unique_checks = True;
+SELECT @@session.unique_checks;
+
+SET @@session.unique_checks = False;
+SELECT @@session.unique_checks;
+
+SET @@session.unique_checks = "ON";
+SELECT @@session.unique_checks;
+
+SET @@session.unique_checks = "OFF";
+SELECT @@session.unique_checks;
+
+
+
+--echo '#------------------FN_DYNVARS_005_05-----------------------#'
+###########################################################
+# Change the value of 'unique_checks' to an invalid value #
+###########################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.unique_checks = 'No';
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.unique_checks = "yes";
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.unique_checks = yes;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.unique_checks = NO;
+
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.unique_checks = "True";
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.unique_checks = "False";
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.unique_checks = "Test";
+
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.unique_checks = 'test';
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.unique_checks = 123456789031;
+
+
+--echo '#------------------FN_DYNVARS_005_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT IF(@@session.unique_checks, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='unique_checks';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_001_08----------------------#'
+########################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE  #
+#    points to same session variable                                   #
+########################################################################
+SET @@unique_checks = 1;
+SELECT @@unique_checks = @@local.unique_checks;
+SELECT @@local.unique_checks = @@session.unique_checks;
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+########################################################################
+#   Check if unique_checks can be accessed with and without @@ sign    #
+########################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET unique_checks = 1027;
+SELECT @@unique_checks;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.unique_checks;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.unique_checks;
+
+--Error ER_BAD_FIELD_ERROR
+SELECT unique_checks = @@session.unique_checks;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+
+SET @@session.unique_checks = @start_session_value;
+SELECT @@session.unique_checks;
+
+
+##################################################
+#                 END OF unique_checks TESTS     #
+##################################################
+

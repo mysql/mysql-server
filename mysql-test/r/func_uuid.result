@@ -1,0 +1,314 @@
+#
+# WL#8920: Improve usability of UUID manipulations
+#
+SELECT uuid_to_bin('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}', TRUE) AS a, uuid_to_bin('{e60c88ba-083f-4ceb-be59-f67636d718a2}', TRUE) AS b;
+a	b
+HªÀ	»ÎKª≤Ê†∂¥’«	LÎ?Êà∫æYˆv6◊¢
+SELECT uuid_to_bin('c8eb4b15cb0948bbbbb2e6a0b6b4d5c7', TRUE) AS a, uuid_to_bin('e60c88ba083f4cebbe59f67636d718a2', TRUE) AS b;
+a	b
+HªÀ	»ÎKª≤Ê†∂¥’«	LÎ?Êà∫æYˆv6◊¢
+SELECT uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7', TRUE) AS a, uuid_to_bin('e60c88ba-083f-4ceb-be59-f67636d718a2', TRUE) AS b;
+a	b
+HªÀ	»ÎKª≤Ê†∂¥’«	LÎ?Êà∫æYˆv6◊¢
+# UUID too long
+SELECT uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5cc7', TRUE) AS a;
+ERROR HY000: Incorrect string value: 'c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5cc7' for function uuid_to_bin
+# UUID with invalid characters
+SELECT uuid_to_bin('12345678123456Z81234567812345678', TRUE) AS a;
+ERROR HY000: Incorrect string value: '12345678123456Z81234567812345678' for function uuid_to_bin
+SELECT uuid_to_bin('12345678-1234-5678-1234-56781234567Z', TRUE) AS a;
+ERROR HY000: Incorrect string value: '12345678-1234-5678-1234-56781234567Z' for function uuid_to_bin
+SELECT uuid_to_bin('e60c88ba-083f-4ceb-be59-f67636d718aa2', TRUE) AS b;
+ERROR HY000: Incorrect string value: 'e60c88ba-083f-4ceb-be59-f67636d718aa2' for function uuid_to_bin
+# UUID too short
+SELECT uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a04d5cc7', TRUE) AS a;
+ERROR HY000: Incorrect string value: 'c8eb4b15-cb09-48bb-bbb2-e6a04d5cc7' for function uuid_to_bin
+SELECT uuid_to_bin('e60c88ba-083f-4ceb-be59-f676318aa2', TRUE) AS b;
+ERROR HY000: Incorrect string value: 'e60c88ba-083f-4ceb-be59-f676318aa2' for function uuid_to_bin
+SELECT bin_to_uuid(unhex('7f9d04ae61b34468ac798ffcc984ab68')) AS a, bin_to_uuid(unhex('7f9d04ae61b34468ac898ffcc984ab68'),TRUE) AS b;
+a	b
+7f9d04ae-61b3-4468-ac79-8ffcc984ab68	61b34468-04ae-7f9d-ac89-8ffcc984ab68
+# UUID too long
+SELECT bin_to_uuid(unhex('7f9d04ae61b34468ac798ffcc984ab668')) AS a;
+ERROR HY000: Incorrect string value: '\x07\xF9\xD0J\xE6\x1B4F\x8A\xC7\x98\xFF\xCC\x98J\xB6h' for function bin_to_uuid
+SELECT bin_to_uuid(unhex('7f9d04ae61b34468ac898ffcc984ab668'), TRUE) AS b;
+ERROR HY000: Incorrect string value: '\x07\xF9\xD0J\xE6\x1B4F\x8A\xC8\x98\xFF\xCC\x98J\xB6h' for function bin_to_uuid
+# UUID too short
+SELECT bin_to_uuid(unhex('7f9d04ae61b34468ac798ffcc98468')) AS a;
+ERROR HY000: Incorrect string value: '\x7F\x9D\x04\xAEa\xB3Dh\xACy\x8F\xFC\xC9\x84h' for function bin_to_uuid
+SELECT bin_to_uuid(unhex('7f9d04ab34468ac898ffcc984ab668'), TRUE) AS b;
+ERROR HY000: Incorrect string value: '\x7F\x9D\x04\xAB4F\x8A\xC8\x98\xFF\xCC\x98J\xB6h' for function bin_to_uuid
+SELECT uuid_to_bin('{c8eb4b15-CB09-48bb-bbb2-e6a0b6b4d5c7}') = x'c8eb4b15cb0948bbbbb2e6a0b6b4d5c7';
+uuid_to_bin('{c8eb4b15-CB09-48bb-bbb2-e6a0b6b4d5c7}') = x'c8eb4b15cb0948bbbbb2e6a0b6b4d5c7'
+1
+SELECT uuid_to_bin('{c8eb4b15-CB09-48bb-bbb2-e6a0b6b4d5c7}', TRUE) = x'48bbcb09c8eb4b15bbb2e6a0b6b4d5c7';
+uuid_to_bin('{c8eb4b15-CB09-48bb-bbb2-e6a0b6b4d5c7}', TRUE) = x'48bbcb09c8eb4b15bbb2e6a0b6b4d5c7'
+1
+SELECT bin_to_uuid(x'7f9d04ae61b34468ac798ffcc984ab68') = '7f9d04ae-61b3-4468-ac79-8ffcc984ab68';
+bin_to_uuid(x'7f9d04ae61b34468ac798ffcc984ab68') = '7f9d04ae-61b3-4468-ac79-8ffcc984ab68'
+1
+SELECT bin_to_uuid(x'7f9d04ae61b34468ac798ffcc984ab68', TRUE) = '61b34468-04ae-7f9d-ac79-8ffcc984ab68';
+bin_to_uuid(x'7f9d04ae61b34468ac798ffcc984ab68', TRUE) = '61b34468-04ae-7f9d-ac79-8ffcc984ab68'
+1
+# null VALUES
+SELECT bin_to_uuid(NULL) AS a, bin_to_uuid(NULL, TRUE) AS b;
+a	b
+NULL	NULL
+SELECT uuid_to_bin(NULL) AS a, uuid_to_bin(NULL, TRUE) AS b;
+a	b
+NULL	NULL
+SELECT is_uuid(NULL);
+is_uuid(NULL)
+NULL
+# valid uuids
+SELECT is_uuid('{12345678-1234-5678-1234-567812345678}');
+is_uuid('{12345678-1234-5678-1234-567812345678}')
+1
+SELECT is_uuid('12345678123456781234567812345678');
+is_uuid('12345678123456781234567812345678')
+1
+SELECT is_uuid('12345678-1234-5678-1234-567812345678');
+is_uuid('12345678-1234-5678-1234-567812345678')
+1
+# shorter uuids
+SELECT is_uuid('{2345678-1234-5678-1234-567812345678}');
+is_uuid('{2345678-1234-5678-1234-567812345678}')
+0
+SELECT is_uuid('2345678123456781234567812345678');
+is_uuid('2345678123456781234567812345678')
+0
+SELECT is_uuid('2345678-1234-5678-1234-567812345678');
+is_uuid('2345678-1234-5678-1234-567812345678')
+0
+# longer uuids
+SELECT is_uuid('{9912345678-1234-5678-1234-567812345678}');
+is_uuid('{9912345678-1234-5678-1234-567812345678}')
+0
+SELECT is_uuid('9912345678123456781234567812345678');
+is_uuid('9912345678123456781234567812345678')
+0
+SELECT is_uuid('9912345678-1234-5678-1234-567812345678');
+is_uuid('9912345678-1234-5678-1234-567812345678')
+0
+# uuids with missing dash
+SELECT is_uuid('{12345678-12345678-1234-567812345678}');
+is_uuid('{12345678-12345678-1234-567812345678}')
+0
+SELECT is_uuid('1234567812345-6781234567812345678');
+is_uuid('1234567812345-6781234567812345678')
+0
+SELECT is_uuid('12345678-12345678-1234-567812345678');
+is_uuid('12345678-12345678-1234-567812345678')
+0
+# uuids with dash in wrong place
+SELECT is_uuid('{12345678-123456-78-1234-567812345678}');
+is_uuid('{12345678-123456-78-1234-567812345678}')
+0
+SELECT is_uuid('12345678-123456-78-1234-567812345678');
+is_uuid('12345678-123456-78-1234-567812345678')
+0
+# tests with tables
+CREATE TABLE t(a binary(16));
+INSERT into t VALUES(unhex('7f9d04ae61b34468ac798ffcc984ab68')),(unhex('d00653b290b940d193c2194456bd4f3d')),(unhex('e60c88ba083f4cebbe59f67636d718a2')),(unhex('c8eb4b15cb0948bbbbb2e6a0b6b4d5c7'));
+SELECT bin_to_uuid(a), bin_to_uuid(a,TRUE) FROM t;
+bin_to_uuid(a)	bin_to_uuid(a,TRUE)
+7f9d04ae-61b3-4468-ac79-8ffcc984ab68	61b34468-04ae-7f9d-ac79-8ffcc984ab68
+d00653b2-90b9-40d1-93c2-194456bd4f3d	90b940d1-53b2-d006-93c2-194456bd4f3d
+e60c88ba-083f-4ceb-be59-f67636d718a2	083f4ceb-88ba-e60c-be59-f67636d718a2
+c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7	cb0948bb-4b15-c8eb-bbb2-e6a0b6b4d5c7
+SELECT uuid_to_bin(bin_to_uuid(a)), uuid_to_bin(bin_to_uuid(a)) = a, uuid_to_bin(bin_to_uuid(a, TRUE), TRUE), uuid_to_bin(bin_to_uuid(a, TRUE), TRUE) = a FROM t;
+uuid_to_bin(bin_to_uuid(a))	uuid_to_bin(bin_to_uuid(a)) = a	uuid_to_bin(bin_to_uuid(a, TRUE), TRUE)	uuid_to_bin(bin_to_uuid(a, TRUE), TRUE) = a
+ùÆa≥Dh¨yè¸…Ñ´h	1	ùÆa≥Dh¨yè¸…Ñ´h	1
+–S≤êπ@—ì¬DVΩO=	1	–S≤êπ@—ì¬DVΩO=	1
+Êà∫?LÎæYˆv6◊¢	1	Êà∫?LÎæYˆv6◊¢	1
+»ÎKÀ	Hªª≤Ê†∂¥’«	1	»ÎKÀ	Hªª≤Ê†∂¥’«	1
+SELECT bin_to_uuid(uuid_to_bin(bin_to_uuid(a))), bin_to_uuid(uuid_to_bin(bin_to_uuid(a, TRUE), TRUE), TRUE) FROM t;
+bin_to_uuid(uuid_to_bin(bin_to_uuid(a)))	bin_to_uuid(uuid_to_bin(bin_to_uuid(a, TRUE), TRUE), TRUE)
+7f9d04ae-61b3-4468-ac79-8ffcc984ab68	61b34468-04ae-7f9d-ac79-8ffcc984ab68
+d00653b2-90b9-40d1-93c2-194456bd4f3d	90b940d1-53b2-d006-93c2-194456bd4f3d
+e60c88ba-083f-4ceb-be59-f67636d718a2	083f4ceb-88ba-e60c-be59-f67636d718a2
+c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7	cb0948bb-4b15-c8eb-bbb2-e6a0b6b4d5c7
+SELECT bin_to_uuid(uuid_to_bin('{12345678-1234-5678-1234-567812345678}')), bin_to_uuid(uuid_to_bin('{12345678-1234-5678-1234-567812345678}')) = '12345678-1234-5678-1234-567812345678';
+bin_to_uuid(uuid_to_bin('{12345678-1234-5678-1234-567812345678}'))	bin_to_uuid(uuid_to_bin('{12345678-1234-5678-1234-567812345678}')) = '12345678-1234-5678-1234-567812345678'
+12345678-1234-5678-1234-567812345678	1
+SELECT bin_to_uuid(uuid_to_bin('12345678123456781234567812345678')),bin_to_uuid(uuid_to_bin('12345678123456781234567812345678')) = '12345678-1234-5678-1234-567812345678';
+bin_to_uuid(uuid_to_bin('12345678123456781234567812345678'))	bin_to_uuid(uuid_to_bin('12345678123456781234567812345678')) = '12345678-1234-5678-1234-567812345678'
+12345678-1234-5678-1234-567812345678	1
+SELECT bin_to_uuid(uuid_to_bin('12345678-1234-5678-1234-567812345678')), bin_to_uuid(uuid_to_bin('12345678-1234-5678-1234-567812345678')) = '12345678-1234-5678-1234-567812345678';
+bin_to_uuid(uuid_to_bin('12345678-1234-5678-1234-567812345678'))	bin_to_uuid(uuid_to_bin('12345678-1234-5678-1234-567812345678')) = '12345678-1234-5678-1234-567812345678'
+12345678-1234-5678-1234-567812345678	1
+DROP TABLE t;
+CREATE TABLE at(_bin binary(16),
+_vbn varbinary(16),
+_tbl tinyblob,
+_ttx tinytext,
+_blb blob);
+INSERT into at VALUES(
+x'12345678123456781234567812345678',
+x'12345678123456781234567812345678',
+x'12345678123456781234567812345678',
+x'12345678123456781234567812345678',
+x'12345678123456781234567812345678');
+SELECT
+bin_to_uuid(_bin),
+bin_to_uuid(_vbn),
+bin_to_uuid(_tbl),
+bin_to_uuid(_ttx),
+bin_to_uuid(_blb)
+FROM at;
+bin_to_uuid(_bin)	bin_to_uuid(_vbn)	bin_to_uuid(_tbl)	bin_to_uuid(_ttx)	bin_to_uuid(_blb)
+12345678-1234-5678-1234-567812345678	12345678-1234-5678-1234-567812345678	12345678-1234-5678-1234-567812345678	12345678-1234-5678-1234-567812345678	12345678-1234-5678-1234-567812345678
+# Output types of bin_to_uuid:
+CREATE TABLE t3 AS SELECT
+bin_to_uuid(_bin),
+bin_to_uuid(_vbn),
+bin_to_uuid(_tbl),
+bin_to_uuid(_ttx),
+bin_to_uuid(_blb)
+FROM at;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `bin_to_uuid(_bin)` varchar(36) DEFAULT NULL,
+  `bin_to_uuid(_vbn)` varchar(36) DEFAULT NULL,
+  `bin_to_uuid(_tbl)` varchar(36) DEFAULT NULL,
+  `bin_to_uuid(_ttx)` varchar(36) DEFAULT NULL,
+  `bin_to_uuid(_blb)` varchar(36) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t3;
+# Compare with hex:
+set names latin1;
+DELETE FROM at;
+INSERT into at(_bin,_blb) VALUES('c8eb4b15cb0948bb','c8eb4b15cb0948bb');
+CREATE TABLE t3 AS SELECT hex('c8eb4b15cb0948bb'),hex(_bin),hex(_blb) FROM at;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `hex('c8eb4b15cb0948bb')` varchar(32) CHARACTER SET latin1 DEFAULT NULL,
+  `hex(_bin)` varchar(32) CHARACTER SET latin1 DEFAULT NULL,
+  `hex(_blb)` longtext CHARACTER SET latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t3;
+set names utf8mb4;
+# Output types of uuid_to_bin
+CREATE TABLE t3 AS SELECT
+uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7') AS a,
+uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7', true) AS b;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` varbinary(16) DEFAULT NULL,
+  `b` varbinary(16) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t3;
+# Compare with unhex:
+CREATE TABLE t3 AS SELECT unhex(_bin) FROM at;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `unhex(_bin)` varbinary(8) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t3;
+DROP TABLE at;
+# Bad arguments
+SELECT bin_to_uuid(2);
+ERROR HY000: Incorrect string value: '2' for function bin_to_uuid
+SELECT uuid_to_bin(2);
+ERROR HY000: Incorrect string value: '2' for function uuid_to_bin
+SELECT bin_to_uuid();
+ERROR 42000: Incorrect parameter count in the call to native function 'bin_to_uuid'
+SELECT uuid_to_bin();
+ERROR 42000: Incorrect parameter count in the call to native function 'uuid_to_bin'
+SELECT bin_to_uuid(x'12345678123456781234567812345678', true, false);
+ERROR 42000: Incorrect parameter count in the call to native function 'bin_to_uuid'
+SELECT uuid_to_bin('12345678-1234-5678-1234-567812345678', true, false);
+ERROR 42000: Incorrect parameter count in the call to native function 'uuid_to_bin'
+SELECT bin_to_uuid(x'');
+ERROR HY000: Incorrect string value: '' for function bin_to_uuid
+SELECT bin_to_uuid(x'', true);
+ERROR HY000: Incorrect string value: '' for function bin_to_uuid
+SELECT uuid_to_bin('');
+ERROR HY000: Incorrect string value: '' for function uuid_to_bin
+SELECT uuid_to_bin('', true);
+ERROR HY000: Incorrect string value: '' for function uuid_to_bin
+set @a=uuid();
+SELECT bin_to_uuid(uuid_to_bin(@a)) = @a;
+bin_to_uuid(uuid_to_bin(@a)) = @a
+1
+# tests with prepared statements
+PREPARE s FROM "SELECT bin_to_uuid(x'7f9d04ae61b34468ac798ffcc984ab68',true)";
+EXECUTE s;
+bin_to_uuid(x'7f9d04ae61b34468ac798ffcc984ab68',true)
+61b34468-04ae-7f9d-ac79-8ffcc984ab68
+EXECUTE s;
+bin_to_uuid(x'7f9d04ae61b34468ac798ffcc984ab68',true)
+61b34468-04ae-7f9d-ac79-8ffcc984ab68
+PREPARE s2 FROM "SELECT bin_to_uuid(uuid_to_bin('{12345678-1234-5678-1234-567812345678}', true), true)";
+EXECUTE s2;
+bin_to_uuid(uuid_to_bin('{12345678-1234-5678-1234-567812345678}', true), true)
+12345678-1234-5678-1234-567812345678
+EXECUTE s2;
+bin_to_uuid(uuid_to_bin('{12345678-1234-5678-1234-567812345678}', true), true)
+12345678-1234-5678-1234-567812345678
+# Generated column
+CREATE TABLE t1(col1 varchar(100), gcol2 binary(16) AS (uuid_to_bin(col1)) virtual, index(gcol2));
+INSERT into t1(col1) VALUES
+('{12345678-1234-5678-1234-567812345678}'),
+('12345679123456781234567812345678'),
+('12345670-1234-5678-1234-567812345678');
+EXPLAIN SELECT * FROM t1 where gcol2=x'12345679123456781234567812345678';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gcol2	gcol2	17	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`gcol2` AS `gcol2` from `test`.`t1` where (`test`.`t1`.`gcol2` = 0x12345679123456781234567812345678)
+SELECT * FROM t1 where gcol2=x'12345679123456781234567812345678';
+col1	gcol2
+12345679123456781234567812345678	4Vy4Vx4Vx4Vx
+# Gcol expression is recognized and gcol index is used:
+EXPLAIN SELECT * FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gcol2	gcol2	17	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`gcol2` AS `gcol2` from `test`.`t1` where (`test`.`t1`.`gcol2` = 0x12345679123456781234567812345678)
+SELECT * FROM t1 where uuid_to_bin(col1)=x'12345679123456781234567812345678';
+col1	gcol2
+12345679123456781234567812345678	4Vy4Vx4Vx4Vx
+CREATE TABLE t2(col1 binary(16), gcol2 varchar(36) AS (bin_to_uuid(col1)) virtual, index(col1), index(gcol2));
+INSERT into t2(col1) VALUES
+(x'12345678123456781234567812345678'),
+(x'12345679123456781234567812345678'),
+(x'12345670123456781234567812345678');
+EXPLAIN SELECT * FROM t2 where col1=x'12345679123456781234567812345678';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	col1	col1	17	const	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`col1` = 0x12345679123456781234567812345678)
+SELECT * FROM t2 where col1=x'12345679123456781234567812345678';
+col1	gcol2
+4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
+EXPLAIN SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	gcol2	gcol2	147	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
+SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
+col1	gcol2
+4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
+EXPLAIN SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	gcol2	gcol2	147	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
+SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
+col1	gcol2
+4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
+DROP TABLE t1;
+DROP TABLE t2;
+#
+#  Bug#26395601 DIFFERENT BEHAVIOR BETWEEN CLASSIC AND NODE SESSION WITH UUID()
+#
+CREATE TABLE t as SELECT replace(uuid(), '-', '=') as v from mysql.user;
+SELECT COUNT(DISTINCT v) FROM t;
+COUNT(DISTINCT v)
+4
+DROP TABLE t;

@@ -1,0 +1,61 @@
+drop table if exists t1;
+## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+## Creating another table t2 ##
+CREATE TABLE t2
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+## Inserting records in both the tables ##
+INSERT INTO t1(name) VALUES('Record_1');
+INSERT INTO t1(name) VALUES('Record_2');
+INSERT INTO t1(name) VALUES('Record_3');
+INSERT INTO t1(name) VALUES('Record_4');
+INSERT INTO t1(name) VALUES('Record_5');
+INSERT INTO t2(name) VALUES('Record_1_1');
+INSERT INTO t2(name) VALUES('Record_2_1');
+INSERT INTO t2(name) VALUES('Record_3_1');
+INSERT INTO t2(name) VALUES('Record_4_1');
+INSERT INTO t2(name) VALUES('Record_5_1');
+'#--------------------FN_DYNVARS_079_01-------------------------#'
+## Setting max_join size value to 10 ## 
+SET @@session.max_join_size=10;
+## This should work ##
+SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id;
+id	name	id	name
+1	Record_1	1	Record_1_1
+2	Record_2	2	Record_2_1
+3	Record_3	3	Record_3_1
+4	Record_4	4	Record_4_1
+5	Record_5	5	Record_5_1
+'#--------------------FN_DYNVARS_079_02-------------------------#'
+## Creating new connection test_con1 ##
+## Setting value of max_join_size ## 
+SET @@session.max_join_size=2;
+## Since total joins are more than max_join_size value so error will occur ##
+SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id;
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
+'#--------------------FN_DYNVARS_079_03-------------------------#'
+## Setting global value of variable ##
+SET @@global.max_join_size=2;
+## Creating and switching to new connection test_con2 ## 
+## Verifying value of max_join_size ##
+SELECT @@global.max_join_size;
+@@global.max_join_size
+2
+## Since total joins are more than max_join_size value so error will occur ## 
+SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id;
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
+## Dropping both the tables ##
+Drop table t1, t2;
+## Restoring values ##
+SET @@global.max_join_size = DEFAULT;
+SET @@session.max_join_size = DEFAULT;
+## Dropping connections ##

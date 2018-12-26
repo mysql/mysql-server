@@ -1,0 +1,40 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Change to single primary mode
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+
+# 2. Check all variables
+[connection server1]
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The single primary mode should be 1 here.]
+include/assert.inc [The super_read_only mode should be 0 here.]
+[connection server2]
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The single primary mode should be 1 here.]
+include/assert.inc [The super_read_only mode should be 1 here.]
+
+# 3. Restart Group Replication on server 2. Check all
+#    goes as planned.
+[connection server2]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The single primary mode should be 1 here.]
+include/assert.inc [The super_read_only mode should be 1 here.]
+
+# 4. Restart server 1. Don't pass the Primary mode settings. Check
+#    all goes as planned.
+[connection server1]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The single primary mode should be 1 here.]
+include/start_group_replication.inc
+include/assert.inc [The super_read_only mode should be 1 here.]
+include/group_replication_end.inc

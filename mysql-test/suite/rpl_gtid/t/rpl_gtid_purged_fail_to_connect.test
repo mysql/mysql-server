@@ -1,0 +1,102 @@
+# ==== Purpose ====
+#
+# Test that the slave fails to connect to the master with
+# MASTER_AUTO_POSITION=1 if the slave is missing some transactions
+# that the master has purged.
+#
+# ==== Implementation ====
+#
+# Start master and slave, then stop the slave. Generate a transaction
+# on master and purge it.  Verify that the slave fails if it tries to
+# connect using CHANGE MASTER TO MASTER_AUTO_POSITION, but the slave
+# succeeds if it tries to connect using CHANGE MASTER TO
+# MASTER_LOG_POS.
+#
+# ==== References ====
+#
+# Added in WL#3584 - Global Transaction Identifiers
+
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+
+call mtr.add_suppression(".*Cannot replicate.*purged required binary logs.*");
+
+--echo ######## Initialize ########
+
+--let $master_uuid= `SELECT @@SERVER_UUID`
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--connection master
+# Need to kill the dump thread explicitly: stop slave does not do
+# that, and if the dump thread is slow, it will still be reading from
+# the old binlog at the time we do PURGE BINARY LOGS below. That would
+# prevent PURGE BINARY LOGS from purging the log.
+--source include/stop_dump_threads.inc
+
+INSERT INTO t1 VALUES (1);
+
+FLUSH LOGS;
+--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+INSERT INTO t1 VALUES (2);
+eval PURGE BINARY LOGS TO '$master_file';
+
+--let $assert_cond= "[SHOW MASTER STATUS, File, 1]" = "$master_file"
+--let $assert_text= PURGE BINARY LOGS successfully removed all but the latest files
+--source include/assert.inc
+
+--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+INSERT INTO t1 VALUES (2);
+--save_master_pos
+
+--connection slave
+CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+
+START SLAVE;
+# BUG#13727933 causes this test to fail sporadically on the following line
+# apparently the binlog is not always purged on the master (?)
+--let $slave_io_errno= 13114 # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
+
+--replace_result $master_file MASTER_FILE
+--replace_result $master_pos MASTER_POS
+eval CHANGE MASTER TO MASTER_LOG_FILE = '$master_file', MASTER_LOG_POS = $master_pos, MASTER_AUTO_POSITION = 0;
+
+--source include/start_slave.inc
+--sync_with_master
+
+--let $assert_text= t1 should contain only one row with the value 2
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "1" AND "[SELECT * FROM t1]" = "2"
+--source include/assert.inc
+
+--echo ######## Clean up ########
+--echo === Stop and reset slave/master (connection slave) ====
+--connection slave
+--source include/stop_slave.inc
+RESET MASTER;
+RESET SLAVE;
+--echo === Stop and reset master (connection master) ====
+--connection master
+RESET MASTER;
+--echo === Start slave (connection slave) ====
+--connection slave
+--source include/start_slave.inc
+--echo === Sync slave with master (connection master/slave) ====
+--connection master
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_match= .*Cannot replicate to server with server_uuid.*The missing transactions are '.*:3'.*
+--let $assert_select= Cannot replicate to server with server_uuid
+--let $assert_text= Found warning containing lost GTIDs
+--source include/assert_grep.inc
+
+--connection master
+--source include/rpl_end.inc

@@ -1,0 +1,1948 @@
+SET @default_innodb_autoinc_lock_mode = @@global.innodb_autoinc_lock_mode;
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+2
+SET @default_auto_increment_offset = @@global.auto_increment_offset;
+SET @default_auto_increment_increment = @@global.auto_increment_increment;
+# Bulk inserts in interleaved lock mode
+CREATE TABLE t3(cc INT);
+INSERT INTO t3 VALUES (10),(20),(30),(40),(50),(60),(70),(80);
+CREATE TABLE t4(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `pkey` int(11) NOT NULL AUTO_INCREMENT,
+  `cc` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pkey`)
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `pkey` int(11) NOT NULL AUTO_INCREMENT,
+  `cc` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pkey`)
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t4;
+DROP TABLE t3;
+# Concurrent simple inserts in interleaved lock mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+IF ((i%2) =0 ) THEN
+DELETE FROM t1 WHERE bb=i;
+END IF;
+SET i = i+1;
+END WHILE;
+END //
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+SET @@global.auto_increment_offset = 9;
+SET @@global.auto_increment_increment = 10;
+TRUNCATE TABLE t1;
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+# Concurrent bulk inserts in interleaved lock mode
+CREATE TABLE t2 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t1 (aa INT);
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1 VALUES(i);
+SET i =  i +1;
+END WHILE;
+INSERT INTO t2(aa) SELECT * FROM t1;
+END //
+CALL POP();
+CALL POP();
+SET @@global.auto_increment_offset = 7;
+SET @@global.auto_increment_increment = 15;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL POP();
+CALL POP();
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE POP;
+# Concurrent mixed mode inserts in interleaved lock mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+END //
+CALL POP2(1);
+CALL POP2(120);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+34
+SET @@global.auto_increment_offset = 13;
+SET @@global.auto_increment_increment = 43;
+TRUNCATE TABLE t1;
+CALL POP2(1);
+CALL POP2(280);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+34
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+# Transactions in interleaved lock mode
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+4
+5
+6
+DROP TABLE t1;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+ROLLBACK;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+8	1
+9	2
+10	3
+11	4
+12	5
+13	6
+14	7
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+1
+2
+3
+4
+23
+24
+25
+26
+27
+34
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+23
+24
+34
+35
+36
+37
+38
+39
+40
+41
+DROP TABLE t1;
+# Simple, Mixed and Bulk inserts with auto increment offset in interleaved locking mode
+SET @@auto_increment_offset = 17;
+SET @@auto_increment_increment = 40;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+17
+57
+97
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+137
+177
+217
+DROP TABLE t1;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+17	1
+57	2
+97	3
+137	4
+177	5
+217	6
+257	7
+ROLLBACK;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+297	1
+337	2
+377	3
+417	4
+457	5
+497	6
+537	7
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+17
+23
+24
+34
+57
+97
+137
+177
+217
+257
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+23
+24
+34
+297
+337
+377
+417
+457
+497
+537
+DROP TABLE t1;
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+# Transactions with concurrency in interleaved locking mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+SET i = i+1;
+END WHILE;
+END //
+START TRANSACTION;
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+20
+ROLLBACK;
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+30
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+END //
+START TRANSACTION;
+CALL POP2(1);
+CALL POP2(60);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+34
+ROLLBACK;
+CALL POP2(1);
+CALL POP2(280);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+51
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+# Crash server in interleaved lock mode
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1(aa) VALUES(i);
+SET i =  i +1;
+END WHILE;
+END //
+START TRANSACTION;
+CALL POP();
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+START TRANSACTION;
+CALL POP();
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+TRUNCATE TABLE t1;
+SET @@auto_increment_offset = 20;
+SET @@auto_increment_increment = 40;
+START TRANSACTION;
+CALL POP();
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+START TRANSACTION;
+CALL POP();
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+DROP TABLE t1;
+DROP PROCEDURE POP;
+# Concurrent load inserts in interleaved lock mode
+CREATE TABLE loads ( pkey INT PRIMARY KEY AUTO_INCREMENT, ww CHAR(50));
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+SELECT MAX(pkey) FROM loads;
+MAX(pkey)
+197
+SET @@global.auto_increment_offset = 12;
+SET @@global.auto_increment_increment = 50;
+TRUNCATE TABLE loads;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+SELECT MAX(pkey) FROM loads;
+MAX(pkey)
+9812
+DROP TABLE loads;
+# Restart server with innodb_autoinc_lock_mode = 1
+# restart: --innodb_autoinc_lock_mode=1
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+1
+SET @default_auto_increment_offset = @@global.auto_increment_offset;
+SET @default_auto_increment_increment = @@global.auto_increment_increment;
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a INT);
+INSERT INTO t1 values (NULL,3),
+(NULL,6),
+(NULL,9),
+(NULL,12),
+(NULL,15);
+SELECT * FROM t1;
+pkey	a
+1	3
+2	6
+3	9
+4	12
+5	15
+UPDATE t1 SET pkey = 6
+WHERE a = 15;
+SELECT * FROM t1;
+pkey	a
+1	3
+2	6
+3	9
+4	12
+6	15
+INSERT INTO t1 VALUES (NULL,18);
+SELECT * FROM t1;
+pkey	a
+1	3
+2	6
+3	9
+4	12
+6	15
+7	18
+DELETE FROM t1 WHERE a = 18;
+INSERT INTO t1 VALUES (NULL,18);
+SELECT * FROM t1;
+pkey	a
+1	3
+2	6
+3	9
+4	12
+6	15
+8	18
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET @@auto_increment_increment=10;
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+10
+INSERT INTO t1 VALUES (NULL,21),
+(NULL,24),
+(NULL,27);
+SELECT * FROM t1;
+pkey	a
+1	3
+2	6
+3	9
+4	12
+6	15
+8	18
+11	21
+21	24
+31	27
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @@auto_increment_offset=5;
+SELECT @@auto_increment_offset;
+@@auto_increment_offset
+5
+INSERT INTO t1 VALUES (NULL,30),
+(NULL,33),
+(NULL,36);
+SELECT * FROM t1;
+pkey	a
+1	3
+2	6
+3	9
+4	12
+6	15
+8	18
+11	21
+21	24
+31	27
+45	30
+55	33
+65	36
+SET @@auto_increment_offset =150;
+SELECT @@auto_increment_offset;
+@@auto_increment_offset
+150
+INSERT INTO t1 VALUES (NULL,39),
+(NULL,42),
+(NULL,45);
+SELECT * FROM t1;
+pkey	a
+1	3
+2	6
+3	9
+4	12
+6	15
+8	18
+11	21
+21	24
+31	27
+45	30
+55	33
+65	36
+84	39
+94	42
+104	45
+SET @@auto_increment_increment = @default_auto_increment_increment;
+SET @@auto_increment_offset = @default_auto_increment_offset;
+DROP TABLE t1;
+# Mixed mode inserts in consecutive lock mode
+CREATE TABLE t2( pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT );
+INSERT INTO t2 VALUES (NULL,10),
+(12,20),
+(NULL,30),
+(NULL,40),
+(40,50),
+(NULL,60),
+(NULL,70);
+SELECT * FROM t2;
+pkey	bb
+1	10
+12	20
+13	30
+14	40
+40	50
+41	60
+42	70
+DROP TABLE t2;
+# Bulk inserts in consecutive lock mode
+CREATE TABLE t3(cc INT);
+INSERT INTO t3 VALUES (10),(20),(30),(40),(50),(60),(70),(80);
+CREATE TABLE t4(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `pkey` int(11) NOT NULL AUTO_INCREMENT,
+  `cc` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pkey`)
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `pkey` int(11) NOT NULL AUTO_INCREMENT,
+  `cc` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pkey`)
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t4;
+DROP TABLE t3;
+# Concurrent simple inserts in consecutive lock mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+IF ( (i%2) = 0 ) THEN
+DELETE FROM t1 WHERE bb=i;
+END IF;
+SET i = i+1;
+END WHILE;
+END //
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+SET @@global.auto_increment_offset=10;
+SET @@global.auto_increment_increment=25;
+TRUNCATE TABLE t1;
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+# Concurrent bulk inserts in consecutive lock mode
+CREATE TABLE t2 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t1 (aa INT);
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1 VALUES(i);
+SET i =  i +1;
+END WHILE;
+INSERT INTO t2(aa) SELECT * FROM t1;
+END //
+CALL POP();
+CALL POP();
+SET @@global.auto_increment_offset = 16;
+SET @@global.auto_increment_increment = 32;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL POP();
+CALL POP();
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP;
+DROP TABLE t1;
+DROP TABLE t2;
+# Concurrent mixed mode inserts in consecutive lock mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+END //
+CALL POP2(1);
+CALL POP2(70);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+34
+SET @@global.auto_increment_offset = 3;
+SET @@global.auto_increment_increment = 4;
+TRUNCATE TABLE t1;
+CALL POP2(1);
+CALL POP2(80);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+34
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+# Transactions in consecutive lock mode
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+1
+2
+3
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+4
+5
+6
+DROP TABLE t1;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+ROLLBACK;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+8	1
+9	2
+10	3
+11	4
+12	5
+13	6
+14	7
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+1
+2
+3
+4
+23
+24
+25
+26
+27
+34
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+23
+24
+34
+35
+36
+37
+38
+39
+40
+41
+DROP TABLE t1;
+# Simple, Mixed and Bulk inserts with auto increment offset in default locking mode
+SET @@auto_increment_offset = 17;
+SET @@auto_increment_increment = 40;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+17
+57
+97
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+137
+177
+217
+DROP TABLE t1;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+17	1
+57	2
+97	3
+137	4
+177	5
+217	6
+257	7
+ROLLBACK;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+297	1
+337	2
+377	3
+417	4
+457	5
+497	6
+537	7
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+17
+23
+24
+34
+57
+97
+137
+177
+217
+257
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+23
+24
+34
+297
+337
+377
+417
+457
+497
+537
+DROP TABLE t1;
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+# Transactions with concurrency in consecutive locking mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+SET i = i+1;
+END WHILE;
+END //
+START TRANSACTION;
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+20
+ROLLBACK;
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+30
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+END //
+START TRANSACTION;
+CALL POP2(1);
+CALL POP2(51);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+34
+ROLLBACK;
+CALL POP2(1);
+CALL POP2(150);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+51
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+# Crash server in default locking mode
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1(aa) VALUES(i);
+SET i =  i +1;
+END WHILE;
+END //
+START TRANSACTION;
+CALL POP();
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart: --innodb_autoinc_lock_mode=1
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+START TRANSACTION;
+CALL POP();
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart: --innodb_autoinc_lock_mode=1
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+TRUNCATE TABLE t1;
+SET @@auto_increment_offset = 8;
+SET @@auto_increment_increment = 13;
+START TRANSACTION;
+CALL POP();
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart: --innodb_autoinc_lock_mode=1
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+START TRANSACTION;
+CALL POP();
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart: --innodb_autoinc_lock_mode=1
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+DROP TABLE t1;
+DROP PROCEDURE POP;
+# Concurrent load inserts in consecutive lock mode
+CREATE TABLE loads ( pkey INT PRIMARY KEY AUTO_INCREMENT, ww CHAR(50));
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+SELECT * FROM loads;
+pkey	ww
+1	Aarhus
+2	Aaron
+3	Ababa
+4	aback
+5	abaft
+6	abandon
+7	abandoned
+8	abandoning
+9	abandonment
+10	abandons
+11	Aarhus
+12	Aaron
+13	Ababa
+14	aback
+15	abaft
+16	abandon
+17	abandoned
+18	abandoning
+19	abandonment
+20	abandons
+21	abase
+22	abased
+23	abasement
+24	abasements
+25	abases
+26	abash
+27	abashed
+28	abashes
+29	abashing
+30	abasing
+31	abate
+32	abated
+33	abatement
+34	abatements
+35	abater
+36	abates
+37	abating
+38	Abba
+39	abbe
+40	abbey
+41	abbeys
+42	abbot
+43	abbots
+44	Abbott
+45	abbreviate
+46	abbreviated
+47	abbreviates
+48	abbreviating
+49	abbreviation
+50	abbreviations
+51	Abby
+52	abdomen
+53	abdomens
+54	abdominal
+55	abduct
+56	abducted
+57	abduction
+58	abductions
+59	abductor
+60	abductors
+61	abducts
+62	Abe
+63	abed
+64	Abel
+65	Abelian
+66	Abelson
+67	Aberdeen
+68	Abernathy
+69	aberrant
+70	aberration
+128	Aarhus
+129	Aaron
+130	Ababa
+131	aback
+132	abaft
+133	abandon
+134	abandoned
+135	abandoning
+136	abandonment
+137	abandons
+138	Aarhus
+139	Aaron
+140	Ababa
+141	aback
+142	abaft
+143	abandon
+144	abandoned
+145	abandoning
+146	abandonment
+147	abandons
+148	abase
+149	abased
+150	abasement
+151	abasements
+152	abases
+153	abash
+154	abashed
+155	abashes
+156	abashing
+157	abasing
+158	abate
+159	abated
+160	abatement
+161	abatements
+162	abater
+163	abates
+164	abating
+165	Abba
+166	abbe
+167	abbey
+168	abbeys
+169	abbot
+170	abbots
+171	Abbott
+172	abbreviate
+173	abbreviated
+174	abbreviates
+175	abbreviating
+176	abbreviation
+177	abbreviations
+178	Abby
+179	abdomen
+180	abdomens
+181	abdominal
+182	abduct
+183	abducted
+184	abduction
+185	abductions
+186	abductor
+187	abductors
+188	abducts
+189	Abe
+190	abed
+191	Abel
+192	Abelian
+193	Abelson
+194	Aberdeen
+195	Abernathy
+196	aberrant
+197	aberration
+SET @@global.auto_increment_offset = 12;
+SET @@global.auto_increment_increment = 50;
+TRUNCATE TABLE loads;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+SELECT * FROM loads;
+pkey	ww
+12	Aarhus
+62	Aaron
+112	Ababa
+162	aback
+212	abaft
+262	abandon
+312	abandoned
+362	abandoning
+412	abandonment
+462	abandons
+512	Aarhus
+562	Aaron
+612	Ababa
+662	aback
+712	abaft
+762	abandon
+812	abandoned
+862	abandoning
+912	abandonment
+962	abandons
+1012	abase
+1062	abased
+1112	abasement
+1162	abasements
+1212	abases
+1262	abash
+1312	abashed
+1362	abashes
+1412	abashing
+1462	abasing
+1512	abate
+1562	abated
+1612	abatement
+1662	abatements
+1712	abater
+1762	abates
+1812	abating
+1862	Abba
+1912	abbe
+1962	abbey
+2012	abbeys
+2062	abbot
+2112	abbots
+2162	Abbott
+2212	abbreviate
+2262	abbreviated
+2312	abbreviates
+2362	abbreviating
+2412	abbreviation
+2462	abbreviations
+2512	Abby
+2562	abdomen
+2612	abdomens
+2662	abdominal
+2712	abduct
+2762	abducted
+2812	abduction
+2862	abductions
+2912	abductor
+2962	abductors
+3012	abducts
+3062	Abe
+3112	abed
+3162	Abel
+3212	Abelian
+3262	Abelson
+3312	Aberdeen
+3362	Abernathy
+3412	aberrant
+3462	aberration
+6362	Aarhus
+6412	Aaron
+6462	Ababa
+6512	aback
+6562	abaft
+6612	abandon
+6662	abandoned
+6712	abandoning
+6762	abandonment
+6812	abandons
+6862	Aarhus
+6912	Aaron
+6962	Ababa
+7012	aback
+7062	abaft
+7112	abandon
+7162	abandoned
+7212	abandoning
+7262	abandonment
+7312	abandons
+7362	abase
+7412	abased
+7462	abasement
+7512	abasements
+7562	abases
+7612	abash
+7662	abashed
+7712	abashes
+7762	abashing
+7812	abasing
+7862	abate
+7912	abated
+7962	abatement
+8012	abatements
+8062	abater
+8112	abates
+8162	abating
+8212	Abba
+8262	abbe
+8312	abbey
+8362	abbeys
+8412	abbot
+8462	abbots
+8512	Abbott
+8562	abbreviate
+8612	abbreviated
+8662	abbreviates
+8712	abbreviating
+8762	abbreviation
+8812	abbreviations
+8862	Abby
+8912	abdomen
+8962	abdomens
+9012	abdominal
+9062	abduct
+9112	abducted
+9162	abduction
+9212	abductions
+9262	abductor
+9312	abductors
+9362	abducts
+9412	Abe
+9462	abed
+9512	Abel
+9562	Abelian
+9612	Abelson
+9662	Aberdeen
+9712	Abernathy
+9762	aberrant
+9812	aberration
+DROP TABLE loads;
+# Restart server with innodb_autoinc_lock_mode = 0
+# restart: --innodb_autoinc_lock_mode=0
+SET @default_auto_increment_offset = @@global.auto_increment_offset;
+SET @default_auto_increment_increment = @@global.auto_increment_increment;
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+0
+# Bulk inserts in traditional lock mode
+CREATE TABLE t3(cc INT);
+INSERT INTO t3 VALUES (10),(20),(30),(40),(50),(60),(70),(80);
+CREATE TABLE t4(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `pkey` int(11) NOT NULL AUTO_INCREMENT,
+  `cc` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pkey`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `pkey` int(11) NOT NULL AUTO_INCREMENT,
+  `cc` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pkey`)
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t4;
+pkey	cc
+1	10
+2	20
+3	30
+4	40
+5	50
+6	60
+7	70
+8	80
+9	10
+10	20
+11	30
+12	40
+13	50
+14	60
+15	70
+16	80
+DROP TABLE t4;
+DROP TABLE t3;
+# Concurrent simple inserts in traditional lock mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+IF ((i%2) = 0) THEN
+DELETE FROM t1 WHERE bb=i;
+END IF;
+SET i = i+1;
+END WHILE;
+END //
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+SET @@global.auto_increment_offset = 30;
+SET @@global.auto_increment_increment = 48;
+TRUNCATE TABLE t1;
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+# Concurrent bulk inserts in traditional lock mode
+CREATE TABLE t2 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t1 (aa INT);
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1 VALUES(i);
+SET i =  i +1;
+END WHILE;
+INSERT INTO t2(aa) SELECT * FROM t1;
+END //
+CALL POP();
+CALL POP();
+SET @@global.auto_increment_offset = 12;
+SET @@global.auto_increment_increment = 50;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL POP();
+CALL POP();
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP;
+DROP TABLE t1;
+DROP TABLE t2;
+# Concurrent mixed mode inserts in traditonal lock mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+END //
+CALL POP2(1);
+CALL POP2(50);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+34
+SET @@global.auto_increment_offset = 32;
+SET @@global.auto_increment_increment = 100;
+TRUNCATE TABLE t1;
+CALL POP2(1);
+CALL POP2(180);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+34
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+# Transactions in traditional lock mode
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+4
+5
+6
+DROP TABLE t1;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+ROLLBACK;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+8	1
+9	2
+10	3
+11	4
+12	5
+13	6
+14	7
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+1
+2
+3
+4
+23
+24
+25
+26
+27
+34
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+23
+24
+34
+35
+36
+37
+38
+39
+40
+41
+DROP TABLE t1;
+# Simple, Mixed and Bulk inserts with auto increment offset in traditional locking mode
+SET @@auto_increment_offset = 17;
+SET @@auto_increment_increment = 40;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+17
+57
+97
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+pkey
+137
+177
+217
+DROP TABLE t1;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+17	1
+57	2
+97	3
+137	4
+177	5
+217	6
+257	7
+ROLLBACK;
+INSERT INTO t1(aa) SELECT * FROM t2;
+SELECT * FROM t1;
+pkey	aa
+297	1
+337	2
+377	3
+417	4
+457	5
+497	6
+537	7
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+17
+23
+24
+34
+57
+97
+137
+177
+217
+257
+ROLLBACK;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+SELECT * FROM t1;
+pkey
+23
+24
+34
+297
+337
+377
+417
+457
+497
+537
+DROP TABLE t1;
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+# Transactions with concurrency in traditional locking mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+SET i = i+1;
+END WHILE;
+END //
+START TRANSACTION;
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+20
+ROLLBACK;
+CALL POP1();
+CALL POP1();
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+30
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+END //
+START TRANSACTION;
+CALL POP2(1);
+CALL POP2(120);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+34
+ROLLBACK;
+CALL POP2(1);
+CALL POP2(280);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+51
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+# Crash server in traditional locking mode
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1(aa) VALUES(i);
+SET i =  i +1;
+END WHILE;
+END //
+START TRANSACTION;
+CALL POP();
+# Connection 1
+INSERT INTO t1(aa) VALUES (20);
+# Switch back to default connection
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart: --innodb_autoinc_lock_mode=0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+11
+START TRANSACTION;
+CALL POP();
+# Connection 1
+INSERT INTO t1(aa) VALUES (20);
+# Switch back to default connection
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart: --innodb_autoinc_lock_mode=0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+12
+TRUNCATE TABLE t1;
+SET @@auto_increment_offset = 15;
+SET @@auto_increment_increment = 30;
+START TRANSACTION;
+CALL POP();
+# Connection 1
+SET @@auto_increment_offset = 15;
+SET @@auto_increment_increment = 30;
+INSERT INTO t1(aa) VALUES (20);
+# Switch back to default connection
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart: --innodb_autoinc_lock_mode=0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+11
+SET @@auto_increment_offset = 15;
+SET @@auto_increment_increment = 30;
+START TRANSACTION;
+CALL POP();
+# Connection 1
+SET @@auto_increment_offset = 15;
+SET @@auto_increment_increment = 30;
+INSERT INTO t1(aa) VALUES (20);
+# Switch back to default connection
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart: --innodb_autoinc_lock_mode=0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+12
+DROP TABLE t1;
+DROP PROCEDURE POP;
+# Concurrent load inserts in traditional lock mode
+CREATE TABLE loads ( pkey INT PRIMARY KEY AUTO_INCREMENT, ww CHAR(50));
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+SELECT * FROM loads;
+pkey	ww
+1	Aarhus
+2	Aaron
+3	Ababa
+4	aback
+5	abaft
+6	abandon
+7	abandoned
+8	abandoning
+9	abandonment
+10	abandons
+11	Aarhus
+12	Aaron
+13	Ababa
+14	aback
+15	abaft
+16	abandon
+17	abandoned
+18	abandoning
+19	abandonment
+20	abandons
+21	abase
+22	abased
+23	abasement
+24	abasements
+25	abases
+26	abash
+27	abashed
+28	abashes
+29	abashing
+30	abasing
+31	abate
+32	abated
+33	abatement
+34	abatements
+35	abater
+36	abates
+37	abating
+38	Abba
+39	abbe
+40	abbey
+41	abbeys
+42	abbot
+43	abbots
+44	Abbott
+45	abbreviate
+46	abbreviated
+47	abbreviates
+48	abbreviating
+49	abbreviation
+50	abbreviations
+51	Abby
+52	abdomen
+53	abdomens
+54	abdominal
+55	abduct
+56	abducted
+57	abduction
+58	abductions
+59	abductor
+60	abductors
+61	abducts
+62	Abe
+63	abed
+64	Abel
+65	Abelian
+66	Abelson
+67	Aberdeen
+68	Abernathy
+69	aberrant
+70	aberration
+71	Aarhus
+72	Aaron
+73	Ababa
+74	aback
+75	abaft
+76	abandon
+77	abandoned
+78	abandoning
+79	abandonment
+80	abandons
+81	Aarhus
+82	Aaron
+83	Ababa
+84	aback
+85	abaft
+86	abandon
+87	abandoned
+88	abandoning
+89	abandonment
+90	abandons
+91	abase
+92	abased
+93	abasement
+94	abasements
+95	abases
+96	abash
+97	abashed
+98	abashes
+99	abashing
+100	abasing
+101	abate
+102	abated
+103	abatement
+104	abatements
+105	abater
+106	abates
+107	abating
+108	Abba
+109	abbe
+110	abbey
+111	abbeys
+112	abbot
+113	abbots
+114	Abbott
+115	abbreviate
+116	abbreviated
+117	abbreviates
+118	abbreviating
+119	abbreviation
+120	abbreviations
+121	Abby
+122	abdomen
+123	abdomens
+124	abdominal
+125	abduct
+126	abducted
+127	abduction
+128	abductions
+129	abductor
+130	abductors
+131	abducts
+132	Abe
+133	abed
+134	Abel
+135	Abelian
+136	Abelson
+137	Aberdeen
+138	Abernathy
+139	aberrant
+140	aberration
+SET @@global.auto_increment_offset = 12;
+SET @@global.auto_increment_increment = 50;
+TRUNCATE TABLE loads;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+SELECT * FROM loads;
+pkey	ww
+12	Aarhus
+62	Aaron
+112	Ababa
+162	aback
+212	abaft
+262	abandon
+312	abandoned
+362	abandoning
+412	abandonment
+462	abandons
+512	Aarhus
+562	Aaron
+612	Ababa
+662	aback
+712	abaft
+762	abandon
+812	abandoned
+862	abandoning
+912	abandonment
+962	abandons
+1012	abase
+1062	abased
+1112	abasement
+1162	abasements
+1212	abases
+1262	abash
+1312	abashed
+1362	abashes
+1412	abashing
+1462	abasing
+1512	abate
+1562	abated
+1612	abatement
+1662	abatements
+1712	abater
+1762	abates
+1812	abating
+1862	Abba
+1912	abbe
+1962	abbey
+2012	abbeys
+2062	abbot
+2112	abbots
+2162	Abbott
+2212	abbreviate
+2262	abbreviated
+2312	abbreviates
+2362	abbreviating
+2412	abbreviation
+2462	abbreviations
+2512	Abby
+2562	abdomen
+2612	abdomens
+2662	abdominal
+2712	abduct
+2762	abducted
+2812	abduction
+2862	abductions
+2912	abductor
+2962	abductors
+3012	abducts
+3062	Abe
+3112	abed
+3162	Abel
+3212	Abelian
+3262	Abelson
+3312	Aberdeen
+3362	Abernathy
+3412	aberrant
+3462	aberration
+3512	Aarhus
+3562	Aaron
+3612	Ababa
+3662	aback
+3712	abaft
+3762	abandon
+3812	abandoned
+3862	abandoning
+3912	abandonment
+3962	abandons
+4012	Aarhus
+4062	Aaron
+4112	Ababa
+4162	aback
+4212	abaft
+4262	abandon
+4312	abandoned
+4362	abandoning
+4412	abandonment
+4462	abandons
+4512	abase
+4562	abased
+4612	abasement
+4662	abasements
+4712	abases
+4762	abash
+4812	abashed
+4862	abashes
+4912	abashing
+4962	abasing
+5012	abate
+5062	abated
+5112	abatement
+5162	abatements
+5212	abater
+5262	abates
+5312	abating
+5362	Abba
+5412	abbe
+5462	abbey
+5512	abbeys
+5562	abbot
+5612	abbots
+5662	Abbott
+5712	abbreviate
+5762	abbreviated
+5812	abbreviates
+5862	abbreviating
+5912	abbreviation
+5962	abbreviations
+6012	Abby
+6062	abdomen
+6112	abdomens
+6162	abdominal
+6212	abduct
+6262	abducted
+6312	abduction
+6362	abductions
+6412	abductor
+6462	abductors
+6512	abducts
+6562	Abe
+6612	abed
+6662	Abel
+6712	Abelian
+6762	Abelson
+6812	Aberdeen
+6862	Abernathy
+6912	aberrant
+6962	aberration
+DROP TABLE loads;

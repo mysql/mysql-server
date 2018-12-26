@@ -1,0 +1,23 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
+CREATE TABLE t2 (a int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (4), (5), (6);
+CREATE TEMPORARY TABLE IF NOT EXISTS tt1_merge LIKE t1;
+ALTER TABLE tt1_merge ENGINE=MERGE UNION (t2, t1);
+CREATE TABLE t1_merge LIKE tt1_merge;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+UPDATE t1_merge SET a=10 WHERE a=1;
+DELETE FROM t1_merge WHERE a=10;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+DROP TABLE t1_merge, t1, t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

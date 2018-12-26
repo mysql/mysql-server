@@ -1,0 +1,44 @@
+#
+# Test the persistent stats auto recalc on lots of tables
+#
+
+--source include/no_valgrind_without_big.inc
+
+let $check_stats = SELECT table_name, n_rows FROM mysql.innodb_table_stats WHERE table_name LIKE 'ar_%' ORDER BY table_name;
+
+-- disable_query_log
+let $i = 1200;
+while ($i > 1000) {
+	eval CREATE TABLE ar_$i (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
+	dec $i;
+}
+-- enable_query_log
+
+# the CREATEs above should have inserted zeroed stats
+-- eval $check_stats
+
+-- disable_query_log
+let $i = 1200;
+while ($i > 1000) {
+	eval INSERT INTO ar_$i VALUES (1), (2);
+	dec $i;
+}
+-- enable_query_log
+
+-- disable_query_log
+let $i = 1200;
+while ($i > 1000) {
+	eval INSERT INTO ar_$i VALUES (3), (4);
+	dec $i;
+}
+-- enable_query_log
+
+# would be too long to wait for stats to become up to date here
+
+-- disable_query_log
+let $i = 1200;
+while ($i > 1000) {
+	eval DROP TABLE ar_$i;
+	dec $i;
+}
+-- enable_query_log

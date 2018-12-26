@@ -1,0 +1,36 @@
+# Author: Horst Hunger
+# Created: 2010-07-13
+
+
+let $engine_table= INNODB;
+let $engine_part= INNODB;
+let $engine_subpart= INNODB;
+
+use test;
+
+--disable_result_log
+--disable_query_log
+--source suite/parts/inc/part_exch_tabs.inc
+--enable_result_log
+--enable_query_log
+
+# 13) Exchange with dynamic variables.
+SET @part= 'p0';
+SET @part_tab= 'tp';
+SET @table= 't_10';
+SET @s= CONCAT('ALTER TABLE ',@part_tab,' EXCHANGE PARTITION ',@part,' WITH TABLE ',@table);
+PREPARE test_stmt1 FROM @s;
+EXECUTE test_stmt1;
+--sorted_result
+SELECT * FROM t_10;
+--sorted_result
+SELECT * FROM tp;
+DEALLOCATE PREPARE test_stmt1;
+
+SET @part_tab= 'tp';
+SET @s= CONCAT('ALTER TABLE ',@part_tab,' EXCHANGE PARTITION ? WITH TABLE ?');
+--error ER_PARSE_ERROR
+PREPARE test_stmt2 FROM @s;
+
+--source suite/parts/inc/part_exch_drop_tabs.inc
+

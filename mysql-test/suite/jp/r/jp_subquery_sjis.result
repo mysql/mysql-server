@@ -1,0 +1,157 @@
+drop table if exists `‚s‚P`;
+drop table if exists `‚s‚Q`;
+drop table if exists `‚s‚R`;
+drop table if exists `‚s‚S`;
+drop table if exists `‚s‚T`;
+drop table if exists `‚s‚U`;
+drop table if exists `‚s‚V`;
+drop table if exists `‚s‚W`;
+drop table if exists `‚s‚X`;
+SET NAMES sjis;
+SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `‚s‚Pa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Pb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Qa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Qb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Ra` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Rb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Sa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Sb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Ta` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Tb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Ua` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Ub` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Va` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Vb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Wa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Wb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Xa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Xb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+INSERT INTO `‚s‚Pa` VALUES ('±'),('¶'),('»');
+INSERT INTO `‚s‚Pb` VALUES ('±');
+INSERT INTO `‚s‚Qa` VALUES ('‚ '),('‚©'),('‚³');
+INSERT INTO `‚s‚Qb` VALUES ('‚ ');
+INSERT INTO `‚s‚Ra` VALUES ('ƒ\'),('\'),('•\');
+INSERT INTO `‚s‚Rb` VALUES ('ƒ\');
+INSERT INTO `‚s‚Sa` VALUES ('±'),('¶'),('»');
+INSERT INTO `‚s‚Sb` VALUES ('±');
+INSERT INTO `‚s‚Ta` VALUES ('‚ '),('‚©'),('‚³');
+INSERT INTO `‚s‚Tb` VALUES ('‚ ');
+INSERT INTO `‚s‚Ua` VALUES ('ƒ\'),('\'),('•\');
+INSERT INTO `‚s‚Ub` VALUES ('ƒ\');
+INSERT INTO `‚s‚Va` VALUES ('±'),('¶'),('»');
+INSERT INTO `‚s‚Vb` VALUES ('±');
+INSERT INTO `‚s‚Wa` VALUES ('‚ '),('‚©'),('‚³');
+INSERT INTO `‚s‚Wb` VALUES ('‚ ');
+INSERT INTO `‚s‚Xa` VALUES ('ƒ\'),('\'),('•\');
+INSERT INTO `‚s‚Xb` VALUES ('ƒ\');
+SELECT `‚b‚P` FROM `‚s‚Pa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Pb`);
+‚b‚P
+±
+SELECT `‚b‚P` FROM `‚s‚Pa` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Pb` WHERE `‚s‚Pa`.`‚b‚P` = `‚s‚Pb`.`‚b‚P`);
+‚b‚P
+±
+SELECT `‚b‚P` FROM `‚s‚Pa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Pb` WHERE `‚s‚Pa`.`‚b‚P` = `‚s‚Pb`.`‚b‚P`);
+‚b‚P
+¶
+»
+SELECT `‚b‚P` FROM `‚s‚Qa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Qb`);
+‚b‚P
+‚ 
+SELECT `‚b‚P` FROM `‚s‚Qa` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Qb` WHERE `‚s‚Qa`.`‚b‚P` = `‚s‚Qb`.`‚b‚P`);
+‚b‚P
+‚ 
+SELECT `‚b‚P` FROM `‚s‚Qa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Qb` WHERE `‚s‚Qa`.`‚b‚P` = `‚s‚Qb`.`‚b‚P`);
+‚b‚P
+‚©
+‚³
+SELECT `‚b‚P` FROM `‚s‚Ra` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Rb`);
+‚b‚P
+ƒ\
+SELECT `‚b‚P` FROM `‚s‚Ra` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Rb` WHERE `‚s‚Ra`.`‚b‚P` = `‚s‚Rb`.`‚b‚P`);
+‚b‚P
+ƒ\
+SELECT `‚b‚P` FROM `‚s‚Ra` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Rb` WHERE `‚s‚Ra`.`‚b‚P` = `‚s‚Rb`.`‚b‚P`);
+‚b‚P
+\
+•\
+SELECT `‚b‚P` FROM `‚s‚Sa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Sb`);
+‚b‚P
+±
+SELECT `‚b‚P` FROM `‚s‚Sa` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Sb` WHERE `‚s‚Sa`.`‚b‚P` = `‚s‚Sb`.`‚b‚P`);
+‚b‚P
+±
+SELECT `‚b‚P` FROM `‚s‚Sa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Sb` WHERE `‚s‚Sa`.`‚b‚P` = `‚s‚Sb`.`‚b‚P`);
+‚b‚P
+¶
+»
+SELECT `‚b‚P` FROM `‚s‚Ta` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Tb`);
+‚b‚P
+‚ 
+SELECT `‚b‚P` FROM `‚s‚Ta` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Tb` WHERE `‚s‚Ta`.`‚b‚P` = `‚s‚Tb`.`‚b‚P`);
+‚b‚P
+‚ 
+SELECT `‚b‚P` FROM `‚s‚Ta` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Tb` WHERE `‚s‚Ta`.`‚b‚P` = `‚s‚Tb`.`‚b‚P`);
+‚b‚P
+‚©
+‚³
+SELECT `‚b‚P` FROM `‚s‚Ua` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Ub`);
+‚b‚P
+ƒ\
+SELECT `‚b‚P` FROM `‚s‚Ua` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Ub` WHERE `‚s‚Ua`.`‚b‚P` = `‚s‚Ub`.`‚b‚P`);
+‚b‚P
+ƒ\
+SELECT `‚b‚P` FROM `‚s‚Ua` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Ub` WHERE `‚s‚Ua`.`‚b‚P` = `‚s‚Ub`.`‚b‚P`);
+‚b‚P
+\
+•\
+SELECT `‚b‚P` FROM `‚s‚Va` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Vb`);
+‚b‚P
+±
+SELECT `‚b‚P` FROM `‚s‚Va` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Vb` WHERE `‚s‚Va`.`‚b‚P` = `‚s‚Vb`.`‚b‚P`);
+‚b‚P
+±
+SELECT `‚b‚P` FROM `‚s‚Va` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Vb` WHERE `‚s‚Va`.`‚b‚P` = `‚s‚Vb`.`‚b‚P`);
+‚b‚P
+¶
+»
+SELECT `‚b‚P` FROM `‚s‚Wa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Wb`);
+‚b‚P
+‚ 
+SELECT `‚b‚P` FROM `‚s‚Wa` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Wb` WHERE `‚s‚Wa`.`‚b‚P` = `‚s‚Wb`.`‚b‚P`);
+‚b‚P
+‚ 
+SELECT `‚b‚P` FROM `‚s‚Wa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Wb` WHERE `‚s‚Wa`.`‚b‚P` = `‚s‚Wb`.`‚b‚P`);
+‚b‚P
+‚©
+‚³
+SELECT `‚b‚P` FROM `‚s‚Xa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Xb`);
+‚b‚P
+ƒ\
+SELECT `‚b‚P` FROM `‚s‚Xa` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Xb` WHERE `‚s‚Xa`.`‚b‚P` = `‚s‚Xb`.`‚b‚P`);
+‚b‚P
+ƒ\
+SELECT `‚b‚P` FROM `‚s‚Xa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Xb` WHERE `‚s‚Xa`.`‚b‚P` = `‚s‚Xb`.`‚b‚P`);
+‚b‚P
+\
+•\
+DROP TABLE `‚s‚Pa`;
+DROP TABLE `‚s‚Pb`;
+DROP TABLE `‚s‚Qa`;
+DROP TABLE `‚s‚Qb`;
+DROP TABLE `‚s‚Ra`;
+DROP TABLE `‚s‚Rb`;
+DROP TABLE `‚s‚Sa`;
+DROP TABLE `‚s‚Sb`;
+DROP TABLE `‚s‚Ta`;
+DROP TABLE `‚s‚Tb`;
+DROP TABLE `‚s‚Ua`;
+DROP TABLE `‚s‚Ub`;
+DROP TABLE `‚s‚Va`;
+DROP TABLE `‚s‚Vb`;
+DROP TABLE `‚s‚Wa`;
+DROP TABLE `‚s‚Wb`;
+DROP TABLE `‚s‚Xa`;
+DROP TABLE `‚s‚Xb`;

@@ -1,0 +1,33 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
+SET SESSION sql_log_bin= 1;
+DROP FUNCTION IF EXISTS test.f1;
+DROP TABLE IF EXISTS test.t1;
+CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT, c CHAR(16),PRIMARY KEY(a))ENGINE=INNODB;
+create function test.f1() RETURNS CHAR(16) 
+BEGIN
+DECLARE tmp CHAR(16);
+DECLARE var_name FLOAT;
+SET var_name = RAND();
+IF var_name > .6 
+THEN SET tmp = 'Texas';
+ELSE SET tmp = 'MySQL';
+END IF;
+RETURN tmp;
+END|
+INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
+INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
+SET AUTOCOMMIT=0;
+START TRANSACTION;
+INSERT INTO test.t1 VALUES (null,test.f1());
+ROLLBACK;
+SET AUTOCOMMIT=1;
+include/sync_slave_sql_with_master.inc
+DROP FUNCTION test.f1;
+DROP TABLE test.t1;
+include/rpl_end.inc

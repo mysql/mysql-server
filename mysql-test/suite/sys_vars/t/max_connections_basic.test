@@ -1,0 +1,184 @@
+############## mysql-test\t\max_connections_basic.test ###############
+#                                                                             #
+# Variable Name: max_connections                                              #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:151                                                           #
+# Range:  1-100000                                                            #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable max_connections          #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+###############################################################
+#              START OF max_connections TESTS                 #
+###############################################################
+
+
+###################################################################
+# Saving initial value of max_connections in a temporary variable #
+###################################################################
+
+SET @start_value = @@global.max_connections;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_074_01------------------------#'
+##################################################################
+#           Display the DEFAULT value of max_connections         #
+##################################################################
+
+SET @@global.max_connections = 5000;
+SET @@global.max_connections = DEFAULT;
+SELECT @@global.max_connections;
+
+--echo '#---------------------FN_DYNVARS_074_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.max_connections = @start_value;
+SELECT @@global.max_connections = 151;
+
+
+--echo '#--------------------FN_DYNVARS_074_03------------------------#'
+##################################################################
+#    Change the value of max_connections to a valid value        #
+##################################################################
+
+SET @@global.max_connections = 100000;
+SELECT @@global.max_connections;
+SET @@global.max_connections = 99999;
+SELECT @@global.max_connections;
+SET @@global.max_connections = 65536;
+SELECT @@global.max_connections;
+SET @@global.max_connections = 1;
+SELECT @@global.max_connections;
+SET @@global.max_connections = 2;
+SELECT @@global.max_connections;
+
+
+--echo '#--------------------FN_DYNVARS_074_04-------------------------#'
+#####################################################################
+#      Change the value of max_connections to invalid value         #
+#####################################################################
+
+SET @@global.max_connections = -1;
+SELECT @@global.max_connections;
+SET @@global.max_connections = 100000000000;
+SELECT @@global.max_connections;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_connections = 10000.01;
+SELECT @@global.max_connections;
+SET @@global.max_connections = -1024;
+SELECT @@global.max_connections;
+SET @@global.max_connections = 0;
+SELECT @@global.max_connections;
+SET @@global.max_connections = 100001;
+SELECT @@global.max_connections;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_connections = ON;
+SELECT @@global.max_connections;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_connections = 'test';
+SELECT @@global.max_connections;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_connections = ' ';
+SELECT @@global.max_connections;
+
+
+--echo '#-------------------FN_DYNVARS_074_05----------------------------#'
+##################################################################### 
+#       Test if accessing session max_connections gives error       #
+#####################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.max_connections = 4096;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.max_connections;
+
+
+--echo '#----------------------FN_DYNVARS_074_06------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+--disable_warnings
+SELECT @@global.max_connections = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='max_connections';
+
+SELECT @@max_connections = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='max_connections';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_074_07----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.max_connections = TRUE;
+SELECT @@global.max_connections;
+SET @@global.max_connections = FALSE;
+SELECT @@global.max_connections;
+
+
+--echo '#---------------------FN_DYNVARS_074_08----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@global.max_connections = 5000;
+SELECT @@max_connections = @@global.max_connections;
+
+
+--echo '#---------------------FN_DYNVARS_074_09----------------------#'
+##########################################################################
+#   Check if max_connections can be accessed with and without @@ sign    #
+##########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET max_connections = 6000;
+SELECT @@max_connections;
+--Error ER_PARSE_ERROR
+SET local.max_connections = 7000;
+--Error ER_UNKNOWN_TABLE
+SELECT local.max_connections;
+--Error ER_PARSE_ERROR
+SET global.max_connections = 8000;
+--Error ER_UNKNOWN_TABLE
+SELECT global.max_connections;
+--Error ER_BAD_FIELD_ERROR
+SELECT max_connections = @@session.max_connections;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.max_connections = @start_value;
+SELECT @@global.max_connections;
+
+
+##################################################################
+#              END OF max_connections TESTS                      #
+##################################################################
+

@@ -1,0 +1,64 @@
+# Tests for the performance schema
+#
+
+--source ../include/stage_setup.inc
+
+connect (con1, localhost, user1, , );
+
+# Make sure this thread is instrumented
+select INSTRUMENTED, HISTORY
+  from performance_schema.threads
+  where PROCESSLIST_ID = connection_id();
+
+flush tables with read lock;
+
+connect (con2, localhost, user2, , );
+
+# Make sure this thread is instrumented
+select INSTRUMENTED, HISTORY
+  from performance_schema.threads
+  where PROCESSLIST_ID = connection_id();
+
+# Will wait on con1, "Waiting for global read lock"
+--send
+insert into test.t1 values (1), (2), (3);
+
+--connection default
+
+# user1: Wait for the statement to complete
+let $wait_condition=
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user1'
+  and PROCESSLIST_COMMAND = 'Sleep';
+--source include/wait_condition.inc
+
+# user2: Wait for the insert to block
+let $wait_condition=
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user2'
+  and PROCESSLIST_STATE = 'Waiting for global read lock';
+--source include/wait_condition.inc
+
+call dump_one_thread('user1');
+call dump_one_thread('user2');
+
+--connection con1
+unlock tables;
+
+--disconnect con1
+
+--connection con2
+--reap
+
+--disconnect con2
+
+--connection default
+
+# Wait for the disconnects to complete
+let $wait_condition=
+  select count(*) = 0 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+--source include/wait_condition.inc
+
+--source ../include/stage_cleanup.inc
+

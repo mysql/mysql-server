@@ -1,0 +1,159 @@
+SET @start_global_value=@@global.innodb_lock_wait_timeout;
+SELECT @start_global_value;
+@start_global_value
+50
+'#---------------------BS_STVARS_032_01----------------------#'
+SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
+COUNT(@@GLOBAL.innodb_lock_wait_timeout)
+1
+1 Expected
+'#---------------------BS_STVARS_032_02----------------------#'
+SET global innodb_lock_wait_timeout=60;
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+60
+SET session innodb_lock_wait_timeout=60;
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+60
+'#---------------------BS_STVARS_032_03----------------------#'
+SELECT @@GLOBAL.innodb_lock_wait_timeout = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_lock_wait_timeout';
+@@GLOBAL.innodb_lock_wait_timeout = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
+COUNT(@@GLOBAL.innodb_lock_wait_timeout)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='innodb_lock_wait_timeout';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_032_04----------------------#'
+SELECT @@innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+@@innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout
+1
+1 Expected
+'#---------------------BS_STVARS_032_05----------------------#'
+SELECT COUNT(@@innodb_lock_wait_timeout);
+COUNT(@@innodb_lock_wait_timeout)
+1
+1 Expected
+SELECT COUNT(@@local.innodb_lock_wait_timeout);
+COUNT(@@local.innodb_lock_wait_timeout)
+1
+SELECT COUNT(@@SESSION.innodb_lock_wait_timeout);
+COUNT(@@SESSION.innodb_lock_wait_timeout)
+1
+SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
+COUNT(@@GLOBAL.innodb_lock_wait_timeout)
+1
+1 Expected
+SELECT innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
+ERROR 42S22: Unknown column 'innodb_lock_wait_timeout' in 'field list'
+set @@global.innodb_lock_wait_timeout=100;
+set @@global.innodb_lock_wait_timeout=DEFAULT;
+select @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+50
+set @@session.innodb_lock_wait_timeout=100;
+set @@session.innodb_lock_wait_timeout=DEFAULT;
+select @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+50
+SET @@global.innodb_lock_wait_timeout=1;
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+1
+SET @@global.innodb_lock_wait_timeout=1024;
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+1024
+SET @@global.innodb_lock_wait_timeout=1073741824;
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+1073741824
+SET @@session.innodb_lock_wait_timeout=1;
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+1
+SET @@session.innodb_lock_wait_timeout=1024;
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+1024
+SET @@session.innodb_lock_wait_timeout=1073741824;
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+1073741824
+SET @@global.innodb_lock_wait_timeout="t";
+ERROR 42000: Incorrect argument type to variable 'innodb_lock_wait_timeout'
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+1073741824
+SET @@global.innodb_lock_wait_timeout=-1024;
+Warnings:
+Warning	1292	Truncated incorrect innodb_lock_wait_timeout value: '-1024'
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+1
+SET @@global.innodb_lock_wait_timeout=1073741825;
+Warnings:
+Warning	1292	Truncated incorrect innodb_lock_wait_timeout value: '1073741825'
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+1073741824
+SET @@global.innodb_lock_wait_timeout=" ";
+ERROR 42000: Incorrect argument type to variable 'innodb_lock_wait_timeout'
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+1073741824
+SET @@global.innodb_lock_wait_timeout=' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_lock_wait_timeout'
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+1073741824
+SET @@global.innodb_lock_wait_timeout=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_lock_wait_timeout'
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+1073741824
+SET @@session.innodb_lock_wait_timeout="T";
+ERROR 42000: Incorrect argument type to variable 'innodb_lock_wait_timeout'
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+1073741824
+SET @@session.innodb_lock_wait_timeout=-1024;
+Warnings:
+Warning	1292	Truncated incorrect innodb_lock_wait_timeout value: '-1024'
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+1
+SET @@session.innodb_lock_wait_timeout=1073999999;
+Warnings:
+Warning	1292	Truncated incorrect innodb_lock_wait_timeout value: '1073999999'
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+1073741824
+SET @@session.innodb_lock_wait_timeout=' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_lock_wait_timeout'
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+1073741824
+SET @@session.innodb_lock_wait_timeout=" ";
+ERROR 42000: Incorrect argument type to variable 'innodb_lock_wait_timeout'
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+1073741824
+SET @@session.innodb_lock_wait_timeout=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_lock_wait_timeout'
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+1073741824
+SET @@global.innodb_lock_wait_timeout = @start_global_value;
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+50

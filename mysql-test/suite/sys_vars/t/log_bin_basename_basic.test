@@ -1,0 +1,12 @@
+#
+# WL#5465: System variables: paths to relay log and binary log files
+#
+# Test for variable:
+#  Variable Name: log_bin_basename
+#  Variable Scope: Global
+#  Dynamic Variable: No
+
+--source include/have_log_bin.inc
+
+--let $rpl_log_var_name=log_bin_basename
+--source suite/sys_vars/inc/bin_relay_log_basename_index.inc

@@ -1,0 +1,8 @@
+
+-->macro_varg Crud_delete
+-->varlet %PAYLOAD% 
+-->callmacro Crud %VAR_ARGS%
+Mysqlx.Crud.Delete {
+  %PAYLOAD%
+}
+-->endmacro

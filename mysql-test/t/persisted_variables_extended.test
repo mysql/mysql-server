@@ -1,0 +1,579 @@
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+--source include/have_plugin_auth.inc
+
+--echo #
+--echo # WL#8688: Support ability to persist SET GLOBAL settings
+--echo #
+
+CALL mtr.add_suppression("Failed to set up SSL because of the following *");
+CALL mtr.add_suppression("One can only use the --user switch.*");
+
+--echo # Syntax check for PERSIST option
+# Integer type variables.
+SET PERSIST auto_increment_increment=10;
+SET @@persist.event_scheduler=0;
+SET PERSIST slave_compressed_protocol=1;
+
+--echo # Invalid syntax cases.
+--error ER_PARSE_ERROR
+SET GLOBAL PERSIST slave_compressed_protocol=1;
+--error ER_PARSE_ERROR
+SET PERSIST @@global.slave_compressed_protocol=1;
+--error ER_PARSE_ERROR
+SET PERSIST @@session.slave_compressed_protocol=1;
+--error ER_PARSE_ERROR
+SET @@persist.@@slave_compressed_protocol=1;
+--echo # Variables_info table should include info for
+       # both session and global variables.
+SET SESSION auto_increment_increment=3;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME = 'auto_increment_increment';
+
+--echo # Setting multiple variables value as PERSIST.
+# Variable type 'enumeration'
+SET PERSIST innodb_checksum_algorithm=strict_crc32,
+    PERSIST innodb_default_row_format=COMPACT,
+    PERSIST sql_mode=ANSI_QUOTES,PERSIST innodb_fast_shutdown=0;
+SET PERSIST innodb_flush_log_at_trx_commit=0,join_buffer_size=262144;
+
+--echo # SET PERSIST invalid case for multiple variable set.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST innodb_thread_concurrency=32, PERSIST innodb_write_io_threads=32,
+    PERSIST innodb_read_io_threads=invalid_val;
+
+# Set variables to be used in parameters of mysqld.
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_BASEDIR= `SELECT @@basedir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PIDFILE= `SELECT @@pid_file`;
+let $MYSQL_PORT= `SELECT @@port`;
+let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
+let $MYSQL_HOME=`SELECT @@basedir`;
+
+--echo # Restart server with --no-defaults.
+       # no config file read (including mysqld-auto.cnf)
+let $MYSQL_SERVER_ID= `SELECT @@server_id`;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--no-defaults" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT @@global.innodb_fast_shutdown;
+SELECT @@global.innodb_default_row_format;
+SELECT @@global.sql_mode;
+SELECT @@global.innodb_flush_log_at_trx_commit;
+SELECT @@global.join_buffer_size;
+SELECT @@global.innodb_checksum_algorithm;
+--echo # Return 0 rows
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_SOURCE = 'PERSISTED'
+  ORDER BY VARIABLE_NAME;
+
+--echo # Restart server with --defaults-file.
+# mysqld-auto.cnf file variables should apply in the last.
+# Creating sperate mysql configuration file.
+--write_file $MYSQLTEST_VARDIR/tmp/my.cnf
+[mysqld]
+innodb_fast_shutdown=1
+innodb_default_row_format=REDUNDANT
+sql_mode=REAL_AS_FLOAT
+innodb_flush_log_at_trx_commit=2
+max_digest_length=2024
+# Adding session variable
+disconnect_on_expired_password=OFF
+EOF
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+
+# Creating sperate extra mysql configuration file.
+#--write_file $MYSQLTEST_VARDIR/tmp/my_user_extra.cnf
+#[mysqld]
+#flush_time=1
+#innodb_tmpdir=$MYSQLTEST_VARDIR/tmp
+#max_allowed_packet=16M
+#join_buffer_size=262144
+#EOF
+
+# MTR Bug#24337411
+# There might be global cnf files which contain deprecated variables on some
+# machines and when a defaults-extra-file is passed, global cnf file options
+# are added along with the options from the defaults-extra-file.
+# This causes the server to throw an "unknown variable" error, so this testcase
+# will be commented out.
+# Restart server with defaults-file and defaults-extra-file.
+#--exec echo "restart:--defaults-extra-file=$MYSQLTEST_VARDIR/tmp/my_user_extra.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+#--remove_file $MYSQLTEST_VARDIR/tmp/my_user_extra.cnf
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Check values after restart.
+# Global and dynamic Variables values should be taken from mysql-auto.cnf file.
+SELECT @@global.innodb_fast_shutdown;
+SELECT @@global.innodb_default_row_format;
+SELECT @@global.sql_mode;
+SELECT @@global.innodb_checksum_algorithm;
+SELECT @@global.innodb_flush_log_at_trx_commit;
+SELECT @@global.max_digest_length;
+SELECT @@global.join_buffer_size;
+SELECT @@global.sort_buffer_size;
+
+SELECT VARIABLE_NAME,VARIABLE_SOURCE,MIN_VALUE,MAX_VALUE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME IN ('innodb_fast_shutdown','sql_mode',
+  'innodb_default_row_format','max_digest_length',
+  'innodb_flush_log_at_trx_commit',
+  'disconnect_on_expired_password',
+  'innodb_checksum_algorithm')
+  ORDER BY VARIABLE_NAME;
+
+# Get rid of previous tests binlog
+--disable_query_log
+reset master;
+--enable_query_log
+
+SET PERSIST max_connections=500;
+SET PERSIST autocommit=OFF;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME = 'max_connections';
+SET GLOBAL max_connections=DEFAULT;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME IN ('max_connections','autocommit');
+CREATE TABLE t1 (col1 INT);
+DROP TABLE t1;
+SET PERSIST log_bin_trust_function_creators=1;
+
+--echo # SET PERSIST statement should not be bin logged.
+--echo # Show binlog events
+--source include/show_binlog_events.inc
+
+# String type variables.
+SET PERSIST block_encryption_mode= 'aes-128-ecb';
+SET PERSIST ft_boolean_syntax= '+ -><()~*:""&|',
+    PERSIST log_error_services=DEFAULT;
+# Numeric type variables.
+SET PERSIST innodb_max_dirty_pages_pct=80.99;
+
+# Slow_query_log variable with persist.
+--let $slow_query_log_on=$MYSQLTEST_VARDIR/log/slow_query_on.log;
+SET PERSIST slow_query_log=ON;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SET PERSIST slow_query_log_file='$slow_query_log_on';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Restart server cmd line and mysql-auto.cnf testing.
+--exec echo "restart"  --max_connections=default --innodb_fast_shutdown=1 --innodb_flush_log_at_trx_commit=2 innodb_flush_sync=DEFAULT --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Check values after restart.
+# Slow_query_log_file cleanup.
+SET PERSIST slow_query_log_file=DEFAULT;
+RESET PERSIST slow_query_log_file;
+SET PERSIST slow_query_log=DEFAULT;
+# Global and dynamic Variables values should be taken from mysql-auto.cnf file.
+
+# String type variables.
+SELECT @@global.block_encryption_mode;
+SELECT @@global.ft_boolean_syntax;
+SELECT @@global.log_error_services;
+#Numeric type varaibles.
+SELECT @@global.innodb_max_dirty_pages_pct;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, MIN_VALUE, MAX_VALUE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME IN ('block_encryption_mode',
+  'ft_boolean_syntax','log_error_services','innodb_max_dirty_pages_pct')
+  ORDER BY VARIABLE_NAME;
+
+SELECT @@global.innodb_fast_shutdown;
+SELECT @@global.innodb_default_row_format;
+SELECT @@global.sql_mode;
+SELECT @@global.innodb_checksum_algorithm;
+SELECT @@global.max_digest_length;
+SELECT @@global.max_connections;
+SELECT @@global.innodb_flush_log_at_trx_commit;
+SELECT @@global.join_buffer_size;
+SELECT @@global.innodb_flush_sync;
+SELECT @@global.autocommit;
+SELECT @@session.autocommit;
+
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, MIN_VALUE, MAX_VALUE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME IN ('innodb_fast_shutdown','sql_mode',
+  'innodb_default_row_format','max_digest_length','max_connections',
+  'innodb_flush_log_at_trx_commit','innodb_flush_sync',
+  'autocommit','innodb_checksum_algorithm')
+  ORDER BY VARIABLE_NAME;
+
+#echo should return 0 rows now
+SELECT VARIABLE_NAME,VARIABLE_SOURCE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_SOURCE = 'LOGIN';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart: --performance_schema=OFF --log-bin" --server-id=$MYSQL_SERVER_ID --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Make sure we start with a clean slate. log_tables.test says this is OK.
+TRUNCATE TABLE mysql.general_log;
+
+--echo --------------- general log ---------------------------------------
+
+SET @old_log_output=    @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+
+let $general_file_on = $MYSQLTEST_VARDIR/log/persist_general.log;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SET GLOBAL general_log_file = '$general_file_on';
+SET PERSIST log_output =       'FILE,TABLE';
+SET PERSIST general_log=       'ON';
+
+# Get rid of previous tests binlog
+--disable_query_log
+reset master;
+--enable_query_log
+
+SET PERSIST innodb_io_capacity=225;
+SET PERSIST innodb_flush_sync=DEFAULT;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME IN('innodb_io_capacity','innodb_flush_sync');
+
+--echo # SET PERSIST statement should not be bin logged.
+--echo # Show binlog events
+--source include/show_binlog_events.inc
+
+--echo Show what is logged:
+--echo ------ rewrite ------
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PERSIST %';
+--echo ------ done ------
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SET PERSIST general_log_file = '$general_file_on';
+RESET PERSIST general_log_file;
+SET PERSIST log_output=DEFAULT ,PERSIST general_log=DEFAULT;
+
+--remove_file $general_file_on
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+
+# UNSET PERSIST variables by setting variables values to DEFAULT.
+SET PERSIST block_encryption_mode=DEFAULT, PERSIST ft_boolean_syntax=DEFAULT,
+    PERSIST innodb_checksum_algorithm=DEFAULT,
+    PERSIST log_error_services=DEFAULT,
+    PERSIST innodb_max_dirty_pages_pct=DEFAULT;
+
+SET PERSIST innodb_fast_shutdown=DEFAULT,PERSIST innodb_default_row_format=DEFAULT,
+    PERSIST sql_mode=DEFAULT,PERSIST innodb_flush_log_at_trx_commit=DEFAULT,
+    PERSIST max_connections=default, PERSIST join_buffer_size=default,
+    PERSIST innodb_flush_sync=DEFAULT,PERSIST innodb_io_capacity=DEFAULT,
+    PERSIST log_bin_trust_function_creators=DEFAULT, PERSIST autocommit=DEFAULT;
+
+--echo WL#9720 - SET PERSIST to capture user, host and timestamp
+# Verify new columns SET_TIME, SET_USER and SET_HOST added in
+# performance_schema.variables_info
+show create table performance_schema.variables_info;
+
+# performance_schema.variables_info.SET_USER column represents
+# which user has set the variable.
+# performance_schema.variables_info.SET_HOST column represents
+# host on which the variable is set.
+# Successful execution of SET statement will update these columns
+# (SET_USER,SET_HOST,SET_TIME) accordingly.
+--connection default
+CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass1';
+GRANT ALL ON *.* TO 'user1'@'localhost';
+
+--connect (con1,localhost,user1,pass1,)
+
+--connection con1
+SET @@global.max_connections = 100;
+SET @@persist.event_scheduler=DEFAULT;
+SET PERSIST auto_increment_increment=10;
+SET PERSIST innodb_checksum_algorithm=strict_crc32;
+
+--connection default
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('max_connections','event_scheduler',
+'auto_increment_increment','innodb_checksum_algorithm');
+
+# RESET PERSIST statement should have no effect on these new columns.
+
+--connection con1
+RESET PERSIST auto_increment_increment;
+RESET PERSIST innodb_checksum_algorithm;
+
+--connection default
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('auto_increment_increment',
+'innodb_checksum_algorithm');
+
+# Verify SET_USER, SET_HOST column for proxy_user:
+select @@global.max_connections into @saved_max_connections;
+select @@global.autocommit into @saved_autocommit;
+
+# Create proxied user:
+CREATE USER 'internal_proxied'@'%' IDENTIFIED BY 'proxy_password';
+
+# Create proxy user 1:
+CREATE USER 'external_u1'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
+
+# Create proxy user 2:
+CREATE USER 'external_u2'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
+
+GRANT PROXY ON 'internal_proxied'@'%' TO 'external_u1'@'%','external_u2'@'%';
+GRANT ALL ON *.* TO 'internal_proxied'@'%';
+
+--connect (con2,localhost,external_u1,internal_proxied,)
+--connect (con3,localhost,external_u2,internal_proxied,)
+
+--connection con2
+SET @@global.max_connections=50;
+
+--connection con3
+SET @@global.autocommit=1;
+
+--connection default
+--replace_column 4 #
+SELECT VARIABLE_NAME, SET_USER, SET_HOST, SET_TIME from
+performance_schema.variables_info where variable_name='max_connections' or
+variable_name='autocommit';
+
+--echo # Cleanup
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--remove_file $MYSQLTEST_VARDIR/tmp/my.cnf
+drop USER 'user1'@'localhost';
+drop USER 'internal_proxied'@'%';
+drop USER 'external_u1'@'%';
+drop USER 'external_u2'@'%';
+SET GLOBAL max_connections = @saved_max_connections;
+SET GLOBAL autocommit = @saved_autocommit;
+--disconnect con1
+--disconnect con2
+--disconnect con3
+
+--echo #
+--echo # Bug#25563891: OPTION SET BY !INCLUDE OR !INCLUDEDIR SHOWED AS 'COMPILED'
+--echo #               IN P_S.VARIABLES_INFO
+--echo #
+
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_connections', 'max_digest_length',
+   'innodb_fast_shutdown', 'innodb_default_row_format', 'innodb_flush_log_at_trx_commit');
+
+SELECT @@sort_buffer_size, @@max_connections, @@max_digest_length;
+SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_at_trx_commit;
+
+--exec echo "[mysqld]" > $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--exec echo "!include $MYSQLTEST_VARDIR/tmp/sort_buff.cnf" >> $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--exec echo "!includedir $MYSQLD_DATADIR" >> $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--exec echo "max_connections=51" >> $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--exec echo "max_digest_length=2024" >> $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+
+--write_file $MYSQLTEST_VARDIR/tmp/sort_buff.cnf
+[mysqld]
+sort_buffer_size=314156
+EOF
+
+--write_file $MYSQLD_DATADIR/innodb.cnf
+[mysqld]
+innodb_fast_shutdown=1
+innodb_default_row_format=REDUNDANT
+innodb_flush_log_at_trx_commit=2
+EOF
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my_tmp.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT VARIABLE_NAME, VARIABLE_SOURCE
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_connections', 'max_digest_length',
+   'innodb_fast_shutdown', 'innodb_default_row_format', 'innodb_flush_log_at_trx_commit');
+
+SELECT @@sort_buffer_size, @@max_connections, @@max_digest_length;
+SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_at_trx_commit;
+
+--echo # Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/my_tmp.cnf
+--remove_file $MYSQLTEST_VARDIR/tmp/sort_buff.cnf
+--remove_file $MYSQLD_DATADIR/innodb.cnf
+
+--echo # Restart server with all defaults
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # BUG#26085774: SERVER CRASHES WHEN STARTED USING CORRUPTED MYSQLD-AUTO.CNF
+--echo #
+
+# Set valiables to be used in parameters of mysqld.
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_BASEDIR= `SELECT @@basedir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PIDFILE= `SELECT @@pid_file`;
+let $MYSQL_PORT= `SELECT @@port`;
+let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--write_file $MYSQLTEST_VARDIR/tmp/my.cnf
+[mysqld]
+innodb_fast_shutdown=1
+EOF
+
+--echo # this is the wrong format with event_scheduler value not being string
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "mysql_server": { "event_scheduler": OFF , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--echo # on windows even though server fails to start return code is 0, thus expecting error to be 0 or 1
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # this is the wrong format with binlog_gtid_simple_recovery value not being string
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "mysql_server": { "event_scheduler": "OFF" , "mysql_server_static_options": {"binlog_gtid_simple_recovery": 0 , "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # this is the wrong format with no ',' between key/value pair
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "mysql_server": { "event_scheduler": OFF , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0"  "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # this is the wrong format with wrong static variables group name
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "mysql_server": { "event_scheduler": OFF , "mysql_xxxx_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # this is the wrong format with group name
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "xxxx_server": { "event_scheduler": OFF , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--remove_file $MYSQLTEST_VARDIR/tmp/my.cnf
+
+--echo # start server with all defaults
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Bug#26100122: SERVER CRASHES WHEN SET PERSIST CALLS WITH A LONG STATEMENT
+--echo #
+
+set @a=repeat('A',2000);
+--eval SET PERSIST init_connect=@a;
+set @b=repeat('A',24000);
+--eval SET PERSIST init_connect=@b;
+
+--echo # Cleanup
+SET GLOBAL init_connect=default;
+RESET PERSIST;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo #
+--echo # Bug#25677422: SET_TIME IN VARIABLES_INFO REFLECTS RESTART TIME FOR
+--echo #               PERSISTED VARIABLES
+--echo #
+
+RESET PERSIST;
+CREATE USER bug25677422;
+GRANT ALL ON *.* TO bug25677422;
+--connect(con1, localhost, bug25677422)
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST_ONLY innodb_read_io_threads= 16;
+connection default;
+SET PERSIST long_query_time= 8.3452;
+SET PERSIST_ONLY innodb_log_file_size= 4194304, ft_query_expansion_limit= 80;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+   'ft_query_expansion_limit');
+connection con1;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+   'ft_query_expansion_limit');
+
+connection default;
+disconnect con1;
+--echo # Restart server
+--source include/restart_mysqld.inc
+
+SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE
+  VARIABLE_SOURCE = 'PERSISTED';
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+   'ft_query_expansion_limit');
+--connect(con1, localhost, bug25677422)
+connection con1;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+   'ft_query_expansion_limit');
+
+connection default;
+disconnect con1;
+DROP USER bug25677422;
+RESET PERSIST;
+SET GLOBAL sort_buffer_size=DEFAULT, max_heap_table_size=DEFAULT,
+  slave_net_timeout=DEFAULT, long_query_time=DEFAULT;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # Restart server with defaults
+--source include/restart_mysqld.inc
+
+SELECT 'END OF TEST';

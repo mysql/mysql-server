@@ -1,0 +1,113 @@
+SET @start_value = @@global.concurrent_insert;
+SELECT @start_value;
+@start_value
+AUTO
+'#--------------------FN_DYNVARS_018_01------------------------#'
+SET @@global.concurrent_insert = 0;
+SET @@global.concurrent_insert = DEFAULT;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+AUTO
+'#---------------------FN_DYNVARS_018_02-------------------------#'
+SET @@global.concurrent_insert = DEFAULT;
+SELECT @@global.concurrent_insert = 1;
+@@global.concurrent_insert = 1
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'AUTO'
+'#--------------------FN_DYNVARS_018_03------------------------#'
+SET @@global.concurrent_insert = 0;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+NEVER
+SET @@global.concurrent_insert = 1;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+AUTO
+SET @@global.concurrent_insert = 2;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+ALWAYS
+SET @@global.concurrent_insert = NEVER;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+NEVER
+SET @@global.concurrent_insert = AUTO;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+AUTO
+SET @@global.concurrent_insert = ALWAYS;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+ALWAYS
+'#--------------------FN_DYNVARS_018_04-------------------------#'
+SET @@global.concurrent_insert = -1;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of '-1'
+SET @@global.concurrent_insert = 100;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of '100'
+SET @@global.concurrent_insert = TRUEF;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of 'TRUEF'
+SET @@global.concurrent_insert = TRUE_F;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of 'TRUE_F'
+SET @@global.concurrent_insert = FALSE0;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of 'FALSE0'
+SET @@global.concurrent_insert = OON;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of 'OON'
+SET @@global.concurrent_insert = ONN;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of 'ONN'
+SET @@global.concurrent_insert = OOFF;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of 'OOFF'
+SET @@global.concurrent_insert = 0FF;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of '0FF'
+SET @@global.concurrent_insert = ' ';
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of ' '
+SET @@global.concurrent_insert = " ";
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of ' '
+SET @@global.concurrent_insert = '';
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of ''
+'#-------------------FN_DYNVARS_018_05----------------------------#'
+SET @@session.concurrent_insert = 1;
+ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.concurrent_insert = 1;
+ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable
+'#----------------------FN_DYNVARS_018_06------------------------#'
+SELECT @@global.concurrent_insert = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='concurrent_insert';
+@@global.concurrent_insert = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_018_07----------------------#'
+SET @@global.concurrent_insert = OFF;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of 'OFF'
+SET @@global.concurrent_insert = ON;
+ERROR 42000: Variable 'concurrent_insert' can't be set to the value of 'ON'
+'#---------------------FN_DYNVARS_018_08----------------------#'
+SET @@global.concurrent_insert = TRUE;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+AUTO
+SET @@global.concurrent_insert = FALSE;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+NEVER
+'#---------------------FN_DYNVARS_018_09----------------------#'
+SET @@global.concurrent_insert = 1;
+SELECT @@concurrent_insert = @@global.concurrent_insert;
+@@concurrent_insert = @@global.concurrent_insert
+1
+'#---------------------FN_DYNVARS_018_10----------------------#'
+SET concurrent_insert = 1;
+ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@concurrent_insert;
+@@concurrent_insert
+AUTO
+SET global.concurrent_insert = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.concurrent_insert = 1' at line 1
+SELECT global.concurrent_insert;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT concurrent_insert = @@session.concurrent_insert;
+ERROR 42S22: Unknown column 'concurrent_insert' in 'field list'
+SET @@global.concurrent_insert = @start_value;
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+AUTO

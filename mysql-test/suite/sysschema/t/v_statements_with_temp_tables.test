@@ -1,0 +1,21 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.statements_with_temp_tables view
+
+# Ensure structure changes don't slip in
+DESC sys.statements_with_temp_tables;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.statements_with_temp_tables;
+--enable_result_log
+
+
+# Ensure structure changes don't slip in
+DESC sys.x$statements_with_temp_tables;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$statements_with_temp_tables;
+--enable_result_log
+

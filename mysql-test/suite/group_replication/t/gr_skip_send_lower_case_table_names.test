@@ -1,0 +1,58 @@
+################################################################################
+## This test proves that group replication allows member to join the group if
+## it does not send its lower_case_table_names value. This is required so
+## members with higher version can join groups which has member of lower
+## version.
+##
+## Test:
+## 0.  This test requires 2 members.
+## 1.  Set debug flag so server1 does not send its value of
+##     lower_case_table_names and bootstrap group.
+## 2.  Start server2.
+## 3.  Verify server2 joins the group.
+## 4.  Cleanup.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ## 1.  Set debug flag so server1 does not send its value of
+--echo ##     lower_case_table_names and bootstrap group.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_lower_case_table_names';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ## 2.  Start server2.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ## 3.  Verify server2 joins the group.
+--echo
+--let $assert_text= Assert 2 servers are ONLINE
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= Assert 2 servers are ONLINE
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
+--source include/assert.inc
+
+--echo
+--echo ## 4.  Cleanup.
+--echo
+SET @@GLOBAL.DEBUG= @debug_save;
+--source include/group_replication_end.inc

@@ -1,0 +1,44 @@
+# Testing unsupported slave configuration parameters
+
+--source include/have_ndb.inc
+--source include/have_nodebug.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+disable_query_log;
+call mtr.add_suppression(".* 'slave_parallel_workers = 2' is not supported when applying to Ndb");
+call mtr.add_suppression("Slave SQL.*: Request to stop slave SQL Thread");
+call mtr.add_suppression("Slave SQL.*: Worker 1 failed");
+call mtr.add_suppression("Slave SQL.*: Worker 2 failed");
+call mtr.add_suppression("Slave SQL.*: ... The slave coordinator and worker threads are stopped");
+enable_query_log;
+
+connection slave;
+--source include/stop_slave.inc
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @@global.slave_parallel_workers= 2;
+--source include/start_slave.inc
+
+connection master;
+create table t1 (a int) engine=ndb;
+insert into t1 values(1);
+
+#--error ER_UNSUPPORTED_EXTENSION (1112)
+--let $slave_sql_errno= 1112
+--let $show_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
+
+#
+# clean up
+#
+connection master;
+drop table t1;
+
+connection slave;
+--source include/stop_slave.inc
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+
+--source include/start_slave.inc
+--source include/rpl_reset.inc
+
+--source include/rpl_end.inc

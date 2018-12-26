@@ -1,0 +1,6 @@
+SET @@global.keyring_file= 'new_keyring_file';
+ERROR HY000: Unknown system variable 'keyring_file'
+INSTALL PLUGIN keyring SONAME 'keyring.so';
+SET @@global.keyring_file= 'new_keyring_file';
+SET @@global.keyring_file= 'mysecret_keyring';
+UNINSTALL PLUGIN keyring;

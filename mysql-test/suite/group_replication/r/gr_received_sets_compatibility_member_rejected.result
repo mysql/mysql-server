@@ -1,0 +1,85 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression(".*This member has more executed transactions *.*");
+call mtr.add_suppression(".*The member contains transactions not present *.*");
+SET SESSION sql_log_bin= 1;
+#
+# Create a table for testing on server 1
+#
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc [Server 2 has 4 transaction belonging to the group]
+[connection server3]
+include/assert.inc [Server 3 has 4 transaction belonging to the group]
+#
+# Step 1: Stop the applier on server 2.
+#
+[connection server2]
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+#
+# Step 2: Insert some transaction and remove server 3
+#
+[connection server1]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Server 3 has 6 transaction belonging to the group]
+include/stop_group_replication.inc
+#
+# Step 3: Insert more transactions. Assert that server 2 applied none
+#
+[connection server1]
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+[connection server2]
+#
+# Step 4: Stop group replication on server 1 and server 2
+#
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+#
+# Step 5: Boot the group again with server 3
+#
+[connection server3]
+include/start_and_bootstrap_group_replication.inc
+#
+# Step 6: Try to join server 2 that was less executed GTIDs
+# The start should fail as server 2 has more transactions in total
+#
+[connection server2]
+include/assert.inc [Server 2 has 4 transaction belonging to the group]
+[connection server3]
+include/assert.inc [Server 3 has 7 transaction belonging to the group]
+[connection server_2]
+LOCK TABLE t1 READ;
+[connection server2]
+SET GLOBAL group_replication_group_name= "ba8c9f00-ec68-11e5-a837-0800200c9a66";
+START GROUP_REPLICATION;
+[connection server_2]
+UNLOCK TABLES;
+[connection server2]
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+[connection server3]
+include/rpl_gr_wait_for_number_of_members.inc
+#
+# Step 7: Clean up
+#
+[connection server3]
+include/stop_group_replication.inc
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+DROP TABLE t1;
+include/group_replication_end.inc

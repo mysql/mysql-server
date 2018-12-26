@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS t1;
+#
+# For now expressions are not allowed to be set as DEFAULT using NDB
+#
+CREATE TABLE t1 (i INT, j DOUBLE DEFAULT (i*i)) ENGINE = ndbcluster ;
+ERROR HY000: 'Specified storage engine' is not supported for default value expressions.
+CREATE TABLE t1 (i INT) ENGINE = ndbcluster ;
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT (i*i);
+ERROR HY000: 'Specified storage engine' is not supported for default value expressions.
+alter table t1 add column k double DEFAULT (SQRT(z));
+ERROR HY000: 'Specified storage engine' is not supported for default value expressions.
+DROP TABLE IF EXISTS t1;

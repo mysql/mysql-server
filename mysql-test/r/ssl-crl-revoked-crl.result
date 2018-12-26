@@ -1,0 +1,1 @@
+# try logging in with a certificate in the server's --ssl-crl : should fail

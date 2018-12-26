@@ -1,0 +1,139 @@
+################################################################################
+# Verify server behaviour when a before_commit listener returns a error.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE, execute some transactions on M1.
+# 2. Force error on before_commit listener on the next transactions using DEBUG
+#    point.
+# 3. Execute DMLs. Those must be aborted with ER_RUN_HOOK_ERROR.
+# 4. Clean debug flag. Next commit must succeed.
+# 5. Data validation on M1.
+# 6. Data validation on M2.
+# 7. Clean up.
+################################################################################
+--source include/have_debug.inc
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429456
+--source include/have_group_replication_plugin.inc
+
+--source include/group_replication.inc
+
+--echo ############################################################
+--echo # 1. Execute some transactions on server 1.
+--connection server1
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Force error on before_commit listener on the next
+--echo #    transactions.
+--connection server1
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_error_on_before_commit_listener';
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo ############################################################
+--echo # 3. These transactions must be aborted.
+--connection server1
+BEGIN;
+INSERT INTO t1 VALUES (2);
+--error ER_RUN_HOOK_ERROR
+COMMIT;
+
+--error ER_RUN_HOOK_ERROR
+INSERT INTO t1 VALUES (3);
+
+--echo
+--echo ############################################################
+--echo # 4. Clean debug flag.
+--echo #    Next commit must succeed.
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+INSERT INTO t1 VALUES (4);
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Data validation on server 1.
+--connection server1
+--let $assert_text= 'There is a value 1 in table t1 on server 1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is no value 2 in table t1 on server 1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There is no value 3 in table t1 on server 1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There is a value 4 in table t1 on server 1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 4, count, 1] = 1
+--source include/assert.inc
+
+--let $transaction_in_queue= query_get_value(SELECT Count_Transactions_In_Queue FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_In_Queue, 1)
+--let $assert_text= 'The value of Count_Transactions_In_Queue should be 0 on server 1'
+--let $assert_cond= $transaction_in_queue = 0
+--source include/assert.inc
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_Checked, 1)
+--let $assert_text= 'The value of Count_Transactions_Checked should be 3 on server 1'
+--let $assert_cond= $certified_transactions = 3
+--source include/assert.inc
+--let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Conflicts_Detected, 1)
+--let $assert_text= 'The value of Count_Conflicts_Detected should be 0 on server 1'
+--let $assert_cond= $negatively_certified = 0
+--source include/assert.inc
+--let $last_certified_transaction= query_get_value(SELECT Last_Conflict_Free_Transaction from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Last_Conflict_Free_Transaction, 1)
+--let $assert_text= 'The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:5 on server 1'
+--let $assert_cond= "$last_certified_transaction" = "$group_replication_group_name:5"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Data validation on server 2.
+--connection server2
+--let $assert_text= 'There is a value 1 in table t1 on server 2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is no value 2 in table t1 on server 2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There is no value 3 in table t1 on server 2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There is a value 4 in table t1 on server 2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 4, count, 1] = 1
+--source include/assert.inc
+
+--let $transaction_in_queue= query_get_value(SELECT Count_Transactions_In_Queue FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_In_Queue, 1)
+--let $assert_text= 'The value of Count_Transactions_In_Queue should be 0 on server 2'
+--let $assert_cond= $transaction_in_queue = 0
+--source include/assert.inc
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_Checked, 1)
+--let $assert_text= 'The value of Count_Transactions_Checked should be 3 on server 2'
+--let $assert_cond= $certified_transactions = 3
+--source include/assert.inc
+--let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Conflicts_Detected, 1)
+--let $assert_text= 'The value of Count_Conflicts_Detected should be 0 on server 2'
+--let $assert_cond= $negatively_certified = 0
+--source include/assert.inc
+--let $last_certified_transaction= query_get_value(SELECT Last_Conflict_Free_Transaction from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Last_Conflict_Free_Transaction, 1)
+--let $assert_text= 'The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:5 on server 2'
+--let $assert_cond= "$last_certified_transaction" = "$group_replication_group_name:5"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 7. Shutdown.
+--connection server1
+DROP TABLE t1;
+--source include/group_replication_end.inc

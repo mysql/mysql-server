@@ -1,0 +1,63 @@
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set undo tablespaces to be encrypted, since innodb_undo_tablespaces=0");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set undo tablespace number 1 to be encrypted");
+--enable_query_log
+
+SET @start_global_value = @@global.innodb_undo_log_encrypt;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.innodb_undo_log_encrypt in (0, 1);
+select @@global.innodb_undo_log_encrypt;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_undo_log_encrypt;
+show global variables like 'innodb_undo_log_encrypt';
+show session variables like 'innodb_undo_log_encrypt';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_undo_log_encrypt';
+select * from performance_schema.session_variables where variable_name='innodb_undo_log_encrypt';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_undo_log_encrypt=1;
+--sleep 2
+select @@global.innodb_undo_log_encrypt;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_undo_log_encrypt';
+select * from performance_schema.session_variables where variable_name='innodb_undo_log_encrypt';
+--enable_warnings
+set @@global.innodb_undo_log_encrypt=0;
+select @@global.innodb_undo_log_encrypt;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_undo_log_encrypt';
+select * from performance_schema.session_variables where variable_name='innodb_undo_log_encrypt';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session innodb_undo_log_encrypt='some';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_undo_log_encrypt='some';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_undo_log_encrypt=1.1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_undo_log_encrypt='foo';
+set global innodb_undo_log_encrypt=-2;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_undo_log_encrypt=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_undo_log_encrypt=2;
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_undo_log_encrypt = @start_global_value;
+SELECT @@global.innodb_undo_log_encrypt;

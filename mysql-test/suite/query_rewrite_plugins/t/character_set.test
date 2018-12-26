@@ -1,0 +1,41 @@
+--echo #
+--echo # Tests that the character set setting is properly picked up by the
+--echo # session that reads the rules table.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
+
+--source suite/query_rewrite_plugins/include/trivial.inc
+
+--echo # We now set the global value of the variable, this should not affect
+--echo # the plugin. It should copy the session value from our session.
+SET @@global.character_set_client = utf8mb4;
+
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+
+--echo # Regenerating the digests should still work.
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+
+--echo # We now repeat the above test with a character set where the digests
+--echo # are known to differ. If we were lucky the last time, it will show now.
+--echo # The global setting should still be ignored.
+SET @@global.character_set_client = latin1;
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+
+--echo # Regenerating the digests should still work.
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+
+SET @@global.character_set_client = DEFAULT;
+
+--echo #
+--echo # This is perhaps an unwanted result, but the rules table-reading
+--echo # session can't access our session's setting.
+--echo #
+SET @@session.character_set_client = utf8mb4;
+--source suite/query_rewrite_plugins/include/trivial.inc
+SET @@session.character_set_client = DEFAULT;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

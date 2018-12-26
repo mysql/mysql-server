@@ -1,0 +1,16 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+--source include/not_group_replication_plugin.inc
+#
+# WL#5569 MTS
+#
+# The test is similar to rpl_parallel (see further instruction there) but 
+# checks and provides benchmarking data with load to innodb tables.
+#
+
+--source include/master-slave.inc
+
+connection master;
+source extra/rpl_tests/rpl_parallel_load_innodb.test;
+
+--source include/rpl_end.inc

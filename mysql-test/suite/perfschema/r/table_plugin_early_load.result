@@ -1,0 +1,15 @@
+#########
+# SETUP #
+#########
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin pfs_example_plugin_employee reported: 'Error returned from add_tables\\(\\)'");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin 'pfs_example_plugin_employee' init function returned error.");
+# Make sure that the errors, which are returned when plugin is tried to
+# be loaded with --early_plugin_load option, are present in server log.
+Pattern "Plugin pfs_example_plugin_employee reported: 'Error returned from add_tables\(\)'" found
+Pattern "Plugin 'pfs_example_plugin_employee' init function returned error." found
+# Install pfs_example_plugin_employee plugin after server is started.
+INSTALL PLUGIN pfs_example_plugin_employee SONAME 'pfs_example_plugin_employee.xxx';
+###########
+# CLEANUP #
+###########
+UNINSTALL PLUGIN pfs_example_plugin_employee;

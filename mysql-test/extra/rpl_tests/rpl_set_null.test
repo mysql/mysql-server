@@ -1,0 +1,82 @@
+# Both of the following tests check that comparison of binlog BI
+# against SE record will not fail due to remains from previous values
+# in the SE record (before a given field was set to null).
+#
+# In MIXED mode:
+# - Insert and update are executed as statements
+# - Delete is executed as a row event
+# - Assertion: checks that comparison will not fail because the update
+#              statement will clear the record contents for the nulled
+#              field. If data was not cleared, some engines may keep
+#              the value and return it later as garbage - despite the
+#              fact that field is null. This may cause slave to
+#              falsely fail in the comparison (memcmp would fail
+#              because of "garbage" in record data).
+#
+# In ROW mode:
+# - Insert, update and delete are executed as row events.
+# - Assertion: checks that comparison will not fail because the update
+#              rows event will clear the record contents before
+#              feeding the new value to the SE. This protects against
+#              SEs that do not clear record contents when storing
+#              nulled fields. If the engine did not clear the data it
+#              would cause slave to falsely fail in the comparison
+#              (memcmp would fail because of "garbage" in record
+#              data). This scenario is pretty much the same described
+#              above in MIXED mode, but checks different execution
+#              path in the slave.
+
+# BUG#49481: RBR: MyISAM and bit fields may cause slave to stop on
+#  delete cant find record
+
+-- source include/rpl_reset.inc
+
+-- connection master
+-- eval CREATE TABLE t1 (c1 BIT, c2 INT) Engine=$engine
+INSERT INTO `t1` VALUES ( 1, 1 );
+UPDATE t1 SET c1=NULL where c2=1;
+-- source include/sync_slave_sql_with_master.inc
+
+-- let $diff_tables= master:t1, slave:t1
+-- source include/diff_tables.inc
+
+-- connection master
+# triggers switch to row mode when on mixed 
+DELETE FROM t1 WHERE c2=1 LIMIT 1;
+-- source include/sync_slave_sql_with_master.inc
+
+-- let $diff_tables= master:t1, slave:t1
+-- source include/diff_tables.inc
+
+-- connection master
+DROP TABLE t1;
+-- source include/sync_slave_sql_with_master.inc
+
+-- source include/rpl_reset.inc
+
+-- connection master
+
+# BUG#49482: RBR: Replication may break on deletes when MyISAM tables
+#  + char field are used
+
+-- eval CREATE TABLE t1 (c1 CHAR) Engine=$engine
+
+INSERT INTO t1 ( c1 ) VALUES ( 'w' ) ;
+SELECT * FROM t1;
+UPDATE t1 SET c1=NULL WHERE c1='w';
+-- source include/sync_slave_sql_with_master.inc
+
+-- let $diff_tables= master:t1, slave:t1
+-- source include/diff_tables.inc
+
+-- connection master
+# triggers switch to row mode when on mixed 
+DELETE FROM t1 LIMIT 2;
+-- source include/sync_slave_sql_with_master.inc
+
+-- let $diff_tables= master:t1, slave:t1
+-- source include/diff_tables.inc
+
+-- connection master
+DROP TABLE t1;
+-- source include/sync_slave_sql_with_master.inc

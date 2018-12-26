@@ -1,0 +1,27 @@
+SET @default_max_binlog_size = @@global.max_binlog_size;
+set global max_binlog_size=1048576;
+create table test.tn (b varchar(1000)) engine=ndb;
+create procedure create_load(loops int)
+begin
+set @x = 0;
+repeat
+insert into tn values (repeat('C', 100));
+insert into tn values (repeat('C', 100));
+insert into tn values (repeat('C', 100));
+insert into tn values (repeat('C', 100));
+insert into tn values (repeat('C', 100));
+insert into tn values (repeat('C', 100));
+insert into tn values (repeat('C', 100));
+insert into tn values (repeat('C', 100));
+insert into tn values (repeat('C', 100));
+insert into tn values (repeat('C', 100));
+delete from tn;
+set @x = @x + 1;
+until @x = loops
+end repeat;
+end%
+call create_load(20);
+FLUSH LOGS;
+drop procedure create_load;
+drop table tn;
+set global max_binlog_size= @default_max_binlog_size;

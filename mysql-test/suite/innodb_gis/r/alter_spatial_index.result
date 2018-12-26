@@ -1,0 +1,692 @@
+CALL mtr.add_suppression("but MySQL is asking statistics for 2 columns. Have you mixed");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace for table .* is set as discarded");
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
+ENGINE=InnoDB;
+CREATE TABLE tab1(c1 int NOT NULL PRIMARY KEY,c2 MULTIPOINT NOT NULL SRID 0,
+c3 MULTILINESTRING NOT NULL SRID 0,c4 MULTIPOLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
+ENGINE=InnoDB;
+INSERT INTO tab1 SELECT * FROM tab;
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(3,ST_GeomFromText('POINT(4 4)'),ST_GeomFromText('LINESTRING(130 130,140 140,150 150)'),
+ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'),
+ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(4,ST_GeomFromText('POINT(50 50)'),ST_GeomFromText('LINESTRING(200 200,300 300,400 400)'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(5,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(400 400,500 500,600 700)'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(6,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(7,ST_GeomFromText('POINT(60 70)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(8,ST_GeomFromText('POINT(0 0)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(9,ST_GeomFromText('POINT(120 120)'),ST_GeomFromText('LINESTRING(100 100,110 110,120 120)'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3 ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
+ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
+ERROR HY000: The index type BTREE is not supported for spatial indexes.
+SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+3	POINT(4 4)	POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))
+UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)')
+WHERE MBRContains(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+3	POINT(0 0)	POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))
+DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+SET @g1 = ST_GeomFromText('LINESTRING( 300 300,400 400)');
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+4	POINT(50 50)	POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))
+UPDATE tab SET C2 = ST_GeomFromText('POINT(100 100)')
+WHERE MBRContains(tab.c4, @g1);
+DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
+SET @g1 = ST_GeomFromText( 'POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
+SELECT c1,ST_AsText(c2),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1);
+c1	ST_AsText(c2)	ST_Astext(c4)
+5	POINT(3 3)	POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))
+UPDATE tab SET C2 = ST_GeomFromText('POINT(200 200)')
+WHERE MBRWithin(tab.c4, @g1);
+SELECT c1,ST_AsText(c2),ST_AsText(c4) FROM tab WHERE MBRWithin(tab.c4, @g1);
+c1	ST_AsText(c2)	ST_AsText(c4)
+5	POINT(200 200)	POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))
+DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
+ALTER TABLE tab MODIFY COLUMN c2 MULTIPOINT SRID 0;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING SRID 0;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON SRID 0;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NULL SRID 0;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NULL SRID 0;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE tab MODIFY COLUMN c4 Geometry NULL SRID 0;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE tab CHANGE COLUMN c2 c22 POINT SRID 0;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING SRID 0;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON SRID 0;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE tab add SPATIAL INDEX idx1(c1);
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING BTREE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE' at line 1
+ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING HASH;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING HASH' at line 1
+ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL SRID 0 FIRST, ALGORITHM=COPY;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NOT NULL SRID 0,ALGORITHM=COPY;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NOT NULL SRID 0;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` int(11) NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`c1`),
+  SPATIAL KEY `idx2` (`c2`),
+  SPATIAL KEY `idx3` (`c3`),
+  SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
+  SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM tab;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES	NULL
+tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES	NULL
+tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES	NULL
+SET @g1 = ST_GeomFromText('POLYGON((20 20,30 30,40 40,50 50,40 50,30 40,30 30,20 20))');
+# Invalid polygon.
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+# Invalid polygon.
+UPDATE tab SET C2 = ST_GeomFromText('POINT(1000 1000)')
+WHERE ST_Crosses(tab.c4, @g1);
+# Invalid polygon.
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+# Invalid polygon.
+DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
+ALTER TABLE tab CHANGE COLUMN c2 c22 POINT NOT NULL SRID 0;
+ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING NOT NULL SRID 0;
+ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON NOT NULL SRID 0;
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` int(11) NOT NULL,
+  `c22` point NOT NULL /*!80003 SRID 0 */,
+  `c33` linestring NOT NULL /*!80003 SRID 0 */,
+  `c44` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`c1`),
+  SPATIAL KEY `idx2` (`c22`),
+  SPATIAL KEY `idx3` (`c33`),
+  SPATIAL KEY `idx4` (`c44`) COMMENT 'testing spatial index on Polygon',
+  SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM tab;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES	NULL
+tab	1	idx2	1	c22	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx3	1	c33	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c44	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES	NULL
+tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES	NULL
+ALTER TABLE tab CHANGE COLUMN c22 c2 POINT NOT NULL SRID 0;
+ALTER TABLE tab CHANGE COLUMN c33 c3 LINESTRING NOT NULL SRID 0;
+ALTER TABLE tab CHANGE COLUMN c44 c4 POLYGON NOT NULL SRID 0;
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` int(11) NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`c1`),
+  SPATIAL KEY `idx2` (`c2`),
+  SPATIAL KEY `idx3` (`c3`),
+  SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
+  SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM tab;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES	NULL
+tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES	NULL
+tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES	NULL
+ALTER TABLE tab DISABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 'tab' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Note	1031	Table storage engine for 'tab' doesn't have this option
+SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+10	POINT(160 160)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE MBREquals(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+10	POINT(2000 2000)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+ALTER TABLE tab  DROP PRIMARY KEY;
+ALTER TABLE tab ADD PRIMARY KEY(c2) ;
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+2	POINT(20 20)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+UPDATE tab SET C2 = ST_GeomFromText('POINT(3000 3000)') 
+WHERE ST_Touches(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+2	POINT(3000 3000)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+DELETE FROM tab WHERE ST_Touches(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+FLUSH TABLE tab FOR EXPORT;
+UNLOCK TABLES;
+ALTER TABLE tab DISCARD TABLESPACE;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab;
+ERROR HY000: Tablespace has been discarded for table 'tab'
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab ORDER BY c1;
+c1	ST_Astext(c2)	ST_Astext(c4)
+1	POINT(10 10)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
+6	POINT(3 3)	POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))
+7	POINT(60 70)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+8	POINT(0 0)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+9	POINT(120 120)	POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))
+SET @g1 = ST_GeomFromText('LINESTRING( 3010 3010,4010 4010,5010 5010)');
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) order by c1;
+c1	ST_Astext(c2)	ST_Astext(c4)
+7	POINT(60 70)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+8	POINT(0 0)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+9	POINT(120 120)	POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))
+UPDATE tab SET c2 = ST_GeomFromText('POINT(4000 4000)')
+WHERE MBRIntersects(tab.c4, @g1);
+UPDATE tab SET c4 = ST_GeomFromText('POINT(4000 4000)')
+WHERE MBRIntersects(tab.c4, @g1);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
+c1	ST_Astext(c2)	ST_Astext(c4)
+7	POINT(4000 4000)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+8	POINT(4000 4000)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+9	POINT(4000 4000)	POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))
+DELETE FROM tab WHERE MBRIntersects(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
+c1	ST_Astext(c2)	ST_Astext(c4)
+INSERT INTO tab SELECT * FROM tab1;
+ALTER TABLE tab DROP INDEX idx2;
+CREATE TEMPORARY TABLE temp_tab AS SELECT * FROM tab where c1 = c2;
+INSERT INTO temp_tab SELECT * FROM tab;
+CREATE SPATIAL INDEX idx2 ON temp_tab(c2);
+CREATE SPATIAL INDEX idx3 ON temp_tab(c3);
+CREATE SPATIAL INDEX idx4 ON temp_tab(c4);
+CREATE SPATIAL INDEX idx5 ON temp_tab(c5);
+SHOW CREATE TABLE temp_tab;
+Table	Create Table
+temp_tab	CREATE TEMPORARY TABLE `temp_tab` (
+  `c1` int(11) NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx2` (`c2`),
+  SPATIAL KEY `idx3` (`c3`),
+  SPATIAL KEY `idx4` (`c4`),
+  SPATIAL KEY `idx5` (`c5`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1) ORDER BY c1;
+c1	ST_Astext(c2)	ST_Astext(c4)
+UPDATE temp_tab SET C2 = ST_GeomFromText('POINT(1000 1000)')
+WHERE MBRContains(temp_tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1);
+c1	ST_Astext(c2)	ST_Astext(c4)
+DELETE FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1) ORDER BY c1;
+c1	ST_Astext(c2)	ST_Astext(c4)
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` int(11) NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx3` (`c3`),
+  SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
+  SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM tab;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES	NULL
+tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES	NULL
+DELETE FROM tab;
+ALTER TABLE tab ADD PRIMARY KEY(c2);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+CREATE SPATIAL INDEX idx2 ON tab(c2);
+ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c2);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` int(11) NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx3` (`c3`),
+  SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
+  SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
+  SPATIAL KEY `idx2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM tab;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES	NULL
+tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES	NULL
+tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL			YES	NULL
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+DELETE FROM tab;
+ALTER TABLE tab ADD PRIMARY KEY(c5(10));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c5(10));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` int(11) NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx3` (`c3`),
+  SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
+  SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
+  SPATIAL KEY `idx2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM tab;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES	NULL
+tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES	NULL
+tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL			YES	NULL
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+DROP TABLE tab,tab1,temp_tab;
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
+ENGINE=InnoDB;
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(3,ST_GeomFromText('POINT(4 4)'),ST_GeomFromText('LINESTRING(130 130,140 140,150 150)'),
+ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'),
+ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(4,ST_GeomFromText('POINT(50 50)'),ST_GeomFromText('LINESTRING(200 200,300 300,400 400)'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(5,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(400 400,500 500,600 700)'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(6,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(7,ST_GeomFromText('POINT(60 70)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(8,ST_GeomFromText('POINT(0 0)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(9,ST_GeomFromText('POINT(120 120)'),ST_GeomFromText('LINESTRING(100 100,110 110,120 120)'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
+ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
+ERROR HY000: The index type BTREE is not supported for spatial indexes.
+ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL SRID 0;
+ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL SRID 0;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
+ERROR 22004: Invalid use of NULL value
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=SHARED;
+ERROR 22004: Invalid use of NULL value
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Do not support online operation on table with GIS index. Try ALGORITHM=COPY/INPLACE.
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` int(11) NOT NULL,
+  `c2` geometry NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`c1`),
+  SPATIAL KEY `idx2` (`c2`),
+  SPATIAL KEY `idx3` (`c3`),
+  SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
+  SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM tab;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES	NULL
+tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES	NULL
+tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES	NULL
+SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+UPDATE tab SET C2 = ST_GeomFromText('POINT(1000 1000)') 
+WHERE MBRContains(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
+c1	ST_Astext(c2)	ST_Astext(c4)
+3	POINT(1000 1000)	POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))
+DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
+c1	ST_Astext(c2)	ST_Astext(c4)
+ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL SRID 0;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE tab MODIFY COLUMN c4 GEOMETRY NOT NULL SRID 0;
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` int(11) NOT NULL,
+  `c2` geometry NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`c1`),
+  SPATIAL KEY `idx2` (`c2`),
+  SPATIAL KEY `idx3` (`c3`),
+  SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
+  SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM tab;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES	NULL
+tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES	NULL
+tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES	NULL
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
+SET @g2 = ST_GeomFromText('LINESTRING(140 140,150 150,160 160)');
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
+AND MBREquals(tab.c3,@g2) ORDER BY c1;
+c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
+10	POINT(160 160)	LINESTRING(140 140,150 150,160 160)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
+AND MBREquals(tab.c3,@g2) ORDER BY c1;
+c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
+10	POINT(2000 2000)	LINESTRING(140 140,150 150,160 160)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+DELETE FROM tab WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1)
+AND MBREquals(tab.c3,@g2) ORDER BY c1;
+c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+SET @g1 = ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))');
+SET @g2 = ST_GeomFromText('LINESTRING(1 1,2 2,3 3)');
+ALTER TABLE tab MODIFY COLUMN c2 POINT NOT NULL SRID 0;
+ALTER TABLE tab MODIFY COLUMN c3 LINESTRING NOT NULL SRID 0;
+ALTER TABLE tab MODIFY COLUMN c4 POLYGON NOT NULL SRID 0;
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` int(11) NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`c1`),
+  SPATIAL KEY `idx2` (`c2`),
+  SPATIAL KEY `idx3` (`c3`),
+  SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
+  SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM tab;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES	NULL
+tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES	NULL
+tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES	NULL
+tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES	NULL
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
+SET @g2 = ST_GeomFromText('LINESTRING(1 1,2 2,3 3)');
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) 
+AND ST_Touches(tab.c3,@g2);
+c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE ST_Touches(tab.c4, @g1) AND ST_Touches(tab.c3,@g2);
+DELETE FROM tab WHERE ST_Touches(tab.c4, @g1) AND ST_Touches(tab.c3,@g2);
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+AND ST_Touches(tab.c3,@g2);
+c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+OR ST_Touches(tab.c3,@g2);
+c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
+2	POINT(20 20)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+OR ST_Touches(tab.c3,@g2);
+c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
+2	POINT(2000 2000)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+DELETE FROM tab WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+OR ST_Touches(tab.c3,@g2);
+c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
+ALTER TABLE tab MODIFY COLUMN c4 INT NOT NULL;
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+ALTER TABLE tab MODIFY COLUMN c4 BLOB NOT NULL;
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+ALTER TABLE tab  ENGINE Myisam;
+ALTER TABLE tab  ENGINE InnoDB;
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+SET @g1 = ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
+SET @g2 = ST_GeomFromText('LINESTRING(400 400,500 500,600 700)');
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) AND MBRWithin(tab.c3, @g2);
+c1	ST_AsText(c2)	ST_AsText(c3)	ST_Astext(c4)
+5	POINT(3 3)	LINESTRING(400 400,500 500,600 700)	POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))
+UPDATE tab SET c2 = ST_GeomFromText('POINT(2000 2000)'),
+c3=ST_GeomFromText('POINT(2000 2000)')
+WHERE MBRWithin(tab.c4, @g1) AND MBRWithin(tab.c3, @g2);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SET @g1 = ST_GeomFromText('POINT(2000 2000)');
+SET @g2 = ST_GeomFromText('POINT(2000 2000)');
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
+c1	ST_AsText(c2)	ST_AsText(c3)	ST_Astext(c4)
+DELETE FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
+c1	ST_AsText(c2)	ST_AsText(c3)	ST_Astext(c4)
+DROP TABLE tab;
+CREATE TABLE parent (id POINT SRID 0 NOT NULL) ENGINE=InnoDB;
+CREATE TABLE child (id GEOMETRY NOT NULL, parent_id POINT NOT NULL SRID 0) ENGINE=InnoDB;
+ALTER TABLE parent ADD SPATIAL INDEX idx1(id);
+ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
+ANALYZE TABLE parent;
+Table	Op	Msg_type	Msg_text
+test.parent	analyze	status	OK
+ANALYZE TABLE child;
+Table	Op	Msg_type	Msg_text
+test.child	analyze	status	OK
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` point NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `id` geometry NOT NULL,
+  `parent_id` point NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx2` (`parent_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM parent;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+parent	1	idx1	1	id	A	0	32	NULL		SPATIAL			YES	NULL
+SHOW INDEX FROM child;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+child	1	idx2	1	parent_id	A	#	32	NULL		SPATIAL			YES	NULL
+ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the foreign table 'child'
+ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ON DELETE CASCADE ;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the foreign table 'child'
+DROP table child,parent;
+CREATE TABLE parent (id GEOMETRY SRID 0 NOT NULL) ENGINE=InnoDB;
+CREATE TABLE child (id GEOMETRY NOT NULL, parent_id GEOMETRY NOT NULL SRID 0) ENGINE=InnoDB;
+ALTER TABLE parent ADD SPATIAL INDEX idx1(id) ;
+ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
+ANALYZE TABLE parent;
+Table	Op	Msg_type	Msg_text
+test.parent	analyze	status	OK
+ANALYZE TABLE child;
+Table	Op	Msg_type	Msg_text
+test.child	analyze	status	OK
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `id` geometry NOT NULL,
+  `parent_id` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx2` (`parent_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEX FROM parent;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+parent	1	idx1	1	id	A	0	32	NULL		SPATIAL			YES	NULL
+SHOW INDEX FROM child;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+child	1	idx2	1	parent_id	A	0	32	NULL		SPATIAL			YES	NULL
+ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the foreign table 'child'
+DROP table child,parent;
+create table t1 (c1 int) engine=innodb;
+insert into t1 values(NULL);
+alter table t1 add b geometry, add spatial index(b), algorithm=inplace;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+alter table t1 add b geometry, algorithm=inplace;
+update t1 set b = st_geomfromtext('point(0 0)');
+alter table t1 add spatial index(b), algorithm=inplace;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+delete from t1;
+DROP table t1;
+create table t1 (c1 int) engine=innodb;
+insert into t1 values(NULL);
+alter table t1 add b geometry, add spatial index(b), algorithm=copy;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+alter table t1 add b geometry not null, add spatial index(b), algorithm=copy;
+ERROR 22004: Invalid use of NULL value
+alter table t1 add b geometry not null, algorithm=copy;
+ERROR 22004: Invalid use of NULL value
+update t1 set b = st_geomfromtext('point(0 0)');
+ERROR 42S22: Unknown column 'b' in 'field list'
+alter table t1 add spatial index(b), algorithm=copy;
+ERROR 42000: Key column 'b' doesn't exist in table
+delete from t1;
+DROP table t1;
+#
+# BUG#20111575 ALTER TABLE...ADD SPATIAL INDEX...LOCK NONE IS REFUSED
+# WITHOUT STATING A REASON
+#
+CREATE TABLE t1(p point NOT NULL SRID 0) ENGINE=innodb;
+ALTER TABLE t1 ADD SPATIAL INDEX(p), LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
+ALTER TABLE t1 ADD SPATIAL INDEX(p);
+ALTER TABLE t1 FORCE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
+DROP TABLE t1;

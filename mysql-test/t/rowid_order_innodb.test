@@ -1,0 +1,13 @@
+# t/rowid_order_innodb.test
+#
+# Test for rowid ordering (and comparison) functions.
+# do index_merge select for tables with PK of various types. 
+#
+# Last update:
+# 2006-07-28 ML test refactored (MySQL 5.1)
+#               main code t/rowid_order_innodb.test -> include/rowid_order.inc
+#
+
+let $engine_type= InnoDB;
+
+--source include/rowid_order.inc

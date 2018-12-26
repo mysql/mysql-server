@@ -1,0 +1,85 @@
+###############################################################################
+# Bug#19021091: RELAY_LOG_RECOVERY KO WHEN CHANGE MASTER WITHOUT FILE AND
+# SQL_THREAD NOT STARTED
+#
+# Problem:
+# ========
+# If, on an empty database:
+# - CHANGE MASTER TO without a MASTER_FILE and MASTER_POS is used,
+# - the IO_THREAD is started WITHOUT starting the SQL_THREAD,
+# - MySQL crashed,
+# - MySQL is restarted with relay_log_recovery = 1.
+#
+# Crash recovery will not work as expected:
+# - The IO_THREAD position will NOT be initialized to the SQL_THREAD position,
+# - SQL_THREAD position will NOT be initialized to the new relay log.
+#
+# It looks like, when the SQL_THREAD does not have a Relay_Master_Log_File,
+# relay_log_recovery does not work.
+#
+# Test:
+# =====
+# If SQL_THREAD does not have a Relay_Master_Log_File set recovery process
+# will try to extract the first rotate event from the master and try to
+# extract master_log_file and master_log_pos from the rotate event. But when
+# replicate-same-server-id is set master and slave will have same server_id
+# and it will not be possible to identify the rotate event from master. Hence
+# if recovery is happening with empty Relay_Master_Log_File and
+# replicate-same-server-id is set we generate an error saying recovery is not
+# possible.
+#
+# Enable replicate-same-server-id. Set slave's info repository to be tables
+# and set relay-log-recovery=1. Start slave io_thread to ensure that
+# Relay_Master_Log_File is not initialized. Stop and restart the slave server.
+# Relay log recovery will not happen slave will generate an error in error log
+# as shown below.
+#
+# Error during --relay-log-recovery, replicate_same_server_id is in use and
+# sql thread's positions are not initialized, hence relay log recovery cannot
+# happen.
+###############################################################################
+--source include/force_restart.inc
+--source include/not_group_replication_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("Error during --relay-log-recovery *");
+CREATE TABLE t1 ( n INT);
+RESET MASTER;
+
+# replicate ourselves
+--source include/stop_slave.inc
+--source include/wait_for_slave_to_stop.inc
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CHANGE MASTER TO MASTER_PORT=$SLAVE_MYPORT;
+START SLAVE IO_THREAD;
+--source include/wait_for_slave_io_to_start.inc
+
+# Restart the slave server
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=--skip_slave_start=FALSE --relay-log-recovery=1
+--source include/rpl_start_server.inc
+
+--let $assert_text= One error should match 'Error during --relay-log-recovery'
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/slave.err
+--let $assert_select= Error during --relay-log-recovery
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# Clean up Server needs to be restarted with relay-log-recovery=0
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=--relay-log-recovery=0
+--source include/rpl_restart_server.inc
+
+DROP TABLE t1;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval change master to master_port=$MASTER_MYPORT;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

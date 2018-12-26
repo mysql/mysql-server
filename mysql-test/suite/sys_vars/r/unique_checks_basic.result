@@ -1,0 +1,84 @@
+SET @start_session_value = @@session.unique_checks;
+SELECT @start_session_value;
+@start_session_value
+1
+'#--------------------FN_DYNVARS_005_01-------------------------#'
+SET @@session.unique_checks= 1;
+SET @@session.unique_checks= DEFAULT;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+0
+'#--------------------FN_DYNVARS_005_04-------------------------#'
+SET @@session.unique_checks =1;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+1
+SET @@session.unique_checks = 0;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+0
+SET @@session.unique_checks = True;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+1
+SET @@session.unique_checks = False;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+0
+SET @@session.unique_checks = "ON";
+SELECT @@session.unique_checks;
+@@session.unique_checks
+1
+SET @@session.unique_checks = "OFF";
+SELECT @@session.unique_checks;
+@@session.unique_checks
+0
+'#------------------FN_DYNVARS_005_05-----------------------#'
+SET @@session.unique_checks = 'No';
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'No'
+SET @@session.unique_checks = "yes";
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'yes'
+SET @@session.unique_checks = yes;
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'yes'
+SET @@session.unique_checks = NO;
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'NO'
+SET @@session.unique_checks = "True";
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'True'
+SET @@session.unique_checks = "False";
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'False'
+SET @@session.unique_checks = "Test";
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'Test'
+SET @@session.unique_checks = 'test';
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'test'
+SET @@session.unique_checks = 123456789031;
+ERROR 42000: Variable 'unique_checks' can't be set to the value of '123456789031'
+'#------------------FN_DYNVARS_005_07-----------------------#'
+SELECT IF(@@session.unique_checks, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='unique_checks';
+IF(@@session.unique_checks, "ON", "OFF") = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_001_08----------------------#'
+SET @@unique_checks = 1;
+SELECT @@unique_checks = @@local.unique_checks;
+@@unique_checks = @@local.unique_checks
+1
+SELECT @@local.unique_checks = @@session.unique_checks;
+@@local.unique_checks = @@session.unique_checks
+1
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET unique_checks = 1027;
+ERROR 42000: Variable 'unique_checks' can't be set to the value of '1027'
+SELECT @@unique_checks;
+@@unique_checks
+1
+SELECT local.unique_checks;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.unique_checks;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT unique_checks = @@session.unique_checks;
+ERROR 42S22: Unknown column 'unique_checks' in 'field list'
+SET @@session.unique_checks = @start_session_value;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+1

@@ -1,0 +1,132 @@
+###############################################################################
+#
+# When a configuration change involving primary election is
+# running no slave channels can be start in the group members.
+#
+# Test:
+#   0. This test need 3 servers
+#   1. server1 start group replication and server2 join
+#   2. Activate debug point that will block the group action when changing
+#      to single primary mode
+#   3. Execute action to change group to single primary mode
+#   4. Start a slave connection on server1 to server3.
+#      It should fail, since a group action is ongoing.
+#   5. Verify occurrence of error message
+#   6. Unlock the action
+#   7. Clean up
+#
+###############################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. server1 start group replication and server2 join
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Can't start slave IO THREAD when group replication is running a group configuration operation.");
+call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
+call mtr.add_suppression("Slave I/O for channel 'ch3_1': Fatal error: Failed to run 'thread_start' hook, Error_code:*");
+call mtr.add_suppression("Can't start slave SQL THREAD when group replication is running a group configuration operation.");
+call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
+call mtr.add_suppression("Slave SQL for channel 'ch3_1': Fatal error: Failed to run 'applier_start' hook, Error_code:*");
+set session sql_log_bin=1;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Activate debug point that will block the group action when changing
+--echo #    to single primary mode
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 3. Execute action to change group to single primary mode
+
+--replace_result $server2_uuid MEMBER1_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid")
+
+--echo
+--echo # 4. Start a slave connection on server1 to server3. Should fail, action
+--echo #    is ongoing
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: checking group pre-conditions%"
+--source include/wait_condition.inc
+
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
+
+--let $rpl_channel_name='ch3_1'
+
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $show_slave_io_error= 0
+--let $slave_io_error_replace= / at [0-9]*/ at XXX/
+
+--let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $show_slave_sql_error= 0
+--let $slave_sql_error_replace= / at [0-9]*/ at XXX/
+
+START SLAVE FOR CHANNEL 'ch3_1';
+--source include/wait_for_slave_io_error.inc
+--source include/wait_for_slave_sql_error.inc
+
+--let $rpl_channel_name=
+
+--echo
+--echo # 5. Verify occurrence of error message
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: gr_primary_mode_group_operations_16
+--let $assert_count = 1
+--let $assert_select = Can't start slave IO THREAD when group replication is running a group configuration operation
+--let $assert_text = Found the expected error about failure to start slave IO THREAD.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: gr_primary_mode_group_operations_16
+--let $assert_count = 1
+--let $assert_select = Can't start slave SQL THREAD when group replication is running a group configuration operation
+--let $assert_text = Found the expected error about failure to start slave SQL THREAD.
+--source include/assert_grep.inc
+
+--echo
+--echo # 6. Unlock the action
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid MEMBER1_UUID
+--reap
+
+--echo
+--echo # 7. Clean up
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

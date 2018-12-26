@@ -1,0 +1,64 @@
+--character_set sjis
+--disable_warnings
+drop table if exists `ÇsÇP`;
+drop table if exists `ÇsÇQ`;
+drop table if exists `ÇsÇR`;
+drop table if exists `ÇsÇS`;
+drop table if exists `ÇsÇT`;
+drop table if exists `ÇsÇU`;
+drop table if exists `ÇsÇV`;
+drop table if exists `ÇsÇW`;
+drop table if exists `ÇsÇX`;
+--enable_warnings
+
+#
+# Test LPAD() function with Japanese character in sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+CREATE TABLE `ÇsÇP` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇQ` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇR` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇS` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇT` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇU` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ'),('±≤≥¥'),('±≤≥'),('±≤'),('±'),('');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®'),('Ç†Ç¢Ç§Ç¶'),('Ç†Ç¢Ç§'),('Ç†Ç¢'),('Ç†'),('');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\'),('É\è\ï\ó\'),('É\è\ï\'),('É\è\'),('É\'),('');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ'),('±≤≥¥'),('±≤≥'),('±≤'),('±'),('');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®'),('Ç†Ç¢Ç§Ç¶'),('Ç†Ç¢Ç§'),('Ç†Ç¢'),('Ç†'),('');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\'),('É\è\ï\ó\'),('É\è\ï\'),('É\è\'),('É\'),('');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ'),('±≤≥¥'),('±≤≥'),('±≤'),('±'),('');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®'),('Ç†Ç¢Ç§Ç¶'),('Ç†Ç¢Ç§'),('Ç†Ç¢'),('Ç†'),('');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\'),('É\è\ï\ó\'),('É\è\ï\'),('É\è\'),('É\'),('');
+
+#InnoDB
+SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'°') FROM `ÇsÇP`;
+SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'Çw') FROM `ÇsÇQ`;
+SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'ñ\') FROM `ÇsÇR`;
+
+#MyISAM
+SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'°') FROM `ÇsÇS`;
+SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'Çw') FROM `ÇsÇT`;
+SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'ñ\' ) FROM `ÇsÇU`;
+
+#MEMORY
+SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'°') FROM `ÇsÇV`;
+SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'Çw') FROM `ÇsÇW`;
+SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'ñ\' ) FROM `ÇsÇX`;
+
+DROP TABLE `ÇsÇP`;
+DROP TABLE `ÇsÇQ`;
+DROP TABLE `ÇsÇR`;
+DROP TABLE `ÇsÇS`;
+DROP TABLE `ÇsÇT`;
+DROP TABLE `ÇsÇU`;
+DROP TABLE `ÇsÇV`;
+DROP TABLE `ÇsÇW`;
+DROP TABLE `ÇsÇX`;

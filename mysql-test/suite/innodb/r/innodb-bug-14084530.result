@@ -1,0 +1,24 @@
+SET AUTOCOMMIT = 0;
+CREATE DATABASE testdb_wl5522;
+CREATE TABLE testdb_wl5522.t1 (c1 int ) engine = Innodb;
+BEGIN;
+INSERT INTO testdb_wl5522.t1 VALUES (1),(123),(331);
+ROLLBACK;
+SELECT c1 FROM testdb_wl5522.t1;
+c1
+FLUSH TABLES testdb_wl5522.t1 FOR EXPORT;
+backup: t1
+UNLOCK TABLES;
+DROP TABLE testdb_wl5522.t1;
+CREATE TABLE testdb_wl5522.t1 (c1 int ) ENGINE = Innodb;
+ALTER TABLE testdb_wl5522.t1 DISCARD TABLESPACE;
+restore: t1 .ibd and .cfg files
+ALTER TABLE testdb_wl5522.t1 IMPORT TABLESPACE;
+CHECK TABLE testdb_wl5522.t1;
+Table	Op	Msg_type	Msg_text
+testdb_wl5522.t1	check	status	OK
+SELECT c1 FROM testdb_wl5522.t1;
+c1
+SET AUTOCOMMIT = 1;
+DROP TABLE testdb_wl5522.t1;
+DROP DATABASE testdb_wl5522;

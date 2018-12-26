@@ -1,0 +1,1 @@
+# Kill and restart: --innodb-log-files-in-group=2 --innodb-log-file-size=4M --innodb-buffer-pool-size=50M

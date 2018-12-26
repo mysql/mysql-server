@@ -1,0 +1,120 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the Exec_Master_Log_Pos and the Read_Master_Log_Pos match
+# after a statement with an error ignored by the slave.
+#
+# ==== Implementation ====
+#
+# Assert if Exec_Master_Log_Pos is the same as Read_Master_Log_Pos after three
+# different scenarios using transactional and non-transactional tables:
+#   1) DDL
+#   2) DML with autocommit
+#   3) DML inside a transaction
+#
+# ==== References ====
+#
+# BUG#22268777 BINLOGLESS SLAVE DOES NOT UPDATE EXEC_MASTER_LOG_POS
+#              WITH SLAVE_SKIP_ERRORS
+
+--source include/master-slave.inc
+
+CREATE TABLE t1_trans (n INT NOT NULL PRIMARY KEY) ENGINE=INNODB;
+
+CREATE TABLE t1_nontrans (n INT NOT NULL PRIMARY KEY) ENGINE=MYISAM;
+--source include/sync_slave_sql_with_master.inc
+
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
+
+CREATE TABLE t2_trans (a INT) ENGINE=INNODB;
+CREATE TABLE t2_nontrans (a INT) ENGINE=MYISAM;
+INSERT INTO t1_trans VALUES (1);
+INSERT INTO t1_trans VALUES (2);
+INSERT INTO t1_nontrans VALUES (1);
+INSERT INTO t1_nontrans VALUES (2);
+
+--source include/rpl_connection_master.inc
+# error because table already exists in slave
+CREATE TABLE t2_trans (a INT);
+
+# the slave will not apply all master's gtids
+--let $ignore_gtids_on_sync= 1
+--source include/sync_slave_sql_with_master.inc
+
+--let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+
+--let $assert_text= exec_master_log_pos should be equal to read_master_log_pos after CREATE TABLE
+--let $assert_cond= $exec_master_log_pos = $read_master_log_pos
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+# error because table already exists in slave
+CREATE TABLE t2_nontrans (a INT);
+--source include/sync_slave_sql_with_master.inc
+
+--let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+
+--let $assert_text= exec_master_log_pos should be equal to read_master_log_pos after CREATE TABLE
+--let $assert_cond= $exec_master_log_pos = $read_master_log_pos
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+# error because the value already exists in the table in the slave
+INSERT INTO t1_trans VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+
+--let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+
+--let $assert_text= exec_master_log_pos should be equal to read_master_log_pos after INSERT
+--let $assert_cond= $exec_master_log_pos = $read_master_log_pos
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+# error because the value already exists in the table in the slave
+INSERT INTO t1_nontrans VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+
+--let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+
+--let $assert_text= exec_master_log_pos should be equal to read_master_log_pos after INSERT
+--let $assert_cond= $exec_master_log_pos = $read_master_log_pos
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+# error because the value already exists in the table in the slave
+BEGIN;
+INSERT INTO t1_trans VALUES (2);
+COMMIT;
+--source include/sync_slave_sql_with_master.inc
+
+--let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+
+--let $assert_text= exec_master_log_pos should be equal to read_master_log_pos after INSERT inside transaction
+--let $assert_cond= $exec_master_log_pos = $read_master_log_pos
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+# error because the value already exists in the table in the slave
+BEGIN;
+INSERT INTO t1_nontrans VALUES (2);
+COMMIT;
+--source include/sync_slave_sql_with_master.inc
+
+--let $exec_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $read_master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+
+--let $assert_text= exec_master_log_pos should be equal to read_master_log_pos after INSERT inside transaction
+--let $assert_cond= $exec_master_log_pos = $read_master_log_pos
+--source include/assert.inc
+
+# cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1_trans, t2_trans, t1_nontrans, t2_nontrans;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--source include/rpl_end.inc

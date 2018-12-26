@@ -1,0 +1,405 @@
+################################################################################
+# WL#7169 Semisync: make master wait for more than one slave to ack back
+#
+# The worklog added semisync master variable
+# rpl_semi_sync_master_wait_for_slave_count. The variable controls how many acks
+# from different slaves the transaction should wait for.
+#
+# The test verifies rpl_semi_sync_master_wait_for_slave_count works well.
+################################################################################
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+
+--let rpl_topology=1->2, 1->3, 1->4, 1->5
+--source include/rpl_init.inc
+CREATE TABLE t1(c1 INT);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/install_semisync_master.inc
+
+# It is for coverage test to cover the debug code.
+SET GLOBAL rpl_semi_sync_master_trace_level= 255;
+
+--echo ####################################################################
+--echo # Test Case: Wait ack from 1 slave, but no semisync slave is enabled
+--echo ####################################################################
+--source include/save_semisync_yesno_tx.inc
+
+# The statement will timeout, just make a smaller wait time.
+SET GLOBAL rpl_semi_sync_master_timeout=3000;
+INSERT INTO t1 VALUES(1);
+
+--let $semi_sync_no_tx_increment= 1
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo ###################################################################
+--echo # Test Case: Wait ack from 1 slave, and 1 semisync slave is enabled
+--echo ###################################################################
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/install_semisync_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/wait_for_semisync_master_status_on.inc
+--source include/save_semisync_yesno_tx.inc
+
+SET GLOBAL rpl_semi_sync_master_timeout=100000;
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(4);
+
+--let $semi_sync_yes_tx_increment= 2
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo #########################################################################
+--echo # Test Case: Wait ack from 2 slaves, but only 1 semisync slave is enabled
+--echo #########################################################################
+--source include/save_semisync_yesno_tx.inc
+
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 2;
+SET GLOBAL rpl_semi_sync_master_timeout=3000;
+
+INSERT INTO t1 VALUES(10);
+
+--let $semi_sync_no_tx_increment= 1
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo #####################################################################
+--echo # Test Case: Wait ack from 2 slaves, and 2 semisync slave are enabled
+--echo #####################################################################
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--source include/install_semisync_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/wait_for_semisync_master_status_on.inc
+--source include/save_semisync_yesno_tx.inc
+
+SET GLOBAL rpl_semi_sync_master_timeout = 100000;
+INSERT INTO t1 VALUES(102);
+INSERT INTO t1 VALUES(103);
+
+--let $semi_sync_yes_tx_increment= 2
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo ##########################################################################
+--echo # Test Case: Wait ack from 3 slaves, but only 2 semisync slave are enabled
+--echo ##########################################################################
+--source include/save_semisync_yesno_tx.inc
+
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 3;
+SET GLOBAL rpl_semi_sync_master_timeout = 3000;
+INSERT INTO t1 VALUES(100);
+INSERT INTO t1 VALUES(101);
+
+--let $semi_sync_no_tx_increment= 2
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo ######################################################################
+--echo # Test Case: Wait ack from 3 slaves, and 3 semisync slaves are enabled
+--echo ######################################################################
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+--source include/install_semisync_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/wait_for_semisync_master_status_on.inc
+--source include/save_semisync_yesno_tx.inc
+
+SET GLOBAL rpl_semi_sync_master_timeout = 100000;
+INSERT INTO t1 VALUES(102);
+INSERT INTO t1 VALUES(103);
+
+--let $semi_sync_yes_tx_increment= 2
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo ######################################################################
+--echo # Test Case: Verify only the transaction before replied ack position
+--echo #            can stop waiting and go ahead.
+--echo ######################################################################
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+SET @original_debug = @@GLOBAL.debug;
+SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+--source include/save_semisync_yesno_tx.inc
+
+--send INSERT INTO t1 VALUES(104)
+
+# Wait until above INSERT is replicated. It guarantees INSERT (104) is executed
+# before INSERT(105)
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*) FROM t1 WHERE c1 = 104
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--send INSERT INTO t1 VALUES(105)
+
+# Wait until 105 is applied on both server_2 and server_3. It guarantees that
+# master has received acks from both server_2 and server_3.
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*) FROM t1 WHERE c1 = 105
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*) FROM t1 WHERE c1 = 105
+--source include/wait_condition.inc
+
+# Let server_4 send the first ack for INSERT (104)
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+SET DEBUG_SYNC = 'now SIGNAL continue';
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+--reap
+--let $semi_sync_yes_tx_increment= 1
+--source include/assert_semisync_yesno_tx_increment.inc
+--source include/save_semisync_yesno_tx.inc
+
+# Let server_4 send the first ack for INSERT (105)
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+SET DEBUG_SYNC = 'now SIGNAL continue';
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+--let $semi_sync_yes_tx_increment= 1
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo ######################################################################
+--echo # Test Case: Coverage test, it covers the branch that coming ack is
+--echo #            greater than the acked already received.
+--echo ######################################################################
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/save_semisync_yesno_tx.inc
+--send INSERT INTO t1 VALUES(130);
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+# The wait guarantees that it already sends the ack to master
+--let $wait_condition= SELECT count(*) FROM t1 WHERE c1 = 130;
+--source include/wait_condition.inc
+SET @original_debug = @@GLOBAL.debug;
+SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+# The wait guarantees that it already sends the ack to master
+--let $wait_condition= SELECT count(*) FROM t1 WHERE c1 = 130;
+--source include/wait_condition.inc
+SET @original_debug = @@GLOBAL.debug;
+SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+--send INSERT INTO t1 VALUES(131);
+
+--let $rpl_connection_name= server_5
+--source include/rpl_connection.inc
+
+# The wait guarantees that it already sends the ack to master
+--let $wait_condition= SELECT count(*) FROM t1 WHERE c1 = 131;
+--source include/wait_condition.inc
+--source include/install_semisync_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+--let $semi_sync_yes_tx_increment= 1
+--source include/assert_semisync_yesno_tx_increment.inc
+--source include/save_semisync_yesno_tx.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+SET GLOBAL debug = @original_debug;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+SET GLOBAL debug = @original_debug;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+SET GLOBAL debug = @original_debug;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+--reap
+--let $semi_sync_yes_tx_increment= 1
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo ######################################################################
+--echo # Test Case: Verify it can work well when number of semisync slaves
+--echo # is greater than rpl_semi_sync_master_wait_for_slave_count
+--echo ######################################################################
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 2;
+
+--source include/save_semisync_yesno_tx.inc
+INSERT INTO t1 VALUES(106);
+INSERT INTO t1 VALUES(107);
+# It guarantees semisync master get acks from all slaves.
+--source include/rpl_sync.inc
+
+--let $semi_sync_yes_tx_increment= 2
+--source include/assert_semisync_yesno_tx_increment.inc
+
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
+--source include/save_semisync_yesno_tx.inc
+INSERT INTO t1 VALUES(108);
+INSERT INTO t1 VALUES(109);
+--let $semi_sync_yes_tx_increment= 2
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo ######################################################################
+--echo # Test Case: It should still keep the old value and works well when
+--echo # setting rpl_semi_sync_master_wait_for_slave_count fails
+--echo ######################################################################
+SET @original_debug = @@GLOBAL.debug;
+SET GLOBAL debug = 'd,rpl_semisync_simulate_allocate_ack_container_failure';
+
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 2;
+--let $assert_variable_name= rpl_semi_sync_master_wait_for_slave_count
+--let $assert_variable_value= 4
+--source include/assert_variable.inc
+
+--source include/save_semisync_yesno_tx.inc
+INSERT INTO t1 VALUES(110);
+INSERT INTO t1 VALUES(111);
+
+--let $semi_sync_yes_tx_increment= 2
+--source include/assert_semisync_yesno_tx_increment.inc
+
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 5;
+--let $assert_variable_name= rpl_semi_sync_master_wait_for_slave_count
+--let $assert_variable_value= 4
+--source include/assert_variable.inc
+
+--source include/save_semisync_yesno_tx.inc
+INSERT INTO t1 VALUES(112);
+INSERT INTO t1 VALUES(113);
+
+--let $semi_sync_yes_tx_increment= 2
+--source include/assert_semisync_yesno_tx_increment.inc
+
+SET GLOBAL debug = @original_debug;
+
+--echo ########################################################################
+--echo # Test Case: Verify it works well when some semisync slaves shutdown and
+--echo #            rpl_semi_sync_master_wait_for_slave_count is decreased.
+--echo ########################################################################
+# This test requires semisync master is till on, even if it doesn't
+# have enough slaves
+SET GLOBAL rpl_semi_sync_master_wait_no_slave = 1;
+
+# Transactions sould wait a long time, so they can succeed after
+# rpl_semi_sync_master_wait_no_slave is decreased.
+SET GLOBAL rpl_semi_sync_master_timeout = 90000000;
+
+--let $rpl_connection_name= server_5
+--source include/rpl_connection.inc
+--source include/uninstall_semisync_slave.inc
+
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+--source include/uninstall_semisync_slave.inc
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+
+--source include/save_semisync_yesno_tx.inc
+--send INSERT INTO t1 VALUES(201)
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+# It makes sure that master has received two acks
+--source include/rpl_sync.inc
+
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 2;
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+--reap
+
+--let $semi_sync_yes_tx_increment= 1
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--source include/uninstall_semisync_slave.inc
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+--source include/save_semisync_yesno_tx.inc
+
+--send INSERT INTO t1 VALUES(202)
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+# It makes sure that master has received one ack
+--source include/rpl_sync.inc
+
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 1;
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+--reap
+
+--let $semi_sync_yes_tx_increment= 1
+--source include/assert_semisync_yesno_tx_increment.inc
+
+--echo ########################################################################
+--echo # Test Case: Verify semisync master will turn off immediately after a
+--echo #            a semisync slave unregistered and there are no enough
+--echo #            semisync slaves
+--echo ########################################################################
+SET GLOBAL rpl_semi_sync_master_wait_no_slave = 0;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/uninstall_semisync_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/wait_for_semisync_master_status_off.inc
+
+--echo ########################################################################
+--echo # Coverage Test
+--echo ########################################################################
+# Nothing is changed if the new value equals to the original value
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
+
+# Ack array should be cleaned when disabling semisync master
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
+
+# Ack array should be freed when uninstalling semisync master
+--source include/uninstall_semisync_master.inc
+# end
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+CALL mtr.add_suppression(".* Timeout waiting for reply of binlog .*");
+CALL mtr.add_suppression(".* Failed to allocate memory for ack_array .*");
+--source include/rpl_end.inc

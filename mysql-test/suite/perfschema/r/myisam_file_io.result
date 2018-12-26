@@ -1,0 +1,78 @@
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES'
+  where name like "wait/io/file/myisam/%";
+update performance_schema.setup_consumers
+set enabled='YES';
+truncate table performance_schema.events_waits_history_long;
+truncate table performance_schema.events_statements_summary_by_digest;
+flush status;
+drop table if exists test.no_index_tab;
+create table test.no_index_tab ( a varchar(255), b int ) engine=myisam;
+insert into no_index_tab set a = 'foo', b = 1;
+insert into no_index_tab set a = 'foo', b = 1;
+insert into no_index_tab set a = 'foo', b = 1;
+select event_name,
+left(source, locate(":", source)) as short_source,
+operation, number_of_bytes,
+substring(object_name, locate("no_index_tab", object_name)) as short_name
+from performance_schema.events_waits_history_long
+where operation not like "tell"
+  and event_name like "wait/io/file/myisam/%"
+  order by thread_id, event_id;
+event_name	short_source	operation	number_of_bytes	short_name
+wait/io/file/myisam/kfile	mi_create.cc:	create	NULL	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_create.cc:	create	NULL	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_open.cc:	write	176	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	write	100	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	write	7	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	write	7	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	write	7	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_create.cc:	chsize	1024	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_create.cc:	close	NULL	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_create.cc:	close	NULL	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	open	NULL	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	read	24	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	seek	NULL	no_index_tab.MYI
+wait/io/file/myisam/kfile	mi_open.cc:	read	297	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_open.cc:	open	NULL	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_locking.cc:	write	3	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_dynrec.cc:	write	20	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_open.cc:	write	124	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_dynrec.cc:	write	20	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_open.cc:	write	124	no_index_tab.MYI
+wait/io/file/myisam/dfile	mi_dynrec.cc:	write	20	no_index_tab.MYD
+wait/io/file/myisam/kfile	mi_open.cc:	write	124	no_index_tab.MYI
+show global status like 'performance_schema_%_lost';
+Variable_name	Value
+Performance_schema_accounts_lost	0
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_digest_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
+Performance_schema_index_stat_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_memory_classes_lost	0
+Performance_schema_metadata_lock_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_nested_statement_lost	0
+Performance_schema_prepared_statements_lost	0
+Performance_schema_program_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_lost	0
+Performance_schema_socket_classes_lost	0
+Performance_schema_socket_instances_lost	0
+Performance_schema_stage_classes_lost	0
+Performance_schema_statement_classes_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_table_lock_stat_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
+update performance_schema.setup_instruments set enabled='YES';
+drop table test.no_index_tab;

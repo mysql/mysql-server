@@ -1,0 +1,154 @@
+################################################################################
+# WL#7331: Check that member status are properly updated when members join
+# and leave group.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Initially, check no members on the group.
+# 2. Bootstrap start M1. Check one member on the group.
+# 3. Start M2. Check two members on the group.
+# 4. Start M3. Check three members on the group.
+# 5. Stop M1. Check two members on the group.
+# 6. Stop M2. Check one member on the group.
+# 7. Stop M3. Check no members on the group.
+################################################################################
+--source include/big_test.inc
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429500
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo ###########################################################
+--echo # 1. No members on group.
+--connection server1
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server2
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server3
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 2. One member on group.
+--connection server1
+--source include/start_and_bootstrap_group_replication.inc
+
+--connection server1
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server2
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server3
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 3. Two members on group.
+--connection server2
+--source include/start_group_replication.inc
+
+--connection server1
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server2
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server3
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 4. Three members on group.
+--connection server3
+--source include/start_group_replication.inc
+
+--connection server1
+--let $group_replication_number_of_members= 3
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server2
+--let $group_replication_number_of_members= 3
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server3
+--let $group_replication_number_of_members= 3
+--source include/gr_wait_for_number_of_members.inc
+
+--replace_column 2 MEMBER_ID 3 MEMBER_HOST 4 MEMBER_PORT
+SELECT CHANNEL_NAME, MEMBER_ID, MEMBER_HOST, MEMBER_PORT, MEMBER_STATE FROM performance_schema.replication_group_members;
+
+
+--echo
+--echo ###########################################################
+--echo # 5. Two members on group.
+--connection server1
+--source include/stop_group_replication.inc
+
+--connection server1
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server2
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server3
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 6. One member on group.
+--connection server2
+--source include/stop_group_replication.inc
+
+--connection server1
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server2
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server3
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 7. No members on group.
+--connection server3
+--source include/stop_group_replication.inc
+
+--let $group_replication_number_of_members= 0
+--connection server1
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server2
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+--connection server3
+--let $group_replication_number_of_members= 0
+--source include/gr_wait_for_number_of_members.inc
+
+--source include/group_replication_end.inc

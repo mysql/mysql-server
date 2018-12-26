@@ -1,0 +1,22 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (1);
+include/sync_slave_sql_with_master.inc
+CALL mtr.add_suppression('coordinator and worker threads are stopped');
+SET @@GLOBAL.debug="+d,pause_on_queue_event_after_write_buffer";
+[connection master]
+INSERT INTO t1 (c1) VALUES (2);
+[connection slave]
+SET DEBUG_SYNC="now WAIT_FOR receiver_reached_pause_on_queue_event";
+include/assert.inc [Consulting SHOW SLAVE STATUS was successful]
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+SET @@GLOBAL.debug="-d,pause_on_queue_event_after_write_buffer";
+SET DEBUG_SYNC="now SIGNAL receiver_continue_queuing_event";
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

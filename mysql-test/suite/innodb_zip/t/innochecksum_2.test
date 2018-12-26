@@ -1,0 +1,112 @@
+#************************************************************
+# WL6045:Improve Innochecksum
+#************************************************************
+--source include/have_innodb_max_16k.inc
+
+-- source include/big_test.inc
+
+--disable_query_log
+# This warning occurs due to small buffer pool size(i.e. 8MB). It doesn't occur
+# with --mysqld=--innodb_buffer_pool_size=10MB
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Difficult to find free blocks in the buffer pool.*");
+--enable_query_log
+let MYSQLD_BASEDIR= `SELECT @@basedir`;
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+
+SET GLOBAL innodb_compression_level=0;
+SELECT @@innodb_compression_level;
+
+CREATE TABLE t1 (j LONGBLOB) ENGINE = InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+INSERT INTO t1 VALUES (repeat('abcdefghijklmnopqrstuvwxyz',200));
+let $i=10;
+while ($i > 0) {
+  INSERT INTO t1 SELECT * from t1;
+  dec $i;
+}
+
+--echo # stop the server
+--source include/shutdown_mysqld.inc
+
+# Page_type_dump for t1
+--exec $INNOCHECKSUM -v --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/t1.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/dump.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+
+--echo [1]:# check the both short and long options for "help"
+--exec $INNOCHECKSUM --help $MYSQLD_DATADIR/test/t1.ibd > $MYSQLTEST_VARDIR/tmp/help_output_long.txt
+--exec $INNOCHECKSUM -I $MYSQLD_DATADIR/test/t1.ibd > $MYSQLTEST_VARDIR/tmp/help_output_short.txt
+--diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/help_output_short.txt
+
+--echo [2]:# Run the innochecksum when file isn't provided.
+--echo # It will print the innochecksum usage similar to --help option.
+--error 1
+--exec $INNOCHECKSUM > $MYSQLTEST_VARDIR/tmp/usage.txt
+--diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/usage.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/usage.txt
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+my $file= 'help_output_long.txt';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>) {
+ unless ($_=~ /^debug.*$/ || $_=~ /\-#, \-\-debug.*$/ || $_=~ /http:.*html/) {
+    $_=~ s/^\S*innochecksum.+Ver.+[0-9]*\.[0-9]*\.[0-9]*.+$/innochecksum Ver #.#.#/g;
+    $_=~ s/(Copyright\s\(c\))\s([0-9]*),\s([0-9]*)(.*)/$1 YEAR, YEAR $4/g;
+    $_=~ s/Usage:.*\[-c/Usage: innochecksum [-c/g;
+    print OUT_FILE $_;
+ }
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+EOF
+
+--cat_file $MYSQLTEST_VARDIR/tmp/help_output_long.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/help_output_long.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/help_output_short.txt
+
+--echo [3]:# check the both short and long options for "count" and exit
+--replace_regex /[0-9]+/#/
+--exec $INNOCHECKSUM --count $MYSQLD_DATADIR/test/t1.ibd
+--replace_regex /[0-9]+/#/
+--exec $INNOCHECKSUM -c $MYSQLD_DATADIR/test/t1.ibd
+
+--echo [4]:# Print the version of innochecksum and exit
+--replace_regex /.*innochecksum.*Ver.*[0-9]*.[0-9]*.[0-9]*.*/innochecksum Ver #.#.#/
+--exec $INNOCHECKSUM -V $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Restart the DB server
+--source include/start_mysqld.inc
+
+DROP TABLE t1;
+
+--echo [5]:# Check the innochecksum for compressed table t1 with different key_block_size
+--echo # Test for KEY_BLOCK_SIZE=1
+--let $size=1
+--source ../include/innodb-wl6045.inc
+
+--echo # Test for KEY_BLOCK_SIZE=2
+--let $size=2
+--source ../include/innodb-wl6045.inc
+
+--echo # Test for for KEY_BLOCK_SIZE=4
+--let $size=4
+--source ../include/innodb-wl6045.inc
+
+set innodb_strict_mode=off;
+--echo # Test for for KEY_BLOCK_SIZE=8
+--let $size=8
+--source ../include/innodb-wl6045.inc
+
+set innodb_strict_mode=off;
+--echo # Test for KEY_BLOCK_SIZE=16
+--let $size=16
+--source ../include/innodb-wl6045.inc
+--echo # Test[5] completed

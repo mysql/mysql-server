@@ -1,0 +1,196 @@
+CREATE DATABASE privtest_db;
+CREATE TABLE privtest_db.t1 (a INT);
+CREATE TABLE privtest_db.t2 (a INT);
+INSERT INTO privtest_db.t2 VALUES (1), (2), (3);
+CREATE USER 'privtest'@'localhost';
+GRANT SELECT ON privtest_db.t2 TO 'privtest'@'localhost';
+USE privtest_db;
+EXPLAIN INSERT INTO t1 VALUES (10);
+ERROR 42000: INSERT command denied to user 'privtest'@'localhost' for table 't1'
+INSERT INTO t1 VALUES (10);
+ERROR 42000: INSERT command denied to user 'privtest'@'localhost' for table 't1'
+EXPLAIN INSERT INTO t1 SELECT * FROM t2;
+ERROR 42000: INSERT command denied to user 'privtest'@'localhost' for table 't1'
+INSERT INTO t1 SELECT * FROM t2;
+ERROR 42000: INSERT command denied to user 'privtest'@'localhost' for table 't1'
+GRANT INSERT ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN INSERT INTO t1 VALUES (10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `privtest_db`.`t1` values (10)
+INSERT INTO t1 VALUES (10);
+EXPLAIN INSERT INTO t1 SELECT * FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	insert into `privtest_db`.`t1` /* select#1 */ select `privtest_db`.`t2`.`a` AS `a` from `privtest_db`.`t2`
+INSERT INTO t1 SELECT * FROM t2;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+EXPLAIN REPLACE INTO t1 VALUES (10);
+ERROR 42000: INSERT, DELETE command denied to user 'privtest'@'localhost' for table 't1'
+REPLACE INTO t1 VALUES (10);
+ERROR 42000: INSERT, DELETE command denied to user 'privtest'@'localhost' for table 't1'
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
+ERROR 42000: INSERT, DELETE command denied to user 'privtest'@'localhost' for table 't1'
+REPLACE INTO t1 SELECT * FROM t2;
+ERROR 42000: INSERT, DELETE command denied to user 'privtest'@'localhost' for table 't1'
+GRANT INSERT ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN REPLACE INTO t1 VALUES (10);
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+REPLACE INTO t1 VALUES (10);
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+REPLACE INTO t1 SELECT * FROM t2;
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+REVOKE INSERT ON privtest_db.t1 FROM 'privtest'@'localhost';
+GRANT DELETE ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN REPLACE INTO t1 VALUES (10);
+ERROR 42000: INSERT command denied to user 'privtest'@'localhost' for table 't1'
+REPLACE INTO t1 VALUES (10);
+ERROR 42000: INSERT command denied to user 'privtest'@'localhost' for table 't1'
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
+ERROR 42000: INSERT command denied to user 'privtest'@'localhost' for table 't1'
+REPLACE INTO t1 SELECT * FROM t2;
+ERROR 42000: INSERT command denied to user 'privtest'@'localhost' for table 't1'
+GRANT INSERT, DELETE ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN REPLACE INTO t1 VALUES (10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `privtest_db`.`t1` values (10)
+REPLACE INTO t1 VALUES (10);
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	replace into `privtest_db`.`t1` /* select#1 */ select `privtest_db`.`t2`.`a` AS `a` from `privtest_db`.`t2`
+REPLACE INTO t1 SELECT * FROM t2;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+EXPLAIN UPDATE t1 SET a = a + 1;
+ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for table 't1'
+UPDATE t1 SET a = a + 1;
+ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for table 't1'
+EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for table 't1'
+UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for table 't1'
+GRANT UPDATE ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN UPDATE t1 SET a = a + 1;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
+UPDATE t1 SET a = a + 1;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
+EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
+UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
+REVOKE UPDATE ON privtest_db.t1 FROM 'privtest'@'localhost';
+GRANT SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN UPDATE t1 SET a = a + 1;
+ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for table 't1'
+UPDATE t1 SET a = a + 1;
+ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for table 't1'
+EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
+UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
+GRANT UPDATE, SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN UPDATE t1 SET a = a + 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	NULL
+Warnings:
+Note	1003	update `privtest_db`.`t1` set `privtest_db`.`t1`.`a` = (`privtest_db`.`t1`.`a` + 1)
+UPDATE t1 SET a = a + 1;
+EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	x	NULL
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where
+Warnings:
+Note	1003	update `privtest_db`.`t1` join `privtest_db`.`t2` set `privtest_db`.`t1`.`a` = (`privtest_db`.`t1`.`a` + 1) where (`privtest_db`.`t1`.`a` = `privtest_db`.`t2`.`a`)
+UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+EXPLAIN DELETE FROM t1 WHERE a = 10;
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+DELETE FROM t1 WHERE a = 10;
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for table 't1'
+DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for table 't1'
+GRANT DELETE ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN DELETE FROM t1 WHERE a = 10;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
+DELETE FROM t1 WHERE a = 10;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
+EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for table 't1'
+DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+ERROR 42000: SELECT command denied to user 'privtest'@'localhost' for table 't1'
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+GRANT SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN DELETE FROM t1 WHERE a = 10;
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+DELETE FROM t1 WHERE a = 10;
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+ERROR 42000: DELETE command denied to user 'privtest'@'localhost' for table 't1'
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+GRANT DELETE, SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
+EXPLAIN DELETE FROM t1 WHERE a = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where
+Warnings:
+Note	1003	delete from `privtest_db`.`t1` where (`privtest_db`.`t1`.`a` = 10)
+DELETE FROM t1 WHERE a = 10;
+EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	x	NULL
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where
+Warnings:
+Note	1003	delete `privtest_db`.`t1` from `privtest_db`.`t1` join `privtest_db`.`t2` where (`privtest_db`.`t1`.`a` = `privtest_db`.`t2`.`a`)
+DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
+REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
+CREATE VIEW privtest_db.v1 (a) AS SELECT a FROM privtest_db.t1;
+GRANT SELECT, INSERT, UPDATE, DELETE ON privtest_db.v1 TO 'privtest'@'localhost';
+EXPLAIN SELECT * FROM v1;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+SELECT * FROM v1;
+a
+11
+4
+4
+11
+4
+4
+EXPLAIN INSERT INTO v1 VALUES (10);
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+INSERT INTO v1 VALUES (10);
+EXPLAIN INSERT INTO v1 SELECT * FROM t2;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+INSERT INTO v1 SELECT * FROM t2;
+EXPLAIN REPLACE  INTO v1 VALUES (10);
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+REPLACE  INTO v1 VALUES (10);
+EXPLAIN REPLACE INTO v1 SELECT * FROM t2;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+REPLACE INTO v1 SELECT * FROM t2;
+EXPLAIN UPDATE v1 SET a = a + 1;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+UPDATE v1 SET a = a + 1;
+EXPLAIN UPDATE v1, t2 SET v1.a = v1.a + 1 WHERE v1.a = t2.a;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+UPDATE v1, t2 SET v1.a = v1.a + 1 WHERE v1.a = t2.a;
+EXPLAIN DELETE FROM v1 WHERE a = 10;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+DELETE FROM v1 WHERE a = 10;
+EXPLAIN DELETE FROM v1 USING v1, t2 WHERE v1.a = t2.a;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+DELETE FROM v1 USING v1, t2 WHERE v1.a = t2.a;
+DROP USER 'privtest'@localhost;
+USE test;
+DROP DATABASE privtest_db;

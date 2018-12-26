@@ -1,0 +1,39 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a member in a way that his version is higher than member 2
+#
+server1
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# Try to add a new member that has a lower version than member 1
+#
+server2
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group");
+SET session sql_log_bin=1;
+SET GLOBAL group_replication_group_name= "6f6932e0-03d9-11e5-b939-0800200c9a66";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+#
+# Check all is fine when both have the same version
+#
+server1
+SET @@GLOBAL.DEBUG= @debug_save;
+include/stop_group_replication.inc
+include/start_and_bootstrap_group_replication.inc
+server2
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 1 elements]
+#
+# Clean up
+#
+DROP TABLE t1;
+include/group_replication_end.inc

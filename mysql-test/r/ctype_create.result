@@ -1,0 +1,78 @@
+SET @@character_set_server=latin5;
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET cp1251;
+USE mysqltest1;
+CREATE DATABASE mysqltest2;
+SHOW CREATE DATABASE mysqltest1;
+Database	Create Database
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET cp1251 */
+SHOW CREATE DATABASE mysqltest2;
+Database	Create Database
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin5 */
+CREATE TABLE mysqltest2.t1 (a char(10));
+SHOW CREATE TABLE mysqltest2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin5
+DROP TABLE mysqltest2.t1;
+ALTER DATABASE mysqltest2 DEFAULT CHARACTER SET latin7;
+CREATE TABLE mysqltest2.t1 (a char(10));
+SHOW CREATE TABLE mysqltest2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin7
+DROP DATABASE mysqltest2;
+CREATE DATABASE mysqltest2 CHARACTER SET latin2;
+CREATE TABLE mysqltest2.t1 (a char(10));
+SHOW CREATE TABLE mysqltest2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin2
+DROP DATABASE mysqltest2;
+USE mysqltest1;
+CREATE TABLE t1 (a char(10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=cp1251
+DROP TABLE t1;
+CREATE TABLE t1 (a char(10)) DEFAULT CHARACTER SET latin1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE t1 (a char(10)) 
+DEFAULT CHARACTER SET latin1 COLLATE latin1_german1_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) COLLATE latin1_german1_ci DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+DROP TABLE t1;
+create table t1 (a char) character set latin1 character set latin2;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET latin1' and 'CHARACTER SET latin2'
+create table t1 (a char) character set latin1 collate latin2_bin;
+ERROR 42000: COLLATION 'latin2_bin' is not valid for CHARACTER SET 'latin1'
+create database d1 default character set latin1 character set latin2;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET latin1' and 'CHARACTER SET latin2'
+create database d1 default character set latin1 collate latin2_bin;
+ERROR 42000: COLLATION 'latin2_bin' is not valid for CHARACTER SET 'latin1'
+DROP DATABASE mysqltest1;
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET latin7;
+use mysqltest2;
+ALTER DATABASE DEFAULT CHARACTER SET latin2;
+show create database mysqltest2;
+Database	Create Database
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */
+drop database mysqltest2;
+ALTER DATABASE DEFAULT CHARACTER SET latin2;
+ERROR 3D000: No database selected
+ALTER DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa DEFAULT CHARACTER SET latin2;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+ALTER DATABASE `` DEFAULT CHARACTER SET latin2;
+ERROR 42000: Incorrect database name ''

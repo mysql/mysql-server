@@ -1,0 +1,747 @@
+drop table if exists t1_30237_bool;
+create table t1_30237_bool(A boolean, B boolean, C boolean);
+insert into t1_30237_bool values
+(FALSE, FALSE, FALSE),
+(FALSE, FALSE, NULL),
+(FALSE, FALSE, TRUE),
+(FALSE, NULL, FALSE),
+(FALSE, NULL, NULL),
+(FALSE, NULL, TRUE),
+(FALSE, TRUE, FALSE),
+(FALSE, TRUE, NULL),
+(FALSE, TRUE, TRUE),
+(NULL, FALSE, FALSE),
+(NULL, FALSE, NULL),
+(NULL, FALSE, TRUE),
+(NULL, NULL, FALSE),
+(NULL, NULL, NULL),
+(NULL, NULL, TRUE),
+(NULL, TRUE, FALSE),
+(NULL, TRUE, NULL),
+(NULL, TRUE, TRUE),
+(TRUE, FALSE, FALSE),
+(TRUE, FALSE, NULL),
+(TRUE, FALSE, TRUE),
+(TRUE, NULL, FALSE),
+(TRUE, NULL, NULL),
+(TRUE, NULL, TRUE),
+(TRUE, TRUE, FALSE),
+(TRUE, TRUE, NULL),
+(TRUE, TRUE, TRUE) ;
+Testing OR, XOR, AND
+select A, B, A OR B, A XOR B, A AND B
+from t1_30237_bool where C is null order by A, B;
+A	B	A OR B	A XOR B	A AND B
+NULL	NULL	NULL	NULL	NULL
+NULL	0	NULL	NULL	0
+NULL	1	1	NULL	NULL
+0	NULL	NULL	NULL	0
+0	0	0	0	0
+0	1	1	1	0
+1	NULL	1	NULL	NULL
+1	0	1	1	0
+1	1	1	0	1
+Testing that OR is associative 
+select A, B, C, (A OR B) OR C, A OR (B OR C), A OR B OR C
+from t1_30237_bool order by A, B, C;
+A	B	C	(A OR B) OR C	A OR (B OR C)	A OR B OR C
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	0	NULL	NULL	NULL
+NULL	NULL	1	1	1	1
+NULL	0	NULL	NULL	NULL	NULL
+NULL	0	0	NULL	NULL	NULL
+NULL	0	1	1	1	1
+NULL	1	NULL	1	1	1
+NULL	1	0	1	1	1
+NULL	1	1	1	1	1
+0	NULL	NULL	NULL	NULL	NULL
+0	NULL	0	NULL	NULL	NULL
+0	NULL	1	1	1	1
+0	0	NULL	NULL	NULL	NULL
+0	0	0	0	0	0
+0	0	1	1	1	1
+0	1	NULL	1	1	1
+0	1	0	1	1	1
+0	1	1	1	1	1
+1	NULL	NULL	1	1	1
+1	NULL	0	1	1	1
+1	NULL	1	1	1	1
+1	0	NULL	1	1	1
+1	0	0	1	1	1
+1	0	1	1	1	1
+1	1	NULL	1	1	1
+1	1	0	1	1	1
+1	1	1	1	1	1
+select count(*) from t1_30237_bool
+where ((A OR B) OR C) != (A OR (B OR C));
+count(*)
+0
+Testing that XOR is associative 
+select A, B, C, (A XOR B) XOR C, A XOR (B XOR C), A XOR B XOR C
+from t1_30237_bool order by A, B, C;
+A	B	C	(A XOR B) XOR C	A XOR (B XOR C)	A XOR B XOR C
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	0	NULL	NULL	NULL
+NULL	NULL	1	NULL	NULL	NULL
+NULL	0	NULL	NULL	NULL	NULL
+NULL	0	0	NULL	NULL	NULL
+NULL	0	1	NULL	NULL	NULL
+NULL	1	NULL	NULL	NULL	NULL
+NULL	1	0	NULL	NULL	NULL
+NULL	1	1	NULL	NULL	NULL
+0	NULL	NULL	NULL	NULL	NULL
+0	NULL	0	NULL	NULL	NULL
+0	NULL	1	NULL	NULL	NULL
+0	0	NULL	NULL	NULL	NULL
+0	0	0	0	0	0
+0	0	1	1	1	1
+0	1	NULL	NULL	NULL	NULL
+0	1	0	1	1	1
+0	1	1	0	0	0
+1	NULL	NULL	NULL	NULL	NULL
+1	NULL	0	NULL	NULL	NULL
+1	NULL	1	NULL	NULL	NULL
+1	0	NULL	NULL	NULL	NULL
+1	0	0	1	1	1
+1	0	1	0	0	0
+1	1	NULL	NULL	NULL	NULL
+1	1	0	0	0	0
+1	1	1	1	1	1
+select count(*) from t1_30237_bool
+where ((A XOR B) XOR C) != (A XOR (B XOR C));
+count(*)
+0
+Testing that AND is associative 
+select A, B, C, (A AND B) AND C, A AND (B AND C), A AND B AND C
+from t1_30237_bool order by A, B, C;
+A	B	C	(A AND B) AND C	A AND (B AND C)	A AND B AND C
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	0	0	0	0
+NULL	NULL	1	NULL	NULL	NULL
+NULL	0	NULL	0	0	0
+NULL	0	0	0	0	0
+NULL	0	1	0	0	0
+NULL	1	NULL	NULL	NULL	NULL
+NULL	1	0	0	0	0
+NULL	1	1	NULL	NULL	NULL
+0	NULL	NULL	0	0	0
+0	NULL	0	0	0	0
+0	NULL	1	0	0	0
+0	0	NULL	0	0	0
+0	0	0	0	0	0
+0	0	1	0	0	0
+0	1	NULL	0	0	0
+0	1	0	0	0	0
+0	1	1	0	0	0
+1	NULL	NULL	NULL	NULL	NULL
+1	NULL	0	0	0	0
+1	NULL	1	NULL	NULL	NULL
+1	0	NULL	0	0	0
+1	0	0	0	0	0
+1	0	1	0	0	0
+1	1	NULL	NULL	NULL	NULL
+1	1	0	0	0	0
+1	1	1	1	1	1
+select count(*) from t1_30237_bool
+where ((A AND B) AND C) != (A AND (B AND C));
+count(*)
+0
+Testing that AND has precedence over OR
+select A, B, C, (A OR B) AND C, A OR (B AND C), A OR B AND C
+from t1_30237_bool order by A, B, C;
+A	B	C	(A OR B) AND C	A OR (B AND C)	A OR B AND C
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	0	0	NULL	NULL
+NULL	NULL	1	NULL	NULL	NULL
+NULL	0	NULL	NULL	NULL	NULL
+NULL	0	0	0	NULL	NULL
+NULL	0	1	NULL	NULL	NULL
+NULL	1	NULL	NULL	NULL	NULL
+NULL	1	0	0	NULL	NULL
+NULL	1	1	1	1	1
+0	NULL	NULL	NULL	NULL	NULL
+0	NULL	0	0	0	0
+0	NULL	1	NULL	NULL	NULL
+0	0	NULL	0	0	0
+0	0	0	0	0	0
+0	0	1	0	0	0
+0	1	NULL	NULL	NULL	NULL
+0	1	0	0	0	0
+0	1	1	1	1	1
+1	NULL	NULL	NULL	1	1
+1	NULL	0	0	1	1
+1	NULL	1	1	1	1
+1	0	NULL	NULL	1	1
+1	0	0	0	1	1
+1	0	1	1	1	1
+1	1	NULL	NULL	1	1
+1	1	0	0	1	1
+1	1	1	1	1	1
+select count(*) from t1_30237_bool
+where (A OR (B AND C)) != (A OR B AND C);
+count(*)
+0
+select A, B, C, (A AND B) OR C, A AND (B OR C), A AND B OR C
+from t1_30237_bool order by A, B, C;
+A	B	C	(A AND B) OR C	A AND (B OR C)	A AND B OR C
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	0	NULL	NULL	NULL
+NULL	NULL	1	1	NULL	1
+NULL	0	NULL	NULL	NULL	NULL
+NULL	0	0	0	0	0
+NULL	0	1	1	NULL	1
+NULL	1	NULL	NULL	NULL	NULL
+NULL	1	0	NULL	NULL	NULL
+NULL	1	1	1	NULL	1
+0	NULL	NULL	NULL	0	NULL
+0	NULL	0	0	0	0
+0	NULL	1	1	0	1
+0	0	NULL	NULL	0	NULL
+0	0	0	0	0	0
+0	0	1	1	0	1
+0	1	NULL	NULL	0	NULL
+0	1	0	0	0	0
+0	1	1	1	0	1
+1	NULL	NULL	NULL	NULL	NULL
+1	NULL	0	NULL	NULL	NULL
+1	NULL	1	1	1	1
+1	0	NULL	NULL	NULL	NULL
+1	0	0	0	0	0
+1	0	1	1	1	1
+1	1	NULL	1	1	1
+1	1	0	1	1	1
+1	1	1	1	1	1
+select count(*) from t1_30237_bool
+where ((A AND B) OR C) != (A AND B OR C);
+count(*)
+0
+Testing that AND has precedence over XOR
+select A, B, C, (A XOR B) AND C, A XOR (B AND C), A XOR B AND C
+from t1_30237_bool order by A, B, C;
+A	B	C	(A XOR B) AND C	A XOR (B AND C)	A XOR B AND C
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	0	0	NULL	NULL
+NULL	NULL	1	NULL	NULL	NULL
+NULL	0	NULL	NULL	NULL	NULL
+NULL	0	0	0	NULL	NULL
+NULL	0	1	NULL	NULL	NULL
+NULL	1	NULL	NULL	NULL	NULL
+NULL	1	0	0	NULL	NULL
+NULL	1	1	NULL	NULL	NULL
+0	NULL	NULL	NULL	NULL	NULL
+0	NULL	0	0	0	0
+0	NULL	1	NULL	NULL	NULL
+0	0	NULL	0	0	0
+0	0	0	0	0	0
+0	0	1	0	0	0
+0	1	NULL	NULL	NULL	NULL
+0	1	0	0	0	0
+0	1	1	1	1	1
+1	NULL	NULL	NULL	NULL	NULL
+1	NULL	0	0	1	1
+1	NULL	1	NULL	NULL	NULL
+1	0	NULL	NULL	1	1
+1	0	0	0	1	1
+1	0	1	1	1	1
+1	1	NULL	0	NULL	NULL
+1	1	0	0	1	1
+1	1	1	0	0	0
+select count(*) from t1_30237_bool
+where (A XOR (B AND C)) != (A XOR B AND C);
+count(*)
+0
+select A, B, C, (A AND B) XOR C, A AND (B XOR C), A AND B XOR C
+from t1_30237_bool order by A, B, C;
+A	B	C	(A AND B) XOR C	A AND (B XOR C)	A AND B XOR C
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	0	NULL	NULL	NULL
+NULL	NULL	1	NULL	NULL	NULL
+NULL	0	NULL	NULL	NULL	NULL
+NULL	0	0	0	0	0
+NULL	0	1	1	NULL	1
+NULL	1	NULL	NULL	NULL	NULL
+NULL	1	0	NULL	NULL	NULL
+NULL	1	1	NULL	0	NULL
+0	NULL	NULL	NULL	0	NULL
+0	NULL	0	0	0	0
+0	NULL	1	1	0	1
+0	0	NULL	NULL	0	NULL
+0	0	0	0	0	0
+0	0	1	1	0	1
+0	1	NULL	NULL	0	NULL
+0	1	0	0	0	0
+0	1	1	1	0	1
+1	NULL	NULL	NULL	NULL	NULL
+1	NULL	0	NULL	NULL	NULL
+1	NULL	1	NULL	NULL	NULL
+1	0	NULL	NULL	NULL	NULL
+1	0	0	0	0	0
+1	0	1	1	1	1
+1	1	NULL	NULL	NULL	NULL
+1	1	0	1	1	1
+1	1	1	0	0	0
+select count(*) from t1_30237_bool
+where ((A AND B) XOR C) != (A AND B XOR C);
+count(*)
+0
+Testing that XOR has precedence over OR
+select A, B, C, (A XOR B) OR C, A XOR (B OR C), A XOR B OR C
+from t1_30237_bool order by A, B, C;
+A	B	C	(A XOR B) OR C	A XOR (B OR C)	A XOR B OR C
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	0	NULL	NULL	NULL
+NULL	NULL	1	1	NULL	1
+NULL	0	NULL	NULL	NULL	NULL
+NULL	0	0	NULL	NULL	NULL
+NULL	0	1	1	NULL	1
+NULL	1	NULL	NULL	NULL	NULL
+NULL	1	0	NULL	NULL	NULL
+NULL	1	1	1	NULL	1
+0	NULL	NULL	NULL	NULL	NULL
+0	NULL	0	NULL	NULL	NULL
+0	NULL	1	1	1	1
+0	0	NULL	NULL	NULL	NULL
+0	0	0	0	0	0
+0	0	1	1	1	1
+0	1	NULL	1	1	1
+0	1	0	1	1	1
+0	1	1	1	1	1
+1	NULL	NULL	NULL	NULL	NULL
+1	NULL	0	NULL	NULL	NULL
+1	NULL	1	1	0	1
+1	0	NULL	1	NULL	1
+1	0	0	1	1	1
+1	0	1	1	0	1
+1	1	NULL	NULL	0	NULL
+1	1	0	0	0	0
+1	1	1	1	0	1
+select count(*) from t1_30237_bool
+where ((A XOR B) OR C) != (A XOR B OR C);
+count(*)
+0
+select A, B, C, (A OR B) XOR C, A OR (B XOR C), A OR B XOR C
+from t1_30237_bool order by A, B, C;
+A	B	C	(A OR B) XOR C	A OR (B XOR C)	A OR B XOR C
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	0	NULL	NULL	NULL
+NULL	NULL	1	NULL	NULL	NULL
+NULL	0	NULL	NULL	NULL	NULL
+NULL	0	0	NULL	NULL	NULL
+NULL	0	1	NULL	1	1
+NULL	1	NULL	NULL	NULL	NULL
+NULL	1	0	1	1	1
+NULL	1	1	0	NULL	NULL
+0	NULL	NULL	NULL	NULL	NULL
+0	NULL	0	NULL	NULL	NULL
+0	NULL	1	NULL	NULL	NULL
+0	0	NULL	NULL	NULL	NULL
+0	0	0	0	0	0
+0	0	1	1	1	1
+0	1	NULL	NULL	NULL	NULL
+0	1	0	1	1	1
+0	1	1	0	0	0
+1	NULL	NULL	NULL	1	1
+1	NULL	0	1	1	1
+1	NULL	1	0	1	1
+1	0	NULL	NULL	1	1
+1	0	0	1	1	1
+1	0	1	0	1	1
+1	1	NULL	NULL	1	1
+1	1	0	1	1	1
+1	1	1	0	1	1
+select count(*) from t1_30237_bool
+where (A OR (B XOR C)) != (A OR B XOR C);
+count(*)
+0
+drop table t1_30237_bool;
+Testing that NOT has precedence over OR
+select (NOT FALSE) OR TRUE, NOT (FALSE OR TRUE), NOT FALSE OR TRUE;
+(NOT FALSE) OR TRUE	NOT (FALSE OR TRUE)	NOT FALSE OR TRUE
+1	0	1
+Testing that NOT has precedence over XOR
+select (NOT FALSE) XOR FALSE, NOT (FALSE XOR FALSE), NOT FALSE XOR FALSE;
+(NOT FALSE) XOR FALSE	NOT (FALSE XOR FALSE)	NOT FALSE XOR FALSE
+1	1	1
+Testing that NOT has precedence over AND
+select (NOT FALSE) AND FALSE, NOT (FALSE AND FALSE), NOT FALSE AND FALSE;
+(NOT FALSE) AND FALSE	NOT (FALSE AND FALSE)	NOT FALSE AND FALSE
+0	1	0
+Testing that NOT is associative
+select NOT NOT TRUE, NOT NOT NOT FALSE;
+NOT NOT TRUE	NOT NOT NOT FALSE
+1	1
+Testing that IS has precedence over NOT
+select (NOT NULL) IS TRUE, NOT (NULL IS TRUE), NOT NULL IS TRUE;
+(NOT NULL) IS TRUE	NOT (NULL IS TRUE)	NOT NULL IS TRUE
+0	1	1
+select (NOT NULL) IS NOT TRUE, NOT (NULL IS NOT TRUE), NOT NULL IS NOT TRUE;
+(NOT NULL) IS NOT TRUE	NOT (NULL IS NOT TRUE)	NOT NULL IS NOT TRUE
+1	0	0
+select (NOT NULL) IS FALSE, NOT (NULL IS FALSE), NOT NULL IS FALSE;
+(NOT NULL) IS FALSE	NOT (NULL IS FALSE)	NOT NULL IS FALSE
+0	1	1
+select (NOT NULL) IS NOT FALSE, NOT (NULL IS NOT FALSE), NOT NULL IS NOT FALSE;
+(NOT NULL) IS NOT FALSE	NOT (NULL IS NOT FALSE)	NOT NULL IS NOT FALSE
+1	0	0
+select (NOT TRUE) IS UNKNOWN, NOT (TRUE IS UNKNOWN), NOT TRUE IS UNKNOWN;
+(NOT TRUE) IS UNKNOWN	NOT (TRUE IS UNKNOWN)	NOT TRUE IS UNKNOWN
+0	1	1
+select (NOT TRUE) IS NOT UNKNOWN, NOT (TRUE IS NOT UNKNOWN), NOT TRUE IS NOT UNKNOWN;
+(NOT TRUE) IS NOT UNKNOWN	NOT (TRUE IS NOT UNKNOWN)	NOT TRUE IS NOT UNKNOWN
+1	0	0
+select (NOT TRUE) IS NULL, NOT (TRUE IS NULL), NOT TRUE IS NULL;
+(NOT TRUE) IS NULL	NOT (TRUE IS NULL)	NOT TRUE IS NULL
+0	1	1
+select (NOT TRUE) IS NOT NULL, NOT (TRUE IS NOT NULL), NOT TRUE IS NOT NULL;
+(NOT TRUE) IS NOT NULL	NOT (TRUE IS NOT NULL)	NOT TRUE IS NOT NULL
+1	0	0
+Testing that IS [NOT] TRUE/FALSE/UNKNOWN predicates are not associative
+select TRUE IS TRUE IS TRUE IS TRUE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS TRUE IS TRUE' at line 1
+select FALSE IS NOT TRUE IS NOT TRUE IS NOT TRUE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS NOT TRUE IS NOT TRUE' at line 1
+select NULL IS FALSE IS FALSE IS FALSE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS FALSE IS FALSE' at line 1
+select TRUE IS NOT FALSE IS NOT FALSE IS NOT FALSE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS NOT FALSE IS NOT FALSE' at line 1
+select FALSE IS UNKNOWN IS UNKNOWN IS UNKNOWN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS UNKNOWN IS UNKNOWN' at line 1
+select TRUE IS NOT UNKNOWN IS NOT UNKNOWN IS NOT UNKNOWN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS NOT UNKNOWN IS NOT UNKNOWN' at line 1
+Testing that IS [NOT] NULL predicates are associative
+select FALSE IS NULL IS NULL IS NULL;
+FALSE IS NULL IS NULL IS NULL
+0
+select TRUE IS NOT NULL IS NOT NULL IS NOT NULL;
+TRUE IS NOT NULL IS NOT NULL IS NOT NULL
+1
+Testing that comparison operators are left associative
+select 1 <=> 2 <=> 2, (1 <=> 2) <=> 2, 1 <=> (2 <=> 2);
+1 <=> 2 <=> 2	(1 <=> 2) <=> 2	1 <=> (2 <=> 2)
+0	0	1
+select 1 = 2 = 2, (1 = 2) = 2, 1 = (2 = 2);
+1 = 2 = 2	(1 = 2) = 2	1 = (2 = 2)
+0	0	1
+select 1 != 2 != 3, (1 != 2) != 3, 1 != (2 != 3);
+1 != 2 != 3	(1 != 2) != 3	1 != (2 != 3)
+1	1	0
+select 1 <> 2 <> 3, (1 <> 2) <> 3, 1 <> (2 <> 3);
+1 <> 2 <> 3	(1 <> 2) <> 3	1 <> (2 <> 3)
+1	1	0
+select 1 < 2 < 3, (1 < 2) < 3, 1 < (2 < 3);
+1 < 2 < 3	(1 < 2) < 3	1 < (2 < 3)
+1	1	0
+select 3 <= 2 <= 1, (3 <= 2) <= 1, 3 <= (2 <= 1);
+3 <= 2 <= 1	(3 <= 2) <= 1	3 <= (2 <= 1)
+1	1	0
+select 1 > 2 > 3, (1 > 2) > 3, 1 > (2 > 3);
+1 > 2 > 3	(1 > 2) > 3	1 > (2 > 3)
+0	0	1
+select 1 >= 2 >= 3, (1 >= 2) >= 3, 1 >= (2 >= 3);
+1 >= 2 >= 3	(1 >= 2) >= 3	1 >= (2 >= 3)
+0	0	1
+Testing that | is associative
+select 0xF0 | 0x0F | 0x55, (0xF0 | 0x0F) | 0x55, 0xF0 | (0x0F | 0x55);
+0xF0 | 0x0F | 0x55	(0xF0 | 0x0F) | 0x55	0xF0 | (0x0F | 0x55)
+255	255	255
+Testing that & is associative
+select 0xF5 & 0x5F & 0x55, (0xF5 & 0x5F) & 0x55, 0xF5 & (0x5F & 0x55);
+0xF5 & 0x5F & 0x55	(0xF5 & 0x5F) & 0x55	0xF5 & (0x5F & 0x55)
+85	85	85
+Testing that << is left associative
+select 4 << 3 << 2, (4 << 3) << 2, 4 << (3 << 2);
+4 << 3 << 2	(4 << 3) << 2	4 << (3 << 2)
+128	128	16384
+Testing that >> is left associative
+select 256 >> 3 >> 2, (256 >> 3) >> 2, 256 >> (3 >> 2);
+256 >> 3 >> 2	(256 >> 3) >> 2	256 >> (3 >> 2)
+8	8	256
+Testing that & has precedence over |
+select 0xF0 & 0x0F | 0x55, (0xF0 & 0x0F) | 0x55, 0xF0 & (0x0F | 0x55);
+0xF0 & 0x0F | 0x55	(0xF0 & 0x0F) | 0x55	0xF0 & (0x0F | 0x55)
+85	85	80
+select 0x55 | 0xF0 & 0x0F, (0x55 | 0xF0) & 0x0F, 0x55 | (0xF0 & 0x0F);
+0x55 | 0xF0 & 0x0F	(0x55 | 0xF0) & 0x0F	0x55 | (0xF0 & 0x0F)
+85	5	85
+Testing that << has precedence over |
+select 0x0F << 4 | 0x0F, (0x0F << 4) | 0x0F, 0x0F << (4 | 0x0F);
+0x0F << 4 | 0x0F	(0x0F << 4) | 0x0F	0x0F << (4 | 0x0F)
+255	255	491520
+select 0x0F | 0x0F << 4, (0x0F | 0x0F) << 4, 0x0F | (0x0F << 4);
+0x0F | 0x0F << 4	(0x0F | 0x0F) << 4	0x0F | (0x0F << 4)
+255	240	255
+Testing that >> has precedence over |
+select 0xF0 >> 4 | 0xFF, (0xF0 >> 4) | 0xFF, 0xF0 >> (4 | 0xFF);
+0xF0 >> 4 | 0xFF	(0xF0 >> 4) | 0xFF	0xF0 >> (4 | 0xFF)
+255	255	0
+select 0xFF | 0xF0 >> 4, (0xFF | 0xF0) >> 4, 0xFF | (0xF0 >> 4);
+0xFF | 0xF0 >> 4	(0xFF | 0xF0) >> 4	0xFF | (0xF0 >> 4)
+255	15	255
+Testing that << has precedence over &
+select 0x0F << 4 & 0xF0, (0x0F << 4) & 0xF0, 0x0F << (4 & 0xF0);
+0x0F << 4 & 0xF0	(0x0F << 4) & 0xF0	0x0F << (4 & 0xF0)
+240	240	15
+select 0xF0 & 0x0F << 4, (0xF0 & 0x0F) << 4, 0xF0 & (0x0F << 4);
+0xF0 & 0x0F << 4	(0xF0 & 0x0F) << 4	0xF0 & (0x0F << 4)
+240	0	240
+Testing that >> has precedence over &
+select 0xF0 >> 4 & 0x55, (0xF0 >> 4) & 0x55, 0xF0 >> (4 & 0x55);
+0xF0 >> 4 & 0x55	(0xF0 >> 4) & 0x55	0xF0 >> (4 & 0x55)
+5	5	15
+select 0x0F & 0xF0 >> 4, (0x0F & 0xF0) >> 4, 0x0F & (0xF0 >> 4);
+0x0F & 0xF0 >> 4	(0x0F & 0xF0) >> 4	0x0F & (0xF0 >> 4)
+15	0	15
+Testing that >> and << have the same precedence
+select 0xFF >> 4 << 2, (0xFF >> 4) << 2, 0xFF >> (4 << 2);
+0xFF >> 4 << 2	(0xFF >> 4) << 2	0xFF >> (4 << 2)
+60	60	0
+select 0x0F << 4 >> 2, (0x0F << 4) >> 2, 0x0F << (4 >> 2);
+0x0F << 4 >> 2	(0x0F << 4) >> 2	0x0F << (4 >> 2)
+60	60	30
+Testing that binary + is associative
+select 1 + 2 + 3, (1 + 2) + 3, 1 + (2 + 3);
+1 + 2 + 3	(1 + 2) + 3	1 + (2 + 3)
+6	6	6
+Testing that binary - is left associative
+select 1 - 2 - 3, (1 - 2) - 3, 1 - (2 - 3);
+1 - 2 - 3	(1 - 2) - 3	1 - (2 - 3)
+-4	-4	2
+Testing that binary + and binary - have the same precedence
+select 1 + 2 - 3, (1 + 2) - 3, 1 + (2 - 3);
+1 + 2 - 3	(1 + 2) - 3	1 + (2 - 3)
+0	0	0
+select 1 - 2 + 3, (1 - 2) + 3, 1 - (2 + 3);
+1 - 2 + 3	(1 - 2) + 3	1 - (2 + 3)
+2	2	-4
+Testing that binary + has precedence over |
+select 0xF0 + 0x0F | 0x55, (0xF0 + 0x0F) | 0x55, 0xF0 + (0x0F | 0x55);
+0xF0 + 0x0F | 0x55	(0xF0 + 0x0F) | 0x55	0xF0 + (0x0F | 0x55)
+255	255	335
+select 0x55 | 0xF0 + 0x0F, (0x55 | 0xF0) + 0x0F, 0x55 | (0xF0 + 0x0F);
+0x55 | 0xF0 + 0x0F	(0x55 | 0xF0) + 0x0F	0x55 | (0xF0 + 0x0F)
+255	260	255
+Testing that binary + has precedence over &
+select 0xF0 + 0x0F & 0x55, (0xF0 + 0x0F) & 0x55, 0xF0 + (0x0F & 0x55);
+0xF0 + 0x0F & 0x55	(0xF0 + 0x0F) & 0x55	0xF0 + (0x0F & 0x55)
+85	85	245
+select 0x55 & 0xF0 + 0x0F, (0x55 & 0xF0) + 0x0F, 0x55 & (0xF0 + 0x0F);
+0x55 & 0xF0 + 0x0F	(0x55 & 0xF0) + 0x0F	0x55 & (0xF0 + 0x0F)
+85	95	85
+Testing that binary + has precedence over <<
+select 2 + 3 << 4, (2 + 3) << 4, 2 + (3 << 4);
+2 + 3 << 4	(2 + 3) << 4	2 + (3 << 4)
+80	80	50
+select 3 << 4 + 2, (3 << 4) + 2, 3 << (4 + 2);
+3 << 4 + 2	(3 << 4) + 2	3 << (4 + 2)
+192	50	192
+Testing that binary + has precedence over >>
+select 4 + 3 >> 2, (4 + 3) >> 2, 4 + (3 >> 2);
+4 + 3 >> 2	(4 + 3) >> 2	4 + (3 >> 2)
+1	1	4
+select 3 >> 2 + 1, (3 >> 2) + 1, 3 >> (2 + 1);
+3 >> 2 + 1	(3 >> 2) + 1	3 >> (2 + 1)
+0	1	0
+Testing that binary - has precedence over |
+select 0xFF - 0x0F | 0x55, (0xFF - 0x0F) | 0x55, 0xFF - (0x0F | 0x55);
+0xFF - 0x0F | 0x55	(0xFF - 0x0F) | 0x55	0xFF - (0x0F | 0x55)
+245	245	160
+select 0x55 | 0xFF - 0xF0, (0x55 | 0xFF) - 0xF0, 0x55 | (0xFF - 0xF0);
+0x55 | 0xFF - 0xF0	(0x55 | 0xFF) - 0xF0	0x55 | (0xFF - 0xF0)
+95	15	95
+Testing that binary - has precedence over &
+select 0xFF - 0xF0 & 0x55, (0xFF - 0xF0) & 0x55, 0xFF - (0xF0 & 0x55);
+0xFF - 0xF0 & 0x55	(0xFF - 0xF0) & 0x55	0xFF - (0xF0 & 0x55)
+5	5	175
+select 0x55 & 0xFF - 0x49, (0x55 & 0xFF) - 0x49, 0x55 & (0xFF - 0x49);
+0x55 & 0xFF - 0x49	(0x55 & 0xFF) - 0x49	0x55 & (0xFF - 0x49)
+20	12	20
+Testing that binary - has precedence over <<
+select 16 - 3 << 2, (16 - 3) << 2, 16 - (3 << 2);
+16 - 3 << 2	(16 - 3) << 2	16 - (3 << 2)
+52	52	4
+select 4 << 3 - 2, (4 << 3) - 2, 4 << (3 - 2);
+4 << 3 - 2	(4 << 3) - 2	4 << (3 - 2)
+8	30	8
+Testing that binary - has precedence over >>
+select 16 - 3 >> 2, (16 - 3) >> 2, 16 - (3 >> 2);
+16 - 3 >> 2	(16 - 3) >> 2	16 - (3 >> 2)
+3	3	16
+select 16 >> 3 - 2, (16 >> 3) - 2, 16 >> (3 - 2);
+16 >> 3 - 2	(16 >> 3) - 2	16 >> (3 - 2)
+8	0	8
+Testing that * is associative
+select 2 * 3 * 4, (2 * 3) * 4, 2 * (3 * 4);
+2 * 3 * 4	(2 * 3) * 4	2 * (3 * 4)
+24	24	24
+Testing that * has precedence over |
+select 2 * 0x40 | 0x0F, (2 * 0x40) | 0x0F, 2 * (0x40 | 0x0F);
+2 * 0x40 | 0x0F	(2 * 0x40) | 0x0F	2 * (0x40 | 0x0F)
+143	143	158
+select 0x0F | 2 * 0x40, (0x0F | 2) * 0x40, 0x0F | (2 * 0x40);
+0x0F | 2 * 0x40	(0x0F | 2) * 0x40	0x0F | (2 * 0x40)
+143	960	143
+Testing that * has precedence over &
+select 2 * 0x40 & 0x55, (2 * 0x40) & 0x55, 2 * (0x40 & 0x55);
+2 * 0x40 & 0x55	(2 * 0x40) & 0x55	2 * (0x40 & 0x55)
+0	0	128
+select 0xF0 & 2 * 0x40, (0xF0 & 2) * 0x40, 0xF0 & (2 * 0x40);
+0xF0 & 2 * 0x40	(0xF0 & 2) * 0x40	0xF0 & (2 * 0x40)
+128	0	128
+Testing that * has precedence over << 
+select 5 * 3 << 4, (5 * 3) << 4, 5 * (3 << 4);
+5 * 3 << 4	(5 * 3) << 4	5 * (3 << 4)
+240	240	240
+select 2 << 3 * 4, (2 << 3) * 4, 2 << (3 * 4);
+2 << 3 * 4	(2 << 3) * 4	2 << (3 * 4)
+8192	64	8192
+Testing that * has precedence over >>
+select 3 * 4 >> 2, (3 * 4) >> 2, 3 * (4 >> 2);
+3 * 4 >> 2	(3 * 4) >> 2	3 * (4 >> 2)
+3	3	3
+select 4 >> 2 * 3, (4 >> 2) * 3, 4 >> (2 * 3);
+4 >> 2 * 3	(4 >> 2) * 3	4 >> (2 * 3)
+0	3	0
+Testing that * has precedence over binary +
+select 2 * 3 + 4, (2 * 3) + 4, 2 * (3 + 4);
+2 * 3 + 4	(2 * 3) + 4	2 * (3 + 4)
+10	10	14
+select 2 + 3 * 4, (2 + 3) * 4, 2 + (3 * 4);
+2 + 3 * 4	(2 + 3) * 4	2 + (3 * 4)
+14	20	14
+Testing that * has precedence over binary -
+select 4 * 3 - 2, (4 * 3) - 2, 4 * (3 - 2);
+4 * 3 - 2	(4 * 3) - 2	4 * (3 - 2)
+10	10	4
+select 4 - 3 * 2, (4 - 3) * 2, 4 - (3 * 2);
+4 - 3 * 2	(4 - 3) * 2	4 - (3 * 2)
+-2	2	-2
+Testing that / is left associative
+select 15 / 5 / 3, (15 / 5) / 3, 15 / (5 / 3);
+15 / 5 / 3	(15 / 5) / 3	15 / (5 / 3)
+1.00000000	1.00000000	9.0000
+Testing that / has precedence over |
+select 105 / 5 | 2, (105 / 5) | 2, 105 / (5 | 2);
+105 / 5 | 2	(105 / 5) | 2	105 / (5 | 2)
+23	23	15.0000
+select 105 | 2 / 5, (105 | 2) / 5, 105 | (2 / 5);
+105 | 2 / 5	(105 | 2) / 5	105 | (2 / 5)
+105	21.4000	105
+Testing that / has precedence over &
+select 105 / 5 & 0x0F, (105 / 5) & 0x0F, 105 / (5 & 0x0F);
+105 / 5 & 0x0F	(105 / 5) & 0x0F	105 / (5 & 0x0F)
+5	5	21.0000
+select 0x0F & 105 / 5, (0x0F & 105) / 5, 0x0F & (105 / 5);
+0x0F & 105 / 5	(0x0F & 105) / 5	0x0F & (105 / 5)
+5	1.8000	5
+Testing that / has precedence over << 
+select 0x80 / 4 << 2, (0x80 / 4) << 2, 0x80 / (4 << 2);
+0x80 / 4 << 2	(0x80 / 4) << 2	0x80 / (4 << 2)
+128	128	8.0000
+select 0x80 << 4 / 2, (0x80 << 4) / 2, 0x80 << (4 / 2);
+0x80 << 4 / 2	(0x80 << 4) / 2	0x80 << (4 / 2)
+512	1024.0000	512
+Testing that / has precedence over >>
+select 0x80 / 4 >> 2, (0x80 / 4) >> 2, 0x80 / (4 >> 2);
+0x80 / 4 >> 2	(0x80 / 4) >> 2	0x80 / (4 >> 2)
+8	8	128.0000
+select 0x80 >> 4 / 2, (0x80 >> 4) / 2, 0x80 >> (4 / 2);
+0x80 >> 4 / 2	(0x80 >> 4) / 2	0x80 >> (4 / 2)
+32	4.0000	32
+Testing that / has precedence over binary +
+select 0x80 / 2 + 2, (0x80 / 2) + 2, 0x80 / (2 + 2);
+0x80 / 2 + 2	(0x80 / 2) + 2	0x80 / (2 + 2)
+66.0000	66.0000	32.0000
+select 0x80 + 2 / 2, (0x80 + 2) / 2, 0x80 + (2 / 2);
+0x80 + 2 / 2	(0x80 + 2) / 2	0x80 + (2 / 2)
+129.0000	65.0000	129.0000
+Testing that / has precedence over binary -
+select 0x80 / 4 - 2, (0x80 / 4) - 2, 0x80 / (4 - 2);
+0x80 / 4 - 2	(0x80 / 4) - 2	0x80 / (4 - 2)
+30.0000	30.0000	64.0000
+select 0x80 - 4 / 2, (0x80 - 4) / 2, 0x80 - (4 / 2);
+0x80 - 4 / 2	(0x80 - 4) / 2	0x80 - (4 / 2)
+126.0000	62.0000	126.0000
+Testing that ^ is associative
+select 0xFF ^ 0xF0 ^ 0x0F, (0xFF ^ 0xF0) ^ 0x0F, 0xFF ^ (0xF0 ^ 0x0F);
+0xFF ^ 0xF0 ^ 0x0F	(0xFF ^ 0xF0) ^ 0x0F	0xFF ^ (0xF0 ^ 0x0F)
+0	0	0
+select 0xFF ^ 0xF0 ^ 0x55, (0xFF ^ 0xF0) ^ 0x55, 0xFF ^ (0xF0 ^ 0x55);
+0xFF ^ 0xF0 ^ 0x55	(0xFF ^ 0xF0) ^ 0x55	0xFF ^ (0xF0 ^ 0x55)
+90	90	90
+Testing that ^ has precedence over |
+select 0xFF ^ 0xF0 | 0x0F, (0xFF ^ 0xF0) | 0x0F, 0xFF ^ (0xF0 | 0x0F);
+0xFF ^ 0xF0 | 0x0F	(0xFF ^ 0xF0) | 0x0F	0xFF ^ (0xF0 | 0x0F)
+15	15	0
+select 0xF0 | 0xFF ^ 0xF0, (0xF0 | 0xFF) ^ 0xF0, 0xF0 | (0xFF ^ 0xF0);
+0xF0 | 0xFF ^ 0xF0	(0xF0 | 0xFF) ^ 0xF0	0xF0 | (0xFF ^ 0xF0)
+255	15	255
+Testing that ^ has precedence over &
+select 0xFF ^ 0xF0 & 0x0F, (0xFF ^ 0xF0) & 0x0F, 0xFF ^ (0xF0 & 0x0F);
+0xFF ^ 0xF0 & 0x0F	(0xFF ^ 0xF0) & 0x0F	0xFF ^ (0xF0 & 0x0F)
+15	15	255
+select 0x0F & 0xFF ^ 0xF0, (0x0F & 0xFF) ^ 0xF0, 0x0F & (0xFF ^ 0xF0);
+0x0F & 0xFF ^ 0xF0	(0x0F & 0xFF) ^ 0xF0	0x0F & (0xFF ^ 0xF0)
+15	255	15
+Testing that ^ has precedence over <<
+select 0xFF ^ 0xF0 << 2, (0xFF ^ 0xF0) << 2, 0xFF ^ (0xF0 << 2);
+0xFF ^ 0xF0 << 2	(0xFF ^ 0xF0) << 2	0xFF ^ (0xF0 << 2)
+60	60	831
+select 0x0F << 2 ^ 0xFF, (0x0F << 2) ^ 0xFF, 0x0F << (2 ^ 0xFF);
+0x0F << 2 ^ 0xFF	(0x0F << 2) ^ 0xFF	0x0F << (2 ^ 0xFF)
+0	195	0
+Testing that ^ has precedence over >>
+select 0xFF ^ 0xF0 >> 2, (0xFF ^ 0xF0) >> 2, 0xFF ^ (0xF0 >> 2);
+0xFF ^ 0xF0 >> 2	(0xFF ^ 0xF0) >> 2	0xFF ^ (0xF0 >> 2)
+3	3	195
+select 0xFF >> 2 ^ 0xF0, (0xFF >> 2) ^ 0xF0, 0xFF >> (2 ^ 0xF0);
+0xFF >> 2 ^ 0xF0	(0xFF >> 2) ^ 0xF0	0xFF >> (2 ^ 0xF0)
+0	207	0
+Testing that ^ has precedence over binary +
+select 0xFF ^ 0xF0 + 0x0F, (0xFF ^ 0xF0) + 0x0F, 0xFF ^ (0xF0 + 0x0F);
+0xFF ^ 0xF0 + 0x0F	(0xFF ^ 0xF0) + 0x0F	0xFF ^ (0xF0 + 0x0F)
+30	30	0
+select 0x0F + 0xFF ^ 0xF0, (0x0F + 0xFF) ^ 0xF0, 0x0F + (0xFF ^ 0xF0);
+0x0F + 0xFF ^ 0xF0	(0x0F + 0xFF) ^ 0xF0	0x0F + (0xFF ^ 0xF0)
+30	510	30
+Testing that ^ has precedence over binary -
+select 0xFF ^ 0xF0 - 1, (0xFF ^ 0xF0) - 1, 0xFF ^ (0xF0 - 1);
+0xFF ^ 0xF0 - 1	(0xFF ^ 0xF0) - 1	0xFF ^ (0xF0 - 1)
+14	14	16
+select 0x65 - 0x0F ^ 0x55, (0x65 - 0x0F) ^ 0x55, 0x65 - (0x0F ^ 0x55);
+0x65 - 0x0F ^ 0x55	(0x65 - 0x0F) ^ 0x55	0x65 - (0x0F ^ 0x55)
+11	3	11
+Testing that ^ has precedence over *
+select 0xFF ^ 0xF0 * 2, (0xFF ^ 0xF0) * 2, 0xFF ^ (0xF0 * 2);
+0xFF ^ 0xF0 * 2	(0xFF ^ 0xF0) * 2	0xFF ^ (0xF0 * 2)
+30	30	287
+select 2 * 0xFF ^ 0xF0, (2 * 0xFF) ^ 0xF0, 2 * (0xFF ^ 0xF0);
+2 * 0xFF ^ 0xF0	(2 * 0xFF) ^ 0xF0	2 * (0xFF ^ 0xF0)
+30	270	30
+Testing that ^ has precedence over /
+select 0xFF ^ 0xF0 / 2, (0xFF ^ 0xF0) / 2, 0xFF ^ (0xF0 / 2);
+0xFF ^ 0xF0 / 2	(0xFF ^ 0xF0) / 2	0xFF ^ (0xF0 / 2)
+7.5000	7.5000	135
+select 0xF2 / 2 ^ 0xF0, (0xF2 / 2) ^ 0xF0, 0xF2 / (2 ^ 0xF0);
+0xF2 / 2 ^ 0xF0	(0xF2 / 2) ^ 0xF0	0xF2 / (2 ^ 0xF0)
+1.0000	137	1.0000
+Testing that ^ has precedence over %
+select 0xFF ^ 0xF0 % 0x20, (0xFF ^ 0xF0) % 0x20, 0xFF ^ (0xF0 % 0x20);
+0xFF ^ 0xF0 % 0x20	(0xFF ^ 0xF0) % 0x20	0xFF ^ (0xF0 % 0x20)
+15	15	239
+select 0xFF % 0x20 ^ 0xF0, (0xFF % 0x20) ^ 0xF0, 0xFF % (0x20 ^ 0xF0);
+0xFF % 0x20 ^ 0xF0	(0xFF % 0x20) ^ 0xF0	0xFF % (0x20 ^ 0xF0)
+47	239	47
+Testing that ^ has precedence over DIV
+select 0xFF ^ 0xF0 DIV 2, (0xFF ^ 0xF0) DIV 2, 0xFF ^ (0xF0 DIV 2);
+0xFF ^ 0xF0 DIV 2	(0xFF ^ 0xF0) DIV 2	0xFF ^ (0xF0 DIV 2)
+7	7	135
+select 0xF2 DIV 2 ^ 0xF0, (0xF2 DIV 2) ^ 0xF0, 0xF2 DIV (2 ^ 0xF0);
+0xF2 DIV 2 ^ 0xF0	(0xF2 DIV 2) ^ 0xF0	0xF2 DIV (2 ^ 0xF0)
+1	137	1
+Testing that ^ has precedence over MOD
+select 0xFF ^ 0xF0 MOD 0x20, (0xFF ^ 0xF0) MOD 0x20, 0xFF ^ (0xF0 MOD 0x20);
+0xFF ^ 0xF0 MOD 0x20	(0xFF ^ 0xF0) MOD 0x20	0xFF ^ (0xF0 MOD 0x20)
+15	15	239
+select 0xFF MOD 0x20 ^ 0xF0, (0xFF MOD 0x20) ^ 0xF0, 0xFF MOD (0x20 ^ 0xF0);
+0xFF MOD 0x20 ^ 0xF0	(0xFF MOD 0x20) ^ 0xF0	0xFF MOD (0x20 ^ 0xF0)
+47	239	47

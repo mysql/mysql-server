@@ -1,0 +1,36 @@
+# Begin clean up test section
+--disable_warnings
+connection master;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE IF EXISTS test.t1;
+--enable_warnings
+
+# Section 1 test 
+
+CREATE TABLE test.t1 (a INT, blob_column LONGBLOB, PRIMARY KEY(a));
+INSERT INTO test.t1  VALUES(1,'test');
+UPDATE test.t1 SET blob_column=LOAD_FILE('../../std_data/words2.dat') WHERE a=1;
+delimiter |;
+create procedure test.p1()
+begin
+  INSERT INTO test.t1  VALUES(2,'test');
+  UPDATE test.t1 SET blob_column=LOAD_FILE('../../std_data/words2.dat') WHERE a=2;
+end|
+delimiter ;|
+
+CALL test.p1();
+SELECT * FROM test.t1 ORDER BY blob_column;
+save_master_pos;
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+# Need to allow some time when NDB engine is used for
+# the injector thread to have time to populate binlog
+let $wait_condition= SELECT INSTR(blob_column,'aberration') > 0 FROM test.t1 WHERE a = 2;
+--source include/wait_condition_or_abort.inc
+SELECT * FROM test.t1 ORDER BY blob_column;
+
+# Cleanup
+connection master;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE test.t1;
+--source include/sync_slave_sql_with_master.inc

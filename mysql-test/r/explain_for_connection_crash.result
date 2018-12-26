@@ -1,0 +1,31 @@
+"WL6369 Explain for Connection"
+QUERY: SELECT group_concat(c order by (select c from t2 where t2.a=t1.a limit 1)) as grp from t1 
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -39,2 +39,3 @@
+             "filtered": "25.00",
++            "using_where": true,
+             "cost_info": {
+@@ -48,4 +49,3 @@
+               "c"
+-            ],
+-            "attached_condition": "(`test`.`t2`.`a` = `test`.`t1`.`a`)"
++            ]
+           }
+QUERY: SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY (SELECT a FROM t2 WHERE b = 12) 
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -79,2 +79,3 @@
+               "filtered": "50.00",
++              "using_where": true,
+               "cost_info": {
+@@ -87,4 +88,3 @@
+                 "b"
+-              ],
+-              "attached_condition": "(`test`.`t2`.`b` = 12)"
++              ]
+             }
+QUERY: SELECT SQL_CALC_FOUND_ROWS 'foo' UNION SELECT 'bar' LIMIT 0 
+STATUS: EQUAL

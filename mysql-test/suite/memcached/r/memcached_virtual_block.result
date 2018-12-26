@@ -1,0 +1,39 @@
+SET @transaction_isolation= @@global.transaction_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+"c1", "c2", "0" ,"0", "0", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(
+c1 VARCHAR(30) PRIMARY KEY,
+c2 INT,
+c3 INT GENERATED ALWAYS AS (c2 + c2) VIRTUAL
+) ENGINE=INNODB;
+INSERT INTO t1(c1, c2) VALUES("Wayne", 1);
+INSERT INTO t1(c1, c2) VALUES("Stark", 2);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+show variables like 'daemon_memcached_option';
+Variable_name	Value
+daemon_memcached_option	-m128 -p11295
+SELECT c1,c2 FROM t1;
+c1	c2
+Stark	2
+Wayne	1
+NO_RESULT
+SELECT c1,c2 FROM t1;
+c1	c2
+Stark	2
+Wayne	1
+Set Mycroft|3:
+Error: Mycroft|3 cannot be inserted.
+SELECT c1,c2 FROM t1;
+c1	c2
+Stark	2
+Wayne	1
+drop table t1;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+SET @@global.transaction_isolation= @transaction_isolation;

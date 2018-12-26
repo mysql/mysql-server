@@ -1,0 +1,49 @@
+#############################################################
+#  Bug#23533: CREATE SELECT max_binlog_cache_size test 
+#  case needed
+#############################################################
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+SET AUTOCOMMIT=0;
+
+# Create 1st table
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b TEXT, PRIMARY KEY(a)) ENGINE=InnoDB;
+--disable_query_log
+let $i= 1000;
+while ($i)
+{
+  BEGIN;
+  eval INSERT INTO t1 VALUES($i, REPEAT('x', 4096));
+  COMMIT;
+  dec $i;
+}
+--enable_query_log
+SELECT COUNT(*) FROM t1;
+
+# Set small value for max_binlog_cache_size
+let $saved_binlog_cache_size= query_get_value(SELECT @@binlog_cache_size AS Value, Value, 1);
+let $saved_max_binlog_cache_size= query_get_value(SELECT @@max_binlog_cache_size AS Value, Value, 1);
+SET GLOBAL binlog_cache_size=4096;
+SET GLOBAL max_binlog_cache_size=4096;
+
+# New value of max_binlog_cache_size will apply to new session
+disconnect default;
+connect(default,localhost,root,,test);
+
+# Copied data from t1 into t2 large than max_binlog_cache_size
+START TRANSACTION;
+--error ER_TRANS_CACHE_FULL
+CREATE TABLE t2 SELECT * FROM t1;
+COMMIT;
+SHOW TABLES LIKE 't%';
+
+# 5.1 End of Test
+--disable_query_log
+eval SET GLOBAL max_binlog_cache_size=$saved_max_binlog_cache_size;
+eval SET GLOBAL binlog_cache_size=$saved_binlog_cache_size;
+--enable_query_log
+DROP TABLE t1;
+disconnect default;
+connect(default,localhost,root,,test);

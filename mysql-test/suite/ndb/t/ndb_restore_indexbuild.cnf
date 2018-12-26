@@ -1,0 +1,18 @@
+!include suite/ndb/my.cnf
+
+[cluster_config.1]
+#DataMemory=300M
+#IndexMemory=30M
+NoOfFragmentLogFiles=16
+BuildIndexThreads=8
+TwoPassInitialNodeRestartCopy=1
+
+# Bindings including io, no idxbuild
+ThreadConfig=main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},recv={cpubind=0},rep={cpubind=0},io={cpubind=3}
+
+# IdxBuild specifically included
+#ThreadConfig=main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},recv={cpubind=0},rep={cpubind=0},io={cpubind=3},idxbld={cpuset=2,3}
+
+# No io binding
+#ThreadConfig=main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},recv={cpubind=0},rep={cpubind=0}
+

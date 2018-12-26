@@ -1,0 +1,52 @@
+include/rpl_init.inc [topology=1->2,1->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_connect.inc [creating master]
+include/rpl_connect.inc [creating slave_1]
+include/rpl_connect.inc [creating slave_2]
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 0.1;
+include/start_slave.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
+include/start_slave.inc
+Slave has received heartbeat event
+include/assert.inc [slave_1 should have received more heartbeats than slave_2]
+
+include/rpl_stop_slaves.inc
+include/rpl_change_topology.inc [new topology=1->3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_start_slaves.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+include/start_slave.inc
+slave_1 has received heartbeat event
+[on master]
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10), c LONGTEXT);
+INSERT INTO t1 VALUES (1, 'on master', '');
+SHOW TABLES;
+Tables_in_test
+t1
+[on slave_2]
+include/sync_slave_sql_with_master.inc
+SHOW TABLES;
+Tables_in_test
+t1
+[on slave_1]
+include/sync_slave_sql_with_master.inc
+SHOW TABLES;
+Tables_in_test
+[on master]
+creating updates on master and send to slave_2 during 5 second
+[on slave_1]
+include/assert.inc [slave_1 should have received heartbeats]
+
+*** Clean up ***
+DROP TABLE t1;
+include/rpl_end.inc

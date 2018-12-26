@@ -1,0 +1,102 @@
+-- source include/have_ndb.inc
+
+# Valgrinding and debugging slows the mysqld down and thus making it
+# impossible to fill the redo log of ndbd(s) -> skip test
+--source include/not_valgrind.inc
+--source include/have_nodebug.inc
+
+use test;
+create table t1 (a varchar(1024)) engine=ndb max_rows=100000000;
+insert into t1 values (repeat('I', 1024));
+
+# ~2kB : 1 row
+insert into t1 select * from t1;
+
+# ~64kB : 64 rows
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+# ~1M : 1024 rows
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+#~8M : 8192 rows
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+# Cache 8192 rows in temporary table in order
+# to avoid scan during insert
+create temporary table t1_8192(a varchar(1024));
+insert into t1_8192 select * from t1 limit 8192;
+
+# ~32M 
+--error 0,1297
+insert into t1 select * from t1_8192;
+--error 0,1297
+insert into t1 select * from t1_8192;
+--error 0,1297
+insert into t1 select * from t1_8192;
+
+--echo Continuing insert/delete until redo is full
+
+--disable_query_log
+--disable_result_log
+let $mysql_errno= 0;
+let $counter= 100;
+while (!$mysql_errno)
+{
+  --error 0,1297
+  insert into t1 select * from t1_8192;
+
+  if (!$mysql_errno)
+  {
+    if (!$counter)
+    {
+      die Failed waiting for redo log full;
+    }
+    dec $counter;
+
+    # Delete the inserted rows to avoid table full
+    # and of course creating even more REDO log
+    --error 0,1297
+    delete from t1 limit 8192;
+  }
+}
+--enable_query_log
+--enable_result_log
+
+--echo Redo log full, waiting for redo log having space...
+
+--disable_query_log
+--disable_result_log
+
+let $mysql_errno= 1;
+let $counter= 600;
+while ($mysql_errno)
+{
+  --error 0,1297
+  insert into t1 select * from t1_8192;
+
+  if ($mysql_errno)
+  {
+    if (!$counter)
+    {
+      die Failed waiting for redo log having space;
+    }
+    dec $counter;
+    --sleep 0.1
+  }
+}
+--enable_query_log
+--enable_result_log
+
+--echo Redo had space again.
+  
+drop table t1;
+drop table t1_8192;

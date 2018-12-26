@@ -1,0 +1,281 @@
+call mtr.add_suppression("Can't set mandatory_role.*");
+SHOW VARIABLES LIKE 'mandatory_roles';
+Variable_name	Value
+mandatory_roles	PUBLIC
+CREATE ROLE PUBLIC;
+CREATE DATABASE test2;
+GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP ON test2.* TO PUBLIC@`%`;
+SHOW GRANTS FOR PUBLIC;
+Grants for PUBLIC@%
+GRANT USAGE ON *.* TO `PUBLIC`@`%`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `test2`.* TO `PUBLIC`@`%`
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+SET DEFAULT ROLE PUBLIC TO u1@localhost;
+SHOW GRANTS FOR u1@localhost USING PUBLIC;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `test2`.* TO `u1`@`localhost`
+# Current default role should be the mandatory role PUBLIC
+SELECT current_role();
+current_role()
+`PUBLIC`@`%`
+# SHOW GRANTS should show the granted roles
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `test2`.* TO `u1`@`localhost`
+GRANT `PUBLIC`@`%` TO `u1`@`localhost`
+use test2;
+CREATE TABLE t1 (c1 INT);
+SET ROLE PUBLIC;
+DROP TABLE t1;
+# Make sure we're actually checking for privileges
+CREATE DATABASE test3;
+ERROR 42000: Access denied for user 'u1'@'localhost' to database 'test3'
+CREATE ROLE team_share;
+SET GLOBAL mandatory_roles='PUBLIC@%,team_share';
+# restart
+# Restarting the server will reset the mandatory_roles variable
+SHOW VARIABLES LIKE 'mandatory_roles';
+Variable_name	Value
+mandatory_roles	PUBLIC
+SET global mandatory_roles='PUBLIC@%,team_share';
+# Active role is still PUBLIC; this is determined by default role
+# settings.
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`PUBLIC`@`%`
+# But u1 is also granted team_share
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `test2`.* TO `u1`@`localhost`
+GRANT `PUBLIC`@`%`,`team_share`@`%` TO `u1`@`localhost`
+use test2;
+CREATE TABLE t1 (c1 INT);
+SET ROLE PUBLIC;
+DROP TABLE t1;
+REVOKE PUBLIC FROM u1@localhost;
+ERROR HY000: The role `PUBLIC`@`%` is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles.
+DROP ROLE PUBLIC;
+ERROR HY000: The role `PUBLIC`@`%` is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles.
+DROP USER u1@localhost;
+SET GLOBAL mandatory_roles= '';
+DROP ROLE team_share;
+DROP DATABASE test2;
+SET GLOBAL mandatory_roles= 'PUBLIC';
+#
+# Tests for activate_all_roles_on_login
+#
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+GRANT r1 TO u1@localhost;
+GRANT SELECT ON *.* TO r1;
+SET GLOBAL activate_all_roles_on_login= 'ON';
+# Active role are PUBLIC, r1
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`PUBLIC`@`%`,`r1`@`%`
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `test2`.* TO `u1`@`localhost`
+GRANT `PUBLIC`@`%`,`r1`@`%` TO `u1`@`localhost`
+CREATE ROLE r2,r3,r4,r5;
+GRANT r2,r3,r4,r5 TO u1@localhost;
+# Grants for u1@localhost should include PUBLIC.
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`PUBLIC`@`%`,`r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%`
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `test2`.* TO `u1`@`localhost`
+GRANT `PUBLIC`@`%`,`r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+SET ROLE NONE;
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT `PUBLIC`@`%`,`r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+# SHOW GRANTS FOR won't show mandatory roles (PUBLIC in this case)
+# because we need to avoid breaking the mysqlpump protocol which rely
+# on SHOW GRANTS FOR to dump user privileges.
+SHOW GRANTS FOR u1@localhost;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+SHOW GRANTS FOR u1@localhost USING `PUBLIC`@`%`,`r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%`;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP ON `test2`.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+SET GLOBAL mandatory_roles= '';
+DROP ROLE PUBLIC;
+SET GLOBAL mandatory_roles= 'PUBLIC';
+SET GLOBAL activate_all_roles_on_login= 'OFF';
+REVOKE ALL ON *.* from r1,r2;
+GRANT SELECT ON *.* TO r1;
+GRANT INSERT ON *.* TO r2;
+GRANT r2 TO u1@localhost;
+SET GLOBAL mandatory_roles='r1';
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1@localhost USING r1;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+SHOW GRANTS FOR u1@localhost USING r2;
+Grants for u1@localhost
+GRANT INSERT ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+SHOW GRANTS FOR u1@localhost USING r1,r2;
+Grants for u1@localhost
+GRANT SELECT, INSERT ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+# We need to disconnect here to be sure that the u1 session has correct
+# values for activate_all_roles_on_login and mandatory_roles.
+# Current role should be None because ther are no activate roles per
+# default even though r1 is granted as a mandatory role.
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+NONE
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+SET ROLE r1;
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+SET ROLE r2;
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT INSERT ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+SET ROLE r1,r2;
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT, INSERT ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+SET ROLE ALL;
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT, INSERT ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%` TO `u1`@`localhost`
+#
+# Reparse the mandatory role after each CREATE/DROP USER/ROLE
+#
+CREATE USER u2@localhost IDENTIFIED BY 'foo';
+SET GLOBAL mandatory_roles="rr1";
+FLUSH PRIVILEGES;
+DROP ROLE rr1;
+ERROR HY000: Operation DROP ROLE failed for 'rr1'@'%'
+# Creating the role will cause mandatory_roles to be reparsed
+CREATE ROLE rr1;
+GRANT SELECT ON test.* TO rr1;
+SET GLOBAL activate_all_roles_on_login = 'ON';
+SELECT CURRENT_USER();
+CURRENT_USER()
+u2@localhost
+# SHOW GRANTS should show that rr1 is granted and effective privileges
+# should contain SELECT ON test.*
+SHOW GRANTS;
+Grants for u2@localhost
+GRANT USAGE ON *.* TO `u2`@`localhost`
+GRANT SELECT ON `test`.* TO `u2`@`localhost`
+GRANT `rr1`@`%` TO `u2`@`localhost`
+SET GLOBAL activate_all_roles_on_login = 'OFF';
+# Don't show the same role twice.
+SET GLOBAL mandatory_roles="r1, r1";
+SHOW GRANTS;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+GRANT `r1`@`%` TO `root`@`localhost`
+DROP USER u1@localhost;
+DROP USER u2@localhost;
+SET GLOBAL mandatory_roles='PUBLIC';
+DROP ROLE r1,r2,r3,r4,r5,rr1;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+CREATE ROLE r1, r2, r3;
+SET GLOBAL mandatory_roles="aa ; bb : r3, r1, (r2), *r2,";
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO `u1`@`localhost`
+GRANT `r1`@`%` TO `u1`@`localhost`
+SET GLOBAL mandatory_roles="PUBLIC";
+DROP USER u1@localhost, r1, r2, r3;
+
+# Anonymous roles aren't allowed
+SET GLOBAL mandatory_roles='';
+CREATE USER ''@'localhost';
+GRANT ALL ON sys.* TO ''@'localhost';
+SET GLOBAL mandatory_roles='``@`localhost`';
+ERROR 42000: Variable 'mandatory_roles' can't be set to the value of '``@`localhost`'
+SHOW GRANTS;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+CREATE USER u1@localhost identified by 'foo';
+GRANT SELECT ON *.* To u1@localhost;
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@localhost
+# Should not show any anonymous mandatory role
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@localhost
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
+SET GLOBAL mandatory_roles='';
+ERROR 42000: Access denied; you need (at least one of) the ROLE_ADMIN, SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL mandatory_roles='foo@localhost';
+ERROR 42000: Access denied; you need (at least one of) the ROLE_ADMIN, SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+GRANT ''@'localhost' TO u1@localhost;
+ERROR HY000: Failed to grant ``@`localhost`` to `u1`@`localhost`
+SET GLOBAL mandatory_roles='';
+DROP USER u1@localhost, ''@'localhost';
+# SET ROLE DEFAULT ALL should include mandatory roles
+CREATE ROLE r1, r2, r3;
+GRANT SELECT ON *.* TO r1;
+CREATE USER paul@localhost IDENTIFIED BY 'foo';
+GRANT r3 TO paul@localhost;
+GRANT INSERT ON test.* TO r3;
+SET GLOBAL mandatory_roles='r1,r2,r3';
+SET DEFAULT ROLE ALL TO paul@localhost;
+# Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+SET ROLE ALL;
+# Should still show all mandatory roles
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+ALTER USER paul@localhost DEFAULT ROLE ALL;
+SET ROLE DEFAULT;
+# Should show mandatory roles
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+SET ROLE ALL;
+# Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+# no duplicates
+SET ROLE r1,r1,r1,r1,r1,r2,r2,r2,r2,r3,r3,r3,r3;
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+SET GLOBAL mandatory_roles="PUBLIC";
+DROP USER paul@localhost;
+DROP ROLE r1,r2,r3;

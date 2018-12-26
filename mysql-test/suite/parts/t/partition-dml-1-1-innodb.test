@@ -1,0 +1,7 @@
+# Test of explicit partition selection in dml statements (wl5217)
+# Creation date: 01-07-10
+# Author: Horst Hunger
+
+let $ENGINE=InnoDB;
+--source suite/parts/inc/partition-dml-1-1.inc
+

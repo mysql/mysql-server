@@ -1,0 +1,40 @@
+#
+# Bug#12429573 TIMESTAMP COLUMN OF INNODB.INDEX_STATS ARE NOT UPDATED
+# WHEN RE-RUNNING ANALYZE
+#
+
+
+CREATE TABLE bug12429573 (i INTEGER PRIMARY KEY, j INTEGER, KEY(j))
+ENGINE=INNODB STATS_PERSISTENT=1;
+
+ANALYZE TABLE bug12429573;
+
+# Cannot check the exact timestamp here because it is always different
+# but at least check that both timestamps in innodb_table_stats and in
+# innodb_index_stats have been updated to the same value. If the bug is
+# present this check will fail.
+
+SELECT last_update FROM mysql.innodb_index_stats WHERE
+table_name = 'bug12429573' AND
+last_update NOT IN
+(SELECT last_update FROM mysql.innodb_table_stats
+ WHERE table_name = 'bug12429573');
+
+# The first ANALYZE would insert timestamp e.g. 17:23:39 in both
+# innodb_table_stats and innodb_index_stats. The bug is that the second
+# ANALYZE only updates the timestamp in innodb_table_stats. In order to
+# check if the timestamp in innodb_index_stats has really been updated we
+# need it to be different from the previous one (17:23:39) with at least
+# one second.
+-- sleep 1
+
+ANALYZE TABLE bug12429573;
+
+# If the bug is present we get the timestamps different here.
+SELECT last_update FROM mysql.innodb_index_stats WHERE
+table_name = 'bug12429573' AND
+last_update NOT IN
+(SELECT last_update FROM mysql.innodb_table_stats
+ WHERE table_name = 'bug12429573');
+
+DROP TABLE bug12429573;

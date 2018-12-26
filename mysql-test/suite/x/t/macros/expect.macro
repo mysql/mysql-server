@@ -1,0 +1,33 @@
+#
+## Expect_OPEN
+#
+-->macro Expect_open	%COND%	%ERROR%
+Mysqlx.Expect.Open {
+    %COND%
+}
+-->expecterror %ERROR%
+-->recvok
+-->echo
+-->endmacro
+
+#
+## Expect_close
+#
+-->macro Expect_close	%ERROR%
+Mysqlx.Expect.Close {
+}
+-->expecterror %ERROR%
+-->recvok
+-->echo
+-->endmacro
+
+#
+## Execute_sql
+#
+-->macro Execute_sql	%SQL%	%ERROR%
+-->stmtsql %SQL%
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+

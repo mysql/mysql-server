@@ -1,0 +1,444 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# -*- cperl -*-
+#
+# MySQL Cluster compile script to bridge the gap between
+# different build systems in different versions of MySQL Server
+#
+# This script is intended for internal use
+#
+use strict;
+use Cwd 'abs_path';
+use File::Basename;
+use Getopt::Long;
+
+# Automatically flush STDOUT
+select(STDOUT);
+$| = 1;
+
+# Only add the command line options handled by this script, 
+# thus acting like a filter and passing all other arguments
+# straight through
+my $opt_debug;
+my $opt_build_type;
+my $opt_build = 1;
+if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
+{
+  # Default to not build on Windows, just configure a solution
+  # which can then be opened in VS
+  $opt_build = 0;
+}
+my $opt_embedded = 0;
+my $opt_just_print;
+my $opt_vanilla;
+my $opt_autotest;
+my $opt_valgrind;
+my $opt_distcheck;
+Getopt::Long::Configure("pass_through");
+GetOptions(
+
+  # Build MySQL Server and NDB with debug
+  'debug!' => \$opt_debug,
+  'with-debug:s' => sub { $opt_debug = 1; },
+  'build-type=s' => \$opt_build_type,
+  'build!' => \$opt_build,
+  'c|just-configure' => sub { $opt_build = 0; },
+  'n|just-print' => \$opt_just_print,
+  'vanilla' => \$opt_vanilla,
+  'autotest' => \$opt_autotest,
+  'valgrind' => \$opt_valgrind,
+  'distcheck' => \$opt_distcheck,
+  'embedded' => sub { $opt_embedded = 1; },
+
+) or exit(1);
+
+# Find source root directory, assume this script is
+# in <srcroot>/storage/ndb/
+my $opt_srcdir = dirname(dirname(dirname(abs_path($0))));
+die unless -d $opt_srcdir; # Sanity check that the srcdir exist
+if ($^O eq "cygwin" or $^O eq "msys") {
+  # Convert posix path to Windows mixed path since cmake
+  # is most likely a windows binary
+  $opt_srcdir= `cygpath -m $opt_srcdir`;
+  chomp $opt_srcdir;
+}
+
+# Check that cmake exists and figure out it's version
+my $cmake_version_id;
+{
+  my $version_text = `cmake --version`;
+  print $version_text;
+  die "Could not find cmake" if ($?);
+  if ( $version_text =~ /^cmake version ([0-9]*)\.([0-9]*)\.*([^\s]*)/ )
+  {
+    #print "1: $1 2: $2 3: $3\n";
+    $cmake_version_id= $1*10000 + $2*100 + $3;
+    #print "cmake_version_id: $cmake_version_id\n";
+  }
+  die "Could not parse cmake version" unless ($cmake_version_id);
+}
+
+# Replace gcc with g++ in CXX environment variable
+if(defined $ENV{"CXX"} and $ENV{"CXX"} =~ m/gcc/)
+{
+  my $old_cxx= $ENV{"CXX"};
+  $ENV{"CXX"} =~ s/gcc/g++/;
+  print("compile-cluster: switched CXX compiler from '$old_cxx' to '$ENV{CXX}'\n");
+}
+
+# Remove -fno-exceptions from CXXFLAGS environment variable
+if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
+{
+  $ENV{"CXXFLAGS"} =~ s/-fno-exceptions//g;
+  print("compile-cluster: stripped off -fno-exceptions from CXXFLAGS='$ENV{CXXFLAGS}'\n");
+}
+
+# If no libmysqld directory in source, there is support for build embedded server.
+if(! -d "$opt_srcdir/libmysqld")
+{
+  if($opt_embedded)
+  {
+    die "Build with embedded server is not possible";
+  }
+  $opt_embedded = undef;
+}
+
+#
+# Configure
+#
+{
+  # Remove old CMakeCache.txt(ignore if not exists) to
+  # force fresh configure
+  unlink("CMakeCache.txt");
+
+  my @args;
+  if ($opt_debug)
+  {
+    print("compile-cluster: debug build requested\n");
+    push(@args, "-DWITH_DEBUG=1");
+    # The MySQL maintainter mode is automatically turned on when
+    # building with debug using gcc on linux, turn it off
+    # by uncommenting the line below or use --mysql-maintainer-mode=0
+    # push(@args, "-DMYSQL_MAINTAINER_MODE=0");
+  }
+
+  if ($opt_vanilla)
+  {
+    # Use default options for building
+    print("compile-cluster: vanilla build requested, no sugar\n");
+  }
+  else
+  {
+    # Hardcoded options controlling how to build MySQL Server
+    push(@args, "-DWITH_SSL=system"); # Consistent error messages
+    push(@args, "-DWITH_NDBCLUSTER=1"); # Build MySQL Cluster
+
+    # Hardcoded options controlling how to build NDB
+    push(@args, "-DWITH_NDB_TEST=1");
+    push(@args, "-DWITH_NDBAPI_EXAMPLES=1")
+      unless ($^O eq "cygwin" or $^O eq "MSWin32")
+  }
+
+  if ($opt_autotest)
+  {
+    print("compile-cluster: autotest build requested, extra everything\n");
+    push(@args, "-DWITH_NDB_CCFLAGS='-DERROR_INSERT'");
+  }
+
+  if (defined $opt_embedded)
+  {
+    push(@args, "-DWITH_EMBEDDED_SERVER=$opt_embedded");
+  }
+
+  if ($opt_valgrind)
+  {
+    print("compile-cluster: valgrind build requested, adjusting the knobs\n");
+    # Add HAVE_purify to compiler flags in order to silence
+    # inspected warnings
+    push(@args, "-DCMAKE_C_FLAGS='-DHAVE_purify'");
+    push(@args, "-DCMAKE_CXX_FLAGS='-DHAVE_purify'");
+    # Turn on use of the valgrind headers to enhance detection
+    push(@args, "-DWITH_VALGRIND=1");
+  }
+
+  # The cmake generator to use
+  if ($opt_build_type)
+  {
+    push(@args, "-G \"$opt_build_type\"");
+  }
+
+  if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
+  {
+    # Default to x64 since that's currrenlty the only supported
+    # architecture for building MySQL on Windows
+    push(@args, "-A x64");
+  }
+
+  # Sets installation directory,  bindir, libdir, libexecdir etc.
+  # The equivalent CMake variables are given without prefix
+  # e.g if --prefix is /usr and --bindir is /usr/bin
+  # then cmake variable (INSTALL_BINDIR) must be just "bin"
+  my $opt_prefix;
+  sub set_installdir
+  {
+    my($path, $varname) = @_;
+    my $prefix_length = length($opt_prefix);
+    if (($prefix_length > 0) && (index($path,$opt_prefix) == 0))
+    {
+      # path is under the prefix, remove the prefix and
+      # maybe following "/"
+      $path = substr($path, $prefix_length);
+      if(length($path) > 0)
+      {
+        my $char = substr($path, 0, 1);
+        if($char eq "/")
+        {
+          $path= substr($path, 1);
+        }
+      }
+      if(length($path) > 0)
+      {
+        push(@args, "-D$varname=$path");
+      }
+    }
+  }
+
+  # Process --configure style arguments which need special conversion 
+  my $opt_bindir;
+  my $opt_libdir;
+  my $opt_libexecdir;
+  my $opt_includedir;
+  my $opt_with_zlib_dir;
+  my $opt_with_ssl;
+  my $opt_localstatedir;
+  my $opt_mysql_maintainer_mode;
+  my $opt_with_gcov;
+  my $opt_with_comment;
+  my $opt_with_plugins;
+  my $opt_without_plugin;
+  my $opt_extra_charsets;
+  my $opt_with_extra_charsets;  
+  Getopt::Long::Configure("pass_through");
+  GetOptions(
+    'prefix=s' => \$opt_prefix,
+    'srcdir=s' => \$opt_srcdir,
+    'bindir=s' => \$opt_bindir,
+    'libdir=s' => \$opt_libdir,
+    'libexecdir=s' => \$opt_libexecdir,
+    'includedir=s' => \$opt_includedir,
+    'with-zlib-dir=s' => \$opt_with_zlib_dir,
+    'with-ssl:s' => \$opt_with_ssl,
+    'localstatedir=s' => \$opt_localstatedir,
+    'mysql-maintainer-mode=s' => \$opt_mysql_maintainer_mode,
+    'with-gcov' => \$opt_with_gcov,
+    'with-comment=s' => \$opt_with_comment,
+    'with-plugins=s' => \$opt_with_plugins,
+    'without-plugin=s' => \$opt_without_plugin,
+    'with-extra-charsets=s' => \$opt_with_extra_charsets,
+    'extra-charsets=s' => \$opt_extra_charsets,
+  ) or exit(1);
+
+  if($opt_prefix)
+  {
+    push(@args, "-DCMAKE_INSTALL_PREFIX=$opt_prefix");
+  }
+  if($opt_bindir)
+  {
+    set_installdir($opt_bindir, "INSTALL_BINDIR");
+  }
+  if($opt_libdir)
+  {
+    set_installdir($opt_libdir, "INSTALL_LIBDIR");
+  }
+  if($opt_libexecdir)
+  {
+    set_installdir($opt_libexecdir, "INSTALL_SBINDIR");
+  }
+  if($opt_includedir)
+  {
+    set_installdir($opt_includedir, "INSTALL_INCLUDEDIR");
+  }
+  if($opt_with_zlib_dir)
+  {
+    $opt_with_zlib_dir = "system"
+      if ($opt_with_zlib_dir ne "bundled");
+    push(@args, "-DWITH_ZLIB=$opt_with_zlib_dir");
+  }
+  if($opt_with_ssl)
+  {
+    push(@args, "-DWITH_SSL=".($opt_with_ssl ? "yes" : "wolfssl"));
+  }
+  if ($opt_localstatedir)
+  {
+    push(@args, "-DMYSQL_DATADIR=$opt_localstatedir"); 
+  }
+  if ($opt_mysql_maintainer_mode)
+  {
+    push(@args, "-DMYSQL_MAINTAINER_MODE=" .
+                 ($opt_mysql_maintainer_mode =~ /enable/ ? "1" : "0"));
+  }
+  if ($opt_with_gcov)
+  {
+    push(@args, "-DENABLE_GCOV=ON"); 
+  }
+  if ($opt_with_comment)
+  {
+    push(@args, "\"-DWITH_COMMENT=$opt_with_comment\""); 
+  }
+  if($opt_with_plugins)
+  {
+    my @plugins= split(/,/, $opt_with_plugins);
+    foreach my $p (@plugins)
+    {
+      $p =~ s/-/_/g;
+      push(@args, "-DWITH_".uc($p)."=1");
+    }
+  }
+  if($opt_without_plugin)
+  {
+    push(@args, "-DWITHOUT_".uc($opt_without_plugin)."=1");
+  }
+  if ($opt_extra_charsets)
+  {
+    push(@args, "-DWITH_CHARSETS=$opt_extra_charsets"); 
+  }
+  if($opt_with_extra_charsets)
+  {
+    push(@args, "-DWITH_EXTRA_CHARSETS=$opt_with_extra_charsets");
+  }
+  
+
+  # Default conversion of remaining args in ARGV from
+  # 1) --arg          -> -DARG=1
+  # 2) --arg=value    -> -DARG=value
+  # 3) arg=value      -> environment variable arg=value
+  foreach my $option (@ARGV)
+  {
+    if ($option =~  /^--/)
+    {  
+      # Remove leading --
+      $option = substr($option, 2);
+    
+      my @v  = split('=', $option);
+      my $name = shift(@v);
+      $name = uc($name);
+      $name =~ s/-/_/g;
+      if (@v)
+      {
+        push(@args, "-D$name=".join('=', @v));
+      }
+      else
+      {
+        push(@args, "-D$name=1");
+      }
+    }
+    else
+    {
+ 
+      # This must be environment variable
+      my @v  = split('=', $option);
+      my $name = shift(@v);
+      if(@v)
+      {
+        $ENV{$name} = join('=', @v);  
+      }
+      else
+      {
+        die "unhandled argument '$option' found"; 
+      }
+    }
+  }
+  
+  # The source directory to build from
+  die "srcdir already contains CMakeCache.txt, this will not work!"
+    if (-f "$opt_srcdir/CMakeCache.txt");
+  push(@args, $opt_srcdir);
+  
+  cmd("cmake", @args);
+}
+
+#
+# Build
+#
+if (!$opt_build)
+{
+  print "Configuration completed, skipping build(used --no-build)\n";
+  exit(0);
+}
+
+{
+  if ($cmake_version_id >= 20800)
+  {
+    # Use the universal "cmake --build <dir>" way of building
+    # which is available from cmake 2.8 and works on all platforms
+    my @args;
+    push(@args, "--build");
+    push(@args, ".");
+
+    if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
+    {
+      # Choose to build RelWitDebInfo by default on Windows
+      my $config = 'RelWithDebInfo';
+      if ($opt_debug)
+      {
+	$config = 'Debug';
+      }
+      push(@args, "--config");
+      push(@args, $config);
+    }
+
+    cmd("cmake", @args);
+
+  }
+  else
+  {
+    # Use make to build, not supported on Windows
+    die "You need to install cmake with version > 2.8"
+      if ($^O eq "cygwin" or $^O eq "MSWin32");
+
+    cmd("make");
+  }
+}
+
+if ($opt_distcheck)
+{
+    print "\n";
+    print "NOTE! 'make distcheck' not (yet) supported in this version\n";
+    print "\n";
+}
+
+exit(0);
+
+
+sub cmd {
+  my ($cmd, @a)= @_;
+  my $cmd_str = join(' ', $cmd, @a);
+  print "compile-cluster: '$cmd_str'\n";
+  return if ($opt_just_print);
+  system($cmd_str)
+    and print("command '$cmd_str' failed\n")
+	  and exit(1);
+}
+

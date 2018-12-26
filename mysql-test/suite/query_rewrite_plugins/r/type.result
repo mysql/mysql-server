@@ -1,0 +1,69 @@
+#
+# This test will check with different types for parameters.
+#
+CREATE TABLE t1 ( c1 INT, c2 DECIMAL(2,1), c3 FLOAT, c4 CHAR(4) );
+INSERT INTO t1 VALUES ( 2, 2.1, -32032.6809e+10, 0x63617474 ),
+( 3, 3.5, -56.58, 'abcd' ),
+( x'ffff', 2.2, 59e-5, 'aaaa' );
+# Query rewrite plugin was installed.
+# Insert some rewrite rules in the plugin
+INSERT INTO query_rewrite.rewrite_rules( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1 WHERE c1 = ?',
+'SELECT c1 FROM test.t1 WHERE c1 = ?' ),
+( 'SELECT * FROM test.t1 WHERE c2 = ?',
+'SELECT c2 FROM test.t1 WHERE c2 = ?' ),
+( 'SELECT * FROM test.t1 WHERE c3 = ?',
+'SELECT c3 FROM test.t1 WHERE c3 = ?' ),
+( 'SELECT * FROM test.t1 WHERE c4 <> ? AND c1 = ?',
+'SELECT c4 FROM test.t1 WHERE c4 <> ? AND c1 = ?' ),
+( 'SELECT * FROM test.t1 WHERE c4 = ?',
+'SELECT c4 FROM test.t1 WHERE c4 = ?' );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM test.t1 WHERE c1 = x'02';
+c1
+2
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE c1 = x'02'' rewritten to 'SELECT c1 FROM test.t1 WHERE c1 = 0x02' by a query rewrite plugin
+SELECT * FROM test.t1 WHERE c1 = 65535;
+c1
+65535
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE c1 = 65535' rewritten to 'SELECT c1 FROM test.t1 WHERE c1 = 65535' by a query rewrite plugin
+SELECT * FROM test.t1 WHERE c2 = 2.1;
+c2
+2.1
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE c2 = 2.1' rewritten to 'SELECT c2 FROM test.t1 WHERE c2 = 2.1' by a query rewrite plugin
+SELECT * FROM test.t1 WHERE c3 < 1e-1;
+c1	c2	c3	c4
+2	2.1	-320327000000000	catt
+3	3.5	-56.58	abcd
+65535	2.2	0.00059	aaaa
+SELECT * FROM test.t1 WHERE c4 = 'catt';
+c4
+catt
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE c4 = 'catt'' rewritten to 'SELECT c4 FROM test.t1 WHERE c4 = 'catt'' by a query rewrite plugin
+SELECT * FROM test.t1 WHERE c4 = 0x41414141;
+c4
+aaaa
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE c4 = 0x41414141' rewritten to 'SELECT c4 FROM test.t1 WHERE c4 = 0x41414141' by a query rewrite plugin
+# Really long parameter to force resize
+SELECT * FROM test.t1 WHERE c4 = 'cattnfwefhewfewfewhufewfwefw';
+c4
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE c4 = 'cattnfwefhewfewfewhufewfwefw'' rewritten to 'SELECT c4 FROM test.t1 WHERE c4 = 'cattnfwefhewfewfewhufewfwefw'' by a query rewrite plugin
+SELECT * FROM test.t1
+WHERE c4 <> 'defreeghhgiregrhghurehgiurheiugirehiugreihgiurhrrrrrrrrrreewvew'
+AND c1 = 2;
+c4
+catt
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1
+WHERE c4 <> 'defreeghhgiregrhghurehgiurheiugirehiugreihgiurhrrrrrrrrrreewvew'
+AND c1 = 2' rewritten to 'SELECT c4 FROM test.t1 WHERE c4 <> 'defreeghhgiregrhghurehgiurheiugirehiugreihgiurhrrrrrrrrrreewvew' AND c1 = 2' by a query rewrite plugin
+DROP TABLE t1;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

@@ -1,0 +1,41 @@
+source include/master-slave.inc;
+-- source include/have_binlog_format_mixed_or_statement.inc
+
+let $VERSION=`select version()`;
+
+# Bug #21975: grant/revoke statements in transaction
+# used to disappear from binlog upon rallback.
+# Now GRANT/REVOKE do implicitly commit
+# transaction
+
+create database d1;
+use d1;
+create table t (s1 int) engine=innodb;
+set @@autocommit=0;
+start transaction;
+insert into t values (1);
+create user x@y;
+grant select on t to x@y;
+
+let $wait_binlog_event= grant select;
+source include/wait_for_binlog_event.inc;
+#
+# There is no active transaction here
+#
+rollback;
+show grants for x@y;
+start transaction;
+insert into t values (2);
+revoke select on t from x@y;
+let $wait_binlog_event= revoke select;
+source include/wait_for_binlog_event.inc;
+#
+# There is no active transaction here
+#
+commit;
+select * from t;
+show grants for x@y;
+drop user x@y;
+drop database d1;
+
+--source include/rpl_end.inc

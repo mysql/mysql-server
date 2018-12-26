@@ -1,0 +1,292 @@
+--echo
+--echo ## Test the Performance Schema Notification service WL#8881
+--echo ##
+--echo ## 1. Install component to register callbacks for each API
+--echo ## 2. Launch multiple sessions to trigger callback events, log the events to file
+--echo ## 3. Import log file into a table
+--echo ## 4. Verify the contents of the table
+
+--source include/have_debug.inc
+
+--disable_ps_protocol
+
+--echo ## Disable resource groups for this test.
+SET DEBUG='+d, disable_rg_pfs_notifications';
+
+--echo
+--echo ## Install test component
+INSTALL COMPONENT "file://component_test_pfs_notification";
+
+--echo
+--echo ## Create 2 users to control the test mode, and 3 users for testing
+CREATE USER PFS_MTR_MODE_ENABLE;
+CREATE USER PFS_MTR_MODE_DISABLE;
+CREATE USER PFS_MTR_REGISTER_INTERNAL;
+CREATE USER PFS_MTR_UNREGISTER_INTERNAL;
+CREATE USER PFS_MTR_NEGATIVE_TEST_CASES;
+CREATE USER PFS_USER1;
+CREATE USER PFS_USER2;
+CREATE USER PFS_USER3;
+GRANT ALL ON *.* TO PFS_MTR_MODE_ENABLE;
+GRANT ALL ON *.* TO PFS_MTR_MODE_DISABLE;
+GRANT ALL ON *.* TO PFS_MTR_REGISTER_INTERNAL;
+GRANT ALL ON *.* TO PFS_MTR_UNREGISTER_INTERNAL;
+GRANT ALL ON *.* TO PFS_MTR_NEGATIVE_TEST_CASES;
+GRANT ALL ON *.* TO PFS_USER1;
+GRANT ALL ON *.* TO PFS_USER2;
+GRANT ALL ON *.* TO PFS_USER3;
+
+# The test component has two modes: MTR and RQG.
+# The MTR mode verifies the correct operation of the Notification API, and is
+# intended for MTR use only. In this mode, the test component registers 3
+# callback functions for each of the five events that change the resource group
+# name multiple times per connection and write status messages to both stderr
+# and an external log file. The MTR mode uses the log file to capture and verify
+# results.
+#
+# The RQG mode is intended for RQG and performance runs with many concurrent
+# connections. This mode stresses the callback registry and provides an
+# empirical assessment of performance overhead by registering three lightweight
+# callbacks per event. The resource group name is set only once per connection
+# in order to provide verifiable evidence of its operation.
+#
+# The RQG mode does not write to stderr or to external log files.
+#
+# Until system variables for server components is supported (WL#9424), the test
+# mode is controlled by the client username. The test component defaults to RQG
+# mode, and MTR mode is activated when a client connects with the username
+# PFS_MTR_MODE_ENABLE.
+
+--echo
+--echo ## Enable MTR mode by connecting with a pre-defined username.
+--echo
+connect (con_pfs, localhost, PFS_MTR_MODE_ENABLE, , test);
+
+--echo
+--echo ## Test internal registration
+--echo
+connect (con_reg, localhost, PFS_MTR_REGISTER_INTERNAL, , test);
+
+--echo
+--echo ## Test negative test cases
+--echo
+connect (con_neg, localhost, PFS_MTR_NEGATIVE_TEST_CASES, , test);
+
+--echo
+--echo ## Test unregister internal
+--echo
+connect (con_unreg, localhost, PFS_MTR_UNREGISTER_INTERNAL, , test);
+
+--echo
+--echo ## Clean up special test cases
+--echo ## Disconnect internal registration user
+--connection con_reg
+--disconnect con_reg
+--source include/wait_until_disconnected.inc
+--echo ## Disconnect internal unregistration user
+--connection con_unreg
+--disconnect con_unreg
+--source include/wait_until_disconnected.inc
+--echo ## Disconnect negative test case user
+--connection con_neg
+--disconnect con_neg
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo ## Start 2 sessions to generate thread_create and session_connect events.
+--echo ## The session_connect callback assigns a resource group name for each user.
+--echo
+--echo ## Session 1
+connect (con1, localhost, PFS_USER1, , test);
+
+--echo
+--echo ## Verify PFS_USER1 resource group in PERFORMANCE_SCHEMA.THREADS
+SELECT name, type, processlist_user, processlist_host, processlist_db, resource_group
+FROM performance_schema.threads
+WHERE resource_group = 'RESOURCE_GROUP_3_2_1' AND processlist_user = 'PFS_USER1';
+
+--echo
+--echo ## Start session 2
+--echo connect (con2, localhost, PFS_USER2, , test)
+connect (con2, localhost, PFS_USER2, , test);
+
+--echo
+--echo ## Verify PFS_USER2 in PERFORMANCE_SCHEMA.THREADS
+SELECT name, type, processlist_user, processlist_host, processlist_db, resource_group
+FROM performance_schema.threads
+WHERE resource_group = 'RESOURCE_GROUP_3_2_1' AND processlist_user = 'PFS_USER2';
+
+--echo
+--echo ## Change user from PFS_USER2 to PFS_USER3
+--change_user PFS_USER3,,test
+
+--echo
+--echo ## Disconnect 2 sessions to generate session_disconnect and thread_destroy events.
+--echo
+--echo ## Disconnect session 1
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--echo ## Disconnect session 2
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--echo ## Disconnect primary control session
+--connection con_pfs
+--disconnect con_pfs
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo ## Disable MTR mode and activate RQG mode by connecting with a pre-defined username.
+--echo
+connect (con_pfs1, localhost, PFS_MTR_MODE_DISABLE, , test);
+
+--echo ## Verify mode change
+--echo
+SELECT name, type, processlist_user, processlist_host, processlist_db, resource_group
+FROM performance_schema.threads WHERE processlist_user = 'PFS_MTR_MODE_DISABLE';
+
+--echo ## Disconnect second control session
+--connection con_pfs1
+--disconnect con_pfs1
+--source include/wait_until_disconnected.inc
+
+connection default;
+
+--echo
+--echo ## Uninstall component
+--echo
+UNINSTALL COMPONENT 'file://component_test_pfs_notification';
+let $wait_condition=SELECT count(*)=0 FROM mysql.component WHERE component_urn like '%component_test_pfs_notification';
+--source include/wait_condition.inc
+
+--echo
+--echo ## Create results table
+--echo
+CREATE TABLE test.callback_events (callback TEXT, handle INT, ret_code INT,
+    thread_id BIGINT UNSIGNED, plist_id BIGINT UNSIGNED, os_thread BIGINT UNSIGNED,
+    resource_group TEXT, user TEXT, host TEXT, vcpu TEXT, priority TEXT);
+  
+--echo
+--echo ## Import log file
+--echo
+let $MYSQLD_DATADIR= `select @@datadir`;
+#cat_file $MYSQLD_DATADIR/test_pfs_notification.log;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--disable_warnings
+eval
+LOAD DATA LOCAL INFILE '$MYSQLD_DATADIR/test_pfs_notification.log' INTO TABLE test.callback_events
+FIELDS TERMINATED BY ' ' LINES TERMINATED BY '\n' STARTING BY '*** '
+(@label, callback, @label, handle, @label, ret_code, @label, thread_id, @label, plist_id,
+ @label, os_thread, @label, resource_group, @label, user, @label, host, @label, vcpu, @label, priority);
+
+--echo
+--echo ## Verify results
+--echo
+--enable_warnings
+
+let $column_list =
+  rpad(callback,       35, ' ') as "callback                           ",
+  rpad(handle,         10, ' ') as "handle    ",
+  rpad(ret_code,       10, ' ') as "ret_code  ",
+  rpad(thread_id,      10, ' ') as "thread_id ",
+  rpad(plist_id,       10, ' ') as "plist_id  ",
+  rpad(os_thread,      10, ' ') as "os_thread ",
+  rpad(resource_group, 20, ' ') as "resource_group      ",
+  rpad(user,           30, ' ') as "user                          ",
+  rpad(host,           10, ' ') as "host      ";
+
+--echo SELECT * FROM test.callback_events WHERE callback = "session_change_user";
+--replace_column 2 " ... " 4 "   ...    " 5 "   ...    " 6 "   ...    "
+--disable_query_log
+eval SELECT $column_list FROM callback_events
+WHERE callback = 'session_change_user' AND resource_group = 'RESOURCE_GROUP_3_2_1'
+ORDER BY callback, resource_group, user  LIMIT 1;
+
+# Each session connect callback changes the group name e.g. RESOURCE_GROUP_1,
+# RESOURCE_GROUP_2, ..., etc. However, callbacks are invoked in reverse order of
+# registration, so on disconnect each session should be RESOURCE_GROUP_1.
+
+--echo
+--echo SELECT * FROM test.callback_events WHERE callback = "session_connect;
+--replace_column 2 " ... " 4 "   ...    " 5 "   ...    " 6 "   ...    "
+eval SELECT $column_list FROM callback_events
+WHERE callback = 'session_connect' AND resource_group = 'RESOURCE_GROUP_3_2_1'
+ORDER BY callback, resource_group, user LIMIT 1;
+
+--echo
+--echo SELECT * FROM test.callback_events WHERE callback = "session_disconnect";
+--replace_column 2 " ... " 4 "   ...    " 5 "   ...    " 6 "   ...    "
+eval SELECT $column_list FROM callback_events
+WHERE callback = 'session_disconnect' AND resource_group = 'RESOURCE_GROUP_3_2_1'
+ORDER BY callback, resource_group, user LIMIT 1;
+
+--echo
+--echo SELECT * FROM test.callback_events WHERE callback = "thread_create";
+--replace_column 2 " ... " 4 "   ...    " 5 "   ...    " 6 "   ...    "
+eval SELECT $column_list FROM callback_events
+WHERE callback = 'thread_create' AND resource_group = 'RESOURCE_GROUP_3_2_1'
+ORDER BY callback, resource_group, user LIMIT 1;
+
+--echo
+--echo SELECT * FROM test.callback_events WHERE callback = "thread_destroy";
+--replace_column 2 " ... " 4 "   ...    " 5 "   ...    " 6 "   ...    "
+eval SELECT $column_list FROM callback_events
+WHERE callback = 'thread_destroy' AND resource_group = 'RESOURCE_GROUP_3_2_1'
+ORDER BY callback, resource_group, user LIMIT 1;
+
+--echo
+--echo SELECT * FROM test.callback_events WHERE callback = "register_notification_internal";
+--replace_column 3 "   ...    " 4 "   ...    " 5 "   ...    " 6 "   ...    "
+eval SELECT $column_list FROM callback_events
+WHERE callback = 'register_notification_internal'
+ORDER BY callback, resource_group, user LIMIT 1;
+
+--echo
+--echo SELECT * FROM test.callback_events WHERE callback LIKE "unregister_notification_internal";
+--replace_column 4 "   ...    " 5 "   ...    " 6 "   ...    "
+eval SELECT $column_list FROM callback_events
+WHERE callback LIKE 'unregister_notification_internal'
+ORDER BY callback, resource_group, user LIMIT 1;
+
+--echo
+--echo SELECT * FROM test.callback_events WHERE callback = "register_notification(bad_cb)";
+--replace_column 4 "   ...    " 5 "   ...    " 6 "   ...    "
+eval SELECT $column_list FROM callback_events
+WHERE callback = 'register_notification(bad_cb)'
+ORDER BY callback, resource_group, user LIMIT 1;
+
+--echo
+--echo SELECT * FROM test.callback_events WHERE callback = "register_notification(nullptr)";
+--replace_column 4 "   ...    " 5 "   ...    " 6 "   ...    "
+eval SELECT $column_list FROM callback_events
+WHERE callback = 'register_notification(nullptr)'
+ORDER BY callback, resource_group, user LIMIT 1;
+
+--echo
+--echo SELECT * FROM test.callback_events WHERE callback = "unregister_notification(bad_handle)";
+--replace_column 4 "   ...    " 5 "   ...    " 6 "   ...    "
+eval SELECT $column_list FROM callback_events
+WHERE callback = 'unregister_notification(bad_handle)'
+ORDER BY callback, resource_group, user LIMIT 1;
+
+--enable_query_log
+
+--echo
+--echo ## Clean up
+--echo
+DROP USER PFS_MTR_MODE_ENABLE;
+DROP USER PFS_MTR_MODE_DISABLE;
+DROP USER PFS_MTR_REGISTER_INTERNAL;
+DROP USER PFS_MTR_UNREGISTER_INTERNAL;
+DROP USER PFS_MTR_NEGATIVE_TEST_CASES;
+DROP USER PFS_USER1;
+DROP USER PFS_USER2;
+DROP USER PFS_USER3;
+DROP TABLE test.callback_events;
+
+remove_file $MYSQLD_DATADIR/test_pfs_notification.log;
+SET DEBUG='-d,disable_rg_pfs_notifications';
+--enable_ps_protocol

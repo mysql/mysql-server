@@ -1,0 +1,12 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/stop_slave.inc
+CHANGE MASTER TO master_retry_count=3, master_host='300.1.1.1', master_connect_retry=1;
+START SLAVE io_thread;
+include/wait_for_slave_io_to_stop.inc
+RESET SLAVE;
+CHANGE MASTER TO master_host = '127.0.0.1';
+include/rpl_end.inc

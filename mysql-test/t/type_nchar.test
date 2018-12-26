@@ -1,0 +1,60 @@
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
+
+#
+# Test nchar/nvarchar
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (c nchar(10));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
+show create table t1;
+drop table t1;
+
+create table t1 (c national char(10));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
+show create table t1;
+drop table t1;
+
+create table t1 (c national varchar(10));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
+show create table t1;
+drop table t1;
+
+create table t1 (c nvarchar(10));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
+show create table t1;
+drop table t1;
+
+create table t1 (c nchar varchar(10));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
+show create table t1;
+drop table t1;
+
+create table t1 (c national character varying(10));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
+show create table t1;
+drop table t1;
+
+create table t1 (c nchar varying(10));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
+show create table t1;
+drop table t1;
+
+# End of 4.1 tests

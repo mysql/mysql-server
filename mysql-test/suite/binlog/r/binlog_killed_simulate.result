@@ -1,0 +1,37 @@
+drop table if exists t1,t2;
+create table t1  (a int) engine=MyISAM;
+insert into t1 set a=1;
+reset master;
+update t1 set a=2 /* will be "killed" after work has been done */;
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null AS Loaded;
+Loaded
+1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+select 1 /* must return 1 as query completed before got killed*/;
+1
+1
+create table t2 (a int, b int) ENGINE=MyISAM;
+reset master;
+load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "killed" in the middle */;
+ERROR 70100: Query execution was interrupted
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+binlog.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t2` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, `b`) ;file_id=#
+binlog.000001	#	Query	#	#	COMMIT
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null AS Loaded;
+Loaded
+1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+select 0 /* must return 0 to mean the killed query is in */;
+0
+0
+drop table t1,t2;
+end of the tests

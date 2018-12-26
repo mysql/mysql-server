@@ -1,0 +1,27 @@
+CHANGE MASTER TO MASTER_HOST='127.0.0.1';
+# Adding debug point 'log_status_oom_mi' to @@GLOBAL.debug
+SELECT * FROM performance_schema.log_status;
+ERROR HY000: Unable to collect information for column 'REPLICATION': failed to allocate memory to collect information from replication channel ''.
+# Removing debug point 'log_status_oom_mi' from @@GLOBAL.debug
+# Adding debug point 'log_status_oom_binlog' to @@GLOBAL.debug
+SELECT * FROM performance_schema.log_status;
+ERROR HY000: Unable to collect information for column 'LOCAL': failed to allocate memory to collect binary log information.
+# Removing debug point 'log_status_oom_binlog' from @@GLOBAL.debug
+# Adding debug point 'log_status_oom_gtid' to @@GLOBAL.debug
+SELECT * FROM performance_schema.log_status;
+ERROR HY000: Unable to collect information for column 'LOCAL': failed to allocate memory to collect gtid_executed information.
+# Removing debug point 'log_status_oom_gtid' from @@GLOBAL.debug
+# Adding debug point 'log_status_oom_se' to @@GLOBAL.debug
+SELECT * FROM performance_schema.log_status;
+ERROR HY000: Unable to collect information for column 'STORAGE_ENGINE': failed to allocate memory to collect storage engines information.
+# Removing debug point 'log_status_oom_se' from @@GLOBAL.debug
+# Adding debug point 'log_status_oom_collecting' to @@GLOBAL.debug
+SELECT * FROM performance_schema.log_status;
+ERROR HY000: Unable to collect information for column 'REPLICATION': failed to allocate memory to collect information.
+# Removing debug point 'log_status_oom_collecting' from @@GLOBAL.debug
+# Adding debug point 'log_status_oom_replication' to @@GLOBAL.debug
+SELECT * FROM performance_schema.log_status;
+ERROR HY000: Unable to collect information for column 'REPLICATION': failed to allocate memory to collect information.
+# Removing debug point 'log_status_oom_replication' from @@GLOBAL.debug
+SELECT * FROM performance_schema.log_status ORDER BY 1;
+RESET SLAVE ALL;

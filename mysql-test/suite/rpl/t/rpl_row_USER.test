@@ -1,0 +1,103 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/18/2005                                                #
+#############################################################################
+# TEST: To test the USER() and CURRENT_USER() in rbr                        #
+#############################################################################
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+--enable_warnings
+
+# Section 1 test anonymous user
+CREATE USER tester IDENTIFIED BY 'test', ''@'localhost%';
+GRANT ALL ON mysqltest1.* TO 'tester'@'%';
+GRANT ALL ON mysqltest1.* TO ''@'localhost%';
+FLUSH PRIVILEGES;
+connect (m_1,localhost,tester,,mysqltest1);
+
+connection m_1;
+CREATE TABLE mysqltest1.t1 (a INT, users VARCHAR(255), PRIMARY KEY(a));
+INSERT INTO mysqltest1.t1 VALUES(1,USER());
+INSERT INTO mysqltest1.t1 VALUES(2,CURRENT_USER());
+DELIMITER |;
+CREATE PROCEDURE mysqltest1.p1()
+BEGIN
+ INSERT INTO mysqltest1.t1 VALUES(3,USER());
+ INSERT INTO mysqltest1.t1 VALUES(4,CURRENT_USER());
+END|
+DELIMITER ;|
+
+CALL mysqltest1.p1();
+connection master;
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+
+connection master;
+# Lets cleanup
+#show binlog events;
+
+disconnect m_1;
+DROP DATABASE mysqltest1;
+REVOKE ALL ON mysqltest1.* FROM 'tester'@'%';
+REVOKE ALL ON mysqltest1.* FROM ''@'localhost%';
+DROP USER tester@'%';
+DROP USER ''@'localhost%';
+
+--source include/sync_slave_sql_with_master.inc
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+--enable_warnings
+
+# Section 2 test anonymous host
+CREATE USER 'tester1'@'' IDENTIFIED BY 'test';
+GRANT ALL ON mysqltest1.* TO 'tester1'@'';
+FLUSH PRIVILEGES;
+connect (m_2,localhost,tester1,test,mysqltest1);
+
+connection m_2;
+CREATE TABLE mysqltest1.t1 (a INT, users VARCHAR(255), PRIMARY KEY(a));
+INSERT INTO mysqltest1.t1 VALUES(1,USER());
+INSERT INTO mysqltest1.t1 VALUES(2,CURRENT_USER());
+DELIMITER |;
+CREATE PROCEDURE mysqltest1.p1()
+BEGIN
+ INSERT INTO mysqltest1.t1 VALUES(3,USER());
+ INSERT INTO mysqltest1.t1 VALUES(4,CURRENT_USER());
+END|
+DELIMITER ;|
+
+CALL mysqltest1.p1();
+connection master;
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+
+connection master;
+# Lets cleanup
+
+disconnect m_2;
+DROP DATABASE mysqltest1;
+REVOKE ALL ON mysqltest1.* FROM 'tester1'@'';
+DROP USER tester1@'';
+
+--source include/sync_slave_sql_with_master.inc
+
+# End of 5.0 test case
+--source include/rpl_end.inc

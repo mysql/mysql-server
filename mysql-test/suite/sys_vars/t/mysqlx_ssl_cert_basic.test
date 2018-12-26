@@ -1,0 +1,50 @@
+# Variable Name: mysqlx_ssl_cert                                                     #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.mysqlx_ssl_cert);
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.mysqlx_ssl_cert=1;
+--echo Expected error 'Read only variable'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+--disable_warnings
+SELECT @@GLOBAL.mysqlx_ssl_cert = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='mysqlx_ssl_cert';
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='mysqlx_ssl_cert';
+--enable_warnings
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@mysqlx_ssl_cert = @@GLOBAL.mysqlx_ssl_cert;
+################################################################################
+#   Check if mysqlx_ssl_cert can be accessed with and without @@ sign                 #
+################################################################################
+SELECT COUNT(@@mysqlx_ssl_cert);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.mysqlx_ssl_cert);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.mysqlx_ssl_cert);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.mysqlx_ssl_cert);
+
+--Error ER_BAD_FIELD_ERROR
+SELECT mysqlx_ssl_cert = @@SESSION.mysqlx_ssl_cert;
+--echo Expected error 'Readonly variable'
+

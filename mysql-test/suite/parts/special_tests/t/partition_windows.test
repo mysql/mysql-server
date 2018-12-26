@@ -1,0 +1,92 @@
+# Windows-specific partition tests
+--source include/windows.inc
+
+# These tests contain Windows specific directory/file format.
+
+#
+# Bug 25141: Crash Server on Partitioning command
+#
+# Bug#30459: Partitioning across disks failing on Windows
+# updated this test, since symlinked files are not supported on Windows
+# (not the same as symlinked directories that have a special hack
+# on windows). This test is not dependent on have_symlink.
+
+--echo # Get available drive letters on this host (must be at least two).
+--perl
+  my @devices= `$ENV{'systemroot'}\\system32\\wbem\\wmic logicaldisk where drivetype=3 get name`;
+  # Element 0 is the string 'Name'.
+  (scalar @devices  > 2) or die ("Too few devices");
+
+  # Set input separator to make chomp work, and trim white space.
+  local $/ = "\r\n";
+  chomp @devices;
+  s{^\s+|\s+$}{}g foreach @devices;
+
+  # Create tmp script to transfer into variables.
+  open(FILE, ">", "$ENV{'MYSQLTEST_VARDIR'}/tmp/devices.tmp") or die;
+  print FILE "--let base_1= $devices[1]/mysqltest\n";
+  print FILE "--let base_2= $devices[2]/mysqltest\n";
+  close FILE;
+EOF
+
+# Bring the names into variables by sourcing the generated script.
+--source $MYSQLTEST_VARDIR/tmp/devices.tmp
+
+# The tmp script is not needed anymore, delete it.
+--remove_file $MYSQLTEST_VARDIR/tmp/devices.tmp
+
+# Build paths.
+--let $path_1= $base_1/p0Data
+--let $path_2= $base_2/p2Data
+--let $path_3= $base_2/p3Data
+
+--echo # Create the target directories. This will fail e.g.
+--echo # if the directories exist already.
+--mkdir $base_1
+--mkdir $base_2
+--mkdir $path_1
+--mkdir $path_2
+--mkdir $path_3
+
+--replace_result $path_1 PATH_1 $path_2 PATH_2
+eval
+CREATE TABLE t1 (
+  c1 int(10) unsigned NOT NULL AUTO_INCREMENT,
+  c2 varchar(30) NOT NULL,
+  c3 smallint(5) unsigned DEFAULT NULL,
+  PRIMARY KEY (c1)
+)
+PARTITION BY HASH(c1)(
+  PARTITION p0
+    DATA DIRECTORY = '$path_1',
+  PARTITION p1,
+  PARTITION p2
+    DATA DIRECTORY = '$path_2'
+);
+
+INSERT INTO t1 VALUES (NULL, "first", 1);
+INSERT INTO t1 VALUES (NULL, "second", 2);
+INSERT INTO t1 VALUES (NULL, "third", 3);
+
+--replace_result $path_1 PATH_1 $path_2 PATH_2
+SHOW CREATE TABLE t1;
+
+--replace_result $path_3 PATH_3
+eval ALTER TABLE t1 ADD PARTITION (PARTITION p3 DATA DIRECTORY = '$path_3');
+INSERT INTO t1 VALUES (NULL, "last", 4);
+
+--replace_result $path_1 PATH_1 $path_2 PATH_2 $path_3 PATH_3
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Clean up: Delete target directories.
+--rmdir $path_1\test
+--rmdir $path_2\test
+--rmdir $path_3\test
+
+--rmdir $path_1
+--rmdir $path_2
+--rmdir $path_3
+
+--rmdir $base_1
+--rmdir $base_2

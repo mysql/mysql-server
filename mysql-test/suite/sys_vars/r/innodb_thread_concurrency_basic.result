@@ -1,0 +1,116 @@
+SET @global_start_value = @@global.innodb_thread_concurrency;
+SELECT @global_start_value;
+@global_start_value
+0
+SET @default_innodb_thread_sleep_delay = @@global.innodb_thread_sleep_delay;
+'#--------------------FN_DYNVARS_046_01------------------------#'
+SET @@global.innodb_thread_concurrency = 0;
+SET @@global.innodb_thread_concurrency = DEFAULT;
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+'#---------------------FN_DYNVARS_046_02-------------------------#'
+SET innodb_thread_concurrency = 1;
+ERROR HY000: Variable 'innodb_thread_concurrency' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@innodb_thread_concurrency;
+@@innodb_thread_concurrency
+0
+SELECT local.innodb_thread_concurrency;
+ERROR 42S02: Unknown table 'local' in field list
+SET global innodb_thread_concurrency = 0;
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+'#--------------------FN_DYNVARS_046_03------------------------#'
+SET @@global.innodb_thread_concurrency = 0;
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+SET @@global.innodb_thread_concurrency = 1;
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+1
+SET @@global.innodb_thread_concurrency = 1000;
+Warnings:
+Warning	1210	Current innodb_thread_concurrency is too big for safety of log files. Consider decreasing it or increase number of log files.
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+1000
+'#--------------------FN_DYNVARS_046_04-------------------------#'
+SET @@global.innodb_thread_concurrency = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_thread_concurrency value: '-1'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+SET @@global.innodb_thread_concurrency = "T";
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+SET @@global.innodb_thread_concurrency = "Y";
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+SET @@global.innodb_thread_concurrency = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+SET @@global.innodb_thread_concurrency = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+SET @@global.innodb_thread_concurrency = 1001;
+Warnings:
+Warning	1292	Truncated incorrect innodb_thread_concurrency value: '1001'
+Warning	1210	Current innodb_thread_concurrency is too big for safety of log files. Consider decreasing it or increase number of log files.
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+1000
+SET @@global.innodb_thread_concurrency = 255.01;
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+1000
+'#----------------------FN_DYNVARS_046_05------------------------#'
+SELECT @@global.innodb_thread_concurrency =
+VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_thread_concurrency';
+@@global.innodb_thread_concurrency =
+VARIABLE_VALUE
+1
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+1000
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_thread_concurrency';
+VARIABLE_VALUE
+1000
+'#---------------------FN_DYNVARS_046_06-------------------------#'
+SET @@global.innodb_thread_concurrency = OFF;
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+1000
+SET @@global.innodb_thread_concurrency = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+1000
+'#---------------------FN_DYNVARS_046_07----------------------#'
+SET @@global.innodb_thread_concurrency = TRUE;
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+1
+SET @@global.innodb_thread_concurrency = FALSE;
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+SET @@global.innodb_thread_concurrency = @global_start_value;
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+SET @@global.innodb_thread_sleep_delay = @default_innodb_thread_sleep_delay;

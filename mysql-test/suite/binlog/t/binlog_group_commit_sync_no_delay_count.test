@@ -1,0 +1,98 @@
+# WL#7742: test case that checks that the option
+#          binlog_group_commit_sync_delay introduces a
+#          delay in the group commit
+
+--source include/have_binlog_format_mixed.inc
+--source include/have_debug.inc
+
+--let $delay=1000000
+--let $count=2
+--let $delay_as_secs= `SELECT $delay / 1000000.0`
+
+--let $bgcd_saved=`SELECT @@GLOBAL.binlog_group_commit_sync_delay`
+--let $bgcc_saved=`SELECT @@GLOBAL.binlog_group_commit_sync_no_delay_count`
+
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+CREATE TABLE t2 (c1 INT) Engine=InnoDB;
+
+--eval SET GLOBAL binlog_group_commit_sync_delay=$delay
+--eval SET GLOBAL binlog_group_commit_sync_no_delay_count=$count
+
+connect (con1, localhost, root,,);
+connect (con2, localhost, root,,);
+
+-- echo ######################## ASSERTION #1 #####################################
+# assertion #1 : Make sure that even if group commit count is
+#                set, if the timeout elapses the session gets
+#                released.
+--connection con1
+SET DEBUG_SYNC='bgc_after_flush_stage_before_sync_stage SIGNAL go_con2_to_flush WAIT_FOR go_con1_to_sync';
+--echo ============== CON1: FLUSHed and REAPed the QUEUE Waiting for CON2 to get to the FLUSH stage ============
+SET @clock_in = SYSDATE();
+--send INSERT INTO t1 VALUES (1)
+
+--connection con2
+SET DEBUG_SYNC='bgc_before_flush_stage SIGNAL go_con1_to_sync WAIT_FOR go_con2_to_flush';
+SET DEBUG_SYNC='bgc_after_flush_stage_before_sync_stage WAIT_FOR go_con2_to_sync';
+--echo ============== CON2: WILL FLUSH and REAP the QUEUE but only after CON1 has waited and signaled CON2 ============
+SET @clock_in = SYSDATE();
+--send INSERT INTO t2 VALUES (2)
+
+--connection con1
+--reap
+SET @elapsed = TIMESTAMPDIFF(MICROSECOND, @clock_in, SYSDATE());
+
+--echo ============== CON1: signal CON2 to resume and go into SYNC stage ============
+SET DEBUG_SYNC = "now SIGNAL go_con2_to_sync";
+
+--let $assert_text="Assert that con1 statement took more than the delay set."
+--let $assert_cond= [SELECT @elapsed >= @@GLOBAL.binlog_group_commit_sync_delay]
+--source include/assert.inc
+
+--connection con2
+--reap
+--echo ============== CON2: RESUMES ============
+SET @elapsed = TIMESTAMPDIFF(MICROSECOND, @clock_in, SYSDATE());
+
+--let $assert_text="Assert that con2 statement took more than the delay set."
+--let $assert_cond= [SELECT @elapsed >= @@GLOBAL.binlog_group_commit_sync_delay]
+--source include/assert.inc
+
+-- echo ######################## ASSERTION #2 #####################################
+# assertion #2: Assert that if count is reached before the timeout elapses
+#               then we get execution times lower than binlog_group_commit_sync_delay
+
+--connection con1
+--let $saved_debug=`SELECT @@GLOBAL.DEBUG`
+SET GLOBAL DEBUG="d,bgc_set_infinite_delay";
+--echo ============== CON1: enters wait_count_or_timeout waits for CON2 to enroll for the SYNC stage ============
+SET DEBUG_SYNC='bgc_after_flush_stage_before_sync_stage WAIT_FOR go_con1_to_wait';
+SET DEBUG_SYNC='bgc_wait_count_or_timeout SIGNAL go_con2_to_flush WAIT_FOR go_con1_resume_wait';
+SET @clock_in = SYSDATE();
+--send INSERT INTO t1 VALUES (1)
+
+--connection con2
+--echo ============== CON2: signals CON1 that it has enrolled for the SYNC stage ============
+SET DEBUG_SYNC='bgc_before_flush_stage SIGNAL go_con1_to_wait WAIT_FOR go_con2_to_flush';
+SET DEBUG_SYNC='bgc_after_enrolling_for_sync_stage SIGNAL go_con1_resume_wait';
+--send INSERT INTO t2 VALUES (2)
+
+--connection con1
+--reap
+--eval SET GLOBAL DEBUG="$saved_debug";
+# if we have reached this point, the server did not wait ad eternum
+# thus the test succeeds
+
+--connection con2
+--reap
+
+--connection con1
+--disconnect con1
+--disconnect con2
+
+--connection default
+
+--eval SET GLOBAL binlog_group_commit_sync_no_delay_count=$bgcc_saved
+--eval SET GLOBAL binlog_group_commit_sync_delay=$bgcd_saved
+
+DROP TABLE t1, t2;

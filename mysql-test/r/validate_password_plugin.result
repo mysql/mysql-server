@@ -1,0 +1,237 @@
+call mtr.add_suppression("Dictionary file not specified");
+CREATE USER 'base_user'@'localhost' IDENTIFIED BY 'pass',
+'user1'@'localhost' IDENTIFIED BY 'pass';
+GRANT ALL ON mysql.* TO 'user1'@'localhost';
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+# password policy LOW (which only check for password length)
+# default case: password length should be minimum 8
+SET @@global.validate_password_policy=LOW;
+CREATE USER 'user'@'localhost' IDENTIFIED BY '';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'aweg';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password3';
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password';
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'passwor';
+ERROR HY000: Your password does not satisfy the current policy requirements
+SET @@global.validate_password_length= 12;
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'afrgtyhlp98';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'iuyt567nbvfA';
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password1234';
+SET @@global.validate_password_mixed_case_count= 0;
+SET @@global.validate_password_number_count= 0;
+SET @@global.validate_password_special_char_count= 0;
+SET @@global.validate_password_length= 0;
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY '';
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'p';
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password';
+SET @@global.validate_password_length= -2;
+Warnings:
+Warning	1292	Truncated incorrect validate_password_length value: '-2'
+SET @@global.validate_password_length= 3.5;
+ERROR 42000: Incorrect argument type to variable 'validate_password_length'
+SET @@global.validate_password_length= 2147483647;
+SET @@global.validate_password_length= 2147483648;
+Warnings:
+Warning	1292	Truncated incorrect validate_password_length value: '2147483648'
+PREPARE stmt1 FROM 'UPDATE mysql.user SET authentication_string=(?) where USER = ?';
+SET @a = REPEAT('a',2147483647);
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+SET @b = 'user@localhost';
+EXECUTE stmt1 USING @a,@b;
+DEALLOCATE PREPARE stmt1;
+SET @@global.validate_password_length= 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect validate_password_length value: '4294967295'
+SET @@global.validate_password_length= 8;
+PREPARE stmt1 FROM 'UPDATE mysql.user SET authentication_string=(?) where USER = ?';
+SET @a = REPEAT('a',1048576);
+SET @b = 'user@localhost';
+EXECUTE stmt1 USING @a,@b;
+DEALLOCATE PREPARE stmt1;
+# password policy MEDIUM (check for mixed_case, digits, special_chars)
+# default case : atleast 1 mixed_case, 1 digit, 1 special_char
+SET @@global.validate_password_mixed_case_count= 1;
+SET @@global.validate_password_number_count= 1;
+SET @@global.validate_password_special_char_count= 1;
+SET @@global.validate_password_policy=MEDIUM;
+SET @@global.validate_password_number_count= 0;
+CREATE USER 'user'@'localhost' IDENTIFIED BY 'aedfoiASE$%';
+ALTER USER 'user'@'localhost' IDENTIFIED BY 'foiuiuytd78';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'user'@'localhost' IDENTIFIED BY 'pasretryFRGH&^98';
+SET @@global.validate_password_mixed_case_count= 0;
+CREATE USER 'user'@'localhost' IDENTIFIED BY 'aedSWEhjui';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'user'@'localhost' IDENTIFIED BY 'gruyuHOIU&*(';
+ALTER USER 'user'@'localhost' IDENTIFIED BY 'passwor0987**&';
+SET @@global.validate_password_special_char_count= 0;
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'piufgklol';
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password1A#';
+SET @@global.validate_password_special_char_count= 1;
+SET @@global.validate_password_number_count= 1;
+SET @@global.validate_password_mixed_case_count= 1;
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'erftuiik';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password1A#';
+SET @@global.validate_password_number_count= 2;
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password1A#';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password12A#';
+SET @@global.validate_password_number_count= 1;
+SET @@global.validate_password_mixed_case_count= 2;
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password1A#';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password1AB#';
+SET @@global.validate_password_mixed_case_count= 1;
+SET @@global.validate_password_special_char_count= 2;
+SET @@global.validate_password_special_char_count= 1;
+# No dictionary file present, no dictionary check
+SET @@global.validate_password_policy=STRONG;
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password1A#';
+SET @@global.validate_password_dictionary_file="MYSQL_ERRMSG_BASEDIR/dictionary.txt";
+# password policy strong
+# default_file : dictionary.txt
+SET @@global.validate_password_policy=STRONG;
+CREATE USER 'user'@'localhost' IDENTIFIED BY 'password';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'password1A#';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'pass12345A#';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'pass0000A#';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'base_user'@'localhost' IDENTIFIED BY 'PA00wrd!#';
+# test for password_validate_strength function
+SELECT VALIDATE_PASSWORD_STRENGTH('password', 0);
+ERROR 42000: Incorrect parameter count in the call to native function 'VALIDATE_PASSWORD_STRENGTH'
+SELECT VALIDATE_PASSWORD_STRENGTH();
+ERROR 42000: Incorrect parameter count in the call to native function 'VALIDATE_PASSWORD_STRENGTH'
+SELECT VALIDATE_PASSWORD_STRENGTH('');
+VALIDATE_PASSWORD_STRENGTH('')
+0
+SELECT VALIDATE_PASSWORD_STRENGTH('pass');
+VALIDATE_PASSWORD_STRENGTH('pass')
+25
+SELECT VALIDATE_PASSWORD_STRENGTH('password');
+VALIDATE_PASSWORD_STRENGTH('password')
+50
+SELECT VALIDATE_PASSWORD_STRENGTH('password0000');
+VALIDATE_PASSWORD_STRENGTH('password0000')
+50
+SELECT VALIDATE_PASSWORD_STRENGTH('password1A#');
+VALIDATE_PASSWORD_STRENGTH('password1A#')
+75
+SELECT VALIDATE_PASSWORD_STRENGTH('PA12wrd!#');
+VALIDATE_PASSWORD_STRENGTH('PA12wrd!#')
+100
+SELECT VALIDATE_PASSWORD_STRENGTH('PA00wrd!#');
+VALIDATE_PASSWORD_STRENGTH('PA00wrd!#')
+100
+SET NAMES 'ujis';
+SELECT VALIDATE_PASSWORD_STRENGTH('PA12wrd!#');
+VALIDATE_PASSWORD_STRENGTH('PA12wrd!#')
+100
+SET @@global.validate_password_policy=MEDIUM;
+SET @@global.validate_password_policy=LOW;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET @@global.validate_password_length= 4;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET @@global.validate_password_special_char_count= 0;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET @@global.validate_password_mixed_case_count= 0;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+CREATE USER 'user2'@'localhost' IDENTIFIED BY 'password';
+ERROR HY000: Your password does not satisfy the current policy requirements
+CREATE USER 'user2'@'localhost' IDENTIFIED BY 'PA00wrd!#';
+ALTER USER 'user2'@'localhost' IDENTIFIED BY 'password';
+ERROR HY000: Your password does not satisfy the current policy requirements
+ALTER USER 'user2'@'localhost' IDENTIFIED BY 'PA00wrd!#';
+DROP USER 'user2'@'localhost';
+DROP USER 'base_user'@'localhost';
+DROP USER 'user1'@'localhost';
+DROP USER 'user'@'localhost';
+SET @@global.validate_password_length=default;
+SET @@global.validate_password_number_count=default;
+SET @@global.validate_password_mixed_case_count=default;
+SET @@global.validate_password_special_char_count=default;
+SET @@global.validate_password_policy=default;
+SET @@global.validate_password_dictionary_file=default;
+SELECT @@validate_password_length,
+@@validate_password_number_count,
+@@validate_password_mixed_case_count,
+@@validate_password_special_char_count,
+@@validate_password_policy,
+@@validate_password_dictionary_file;
+@@validate_password_length	@@validate_password_number_count	@@validate_password_mixed_case_count	@@validate_password_special_char_count	@@validate_password_policy	@@validate_password_dictionary_file
+8	1	1	1	MEDIUM	NULL
+#
+# Bug#14588145 -	NEED ABILITY TO FLUSH PASSWORD VALIDATION DICTIONARY FILE
+#
+SET @@global.validate_password_policy=STRONG;
+# No dictionary file, password is accepted
+CREATE USER 'user1'@'localhost' IDENTIFIED BY 'passWORD123#';
+SET @@global.validate_password_dictionary_file="MYSQLTEST_VARDIR/tmp/dictionary2.txt";
+# must return 3
+SELECT VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'validate_password_dictionary_file_words_count';
+VARIABLE_VALUE
+3
+SELECT VARIABLE_VALUE into @ts1 FROM performance_schema.global_status
+WHERE VARIABLE_NAME = "validate_password_dictionary_file_last_parsed";
+# check format of the TS
+SELECT @ts1;
+@ts1
+0000-00-00 00:00:00
+# must return 19
+SELECT LENGTH(@ts1);
+LENGTH(@ts1)
+19
+# must sleep for at least 1 sec so that the timestamps differ
+SET @@global.validate_password_dictionary_file="MYSQLTEST_VARDIR/tmp/dictionary.txt";
+# must return 2
+SELECT VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'validate_password_dictionary_file_words_count';
+VARIABLE_VALUE
+2
+SELECT VARIABLE_VALUE into @ts2 FROM performance_schema.global_status
+WHERE VARIABLE_NAME = "validate_password_dictionary_file_last_parsed";
+# must return 1
+SELECT @ts1 <> @ts2;
+@ts1 <> @ts2
+1
+CREATE USER 'user2'@'localhost' IDENTIFIED BY 'passWORD123#';
+ERROR HY000: Your password does not satisfy the current policy requirements
+SET @@global.validate_password_dictionary_file=NULL;
+# Cache flushed and no dictionary file is loaded
+CREATE USER 'user2'@'localhost' IDENTIFIED BY 'passWORD123#';
+# Select commands to show that the validate_password lock is instrumented
+SELECT NAME FROM performance_schema.setup_instruments WHERE NAME LIKE '%validate%';
+NAME
+wait/synch/rwlock/validate/LOCK_dict_file
+SELECT NAME FROM performance_schema.rwlock_instances WHERE NAME LIKE '%validate%';
+NAME
+wait/synch/rwlock/validate/LOCK_dict_file
+# cleanup
+DROP USER 'user1'@'localhost', 'user2'@'localhost';
+SET @@global.validate_password_policy=DEFAULT;
+# clean up after the test
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+#
+# CREATE ROLE DOESN'T WORK WITH PASSWORD VALIDATION PLUGIN
+#
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+CREATE ROLE r1;
+DROP ROLE r1;
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+End of tests

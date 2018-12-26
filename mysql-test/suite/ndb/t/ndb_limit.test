@@ -1,0 +1,84 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+
+CREATE TABLE t2 (
+  a bigint unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+
+#
+# insert records into table
+#
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval insert into t2 values($1*10, $1+9, 5*$1), ($1*10+1, $1+10, 7),($1*10+2, $1+10, 7*$1), ($1*10+3, $1+10, 10+$1), ($1*10+4, $1+10, 70*$1), ($1*10+5, $1+10, 7), ($1*10+6, $1+10, 9), ($1*10+7, $1+299, 899), ($1*10+8, $1+10, 12), ($1*10+9, $1+10, 14*$1);
+ dec $1;
+}
+enable_query_log;
+
+select count(*) from t2;
+
+delete from t2 limit 1;
+select count(*) from t2;
+
+delete from t2 limit 100;
+select count(*) from t2;
+
+delete from t2 limit 1000;
+select count(*) from t2;
+
+update t2 set c=12345678 limit 100;
+select count(*) from t2 where c=12345678;
+select count(*) from t2 where c=12345678 limit 1000;
+
+select * from t2 limit 0;
+
+drop table t2;
+
+CREATE TABLE `t2` (
+  `views` int(11) NOT NULL default '0',
+  `clicks` int(11) NOT NULL default '0',
+  `day` date NOT NULL,
+  `hour` tinyint(4) NOT NULL default '0',
+  `bannerid` smallint(6) NOT NULL default '0',
+  `zoneid` smallint(6) NOT NULL default '0',
+  `source` varchar(50) NOT NULL default '',
+  PRIMARY KEY  (`day`,`hour`,`bannerid`,`zoneid`,`source`),
+  KEY `bannerid_day` (`bannerid`,`day`),
+  KEY `zoneid` (`zoneid`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO `t2` VALUES
+(  1,0,'2004-09-17', 5,100,100,''),
+(  1,0,'2004-09-18', 7,100,100,''),
+( 17,0,'2004-09-27',20,132,100,''),
+(  4,0,'2004-09-16',23,132,100,''),
+( 86,0,'2004-09-18', 7,196,196,''),
+( 11,0,'2004-09-16',16,132,100,''),
+(140,0,'2004-09-18', 0,100,164,''),
+(  2,0,'2004-09-17', 7,132,100,''),
+(846,0,'2004-09-27',11,132,164,''),
+(  1,0,'2004-09-18', 8,132,100,''),
+( 22,0,'2004-09-27', 9,164,132,''),
+(711,0,'2004-09-27', 9,100,164,''),
+( 11,0,'2004-09-18', 0,196,132,''),
+( 41,0,'2004-09-27',15,196,132,''),
+( 57,0,'2004-09-18', 2,164,196,'');
+
+SELECT DATE_FORMAT(day, '%Y%m%d') as date, DATE_FORMAT(day, '%d-%m-%Y')
+as date_formatted FROM t2 GROUP BY day ORDER BY day DESC;
+
+SELECT DATE_FORMAT(day, '%Y%m%d') as date, DATE_FORMAT(day, '%d-%m-%Y')
+as date_formatted FROM t2 GROUP BY day ORDER BY day DESC LIMIT 2;
+
+drop table t2;
+
+# End of 4.1 tests

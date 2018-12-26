@@ -1,0 +1,33 @@
+--echo #
+--echo # Test of deletion of rules.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+CREATE TABLE t1 ( c1 VARCHAR(10) );
+INSERT INTO t1 VALUES ( 'abc' ), ( 'def' );
+
+CREATE TABLE t2 ( c1 VARCHAR(10) );
+INSERT INTO t2 VALUES ( '123' ), ( '456' );
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1', 'SELECT * FROM test.t2' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # Check that the rewrite rule is executed.
+SELECT * FROM test.t1;
+
+DELETE FROM query_rewrite.rewrite_rules
+WHERE pattern = 'SELECT * FROM test.t1';
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # Check that the rewrite rule is not executed.
+SELECT * FROM test.t1;
+
+DROP TABLE t1, t2;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

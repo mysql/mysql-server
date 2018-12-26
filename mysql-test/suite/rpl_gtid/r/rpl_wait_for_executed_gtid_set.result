@@ -1,0 +1,597 @@
+include/rpl_init.inc [topology=1->2, 1->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_group_replication_plugin_installed.inc
+include/rpl_default_connections.inc
+==== 0. Initialize ====
+[connection server_1]
+SET GLOBAL GTID_PURGED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3,ffffffff-ffff-ffff-ffff-ffffffffffff:1-1234567890';
+[connection server_2]
+SET GLOBAL GTID_PURGED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3,ffffffff-ffff-ffff-ffff-ffffffffffff:1-1234567890';
+[connection server_3]
+SET GLOBAL GTID_PURGED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3,ffffffff-ffff-ffff-ffff-ffffffffffff:1-1234567890';
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+CALL mtr.add_suppression('You need to use --log-bin to make --log-slave-updates work.');
+[connection master]
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.');
+include/rpl_sync.inc
+include/rpl_sync.inc
+CREATE TABLE t1 (a INT);
+==== 1. Error conditions ====
+---- 1.1. NULL or invalid string ----
+SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL, 5);
+ERROR HY000: Malformed GTID set specification 'NULL'.
+SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL);
+ERROR HY000: Malformed GTID set specification 'NULL'.
+SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value');
+ERROR HY000: Malformed GTID set specification 'Incorrect_value'.
+SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value', 5);
+ERROR HY000: Malformed GTID set specification 'Incorrect_value'.
+SELECT WAIT_FOR_EXECUTED_GTID_SET();
+ERROR 42000: Incorrect parameter count in the call to native function 'WAIT_FOR_EXECUTED_GTID_SET'
+SELECT WAIT_FOR_EXECUTED_GTID_SET('NULL', 5, 5);
+ERROR 42000: Incorrect parameter count in the call to native function 'WAIT_FOR_EXECUTED_GTID_SET'
+---- 1.2. Wait for GTID owned by the waiting client ----
+SET @@SESSION.GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:1';
+SELECT WAIT_FOR_EXECUTED_GTID_SET('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1');
+WAIT_FOR_EXECUTED_GTID_SET('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1')
+0
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1');
+ERROR HY000: The client holds ownership of the GTID cccccccc-cccc-cccc-cccc-cccccccccccc:1. Therefore, WAIT_FOR_EXECUTED_GTID_SET cannot wait for this GTID.
+ROLLBACK;
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1', 1);
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1', 1)
+1
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+---- 1.3. Function should return NULL in a replication thread ----
+INSERT INTO t1 VALUES (WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+include/assert.inc [t1 should contain 0]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [t1 should contain NULL]
+[connection master]
+---- 1.4. Function should generate error if GTID_MODE = OFF ----
+include/rpl_set_gtid_mode.inc [off on servers 1,2,3]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1');
+ERROR HY000: Cannot use WAIT_FOR_EXECUTED_GTID_SET when GTID_MODE = OFF.
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:9999');
+ERROR HY000: Cannot use WAIT_FOR_EXECUTED_GTID_SET when GTID_MODE = OFF.
+include/rpl_set_gtid_mode.inc [on on servers 1,2,3]
+---- 1.5. Function should stop fast if client is killed ----
+include/rpl_connect.inc [creating con1]
+[connection con1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:9999');
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+KILL <THREAD_ID>;
+[connection con1]
+ERROR HY000: Lost connection to MySQL server during query
+[connection master]
+---- 1.6. Function should return error if query is killed ----
+[connection master1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:9999');
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+include/kill_wait_for_executed_gtid_set.inc
+[connection master]
+==== 2. Wait set is already part of GTID_EXECUTED ====
+---- 2.1. No GTID ----
+SELECT WAIT_FOR_EXECUTED_GTID_SET('');
+WAIT_FOR_EXECUTED_GTID_SET('')
+0
+SELECT WAIT_FOR_EXECUTED_GTID_SET('', 999999);
+WAIT_FOR_EXECUTED_GTID_SET('', 999999)
+0
+---- 2.2. Single GTID ----
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1');
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1')
+0
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', 999999);
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', 999999)
+0
+---- 2.3. Multiple GTIDs, all having the same UUID ----
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3');
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3')
+0
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3', 999999);
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3', 999999)
+0
+---- 2.4. Multiple GTIDs using different UUIDs ----
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3');
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3')
+0
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3', 999999);
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3', 999999)
+0
+---- 2.5. Huge GTID set ----
+SELECT WAIT_FOR_EXECUTED_GTID_SET('ffffffff-ffff-ffff-ffff-ffffffffffff:1-1234567890');
+WAIT_FOR_EXECUTED_GTID_SET('ffffffff-ffff-ffff-ffff-ffffffffffff:1-1234567890')
+0
+SELECT WAIT_FOR_EXECUTED_GTID_SET('ffffffff-ffff-ffff-ffff-ffffffffffff:1-1234567890', 999999);
+WAIT_FOR_EXECUTED_GTID_SET('ffffffff-ffff-ffff-ffff-ffffffffffff:1-1234567890', 999999)
+0
+==== 3. Still waiting after 1 second, if GTIDs not committed ====
+---- 3.1. Big timeout ----
+[connection master1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1', 999999);
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+include/kill_wait_for_executed_gtid_set.inc
+---- 3.2. No timeout ----
+[connection master1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1');
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+include/kill_wait_for_executed_gtid_set.inc
+==== 4. Still waiting after 1 second, even if GTID included in GTID_OWNED ====
+[connection server_1]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:1';
+---- 4.1. Big timeout ----
+[connection master1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1', 999999);
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+include/kill_wait_for_executed_gtid_set.inc
+---- 4.2. No timeout ----
+[connection master1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1');
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+include/kill_wait_for_executed_gtid_set.inc
+[connection server_1]
+ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+==== 5. Still waiting if anonymous transaction committed ====
+include/rpl_set_gtid_mode.inc [on_permissive on servers 1,2,3]
+---- 5.1. Big timeout ----
+[connection master1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1', 999999);
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+SET GTID_NEXT = 'ANONYMOUS';
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT = 'AUTOMATIC';
+include/kill_wait_for_executed_gtid_set.inc
+---- 5.2. No timeout ----
+[connection master1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1');
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+SET GTID_NEXT = 'ANONYMOUS';
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT = 'AUTOMATIC';
+include/kill_wait_for_executed_gtid_set.inc
+include/rpl_set_gtid_mode.inc [on on servers 1,2,3]
+==== 6. Stop after the timeout is reached ====
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1', 1);
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1', 1)
+1
+[connection server_1]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:1';
+[connection master]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1', 1);
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1', 1)
+1
+[connection server_1]
+ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection master]
+==== 7. ====
+---- 7.1 (1) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:6');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'SERVER_UUID:6';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:6')
+0
+[connection master]
+---- 7.2 (1) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:7,SERVER_UUID:8');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'SERVER_UUID:7';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'SERVER_UUID:8';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:7,SERVER_UUID:8')
+0
+[connection master]
+---- 7.3 (1) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:9,dddddddd-dddd-dddd-dddd-dddddddddddd:1');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'SERVER_UUID:9';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'dddddddd-dddd-dddd-dddd-dddddddddddd:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:9,dddddddd-dddd-dddd-dddd-dddddddddddd:1')
+0
+[connection master]
+---- 7.4 (1) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:1,SERVER_UUID:10,dddddddd-dddd-dddd-dddd-dddddddddddd:2');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'SERVER_UUID:10';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'dddddddd-dddd-dddd-dddd-dddddddddddd:2';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:1,SERVER_UUID:10,dddddddd-dddd-dddd-dddd-dddddddddddd:2')
+0
+[connection master]
+---- 7.5 (1) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:11,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'SERVER_UUID:11';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('SERVER_UUID:11,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3')
+0
+[connection master]
+---- 7.6 (1) ----
+---- 7.1 (2) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1')
+0
+[connection master]
+---- 7.2 (2) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:2,cccccccc-cccc-cccc-cccc-cccccccccccc:3');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:2';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:3';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:2,cccccccc-cccc-cccc-cccc-cccccccccccc:3')
+0
+[connection master]
+---- 7.3 (2) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:4,dddddddd-dddd-dddd-dddd-dddddddddddd:3');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:4';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'dddddddd-dddd-dddd-dddd-dddddddddddd:3';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:4,dddddddd-dddd-dddd-dddd-dddddddddddd:3')
+0
+[connection master]
+---- 7.4 (2) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1,cccccccc-cccc-cccc-cccc-cccccccccccc:5,dddddddd-dddd-dddd-dddd-dddddddddddd:4');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:5';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'dddddddd-dddd-dddd-dddd-dddddddddddd:4';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1,cccccccc-cccc-cccc-cccc-cccccccccccc:5,dddddddd-dddd-dddd-dddd-dddddddddddd:4')
+0
+[connection master]
+---- 7.5 (2) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:6,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:6';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:6,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3')
+0
+[connection master]
+---- 7.6 (2) ----
+[connection server_1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('UUID:1');
+[connection server_1_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'UUID:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_1]
+WAIT_FOR_EXECUTED_GTID_SET('UUID:1')
+0
+[connection master]
+---- 7.1 (3) ----
+[connection server_2]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:7');
+[connection server_2_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:7';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_2]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:7')
+0
+[connection master]
+---- 7.2 (3) ----
+[connection server_2]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:8,cccccccc-cccc-cccc-cccc-cccccccccccc:9');
+[connection server_2_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:8';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_2_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:9';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_2]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:8,cccccccc-cccc-cccc-cccc-cccccccccccc:9')
+0
+[connection master]
+---- 7.3 (3) ----
+[connection server_2]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:10,dddddddd-dddd-dddd-dddd-dddddddddddd:5');
+[connection server_2_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:10';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_2_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'dddddddd-dddd-dddd-dddd-dddddddddddd:5';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_2]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:10,dddddddd-dddd-dddd-dddd-dddddddddddd:5')
+0
+[connection master]
+---- 7.4 (3) ----
+[connection server_2]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1,cccccccc-cccc-cccc-cccc-cccccccccccc:11,dddddddd-dddd-dddd-dddd-dddddddddddd:6');
+[connection server_2_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:11';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_2_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'dddddddd-dddd-dddd-dddd-dddddddddddd:6';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_2]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1,cccccccc-cccc-cccc-cccc-cccccccccccc:11,dddddddd-dddd-dddd-dddd-dddddddddddd:6')
+0
+[connection master]
+---- 7.5 (3) ----
+[connection server_2]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:12,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3');
+[connection server_2_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:12';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_2]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:12,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3')
+0
+[connection master]
+---- 7.6 (3) ----
+[connection server_2]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('UUID:1');
+[connection server_2_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'UUID:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_2]
+WAIT_FOR_EXECUTED_GTID_SET('UUID:1')
+0
+[connection master]
+---- 7.1 (4) ----
+[connection server_3]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:13');
+[connection server_3_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:13';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_3]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:13')
+0
+[connection master]
+---- 7.2 (4) ----
+[connection server_3]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:14,cccccccc-cccc-cccc-cccc-cccccccccccc:15');
+[connection server_3_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:14';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_3_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:15';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_3]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:14,cccccccc-cccc-cccc-cccc-cccccccccccc:15')
+0
+[connection master]
+---- 7.3 (4) ----
+[connection server_3]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:16,dddddddd-dddd-dddd-dddd-dddddddddddd:7');
+[connection server_3_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:16';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_3_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'dddddddd-dddd-dddd-dddd-dddddddddddd:7';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_3]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:16,dddddddd-dddd-dddd-dddd-dddddddddddd:7')
+0
+[connection master]
+---- 7.4 (4) ----
+[connection server_3]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1,cccccccc-cccc-cccc-cccc-cccccccccccc:17,dddddddd-dddd-dddd-dddd-dddddddddddd:8');
+[connection server_3_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:17';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_3_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'dddddddd-dddd-dddd-dddd-dddddddddddd:8';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_3]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:1,cccccccc-cccc-cccc-cccc-cccccccccccc:17,dddddddd-dddd-dddd-dddd-dddddddddddd:8')
+0
+[connection master]
+---- 7.5 (4) ----
+[connection server_3]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:18,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3');
+[connection server_3_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:18';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_3]
+WAIT_FOR_EXECUTED_GTID_SET('cccccccc-cccc-cccc-cccc-cccccccccccc:18,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3')
+0
+[connection master]
+---- 7.6 (4) ----
+[connection server_3]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('UUID:1');
+[connection server_3_1]
+include/wait_for_wait_for_executed_gtid_set.inc
+[connection master]
+SET GTID_NEXT = 'UUID:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection server_3]
+WAIT_FOR_EXECUTED_GTID_SET('UUID:1')
+0
+[connection master]
+==== 8.1 SET GTID_PURGED ====
+DROP TABLE t1;
+include/rpl_sync.inc
+include/rpl_stop_slaves.inc
+RESET MASTER;
+[connection master1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-1234567890');
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+SET GLOBAL GTID_PURGED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-1234567890';
+[connection master1]
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-1234567890')
+0
+[connection master]
+==== 9. RESET MASTER ====
+RESET MASTER;
+[connection master1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1,cccccccc-cccc-cccc-cccc-cccccccccccc:1');
+[connection master]
+include/wait_for_wait_for_executed_gtid_set.inc
+SET GLOBAL GTID_PURGED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+SET GTID_NEXT = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+RESET MASTER;
+SET SESSION GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+include/wait_for_wait_for_executed_gtid_set.inc
+SET SESSION GTID_NEXT = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+[connection master1]
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1,cccccccc-cccc-cccc-cccc-cccccccccccc:1')
+0
+[connection master]
+==== 10. Clean up ====
+include/rpl_end.inc

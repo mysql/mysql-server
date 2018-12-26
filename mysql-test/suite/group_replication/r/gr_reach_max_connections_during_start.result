@@ -1,0 +1,30 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Simulate that server did reach max_connections before
+#    group replication is started, start will fail.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations.*");
+call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
+SET SESSION sql_log_bin= 1;
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,simulate_reach_max_connections';
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert_grep.inc [Found the expected error log message about exceeded max connections.]
+
+############################################################
+# 2. Shutdown server.
+include/rpl_reconnect.inc
+
+############################################################
+# 3. Clean up.
+[connection server1]
+SET @@GLOBAL.DEBUG= @debug_save;
+include/group_replication_end.inc

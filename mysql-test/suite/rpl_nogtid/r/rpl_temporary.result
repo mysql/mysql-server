@@ -1,0 +1,155 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Slave: Can\'t find record in \'user\' Error_code: 1032");
+reset master;
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('a');
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/start_slave.inc
+INSERT INTO t1 VALUES ('b');
+include/sync_slave_sql_with_master.inc
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
+INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/start_slave.inc
+INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+include/sync_slave_sql_with_master.inc
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+SET @save_select_limit=@@session.sql_select_limit;
+SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.sql_select_limit = @save_select_limit;
+@@session.sql_select_limit = @save_select_limit
+1
+SET @@session.sql_select_limit=10, @@session.sql_log_bin=0;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.sql_select_limit = @save_select_limit;
+@@session.sql_select_limit = @save_select_limit
+1
+SET @save_conn_id= connection_id();
+SET @@session.pseudo_thread_id=100;
+SET @@session.pseudo_thread_id=connection_id();
+SET @@session.pseudo_thread_id=@save_conn_id;
+SET @@session.sql_log_bin=0;
+SET @@session.sql_log_bin=1;
+drop table if exists t1,t2;
+create table t1(f int);
+create table t2(f int);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+create temporary table t3(f int);
+insert into t3 select * from t1 where f<6;
+create temporary table t3(f int);
+insert into t2 select count(*) from t3;
+insert into t3 select * from t1 where f>=4;
+drop temporary table t3;
+insert into t2 select count(*) from t3;
+drop temporary table t3;
+select * from t2 ORDER BY f;
+f
+5
+7
+drop table t1, t2;
+use test;
+SET TIMESTAMP=1040323920;
+create table t1(f int);
+SET TIMESTAMP=1040323931;
+create table t2(f int);
+SET TIMESTAMP=1040323938;
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SET TIMESTAMP=1040323945;
+SET @@session.pseudo_thread_id=1;
+create temporary table t3(f int);
+SET TIMESTAMP=1040323952;
+SET @@session.pseudo_thread_id=1;
+insert into t3 select * from t1 where f<6;
+SET TIMESTAMP=1040324145;
+SET @@session.pseudo_thread_id=2;
+create temporary table t3(f int);
+SET TIMESTAMP=1040324186;
+SET @@session.pseudo_thread_id=1;
+insert into t2 select count(*) from t3;
+SET TIMESTAMP=1040324200;
+SET @@session.pseudo_thread_id=2;
+insert into t3 select * from t1 where f>=4;
+SET TIMESTAMP=1040324211;
+SET @@session.pseudo_thread_id=1;
+drop temporary table t3;
+SET TIMESTAMP=1040324219;
+SET @@session.pseudo_thread_id=2;
+insert into t2 select count(*) from t3;
+SET TIMESTAMP=1040324224;
+SET @@session.pseudo_thread_id=2;
+drop temporary table t3;
+select * from t2 ORDER BY f;
+f
+5
+7
+drop table t1,t2;
+create temporary table t3 (f int);
+include/sync_slave_sql_with_master.inc
+create temporary table t4 (f int);
+create table t5 (f int);
+include/sync_slave_sql_with_master.inc
+stop slave;
+insert into t5 select * from t4;
+start slave;
+select * from t5 /* must be 1 after reconnection */;
+f
+drop temporary table t4;
+drop table t5;
+set @@session.pseudo_thread_id=100;
+create temporary table t101 (id int);
+create temporary table t102 (id int);
+set @@session.pseudo_thread_id=200;
+create temporary table t201 (id int);
+create temporary table `t``201` (id int);
+create temporary table `#sql_not_user_table202` (id int);
+set @@session.pseudo_thread_id=300;
+create temporary table t301 (id int);
+create temporary table t302 (id int);
+create temporary table `#sql_not_user_table303` (id int);
+create table t1(f int);
+insert into t1 values (1);
+include/sync_slave_sql_with_master.inc
+select * from t1 /* must be 1 */;
+f
+1
+drop table t1;
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a
+1
+drop table t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/rpl_reset.inc
+-- Bug#43748
+-- make a user on the slave that can list but not kill system threads.
+FLUSH PRIVILEGES;
+CREATE USER user43748@127.0.0.1 IDENTIFIED BY 'meow';
+GRANT PROCESS ON *.* TO user43748@127.0.0.1;
+-- try to KILL system-thread as that non-privileged user (on slave).
+SELECT id INTO @id FROM information_schema.processlist WHERE user='system user' LIMIT 1;
+KILL @id;
+Got one of the listed errors
+-- throw out test-user on slave.
+DROP USER user43748@127.0.0.1;
+End of 5.1 tests
+include/rpl_end.inc

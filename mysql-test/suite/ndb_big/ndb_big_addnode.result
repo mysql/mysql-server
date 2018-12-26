@@ -1,0 +1,193 @@
+result_format: 2
+connect  j1,localhost,root,,test;
+connect  j2,localhost,root,,test;
+connect  j3,localhost,root,,test;
+connect  j4,localhost,root,,test;
+
+connect  ddl,localhost,root,,test,$MASTER_MYPORT1,;
+
+connection ddl;
+
+CREATE LOGFILE GROUP lg_1
+    ADD UNDOFILE 'undo_1.dat'
+    INITIAL_SIZE 4M
+    UNDO_BUFFER_SIZE 2M
+    ENGINE NDB;
+
+CREATE TABLESPACE ts_1
+    ADD DATAFILE 'data_1.dat'
+    USE LOGFILE GROUP lg_1
+    INITIAL_SIZE 16M
+    ENGINE NDB;
+
+create table t1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table t2(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK engine=ndb;
+create table t5(id int NOT NULL PRIMARY KEY, data char(8)) max_rows=50000000 engine=ndb;
+create table t6(id int not null primary key, val int unique key, dat blob, txt text) engine=ndb;
+
+
+
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t5 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t6 fields terminated by ' ' lines terminated by '\n' ignore 9000 lines (@id, @data) set id = (@id - 9000)*10 - 9, val = (@id - 9000)*10 - 9, dat = repeat(@data, 10000), txt = repeat(@data,10000);
+
+select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
+t1_part_count
+8
+select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
+t2_part_count
+8
+select @init_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
+t5_part_count
+8
+select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
+t6_part_count
+8
+
+connection default;
+explain
+  select count(*)
+  from t6 join t1
+  on (t6.val = t1.id)
+  where t6.val < 25;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	range	val	val	5	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition; Using MRR
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t6.val	###	Child of 't6' in pushed join@1
+
+Starting engines...
+connection j1;
+call updateload(300,0);
+
+connection j2;
+call queryload(300,2000);
+
+connection j3;
+call updateload(300,4000);
+
+connection j4;
+call queryload(300,6000);
+
+connection default;
+
+connection ddl;
+
+
+## Check details of t5 partitioning
+FragmentCount 8
+HashMap DEFAULT-HASHMAP-3840-8
+
+
+## Check details of t6 partitioning
+FragmentCount 8
+HashMap DEFAULT-HASHMAP-3840-8
+FragmentCount 8
+HashMap DEFAULT-HASHMAP-3840-8
+FragmentCount 8
+HashMap DEFAULT-HASHMAP-3840-8
+
+
+## Create nodegroup for "new" nodes
+Nodegroup 1 created
+## Drop
+Drop Node Group 1 done
+## and create
+Nodegroup 1 created
+create table t3(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table t4(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK engine=ndb;
+
+insert into t3(id, data) VALUES 
+(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
+(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+insert into t4(id, data) VALUES
+(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
+(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+
+connection ddl;
+
+alter table t1 algorithm=inplace, reorganize partition;
+alter table t2 algorithm=inplace, reorganize partition;
+alter table t5 algorithm=inplace, max_rows=300000000;
+alter table t6 algorithm=inplace, reorganize partition;
+
+connection default;
+connection ddl;
+select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
+t1_part_count
+16
+select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
+t2_part_count
+16
+select count(1) as t3_part_count from information_schema.partitions where table_schema='test' and table_name='t3';
+t3_part_count
+16
+select count(1) as t4_part_count from information_schema.partitions where table_schema='test' and table_name='t4';
+t4_part_count
+16
+select @reorg_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
+t5_part_count
+16
+select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
+t6_part_count
+16
+
+## Check details of t5 partitioning
+FragmentCount 16
+HashMap DEFAULT-HASHMAP-3840-16
+
+
+
+## Simple blob usage of t6
+select count(0) as row_count, min(abs(id)) as id_min, max(id) as id_max, sum(length(dat)) as data_length, sum(length(txt)) as text_length from t6;
+row_count	id_min	id_max	data_length	text_length
+1000	1	9991	29740000	29740000
+select count(0) from t6 where val = abs(id) and (id between -4991 and -4001 or id between -991 and 9991);
+count(0)
+1000
+
+## Check details of t6 partitioning
+FragmentCount 16
+HashMap DEFAULT-HASHMAP-3840-16
+FragmentCount 16
+HashMap DEFAULT-HASHMAP-3840-16
+FragmentCount 16
+HashMap DEFAULT-HASHMAP-3840-16
+
+
+HashMap DEFAULT-HASHMAP-3840-16
+HashMap DEFAULT-HASHMAP-3840-16
+HashMap DEFAULT-HASHMAP-3840-16
+
+
+drop table t1,t2,t3,t4,t5,t6;
+
+connection default;
+connection j1;
+connection j2;
+connection j3;
+connection j4;
+connection ddl;
+
+connection default;
+
+disconnect j1;
+disconnect j2;
+disconnect j3;
+disconnect j4;
+
+connection default;
+
+drop procedure queryload;
+drop procedure updateload;
+
+connection ddl;
+## Drop nodegroup with "new" nodes
+Drop Node Group 1 done
+ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat';
+DROP TABLESPACE ts_1;
+DROP LOGFILE GROUP lg_1 ENGINE NDB;
+disconnect ddl;
+
+connection default;

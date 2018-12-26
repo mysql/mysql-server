@@ -1,0 +1,23 @@
+###########################################################
+#                                                         #
+# Bug # 90454: trx_t::owns_mutex is set to false without  #
+#             lock_sys->mutex being held                  #
+#                                                         #
+###########################################################
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+val INT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (id,val) VALUES (1,1);
+BEGIN;
+SET DEBUG_SYNC = 'before_lock_clust_rec_read_check_and_lock SIGNAL sig1 WAIT_FOR updater_can_continue';
+SET DEBUG_SYNC = 'rec_lock_create_trx_mutex_enter SIGNAL killer_can_continue';
+UPDATE t1 SET val = 13 WHERE id = 1;
+SET DEBUG_SYNC = 'now WAIT_FOR sig1';
+SET DEBUG_SYNC = 'lock_trx_handle_wait_released_lock_mutex SIGNAL updater_can_continue WAIT_FOR killer_can_continue';
+KILL QUERY <target_id>;
+ERROR 70100: Query execution was interrupted
+ROLLBACK;
+ROLLBACK;
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';

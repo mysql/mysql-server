@@ -1,0 +1,84 @@
+
+
+# 2011-02-23 - Added
+#
+
+
+SET @start_global_value = @@global.innodb_flush_neighbors;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.innodb_flush_neighbors;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_flush_neighbors;
+show global variables like 'innodb_flush_neighbors';
+show session variables like 'innodb_flush_neighbors';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_flush_neighbors';
+select * from performance_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_flush_neighbors=0;
+select @@global.innodb_flush_neighbors;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_flush_neighbors';
+select * from performance_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
+set @@global.innodb_flush_neighbors=TRUE;
+select @@global.innodb_flush_neighbors;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_flush_neighbors';
+select * from performance_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
+set global innodb_flush_neighbors=0;
+select @@global.innodb_flush_neighbors;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_flush_neighbors';
+select * from performance_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
+set @@global.innodb_flush_neighbors=2;
+select @@global.innodb_flush_neighbors;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_flush_neighbors';
+select * from performance_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
+set @@global.innodb_flush_neighbors=DEFAULT;
+select @@global.innodb_flush_neighbors;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_flush_neighbors';
+select * from performance_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session innodb_flush_neighbors=0;
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_flush_neighbors=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_flush_neighbors='OFF';
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_flush_neighbors='ON';
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_flush_neighbors=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_flush_neighbors=1e1;
+set global innodb_flush_neighbors=3;
+select @@global.innodb_flush_neighbors;
+set global innodb_flush_neighbors=-3;
+select @@global.innodb_flush_neighbors;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_flush_neighbors='AUTO';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_flush_neighbors = @start_global_value;
+SELECT @@global.innodb_flush_neighbors;

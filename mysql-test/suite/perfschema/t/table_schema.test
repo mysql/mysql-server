@@ -1,0 +1,54 @@
+# Test to detect changest to the PERFORMANCE_SCHEMA table schemas
+
+# Use the INFORMATION_SCHEMA to examine the tables in the PERFORMANCE_SCHEMA
+# and detect any tables that have changed.
+
+select * from information_schema.columns where table_schema="performance_schema"
+   order by table_name collate utf8_general_ci, ordinal_position;
+
+# Bug#11766504 "59631: BIGINT UNSIGNED BYTE RELATED COLUMNS IN PERFORMANCE_SCHEMA"
+
+# Goal: Confirm that all byte related columns are BIGINT signed. This test will
+# not have to be changed to accommodate new or deleted columns.
+
+# Count the number of NUMBER_OF_BYTES columns.
+
+select count(*) from information_schema.columns
+   where table_schema="performance_schema" and data_type = "bigint"
+   and column_name like "%number_of_bytes" into @count_byte_columns;
+
+# Confirm that at least one column was found.
+
+select @count_byte_columns > 0;
+
+# Confirm that all NUMBER_OF_BYTES columns are BIGINT signed.
+
+select count(*) from information_schema.columns
+   where table_schema="performance_schema" and data_type="bigint"
+   and column_name like "%number_of_bytes"
+   and column_type not like "%unsigned" into @count_byte_signed;
+
+select (@count_byte_columns - @count_byte_signed) = 0;
+
+# Similar test for OBJECT_INSTANCE_BEGIN values, which are typically derived
+# from a memory address and must therefore be unsigned.
+#
+# Count the number of OBJECT_INSTANCE_BEGIN columns.
+
+select count(*) from information_schema.columns
+   where table_schema="performance_schema" and data_type = "bigint"
+   and column_name like "%object_instance_begin" into @count_object_columns;
+
+# Confirm that at least one column was found.
+
+select @count_object_columns > 0;
+
+# Confirm that all OBJECT_INSTANCE_BEGIN columns are BIGINT unsigned.
+
+select count(*) from information_schema.columns
+   where table_schema="performance_schema" and data_type="bigint"
+   and column_name like "%object_instance_begin"
+   and column_type like "%unsigned" into @count_object_unsigned;
+
+select (@count_object_columns - @count_object_unsigned) = 0;
+

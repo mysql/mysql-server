@@ -1,0 +1,48 @@
+
+100' * (select 1 from T1 (1M rows) where key = rand());
+1 host, 1 ndbd, api co-hosted
+results in 1000 rows / sec
+
+					wo/reset bounds  w/ rb
+4.1-read committed		        a) 4.9		b) 7.4
+4.1-read hold lock			c) 4.7		d) 6.7
+
+wl2077-read committed			6.4 (+30%)	10.8 (+45%)
+wl2077-read hold lock			4.6 (-1%)	6.7 (+ 0%)
+
+5.0-ndb batch read committed		f) 50' (+680%)	g) 50' (+360%)
+5.0-ndb batch read hold lock		h) 12' (+160%)	i) 13' (+79%)
+
+shm-mem	read committed (cmp. wl2077)	a) 9.5' (+48%)	b) 14' (+30%)
+	read hold lock			c) 6.7'	(+45%)	d) 9.8'	(+46%)
+
+-- Comparision e)			shm
+serial pk:	       10.9'		20' (+83%)
+batched (1000):	       59'		62' (+5%)
+serial uniq index:     8.4'		14' (+66%)
+batched (1000):	       33'		36' (+9%)
+index range (1000):    186'
+
+----
+
+load) testScanPerf -c 1 -d 1 T1
+a) testScanPerf -s 100000 -c 0 -d 0 -a 1 -l 0 -r 2 -q 0 T1
+b) testScanPerf -s 100000 -c 0 -d 0 -a 1 -l 0 -r 2 -q 1 T1
+c) testScanPerf -s 100000 -c 0 -d 0 -a 1 -l 1 -r 2 -q 0 T1
+d) testScanPerf -s 100000 -c 0 -d 0 -a 1 -l 1 -r 2 -q 1 T1
+e) testReadPerf -i 25 -c 0 -d 0 T1
+f) testScanPerf -s 100000 -c 0 -d 0 -a 1 -l 0 -r 3 -q 0 -m 1000 -i 10 T1
+g) testScanPerf -s 100000 -c 0 -d 0 -a 1 -l 0 -r 3 -q 1 -m 1000 -i 10 T1
+
+--- music join		1db-co		2db-co
+			
+4.1			13s		14s
+4.1 wo/ blobs		1.7s		3.2s
+
+wl2077			12s		14s
+wl2077 wo/ blobs	1.2s (-30%)	2.5s (-22%)
+
+pekka-blob-fix		1.3s
+
+shm			1.2s		2.0s
+shm wo/ blobs		1.1s		2.0s

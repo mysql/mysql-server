@@ -1,0 +1,214 @@
+RUN drop schema if exists xtest
+
+0 rows affected
+RUN create schema xtest default charset 'utf8mb4'
+
+1 rows affected
+RUN use xtest
+
+0 rows affected
+RUN create table mycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
+
+0 rows affected
+RUN insert into mycoll (doc) values ('{"_id": "1", "name": "Joe1"}')
+
+1 rows affected
+RUN insert into mycoll (doc) values ('{"_id": "2", "name": "Joe2", "last_name": "Smith"}')
+
+1 rows affected
+RUN insert into mycoll (doc) values ('{"_id": "3", "name": "Joe2", "last_name": "Shmo"}')
+
+1 rows affected
+RUN insert into mycoll (doc) values ('{"_id": "4", "name": "小島", "last_name": "Bla"}')
+
+1 rows affected
+RUN create table funkycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
+
+0 rows affected
+RUN insert into funkycoll (doc) values ('{"_id": "1", "I love \\\"\'quotes\'\\\"\\n": "I love \\\"\'quotes\'\\\"\\n"}')
+
+1 rows affected
+RUN insert into funkycoll (doc) values ('{"_id": "2", "I love \\\"\'quotes\'\\\"\\n": "\\\",$.array[2]\\\\\\\""}')
+
+1 rows affected
+RUN insert into funkycoll (doc) values ('{"_id": "3", "\\\",$.array[2]\\\\\\\"": "I love \\\"\'quotes\'\\\"\\n"}')
+
+1 rows affected
+RUN insert into funkycoll (doc) values ('{"_id": "4", "\\\",$.array[2]\\\\\\\"": "\\\",$.array[2]\\\\\\\""}')
+
+1 rows affected
+RUN create table fancycoll (doc JSON, _id VARBINARY(32) NOT NULL KEY)
+
+0 rows affected
+RUN insert into fancycoll (doc, _id) values ('\n{\n         \"_id\": \"X999_Y999\",\n         \"from\": {\n            \"name\": \"Tom Brady\", \"id\": \"X12\"\n         },\n         \"message\": \"Looking forward to 2010!\",\n         \"actions\": [\n            {\n               \"name\": \"Comment\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y999\"\n            },\n            {\n               \"name\": \"Like\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y999\"\n            }\n         ],\n         \"type\": \"status\",\n         \"created_time\": \"2010-08-02T21:27:44+0000\",\n         \"updated_time\": \"2010-08-02T21:27:44+0000\"\n      }\n', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into fancycoll (doc, _id) values ('\n{\n         \"_id\": \"X999_Y998\",\n         \"from\": {\n            \"name\": \"Dom Crady\", \"id\": \"A12\"\n         },\n         \"message\": \"Looking forward to 2034!\",\n         \"actions\": [\n            {\n               \"name\": \"Comment\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y222\"\n            },\n            {\n               \"name\": \"Like\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y222\"\n            }\n         ],\n         \"type\": \"status\",\n         \"created_time\": \"2011-08-02T21:27:44+0000\",\n         \"updated_time\": \"2011-08-02T21:27:44+0000\"\n      }\n', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN CREATE TABLE `city` (
+  `ID` int(11) NOT NULL auto_increment,
+  `Name` char(35) NOT NULL default '',
+  `CountryCode` char(3) NOT NULL default '',
+  `District` char(20) NOT NULL default '',
+  `Population` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`ID`)
+)
+
+0 rows affected
+RUN INSERT INTO `city` VALUES (1,'Kabul','AFG','Kabol',1780000)
+
+1 rows affected
+last insert id: 1
+RUN INSERT INTO `city` VALUES (2,'Qandahar','AFG','Qandahar',237500)
+
+1 rows affected
+last insert id: 2
+RUN INSERT INTO `city` VALUES (3,'Herat','AFG','Herat',186800)
+
+1 rows affected
+last insert id: 3
+RUN INSERT INTO `city` VALUES (4,'Mazar-e-Sharif','AFG','Balkh',127800)
+
+1 rows affected
+last insert id: 4
+RUN INSERT INTO `city` VALUES (5,'Amsterdam','NLD','Noord-Holland',731200)
+
+1 rows affected
+last insert id: 5
+RUN INSERT INTO `city` VALUES (6,'Rotterdam','NLD','Zuid-Holland',593321)
+
+1 rows affected
+last insert id: 6
+RUN INSERT INTO `city` VALUES (7,'Haag','NLD','Zuid-Holland',440900)
+
+1 rows affected
+last insert id: 7
+RUN INSERT INTO `city` VALUES (8,'Utrecht','NLD','Utrecht',234323)
+
+1 rows affected
+last insert id: 8
+RUN INSERT INTO `city` VALUES (9,'Eindhoven','NLD','Noord-Brabant',201843)
+
+1 rows affected
+last insert id: 9
+RUN INSERT INTO `city` VALUES (10,'Tilburg','NLD','Noord-Brabant',193238)
+
+1 rows affected
+last insert id: 10
+RUN INSERT INTO `city` VALUES (11,'Groningen','NLD','Groningen',172701)
+
+1 rows affected
+last insert id: 11
+RUN INSERT INTO `city` VALUES (12,'Breda','NLD','Noord-Brabant',160398)
+
+1 rows affected
+last insert id: 12
+RUN INSERT INTO `city` VALUES (13,'Apeldoorn','NLD','Gelderland',153491)
+
+1 rows affected
+last insert id: 13
+RUN INSERT INTO `city` VALUES (14,'Nijmegen','NLD','Gelderland',152463)
+
+1 rows affected
+last insert id: 14
+RUN INSERT INTO `city` VALUES (15,'Enschede','NLD','Overijssel',149544)
+
+1 rows affected
+last insert id: 15
+RUN INSERT INTO `city` VALUES (16,'Haarlem','NLD','Noord-Holland',148772)
+
+1 rows affected
+last insert id: 16
+send Mysqlx.Crud.Find {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "doc"
+  original_name: "doc"
+  table: "mycoll"
+  original_table: "mycoll"
+  schema: "xtest"
+  catalog: "def"
+  collation: 63
+  length: 4294967295
+  content_type: 2
+}
+
+Mysqlx.Resultset.Row {
+  field: "{\"_id\": \"1\", \"name\": \"Joe1\"}\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "{\"_id\": \"2\", \"name\": \"Joe2\", \"last_name\": \"Smith\"}\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "{\"_id\": \"3\", \"name\": \"Joe2\", \"last_name\": \"Shmo\"}\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "{\"_id\": \"4\", \"name\": \"\345\260\217\345\263\266\", \"last_name\": \"Bla\"}\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+
+set empty document and array
+............................
+send Mysqlx.Crud.Update {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "docfield"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: OBJECT
+      object {
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "docarray"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: ARRAY
+      array {
+      }
+    }
+  }
+}
+
+
+4 rows affected
+Rows matched: 4  Changed: 4  Warnings: 0
+RUN drop schema if exists xtest
+
+4 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

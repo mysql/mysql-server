@@ -1,0 +1,37 @@
+##############################################################################
+# Testcases 3.2.9.2+3.2.9.3 INFORMATION_SCHEMA.SCHEMATA accessible information
+##############################################################################
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
+SELECT * FROM information_schema.column_privileges
+WHERE table_schema IN ('information_schema','mysql','test')
+ORDER BY table_schema, table_name, column_name;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+SHOW DATABASES LIKE 'information_schema';
+Database (information_schema)
+information_schema
+SHOW DATABASES LIKE 'mysql';
+Database (mysql)
+mysql
+SHOW DATABASES LIKE 'test';
+Database (test)
+test
+# Establish connection testuser1 (user=testuser1)
+SELECT * FROM information_schema.column_privileges
+WHERE table_schema IN ('information_schema','mysql','test')
+ORDER BY table_schema, table_name, column_name;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+SHOW DATABASES LIKE 'information_schema';
+Database (information_schema)
+information_schema
+SHOW DATABASES LIKE 'mysql';
+Database (mysql)
+SHOW DATABASES LIKE 'test';
+Database (test)
+test
+# Switch to connection default and close connection testuser1
+DROP USER 'testuser1'@'localhost';
+DROP DATABASE db_datadict;

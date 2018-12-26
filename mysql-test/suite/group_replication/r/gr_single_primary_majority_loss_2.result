@@ -1,0 +1,51 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+# Crash the two servers(1 primary + 1 secondary) out of 3 to cause a majority loss
+[connection server1]
+include/gr_wait_primary_member_uuid.inc
+[connection server3]
+include/rpl_reconnect.inc
+include/rpl_reconnect.inc
+[connection server1]
+SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER1";
+SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER1";
+SET @@global.group_replication_group_name="GROUP_REPLICATION_GROUP_NAME";
+SET @@global.group_replication_enforce_update_everywhere_checks=OFF;
+SET @@global.group_replication_single_primary_mode=ON;
+[connection server_3]
+SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER3";
+SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER3";
+SET @@global.group_replication_group_name="GROUP_REPLICATION_GROUP_NAME";
+SET @@global.group_replication_enforce_update_everywhere_checks=OFF;
+SET @@global.group_replication_single_primary_mode=ON;
+[connection server2]
+# Wait for the member state for server1 to be unreachable
+include/gr_wait_for_member_state.inc
+# Wait for the member state for server3 to be unreachable
+include/gr_wait_for_member_state.inc
+# Connect to primary and unblock the group.
+SET GLOBAL group_replication_force_members= "GROUP_REPLICATION_LOCAL_ADDR";
+include/gr_wait_primary_member_uuid.inc
+CREATE TABLE test.t1 ( a int primary key);
+INSERT INTO test.t1 VALUES (1);
+[connection server1]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+[connection server2]
+DROP TABLE test.t1;
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+set session sql_log_bin=1;
+include/group_replication_end.inc

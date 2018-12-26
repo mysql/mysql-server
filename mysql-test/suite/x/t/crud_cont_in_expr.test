@@ -1,0 +1,415 @@
+## Varius tests related to cont_in operator
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/crud_cont_in_expr.tmp
+--write_file $xtest_file
+#-->quiet
+
+-->macro Cont_in  %PARAM0%  %PARAM1%  %ERROR%
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "cont_in"
+    source {
+      type: OPERATOR operator {
+        name: "cont_in"
+        param { %PARAM0% }
+        param { %PARAM1% }
+      }
+    }
+  }
+  projection {
+    alias: "not_cont_in"
+    source {
+      type: OPERATOR operator {
+        name: "not_cont_in"
+        param { %PARAM0% }
+        param { %PARAM1% }
+      }
+    }
+  }
+}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+# literal and array
+
+-->macro Cont_in_literal  %POSITIVE%  %NEGATIVE%  %WHERE%
+-->callmacro Cont_in	%POSITIVE%	%WHERE%	ER_SUCCESS
+-->callmacro Cont_in	%NEGATIVE%	%WHERE%	ER_SUCCESS
+-->endmacro
+
+-->varlet %LITERAL% type: LITERAL literal
+-->varlet %V_SINT% type: V_SINT v_signed_int
+-->varlet %V_BOOL% type: V_BOOL v_bool
+-->varlet %V_STRING% type: V_STRING v_string
+-->varlet %V_OCTETS% type: V_OCTETS v_octets
+-->varlet %ARRAY% type: ARRAY array
+-->varlet %IDENT% type: IDENT identifier
+-->varlet %MEMBER% type: MEMBER value
+-->varlet %OBJECT% type: OBJECT object
+-->varlet %OPERATOR% type: OPERATOR operator
+-->varlet %FUNC_CALL% type: FUNC_CALL function_call
+-->varlet %DOCUMENT_PATH% name: 'doc' document_path
+
+
+-->varlet %LITERAL_10% %LITERAL% {%V_SINT%: 10}
+-->varlet %LITERAL_20% %LITERAL% {%V_SINT%: 20}
+-->varlet %LITERAL_30% %LITERAL% {%V_SINT%: 30}
+-->varlet %LITERAL_40% %LITERAL% {%V_SINT%: 40}
+
+-->varlet %LITERAL_TRUE% %LITERAL% {%V_BOOL%: true}
+-->varlet %LITERAL_FALSE% %LITERAL% {%V_BOOL%: false}
+-->varlet %LITERAL_NULL% %LITERAL% {type: V_NULL}
+
+-->varlet %LITERAL_RED% %LITERAL% {%V_STRING% {value:'red'}}
+-->varlet %LITERAL_GREEN% %LITERAL% {%V_STRING% {value:'green'}}
+-->varlet %LITERAL_BLUE% %LITERAL% {%V_STRING% {value:'blue'}}
+-->varlet %LITERAL_WHITE% %LITERAL% {%V_STRING% {value:'white'}}
+
+-->varlet %LITERAL_APPLE% %LITERAL% {%V_OCTETS% {value:'apple' content_type:0}}
+-->varlet %LITERAL_PEAR% %LITERAL% {%V_OCTETS% {value:'pear' content_type:0}}
+-->varlet %LITERAL_PLUM% %LITERAL% {%V_OCTETS% {value:'plum' content_type:0}}
+-->varlet %LITERAL_BANANA% %LITERAL% {%V_OCTETS% {value:'banana' content_type:0}}
+
+-->varlet %LITERAL_ARRAY_10_20_30% %ARRAY% {value {%LITERAL_10%} value {%LITERAL_20%} value {%LITERAL_30%}}
+-->varlet %LITERAL_ARRAY_RED_GREEN_BLUE% %ARRAY% {value {%LITERAL_RED%} value {%LITERAL_GREEN%} value {%LITERAL_BLUE%}}
+-->varlet %LITERAL_ARRAY_TRUE_FALSE% %ARRAY% {value {%LITERAL_TRUE%} value {%LITERAL_FALSE%}}
+-->varlet %LITERAL_ARRAY_APPLE_PEAR_PLUM% %ARRAY% {value {%LITERAL_APPLE%} value {%LITERAL_PEAR%} value {%LITERAL_PLUM%}}
+
+
+-->title -Numeric literal in numeric literal
+-->callmacro Cont_in_literal	%LITERAL_10%	%LITERAL_40%	%LITERAL_10%
+
+-->title -Numeric literal in literal array
+-->callmacro Cont_in_literal	%LITERAL_10%	%LITERAL_40%	%LITERAL_ARRAY_10_20_30%
+
+-->title -Bool literal in literal array
+-->callmacro Cont_in_literal	%LITERAL_TRUE%	%LITERAL_40%	%LITERAL_ARRAY_TRUE_FALSE%
+
+-->title -String literal in string literal
+-->callmacro Cont_in_literal	%LITERAL_BLUE%	%LITERAL_WHITE%	%LITERAL_BLUE%
+
+-->title -String literal in literal array
+-->callmacro Cont_in_literal	%LITERAL_BLUE%	%LITERAL_WHITE%	%LITERAL_ARRAY_RED_GREEN_BLUE%
+
+-->title -Plain octets literal in literal array
+-->callmacro Cont_in_literal	%LITERAL_PEAR%	%LITERAL_BANANA%	%LITERAL_ARRAY_APPLE_PEAR_PLUM%
+
+-->title -Plain octets literal in literal octets
+-->callmacro Cont_in_literal	%LITERAL_PEAR%	%LITERAL_BANANA%	%LITERAL_PEAR%
+
+-->title -Literal bool literal in literal bool
+-->callmacro Cont_in_literal	%LITERAL_TRUE%	%LITERAL_FALSE%	%LITERAL_TRUE%
+
+
+-->varlet %JSON_OCTETS_ARRAY_10_20_30% %LITERAL% {%V_OCTETS% {value:'[10, 20, 30]' content_type:2}}
+-->varlet %JSON_OCTETS_ARRAY_RED_GREEN_BLUE% %LITERAL% {%V_OCTETS% {value:'["red", "green", "blue"]' content_type:2}}
+-->varlet %JSON_OCTETS_ARRAY_TRUE_FALSE% %LITERAL% {%V_OCTETS% {value:'[true, false]' content_type:2}}
+
+-->title -Numeric literal in json octets array
+-->callmacro Cont_in_literal	%LITERAL_10%	%LITERAL_40%	%JSON_OCTETS_ARRAY_10_20_30%
+
+-->title -Bool literal in json octets array
+-->callmacro Cont_in_literal	%LITERAL_TRUE%	%LITERAL_10%	%JSON_OCTETS_ARRAY_TRUE_FALSE%
+
+-->title -String literal in json octets array
+-->callmacro Cont_in_literal	%LITERAL_BLUE%	%LITERAL_WHITE%	%JSON_OCTETS_ARRAY_RED_GREEN_BLUE%
+
+
+-->varlet %MEMBER_SCALAR_10% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'scalar_10'}}
+-->varlet %MEMBER_SCALAR_40% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'scalar_40'}}
+-->varlet %MEMBER_SCALAR_TRUE% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'scalar_true'}}
+-->varlet %MEMBER_SCALAR_RED% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'scalar_red'}}
+-->varlet %MEMBER_SCALAR_BANANA% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'scalar_banana'}}
+
+-->title -Numeric literal in member
+-->callmacro Cont_in_literal	%LITERAL_10%	%LITERAL_20%	%MEMBER_SCALAR_10%
+-->title -Numeric member in literal scalar
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_10%	%MEMBER_SCALAR_40%	%LITERAL_10%
+-->title -Numeric member in literal array
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_10%	%MEMBER_SCALAR_40%	%LITERAL_ARRAY_10_20_30%
+-->title -Numeric member in json octets array
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_10%	%MEMBER_SCALAR_40%	%JSON_OCTETS_ARRAY_10_20_30%
+
+-->title -Bool literal in member
+-->callmacro Cont_in_literal	%LITERAL_TRUE%	%LITERAL_FALSE%	%MEMBER_SCALAR_TRUE%
+-->title -Bool member in literal scalar
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_TRUE%	%MEMBER_SCALAR_40%	%LITERAL_TRUE%
+-->title -Bool member in literal array
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_TRUE%	%MEMBER_SCALAR_40%	%LITERAL_ARRAY_TRUE_FALSE%
+-->title -Bool member in json octets array
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_TRUE%	%MEMBER_SCALAR_40%	%JSON_OCTETS_ARRAY_TRUE_FALSE%
+
+-->title -String literal in member
+-->callmacro Cont_in_literal	%LITERAL_RED%	%LITERAL_WHITE%	%MEMBER_SCALAR_RED%
+-->title -String member in literal scalar
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_RED%	%MEMBER_SCALAR_BANANA%	%LITERAL_RED%
+-->title -String member in literal array
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_RED%	%MEMBER_SCALAR_BANANA%	%LITERAL_ARRAY_RED_GREEN_BLUE%
+-->title -String member in json octets array
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_RED%	%MEMBER_SCALAR_BANANA%	%JSON_OCTETS_ARRAY_RED_GREEN_BLUE%
+
+-->title -Plain octets literal in member
+-->callmacro Cont_in_literal	%LITERAL_BANANA%	%LITERAL_PEAR%	%MEMBER_SCALAR_BANANA%
+-->title -String member in plain octets literal
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_RED%	%MEMBER_SCALAR_BANANA%	%LITERAL_RED%
+
+
+-->varlet %MEMBER_ARRAY_10_20_30% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'array_10_20_30'}}
+-->varlet %MEMBER_ARRAY_RED_GREEN_PEAR% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'array_red_green_pear'}}
+-->varlet %MEMBER_ARRAY_TRUE_FALSE% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'array_true_false'}}
+
+-->title -Numeric literal in member array
+-->callmacro Cont_in_literal	%LITERAL_10%	%LITERAL_40%	%MEMBER_ARRAY_10_20_30%
+-->title -Numeric member in member array
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_10%	%MEMBER_SCALAR_40%	%MEMBER_ARRAY_10_20_30%
+
+-->title -Bool literal in member array
+-->callmacro Cont_in_literal	%LITERAL_FALSE%	%LITERAL_10%	%MEMBER_ARRAY_TRUE_FALSE%
+-->title -Bool member in member array
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_TRUE%	%MEMBER_SCALAR_40%	%MEMBER_ARRAY_TRUE_FALSE%
+
+-->title -String literal in member array
+-->callmacro Cont_in_literal	%LITERAL_RED%	%LITERAL_WHITE%	%MEMBER_ARRAY_RED_GREEN_PEAR%
+-->title -String member in member array
+-->callmacro Cont_in_literal	%MEMBER_SCALAR_RED%	%MEMBER_SCALAR_BANANA%	%MEMBER_ARRAY_RED_GREEN_PEAR%
+
+-->title -Plain octets literal in member array
+-->callmacro Cont_in_literal	%LITERAL_PEAR%	%LITERAL_BANANA%	%MEMBER_ARRAY_RED_GREEN_PEAR%
+
+
+# objects
+
+-->varlet %LITERAL_OBJECT_SCALAR_10% %OBJECT% {fld {key:'scalar_10' value {%LITERAL_10%}}}
+-->varlet %LITERAL_OBJECT_SCALAR_BLUE% %OBJECT% {fld {key:'scalar_blue' value {%LITERAL_BLUE%}}}
+-->varlet %JSON_OCTETS_OBJECT_SCALAR_10% %LITERAL% {%V_OCTETS% {value:'{"scalar_10":10}' content_type:2}}
+-->varlet %JSON_OCTETS_OBJECT_SCALAR_BLUE% %LITERAL% {%V_OCTETS% {value:'{"scalar_blue":"blue"}' content_type:2}}
+
+-->title -Json octets object in literal object
+-->callmacro Cont_in_literal	%JSON_OCTETS_OBJECT_SCALAR_10%	%JSON_OCTETS_OBJECT_SCALAR_BLUE%	%LITERAL_OBJECT_SCALAR_10%
+-->title -Literal object in json octets object
+-->callmacro Cont_in_literal	%LITERAL_OBJECT_SCALAR_10%	%LITERAL_OBJECT_SCALAR_BLUE%	%JSON_OCTETS_OBJECT_SCALAR_10%
+
+-->varlet %LITERAL_ARRAY_30_OBJECT_SCALAR_10_WHITE% %ARRAY% {value {%LITERAL_30%} value {%LITERAL_OBJECT_SCALAR_10%} value {%LITERAL_WHITE%}}
+
+-->title -Json octets object in literal array
+-->callmacro Cont_in_literal	%JSON_OCTETS_OBJECT_SCALAR_10%	%JSON_OCTETS_OBJECT_SCALAR_BLUE%	%LITERAL_ARRAY_30_OBJECT_SCALAR_10_WHITE%
+-->title -Literal object in literal array
+-->callmacro Cont_in_literal	%LITERAL_OBJECT_SCALAR_10%	%LITERAL_OBJECT_SCALAR_BLUE%	%LITERAL_ARRAY_30_OBJECT_SCALAR_10_WHITE%
+
+
+-->varlet %DOCUMENT_ROOT% %IDENT% {%DOCUMENT_PATH% {type: MEMBER}}
+
+-->title -Literal object in document
+-->callmacro Cont_in_literal	%LITERAL_OBJECT_SCALAR_10%	%LITERAL_OBJECT_SCALAR_BLUE%	%DOCUMENT_ROOT%
+-->title -Json octets object in document
+-->callmacro Cont_in_literal	%JSON_OCTETS_OBJECT_SCALAR_10%	%JSON_OCTETS_OBJECT_SCALAR_BLUE%	%DOCUMENT_ROOT%
+
+
+-->varlet %MEMBER_OBJECT_SCALAR_10% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'object_scalar_10'}}
+-->varlet %MEMBER_OBJECT_SCALAR_RED% %IDENT% {%DOCUMENT_PATH% {%MEMBER%: 'object_scalar_red'}}
+
+-->title -Literal object in member object
+-->callmacro Cont_in_literal	%LITERAL_OBJECT_SCALAR_10%	%LITERAL_OBJECT_SCALAR_BLUE%	%MEMBER_OBJECT_SCALAR_10%
+-->title -Json octets object in member object
+-->callmacro Cont_in_literal	%JSON_OCTETS_OBJECT_SCALAR_10%	%JSON_OCTETS_OBJECT_SCALAR_BLUE%	%MEMBER_OBJECT_SCALAR_10%
+
+-->title -Member object in literal object
+-->callmacro Cont_in_literal	%MEMBER_OBJECT_SCALAR_10%	%MEMBER_OBJECT_SCALAR_RED%	%LITERAL_OBJECT_SCALAR_10%
+-->title -Member object in json octets object
+-->callmacro Cont_in_literal	%MEMBER_OBJECT_SCALAR_10%	%MEMBER_OBJECT_SCALAR_RED%	%JSON_OCTETS_OBJECT_SCALAR_10%
+-->title -Member object in literal array
+-->callmacro Cont_in_literal	%MEMBER_OBJECT_SCALAR_10%	%MEMBER_OBJECT_SCALAR_RED%	%LITERAL_ARRAY_30_OBJECT_SCALAR_10_WHITE%
+
+
+# operators
+
+-->varlet %ADD_OPERATOR%  %OPERATOR% {name: '+' param{ %LITERAL_10%} param{ %LITERAL_20%} }
+-->varlet %CAST_TO_JSON_OPERATOR% %OPERATOR% {name: 'cast' param{%ADD_OPERATOR%} param{%LITERAL% {%V_OCTETS% {value:'JSON'}}}}
+-->varlet %CAST_TO_UINT_OPERATOR% %OPERATOR% {name: 'cast' param{%ADD_OPERATOR%} param{%LITERAL% {%V_OCTETS% {value:'UNSIGNED INTEGER'}}}}
+
+-->title -op+ directly to cont_in in literal array
+-->callmacro Cont_in	%ADD_OPERATOR%	%LITERAL_ARRAY_10_20_30%	ER_X_EXPR_BAD_VALUE
+-->title -op+ casted to uint in literal array
+-->callmacro Cont_in	%CAST_TO_UINT_OPERATOR%	%LITERAL_ARRAY_10_20_30%	ER_X_EXPR_BAD_VALUE
+-->title -literal uint in op+ casted to uint
+-->callmacro Cont_in	%LITERAL_30%	%CAST_TO_UINT_OPERATOR%	ER_X_EXPR_BAD_VALUE
+-->title -op+ casted to json in literal array
+-->callmacro Cont_in	%CAST_TO_JSON_OPERATOR%	%LITERAL_ARRAY_10_20_30%	ER_SUCCESS
+-->title -literal uint in op+ casted to json
+-->callmacro Cont_in	%LITERAL_30%	%CAST_TO_JSON_OPERATOR%	ER_SUCCESS
+
+
+# null
+-->varlet %LITERAL_ARRAY_10_NULL_30% %ARRAY% {value {%LITERAL_10%} value {%LITERAL_NULL%} value {%LITERAL_30%}}
+-->varlet %LITERAL_OBJECT_SCALAR_NULL% %OBJECT% {fld {key:'scalar_null' value {%LITERAL_NULL%}}}
+
+-->title -Literal NULL literal in literal NULL
+-->callmacro Cont_in	%LITERAL_NULL%	%LITERAL_10%	ER_SUCCESS
+-->callmacro Cont_in	%LITERAL_10%	%LITERAL_NULL%	ER_SUCCESS
+-->title -literal NULL in literal array
+-->callmacro Cont_in	%LITERAL_NULL%	%LITERAL_ARRAY_10_20_30%	ER_SUCCESS
+-->callmacro Cont_in	%LITERAL_NULL%	%LITERAL_ARRAY_10_NULL_30%	ER_SUCCESS
+-->title -literal NULL in literal object
+-->callmacro Cont_in	%LITERAL_NULL%	%LITERAL_OBJECT_SCALAR_10%	ER_SUCCESS
+-->callmacro Cont_in	%LITERAL_NULL%	%LITERAL_OBJECT_SCALAR_NULL%	ER_SUCCESS
+-->title -literal NULL in member object 
+-->callmacro Cont_in	%LITERAL_NULL%	%MEMBER_OBJECT_SCALAR_10%	ER_SUCCESS
+-->title -literal NULL in root document 
+-->callmacro Cont_in	%LITERAL_NULL%	%DOCUMENT_ROOT%	ER_SUCCESS
+
+
+# function
+
+-->varlet %FUNCTION_CONCAT% %FUNC_CALL% {name{name: 'concat'} param{%LITERAL_RED%} param{%LITERAL_GREEN%}}
+-->varlet %FUNCTION_QUOTE_CONCAT% %FUNC_CALL% {name{name: 'json_quote'} param{%FUNCTION_CONCAT%}}
+
+-->title -Function concat in string literal
+-->callmacro Cont_in	%FUNCTION_CONCAT%	%LITERAL_RED%	ER_X_EXPR_BAD_VALUE
+-->title -String literal in function concat
+-->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_CONCAT%	ER_X_EXPR_BAD_VALUE
+-->title -Quoted function concat in string literal
+-->callmacro Cont_in	%FUNCTION_QUOTE_CONCAT%	%LITERAL_RED%	ER_SUCCESS
+-->title -String literal in quoted function concat
+-->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_QUOTE_CONCAT%	ER_SUCCESS
+
+
+-->title -JSON_ARRAY - Create JSON array
+-->varlet %FUNCTION_JSON_ARRAY% %FUNC_CALL% {name{name: 'json_array'} param{%LITERAL_10%} param{%LITERAL_RED%} param{%LITERAL_TRUE%}}
+-->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_JSON_ARRAY%	ER_SUCCESS
+
+-->title -JSON_ARRAY_APPEND - Append data to JSON document
+-->varlet %ROOT_POINT% %LITERAL% {%V_OCTETS% {value:'$'}}
+-->varlet %FUNCTION_JSON_ARRAY_APPEND% %FUNC_CALL% {name{name: 'json_array_append'} param{%LITERAL_ARRAY_10_20_30%} param{%ROOT_POINT%} param{%LITERAL_RED%}}
+-->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_JSON_ARRAY_APPEND%	ER_SUCCESS
+
+-->title -JSON_ARRAY_INSERT - Insert into JSON array
+-->varlet %ARRAY_POINT% %LITERAL% {%V_OCTETS% {value:'$[1]'}}
+-->varlet %FUNCTION_JSON_ARRAY_INSERT% %FUNC_CALL% {name{name: 'json_array_insert'} param{%LITERAL_ARRAY_10_20_30%} param{%ARRAY_POINT%} param{%LITERAL_RED%}}
+-->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_JSON_ARRAY_INSERT%	ER_SUCCESS
+
+-->title -JSON_CONTAINS - Whether JSON document contains specific object at path
+-->varlet %FUNCTION_JSON_CONTAINS% %FUNC_CALL% {name{name: 'json_contains'} param{%LITERAL_ARRAY_10_20_30%} param{%LITERAL_RED%}}
+-->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_JSON_CONTAINS%	ER_X_EXPR_BAD_VALUE
+
+-->title -JSON_CONTAINS_PATH - Whether JSON document contains any data at path
+-->varlet %FUNCTION_JSON_CONTAINS_PATH% %FUNC_CALL% {name{name: 'json_contains_path'} param{%LITERAL_ARRAY_10_20_30%} param{%ARRAY_POINT%}}
+-->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_JSON_CONTAINS_PATH%	ER_X_EXPR_BAD_VALUE
+
+-->title -JSON_DEPTH - Maximum depth of JSON document
+-->varlet %FUNCTION_JSON_DEPTH% %FUNC_CALL% {name{name: 'json_depth'} param{%LITERAL_ARRAY_10_20_30%}}
+-->callmacro Cont_in	%LITERAL_RED%	%FUNCTION_JSON_DEPTH%	ER_X_EXPR_BAD_VALUE
+
+-->title -JSON_EXTRACT - Return data from JSON document
+-->varlet %FUNCTION_JSON_EXTRACT% %FUNC_CALL% {name{name: 'json_extract'} param{%LITERAL_ARRAY_30_OBJECT_SCALAR_10_WHITE%} param{%ARRAY_POINT%}}
+-->callmacro Cont_in	%LITERAL_OBJECT_SCALAR_10%	%FUNCTION_JSON_EXTRACT%	ER_SUCCESS
+
+-->title -JSON_INSERT - Insert data into JSON document
+-->varlet %SCALAR_10_POINT% %LITERAL% {%V_OCTETS% {value:'$.scalar_10'}}
+-->varlet %FUNCTION_JSON_INSERT% %FUNC_CALL% {name{name: 'json_insert'} param{%LITERAL_OBJECT_SCALAR_BLUE%} param{%SCALAR_10_POINT%}, param{%LITERAL_10%}}
+-->callmacro Cont_in	%LITERAL_OBJECT_SCALAR_10%	%FUNCTION_JSON_INSERT%	ER_SUCCESS
+
+-->title -JSON_KEYS - Array of keys from JSON document
+-->varlet %KEY_SCALAR_10% %LITERAL% {%V_OCTETS% {value:'scalar_10'}}
+-->varlet %FUNCTION_JSON_KEYS% %FUNC_CALL% {name{name: 'json_keys'} param{%DOCUMENT_ROOT%}}
+-->callmacro Cont_in	%KEY_SCALAR_10%	%FUNCTION_JSON_KEYS%	ER_SUCCESS
+
+-->title -JSON_LENGTH - Number of elements in JSON document
+-->varlet %FUNCTION_JSON_LENGTH% %FUNC_CALL% {name{name: 'json_length'} param{%DOCUMENT_ROOT%}}
+-->callmacro Cont_in	%LITERAL_10%	%FUNCTION_JSON_LENGTH%	ER_X_EXPR_BAD_VALUE
+
+-->title -JSON_MERGE - Merge JSON documents
+-->varlet %FUNCTION_JSON_MERGE% %FUNC_CALL% {name{name: 'json_merge'} param{%LITERAL_OBJECT_SCALAR_10%} param{%LITERAL_OBJECT_SCALAR_BLUE%}}
+-->callmacro Cont_in	%LITERAL_OBJECT_SCALAR_BLUE%	%FUNCTION_JSON_MERGE%	ER_SUCCESS
+
+-->title -JSON_OBJECT - Create JSON object
+-->varlet %FUNCTION_JSON_OBJECT% %FUNC_CALL% {name{name: 'json_object'} param{%KEY_SCALAR_10%} param{%LITERAL_10%}}
+-->callmacro Cont_in	%LITERAL_OBJECT_SCALAR_10%	%FUNCTION_JSON_OBJECT%	ER_SUCCESS
+
+-->title -JSON_QUOTE - Quote JSON document
+-->varlet %FUNCTION_JSON_QUOTE% %FUNC_CALL% {name{name: 'json_quote'} param{%LITERAL_RED%}}
+-->callmacro Cont_in	%FUNCTION_JSON_QUOTE%	%LITERAL_ARRAY_RED_GREEN_BLUE%	ER_SUCCESS
+
+-->title -JSON_REMOVE - Remove data from JSON document
+-->varlet %FUNCTION_JSON_REMOVE% %FUNC_CALL% {name{name: 'json_remove'} param{%LITERAL_ARRAY_10_20_30%} param{%ARRAY_POINT%}}
+-->callmacro Cont_in	%LITERAL_20%	%FUNCTION_JSON_REMOVE%	ER_SUCCESS
+
+-->title -JSON_REPLACE - Replace values in JSON document
+-->varlet %FUNCTION_JSON_REPLACE% %FUNC_CALL% {name{name: 'json_replace'} param{%LITERAL_ARRAY_10_20_30%} param{%ARRAY_POINT%} param{%LITERAL_40%}}
+-->callmacro Cont_in	%LITERAL_40%	%FUNCTION_JSON_REPLACE%	ER_SUCCESS
+
+-->title -JSON_SEARCH - Path to value within JSON document
+-->varlet %FUNCTION_JSON_SEARCH% %FUNC_CALL% {name{name: 'json_search'} param{%LITERAL_ARRAY_RED_GREEN_BLUE%} param{%LITERAL% {%V_OCTETS% {value:'one'}}} param{%LITERAL_GREEN%}}
+-->callmacro Cont_in	%ARRAY_POINT%	%FUNCTION_JSON_SEARCH%	ER_SUCCESS
+
+-->title -JSON_SET - Insert data into JSON document
+-->varlet %FUNCTION_JSON_SET% %FUNC_CALL% {name{name: 'json_set'} param{%LITERAL_OBJECT_SCALAR_BLUE%} param{%SCALAR_10_POINT%} param{%LITERAL_10%}}
+-->callmacro Cont_in	%LITERAL_OBJECT_SCALAR_10%	%FUNCTION_JSON_SET%	ER_SUCCESS
+
+-->title -JSON_TYPE - Type of JSON value
+-->varlet %FUNCTION_JSON_TYPE% %FUNC_CALL% {name{name: 'json_type'} param{%LITERAL_OBJECT_SCALAR_BLUE%}}
+-->callmacro Cont_in	%FUNCTION_JSON_TYPE%	%LITERAL_ARRAY_RED_GREEN_BLUE%	ER_X_EXPR_BAD_VALUE
+
+-->title -JSON_UNQUOTE - Unquote JSON value
+-->varlet %FUNCTION_JSON_UNQUOTE% %FUNC_CALL% {name{name: 'json_unquote'} param{%MEMBER_SCALAR_RED%}}
+-->callmacro Cont_in	%FUNCTION_JSON_UNQUOTE%	%LITERAL_ARRAY_RED_GREEN_BLUE%	ER_X_EXPR_BAD_VALUE
+
+-->title -JSON_VALID - Whether JSON value is valid
+-->varlet %FUNCTION_JSON_VALID% %FUNC_CALL% {name{name: 'json_valid'} param{%LITERAL_OBJECT_SCALAR_BLUE%}}
+-->callmacro Cont_in	%FUNCTION_JSON_VALID%	%LITERAL_ARRAY_10_20_30%	ER_X_EXPR_BAD_VALUE
+
+# parameters
+
+-->macro Cont_in_params  %PARAMS%  %ERROR%
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "cont_in"
+    source {
+      type: OPERATOR operator {
+        name: "cont_in"
+        %PARAMS%
+      }
+    }
+  }
+}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+-->title -Number of parameters
+-->callmacro Cont_in_params	 	ER_X_EXPR_BAD_NUM_ARGS
+-->callmacro Cont_in_params	param{ %LITERAL_10%}	ER_X_EXPR_BAD_NUM_ARGS
+-->callmacro Cont_in_params	param{ %LITERAL_10%} param{ %LITERAL_20%}	ER_SUCCESS
+-->callmacro Cont_in_params	param{ %LITERAL_10%} param{ %LITERAL_20%} param{ %LITERAL_30%}	ER_X_EXPR_BAD_NUM_ARGS
+
+EOF
+
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (doc JSON);
+INSERT INTO xtest.xtable (doc) VALUES
+  ('{"scalar_10":10,
+     "scalar_40":40,
+     "scalar_red":"red",
+     "scalar_banana":"banana",
+     "scalar_true":true,
+     "array_10_20_30":[10,20,30],
+     "array_red_green_pear":["red","green","pear"],
+     "array_true_false":[true, false],
+     "object_scalar_10":{"scalar_10":10},
+     "object_scalar_red":{"scalar_red":"red"}}');
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

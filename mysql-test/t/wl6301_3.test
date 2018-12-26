@@ -1,0 +1,25 @@
+
+# WL#6301: Change default value for the 'bind-address' option
+#
+# 3. Check that if the server is bound to the IPv4-mapped IPv6-address,
+# the server accepts client connections from both IPv4 and IPv6 worlds.
+#
+# Options: --skip-name-resolve, --bind-address=::ffff:127.0.0.1
+# (see corresponding opt file).
+#
+
+# The box should support IPv4-mapped addresses
+--source include/have_ipv4_mapped.inc
+
+--source include/add_extra_root_users.inc
+
+--echo # Checking ::ffff:127.0.0.1 ...
+--exec $MYSQLADMIN --no-defaults --default-character-set=latin1 -h ::ffff:127.0.0.1 -P $MASTER_MYPORT -u root ping
+
+--echo # Checking 127.0.0.1 ...
+--exec $MYSQLADMIN --no-defaults --default-character-set=latin1 -h 127.0.0.1 -P $MASTER_MYPORT -u root ping
+
+--source include/remove_extra_root_users.inc
+
+# NOTE: ::1 has nothing to do with ::ffff:127.0.0.1, so the server bound to
+# ::ffff:127.0.0.1 will not accept connections from to ::1.

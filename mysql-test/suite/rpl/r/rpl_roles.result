@@ -1,0 +1,126 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE ROLE r1, r2, r3;
+CREATE USER u1@localhost;
+GRANT r1 TO r2;
+GRANT r2 TO u1@localhost;
+GRANT r3 TO u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE ALL;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+localhost	u1	%	r2
+localhost	u1	%	r3
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r1	%	r2	N
+%	r2	localhost	u1	N
+%	r3	localhost	u1	N
+[connection master]
+REVOKE r3 FROM u1@localhost;
+GRANT r1 TO u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE r1;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+localhost	u1	%	r1
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r1	%	r2	N
+%	r1	localhost	u1	N
+%	r2	localhost	u1	N
+[connection master]
+ALTER USER u1@localhost DEFAULT ROLE NONE;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r1	%	r2	N
+%	r1	localhost	u1	N
+%	r2	localhost	u1	N
+[connection master]
+REVOKE r1 FROM r2;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r1	localhost	u1	N
+%	r2	localhost	u1	N
+include/stop_slave.inc
+set sql_log_bin=0;
+call mtr.add_suppression(".*Slave I/O for channel '': Master command COM_REGISTER_SLAVE failed.*");
+call mtr.add_suppression(".*Slave I/O thread couldn't register on master");
+set sql_log_bin=1;
+[connection master]
+CREATE ROLE r4;
+GRANT REPLICATION SLAVE ON *.* TO r4;
+GRANT r4 to u1@localhost;
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r1	localhost	u1	N
+%	r2	localhost	u1	N
+%	r4	localhost	u1	N
+[connection slave]
+CHANGE MASTER TO MASTER_USER='u1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE;
+include/wait_for_slave_io_error.inc [errno=13120]
+[connection master]
+ALTER USER u1@localhost DEFAULT ROLE ALL;
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+localhost	u1	%	r1
+localhost	u1	%	r2
+localhost	u1	%	r4
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r1	localhost	u1	N
+%	r2	localhost	u1	N
+%	r4	localhost	u1	N
+[connection slave]
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_to_start.inc
+# Cleanup Statement
+[connection master]
+DROP ROLE r1, r2, r3,r4;
+DROP USER u1@localhost;
+include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; CREATE ROLE r1, r2, r3
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; GRANT r1 TO r2
+slave-bin.000001	#	Query	#	#	use `test`; GRANT r2 TO u1@localhost
+slave-bin.000001	#	Query	#	#	use `test`; GRANT r3 TO u1@localhost
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u1@localhost DEFAULT ROLE ALL
+slave-bin.000001	#	Query	#	#	use `test`; REVOKE r3 FROM u1@localhost
+slave-bin.000001	#	Query	#	#	use `test`; GRANT r1 TO u1@localhost
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u1@localhost DEFAULT ROLE r1
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u1@localhost DEFAULT ROLE NONE
+slave-bin.000001	#	Query	#	#	use `test`; REVOKE r1 FROM r2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE ROLE r4
+slave-bin.000001	#	Query	#	#	use `test`; GRANT REPLICATION SLAVE ON *.* TO 'r4'@'%'
+slave-bin.000001	#	Query	#	#	use `test`; GRANT r4 to u1@localhost
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u1@localhost DEFAULT ROLE ALL
+slave-bin.000001	#	Query	#	#	use `test`; DROP ROLE r1, r2, r3,r4
+slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER='root';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+include/rpl_end.inc

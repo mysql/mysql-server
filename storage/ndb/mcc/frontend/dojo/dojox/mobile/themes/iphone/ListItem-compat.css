@@ -1,0 +1,18 @@
+
+.mblDomButtonGrayArrow, .mblDomButtonArrow {
+	background-image: url(../common/domButtons/compat/mblDomButtonGrayArrow.png);
+	background-repeat: no-repeat;
+}
+.mblDomButtonGrayArrow div, .mblDomButtonArrow div {
+	display: none;
+}
+.mblDomButtonDarkBlueCheck, .mblDomButtonCheck {
+	background-image: url(../common/domButtons/compat/mblDomButtonDarkBlueCheck.png);
+	background-repeat: no-repeat;
+}
+.mblDomButtonDarkBlueCheck div, .mblDomButtonCheck div {
+	display: none;
+}
+*html li.mblListItem.mblVariableHeight { 
+	height: 0;
+}

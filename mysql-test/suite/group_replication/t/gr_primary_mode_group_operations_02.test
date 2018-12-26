@@ -1,0 +1,83 @@
+###############################################################################
+#
+# To execute a coordinated group configuration change, the user
+# must have GROUP_REPLICATION_ADMIN privileges.
+#
+# Test:
+#   0. This test requires two servers with Group Replication running.
+#   1. Create users without and with GROUP_REPLICATION_ADMIN privileges.
+#   2. Connect to server using group_rpl_user1. Group configuration commands
+#      must fail due to lack of privileges.
+#   3. Connect to server using group_rpl_user2. Group configuration commands
+#      must not fail.
+#   4. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Create user without and with GROUP_REPLICATION_ADMIN privileges
+
+CREATE USER 'group_rpl_user1' IDENTIFIED BY '';
+
+CREATE USER 'group_rpl_user2' IDENTIFIED BY '';
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'group_rpl_user2';
+
+--connect (con_group_rpl_user1,127.0.0.1,group_rpl_user1,,test,$MASTER_MYPORT,,)
+--connect (con_group_rpl_user2,127.0.0.1,group_rpl_user2,,test,$MASTER_MYPORT,,)
+
+--echo
+--echo # 2. Connect to server using group_rpl_user1. Group configuration
+--echo #    commands must fail due to lack of privileges.
+
+--let $rpl_connection_name= con_group_rpl_user1
+--source include/rpl_connection.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_switch_to_single_primary_mode();
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 3. Connect to server using group_rpl_user2. Group configuration
+--echo #    commands must not fail.
+
+--let $rpl_connection_name= con_group_rpl_user2
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+SELECT group_replication_switch_to_single_primary_mode();
+
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 4. Cleanup
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+
+--disconnect con_group_rpl_user1
+--disconnect con_group_rpl_user2
+DROP USER group_rpl_user1;
+DROP USER group_rpl_user2;
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

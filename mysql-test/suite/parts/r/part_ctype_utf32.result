@@ -1,0 +1,14 @@
+#
+# Bug#52121 partition by key on utf32 enum field cause debug assertion: (length % 4) == 0
+#
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+CREATE TABLE t1 (
+a enum('a') CHARACTER SET utf32 COLLATE utf32_spanish2_ci
+) PARTITION BY KEY(a) PARTITIONS 2;
+INSERT INTO t1 VALUES ('a');
+SELECT * FROM t1;
+a
+a
+DROP TABLE t1;

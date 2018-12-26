@@ -1,0 +1,21 @@
+# t/unsafe_binlog_innodb.test
+#
+# Note that this test uses at least in case of InnoDB options
+#     --transaction-isolation=READ-COMMITTED
+#     innodb_lock_timeout = 5
+#
+# Last update:
+# 2006-08-02 ML test refactored
+#               old name was innodb_unsafe_binlog.test
+#               main code went into include/unsafe_binlog.inc
+#
+
+let $engine_type= InnoDB;
+
+SET @old_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout=1;
+
+--source include/unsafe_binlog.inc
+
+SET GLOBAL innodb_lock_wait_timeout= @old_lock_wait_timeout;
+

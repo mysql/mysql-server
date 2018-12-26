@@ -1,0 +1,613 @@
+###############################################################################
+#                                                                             #
+# This test is aimed at testing the geometry mutator functionality            #
+# following Geometry classes.                                                 #
+#                                                                             #
+# Creation Date: 2016-05-07                                                   #
+# Author : Hans Hellzen Melby                                                 #
+# (Although much was taken from Pavan's geometry_property_functions test file #
+# and thus altered to fit the use case)                                       #
+#                                                                             #
+###############################################################################
+
+--echo # Creating the spatial objects
+
+CREATE TABLE gis_point_srid (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
+CREATE TABLE gis_linestring_srid (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
+CREATE TABLE gis_polygon_srid (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
+CREATE TABLE gis_multi_point_srid (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT);
+CREATE TABLE gis_multi_linestring_srid (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING);
+CREATE TABLE gis_multi_polygon_srid (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
+CREATE TABLE gis_geometrycollection_srid (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+
+#######################################
+# Inserting POINT Geometry values
+#######################################
+
+--echo # Inserting POINT Geometry Values
+
+INSERT INTO gis_point_srid  VALUES
+    (101, ST_POINTFROMTEXT('POINT(0 0)')),
+    (102, ST_POINTFROMTEXT('POINT(1 0)')),
+    (103, ST_POINTFROMTEXT('POINT(0 1)')),
+    (104, ST_POINTFROMTEXT('POINT(1 1)')),
+    (105, ST_POINTFROMTEXT('POINT(-1 1)'));
+
+INSERT INTO gis_point_srid VALUES
+    (106, ST_POINTFROMWKB(ST_ASWKB(POINT(0,0)))),
+    (107, ST_POINTFROMWKB(ST_ASWKB(POINT(10,0)))),
+    (108, ST_POINTFROMWKB(ST_ASWKB(POINT(0,10)))),
+    (109, ST_POINTFROMWKB(ST_ASWKB(POINT(-10,0)))),
+    (110, ST_POINTFROMWKB(ST_ASWKB(POINT(0,-10))));
+
+INSERT INTO gis_point_srid  VALUES
+    (111, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1 1)'))));
+
+
+--echo # Retrieving table of POINT geometries and SRID values
+--echo # (the latter should be 0 by default)
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_point_srid;
+--echo # Update all fields of the table to have the same SRID
+UPDATE gis_point_srid SET g=ST_SRID(g, 4326);
+--echo # Check that SRIDs are now updated, and check that ST_SRID(g)
+--echo # returns a geometry in the second column
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_point_srid;
+
+###############################################
+# Inserting LINESTRING Geometry values
+###############################################
+
+--echo # Inserting LINESTRING Geometry Values
+INSERT INTO gis_linestring_srid VALUES
+    (201, ST_LINEFROMTEXT('LINESTRING(0 0,5 5)')),
+    (202, ST_LINEFROMTEXT('LINESTRING(0 0,2 2,4 4)')),
+    (203, ST_LINEFROMTEXT('LINESTRING(0 0,5 5,10 10)'));
+
+INSERT INTO gis_linestring_srid VALUES
+    (204, ST_LINESTRINGFROMTEXT('LINESTRING(10 10,5 5)')),
+    (205, ST_LINESTRINGFROMTEXT('LINESTRING(0 0,12 12,24 24)')),
+    (206, ST_LINESTRINGFROMTEXT('LINESTRING(0 0,50 50,90 90)'));
+
+INSERT INTO gis_linestring_srid VALUES
+    (207, ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5))))),
+    (208, ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,10))))),
+    (209, ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)))));
+
+INSERT INTO gis_linestring_srid VALUES
+    (210, ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5))))),
+    (211, ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(-50,-50), POINT(10,-10)))));
+
+--echo # Retrieving table of LINESTRING geometries and SRID values (the latter should be 0 by default)
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_linestring_srid;
+--echo # Update all fields of the table to have the same SRID
+UPDATE gis_linestring_srid SET g=ST_SRID(g, 4326);
+--echo # Check that SRIDs are now updated, and check that ST_SRID(g)
+--echo #  returns a geometry in the second column
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_linestring_srid;
+
+##############################################
+# Inserting POLYGON Geometry values
+##############################################
+
+--echo # Inserting POLYGON Geometry Values
+
+INSERT INTO gis_polygon_srid VALUES
+    (301, ST_POLYFROMTEXT('POLYGON((0 0,5 5,0 5, 0 0))')),
+    (302, ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))')),
+    (303, ST_POLYFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+INSERT INTO gis_polygon_srid  VALUES
+    (304, ST_POLYGONFROMTEXT('POLYGON((0 0,50 0,50 50,0 50,0 0))')),
+    (305, ST_POLYGONFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))')),
+    (306, ST_POLYGONFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'));
+
+INSERT INTO gis_polygon_srid  VALUES
+    (307, ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(5,5), POINT(0,5), POINT(0,0)))))),
+    (308, ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(15,0), POINT(15,15), POINT(0,15), POINT(0,0)))))),
+    (309, ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
+                                 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))));
+
+INSERT INTO gis_polygon_srid  VALUES
+    (310, ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(5,5), POINT(0,5), POINT(0,0)))))),
+    (311, ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(10,10), POINT(15,10), POINT(15,15), POINT(10,15), POINT(10,10)))))),
+    (312, ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(10,10), POINT(20,10), POINT(20,20), POINT(10,20), POINT(10,10)),
+                                    LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14))))));
+
+INSERT INTO gis_polygon_srid  VALUES
+    (313, ST_POLYFROMWKB(ST_ASWKB(ST_POLYFROMTEXT('POLYGON((10 0,10 10,0 10,-10 10,-10 0,-10 -10,0 9,10 -10,10 0))')))),
+    (314, ST_POLYFROMWKB(ST_ASWKB(ST_POLYGONFROMTEXT('POLYGON((10 0,10 10,0 10,-10 10,-10 0,-10 -10,0 10,10 -10,10 0))')))),
+    (315, ST_POLYGONFROMWKB(ST_ASWKB(ST_POLYGONFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(2 2,4 2,4 4,2 4,2 2),(6 6,8 6,8 8,6 8,6 6))'))));
+
+--echo # Retrieving table of POLYGON geometries and SRID values
+--echo # (the latter should be 0 by default)
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_polygon_srid;
+--echo # Update all fields of the table to have the same SRID
+UPDATE gis_polygon_srid SET g=ST_SRID(g, 4326);
+--echo # Check that SRIDs are now updated, and check that ST_SRID(g)
+--echo # returns a geometry in the second column
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_polygon_srid;
+
+#####################################################################
+# Inserting MULTIPOINT Geometry values
+#####################################################################
+
+--echo # Inserting MULTIPOINT Geometry Values
+
+INSERT INTO gis_multi_point_srid VALUES
+    (401, ST_MPOINTFROMTEXT('MULTIPOINT((0 0))')),
+    (402, ST_MPOINTFROMTEXT('MULTIPOINT((0 0),(2 2),(4 4))')),
+    (403, ST_MPOINTFROMTEXT('MULTIPOINT((0 0),(5 5),(10 10))'));
+
+INSERT INTO gis_multi_point_srid VALUES
+    (407, ST_MPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0))))),
+    (408, ST_MPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0), POINT(10,10))))),
+    (409, ST_MPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)))));
+
+--echo # Retrieving table of MULTIPOINT geometries and SRID values
+--echo # (the latter should be 0 by default)
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_multi_point_srid;
+--echo # Update all fields of the table to have the same SRID
+UPDATE gis_multi_point_srid SET g=ST_SRID(g, 4326);
+--echo # Check that SRIDs are now updated, and check that ST_SRID(g) returns
+--echo # a geometry in the second column
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_multi_point_srid;
+
+#################################################
+# Inserting MULTILINESTRING Geometry values
+#################################################
+
+--echo # Inserting MULTILINESTRING Geometry Values
+INSERT INTO gis_multi_linestring_srid VALUES
+    (501, ST_MLINEFROMTEXT('MULTILINESTRING((0 0,2 2))')),
+    (502, ST_MLINEFROMTEXT('MULTILINESTRING((0 0,2 2,4 4))')),
+    (503, ST_MLINEFROMTEXT('MULTILINESTRING((0 0,2 2,4 4),(6 6,8 8,10 10))'));
+
+INSERT INTO gis_multi_linestring_srid VALUES
+    (504, ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,90 90,-90 -90))'));
+
+INSERT INTO gis_multi_linestring_srid VALUES
+    (507, ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2)))))),
+    (508, ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24)))))),
+    (509, ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4)),
+                                          LINESTRING(POINT(6,6), POINT(8,8), POINT(10,10))))));
+
+INSERT INTO gis_multi_linestring_srid VALUES
+    (510, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4)))))),
+    (511, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1,1), POINT(2,2)))))),
+    (512, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24)),
+                                                    LINESTRING(POINT(36,36), POINT(48,48), POINT(50,50))))));
+
+INSERT INTO gis_multi_linestring_srid VALUES
+    (513, ST_MLINEFROMWKB(ST_ASWKB(ST_MLINEFROMTEXT('MULTILINESTRING((0 0,10 10),(0 10,10 0))')))),
+    (514, ST_MLINEFROMWKB(ST_ASWKB(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,10 10,-10 10,0 0),(0 0,-10 -10,10 -10,0 0))')))),
+    (515, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,0 90),(0 0,90 0),(0 0,0 -90),(0 0,-90 0))'))));
+
+--echo # Retrieving table of MULTILINESTRING geometries and SRID values
+--echo # (the latter should be 0 by default)
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_multi_linestring_srid;
+--echo # Update all fields of the table to have the same SRID
+UPDATE gis_multi_linestring_srid SET g=ST_SRID(g, 4326);
+--echo # Check that SRIDs are now updated
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_multi_linestring_srid;
+
+
+###############################################
+# Inserting MULTIPOLYGON Geometry values
+###############################################
+
+--echo # Inserting MULTIPOLGYON Geometry Values
+
+INSERT INTO gis_multi_polygon_srid VALUES
+    (601, ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,5 5,0 5,0 0)))')),
+    (602, ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)),((5 5,5 10,10 10,5 5)))')),
+    (603, ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,6 4,6 6,4 6,4 4)))'));
+
+INSERT INTO gis_multi_polygon_srid  VALUES
+    (604, ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,5 5,0 5, 0 0)))')),
+    (605, ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,6 4,6 6,4 6, 4 4)),((0 0,-2 -2,0 -2, 0 0)))')),
+    (606, ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,5 5,-5 5,0 0)),((0 0,-5 -5,5 -5,0 0)))'));
+
+INSERT INTO gis_multi_polygon_srid  VALUES
+    (607, ST_MPOLYFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(5,0), POINT(0,0))))))),
+    (608, ST_MPOLYFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
+                                               LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))),
+    (609, ST_MPOLYFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(5,0), POINT(5,5), POINT(0,5), POINT(0,0))),
+                                       POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0)))))));
+
+INSERT INTO gis_multi_polygon_srid  VALUES
+    (610, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0))))))),
+    (611, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(10,10), POINT(10,20), POINT(20,20), POINT(20,10), POINT(10,10)),
+                                                      LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14))))))),
+    (612, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
+                                                      LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
+                                              POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0)))))));
+
+INSERT INTO gis_multi_polygon_srid  VALUES
+    (613, ST_MPOLYFROMWKB(ST_ASWKB(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,-5 5,5 5,0 0)),((0 0,-5 5,-5 -5,0 0)))')))),
+    (614, ST_MPOLYFROMWKB(ST_ASWKB(ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,10 10,-10 10,0 0)),((0 0,-10 -10,10 -10,0 0)))')))),
+    (615, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,5 -5,10 0,5 5,0 0)))'))));
+
+
+--echo # Retrieving table of MULTIPOLYGON geometries and SRID values
+--echo # (the latter should be 0 by default)
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_multi_polygon_srid;
+--echo # Update all fields of the table to have the same SRID
+UPDATE gis_multi_polygon_srid SET g=ST_SRID(g, 4326);
+--echo # Check that SRIDs are now updated, and check that ST_SRID(g)
+--echo # returns a geometry in the second column
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_multi_polygon_srid;
+
+########################################################
+# Inserting GEOMETRYCOLLECTION Geometry values
+########################################################
+
+--echo # Inserting GEOMETRYCOLLECTION Geometry Values
+
+INSERT INTO gis_geometrycollection_srid VALUES
+    (701, ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))')),
+    (702, ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
+    (703, ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5), POLYGON((0 0,10 0,10 10,0 10,0 0)))'));
+
+INSERT INTO gis_geometrycollection_srid  VALUES
+    (704, ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
+    (705, ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
+                                                           'LINESTRING(0 0,10 10),'
+                                                           'POLYGON((0 0,10 0,10 10,0 10, 0 0)))')),
+    (706, ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT((0 0),(5 5),(10 10)),'
+                                                           'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                                                           'MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),'
+                                                                        '((0 0,-10 0,-10 -10,0 -10,0 0))))'));
+
+INSERT INTO gis_geometrycollection_srid  VALUES
+    (707, ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0))))),
+    (708, ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0),
+                                                LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
+                                                POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
+                                                        LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))),
+    (709, ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(MULTIPOINT(POINT(0,0), POINT(5,5), POINT(10,10)),
+                                                MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
+                                                                LINESTRING(POINT(10,10), POINT(5,5), POINT(0,10))),
+                                                MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
+                                                                     LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
+                                                             POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0))))))));
+
+INSERT INTO gis_geometrycollection_srid  VALUES
+    (710, ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0),
+                                                          LINESTRING(POINT(0,0), POINT(90,90)))))),
+    (711, ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(10,10),
+                                                          LINESTRING(POINT(10,10), POINT(12,12), POINT(14,14), POINT(16,16), POINT(18,18)),
+                                                          POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
+                                                                  LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))),
+    (712, ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(MULTIPOINT(POINT(10,10), POINT(15,15), POINT(20,20)),
+                                                          MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
+                                                                          LINESTRING(POINT(10,10), POINT(5,5), POINT(0,10))),
+                                                          MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
+                                                                               LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
+                                                                       POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0))))))));
+
+INSERT INTO gis_geometrycollection_srid  VALUES
+    (713, ST_GEOMCOLLFROMWKB(ST_ASWKB(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
+                                                                'POINT(0 0),'
+                                                                'LINESTRING(0 0,10 10),'
+                                                                'POLYGON((0 0,10 0,10 10,0 10, 0 0)),'
+                                                                'MULTIPOINT((0 0),(2 2),(4 4),(6 6),(8 8),(10 10)),'
+                                                                'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                                                                'MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)),((5 5,10 5,10 10,5 10,5 5))))')))),
+    (714, ST_GEOMCOLLFROMWKB(ST_ASWKB(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
+                                                                'GEOMETRYCOLLECTION('
+                                                                      'POINT(0 0)),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                      'LINESTRING(0 0,10 10)),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                      'POLYGON((0 0,10 0,10 10,0 10, 0 0))),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                       'MULTIPOINT((0 0),(2 2),(4 4),(6 6),(8 8),(10 10))),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                       'MULTILINESTRING((0 0,10 10),(0 10,10 0))),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                       'MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)),((5 5,10 5,10 10,5 10,5 5)))))')))),
+    (715, ST_GEOMCOLLFROMWKB(ST_ASWKB(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
+                                                                'GEOMETRYCOLLECTION(),'
+                                                                'POINT(0 0),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                      'LINESTRING(0 0,10 10),'
+                                                                      'GEOMETRYCOLLECTION('
+                                                                            'GEOMETRYCOLLECTION())),'
+                                                                'GEOMETRYCOLLECTION(),'
+                                                                'GEOMETRYCOLLECTION('
+                                                                       'GEOMETRYCOLLECTION()),'
+                                                                'POLYGON((0 0,10 0,10 10,0 10, 0 0)),'
+                                                                'MULTIPOINT((0 0),(2 2),(4 4),(6 6),(8 8),(10 10)),'
+                                                                'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                                                                'MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)),((5 5,10 5,10 10,5 10,5 5))))'))));
+
+--echo # Retrieving table of MULTIPOLYGON geometries and SRID values
+--echo # (the latter should be 0 by default)
+
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_geometrycollection_srid;
+
+--echo # Update all fields of the table to have the same SRID
+UPDATE gis_geometrycollection_srid SET g=ST_SRID(g, 4326);
+
+--echo # Check that SRIDs are now updated, and check that ST_SRID(g) returns
+--echo # a geometry in the second column
+SELECT ST_ASTEXT(g), ST_SRID(g) FROM gis_geometrycollection_srid;
+
+
+####################################
+# Invalid SRID range testing
+####################################
+
+--echo # Try to use ST_SRID with out of range SRID values (Should give error message)
+
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_point_srid SET g=ST_SRID(g, -100); # Less than 0
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_point_srid SET g=ST_SRID(g, 5094967295); # More than (2^32)-1
+
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_linestring_srid SET g=ST_SRID(g, -100); # Less than 0
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_linestring_srid SET g=ST_SRID(g, 5094967295); # More than (2^32)-1
+
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_polygon_srid SET g=ST_SRID(g, -100); # Less than 0
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_polygon_srid SET g=ST_SRID(g, 5094967295); # More than (2^32)-1
+
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_point_srid SET g=ST_SRID(g, -100); # Less than 0
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_point_srid SET g=ST_SRID(g, 5094967295); # More than (2^32)-1
+
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_linestring_srid SET g=ST_SRID(g, -100); # Less than 0
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_linestring_srid SET g=ST_SRID(g, 5094967295); # More than (2^32)-1
+
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_polygon_srid SET g=ST_SRID(g, -100); # Less than 0
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_polygon_srid SET g=ST_SRID(g, 5094967295); # More than (2^32)-1
+
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_geometrycollection_srid SET g=ST_SRID(g, -100); # Less than 0
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_geometrycollection_srid SET g=ST_SRID(g, 5094967295); # More than (2^32)-1
+
+
+########################################
+# Invalid parameter count testing
+########################################
+
+--echo # Try to use ST_SRID with incorrect parameter count (>2 or <1)
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_point_srid SET g=ST_SRID();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_point_srid SET g=ST_SRID(g, 4145, 0);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_linestring_srid SET g=ST_SRID();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_linestring_srid SET g=ST_SRID(g, 4145, 0);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_polygon_srid SET g=ST_SRID();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_polygon_srid SET g=ST_SRID(g, 4145, 0);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_multi_point_srid SET g=ST_SRID();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_multi_point_srid SET g=ST_SRID(g, 4145, 0);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_multi_linestring_srid SET g=ST_SRID();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_multi_linestring_srid SET g=ST_SRID(g, 4145, 0);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_multi_polygon_srid SET g=ST_SRID();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_multi_polygon_srid SET g=ST_SRID(g, 4145, 0);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_geometrycollection_srid SET g=ST_SRID();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_geometrycollection_srid SET g=ST_SRID(g, 4145, 0);
+
+###############################
+# Undefined SRID testing
+###############################
+
+--echo # Try to use the mutator SRID function with an undefined SRID
+--error ER_SRS_NOT_FOUND
+UPDATE gis_point_srid SET g=ST_SRID(g, 10101);
+
+--error ER_SRS_NOT_FOUND
+UPDATE gis_linestring_srid SET g=ST_SRID(g, 10101);
+
+--error ER_SRS_NOT_FOUND
+UPDATE gis_polygon_srid SET g=ST_SRID(g, 10101);
+
+--error ER_SRS_NOT_FOUND
+UPDATE gis_multi_point_srid SET g=ST_SRID(g, 10101);
+
+--error ER_SRS_NOT_FOUND
+UPDATE gis_multi_linestring_srid SET g=ST_SRID(g, 10101);
+
+--error ER_SRS_NOT_FOUND
+UPDATE gis_multi_polygon_srid SET g=ST_SRID(g, 10101);
+
+--error ER_SRS_NOT_FOUND
+UPDATE gis_geometrycollection_srid SET g=ST_SRID(g, 10101);
+
+##################################
+# Invalid geometry testing
+##################################
+
+--echo # Testing ST_SRID mutator function with badly formed wkb strings
+--echo # Note: Here the binary representation is applied directly to the
+--echo # mutator ST_SRID function because if other helper functions were
+--echo # to be used, such as ST_GEOMFROMTEXT or similar, then the error
+--echo # would be caught in those functions instead of in the ST_SRID function.
+
+--echo # Testing with wkb of size less than 13 bytes
+SET @geom_obj_too_short=x'311000000101';
+--echo # Testing with wkb that does not correspond to a valid geometry
+SET @geom_obj_badly_formed=x'311000000101FFFFFF1221111100000011';
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_SRID(@geom_obj_too_short, 4145);
+--error ER_GIS_INVALID_DATA
+SELECT ST_SRID(@geom_obj_badly_formed, 4145);
+
+
+#############################
+# Null value testing
+#############################
+
+--echo # Test for geometry = NULL:
+SELECT ST_SRID(g, NULL) FROM gis_point_srid;
+SELECT ST_SRID(g, NULL) FROM gis_linestring_srid;
+SELECT ST_SRID(g, NULL) FROM gis_polygon_srid;
+SELECT ST_SRID(g, NULL) FROM gis_multi_point_srid;
+SELECT ST_SRID(g, NULL) FROM gis_multi_linestring_srid;
+SELECT ST_SRID(g, NULL) FROM gis_multi_polygon_srid;
+SELECT ST_SRID(g, NULL) FROM gis_geometrycollection_srid;
+
+--echo # Test for SRID = NULL:
+SELECT ST_SRID(NULL, 4145) FROM gis_point_srid;
+SELECT ST_SRID(NULL, 4145) FROM gis_linestring_srid;
+SELECT ST_SRID(NULL, 4145) FROM gis_polygon_srid;
+SELECT ST_SRID(NULL, 4145) FROM gis_multi_point_srid;
+SELECT ST_SRID(NULL, 4145) FROM gis_multi_linestring_srid;
+SELECT ST_SRID(NULL, 4145) FROM gis_multi_polygon_srid;
+SELECT ST_SRID(NULL, 4145) FROM gis_geometrycollection_srid;
+
+--echo # Test for geometry = NULL  and SRID = NULL:
+SELECT ST_SRID(NULL, NULL) FROM gis_point_srid;
+SELECT ST_SRID(NULL, NULL) FROM gis_linestring_srid;
+SELECT ST_SRID(NULL, NULL) FROM gis_polygon_srid;
+SELECT ST_SRID(NULL, NULL) FROM gis_multi_point_srid;
+SELECT ST_SRID(NULL, NULL) FROM gis_multi_linestring_srid;
+SELECT ST_SRID(NULL, NULL) FROM gis_multi_polygon_srid;
+SELECT ST_SRID(NULL, NULL) FROM gis_geometrycollection_srid;
+
+##################################
+# Boundary case testing
+##################################
+
+--echo # Setting SRID to minimum value of zero (should be allowed)
+UPDATE gis_point_srid SET g=ST_SRID(g, 0);
+UPDATE gis_linestring_srid SET g=ST_SRID(g, 0);
+UPDATE gis_polygon_srid SET g=ST_SRID(g, 0);
+UPDATE gis_multi_point_srid SET g=ST_SRID(g, 0);
+UPDATE gis_multi_linestring_srid SET g=ST_SRID(g, 0);
+UPDATE gis_multi_polygon_srid SET g=ST_SRID(g, 0);
+UPDATE gis_geometrycollection_srid SET g=ST_SRID(g, 0);
+
+--echo # Using non-numeric value as SRID (should set SRID as zero)
+SELECT ST_SRID(ST_SRID(g, 'a')) from gis_point_srid;
+SELECT ST_SRID(ST_SRID(g, 'a')) from gis_linestring_srid;
+SELECT ST_SRID(ST_SRID(g, 'a')) from gis_polygon_srid;
+SELECT ST_SRID(ST_SRID(g, 'a')) from gis_multi_point_srid;
+SELECT ST_SRID(ST_SRID(g, 'a')) from gis_multi_linestring_srid;
+SELECT ST_SRID(ST_SRID(g, 'a')) from gis_multi_polygon_srid;
+SELECT ST_SRID(ST_SRID(g, 'a')) from gis_geometrycollection_srid;
+
+--echo # Setting SRID to maximum allowed value of 2^32-1=4294967295
+--echo # (Should return ER_SRS_NOT_FOUND)
+--error ER_SRS_NOT_FOUND
+UPDATE gis_point_srid SET g=ST_SRID(g, 4294967295);
+--error ER_SRS_NOT_FOUND
+UPDATE gis_linestring_srid SET g=ST_SRID(g, 4294967295);
+--error ER_SRS_NOT_FOUND
+UPDATE gis_polygon_srid SET g=ST_SRID(g, 4294967295);
+--error ER_SRS_NOT_FOUND
+UPDATE gis_multi_point_srid SET g=ST_SRID(g, 4294967295);
+--error ER_SRS_NOT_FOUND
+UPDATE gis_multi_linestring_srid SET g=ST_SRID(g, 4294967295);
+--error ER_SRS_NOT_FOUND
+UPDATE gis_multi_polygon_srid SET g=ST_SRID(g, 4294967295);
+--error ER_SRS_NOT_FOUND
+UPDATE gis_geometrycollection_srid SET g=ST_SRID(g, 4294967295);
+
+--echo # Setting SRID to one less than minimum value (-1)
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_point_srid SET g=ST_SRID(g, -1);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_linestring_srid SET g=ST_SRID(g, -1);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_polygon_srid SET g=ST_SRID(g, -1);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_point_srid SET g=ST_SRID(g, -1);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_linestring_srid SET g=ST_SRID(g, -1);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_polygon_srid SET g=ST_SRID(g, -1);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_geometrycollection_srid SET g=ST_SRID(g, -1);
+
+--echo # Setting SRID to one more than maximum value (4294967296)
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_point_srid SET g=ST_SRID(g, 4294967296);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_linestring_srid SET g=ST_SRID(g, 4294967296);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_polygon_srid SET g=ST_SRID(g, 4294967296);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_point_srid SET g=ST_SRID(g, 4294967296);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_linestring_srid SET g=ST_SRID(g, 4294967296);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_multi_polygon_srid SET g=ST_SRID(g, 4294967296);
+--error ER_DATA_OUT_OF_RANGE
+UPDATE gis_geometrycollection_srid SET g=ST_SRID(g, 4294967296);
+
+--echo # Check that SRID values are set to 0 (and thus haven't been
+--echo # altered by the other boundary case tests
+SELECT ST_SRID(g) FROM gis_point_srid;
+SELECT ST_SRID(g) FROM gis_linestring_srid;
+SELECT ST_SRID(g) FROM gis_polygon_srid;
+SELECT ST_SRID(g) FROM gis_multi_point_srid;
+SELECT ST_SRID(g) FROM gis_multi_linestring_srid;
+SELECT ST_SRID(g) FROM gis_multi_polygon_srid;
+SELECT ST_SRID(g) FROM gis_geometrycollection_srid;
+
+--echo # Dropping tables to leave test database in original state
+DROP TABLE gis_point_srid;
+DROP TABLE gis_linestring_srid;
+DROP TABLE gis_polygon_srid;
+DROP TABLE gis_multi_point_srid;
+DROP TABLE gis_multi_linestring_srid;
+DROP TABLE gis_multi_polygon_srid;
+DROP TABLE gis_geometrycollection_srid;
+
+--echo # Bug 23857035 Test case
+
+SET @@sql_mode='';
+CREATE TABLE t1 (g GEOMETRY);
+INSERT INTO t1 VALUES (POINT(10, 10)), (NULL);
+SELECT ST_AsText(ST_SRID(g, 4326)) FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #27892138 ST_LONGITUD() RETURNS LATITUDE OUT OF RANGE ERROR
+--echo #
+
+# The Item::null_value for literal NULLs is hardcoded in the item. This
+# test reads the values from a table.
+
+CREATE TABLE t1 (srid INT);
+INSERT INTO t1 VALUES (NULL), (4326);
+SELECT srid, HEX(ST_SRID(POINT(0, 0), srid)) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, g GEOMETRY);
+INSERT INTO t1 VALUES (0, NULL), (1, ST_GEOMFROMTEXT('POINT(0 0)'));
+SELECT pk, ST_SRID(g) FROM t1;
+SELECT pk, HEX(ST_SRID(g, 4326)) FROM t1;
+DROP TABLE t1;

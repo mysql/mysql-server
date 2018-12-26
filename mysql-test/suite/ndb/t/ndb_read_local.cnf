@@ -1,0 +1,23 @@
+!include ../my.cnf
+
+[cluster_config.1]
+ndbd=,,,,,
+ndb_mgmd=
+mysqld=,
+ndbapi=,,,,,,,,,,,
+
+[cluster_config.ndbd.3.1]
+Nodegroup=65536
+
+[cluster_config.ndbd.4.1]
+Nodegroup=65536
+
+[cluster_config.ndbd.5.1]
+Nodegroup=65536
+
+[cluster_config.ndbd.6.1]
+Nodegroup=65536
+
+[ENV]
+unique=$unique
+BLOB=$BLOB

@@ -1,0 +1,223 @@
+--source include/have_debug.inc
+--source include/have_profiling.inc
+
+--echo #
+--echo # WL#6797 Method for clearing session state
+--echo #
+
+CREATE DATABASE wl6797;
+USE wl6797;
+CREATE TABLE t1 (a int);
+
+--echo
+--echo #CASE1: cleanup prepare statements
+--echo
+
+PREPARE x FROM 'INSERT INTO t1 VALUES (1), (2)';
+EXECUTE x;
+SELECT * FROM t1 ORDER BY 1;
+--reset_connection
+--echo resetconnection;
+# below execute should report error
+--error ER_UNKNOWN_STMT_HANDLER
+EXECUTE x;
+
+--echo
+--echo #CASE2: cleanup temporary tables
+--echo
+
+CREATE TEMPORARY TABLE temp1(a int);
+INSERT INTO temp1 VALUES (1),(2),(3),(4);
+SELECT * FROM temp1 ORDER BY 1;
+--reset_connection
+--echo resetconnection;
+# should report temp1 does not exists error
+--error ER_NO_SUCH_TABLE
+SELECT * FROM temp1 ORDER BY 1;
+
+--echo
+--echo #CASE3: cleanup user variables
+--echo
+
+set @a:=1;
+SELECT @a;
+--reset_connection
+--echo resetconnection;
+# should report NULL
+SELECT @a;
+
+--echo
+--echo #CASE4: cleanup session variables
+--echo
+
+# set variables to default
+--reset_connection
+SHOW SESSION VARIABLES like 'autocommit';
+SHOW SESSION VARIABLES like 'transaction_isolation';
+SHOW SESSION VARIABLES like 'character_set_client';
+SHOW SESSION VARIABLES like 'character_set_connection';
+SHOW SESSION VARIABLES like 'max_join_size';
+set autocommit=0;
+set transaction_isolation='SERIALIZABLE';
+set names 'big5';
+set max_join_size=100;
+# Setting max_join_size value to 1000 to fetch the below session variables as the 
+# rows returned are > 100
+set max_join_size=1000;
+SHOW SESSION VARIABLES like 'autocommit';
+SHOW SESSION VARIABLES like 'transaction_isolation';
+SHOW SESSION VARIABLES like 'character_set_client';
+SHOW SESSION VARIABLES like 'character_set_connection';
+SHOW SESSION VARIABLES like 'max_join_size';
+# Restoring max_join_size value back to 100.
+set max_join_size=100;
+--reset_connection
+--echo resetconnection;
+SHOW SESSION VARIABLES like 'autocommit';
+SHOW SESSION VARIABLES like 'transaction_isolation';
+SHOW SESSION VARIABLES like 'character_set_client';
+SHOW SESSION VARIABLES like 'character_set_connection';
+SHOW SESSION VARIABLES like 'max_join_size';
+
+--echo
+--echo #CASE5: cleanup table cache and close open tables
+--echo
+
+# since table_open_cache_hits return different value
+# with/without ps_protocol, hence disabling the below testcase
+
+--disable_ps_protocol
+
+FLUSH TABLES;
+FLUSH STATUS;
+SHOW STATUS like 'Table_open_cache_hits';
+SHOW STATUS like 'Opened_tables';
+CREATE TABLE newt( a int );
+INSERT INTO newt VALUES (1),(2);
+SELECT * FROM newt ORDER BY 1;
+DELETE FROM newt;
+DROP TABLE newt;
+--replace_regex /[1-9][0-9]*/>0/
+SHOW STATUS like 'Table_open_cache_hits';
+--replace_regex /[1-9][0-9]*/>0/
+SHOW STATUS like 'Opened_tables';
+--reset_connection
+--echo resetconnection;
+SHOW STATUS like 'Table_open_cache_hits';
+SHOW STATUS like 'Opened_tables';
+
+--enable_ps_protocol
+
+--echo
+--echo #CASE6: check in debug mode
+--echo
+
+LOCK TABLE t1 WRITE;
+SELECT * FROM t1 ORDER BY 1;
+--reset_connection
+SET GLOBAL DEBUG='d,debug_test_cleanup_connection';
+--reset_connection
+--echo resetconnection;
+SET GLOBAL DEBUG='';
+
+--echo
+--echo Bug #17653288 MYSQL_RESET_CONNECTION DOES NOT RESET LAST_INSERT_ID
+--echo
+
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SHOW SESSION VARIABLES like 'last_insert_id';
+INSERT INTO t2 VALUES (NULL);
+INSERT INTO t2 VALUES (NULL);
+SHOW SESSION VARIABLES like 'last_insert_id';
+--reset_connection
+--echo resetconnection;
+SHOW SESSION VARIABLES like 'last_insert_id';
+INSERT INTO t2 VALUES (NULL), (NULL);
+SHOW SESSION VARIABLES like 'last_insert_id';
+--reset_connection
+--echo resetconnection;
+SHOW SESSION VARIABLES like 'last_insert_id';
+DROP TABLE t2;
+
+# test for @@insert_id
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SET INSERT_ID=12;
+INSERT INTO t2 VALUES (NULL);
+SELECT * FROM t2;
+DROP TABLE t2;
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SET INSERT_ID=12;
+--reset_connection
+--echo resetconnection
+# it should reset the insert_id session variable
+INSERT INTO t2 VALUES (NULL);
+# must project 1
+SELECT * FROM t2;
+DROP TABLE t2;
+
+DROP TABLE IF EXISTS t1;
+DROP DATABASE wl6797;
+
+--echo
+--echo # Bug 17772561 RESET CONNECTION ERROR HANDLING CAN BE MORE INFORMATIVE
+--echo # FOR ERROR CASES
+--echo
+
+create user 'user_wl6797'@'localhost';
+grant all privileges on *.* to  'user_wl6797'@'localhost';
+ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
+--error 1
+--exec echo "connect(con1, localhost, user_wl6797, , test); --reset_connection " | $MYSQL_TEST 2>&1
+connection default;
+DROP USER user_wl6797@localhost;
+
+--echo
+--echo Bug #18329348 RESETCONNECTION DOESN'T CLEAR TIMESTAMP
+--echo Bug #18329560 RESETCONNECTION DOESN'T CLEAR RAND SEED
+--echo Bug #18328396 RESETCONNECTION DOESN'T CLEAR WARNINGS
+--echo Bug #18329452 RESETCONNECTION DOESN'T CLEAR PROFILING
+--echo
+
+SET TIMESTAMP=200;
+SELECT @@TIMESTAMP;
+--echo resetconnection
+--reset_connection
+# after reset timestamp will be set to current timestamp
+# must report 0 as the condition evaluates to false
+SELECT @@TIMESTAMP=200;
+
+CREATE DATABASE T18329560;
+USE T18329560;
+CREATE TABLE T(a DOUBLE);
+SET SESSION RAND_SEED1=1;
+SET SESSION RAND_SEED2=1;
+INSERT INTO T VALUES(rand());
+SET SESSION RAND_SEED1=1;
+SET SESSION RAND_SEED2=1;
+--echo resetconnection
+--reset_connection
+# now rand() should give different result and hence expect 0
+SELECT IF(a=rand(),'1','0') FROM T;
+DROP TABLE T;
+DROP DATABASE T18329560;
+
+SET SESSION SORT_BUFFER_SIZE= 1;
+SHOW WARNINGS;
+--echo resetconnection
+--reset_connection
+SHOW WARNINGS;
+
+SET PROFILING=1;
+SELECT 1;
+--replace_column 2 #
+SHOW PROFILES;
+--echo resetconnection
+--reset_connection
+# below statement should not get profiled and existing profiling
+# information should have been freed
+SELECT 2;
+--replace_column 2 #
+SHOW PROFILES;
+
+--echo
+--echo End of tests

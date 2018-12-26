@@ -1,0 +1,182 @@
+# mysqlbinlog_trans.test
+#
+# Show that mysqlbinlog work correctly with transactions.
+#
+
+# Mix transactional and non-transactional engines on the same
+# transaction is not supported by gtid-mode=ON.
+
+--source include/have_myisam.inc
+--let $engine_type_nontrans= MyISAM
+--let $engine_type= InnoDB
+
+#
+# The test case would also work with statement based or mixed mode logging.
+# But this would require different result files. To handle this with the
+# current test suite, new main test cases are required.
+#
+--source include/have_binlog_format_row.inc
+
+--source include/have_log_bin.inc
+
+--echo #
+--echo # Preparatory cleanup.
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+--echo #
+--echo # We need a fixed timestamp to avoid varying results.
+--echo #
+SET timestamp=1000000000;
+
+--echo #
+--echo # Delete all existing binary logs.
+--echo #
+RESET MASTER;
+
+--echo #
+--echo # Create test tables.
+--echo #
+eval CREATE TABLE t1 (
+  c1 INT,
+  c2 VARCHAR(20)
+  ) ENGINE=$engine_type DEFAULT CHARSET latin1;
+eval CREATE TABLE t2 (
+  c1 INT,
+  c2 VARCHAR(20)
+  ) ENGINE=$engine_type_nontrans DEFAULT CHARSET latin1;
+
+--echo #
+--echo # Start transaction #1, transactional table only, commit.
+--echo #
+START TRANSACTION;
+
+--echo #
+--echo # Do some statements.
+--echo #
+INSERT INTO t1 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t1 SET c1 = c1 + 10;
+DELETE FROM t1 WHERE c1 = 12;
+
+--echo #
+--echo # Commit transaction.
+--echo #
+COMMIT;
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+
+--echo #
+--echo # Start transaction #2, transactional table only, rollback.
+--echo #
+START TRANSACTION;
+
+--echo #
+--echo # Do some statements.
+--echo #
+INSERT INTO t1 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t1 SET c1 = c1 + 10;
+DELETE FROM t1 WHERE c1 = 12;
+
+--echo #
+--echo # Rollback transaction.
+--echo #
+ROLLBACK;
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+
+--echo #
+--echo # Start transaction #3, both tables, commit.
+--echo #
+START TRANSACTION;
+
+--echo #
+--echo # Do some statements on the transactional table.
+--echo #
+INSERT INTO t1 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t1 SET c1 = c1 + 10;
+DELETE FROM t1 WHERE c1 = 12;
+
+--echo #
+--echo # Do some statements on the non-transactional table.
+--echo #
+INSERT INTO t2 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t2 SET c1 = c1 + 10;
+DELETE FROM t2 WHERE c1 = 12;
+
+--echo #
+--echo # Commit transaction.
+--echo #
+COMMIT;
+SELECT * FROM t1;
+SELECT * FROM t2;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+
+--echo #
+--echo # Start transaction #4, both tables, rollback.
+--echo #
+START TRANSACTION;
+
+--echo #
+--echo # Do some statements on the transactional table.
+--echo #
+INSERT INTO t1 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t1 SET c1 = c1 + 10;
+DELETE FROM t1 WHERE c1 = 12;
+
+--echo #
+--echo # Do some statements on the non-transactional table.
+--echo #
+INSERT INTO t2 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t2 SET c1 = c1 + 10;
+DELETE FROM t2 WHERE c1 = 12;
+
+--echo #
+--echo # Rollback transaction.
+--echo #
+ROLLBACK;
+SELECT * FROM t1;
+SELECT * FROM t2;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+
+--echo #
+--echo # Flush all log buffers to the log file.
+--echo #
+FLUSH LOGS;
+
+--echo #
+--echo # Call mysqlbinlog to display the log file contents.
+--echo #
+let $MYSQLD_DATADIR= `select @@datadir`;
+--let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/binlog.000001
+--source include/mysqlbinlog.inc
+
+--echo #
+--echo # Cleanup.
+--echo #
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#22350047: IF CLIENT KILLED AFTER ROLLBACK TO SAVEPOINT PREVIOUS
+--echo #               STMTS COMMITTED
+--echo #
+
+connect(connection1, localhost, root,,);
+--let $connection_id=`SELECT CONNECTION_ID()`
+
+--eval CREATE TABLE t1(a INT) ENGINE=$engine_type
+BEGIN;
+INSERT INTO t1 VALUES(1);
+SAVEPOINT tx_0;
+ROLLBACK TO SAVEPOINT tx_0;
+
+connection default;
+--replace_result $connection_id CONN_ID
+--eval KILL CONNECTION $connection_id
+
+--echo # Without the patch, field 'a' contained the value 1
+SELECT * FROM t1;
+DROP TABLE t1;

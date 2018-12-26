@@ -1,0 +1,81 @@
+SET SESSION debug="+d,row_print_geometry_data";
+CREATE TABLE t_wl6455 ( i INT, g GEOMETRY NOT NULL) ENGINE=InnoDB;
+SHOW CREATE TABLE t_wl6455;
+Table	Create Table
+t_wl6455	CREATE TABLE `t_wl6455` (
+  `i` int(11) DEFAULT NULL,
+  `g` geometry NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
+INSERT INTO t_wl6455 VALUES(2, POINT(2,2));
+SET @mp = 'MULTIPOINT(0 0, 20 20, 60 60)';
+INSERT INTO t_wl6455 VALUES(3, ST_GeomFromText(@mp));
+INSERT INTO t_wl6455 VALUES(4, LINESTRING(POINT(1,1), POINT(4, 4)));
+INSERT INTO t_wl6455 VALUES(5, LINESTRING(POINT(2,2), POINT(5, 5)));
+SET @mls = 'MultiLineString((1 1,2 2,3 3),(4 4,5 5))';
+INSERT INTO t_wl6455 VALUES(6, ST_GeomFromText(@mls));
+SET @poly = 'Polygon((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))';
+INSERT INTO t_wl6455 VALUES(7, ST_GeomFromText(@poly));
+SET @mpoly = 'MultiPolygon(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))';
+INSERT INTO t_wl6455 VALUES(8, ST_GeomFromText(@mpoly));
+SET @gc = 'GeometryCollection(Point(1 1),LineString(2 2, 3 3))';
+INSERT INTO t_wl6455 VALUES(9, ST_GeomFromText(@gc));
+SELECT ST_AsText(g) FROM t_wl6455;
+ST_AsText(g)
+POINT(1 1)
+POINT(2 2)
+MULTIPOINT((0 0),(20 20),(60 60))
+LINESTRING(1 1,4 4)
+LINESTRING(2 2,5 5)
+MULTILINESTRING((1 1,2 2,3 3),(4 4,5 5))
+POLYGON((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))
+MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))
+GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
+CREATE INDEX i_p ON t_wl6455 (g(10));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+EXPLAIN SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_wl6455	NULL	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t_wl6455`.`g`) AS `ST_AsText(g)` from `test`.`t_wl6455` where (`test`.`t_wl6455`.`g` = <cache>(point(2,2)))
+SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
+ST_AsText(g)
+POINT(2 2)
+SET AUTOCOMMIT = 0;
+INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
+SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(10,10);
+ST_AsText(g)
+POINT(10 10)
+ROLLBACK;
+SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(10,10);
+ST_AsText(g)
+INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
+COMMIT;
+INSERT INTO t_wl6455 VALUES(11, POINT(11,11));
+BEGIN;
+INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
+# Kill and restart
+CHECK TABLE t_wl6455;
+Table	Op	Msg_type	Msg_text
+test.t_wl6455	check	status	OK
+SELECT ST_AsText(g) FROM t_wl6455;
+ST_AsText(g)
+POINT(1 1)
+POINT(2 2)
+MULTIPOINT((0 0),(20 20),(60 60))
+LINESTRING(1 1,4 4)
+LINESTRING(2 2,5 5)
+MULTILINESTRING((1 1,2 2,3 3),(4 4,5 5))
+POLYGON((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))
+MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))
+GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
+POINT(10 10)
+POINT(11 11)
+SELECT sc.name, sc.pos, sc.mtype
+FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
+ON sc.TABLE_ID=st.TABLE_ID
+WHERE st.NAME='test/t_wl6455' AND sc.NAME='g';
+name	pos	mtype
+g	1	14
+DROP TABLE t_wl6455;

@@ -1,0 +1,1 @@
+$KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring

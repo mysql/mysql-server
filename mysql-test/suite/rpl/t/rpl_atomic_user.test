@@ -1,0 +1,149 @@
+########### suite/rpl/t/rpl_atomic_user.test #########################
+#                                                                    #
+# Testing of atomic user ddls. DDLs include                          #
+# CREATE USER, ALTER USER, RENAME USER, DROP USER, GRANT, REVOKE,    #
+# CREATE USER IF EXISTS, ALTER USER IF EXISTS, DROP USER IF EXISTS.  #
+# When above ddls are executed, in case of error, none of the command#
+# will be executed. If error does not occur, whole statement will be #
+# executed.                                                          #
+#                                                                    #
+#                                                                    #
+# Creation:                                                          #
+# 2016-08-26 prabprad Implement this test as part of                 #
+#                   WL#9045 Make user management DDLs atomic         #
+#                                                                    #
+######################################################################
+--source include/master-slave.inc
+
+CALL mtr.add_suppression('Following users were specified in CREATE USER');
+--echo # CREATE USER statement test where user does not exist
+CREATE USER u1 IDENTIFIED WITH 'sha256_password' BY 'pwd1', u2 IDENTIFIED WITH
+'mysql_native_password' BY 'pwd2', u3, u4, u5, u6 REQUIRE SSL;
+
+--echo # CREATE USER statement test where few user exist and few does not
+--error ER_CANNOT_USER
+CREATE USER u_ne1, u1 IDENTIFIED WITH 'sha256_password' BY 'auth_string',
+u_ne2 IDENTIFIED WITH 'sha256_password' REQUIRE SSL;
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER u_ne1, u1 IDENTIFIED WITH 'sha256_password' BY 'auth_string',
+u_ne2 IDENTIFIED WITH 'invalid_plugin' REQUIRE SSL;
+CREATE ROLE r1, r2;
+
+--echo # ALTER USER statement test
+ALTER USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'pwd1', u2 IDENTIFIED
+WITH 'sha256_password' BY 'pwd2' WITH MAX_USER_CONNECTIONS 11 ;
+ALTER USER u3 IDENTIFIED WITH 'mysql_native_password' BY 'pwd3', u4 IDENTIFIED
+WITH 'mysql_native_password' BY 'pwd4' WITH MAX_USER_CONNECTIONS 12;
+
+--echo # RENAME USER statement test
+RENAME USER u3 TO u33, u5 TO u55, u4 TO u44;
+--error ER_CANNOT_USER
+RENAME USER u3 TO u33, u4 TO u44;
+--error ER_CANNOT_USER
+RENAME USER u33 TO uu, u44 TO uu;
+
+--echo # GRANT USER test for all grant types
+# u1, u2, u33, u44, u55, u6, r1, r2 can be used.
+use mysql;
+CREATE DEFINER=u1 PROCEDURE p() SELECT host, user FROM mysql.user;
+
+GRANT SELECT ON *.* to u1;
+GRANT SELECT ON mysql.user to u2;
+GRANT SELECT ON mysql.* TO u33;
+GRANT SELECT (user, host) ON mysql.user TO u44;
+GRANT EXECUTE ON PROCEDURE mysql.p TO u55;
+GRANT proxy ON u1 TO u2;
+GRANT ALL ON *.* TO u6;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # check that mysql.user table has same values in both servers
+--let $diff_tables=master:mysql.user, slave:mysql.user
+--source include/diff_tables.inc
+
+--echo # REVOKE FROM USER statement test
+--let $rpl_connection_name= master
+--source include/rpl_connection.inc
+REVOKE SELECT ON *.* FROM u1;
+REVOKE SELECT ON mysql.user FROM u2;
+REVOKE SELECT ON mysql.* FROM u33;
+REVOKE SELECT (user, host) ON mysql.user FROM u44;
+REVOKE EXECUTE ON PROCEDURE mysql.p FROM u55;
+REVOKE PROXY ON u1 FROM u2;
+REVOKE ALL ON *.* FROM u6;
+DROP PROCEDURE p;
+
+--echo # CREATE USER IF NOT EXISTS statement test
+CREATE USER IF NOT EXISTS u7, u_ne3 IDENTIFIED WITH  'sha256_password';
+CREATE USER IF NOT EXISTS u7, u_ne4, u_ne5 IDENTIFIED WITH 'sha256_password'
+by 'pwd_u_ne5';
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER IF NOT EXISTS u5, u_failed1 IDENTIFIED WITH 'invalid_plugin',
+u_failed2;
+CREATE ROLE IF NOT EXISTS r33, r44;
+CREATE ROLE IF NOT EXISTS r44, r55;
+CREATE ROLE IF NOT EXISTS r44, r55;
+CREATE USER IF NOT EXISTS u6, u6, r1, r2 IDENTIFIED WITH  'sha256_password', r6;
+
+--echo # ALTER USER IF EXISTS statement test
+ALTER USER IF EXISTS u_failed1, u_failed2 IDENTIFIED WITH  'sha256_password';
+ALTER USER IF EXISTS u7 IDENTIFIED WITH 'sha256_password', u_failed1, u_failed2,
+u8 WITH MAX_USER_CONNECTIONS 4;
+ALTER USER IF EXISTS u7, u_failed1, u_failed2 IDENTIFIED  WITH
+'sha256_password' by 'pwd_failed' WITH MAX_USER_CONNECTIONS 5;
+ALTER USER IF EXISTS u7, u7 IDENTIFIED WITH  'sha256_password',
+u8 WITH MAX_USER_CONNECTIONS 6;
+--error ER_PLUGIN_IS_NOT_LOADED
+ALTER USER IF EXISTS u6 IDENTIFIED WITH  'sha256_password',
+u7 IDENTIFIED WITH 'invalid_plugin', u8 WITH MAX_USER_CONNECTIONS 17;
+ALTER USER IF EXISTS u6 IDENTIFIED WITH  'sha256_password',
+u_failed1, r6, r7, u9 WITH MAX_USER_CONNECTIONS 7;
+
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+# $server_log has to be processed by include/search_pattern.inc which
+# contains Perl code requiring that the environment variable SEARCH_FILE points
+# to this file.
+let SEARCH_FILE= $server_log;
+--echo # Search warnings in the server log
+--let SEARCH_PATTERN= Following users were specified in CREATE USER
+--source include/search_pattern.inc
+
+--echo # DROP USER IF EXISTS statement test
+DROP USER IF EXISTS u7, u8, u_failed;
+DROP USER IF EXISTS u7, u8;
+DROP USER IF EXISTS u_ne3, u_ne4, r55;
+DROP USER IF EXISTS u_ne5, u_failed1, r6, u_failed2, r7;
+
+--echo # DROP USER statement test
+--error ER_CANNOT_USER
+DROP USER u1, u2, u_ne1, u_ne2;
+--error ER_CANNOT_USER
+DROP ROLE r1, r2, u1, u_ne1;
+--error ER_CANNOT_USER
+DROP ROLE r1, r2, u5, u6, u1_failed;
+
+--source include/sync_slave_sql_with_master.inc
+--echo # check that mysql.user table has same values in both servers
+--let $diff_tables=master:mysql.user, slave:mysql.user
+--source include/diff_tables.inc
+--echo # Try connecting with users created to ensure that connection successful
+connect (conssl1,localhost,u1,pwd1,,,,SSL);
+connect (conssl2,localhost,u2,pwd2,,,,SSL);
+connect (conssl3,localhost,u33,pwd3,,,,SSL);
+connect (conssl4,localhost,u44,pwd4,,,,SSL);
+--echo # Try connecting with user without ssl where user require ssl
+--echo # Connection will be denied
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (conssl5,localhost,u44,pwd4,,,,);
+--enable_query_log
+
+DISCONNECT conssl1;
+DISCONNECT conssl2;
+DISCONNECT conssl3;
+DISCONNECT conssl4;
+
+--echo # Cleanup
+--let $rpl_connection_name= master
+--source include/rpl_connection.inc
+DROP ROLE IF EXISTS r1, r2, r33, r44, u1, u2, u33, u44, u55, u6;
+--source include/rpl_end.inc

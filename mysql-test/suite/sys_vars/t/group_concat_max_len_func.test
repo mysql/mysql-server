@@ -1,0 +1,143 @@
+############## mysql-test\t\group_concat_max_len_func.test ####################
+#                                                                             #
+# Variable Name: group_concat_max_len                                         #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: 1024                                                         #
+# Minimum value:  4                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-07                                                   #
+# Author:  Salman Rawala                                                      #
+#                                                                             #
+# Last modification:                                                          #
+# 2008-11-14 mleich Fix Bug#40644 main.group_concat_max_len_func random       #
+#                                 failures                                    #
+#                   + minor improvements                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable group_concat_max_len     #
+#              that checks the functionality of this variable                 #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+SET @save = @@global.group_concat_max_len;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+
+--echo ## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (id),
+rollno INT NOT NULL,
+name VARCHAR(30)
+);
+
+--echo '#--------------------FN_DYNVARS_034_01-------------------------#'
+########################################################################
+#    Setting initial value of group_concat_max_len, inserting some rows
+#    & creating 2 new connections
+########################################################################
+
+--echo ## Setting initial value of variable to 4 ##
+SET @@global.group_concat_max_len = 4;
+
+--echo ## Inserting some rows in table ##
+INSERT INTO t1(rollno, name) VALUES(1, 'Record_1');
+INSERT INTO t1(rollno, name) VALUES(2, 'Record_2');
+INSERT INTO t1(rollno, name) VALUES(1, 'Record_3');
+INSERT INTO t1(rollno, name) VALUES(3, 'Record_4');
+INSERT INTO t1(rollno, name) VALUES(1, 'Record_5');
+INSERT INTO t1(rollno, name) VALUES(3, 'Record_6');
+INSERT INTO t1(rollno, name) VALUES(4, 'Record_7');
+INSERT INTO t1(rollno, name) VALUES(4, 'Record_8');
+# The following "auxiliary" select ensures that all records are on disk
+# = result sets got by parallel sessions cannot suffer from effects
+#   caused by the MyISAM feature "concurrent_inserts".
+SELECT * FROM t1 ORDER BY id;
+
+--echo ## Creating two new connections ##
+connect (test_con1,localhost,root,,);
+connect (test_con2,localhost,root,,);
+
+
+--echo '#--------------------FN_DYNVARS_034_02-------------------------#'
+###############################################################################
+# Verifying initial behavior of variable by concatinating values greater than 4
+###############################################################################
+
+--echo ## Connecting with test_con1 ##
+connection test_con1;
+
+--source include/turn_off_only_full_group_by.inc
+
+--echo ## Accessing data and using group_concat on column whose value is greater than 4 ##
+SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
+
+--echo ## Changing session value of variable and verifying its behavior, ##
+--echo ## warning should come here ##
+
+SET @@session.group_concat_max_len = 10;
+SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
+
+--echo '#--------------------FN_DYNVARS_034_03-------------------------#'
+##############################################################################
+#    Verifying behavior of variable by increasing session value of variable  #
+##############################################################################
+
+--echo ## Connecting with new connection test_con2 ##
+connection test_con2;
+
+--source include/turn_off_only_full_group_by.inc
+
+--echo ## Verifying initial value of variable. It should be 4 ##
+SELECT @@session.group_concat_max_len = 4;
+
+--echo ## Setting session value of variable to 20 and verifying variable is concating ##
+--echo ## column's value to 20 or not ##
+SET @@session.group_concat_max_len = 20;
+
+--echo ## Verifying value of name column, it should not me more than 20 characters ##
+--echo ## Warning should come here ##
+SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
+
+
+--echo '#--------------------FN_DYNVARS_034_04-------------------------#'
+###############################################################################
+#    Verifying behavior of variable by increasing session value of variable   #
+#    greater than the maximum concat length of name column                    #
+###############################################################################
+
+--echo ## Setting session value of variable to 26. No warning should appear here ##
+--echo ## because the value after concatination is less than 30 ##
+SET @@session.group_concat_max_len = 26;
+
+--echo ## Verifying value of name column, it should not give warning now ##
+SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
+
+
+############################################################
+#    Disconnecting all connection & dropping table         #
+############################################################
+
+--echo ## Dropping table t1 ##
+DROP TABLE t1;
+
+--echo ## Disconnecting both the connection ##
+disconnect test_con2;
+disconnect test_con1;
+
+connection default;
+
+SET @@global.group_concat_max_len = @save;
+

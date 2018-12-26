@@ -1,0 +1,40 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY(a,b))
+ENGINE = NDB
+PARTITION BY KEY (a);
+insert into t1 values 
+(1,1,3),(1,2,3),(1,3,3),(1,4,3),(1,5,3),(1,6,3),
+(1,7,3),(1,8,3),(1,9,3),(1,10,3),(1,11,3),(1,12,3);
+select * from t1 order by b;
+a	b	c
+1	1	3
+1	2	3
+1	3	3
+1	4	3
+1	5	3
+1	6	3
+1	7	3
+1	8	3
+1	9	3
+1	10	3
+1	11	3
+1	12	3
+include/assert_grep.inc [Checking MAX_ROWS is unchanged]
+drop table t1;
+include/assert_grep.inc [Checking MAX_ROWS is unchanged]
+select * from t1 order by b;
+a	b	c
+1	1	3
+1	2	3
+1	3	3
+1	4	3
+1	5	3
+1	6	3
+1	7	3
+1	8	3
+1	9	3
+1	10	3
+1	11	3
+1	12	3
+ALTER TABLE t1 algorithm=inplace, REORGANIZE PARTITION;
+DROP TABLE t1;

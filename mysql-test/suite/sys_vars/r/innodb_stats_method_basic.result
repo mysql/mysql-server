@@ -1,0 +1,83 @@
+SET @start_global_value = @@global.innodb_stats_method;
+SELECT @start_global_value;
+@start_global_value
+nulls_equal
+Valid values are 'nulls_equal', 'nulls_unequal', 'nulls_ignored'
+SELECT @@global.innodb_stats_method in ('nulls_equal', 'nulls_unequal', 
+'nulls_ignored');
+@@global.innodb_stats_method in ('nulls_equal', 'nulls_unequal', 
+'nulls_ignored')
+1
+SELECT @@global.innodb_stats_method;
+@@global.innodb_stats_method
+nulls_equal
+SELECT @@session.innodb_stats_method;
+ERROR HY000: Variable 'innodb_stats_method' is a GLOBAL variable
+SHOW global variables LIKE 'innodb_stats_method';
+Variable_name	Value
+innodb_stats_method	nulls_equal
+SHOW session variables LIKE 'innodb_stats_method';
+Variable_name	Value
+innodb_stats_method	nulls_equal
+SELECT * FROM performance_schema.global_variables 
+WHERE variable_name='innodb_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_stats_method	nulls_equal
+SELECT * FROM performance_schema.session_variables 
+WHERE variable_name='innodb_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_stats_method	nulls_equal
+SET global innodb_stats_method='nulls_equal';
+SELECT @@global.innodb_stats_method;
+@@global.innodb_stats_method
+nulls_equal
+SELECT * FROM performance_schema.global_variables 
+WHERE variable_name='innodb_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_stats_method	nulls_equal
+SELECT * FROM performance_schema.session_variables 
+WHERE variable_name='innodb_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_stats_method	nulls_equal
+SET @@global.innodb_stats_method='nulls_unequal';
+SELECT @@global.innodb_stats_method;
+@@global.innodb_stats_method
+nulls_unequal
+SELECT * FROM performance_schema.global_variables 
+WHERE variable_name='innodb_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_stats_method	nulls_unequal
+SELECT * FROM performance_schema.session_variables 
+WHERE variable_name='innodb_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_stats_method	nulls_unequal
+SET global innodb_stats_method=2;
+SELECT @@global.innodb_stats_method;
+@@global.innodb_stats_method
+nulls_ignored
+SELECT * FROM performance_schema.global_variables 
+WHERE variable_name='innodb_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_stats_method	nulls_ignored
+SELECT * FROM performance_schema.session_variables 
+WHERE variable_name='innodb_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_stats_method	nulls_ignored
+SET session innodb_stats_method='nulls_equal';
+ERROR HY000: Variable 'innodb_stats_method' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.innodb_stats_method='nulls_ignored';
+ERROR HY000: Variable 'innodb_stats_method' is a GLOBAL variable and should be set with SET GLOBAL
+SET global innodb_stats_method=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_stats_method'
+SET global innodb_stats_method=4;
+ERROR 42000: Variable 'innodb_stats_method' can't be set to the value of '4'
+SET global innodb_stats_method=-2;
+ERROR 42000: Variable 'innodb_stats_method' can't be set to the value of '-2'
+SET global innodb_stats_method=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_stats_method'
+SET global innodb_stats_method='some';
+ERROR 42000: Variable 'innodb_stats_method' can't be set to the value of 'some'
+SET @@global.innodb_stats_method = @start_global_value;
+SELECT @@global.innodb_stats_method;
+@@global.innodb_stats_method
+nulls_equal

@@ -1,0 +1,94 @@
+#
+# Perform various queries from the ndbinfo. tables checking that
+# the table schema and the views are working when selecting
+# all rows or selected rows and with the various ratelimits
+#
+
+--result_format 2
+--source include/have_ndb.inc
+
+--disable_query_log
+--disable_result_log
+
+use ndbinfo;
+
+set @@ndbinfo_show_hidden = 1;
+
+### Load list of tables and views in ndbinfo database into temporary table
+create temporary table table_names as
+  select REPLACE(TABLE_NAME, '$', '\$') as TABLE_NAME, TABLE_TYPE
+    from information_schema.tables
+      where TABLE_SCHEMA = 'ndbinfo';
+
+### Iterate the list and run test for each object
+while (`select count(*) from table_names`)
+{
+  ### Find one object to test
+  select @test_table := TABLE_NAME,
+    @test_table_type := TABLE_TYPE
+    from table_names order by TABLE_NAME limit 1;
+  let $test_table = `select @test_table`;
+  let $test_table_type = `select @test_table_type`;
+
+  ##
+  # Run plain select from the table
+  eval select * from $test_table;
+
+  ##
+  # Select one column at a time
+  let $columns = `select count(*) from information_schema.columns
+                    where TABLE_NAME = @test_table and
+                          TABLE_SCHEMA='ndbinfo'`;
+  #echo $test_table has $columns columns;
+
+  let $c = $columns;
+  while($c)
+  {
+    let $col_name = `select COLUMN_NAME from information_schema.columns
+                       where TABLE_NAME = @test_table and
+                             TABLE_SCHEMA='ndbinfo' and
+                             ORDINAL_POSITION = $c`;
+    eval select `$col_name` from $test_table;
+
+    dec $c;
+  }
+
+  ##
+  # Run plain select with different max_rows and max_bytes
+  create temporary table limits (max_rows int, max_bytes int);
+  insert into limits values
+    ( 0, 0 ),
+    ( 1, 0 ), ( 2, 0 ), ( 10, 0 ), ( 37, 0 ), ( 1000, 0 ),
+    ( 0, 1 ), ( 0, 2 ), ( 0, 10 ), ( 0, 37 ), ( 0, 1000 ),
+    ( 1, 1 ), ( 2, 2 ), ( 10, 10 ), ( 37, 37 ), ( 1000, 1000 );
+  while (`select count(*) from limits`)
+  {
+    # Find next limit to test
+    select @max_rows := max_rows,
+           @max_bytes := max_bytes
+      from limits order by max_rows, max_bytes limit 1;
+
+    set @@ndbinfo_max_bytes = @max_bytes;
+    set @@ndbinfo_max_rows = @max_rows;
+
+    eval select * from $test_table;
+
+    # Remove the tested limit
+    delete from limits
+      where max_rows = @max_rows and max_bytes = @max_bytes;
+  }
+  # Reset defaults
+  set @@ndbinfo_max_bytes = default;
+  set @@ndbinfo_max_rows = default;
+  drop temporary table limits;
+
+  ### Delete the tested table from list
+  delete from table_names
+    where TABLE_NAME = @test_table and TABLE_TYPE = @test_table_type;
+}
+
+--enable_query_log
+--enable_result_log
+
+
+## Test completed!

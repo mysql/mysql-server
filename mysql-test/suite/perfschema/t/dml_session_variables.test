@@ -1,0 +1,33 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.session_variables
+  where variable_name like 'bytes_%' limit 1;
+
+select * from performance_schema.session_variables
+  where variable_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.session_variables
+  set variable_name='FOO', variable_value='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.session_variables
+  set variable_name='FOO', variable_value='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.session_variables
+  where variable_name <> 'FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.session_variables;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.session_variables READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.session_variables WRITE;
+UNLOCK TABLES;
+

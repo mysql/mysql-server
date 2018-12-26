@@ -1,0 +1,453 @@
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+************************************************************
+* Creating table with integral types
+************************************************************
+CREATE TABLE t1(
+t1 tinyint,  t2 tinyint,  ut1 tinyint unsigned,
+s1 smallint,  s2 smallint,  us1 smallint unsigned,
+m1 mediumint,  m2 mediumint,  um1 mediumint unsigned,
+i1 int,  i2 int,  ui1 int unsigned,
+b1 bigint,  b2 bigint,  ub1 bigint unsigned
+) ENGINE=NDB;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+************************************************************
+* Backing up table with integral types
+************************************************************
+************************************************************
+* Restoring table with unchanged integral types:
+*     tinyint[unsigned]  -->    tinyint[unsigned]
+*    smallint[unsigned]  -->   smallint[unsigned]
+*   mediumint[unsigned]  -->  mediumint[unsigned]
+*         int[unsigned]  -->        int[unsigned]
+*      bigint[unsigned]  -->     bigint[unsigned]
+************************************************************
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+-128	127	255	-32768	32767	65535	-8388608	8388607	16777215	-2147483648	2147483647	4294967295	-9223372036854775808	9223372036854775807	18446744073709551615
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with 1st degree demoted integral types:
+*     tinyint[unsigned]  -->    tinyint[unsigned]
+*    smallint[unsigned]  -->    tinyint[unsigned]
+*   mediumint[unsigned]  -->   smallint[unsigned]
+*         int[unsigned]  -->  mediumint[unsigned]
+*      bigint[unsigned]  -->        int[unsigned]
+************************************************************
+ALTER TABLE t1
+modify t1 tinyint,  modify t2 tinyint,  modify ut1 tinyint unsigned,
+modify s1 tinyint,  modify s2 tinyint,  modify us1 tinyint unsigned,
+modify m1 smallint,  modify m2 smallint,  modify um1 smallint unsigned,
+modify i1 mediumint,  modify i2 mediumint,  modify ui1 mediumint unsigned,
+modify b1 int,  modify b2 int,  modify ub1 int unsigned;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+-128	127	255	-128	127	255	-32768	32767	65535	-8388608	8388607	16777215	-2147483648	2147483647	4294967295
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+-128	127	255	-128	127	255	-32768	32767	65535	-8388608	8388607	16777215	-2147483648	2147483647	4294967295
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with 2nd degree demoted integral types:
+*     tinyint[unsigned]  -->    tinyint[unsigned]
+*    smallint[unsigned]  -->    tinyint[unsigned]
+*   mediumint[unsigned]  -->    tinyint[unsigned]
+*         int[unsigned]  -->   smallint[unsigned]
+*      bigint[unsigned]  -->  mediumint[unsigned]
+************************************************************
+ALTER TABLE t1
+modify t1 tinyint,  modify t2 tinyint,  modify ut1 tinyint unsigned,
+modify s1 tinyint,  modify s2 tinyint,  modify us1 tinyint unsigned,
+modify m1 tinyint,  modify m2 tinyint,  modify um1 tinyint unsigned,
+modify i1 smallint,  modify i2 smallint,  modify ui1 smallint unsigned,
+modify b1 mediumint,  modify b2 mediumint,  modify ub1 mediumint unsigned;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+-128	127	255	-128	127	255	-128	127	255	-32768	32767	65535	-8388608	8388607	16777215
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+-128	127	255	-128	127	255	-128	127	255	-32768	32767	65535	-8388608	8388607	16777215
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with 3rd degree demoted integral types:
+*     tinyint[unsigned]  -->    tinyint[unsigned]
+*    smallint[unsigned]  -->    tinyint[unsigned]
+*   mediumint[unsigned]  -->    tinyint[unsigned]
+*         int[unsigned]  -->    tinyint[unsigned]
+*      bigint[unsigned]  -->   smallint[unsigned]
+************************************************************
+ALTER TABLE t1
+modify t1 tinyint,  modify t2 tinyint,  modify ut1 tinyint unsigned,
+modify s1 tinyint,  modify s2 tinyint,  modify us1 tinyint unsigned,
+modify m1 tinyint,  modify m2 tinyint,  modify um1 tinyint unsigned,
+modify i1 tinyint,  modify i2 tinyint,  modify ui1 tinyint unsigned,
+modify b1 smallint,  modify b2 smallint,  modify ub1 smallint unsigned;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+-128	127	255	-128	127	255	-128	127	255	-128	127	255	-32768	32767	65535
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+-128	127	255	-128	127	255	-128	127	255	-128	127	255	-32768	32767	65535
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with 4th degree demoted integral types:
+*     tinyint[unsigned]  -->    tinyint[unsigned]
+*    smallint[unsigned]  -->    tinyint[unsigned]
+*   mediumint[unsigned]  -->    tinyint[unsigned]
+*         int[unsigned]  -->    tinyint[unsigned]
+*      bigint[unsigned]  -->    tinyint[unsigned]
+************************************************************
+ALTER TABLE t1
+modify t1 tinyint,  modify t2 tinyint,  modify ut1 tinyint unsigned,
+modify s1 tinyint,  modify s2 tinyint,  modify us1 tinyint unsigned,
+modify m1 tinyint,  modify m2 tinyint,  modify um1 tinyint unsigned,
+modify i1 tinyint,  modify i2 tinyint,  modify ui1 tinyint unsigned,
+modify b1 tinyint,  modify b2 tinyint,  modify ub1 tinyint unsigned;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+-128	127	255	-128	127	255	-128	127	255	-128	127	255	-128	127	255
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+-128	127	255	-128	127	255	-128	127	255	-128	127	255	-128	127	255
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with changed signedness:
+*     tinyint unsigned/signed  -->    tinyint signed/unsigned
+*    smallint unsigned/signed  -->   smallint signed/unsigned
+*   mediumint unsigned/signed  -->  mediumint signed/unsigned
+*         int unsigned/signed  -->        int signed/unsigned
+*      bigint unsigned/signed  -->     bigint signed/unsigned
+************************************************************
+DELETE FROM t1;
+ALTER TABLE t1
+modify t1 tinyint unsigned,  modify t2 tinyint unsigned,  modify ut1 tinyint signed,
+modify s1 smallint unsigned,  modify s2 smallint unsigned,  modify us1 smallint signed,
+modify m1 mediumint unsigned,  modify m2 mediumint unsigned,  modify um1 mediumint signed,
+modify i1 int unsigned,  modify i2 int unsigned,  modify ui1 int signed,
+modify b1 bigint unsigned,  modify b2 bigint unsigned,  modify ub1 bigint signed;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	32767	32767	0	8388607	8388607	0	2147483647	2147483647	0	9223372036854775807	9223372036854775807
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	32767	32767	0	8388607	8388607	0	2147483647	2147483647	0	9223372036854775807	9223372036854775807
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with changed signedness + 1st degree promoted types:
+*     tinyint unsigned/signed  -->   smallint signed/unsigned
+*    smallint unsigned/signed  -->  mediumint signed/unsigned
+*   mediumint unsigned/signed  -->        int signed/unsigned
+*         int unsigned/signed  -->     bigint signed/unsigned
+*      bigint unsigned/signed  -->     bigint signed/unsigned
+************************************************************
+DELETE FROM t1;
+ALTER TABLE t1
+modify t1 smallint unsigned,  modify t2 smallint unsigned,  modify ut1 smallint signed,
+modify s1 mediumint unsigned,  modify s2 mediumint unsigned,  modify us1 mediumint signed,
+modify m1 int unsigned,  modify m2 int unsigned,  modify um1 int signed,
+modify i1 bigint unsigned,  modify i2 bigint unsigned,  modify ui1 bigint signed,
+modify b1 bigint unsigned,  modify b2 bigint unsigned,  modify ub1 bigint signed;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	255	0	32767	65535	0	8388607	16777215	0	2147483647	4294967295	0	9223372036854775807	9223372036854775807
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	255	0	32767	65535	0	8388607	16777215	0	2147483647	4294967295	0	9223372036854775807	9223372036854775807
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with changed signedness + 2nd degree promoted types:
+*     tinyint unsigned/signed  -->  mediumint signed/unsigned
+*    smallint unsigned/signed  -->        int signed/unsigned
+*   mediumint unsigned/signed  -->     bigint signed/unsigned
+*         int unsigned/signed  -->     bigint signed/unsigned
+*      bigint unsigned/signed  -->     bigint signed/unsigned
+************************************************************
+DELETE FROM t1;
+ALTER TABLE t1
+modify t1 mediumint unsigned,  modify t2 mediumint unsigned,  modify ut1 mediumint signed,
+modify s1 int unsigned,  modify s2 int unsigned,  modify us1 int signed,
+modify m1 bigint unsigned,  modify m2 bigint unsigned,  modify um1 bigint signed,
+modify i1 bigint unsigned,  modify i2 bigint unsigned,  modify ui1 bigint signed,
+modify b1 bigint unsigned,  modify b2 bigint unsigned,  modify ub1 bigint signed;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	255	0	32767	65535	0	8388607	16777215	0	2147483647	4294967295	0	9223372036854775807	9223372036854775807
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	255	0	32767	65535	0	8388607	16777215	0	2147483647	4294967295	0	9223372036854775807	9223372036854775807
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with changed signedness + 3rd degree promoted types:
+*     tinyint unsigned/signed  -->        int signed/unsigned
+*    smallint unsigned/signed  -->     bigint signed/unsigned
+*   mediumint unsigned/signed  -->     bigint signed/unsigned
+*         int unsigned/signed  -->     bigint signed/unsigned
+*      bigint unsigned/signed  -->     bigint signed/unsigned
+************************************************************
+DELETE FROM t1;
+ALTER TABLE t1
+modify t1 int unsigned,  modify t2 int unsigned,  modify ut1 int signed,
+modify s1 bigint unsigned,  modify s2 bigint unsigned,  modify us1 bigint signed,
+modify m1 bigint unsigned,  modify m2 bigint unsigned,  modify um1 bigint signed,
+modify i1 bigint unsigned,  modify i2 bigint unsigned,  modify ui1 bigint signed,
+modify b1 bigint unsigned,  modify b2 bigint unsigned,  modify ub1 bigint signed;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	255	0	32767	65535	0	8388607	16777215	0	2147483647	4294967295	0	9223372036854775807	9223372036854775807
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	255	0	32767	65535	0	8388607	16777215	0	2147483647	4294967295	0	9223372036854775807	9223372036854775807
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with changed signedness + 4th degree promoted types:
+*     tinyint unsigned/signed  -->     bigint signed/unsigned
+*    smallint unsigned/signed  -->     bigint signed/unsigned
+*   mediumint unsigned/signed  -->     bigint signed/unsigned
+*         int unsigned/signed  -->     bigint signed/unsigned
+*      bigint unsigned/signed  -->     bigint signed/unsigned
+************************************************************
+DELETE FROM t1;
+ALTER TABLE t1
+modify t1 bigint unsigned,  modify t2 bigint unsigned,  modify ut1 bigint signed,
+modify s1 bigint unsigned,  modify s2 bigint unsigned,  modify us1 bigint signed,
+modify m1 bigint unsigned,  modify m2 bigint unsigned,  modify um1 bigint signed,
+modify i1 bigint unsigned,  modify i2 bigint unsigned,  modify ui1 bigint signed,
+modify b1 bigint unsigned,  modify b2 bigint unsigned,  modify ub1 bigint signed;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	255	0	32767	65535	0	8388607	16777215	0	2147483647	4294967295	0	9223372036854775807	9223372036854775807
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	255	0	32767	65535	0	8388607	16777215	0	2147483647	4294967295	0	9223372036854775807	9223372036854775807
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with changed signedness + 1st degree demoted types:
+*     tinyint unsigned/signed  -->    tinyint signed/unsigned
+*    smallint unsigned/signed  -->    tinyint signed/unsigned
+*   mediumint unsigned/signed  -->   smallint signed/unsigned
+*         int unsigned/signed  -->  mediumint signed/unsigned
+*      bigint unsigned/signed  -->        int signed/unsigned
+************************************************************
+DELETE FROM t1;
+ALTER TABLE t1
+modify t1 tinyint unsigned,  modify t2 tinyint unsigned,  modify ut1 tinyint signed,
+modify s1 tinyint unsigned,  modify s2 tinyint unsigned,  modify us1 tinyint signed,
+modify m1 smallint unsigned,  modify m2 smallint unsigned,  modify um1 smallint signed,
+modify i1 mediumint unsigned,  modify i2 mediumint unsigned,  modify ui1 mediumint signed,
+modify b1 int unsigned,  modify b2 int unsigned,  modify ub1 int signed;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	255	127	0	65535	32767	0	16777215	8388607	0	4294967295	2147483647
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	255	127	0	65535	32767	0	16777215	8388607	0	4294967295	2147483647
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with changed signedness + 2nd degree demoted types:
+*     tinyint unsigned/signed  -->    tinyint signed/unsigned
+*    smallint unsigned/signed  -->    tinyint signed/unsigned
+*   mediumint unsigned/signed  -->    tinyint signed/unsigned
+*         int unsigned/signed  -->   smallint signed/unsigned
+*      bigint unsigned/signed  -->  mediumint signed/unsigned
+************************************************************
+DELETE FROM t1;
+ALTER TABLE t1
+modify t1 tinyint unsigned,  modify t2 tinyint unsigned,  modify ut1 tinyint signed,
+modify s1 tinyint unsigned,  modify s2 tinyint unsigned,  modify us1 tinyint signed,
+modify m1 tinyint unsigned,  modify m2 tinyint unsigned,  modify um1 tinyint signed,
+modify i1 smallint unsigned,  modify i2 smallint unsigned,  modify ui1 smallint signed,
+modify b1 mediumint unsigned,  modify b2 mediumint unsigned,  modify ub1 mediumint signed;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	255	127	0	255	127	0	65535	32767	0	16777215	8388607
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	255	127	0	255	127	0	65535	32767	0	16777215	8388607
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with changed signedness + 3rd degree demoted types:
+*     tinyint unsigned/signed  -->    tinyint signed/unsigned
+*    smallint unsigned/signed  -->    tinyint signed/unsigned
+*   mediumint unsigned/signed  -->    tinyint signed/unsigned
+*         int unsigned/signed  -->    tinyint signed/unsigned
+*      bigint unsigned/signed  -->   smallint signed/unsigned
+************************************************************
+DELETE FROM t1;
+ALTER TABLE t1
+modify t1 tinyint unsigned,  modify t2 tinyint unsigned,  modify ut1 tinyint signed,
+modify s1 tinyint unsigned,  modify s2 tinyint unsigned,  modify us1 tinyint signed,
+modify m1 tinyint unsigned,  modify m2 tinyint unsigned,  modify um1 tinyint signed,
+modify i1 tinyint unsigned,  modify i2 tinyint unsigned,  modify ui1 tinyint signed,
+modify b1 smallint unsigned,  modify b2 smallint unsigned,  modify ub1 smallint signed;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	255	127	0	255	127	0	255	127	0	65535	32767
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	255	127	0	255	127	0	255	127	0	65535	32767
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Restoring table with changed signedness + 4th degree demoted types:
+*     tinyint unsigned/signed  -->    tinyint signed/unsigned
+*    smallint unsigned/signed  -->    tinyint signed/unsigned
+*   mediumint unsigned/signed  -->    tinyint signed/unsigned
+*         int unsigned/signed  -->    tinyint signed/unsigned
+*      bigint unsigned/signed  -->    tinyint signed/unsigned
+************************************************************
+DELETE FROM t1;
+ALTER TABLE t1
+modify t1 tinyint unsigned,  modify t2 tinyint unsigned,  modify ut1 tinyint signed,
+modify s1 tinyint unsigned,  modify s2 tinyint unsigned,  modify us1 tinyint signed,
+modify m1 tinyint unsigned,  modify m2 tinyint unsigned,  modify um1 tinyint signed,
+modify i1 tinyint unsigned,  modify i2 tinyint unsigned,  modify ui1 tinyint signed,
+modify b1 tinyint unsigned,  modify b2 tinyint unsigned,  modify ub1 tinyint signed;
+INSERT INTO t1 VALUES(
+-128, 127, 255,
+-32768, 32767, 65535,
+-8388608, 8388607, 16777215,
+-2147483648, 2147483647, 4294967295,
+-9223372036854775808, 9223372036854775807, 18446744073709551615
+);
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	255	127	0	255	127	0	255	127	0	255	127
+CREATE TABLE t1_myisam ENGINE=MYISAM AS SELECT * FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+t1	t2	ut1	s1	s2	us1	m1	m2	um1	i1	i2	ui1	b1	b2	ub1
+0	127	127	0	255	127	0	255	127	0	255	127	0	255	127
+SELECT COUNT(*) FROM t1 NATURAL JOIN t1_myisam;
+COUNT(*)
+1
+DROP TABLE t1_myisam;
+************************************************************
+* Deleting table with integral types
+************************************************************
+DROP TABLE t1;

@@ -1,0 +1,211 @@
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_innodb_max_16k.inc
+
+--echo #
+--echo # Bug #16963396 INNODB: USE OF LARGE EXTERNALLY-STORED FIELDS MAKES
+--echo # CRASH RECOVERY LOSE DATA
+--echo #
+
+connection default;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - Insert Operation - Crash Test
+--echo # Fresh insert with blobs
+--echo #
+
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+
+# Insert a few rows (it doesn't really matter how many). These transactions
+# are committed once they are acked, so they should not be lost.
+INSERT INTO t1 (a, b) VALUES (1, repeat('^', 40000));
+INSERT INTO t1 (a, b) VALUES (2, '2');
+INSERT INTO t1 (a, b) VALUES (3, '3');
+INSERT INTO t1 (a, b) VALUES (4, '4');
+INSERT INTO t1 (a, b) VALUES (5, '5');
+
+# The BLOB insert will fail, and should disappear. However no data committed
+# up to this point should be lost.
+begin;
+INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 4*1024*1024));
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT a, right(b, 50) FROM t1;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - UPDATE Operation - Crash Test
+--echo # Update of non-blob column so that blob is needed.
+--echo #
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+begin;
+UPDATE t1 set b = REPEAT('a', 4*1024*1024) where a = 5 ;
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT a, right(b, 50) FROM t1;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - UPDATE Operation - Crash Test
+--echo # Update of blob column to blob.
+--echo #
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+begin;
+UPDATE t1 set b = REPEAT('$', 50000) where a = 1 ;
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT a, right(b, 50) FROM t1;
+
+# Clean up.
+DROP TABLE t1;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - Rollback of UPDATE operation
+--echo # Update moves offpage data to inline data.
+--echo #
+
+create table t2 (f1 bigint primary key, f2 longblob, f3 longblob,
+  index(f2(10), f3(10))) engine=innodb;
+
+insert into t2 values (10, repeat('.', 40000), repeat('?', 40000));
+
+start transaction;
+update t2 set f2 = '=';
+select f1, right(f2, 20), right(f3, 20) from t2;
+update t2 set f3 = '&';
+select f1, right(f2, 20), right(f3, 20) from t2;
+
+set session debug='d,ib_blob_update_rollback';
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+rollback;
+
+# Wait for the server to come back up, and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+select f1, right(f2, 20), right(f3, 20) from t2;
+check table t2;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - Rollback of UPDATE operation
+--echo #
+
+insert into t2 values (20, repeat('.', 40000), repeat('?', 40000));
+
+select f1, right(f2, 20), right(f3, 20) from t2;
+
+start transaction;
+update t2 set f2 = repeat('$', 60000) where f1 = 20;
+select f1, right(f2, 20), right(f3, 20) from t2;
+
+SET GLOBAL innodb_log_checkpoint_now=ON;
+
+--source include/kill_mysqld.inc
+
+--echo # Starting server with --innodb-force-recovery-crash=99
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+let args = --loose-console --core-file > $SEARCH_FILE 2>&1;
+let crash = $args --innodb-force-recovery-crash;
+
+--error 3
+--exec $MYSQLD_CMD $crash=99
+
+let SEARCH_PATTERN = innodb_force_recovery_crash=99;
+--source include/search_pattern.inc
+
+--source include/start_mysqld.inc
+
+select f1, right(f2, 20), right(f3, 20) from t2;
+check table t2;
+drop table t2;
+
+# ..........................................................................
+
+--echo #
+--echo # Compressed Table - Insert Operation - Crash Test
+--echo # fresh insert with BLOBs
+--echo #
+
+connection default;
+
+set global innodb_compression_level = 0;
+
+create table t3 (f1 bigint primary key, f2 longblob, f3 longblob,
+  index(f2(10), f3(10))) engine=innodb row_format=compressed;
+
+# The BLOB insert will fail, and should disappear. However no data committed
+# up to this point should be lost.
+--disable_query_log
+begin;
+INSERT INTO t3 (f1, f2, f3) VALUES (6, repeat('/', 40000), repeat('<', 40000));
+--enable_query_log
+
+--source include/kill_and_restart_mysqld.inc
+
+select f1, length(f2), length(f3) from t3;
+select f1, right(f2, 30), right(f3, 20) from t3;
+check table t3;
+
+# ..........................................................................
+
+--echo #
+--echo # Compressed Table - Update Operation - Crash Test
+--echo # update of a non-BLOB column so that BLOB is needed
+--echo #
+
+set global innodb_compression_level = 0;
+insert into t3 values (2, repeat('!', 30), repeat('+', 30));
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+begin;
+UPDATE t3 set f2 = repeat('>', 40000) where f1 = 2;
+
+--source include/kill_and_restart_mysqld.inc
+
+select f1, length(f2), length(f3) from t3;
+select f1, right(f2, 30), right(f3, 20) from t3;
+check table t3;
+
+# ..........................................................................
+
+--echo #
+--echo # Compressed Table - Update Operation - Crash Test
+--echo # update blob to blob
+--echo #
+
+set global innodb_compression_level = 0;
+insert into t3 values (3, repeat('%', 40000), repeat('~', 40000));
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+begin;
+UPDATE t3 set f2 = concat(f2, repeat(',', 10)) where f1 = 3;
+
+--source include/kill_and_restart_mysqld.inc
+
+select f1, length(f2), length(f3) from t3;
+select f1, right(f2, 30), right(f3, 20) from t3;
+check table t3;
+
+# Clean up.
+DROP TABLE t3;
+

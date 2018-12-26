@@ -1,0 +1,58 @@
+# suite/funcs_1/t/is_schema_privileges_is_mysql_test.test
+#
+# Check the content of information_schema.schema_privileges about the databases
+# information_schema, mysql and test visible to high and low privileged users.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+
+--echo ##############################################################################
+--echo # Testcases 3.2.9.2+3.2.9.3 INFORMATION_SCHEMA.SCHEMATA accessible information
+--echo ##############################################################################
+# 3.2.9.2  Ensure that the table shows the relevant information for every
+#          database on which the current user or PUBLIC have privileges.
+# 3.2.9.3  Ensure that the table does not show any information on any databases
+#          on which the current user and PUBLIC have no privileges.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+
+# Create a low privileged user.
+# Note: The database db_datadict is just a "home" for the low privileged user
+#       and not in the focus of testing.
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
+
+let $my_select = SELECT * FROM information_schema.schema_privileges
+WHERE table_schema IN ('information_schema','mysql','test')
+ORDER BY grantee, table_schema, privilege_type;
+let $my_show1 = SHOW DATABASES LIKE 'information_schema';
+let $my_show2 = SHOW DATABASES LIKE 'mysql';
+let $my_show3 = SHOW DATABASES LIKE 'test';
+eval $my_select;
+eval $my_show1;
+eval $my_show2;
+eval $my_show3;
+
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , db_datadict);
+eval $my_select;
+eval $my_show1;
+eval $my_show2;
+eval $my_show3;
+
+# Cleanup
+--echo # Switch to connection default and close connection testuser1
+connection default;
+DROP USER 'testuser1'@'localhost';
+DROP DATABASE db_datadict;
+

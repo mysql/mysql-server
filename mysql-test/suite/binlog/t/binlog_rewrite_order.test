@@ -1,0 +1,35 @@
+#
+# Tests for mysqlbinlog and rewrite filter
+#
+--source include/have_binlog_format_mixed.inc
+
+--let $datadir= `SELECT @@datadir`
+
+#
+# BUG#18345363: ORDER OF APPLYING MYSQLBINLOG --DATABASE AND --REWRITE-DB IS WRONG
+# BUG#20810442: "USE DATABSE_NAME" STATEMENTS OMITTED BY MYSQLBINLOG --REWRITE-DB OPTION
+#
+
+call mtr.add_suppression("WARNING: The option --database has been used. It may filter parts of transactions,");
+
+--let $saved_binlog_format=`SELECT @@binlog_format`
+
+# new db name is smaller than the original one
+--let $rewrite_from_db=schemaa
+--let $rewrite_to_db=db1
+--source extra/binlog_tests/mysqlbinlog_rewrite_db.test
+
+# new db name is the same size as the original one
+--let $rewrite_from_db=schemaa
+--let $rewrite_to_db=schemab
+--source extra/binlog_tests/mysqlbinlog_rewrite_db.test
+
+# new db name is the larger than the original one
+--let $rewrite_from_db=schemaa
+--let $rewrite_to_db=my_new_fancy_and_very_long_schema_name
+--source extra/binlog_tests/mysqlbinlog_rewrite_db.test
+
+--let $rewrite_from_db=
+--let $rewrite_to_db=
+
+--eval SET BINLOG_FORMAT=$saved_binlog_format

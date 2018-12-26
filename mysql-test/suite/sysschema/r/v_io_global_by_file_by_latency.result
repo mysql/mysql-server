@@ -1,0 +1,24 @@
+DESC sys.io_global_by_file_by_latency;
+Field	Type	Null	Key	Default	Extra
+file	varchar(512)	YES		NULL	
+total	bigint(20) unsigned	NO		NULL	
+total_latency	text	YES		NULL	
+count_read	bigint(20) unsigned	NO		NULL	
+read_latency	text	YES		NULL	
+count_write	bigint(20) unsigned	NO		NULL	
+write_latency	text	YES		NULL	
+count_misc	bigint(20) unsigned	NO		NULL	
+misc_latency	text	YES		NULL	
+SELECT * FROM sys.io_global_by_file_by_latency;
+DESC sys.x$io_global_by_file_by_latency;
+Field	Type	Null	Key	Default	Extra
+file	varchar(512)	NO		NULL	
+total	bigint(20) unsigned	NO		NULL	
+total_latency	bigint(20) unsigned	NO		NULL	
+count_read	bigint(20) unsigned	NO		NULL	
+read_latency	bigint(20) unsigned	NO		NULL	
+count_write	bigint(20) unsigned	NO		NULL	
+write_latency	bigint(20) unsigned	NO		NULL	
+count_misc	bigint(20) unsigned	NO		NULL	
+misc_latency	bigint(20) unsigned	NO		NULL	
+SELECT * FROM sys.x$io_global_by_file_by_latency;

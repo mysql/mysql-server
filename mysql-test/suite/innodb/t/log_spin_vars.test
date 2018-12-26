@@ -1,0 +1,120 @@
+let flush_hwm=`SELECT @@GLOBAL.innodb_log_wait_for_flush_spin_hwm`;
+let cpu_lwm=`SELECT @@GLOBAL.innodb_log_spin_cpu_abs_lwm`;
+let cpu_hwm=`SELECT @@GLOBAL.innodb_log_spin_cpu_pct_hwm`;
+
+--echo '#-----------------------------------------------------------#'
+--echo 'Test what happens when the innodb_log_wait_for_flush_spin_hwm is changed'
+--echo ' in runtime (both decreased and increased).'
+
+--disable_query_log
+CREATE TABLE t (a INT NOT NULL PRIMARY KEY, b BLOB);
+DELIMITER |;
+
+CREATE PROCEDURE insert_rows()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  DECLARE no INT DEFAULT 0;
+  SET no = (SELECT @conn_counter);
+  WHILE i < 100 DO
+    INSERT INTO t VALUES (no*100+i, REPEAT('.', 5000));
+    SET i = i + 1;
+  END WHILE;
+END|
+
+DELIMITER ;|
+--enable_query_log
+
+INSERT INTO t VALUES (1000, 'a');
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 100;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+INSERT INTO t VALUES (2000, 'b');
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 0;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+INSERT INTO t VALUES (3000, 'c');
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 80;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+INSERT INTO t VALUES (4000, 'd');
+
+let $n = 9;
+let $i = 0;
+while ($n) {
+  connect(con$n, localhost, root,,);
+  eval SET @conn_counter = $n;
+  send CALL insert_rows();
+  inc $i;
+  dec $n;
+}
+
+let $n = 9;
+let $i = 0;
+while ($n) {
+--connection con$n
+--reap
+--disconnect con$n
+  inc $i;
+  dec $n;
+}
+
+--connection default
+
+--echo Enable spinning always
+
+SET GLOBAL innodb_log_spin_cpu_pct_hwm = 100;
+SET GLOBAL innodb_log_spin_cpu_abs_lwm = 0;
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 100000;
+
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+SELECT @@innodb_log_spin_cpu_abs_lwm;
+SELECT @@innodb_log_spin_cpu_pct_hwm;
+
+--echo Modifying innodb_log_wait_for_flush_spin_hwm
+
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 0;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 50;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 1000;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 50;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 0;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+
+--echo Modifying innodb_log_spin_cpu_abs_lwm
+
+SET GLOBAL innodb_log_spin_cpu_abs_lwm = 0;
+SELECT @@innodb_log_spin_cpu_abs_lwm;
+SET GLOBAL innodb_log_spin_cpu_abs_lwm = 50;
+SELECT @@innodb_log_spin_cpu_abs_lwm;
+SET GLOBAL innodb_log_spin_cpu_abs_lwm = 100;
+SELECT @@innodb_log_spin_cpu_abs_lwm;
+SET GLOBAL innodb_log_spin_cpu_abs_lwm = 50;
+SELECT @@innodb_log_spin_cpu_abs_lwm;
+SET GLOBAL innodb_log_spin_cpu_abs_lwm = 0;
+SELECT @@innodb_log_spin_cpu_abs_lwm;
+
+--echo Modifying innodb_log_spin_cpu_pct_hwm
+
+SET GLOBAL innodb_log_spin_cpu_pct_hwm = 0;
+SELECT @@innodb_log_spin_cpu_pct_hwm;
+SET GLOBAL innodb_log_spin_cpu_pct_hwm = 5;
+SELECT @@innodb_log_spin_cpu_pct_hwm;
+SET GLOBAL innodb_log_spin_cpu_pct_hwm = 100;
+SELECT @@innodb_log_spin_cpu_pct_hwm;
+SET GLOBAL innodb_log_spin_cpu_pct_hwm = 5;
+SELECT @@innodb_log_spin_cpu_pct_hwm;
+SET GLOBAL innodb_log_spin_cpu_pct_hwm = 0;
+SELECT @@innodb_log_spin_cpu_pct_hwm;
+
+--disable_query_log
+DROP TABLE t;
+DROP PROCEDURE insert_rows;
+--enable_query_log
+
+eval SET @@GLOBAL.innodb_log_spin_cpu_abs_lwm=$cpu_lwm;
+eval SET @@GLOBAL.innodb_log_spin_cpu_pct_hwm=$cpu_hwm;
+eval SET @@GLOBAL.innodb_log_wait_for_flush_spin_hwm=$flush_hwm;
+
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+SELECT @@innodb_log_spin_cpu_abs_lwm;
+SELECT @@innodb_log_spin_cpu_pct_hwm;

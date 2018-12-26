@@ -1,0 +1,159 @@
+#
+# Bug #16963396 INNODB: USE OF LARGE EXTERNALLY-STORED FIELDS MAKES
+# CRASH RECOVERY LOSE DATA
+#
+#
+# Uncompressed Table - Insert Operation - Crash Test
+# Fresh insert with blobs
+#
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 (a, b) VALUES (1, repeat('^', 40000));
+INSERT INTO t1 (a, b) VALUES (2, '2');
+INSERT INTO t1 (a, b) VALUES (3, '3');
+INSERT INTO t1 (a, b) VALUES (4, '4');
+INSERT INTO t1 (a, b) VALUES (5, '5');
+begin;
+INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 4*1024*1024));
+# Kill and restart
+SELECT a, right(b, 50) FROM t1;
+a	right(b, 50)
+1	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2	2
+3	3
+4	4
+5	5
+#
+# Uncompressed Table - UPDATE Operation - Crash Test
+# Update of non-blob column so that blob is needed.
+#
+begin;
+UPDATE t1 set b = REPEAT('a', 4*1024*1024) where a = 5 ;
+# Kill and restart
+SELECT a, right(b, 50) FROM t1;
+a	right(b, 50)
+1	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2	2
+3	3
+4	4
+5	5
+#
+# Uncompressed Table - UPDATE Operation - Crash Test
+# Update of blob column to blob.
+#
+begin;
+UPDATE t1 set b = REPEAT('$', 50000) where a = 1 ;
+# Kill and restart
+SELECT a, right(b, 50) FROM t1;
+a	right(b, 50)
+1	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2	2
+3	3
+4	4
+5	5
+DROP TABLE t1;
+#
+# Uncompressed Table - Rollback of UPDATE operation
+# Update moves offpage data to inline data.
+#
+create table t2 (f1 bigint primary key, f2 longblob, f3 longblob,
+index(f2(10), f3(10))) engine=innodb;
+insert into t2 values (10, repeat('.', 40000), repeat('?', 40000));
+start transaction;
+update t2 set f2 = '=';
+select f1, right(f2, 20), right(f3, 20) from t2;
+f1	right(f2, 20)	right(f3, 20)
+10	=	????????????????????
+update t2 set f3 = '&';
+select f1, right(f2, 20), right(f3, 20) from t2;
+f1	right(f2, 20)	right(f3, 20)
+10	=	&
+set session debug='d,ib_blob_update_rollback';
+rollback;
+ERROR HY000: Lost connection to MySQL server during query
+select f1, right(f2, 20), right(f3, 20) from t2;
+f1	right(f2, 20)	right(f3, 20)
+10	....................	????????????????????
+check table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+#
+# Uncompressed Table - Rollback of UPDATE operation
+#
+insert into t2 values (20, repeat('.', 40000), repeat('?', 40000));
+select f1, right(f2, 20), right(f3, 20) from t2;
+f1	right(f2, 20)	right(f3, 20)
+10	....................	????????????????????
+20	....................	????????????????????
+start transaction;
+update t2 set f2 = repeat('$', 60000) where f1 = 20;
+select f1, right(f2, 20), right(f3, 20) from t2;
+f1	right(f2, 20)	right(f3, 20)
+10	....................	????????????????????
+20	$$$$$$$$$$$$$$$$$$$$	????????????????????
+SET GLOBAL innodb_log_checkpoint_now=ON;
+# Kill the server
+# Starting server with --innodb-force-recovery-crash=99
+Pattern "innodb_force_recovery_crash=99" found
+# restart
+select f1, right(f2, 20), right(f3, 20) from t2;
+f1	right(f2, 20)	right(f3, 20)
+10	....................	????????????????????
+20	....................	????????????????????
+check table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+drop table t2;
+#
+# Compressed Table - Insert Operation - Crash Test
+# fresh insert with BLOBs
+#
+set global innodb_compression_level = 0;
+create table t3 (f1 bigint primary key, f2 longblob, f3 longblob,
+index(f2(10), f3(10))) engine=innodb row_format=compressed;
+# Kill and restart
+select f1, length(f2), length(f3) from t3;
+f1	length(f2)	length(f3)
+select f1, right(f2, 30), right(f3, 20) from t3;
+f1	right(f2, 30)	right(f3, 20)
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+#
+# Compressed Table - Update Operation - Crash Test
+# update of a non-BLOB column so that BLOB is needed
+#
+set global innodb_compression_level = 0;
+insert into t3 values (2, repeat('!', 30), repeat('+', 30));
+begin;
+UPDATE t3 set f2 = repeat('>', 40000) where f1 = 2;
+# Kill and restart
+select f1, length(f2), length(f3) from t3;
+f1	length(f2)	length(f3)
+2	30	30
+select f1, right(f2, 30), right(f3, 20) from t3;
+f1	right(f2, 30)	right(f3, 20)
+2	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	++++++++++++++++++++
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+#
+# Compressed Table - Update Operation - Crash Test
+# update blob to blob
+#
+set global innodb_compression_level = 0;
+insert into t3 values (3, repeat('%', 40000), repeat('~', 40000));
+begin;
+UPDATE t3 set f2 = concat(f2, repeat(',', 10)) where f1 = 3;
+# Kill and restart
+select f1, length(f2), length(f3) from t3;
+f1	length(f2)	length(f3)
+2	30	30
+3	40000	40000
+select f1, right(f2, 30), right(f3, 20) from t3;
+f1	right(f2, 30)	right(f3, 20)
+2	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	++++++++++++++++++++
+3	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	~~~~~~~~~~~~~~~~~~~~
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+DROP TABLE t3;

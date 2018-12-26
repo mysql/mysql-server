@@ -1,0 +1,48 @@
+################################################################################
+# t/gcol_column_def_options_myisam.test                                        #
+#                                                                              #
+# Purpose:                                                                     #
+#  Testing different optional parameters of generated columns.                   #
+#                                                                              #
+#        MyISAM branch                                                         #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: Andrey Zhakov                                               #
+# Original Date: 2008-09-02                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+--source suite/gcol/inc/gcol_init_vars.pre
+CALL mtr.add_suppression("Incorrect information in file");
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+# Set the session storage engine
+eval SET @@session.default_storage_engine = 'MyISAM';
+
+##### Workarounds for known open engine specific bugs
+#     none
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+let $support_virtual_index= 0;
+let $support_native_partitioning= 0;
+--source suite/gcol/inc/gcol_column_def_options.inc
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/gcol/inc/gcol_cleanup.inc

@@ -1,0 +1,124 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+==== Case 1: Killed query on master -> error on slave ====
+include/assert.inc [Test only works if binlog_format is statement]
+[connection master]
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (a INT) ENGINE = MyISAM;
+CREATE TABLE trigger_table (a INT) ENGINE = MyISAM;
+SET SQL_LOG_BIN=0;
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+IF NEW.a != 0 THEN
+SET @@GLOBAL.BINLOG_FORMAT = 'row';
+DO SLEEP(1000000);
+END IF;
+INSERT INTO trigger_table VALUES (1);
+END|
+SET SQL_LOG_BIN=1;
+INSERT INTO t1 VALUES (0), (1);
+[connection master1]
+KILL QUERY <CONNECTION_ID>;
+[connection master]
+ERROR 70100: Query execution was interrupted
+SET @@GLOBAL.BINLOG_FORMAT = 'STATEMENT';
+include/assert.inc [At most one row should be inserted in db1.t1]
+include/assert.inc [At least one row should be inserted in db1.trigger_table]
+SET SQL_LOG_BIN=0;
+DROP TRIGGER trig1;
+SET SQL_LOG_BIN=1;
+DROP TABLE trigger_table;
+DROP TABLE t1;
+DROP DATABASE db1;
+USE test;
+---- Verify there is an error on slave ----
+include/sync_slave_io_with_master.inc
+include/wait_for_slave_sql_error.inc [errno=3001]
+---- Verify that nothing was inserted on slave -----
+include/assert.inc [Nothing should be inserted on slave]
+---- Clean up ----
+include/stop_slave_io.inc
+RESET SLAVE;
+RESET MASTER;
+DROP DATABASE db1;
+[connection master]
+RESET MASTER;
+[connection slave]
+include/start_slave.inc
+[connection master]
+==== Case 2: Master kills query -> no error if slave filters by db ====
+include/assert.inc [Test only works if binlog_format is statement]
+[connection master]
+CREATE DATABASE ignored_db;
+USE ignored_db;
+CREATE TABLE t1 (a INT) ENGINE = MyISAM;
+CREATE TABLE trigger_table (a INT) ENGINE = MyISAM;
+SET SQL_LOG_BIN=0;
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+IF NEW.a != 0 THEN
+SET @@GLOBAL.BINLOG_FORMAT = 'row';
+DO SLEEP(1000000);
+END IF;
+INSERT INTO trigger_table VALUES (1);
+END|
+SET SQL_LOG_BIN=1;
+INSERT INTO t1 VALUES (0), (1);
+[connection master1]
+KILL QUERY <CONNECTION_ID>;
+[connection master]
+ERROR 70100: Query execution was interrupted
+SET @@GLOBAL.BINLOG_FORMAT = 'STATEMENT';
+include/assert.inc [At most one row should be inserted in ignored_db.t1]
+include/assert.inc [At least one row should be inserted in ignored_db.trigger_table]
+SET SQL_LOG_BIN=0;
+DROP TRIGGER trig1;
+SET SQL_LOG_BIN=1;
+DROP TABLE trigger_table;
+DROP TABLE t1;
+DROP DATABASE ignored_db;
+USE test;
+---- Verify all was replicated ok ----
+include/sync_slave_sql_with_master.inc
+[connection master]
+==== Case 3: Master kills query -> no error if slave filters by table ====
+include/assert.inc [Test only works if binlog_format is statement]
+[connection master]
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE ignored_table (a INT) ENGINE = MyISAM;
+CREATE TABLE trigger_table (a INT) ENGINE = MyISAM;
+SET SQL_LOG_BIN=0;
+CREATE TRIGGER trig1 BEFORE INSERT ON ignored_table FOR EACH ROW
+BEGIN
+IF NEW.a != 0 THEN
+SET @@GLOBAL.BINLOG_FORMAT = 'row';
+DO SLEEP(1000000);
+END IF;
+INSERT INTO trigger_table VALUES (1);
+END|
+SET SQL_LOG_BIN=1;
+INSERT INTO ignored_table VALUES (0), (1);
+[connection master1]
+KILL QUERY <CONNECTION_ID>;
+[connection master]
+ERROR 70100: Query execution was interrupted
+SET @@GLOBAL.BINLOG_FORMAT = 'STATEMENT';
+include/assert.inc [At most one row should be inserted in db1.ignored_table]
+include/assert.inc [At least one row should be inserted in db1.trigger_table]
+SET SQL_LOG_BIN=0;
+DROP TRIGGER trig1;
+SET SQL_LOG_BIN=1;
+DROP TABLE trigger_table;
+DROP TABLE ignored_table;
+DROP DATABASE db1;
+USE test;
+---- Verify all was replicated ok ----
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

@@ -1,0 +1,11 @@
+
+-->macro Show_use_of_index  %COLL%  %COND%
+-->echo ### Show use of index for %COND%
+-->stmtadmin disable_notices	{"notice":"warnings"}
+-->recvresult be-quiet
+-->stmtsql explain select * from xtest.%COLL% WHERE %COND%
+-->recvresult
+-->stmtadmin enable_notices	{"notice":"warnings"}
+-->recvresult be-quiet
+-->echo ############################
+-->endmacro

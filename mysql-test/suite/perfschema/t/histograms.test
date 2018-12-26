@@ -1,0 +1,341 @@
+# --------------------------------------------
+# Tests for the performance schema histograms.
+# --------------------------------------------
+
+--source include/no_protocol.inc
+
+# Setup
+
+connect(mon, localhost, root,,);
+
+update performance_schema.threads
+  set INSTRUMENTED='NO'
+  where PROCESSLIST_ID = connection_id();
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+TRUNCATE TABLE performance_schema.events_statements_histogram_by_digest;
+TRUNCATE TABLE performance_schema.events_statements_histogram_global;
+
+#
+# Check basic table structure
+#
+
+# empty
+select count(*) from performance_schema.events_statements_summary_by_digest;
+select count(*) from performance_schema.events_statements_histogram_by_digest;
+# 450 rows
+select count(*) from performance_schema.events_statements_histogram_global;
+# empty
+select * from performance_schema.events_statements_histogram_global
+  where COUNT_BUCKET > 0;
+
+select BUCKET_NUMBER, BUCKET_TIMER_LOW, BUCKET_TIMER_HIGH
+  from performance_schema.events_statements_histogram_global
+  where BUCKET_NUMBER <= 10
+  order by BUCKET_NUMBER;
+
+select BUCKET_NUMBER, BUCKET_TIMER_LOW, BUCKET_TIMER_HIGH
+  from performance_schema.events_statements_histogram_global
+  where BUCKET_NUMBER >= 440
+  order by BUCKET_NUMBER;
+
+select min(BUCKET_TIMER_HIGH/BUCKET_TIMER_LOW),
+  max(BUCKET_TIMER_HIGH/BUCKET_TIMER_LOW)
+  from performance_schema.events_statements_histogram_global
+  where (BUCKET_NUMBER > 0) and (BUCKET_NUMBER < 449);
+
+--connection default
+
+select "A 1st statement" as marker_one;
+
+--connection mon
+
+# 450
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest;
+
+# 1 statement so far
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest
+  where COUNT_BUCKET > 0;
+
+select DIGEST
+  from performance_schema.events_statements_summary_by_digest
+  where DIGEST_TEXT like "%marker_one%"
+  into @digest_one;
+
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select BUCKET_NUMBER, BUCKET_TIMER_LOW, BUCKET_TIMER_HIGH
+  from performance_schema.events_statements_histogram_by_digest
+  where (BUCKET_NUMBER <= 10)
+  and (DIGEST = @digest_one)
+  order by BUCKET_NUMBER;
+
+select BUCKET_NUMBER, BUCKET_TIMER_LOW, BUCKET_TIMER_HIGH
+  from performance_schema.events_statements_histogram_by_digest
+  where (BUCKET_NUMBER >= 440)
+  and (DIGEST = @digest_one)
+  order by BUCKET_NUMBER;
+
+select min(BUCKET_TIMER_HIGH/BUCKET_TIMER_LOW),
+  max(BUCKET_TIMER_HIGH/BUCKET_TIMER_LOW)
+  from performance_schema.events_statements_histogram_by_digest
+  where (BUCKET_NUMBER > 0) and (BUCKET_NUMBER < 449)
+  and (DIGEST = @digest_one);
+
+# Only 1 statement counted so far
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+--connection default
+
+select "A 1st statement, again" as marker_one;
+
+--connection mon
+
+# 2 executions
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+--connection default
+
+select "A 1st statement, again and again" as marker_one;
+
+--connection mon
+
+# 3 executions
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+--connection default
+
+select "A 2nd statement" as marker_two;
+
+--connection mon
+
+select DIGEST
+  from performance_schema.events_statements_summary_by_digest
+  where DIGEST_TEXT like "%marker_two%"
+  into @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+--connection default
+
+select "A 2nd statement, again" as marker_two;
+
+--connection mon
+
+select sum(COUNT_BUCKET), max(COUNT_BUCKET_AND_LOWER)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select sum(COUNT_BUCKET), max(COUNT_BUCKET_AND_LOWER)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where (DIGEST = @digest_one)
+  into @sum_digest_one;
+
+select min(BUCKET_TIMER_LOW)
+  from performance_schema.events_statements_histogram_by_digest
+  where (DIGEST = @digest_one)
+  and (COUNT_BUCKET > 0)
+  into @min_digest_one;
+
+select BUCKET_TIMER_HIGH
+  from performance_schema.events_statements_histogram_by_digest
+  where (DIGEST = @digest_one)
+  and (COUNT_BUCKET_AND_LOWER = @sum_digest_one)
+  order by BUCKET_NUMBER
+  limit 1
+  into @max_digest_one;
+
+select DIGEST_TEXT,
+  "Check quantile relative values" as check_title,
+  (0 <= QUANTILE_95) as check_1,
+  (QUANTILE_95 <= QUANTILE_99) as check_2,
+  (QUANTILE_99 <= QUANTILE_999) as check_3
+  from performance_schema.events_statements_summary_by_digest;
+
+select
+  DIGEST_TEXT,
+  "Check quantile values within bounds" as check_title,
+  (0 <= @min_digest_one) as check_1,
+  (@min_digest_one <= QUANTILE_95) as check_2,
+  (QUANTILE_999 <= @max_digest_one) as check_3
+  from performance_schema.events_statements_summary_by_digest
+  where DIGEST = @digest_one;
+
+#
+# Truncate
+#
+
+# TRUNCATE on events_statements_histogram_by_digest
+# - reset stats on events_statements_histogram_by_digest
+# - has no effect on events_statements_histogram_global
+# - has no effect on events_statements_summary_by_digest
+
+truncate table performance_schema.events_statements_histogram_by_digest;
+
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+select DIGEST_TEXT, COUNT_STAR
+  from performance_schema.events_statements_summary_by_digest;
+
+--connection default
+
+select "A 2nd statement, again" as marker_two;
+
+--connection mon
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+# TRUNCATE on events_statements_histogram_global
+# -reset stats on events_statements_histogram_global
+# - has no effect on events_statements_histogram_by_digest
+# - has no effect on events_statements_summary_by_digest;
+
+truncate table performance_schema.events_statements_histogram_global;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+select DIGEST_TEXT, COUNT_STAR
+  from performance_schema.events_statements_summary_by_digest;
+
+--connection default
+
+select "A 1st statement, again" as marker_one;
+
+--connection mon
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+# TRUNCATE on performance_schema.events_statements_summary_by_digest
+# - reset performance_schema.events_statements_histogram_by_digest
+# - has no effect on performance_schema.events_statements_histogram_global
+truncate table performance_schema.events_statements_summary_by_digest;
+
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+--connection default
+
+select "A 1st statement, another time" as marker_one;
+
+--connection mon
+
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+# TRUNCATE on # performance_schema.events_statements_summary_global_by_event_name
+# - xxx on performance_schema.events_statements_histogram_by_digest
+# - xxx on performance_schema.events_statements_histogram_global
+truncate table performance_schema.events_statements_summary_global_by_event_name;
+
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_one;
+
+select count(*)
+  from performance_schema.events_statements_histogram_by_digest
+  where DIGEST = @digest_two;
+
+select sum(COUNT_BUCKET)
+  from performance_schema.events_statements_histogram_global;
+
+--disconnect mon
+--source include/wait_until_disconnected.inc
+
+

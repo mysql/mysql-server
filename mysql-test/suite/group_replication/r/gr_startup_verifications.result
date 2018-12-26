@@ -1,0 +1,42 @@
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+#
+# Test if binlog_checksum with the wrong value will fail.
+#
+SET GLOBAL binlog_checksum= CRC32;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL binlog_checksum= NONE;
+#
+# Test if binlog_format with the wrong value will fail.
+#
+SET GLOBAL binlog_format= STATEMENT;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL binlog_format= "ROW";
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+SET GLOBAL transaction_write_set_extraction=OFF;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL transaction_write_set_extraction= WRITE_SET_EXTRACTION_ALGORITHM;
+SET GLOBAL binlog_transaction_dependency_tracking= BINLOG_TRANSACTION_DEPENDENCY_TRACKING;
+#
+# Test if parallel applier is enabled and that start
+# Group Replication will fail.
+#
+SET @slave_parallel_type_saved= @@GLOBAL.SLAVE_PARALLEL_TYPE;
+SET @slave_parallel_workers_saved= @@GLOBAL.SLAVE_PARALLEL_WORKERS;
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= "DATABASE";
+SET GLOBAL SLAVE_PARALLEL_WORKERS= 4;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= "LOGICAL_CLOCK";
+SET GLOBAL SLAVE_PARALLEL_WORKERS= 4;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
+SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;
+call mtr.add_suppression("binlog_checksum should be NONE for Group Replication");
+call mtr.add_suppression("Binlog format should be ROW for Group Replication");
+call mtr.add_suppression("Extraction of transaction write sets requires*");
+call mtr.add_suppression("In order to use parallel applier on Group Replication, parameter slave-parallel-type must be set to 'LOGICAL_CLOCK'");
+call mtr.add_suppression("Group Replication requires slave-preserve-commit-order to be set to ON when using more than 1 applier threads.");

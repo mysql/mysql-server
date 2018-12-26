@@ -1,0 +1,156 @@
+
+############################################################
+# 1.  Setup a new group with four members.
+#     Four view_change transactions will be logged on member
+#     4. All these transactions, when seen on member 4, will
+#     have indexes:
+#     server_id=4, last_committed=0, sequence_number=0
+#
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# Execute some transactions on member 1, 2 and 3 that will
+# be applied on member 4 through Group Replication applier.
+#
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+[connection server2]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT= AUTOMATIC;
+include/rpl_sync.inc
+[connection server3]
+INSERT INTO t1 VALUES (3);
+[connection server1]
+UPDATE t1 SET c1=2 WHERE c1=1;
+include/rpl_sync.inc
+[connection server1]
+include/stop_group_replication.inc
+
+# Dump Group Replication applier channel relay log and
+# validate its indexes on member 4.
+#
+[connection server4]
+Matching lines are:
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=5	sequence_number=7	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=8	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+Occurrences of 'last_committed' in the input file: 8
+include/include/assert_logical_timestamps.inc [0 0;0 0;0 0;0 0;4 5;5 6;5 7;6 8]
+Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000002'
+Inspected 7 transactions, all with correct transaction length.
+
+############################################################
+# 2.  Stop and start member 2 to force a relay log flush.
+#     Start member 1 again and execute another transactions
+#     on members 1 and 2.
+#     Purpose of the test: show that local transactions do
+#     not interfere with remote transactions, the ones that
+#     go through parallel applier.
+#
+[connection server2]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+[connection server1]
+include/start_group_replication.inc
+[connection server3]
+INSERT INTO t1 VALUES (4);
+include/rpl_sync.inc
+[connection server2]
+UPDATE t1 SET c1=5 WHERE c1=4;
+include/rpl_sync.inc
+[connection server1]
+INSERT INTO t1 VALUES (6);
+include/rpl_sync.inc
+[connection server4]
+UPDATE t1 SET c1=7 WHERE c1=6;
+include/rpl_sync.inc
+
+# Dump Group Replication applier channel relay log and
+# validate its indexes on member 2.
+#
+[connection server2]
+Matching lines are:
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+Occurrences of 'last_committed' in the input file: 5
+include/include/assert_logical_timestamps.inc [0 0;0 0;2 3;2 4;4 5]
+Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
+Inspected 4 transactions, all with correct transaction length.
+
+# Dump Group Replication applier channel relay log and
+# validate its indexes on member 1.
+#
+[connection server1]
+Matching lines are:
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=1	sequence_number=2	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=1	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+Occurrences of 'last_committed' in the input file: 4
+include/include/assert_logical_timestamps.inc [0 0;1 2;2 3;1 4]
+Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
+Inspected 3 transactions, all with correct transaction length.
+
+############################################################
+# 3.  Wait for stable set propagation and certification info
+#     garbage collection.
+[connection server1]
+
+# Execute some more transactions and assert that
+# last_committed index was update with previous
+# sequence_number, even when transactions do not
+# depend on previous transactions.
+[connection server1]
+INSERT INTO t1 VALUES (8);
+[connection server2]
+INSERT INTO t1 VALUES (9);
+include/rpl_sync.inc
+
+# Dump Group Replication applier channel relay log and
+# validate its indexes on member 2.
+#
+[connection server2]
+Matching lines are:
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=7	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+Occurrences of 'last_committed' in the input file: 6
+include/include/assert_logical_timestamps.inc [0 0;0 0;2 3;2 4;4 5;6 7]
+Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
+Inspected 5 transactions, all with correct transaction length.
+
+# Dump Group Replication applier channel relay log and
+# validate its indexes on member 1.
+#
+[connection server1]
+Matching lines are:
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=1	sequence_number=2	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=1	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+Occurrences of 'last_committed' in the input file: 5
+include/include/assert_logical_timestamps.inc [0 0;1 2;2 3;1 4;5 6]
+Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
+Inspected 4 transactions, all with correct transaction length.
+
+############################################################
+# 4.  Test cleanup.
+DROP TABLE t1;
+include/group_replication_end.inc

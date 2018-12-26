@@ -1,0 +1,19 @@
+# Tests for sys schema
+# Verify the sys.ps_is_account_enabled() function perfoms as expected
+
+# First test with the default "all enabled" for any random user
+SELECT sys.ps_is_account_enabled('foo', 'bar');
+
+# Now remove the wild card entry, and add some specific users to testx
+DELETE FROM performance_schema.setup_actors;
+
+INSERT INTO performance_schema.setup_actors VALUES
+  ('test', 'test', '%', 'YES', 'NO');
+
+# Now the random account should not be enabled
+SELECT sys.ps_is_account_enabled('foo', 'bar');
+
+# But the specified one should
+SELECT sys.ps_is_account_enabled('test', 'test');
+
+--source ../include/ps_setup_actors_cleanup.inc

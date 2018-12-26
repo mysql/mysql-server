@@ -1,0 +1,79 @@
+#
+# Test fetching from stats tables after manual update (ie FLUSH TABLE
+# can be used to forcibly (re)fetch the stats from disk)
+#
+
+# Various sizes printed in this test depend on the page size and the
+# functionality tested here is not related to the page size, so we only
+# test with 16k page size.
+
+-- vertical_results
+
+CREATE TABLE test_ps_fetch
+(a INT, b INT, c INT, d INT, PRIMARY KEY (a, b), INDEX idx (c, d))
+ENGINE=INNODB STATS_PERSISTENT=1;
+
+ANALYZE TABLE test_ps_fetch;
+
+SELECT n_rows, clustered_index_size, sum_of_other_index_sizes
+FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_fetch';
+
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_fetch'
+ORDER BY index_name, stat_name;
+
+SELECT index_name, seq_in_index, column_name, cardinality
+FROM information_schema.statistics WHERE table_name = 'test_ps_fetch'
+ORDER BY index_name, seq_in_index;
+
+SELECT
+table_rows, avg_row_length, max_data_length, index_length
+FROM information_schema.tables WHERE table_name = 'test_ps_fetch';
+
+UPDATE mysql.innodb_table_stats SET
+n_rows = 1000,
+clustered_index_size = 5
+WHERE
+table_name = 'test_ps_fetch';
+
+UPDATE mysql.innodb_index_stats SET
+stat_value = 20
+WHERE
+table_name = 'test_ps_fetch' AND
+index_name = 'PRIMARY' AND
+stat_name = 'n_diff_pfx01';
+
+UPDATE mysql.innodb_index_stats SET
+stat_value = 90
+WHERE
+table_name = 'test_ps_fetch' AND
+index_name = 'PRIMARY' AND
+stat_name = 'n_diff_pfx02';
+
+UPDATE mysql.innodb_index_stats SET
+stat_value = 3
+WHERE
+table_name = 'test_ps_fetch' AND
+index_name = 'idx' AND
+stat_name = 'n_diff_pfx01';
+
+UPDATE mysql.innodb_index_stats SET
+stat_value = 11
+WHERE
+table_name = 'test_ps_fetch' AND
+index_name = 'idx' AND
+stat_name = 'n_diff_pfx02';
+
+FLUSH TABLE test_ps_fetch;
+
+SET SESSION information_schema_stats_expiry=0;
+SELECT seq_in_index, column_name, cardinality
+FROM information_schema.statistics WHERE table_name = 'test_ps_fetch'
+ORDER BY index_name, seq_in_index;
+
+SELECT
+table_rows, avg_row_length, max_data_length, index_length
+FROM information_schema.tables WHERE table_name = 'test_ps_fetch';
+
+DROP TABLE test_ps_fetch;
+SET SESSION information_schema_stats_expiry=default;

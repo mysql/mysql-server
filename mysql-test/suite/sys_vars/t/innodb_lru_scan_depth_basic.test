@@ -1,0 +1,65 @@
+
+
+# 2011-02-23 - Added
+#
+
+
+SET @start_global_value = @@global.innodb_lru_scan_depth;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid value 100 or more
+select @@global.innodb_lru_scan_depth >= 100;
+select @@global.innodb_lru_scan_depth;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_lru_scan_depth;
+show global variables like 'innodb_lru_scan_depth';
+show session variables like 'innodb_lru_scan_depth';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_lru_scan_depth';
+select * from performance_schema.session_variables where variable_name='innodb_lru_scan_depth';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_lru_scan_depth=325;
+select @@global.innodb_lru_scan_depth;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_lru_scan_depth';
+select * from performance_schema.session_variables where variable_name='innodb_lru_scan_depth';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session innodb_lru_scan_depth=444;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_lru_scan_depth=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_lru_scan_depth=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_lru_scan_depth="foo";
+
+set global innodb_lru_scan_depth=7;
+select @@global.innodb_lru_scan_depth;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_lru_scan_depth';
+--enable_warnings
+set global innodb_lru_scan_depth=-7;
+select @@global.innodb_lru_scan_depth;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_lru_scan_depth';
+--enable_warnings
+
+#
+# min/max values
+#
+set global innodb_lru_scan_depth=100;
+select @@global.innodb_lru_scan_depth;
+
+SET @@global.innodb_lru_scan_depth = @start_global_value;
+SELECT @@global.innodb_lru_scan_depth;

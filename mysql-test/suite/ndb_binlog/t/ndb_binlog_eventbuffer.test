@@ -1,0 +1,21 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+# Basic test : Read the default settings, change, show and set them back
+
+SET @default_max_alloc = @@global.ndb_eventbuffer_max_alloc;
+SET @default_free_percent = @@global.ndb_eventbuffer_free_percent;
+
+set global ndb_eventbuffer_max_alloc=1048576;
+set global ndb_eventbuffer_free_percent=35;
+
+SELECT @@global.ndb_eventbuffer_free_percent;
+SELECT @@global.ndb_eventbuffer_max_alloc;
+
+#Set these variables to session, should fail
+
+--error 1229
+set @@session.ndb_eventbuffer_free_percent=45;
+
+set global ndb_eventbuffer_max_alloc= @default_max_alloc;
+set global ndb_eventbuffer_free_percent= @default_free_percent;

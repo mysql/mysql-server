@@ -1,0 +1,176 @@
+drop table if exists `£Τ£±`;
+drop table if exists `£Τ£²`;
+drop table if exists `£Τ£³`;
+drop table if exists `£Τ£΄`;
+drop table if exists `£Τ£µ`;
+drop table if exists `£Τ£¶`;
+drop table if exists `£Τ£·`;
+drop table if exists `£Τ£Έ`;
+drop table if exists `£Τ£Ή`;
+SET NAMES ujis;
+SET character_set_database = ucs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET collation_connection = ucs2_general_ci;
+CREATE TABLE `£Τ£±` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£³` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£΄` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£µ` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£¶` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+INSERT INTO `£Τ£±` VALUES ('±²³΄µ');
+INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ');
+INSERT INTO `£Τ£΄` VALUES ('±²³΄µ');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ');
+INSERT INTO `£Τ£·` VALUES ('±²³΄µ');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
+INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ');
+SELECT REPLACE(`£Γ£±`,'±','±±') FROM `£Τ£±`;
+REPLACE(`£Γ£±`,'±','±±')
+±±²³΄µ
+SELECT REPLACE(`£Γ£±`,'²','²²') FROM `£Τ£±`;
+REPLACE(`£Γ£±`,'²','²²')
+±²²³΄µ
+SELECT REPLACE(`£Γ£±`,'³','³³') FROM `£Τ£±`;
+REPLACE(`£Γ£±`,'³','³³')
+±²³³΄µ
+SELECT REPLACE(`£Γ£±`,'΄','΄΄') FROM `£Τ£±`;
+REPLACE(`£Γ£±`,'΄','΄΄')
+±²³΄΄µ
+SELECT REPLACE(`£Γ£±`,'µ','µµ') FROM `£Τ£±`;
+REPLACE(`£Γ£±`,'µ','µµ')
+±²³΄µµ
+SELECT REPLACE(`£Γ£±`,'¤Ά','¤Ά¤Ά') FROM `£Τ£²`;
+REPLACE(`£Γ£±`,'¤Ά','¤Ά¤Ά')
+¤Ά¤Ά¤¤¤¦¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤¤','¤¤¤¤') FROM `£Τ£²`;
+REPLACE(`£Γ£±`,'¤¤','¤¤¤¤')
+¤Ά¤¤¤¤¤¦¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤¦','¤¦¤¦') FROM `£Τ£²`;
+REPLACE(`£Γ£±`,'¤¦','¤¦¤¦')
+¤Ά¤¤¤¦¤¦¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤¨','¤¨¤¨') FROM `£Τ£²`;
+REPLACE(`£Γ£±`,'¤¨','¤¨¤¨')
+¤Ά¤¤¤¦¤¨¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤ª','¤ª¤ª') FROM `£Τ£²`;
+REPLACE(`£Γ£±`,'¤ª','¤ª¤ª')
+¤Ά¤¤¤¦¤¨¤ª¤ª
+SELECT REPLACE(`£Γ£±`,'νά','νάνά') FROM `£Τ£³`;
+REPLACE(`£Γ£±`,'νά','νάνά')
+νάνάνένήνίνΰ
+SELECT REPLACE(`£Γ£±`,'νέ','νένέ') FROM `£Τ£³`;
+REPLACE(`£Γ£±`,'νέ','νένέ')
+νάνένένήνίνΰ
+SELECT REPLACE(`£Γ£±`,'νή','νήνή') FROM `£Τ£³`;
+REPLACE(`£Γ£±`,'νή','νήνή')
+νάνένήνήνίνΰ
+SELECT REPLACE(`£Γ£±`,'νί','νίνί') FROM `£Τ£³`;
+REPLACE(`£Γ£±`,'νί','νίνί')
+νάνένήνίνίνΰ
+SELECT REPLACE(`£Γ£±`,'νΰ','νΰνΰ') FROM `£Τ£³`;
+REPLACE(`£Γ£±`,'νΰ','νΰνΰ')
+νάνένήνίνΰνΰ
+SELECT REPLACE(`£Γ£±`,'±','±±') FROM `£Τ£΄`;
+REPLACE(`£Γ£±`,'±','±±')
+±±²³΄µ
+SELECT REPLACE(`£Γ£±`,'²','²²') FROM `£Τ£΄`;
+REPLACE(`£Γ£±`,'²','²²')
+±²²³΄µ
+SELECT REPLACE(`£Γ£±`,'³','³³') FROM `£Τ£΄`;
+REPLACE(`£Γ£±`,'³','³³')
+±²³³΄µ
+SELECT REPLACE(`£Γ£±`,'΄','΄΄') FROM `£Τ£΄`;
+REPLACE(`£Γ£±`,'΄','΄΄')
+±²³΄΄µ
+SELECT REPLACE(`£Γ£±`,'µ','µµ') FROM `£Τ£΄`;
+REPLACE(`£Γ£±`,'µ','µµ')
+±²³΄µµ
+SELECT REPLACE(`£Γ£±`,'¤Ά','¤Ά¤Ά') FROM `£Τ£µ`;
+REPLACE(`£Γ£±`,'¤Ά','¤Ά¤Ά')
+¤Ά¤Ά¤¤¤¦¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤¤','¤¤¤¤') FROM `£Τ£µ`;
+REPLACE(`£Γ£±`,'¤¤','¤¤¤¤')
+¤Ά¤¤¤¤¤¦¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤¦','¤¦¤¦') FROM `£Τ£µ`;
+REPLACE(`£Γ£±`,'¤¦','¤¦¤¦')
+¤Ά¤¤¤¦¤¦¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤¨','¤¨¤¨') FROM `£Τ£µ`;
+REPLACE(`£Γ£±`,'¤¨','¤¨¤¨')
+¤Ά¤¤¤¦¤¨¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤ª','¤ª¤ª') FROM `£Τ£µ`;
+REPLACE(`£Γ£±`,'¤ª','¤ª¤ª')
+¤Ά¤¤¤¦¤¨¤ª¤ª
+SELECT REPLACE(`£Γ£±`,'νά','νάνά') FROM `£Τ£¶`;
+REPLACE(`£Γ£±`,'νά','νάνά')
+νάνάνένήνίνΰ
+SELECT REPLACE(`£Γ£±`,'νέ','νένέ') FROM `£Τ£¶`;
+REPLACE(`£Γ£±`,'νέ','νένέ')
+νάνένένήνίνΰ
+SELECT REPLACE(`£Γ£±`,'νή','νήνή') FROM `£Τ£¶`;
+REPLACE(`£Γ£±`,'νή','νήνή')
+νάνένήνήνίνΰ
+SELECT REPLACE(`£Γ£±`,'νί','νίνί') FROM `£Τ£¶`;
+REPLACE(`£Γ£±`,'νί','νίνί')
+νάνένήνίνίνΰ
+SELECT REPLACE(`£Γ£±`,'νΰ','νΰνΰ') FROM `£Τ£¶`;
+REPLACE(`£Γ£±`,'νΰ','νΰνΰ')
+νάνένήνίνΰνΰ
+SELECT REPLACE(`£Γ£±`,'±','±±') FROM `£Τ£·`;
+REPLACE(`£Γ£±`,'±','±±')
+±±²³΄µ
+SELECT REPLACE(`£Γ£±`,'²','²²') FROM `£Τ£·`;
+REPLACE(`£Γ£±`,'²','²²')
+±²²³΄µ
+SELECT REPLACE(`£Γ£±`,'³','³³') FROM `£Τ£·`;
+REPLACE(`£Γ£±`,'³','³³')
+±²³³΄µ
+SELECT REPLACE(`£Γ£±`,'΄','΄΄') FROM `£Τ£·`;
+REPLACE(`£Γ£±`,'΄','΄΄')
+±²³΄΄µ
+SELECT REPLACE(`£Γ£±`,'µ','µµ') FROM `£Τ£·`;
+REPLACE(`£Γ£±`,'µ','µµ')
+±²³΄µµ
+SELECT REPLACE(`£Γ£±`,'¤Ά','¤Ά¤Ά') FROM `£Τ£Έ`;
+REPLACE(`£Γ£±`,'¤Ά','¤Ά¤Ά')
+¤Ά¤Ά¤¤¤¦¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤¤','¤¤¤¤') FROM `£Τ£Έ`;
+REPLACE(`£Γ£±`,'¤¤','¤¤¤¤')
+¤Ά¤¤¤¤¤¦¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤¦','¤¦¤¦') FROM `£Τ£Έ`;
+REPLACE(`£Γ£±`,'¤¦','¤¦¤¦')
+¤Ά¤¤¤¦¤¦¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤¨','¤¨¤¨') FROM `£Τ£Έ`;
+REPLACE(`£Γ£±`,'¤¨','¤¨¤¨')
+¤Ά¤¤¤¦¤¨¤¨¤ª
+SELECT REPLACE(`£Γ£±`,'¤ª','¤ª¤ª') FROM `£Τ£Έ`;
+REPLACE(`£Γ£±`,'¤ª','¤ª¤ª')
+¤Ά¤¤¤¦¤¨¤ª¤ª
+SELECT REPLACE(`£Γ£±`,'νά','νάνά') FROM `£Τ£Ή`;
+REPLACE(`£Γ£±`,'νά','νάνά')
+νάνάνένήνίνΰ
+SELECT REPLACE(`£Γ£±`,'νέ','νένέ') FROM `£Τ£Ή`;
+REPLACE(`£Γ£±`,'νέ','νένέ')
+νάνένένήνίνΰ
+SELECT REPLACE(`£Γ£±`,'νή','νήνή') FROM `£Τ£Ή`;
+REPLACE(`£Γ£±`,'νή','νήνή')
+νάνένήνήνίνΰ
+SELECT REPLACE(`£Γ£±`,'νί','νίνί') FROM `£Τ£Ή`;
+REPLACE(`£Γ£±`,'νί','νίνί')
+νάνένήνίνίνΰ
+SELECT REPLACE(`£Γ£±`,'νΰ','νΰνΰ') FROM `£Τ£Ή`;
+REPLACE(`£Γ£±`,'νΰ','νΰνΰ')
+νάνένήνίνΰνΰ
+DROP TABLE `£Τ£±`;
+DROP TABLE `£Τ£²`;
+DROP TABLE `£Τ£³`;
+DROP TABLE `£Τ£΄`;
+DROP TABLE `£Τ£µ`;
+DROP TABLE `£Τ£¶`;
+DROP TABLE `£Τ£·`;
+DROP TABLE `£Τ£Έ`;
+DROP TABLE `£Τ£Ή`;

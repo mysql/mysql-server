@@ -1,0 +1,63 @@
+SELECT @@global.innodb_cmp_per_index_enabled;
+@@global.innodb_cmp_per_index_enabled
+0
+SET GLOBAL innodb_stats_persistent=123;
+ERROR 42000: Variable 'innodb_stats_persistent' can't be set to the value of '123'
+SET GLOBAL innodb_stats_persistent='foo';
+ERROR 42000: Variable 'innodb_stats_persistent' can't be set to the value of 'foo'
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SELECT @@global.innodb_cmp_per_index_enabled;
+@@global.innodb_cmp_per_index_enabled
+1
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SELECT @@global.innodb_cmp_per_index_enabled;
+@@global.innodb_cmp_per_index_enabled
+1
+SET GLOBAL innodb_cmp_per_index_enabled=OFF;
+SELECT @@global.innodb_cmp_per_index_enabled;
+@@global.innodb_cmp_per_index_enabled
+0
+SET GLOBAL innodb_cmp_per_index_enabled=OFF;
+SELECT @@global.innodb_cmp_per_index_enabled;
+@@global.innodb_cmp_per_index_enabled
+0
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+CREATE TABLE t (a INT) ENGINE=INNODB KEY_BLOCK_SIZE=8;
+INSERT INTO t VALUES (1);
+SELECT * FROM information_schema.innodb_cmp_per_index;
+database_name	test
+table_name	t
+index_name	GEN_CLUST_INDEX
+compress_ops	1
+compress_ops_ok	1
+compress_time	0
+uncompress_ops	0
+uncompress_time	0
+SET GLOBAL innodb_cmp_per_index_enabled=OFF;
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SELECT * FROM information_schema.innodb_cmp_per_index;
+DROP TABLE t;
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+CREATE TABLE t (a INT) ENGINE=INNODB KEY_BLOCK_SIZE=8;
+INSERT INTO t VALUES (1);
+SELECT * FROM information_schema.innodb_cmp_per_index;
+database_name	test
+table_name	t
+index_name	GEN_CLUST_INDEX
+compress_ops	1
+compress_ops_ok	1
+compress_time	0
+uncompress_ops	0
+uncompress_time	0
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SELECT * FROM information_schema.innodb_cmp_per_index;
+database_name	test
+table_name	t
+index_name	GEN_CLUST_INDEX
+compress_ops	1
+compress_ops_ok	1
+compress_time	0
+uncompress_ops	0
+uncompress_time	0
+DROP TABLE t;
+SET GLOBAL innodb_cmp_per_index_enabled=default;

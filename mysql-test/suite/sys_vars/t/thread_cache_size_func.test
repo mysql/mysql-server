@@ -1,0 +1,118 @@
+############# mysql-test\t\thread_cache_size_func.test ##########################
+#                                                                               #
+# Variable Name: thread_cache_size                                              #
+# Scope: SESSION                                                                #
+# Access Type: Dynamic                                                          #
+# Data Type: Enumeration                                                        #
+# Default Value: 0                                                              #
+# Values:      0-16384                                                          #
+#                                                                               #
+#                                                                               #
+# Creation Date: 2008-03-02                                                     #
+# Author:  Sharique Abdullah                                                    #
+#                                                                               #
+# Modified: HHunger 2008-08-27 Reduced test to needed function and inserted     #
+#                              wait-loops                                       #
+#                                                                               #
+# Description: Test Cases of Dynamic System Variable "thread_cache_size"        #
+#              that checks behavior of this variable in the following ways      #
+#              * Functionality based on different values                        #
+#                                                                               #
+# Reference:                                                                    #
+#   http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html         #
+#                                                                               #
+#################################################################################
+
+#
+# Setup
+#
+
+--source include/not_threadpool.inc
+
+SET @global_thread_cache_size = @@GLOBAL.thread_cache_size;
+
+FLUSH STATUS;
+
+-- ECHO '# Test1#'
+SET @@GLOBAL.thread_cache_size=3;
+SHOW STATUS LIKE 'Threads_cached';
+--echo 0 Expected
+
+##################################
+# Make 4 connections             #
+##################################
+
+--echo ** Connecting conn1 using username 'root' **
+CONNECT (conn1,localhost,root,,);
+--echo ** Connecting conn2 using username 'root' **
+CONNECT (conn2,localhost,root,,);
+--echo ** Connecting conn3 using username 'root' **
+CONNECT (conn3,localhost,root,,);
+--echo ** Connecting conn4 using username 'root' **
+CONNECT (conn4,localhost,root,,);
+
+--echo ** Connection default **
+CONNECTION default;
+
+# Wait until all connections done
+let $wait_condition= SELECT COUNT(*)= 6 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
+
+SHOW STATUS LIKE 'Threads_cached';
+--echo 0 Expected
+
+####################################
+#Disconnecting all the connections #
+####################################
+
+--echo ** Disconnecting conn1,conn2,conn3,conn4 **
+DISCONNECT conn1;
+DISCONNECT conn2;
+DISCONNECT conn3;
+DISCONNECT conn4;
+
+#
+# Checking the status
+#
+
+# Wait until all disconnects ready
+let $wait_condition= SELECT COUNT(*)= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
+
+SHOW STATUS LIKE 'Threads_cached';
+--echo 3 Expected
+
+#
+# Decreasing cache size to 1
+#
+SET @@GLOBAL.thread_cache_size= 1;
+
+--echo ** Connecting conn1 using username 'root' **
+CONNECT (conn1,localhost,root,,);
+--echo ** Connecting conn2 using username 'root' **
+CONNECT (conn2,localhost,root,,);
+
+--echo connection default;
+CONNECTION default;
+
+# Wait until all connects ready
+let $wait_condition= SELECT COUNT(*)= 4 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
+
+--echo ** Disconnecting conn1,conn2 **
+DISCONNECT conn1;
+DISCONNECT conn2;
+
+# Wait until all disconnects ready
+let $wait_condition= SELECT COUNT(*)= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
+
+SHOW STATUS LIKE 'Threads_cached';
+--echo 1 Expected
+
+#
+# Cleanup
+#
+
+SET @@GLOBAL.thread_cache_size = @global_thread_cache_size;
+

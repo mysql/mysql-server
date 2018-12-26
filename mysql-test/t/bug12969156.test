@@ -1,0 +1,17 @@
+--source include/have_daemon_example_plugin.inc
+# TODO: the windows emulation of pthreads doesn't behave predictably
+--source include/not_windows.inc
+
+--echo #
+--echo # Bug #12969156 : SEGMENTATION FAULT ON UNINSTALLING
+--echo #  DAEMON_EXAMPLE PLUGIN
+--echo #
+
+let $counter= 0;
+while ($counter < 10)
+{
+--replace_result $DAEMONEXAMPLE DAEMONEXAMPLE
+  eval INSTALL PLUGIN daemon_example SONAME '$DAEMONEXAMPLE';
+  UNINSTALL PLUGIN daemon_example;
+  inc $counter;
+}

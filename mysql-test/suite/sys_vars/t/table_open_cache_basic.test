@@ -1,0 +1,179 @@
+############## mysql-test\t\table_open_cache_basic.test #######################
+#                                                                             #
+# Variable Name: table_open_cache                                             #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: 2000                                                         #
+# Range: 64-524288                                                             #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-13                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable table_open_cache         #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html#option_mysqld_table_open_cache                #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF table_open_cache TESTS                   #
+######################################################################## 
+
+
+########################################################################## 
+# Saving initial value of table_open_cache in a temporary variable       #
+########################################################################## 
+
+SET @start_value = @@global.table_open_cache ;
+SELECT IF(@@open_files_limit < 5000, 4000, @start_value);
+
+
+--echo '#--------------------FN_DYNVARS_001_01------------------------#'
+######################################################################## 
+#              Display the DEFAULT value of table_open_cache           #
+######################################################################## 
+
+SET @@global.table_open_cache  = 99;
+SET @@global.table_open_cache  = DeFAULT;
+SELECT @@global.table_open_cache;
+
+
+--echo '#---------------------FN_DYNVARS_001_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.table_open_cache = Default;
+SELECT IF(@@open_files_limit < 5000, 4000, @@global.table_open_cache) = 4000;
+
+--echo '#--------------------FN_DYNVARS_001_03------------------------#'
+######################################################################## 
+#        Change the value of table_open_cache  to a valid value        #
+######################################################################## 
+
+
+SET @@global.table_open_cache  = 8;
+SELECT @@global.table_open_cache ;
+
+SET @@global.table_open_cache  = 1;
+SELECT @@global.table_open_cache ;
+
+SET @@global.table_open_cache  = 524288;
+SELECT @@global.table_open_cache ;
+
+SET @@global.table_open_cache  = 18000;
+SELECT @@global.table_open_cache ;
+SET @@global.table_open_cache  = 65535;
+SELECT @@global.table_open_cache ;
+
+
+
+--echo '#--------------------FN_DYNVARS_001_04-------------------------#'
+#######################################################################
+#         Change the value of table_open_cache  to invalid value      #
+#######################################################################
+
+SET @@global.table_open_cache  = -1;
+SELECT @@global.table_open_cache  ;
+
+SET @@global.table_open_cache = 524289;
+SELECT @@global.table_open_cache ;
+
+SET @@global.table_open_cache = 100000000000;
+SELECT @@global.table_open_cache ;
+
+SET @@global.table_open_cache = -1024;
+SELECT @@global.table_open_cache ;
+
+SET @@global.table_open_cache = 0;
+SELECT @@global.table_open_cache ;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.table_open_cache = 10000.01;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.table_open_cache = ON;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.table_open_cache= 'test';
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.table_open_cache = '';
+
+
+--echo '#-------------------FN_DYNVARS_001_05----------------------------#'
+########################################################################### 
+#       Test if accessing session table_open_cache  gives error           #
+###########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.table_open_cache = 0;
+
+
+--echo '#----------------------FN_DYNVARS_001_06------------------------#'
+####################################################################
+# Check if the value in GLOBAL Tables matches values in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@global.table_open_cache = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='table_open_cache';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.table_open_cache = TRUE;
+SELECT @@global.table_open_cache ;
+
+SET @@global.table_open_cache = FALSE;
+SELECT @@global.table_open_cache ;
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+##############################################################################
+#  Check if accessing variable without SCOPE points to same session variable #
+##############################################################################
+
+SET @@global.table_open_cache = 10;
+SELECT @@table_open_cache = @@global.table_open_cache ;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+##########################################################################  
+#   Check if table_open_cache can be accessed with and without @@ sign   #
+##########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET table_open_cache = 8;
+--Error ER_PARSE_ERROR
+SET global.table_open_cache = 10;
+--Error ER_UNKNOWN_TABLE
+SELECT global.table_open_cache ;
+--Error ER_BAD_FIELD_ERROR
+SELECT table_open_cache = @@session.table_open_cache ;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.table_open_cache = @start_value;
+SELECT IF(@@open_files_limit < 5000, 4000, @start_value);
+
+
+##################################################################
+#              END OF table_open_cache  TESTS                    #
+##################################################################
+

@@ -1,0 +1,171 @@
+###############################################################################
+#                                                                             #
+# Variable Name: innodb_max_dirty_pages_pct                                   #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: Numeric                                                          #
+# Default Value: 90                                                           #
+# Range: 0-100                                                                #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+# Modified: HHunger 2009-01-29 Fix for bug#39382, replaced sleep by wait cond.#
+#                              added comments, beautifications.               #
+#                                                                             #
+# Description:                                                                #
+#    Test Cases of Dynamic System Variable innodb_max_dirty_pages_pct that    #
+#    checks the behavior of this variable                                     #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+
+# safe initial value
+SET @innodb_max_dirty_pages_pct = @@global.innodb_max_dirty_pages_pct;
+
+--echo '#--------------------FN_DYNVARS_044_02-------------------------#'
+############################################################################
+# Check if setting innodb_max_dirty_pages_pct is changed in new connection #
+############################################################################
+
+SET @@global.innodb_max_dirty_pages_pct = 80;
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+--echo 'connection con1'
+connection con1;
+SELECT @@global.innodb_max_dirty_pages_pct;
+SET @@global.innodb_max_dirty_pages_pct = 70;
+--echo 'connect (con2,localhost,root,,,,)'
+connect (con2,localhost,root,,,,);
+--echo 'connection con2'
+connection con2;
+SELECT @@global.innodb_max_dirty_pages_pct;
+--echo 'connection default'
+connection default;
+--echo 'disconnect con2'
+disconnect con2;
+--echo 'disconnect con1'
+disconnect con1;
+# restore initial value
+SET @@global.innodb_max_dirty_pages_pct = @innodb_max_dirty_pages_pct;
+
+--echo '#--------------------FN_DYNVARS_044_02-------------------------#'
+###################################################################
+# Begin the functionality Testing of innodb_max_dirty_pages_pct   #
+###################################################################
+
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS add_records;
+DROP PROCEDURE IF EXISTS add_until;
+DROP PROCEDURE IF EXISTS check_pct;
+DROP FUNCTION IF EXISTS dirty_pct;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+DELIMITER //;
+CREATE PROCEDURE add_records(IN num INT)
+BEGIN
+   START TRANSACTION;
+   WHILE (num > 0) DO
+      INSERT INTO t1(b) VALUES('MYSQL');
+      SET num = num - 1;
+   END WHILE;
+   COMMIT;
+END//
+
+CREATE FUNCTION dirty_pct() RETURNS DECIMAL(20,17)
+BEGIN
+  DECLARE res DECIMAL(20,17);
+  DECLARE a1, b1 VARCHAR(256);
+  DECLARE a2, b2 VARCHAR(256);
+  DECLARE dirty CURSOR FOR SELECT * FROM performance_schema.global_status
+                WHERE variable_name LIKE 'Innodb_buffer_pool_pages_dirty';
+  DECLARE total CURSOR FOR SELECT * FROM performance_schema.global_status
+                WHERE variable_name LIKE 'Innodb_buffer_pool_pages_total';
+
+  OPEN dirty;
+  OPEN total;
+
+  FETCH dirty INTO a1, b1;
+  FETCH total INTO a2, b2;
+
+  SET res = (CONVERT(b1,DECIMAL) * 100) / CONVERT(b2,DECIMAL);
+
+  CLOSE dirty;
+  CLOSE total;
+  RETURN res;
+END//
+
+CREATE PROCEDURE add_until(IN num DECIMAL)
+BEGIN
+   DECLARE pct,last DECIMAL(20,17);
+   SET pct = dirty_pct();
+   SET last = 0;
+   WHILE (pct < num AND pct < 100) DO
+      CALL add_records(500);
+      SET pct = dirty_pct();
+      IF (pct < last) THEN
+         SET pct = num + 1;
+      ELSE
+         SET last = pct;
+      END IF;
+   END WHILE;
+END//
+
+CREATE PROCEDURE check_pct(IN success_on_wait BOOLEAN)
+BEGIN
+   IF (success_on_wait > 0) THEN
+      SELECT 'BELOW_MAX' AS PCT_VALUE;
+   ELSE
+      SELECT 'ABOVE_MAX or TimeOut Of The Test' AS PCT_VALUE;
+   END IF;
+END//
+
+DELIMITER ;//
+
+CREATE TABLE t1(
+a INT AUTO_INCREMENT PRIMARY KEY,
+b CHAR(200)
+) ENGINE = INNODB;
+
+#==========================================================
+--echo '---Check when innodb_max_dirty_pages_pct is 10---'
+#==========================================================
+
+SET @@global.innodb_max_dirty_pages_pct = 10;
+
+FLUSH STATUS;
+
+# add rows until dirty pages pct is about @@global.innodb_max_dirty_pages_pc
+CALL add_until(10);
+
+# Give the server some time to flush dirty pages
+FLUSH TABLES;
+
+# Add more pages to be over @@global.innodb_max_dirty_pages_pc
+CALL add_records(500);
+
+# Give server time to write pages to disk (depends on performance of the system)
+let $wait_condition= SELECT (dirty_pct() <= @@global.innodb_max_dirty_pages_pct);
+--source include/wait_condition.inc
+
+--echo 'We expect dirty pages pct to be BELOW_MAX after some time depending on performance'
+# Value For $sucess will be set from include/wait_condition.inc file. It can have values 1 or 0. It will be 1 if dirty_pct() <= @@global.innodb_max_dirty_pages_pct else it will be 0.
+eval CALL check_pct($success);
+DROP PROCEDURE add_records;
+DROP PROCEDURE add_until;
+DROP PROCEDURE check_pct;
+DROP FUNCTION dirty_pct;
+DROP TABLE t1;
+
+# restore initial value
+SET @@global.innodb_max_dirty_pages_pct = @innodb_max_dirty_pages_pct;
+
+##################################################################
+# End of functionality Testing for innodb_max_dirty_pages_pct    #
+##################################################################
+

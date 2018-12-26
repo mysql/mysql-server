@@ -1,0 +1,127 @@
+# functional change user tests
+#
+connect (con_main,localhost,root);
+
+create user test_nopw;
+grant select on test.* to test_nopw;
+create user test_newpw identified by "newpw";
+grant select on test.* to test_newpw;
+
+select user(), current_user(), database();
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+   
+
+change_user test_nopw;
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+change_user test_newpw, newpw;
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+change_user root;
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+change_user test_nopw,,test;
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+change_user test_newpw,newpw,test;
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+change_user root,,test;
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+drop user test_nopw;
+drop user test_newpw;
+
+connection default;
+disconnect con_main;
+
+#
+# Bug#20023 mysql_change_user() resets the value of SQL_BIG_SELECTS
+#
+
+--echo Bug#20023
+SELECT @@session.sql_big_selects;
+# The exact value depends on the server build flags
+--replace_result 18446744073709551615 HA_POS_ERROR 4294967295 HA_POS_ERROR
+SELECT @@global.max_join_size;
+--echo change_user
+--change_user
+SELECT @@session.sql_big_selects;
+# The exact value depends on the server build flags
+--replace_result 18446744073709551615 HA_POS_ERROR 4294967295 HA_POS_ERROR
+SELECT @@global.max_join_size;
+SET @@global.max_join_size = 10000;
+SET @@session.max_join_size = default;
+--echo change_user
+--change_user
+SELECT @@session.sql_big_selects;
+# On some machines the following will result into a warning
+--disable_warnings
+SET @@global.max_join_size = 18446744073709551615;
+--enable_warnings
+SET @@session.max_join_size = default;
+--echo change_user
+--change_user
+SELECT @@session.sql_big_selects;
+
+#
+# Bug #18329348 Bug #18329560 Bug #18328396 Bug #18329452 mysql_change_user()
+# resets all SESSION ONLY system variables
+#
+
+SET INSERT_ID=12;
+SELECT @@INSERT_ID;
+SET TIMESTAMP=200;
+SELECT @@TIMESTAMP;
+--echo change_user
+--change_user
+SELECT @@INSERT_ID;
+SELECT @@TIMESTAMP=200;
+
+#
+# Bug#31418 User locks misfunctioning after mysql_change_user()
+#
+
+--echo Bug#31418
+SELECT IS_FREE_LOCK('bug31418');
+SELECT IS_USED_LOCK('bug31418');
+SELECT GET_LOCK('bug31418', 1);
+SELECT IS_USED_LOCK('bug31418') = CONNECTION_ID();
+--echo change_user
+--change_user
+SELECT IS_FREE_LOCK('bug31418');
+SELECT IS_USED_LOCK('bug31418');
+
+#
+# Bug#31222: com_% global status counters behave randomly with
+# mysql_change_user.
+#
+
+FLUSH STATUS;
+
+--disable_result_log
+--disable_query_log
+
+let $i = 100;
+
+while ($i)
+{
+  dec $i;
+
+  SELECT 1;
+}
+
+--enable_query_log
+--enable_result_log
+
+let $before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
+
+--change_user
+
+let $after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
+
+if ($after != $before){
+  SHOW GLOBAL STATUS LIKE 'com_select';
+  die The value of com_select changed during change_user;
+}
+echo Value of com_select did not change;

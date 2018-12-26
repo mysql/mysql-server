@@ -1,0 +1,69 @@
+# Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+# Memcached SDI APIs are enabled only for debug version
+source include/have_debug.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
+# We wiped out entire SDI created by Server. This is to avoid server
+# SDI interference with memcached inserted SDI. So server complains
+# on missing SDI
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* sdi_delete*");
+# Create the memcached tables
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+				  'innodb_only', 'innodb_only', 'innodb_only');
+
+INSERT INTO config_options VALUES('separator', '|');
+
+# describe table for memcache
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+
+USE test;
+let MEMCACHED_PORT=11291;
+
+CREATE TABLE t1(c1 VARCHAR(32),
+	c2 VARCHAR(1024),
+	primary key(c1))
+ENGINE = INNODB;
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# Case 1: Purge before restart of server
+
+# Clear the current SDI in table
+--let MEMCACHED_TABLE_MAPPING = desc_t1
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
+
+# Insert and Delete in SDI table via memcached
+--source ../include/sdi_insert_delete.inc
+
+# Finish the purge before restart
+SET GLOBAL innodb_fast_shutdown=0;
+--source include/restart_mysqld.inc
+
+# Case 2: Purge after kill & restart
+
+# Insert and Delete in DD_INFO table via memcached
+--source ../include/sdi_insert_delete.inc
+
+# Kill and restart
+--source include/kill_and_restart_mysqld.inc
+
+# Finish the purge
+SET GLOBAL innodb_fast_shutdown=0;
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;

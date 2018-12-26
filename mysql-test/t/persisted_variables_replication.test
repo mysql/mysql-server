@@ -1,0 +1,36 @@
+--echo #
+--echo # Bug #27157520: SET PERSIST FOR GTID_MODE AND ENFORCE_GTID_CONSISTENCY IS NOT WORKING PROPERLY
+--echo #
+
+SELECT @@gtid_mode;
+
+SET GLOBAL gtid_mode=1, gtid_mode=2, enforce_gtid_consistency=ON, gtid_mode=3;
+
+SELECT @@gtid_mode;
+
+SET PERSIST enforce_gtid_consistency=ON;
+
+--echo # add some delay to stabilize the test so that the
+--echo #   resoltion for persisted vars is enough
+SELECT SLEEP(2);
+
+--echo # No error since gtid_mode is set after enforce_gtid_consistency
+SET PERSIST gtid_mode=ON;
+
+--echo # should see 2 rows
+SELECT * FROM performance_schema.persisted_variables WHERE
+  VARIABLE_NAME IN ('enforce_gtid_consistency', 'gtid_mode');
+
+--echo # test if the order is persisted through restart
+--source include/restart_mysqld.inc
+
+--echo # should see 2 rows
+SELECT * FROM performance_schema.persisted_variables WHERE
+  VARIABLE_NAME IN ('enforce_gtid_consistency', 'gtid_mode');
+
+--echo # Cleanup
+RESET PERSIST gtid_mode;
+RESET PERSIST enforce_gtid_consistency;
+
+--echo # restart for a cleanup
+--source include/restart_mysqld.inc

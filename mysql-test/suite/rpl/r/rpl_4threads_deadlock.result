@@ -1,0 +1,55 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @save_debug=@@global.debug;
+SET GLOBAL DEBUG='+d,before_dump_thread_acquires_current_mutex,processlist_acquiring_dump_threads_LOCK_thd_data';
+FLUSH LOGS;
+include/stop_slave.inc
+include/start_slave.inc
+"Wait_for dump_thread_signal"
+SET DEBUG_SYNC='now WAIT_FOR dump_thread_signal';
+SET DEBUG_SYNC='show_binlogs_after_lock_log_before_lock_index SIGNAL parked1 WAIT_FOR go_parked1';
+SHOW BINARY LOGS;
+"Wait_for parked1"
+SET DEBUG_SYNC='now WAIT_FOR parked1';
+SET DEBUG_SYNC='purge_logs_after_lock_index_before_thread_count SIGNAL parked2 WAIT_FOR go_parked2';
+PURGE BINARY LOGS BEFORE '2038-01-19';
+"Wait_for parked2"
+SET DEBUG_SYNC='now WAIT_FOR parked2';
+SET DEBUG_SYNC='processlist_after_LOCK_thd_list_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go_parked3';
+SELECT * FROM information_schema.processlist;
+"Wait_for parked3"
+SET DEBUG_SYNC='now WAIT_FOR parked3';
+"now signal go to all 4 waiting threads"
+SET DEBUG_SYNC='now SIGNAL go_dump_thread';
+SET DEBUG_SYNC='now SIGNAL go_parked1';
+SET DEBUG_SYNC='now SIGNAL go_parked2';
+SET DEBUG_SYNC='now SIGNAL go_parked3';
+FLUSH LOGS;
+include/stop_slave.inc
+include/start_slave.inc
+"Wait_for dump_thread_signal"
+SET DEBUG_SYNC='now WAIT_FOR dump_thread_signal';
+SET DEBUG_SYNC='show_binlogs_after_lock_log_before_lock_index SIGNAL parked1 WAIT_FOR go_parked1';
+SHOW BINARY LOGS;
+"Wait_for parked1"
+SET DEBUG_SYNC='now WAIT_FOR parked1';
+SET DEBUG_SYNC='purge_logs_after_lock_index_before_thread_count SIGNAL parked2 WAIT_FOR go_parked2';
+PURGE BINARY LOGS BEFORE '2038-01-19';
+"Wait_for parked2"
+SET DEBUG_SYNC='now WAIT_FOR parked2';
+SET DEBUG_SYNC='processlist_after_LOCK_thd_list_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go_parked3';
+SHOW PROCESSLIST;
+"Wait_for parked3"
+SET DEBUG_SYNC='now WAIT_FOR parked3';
+"now signal go to all 4 waiting threads"
+SET DEBUG_SYNC='now SIGNAL go_dump_thread';
+SET DEBUG_SYNC='now SIGNAL go_parked1';
+SET DEBUG_SYNC='now SIGNAL go_parked2';
+SET DEBUG_SYNC='now SIGNAL go_parked3';
+"Cleanup"
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG=@save_debug;
+include/rpl_end.inc

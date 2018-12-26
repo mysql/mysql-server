@@ -1,0 +1,39 @@
+# Variable: mysqlx_max_connections
+# Default : 100
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+SET @mysqlx_max_connections_sav= @@global.mysqlx_max_connections;
+
+## Valid cases
+SET GLOBAL mysqlx_max_connections=150;
+show variables like 'mysqlx_max_connections';
+
+SET @@global.mysqlx_max_connections=500;
+show variables like 'mysqlx_max_connections';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_max_connections=150;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_max_connections=150;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_max_connections=150;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_max_connections=150;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_max_connections=150;
+
+# Warning: Truncated incorrect mysqlx_max_connections value
+SET GLOBAL mysqlx_max_connections=0;
+
+# It will set value to 1
+SET GLOBAL mysqlx_max_connections=-848;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_max_connections='%45*#in';
+
+show variables like 'mysqlx_max_connections';
+SET @@global.mysqlx_max_connections=151;
+
+SET @@global.mysqlx_max_connections= @mysqlx_max_connections_sav;

@@ -1,0 +1,33 @@
+select @@global.innodb_force_recovery_crash in (0, 1);
+@@global.innodb_force_recovery_crash in (0, 1)
+1
+select @@global.innodb_force_recovery_crash;
+@@global.innodb_force_recovery_crash
+0
+select @@session.innodb_force_recovery_crash;
+ERROR HY000: Variable 'innodb_force_recovery_crash' is a GLOBAL variable
+show global variables like 'innodb_force_recovery_crash';
+Variable_name	Value
+innodb_force_recovery_crash	0
+show session variables like 'innodb_force_recovery_crash';
+Variable_name	Value
+innodb_force_recovery_crash	0
+select * from performance_schema.global_variables where variable_name='innodb_force_recovery_crash';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_force_recovery_crash	0
+select * from performance_schema.session_variables where variable_name='innodb_force_recovery_crash';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_force_recovery_crash	0
+set global innodb_force_recovery_crash=1;
+ERROR HY000: Variable 'innodb_force_recovery_crash' is a read only variable
+set global innodb_force_recovery_crash=0;
+ERROR HY000: Variable 'innodb_force_recovery_crash' is a read only variable
+select @@global.innodb_force_recovery_crash;
+@@global.innodb_force_recovery_crash
+0
+set session innodb_force_recovery_crash='some';
+ERROR HY000: Variable 'innodb_force_recovery_crash' is a read only variable
+set @@session.innodb_force_recovery_crash='some';
+ERROR HY000: Variable 'innodb_force_recovery_crash' is a read only variable
+set global innodb_force_recovery_crash='some';
+ERROR HY000: Variable 'innodb_force_recovery_crash' is a read only variable

@@ -1,0 +1,91 @@
+#
+# BUG#45214
+# The common part of the "rpl_get_master_version_and_clock" test. 
+# Restart slave under network disconnection between slave and master
+# following the steps:
+#    0 - Set DEBUG_SYNC_ACTION to wait 
+#        before call mysql_real_query(...) function in get_master_version_and_clock(...)
+#        function and hang here
+#    1 - activate a sync-point through the $dbug_sync_point argument of the test
+#    2 - shutdown master server for simulating network disconnection
+#    3 - signal to the IO thread through $debug_sync_action to unhold from the sync-point
+#    4 - check if the slave I/O thread tries to reconnect to master. 
+#
+# Note: make sure to initialize the $debug_sync_action and $dbug_sync_point
+#       before calling the test script.
+#
+# Pattern of usage:
+#
+# The caller test supplies the DBUG_EXECUTE_IF name
+#
+#    let $dbug_sync_point = 'dbug_execute_if_name';
+#
+# as well as the action list for DEBUG_SYNC
+#    
+#    let $debug_sync_action= 'now signal signal_name';
+#
+# The $dbug_sync_point becomes the value of @@global.debug generating
+# a newly started IO-slave thread's session value.
+# Notice incremental operations to add and remove dbug_execute_if_name
+# from the global variable allows propagation more dbug arguments
+# out of mtr.
+# The action list is to fire at proper time according to test logics
+# (see pp 0-4 above).
+#
+
+connection slave;
+if (!$debug_sync_action)
+{
+    --die Cannot continue. Please set value for debug_sync_action.
+}
+
+# Restart slave
+--source include/stop_slave.inc
+
+eval SET @@global.debug= "+d,$dbug_sync_point";
+
+--source include/start_slave.inc
+--echo slave is going to hang in get_master_version_and_clock
+
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+
+--echo slave is unblocked
+
+eval SET DEBUG_SYNC=$debug_sync_action;
+
+# Show slave last IO errno
+connection slave;
+--echo Check network error happened here
+# '2013' CR_SERVER_LOST 
+# '2003' CR_CONN_HOST_ERROR 
+# '2002' CR_CONNECTION_ERROR 
+# '2006' CR_SERVER_GONE_ERROR 
+# '1040' ER_CON_COUNT_ERROR 
+# '1053' ER_SERVER_SHUTDOWN
+let $slave_io_errno= 1040, 1053, 2002, 2003, 2006, 2013;
+--let $slave_io_error_is_nonfatal= 1
+source include/wait_for_slave_io_error.inc;
+
+# deactivate the sync point of get_master_version_and_clock()
+# now to avoid restarting IO-thread to re-enter it.
+# There will be a new IO thread forked out with its @@session.debug
+# unset.
+
+#
+# Note, due to # Bug#11765758 - 58754
+# make sure the slave threads stand still (SQL thread in this context)
+# while @@global.debug is being updated.
+#
+
+eval set @@global.debug = "-d,$dbug_sync_point";
+
+--let $rpl_server_number= 1
+--source include/rpl_start_server.inc
+
+# We don't source include/wait_for_slave_io_to_start.inc, because the
+# IO thread has an error and wait_for_slave_io_to_start.inc fails if
+# the IO thread has an error.
+--let $slave_param= Slave_IO_Running
+--let $slave_param_value= Yes
+--source include/wait_for_slave_param.inc

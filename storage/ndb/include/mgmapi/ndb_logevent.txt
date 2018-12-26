@@ -1,0 +1,56 @@
+To add a new event edit the following 3 files in totally 5 places:
+
+example shows EventBufferUsage added.
+
+Public interface:
+
+*** ndb/include/mgmapi/ndb_logevent.h
+
+    /** NDB_MGM_EVENT_CATEGORY_INFO */
+    NDB_LE_EventBufferUsage = 58
+...
+
+
+      /** Log event specific data for for corresponding NDB_LE_ log event */
+      struct {
+	unsigned usage;
+	unsigned avail;
+      } EventBufferUsage;
+
+*** ndb/src/mgmapi/ndb_logevent.cpp
+
+  ROW( EventBufferUsage, "usage", 1, usage),
+  ROW( EventBufferUsage, "avail", 2, avail),
+
+
+
+Internal impl:
+
+*** ndb/src/common/debugger/EventLogger.cpp
+
+void getTextEventBufferUsage(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len,
+		       "Event buffer usage: %d(%d\%)",
+		       theData[1],
+		       theData[2] ? (theData[1]*100)/theData[2] : 0);
+}
+
+...
+
+  ROW(EventBufferUsage,        LogLevel::llInfo,   7, Logger::LL_INFO ),
+
+*** sending event from ndbd kernel
+
+      Uint32 *data= signal->getDataPtrSend();
+      data[0]= NDB_LE_EventBufferUsage;
+      data[1]= 0;
+      data[2]= 0;
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+
+*** sending event from ndbapi (internal)
+
+	Uint32 data[3];
+	data[0]= NDB_LE_EventBufferUsage;
+	data[1]= 0;
+	data[2]= 0;
+	m_ndb->theImpl->send_event_report(data,3);

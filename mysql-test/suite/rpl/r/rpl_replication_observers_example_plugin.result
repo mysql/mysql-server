@@ -1,0 +1,44 @@
+include/have_replication_observers_example_plugin.inc
+include/install_replication_observers_example.inc
+#
+# Cause an explicit transaction in order to Trans Observer to be called
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY) Engine=InnoDB;
+INSERT t1 VALUES(1);
+BEGIN;
+INSERT t1 VALUES(2);
+ROLLBACK;
+DROP TABLE t1;
+#
+# Cause an explicit restart in order to Server Observer to be called
+#
+# restart
+#
+# Verify that all Server Listening hooks were called
+#
+Matching lines are:
+replication_observers_example_plugin:before_server_shutdown'
+Occurrences of 'replication_observers_example_plugin:before_server_shutdown' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:after_server_shutdown'
+Occurrences of 'replication_observers_example_plugin:after_server_shutdown' in the input file: 1
+#
+# Verify that all Trans Listening hooks were called
+#
+Matching lines are:
+replication_observers_example_plugin:trans_before_dml'
+Occurrences of 'replication_observers_example_plugin:trans_before_dml' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:trans_before_commit'
+Occurrences of 'replication_observers_example_plugin:trans_before_commit' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:trans_before_rollback'
+Occurrences of 'replication_observers_example_plugin:trans_before_rollback' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:trans_after_commit'
+Occurrences of 'replication_observers_example_plugin:trans_after_commit' in the input file: 1
+Matching lines are:
+replication_observers_example_plugin:trans_after_rollback'
+Occurrences of 'replication_observers_example_plugin:trans_after_rollback' in the input file: 1
+UNINSTALL PLUGIN replication_observers_example;
+End of test

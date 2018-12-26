@@ -1,0 +1,2 @@
+$TEST_SERVICES_PLUGIN_REGISTRY_OPT
+--local-infile=true

@@ -1,0 +1,69 @@
+#-------------------------------------------------------------
+# Tests for PERFORMANCE_SCHEMA stored programs instrumentation  
+#-------------------------------------------------------------
+
+#
+#  Test case to show the behaviour of stored program instrumentation 
+#  when values of the system variables performance_schema_max_program_instances & 
+#  performance_schema_max_statement_stack are less than the statistics collected. 
+#  The status of the lost instrumentation is shown through the status variables
+#  performance_schema_program_lost & performance_schema_nested_statement_lost
+#  
+
+# Restarting the server at the begining of the test.
+# This is to avoid the instrumentation of extra SPs called by MTR 
+# These additional stored programs which will be added might cause 
+# result content mismatch failure. 
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--performance_schema_max_program_instances=7 --performance_schema_max_statement_stack=2 --thread_stack=655360">$restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--source ../include/start_server_common.inc
+
+# Values of variables server variables
+show global variables like "performance_schema_max_program_instances";
+show global variables like "performance_schema_max_statement_stack";
+
+--echo ##################### 
+--echo # Setup
+--echo ##################### 
+--source suite/perfschema/include/program_nested_setup.inc 
+
+# Truncate summary table
+TRUNCATE performance_schema.events_statements_summary_by_program;
+SELECT OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA FROM 
+performance_schema.events_statements_summary_by_program 
+WHERE OBJECT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
+# Flush status now
+Flush status;
+show global status like "%performance_schema_program_lost%";
+show global status like "%performance_schema_nested_statement_lost%";
+
+--echo ##################### 
+--echo # Executing Queries
+--echo ##################### 
+--source suite/perfschema/include/program_nested_execution.inc 
+
+--echo ###########################################
+--echo # Quering PS statement summary table      #
+--echo ########################################### 
+
+SELECT OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
+
+# Now check the lost status
+show global status like "%performance_schema_program_lost%";
+show global status like "%performance_schema_nested_statement_lost%";
+
+--echo ##################### 
+--echo # Cleanup
+--echo ##################### 
+--source suite/perfschema/include/program_nested_cleanup.inc 
+
+

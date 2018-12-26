@@ -1,0 +1,97 @@
+# ----------------------------------------------------
+# Tests for the performance schema statement Digests.
+# ----------------------------------------------------
+
+# Test case to show behavior of statements digest when
+# statement-digest-size is 0
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+
+--disable_query_log
+
+--error ER_NO_SUCH_TABLE
+select 1 from expect_unary;
+--error ER_NO_SUCH_TABLE
+select +1 from expect_unary;
+--error ER_NO_SUCH_TABLE
+select -1 from expect_unary;
+--error ER_NO_SUCH_TABLE
+select ++++++++++++++++++++++++++++++++++++++++++++++++1 from expect_unary;
+--error ER_NO_SUCH_TABLE
+select ------------------------------------------------1 from expect_unary;
+
+--error ER_NO_SUCH_TABLE
+select 0+1 from expect_binary;
+--error ER_NO_SUCH_TABLE
+select 0-1 from expect_binary;
+--error ER_NO_SUCH_TABLE
+select 0 ++++++++++++++++++++++++++++++++++++++++++++++++1 from expect_binary;
+--error ER_NO_SUCH_TABLE
+select 0 ------------------------------------------------1 from expect_binary;
+
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (0, 0, 0);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (0, 0, -1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (0, 0, +1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (0, -1, 0);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (0, -1, -1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (0, -1, +1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (0, +1, 0);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (0, +1, -1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (0, +1, +1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (-1, 0, 0);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (-1, 0, -1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (-1, 0, +1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (-1, -1, 0);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (-1, -1, -1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (-1, -1, +1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (-1, +1, 0);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (-1, +1, -1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (-1, +1, +1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (+1, 0, 0);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (+1, 0, -1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (+1, 0, +1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (+1, -1, 0);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (+1, -1, -1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (+1, -1, +1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (+1, +1, 0);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (+1, +1, -1);
+--error ER_NO_SUCH_TABLE
+insert into expect_full_reduce values (+1, +1, +1);
+
+--error ER_NO_SUCH_TABLE
+select a-b, a+b, -a, -b, +a, +b from expect_unchanged;
+
+--enable_query_log
+
+SELECT SCHEMA_NAME, DIGEST_TEXT, COUNT_STAR
+  FROM performance_schema.events_statements_summary_by_digest;
+

@@ -1,0 +1,193 @@
+################################################################################
+# Purpose: Testing the behavior of execution of Invoked Features for
+#          Group Replication.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE. Create tables and add some data.
+# 2. Create invoked features in M1 and M2.
+#  - On M1, create view for table.
+#  - On M1, create trigger.
+#  - On M2, create event.
+#  - On M1, create function.
+#  - On M2, create procedure for event.
+#  - Sync everything.
+# 3. Do some actions to check the effect of the invoked features on the
+#    transactional tables.
+# 4. Check original objects.
+# 5. Sync the two members and check replicated objects in the group.
+# 6. Clean up.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+#
+# Prepare objects (tables etc)
+#
+# Create tables
+--eval CREATE TABLE t11 (a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) ENGINE=innodb
+INSERT INTO t11 VALUES (1,1,'1');
+--disable_warnings
+INSERT INTO t11 VALUES (2,2,UUID());
+--enable_warnings
+--eval CREATE TABLE t12 (a INT PRIMARY KEY, b INT, c VARCHAR(64)) ENGINE=innodb
+INSERT INTO t12 VALUES (1,1,'1');
+--disable_warnings
+INSERT INTO t12 VALUES (2,2,UUID());
+--enable_warnings
+
+# Create invoked features on member1 and member2 and see its behavior
+--echo
+# Create view for tables t11
+CREATE VIEW v11 AS SELECT * FROM t11;
+
+# Creating some invoked features on group members and check its behavior on the group.
+--connection server1
+DELIMITER |;
+
+CREATE TRIGGER t11_tr1 BEFORE INSERT ON t11 FOR EACH ROW
+BEGIN
+  INSERT INTO t12 VALUES (NEW.a, NEW.b, NEW.c);
+  INSERT INTO t13 VALUES (NEW.a, NEW.b, NEW.c);
+END|
+
+DELIMITER ;|
+
+--connection server2
+
+DELIMITER |;
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DISABLE DO
+BEGIN
+  ALTER EVENT e1 DISABLE;
+  CALL p11(10, '');
+END|
+
+DELIMITER ;|
+
+# Create functions and procedures used for events
+--connection server1
+
+DELIMITER |;
+
+CREATE FUNCTION f1 (x INT) RETURNS VARCHAR(64)
+BEGIN
+  IF x > 5 THEN
+    RETURN UUID();
+  END IF;
+  RETURN '';
+END|
+
+DELIMITER ;|
+
+--connection server2
+
+DELIMITER |;
+
+CREATE PROCEDURE p11 (IN x INT, IN y VARCHAR(64))
+BEGIN
+  INSERT IGNORE INTO t11 VALUES (x,x,y);
+END|
+
+DELIMITER ;|
+
+# Syncing the second member with the first one
+--source include/rpl_sync.inc
+--connection server1
+
+#
+# Start test case
+#
+# Do some actions to check the effect of the invoked features on the
+# transactional tables.
+
+--echo
+--disable_warnings
+CREATE TABLE t13(a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) engine=InnoDB;
+INSERT INTO t11 VALUES (3,3,'');
+UPDATE t11 SET c='2' WHERE a = 1;
+--source include/rpl_sync.inc
+
+--connection server2
+INSERT INTO t11 VALUES(4,4,f1(4));
+--connection server1
+INSERT INTO t11 VALUES(7,7,f1(7));
+
+--connection server1
+CALL p11(5, UUID());
+--connection server2
+CALL p11(10, UUID());
+
+--enable_warnings
+--connection server1
+# Scheduler is on
+SET @old_event_scheduler= @@global.event_scheduler;
+SET GLOBAL EVENT_SCHEDULER = on;
+# Wait while events will executed
+ALTER EVENT e1 ENABLE;
+--let $wait_condition= SELECT COUNT(*) = 1 FROM t11 WHERE t11.a = 10
+--source include/wait_condition_or_abort.inc
+#
+# Wait for the event to have been disabled.
+#
+# There may be a race here, since it looks like the
+# event thread might not have the chance to disable
+# the event before it is shutdown. Note that the
+# act of disabling the event is done inside the
+# event itself!
+#
+--let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="e1"
+--source include/wait_condition_or_abort.inc
+SET GLOBAL EVENT_SCHEDULER = @old_event_scheduler;
+
+--source include/rpl_sync.inc
+# Check original objects
+--echo
+--sorted_result
+SHOW TABLES LIKE 't%';
+--sorted_result
+SELECT table_name FROM information_schema.views WHERE table_schema='test';
+--sorted_result
+SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
+--sorted_result
+SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
+--sorted_result
+SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
+
+# Syncing the two members involved in the group
+--source include/rpl_sync.inc
+
+--let $diff_tables= server1:t11, server2:t11
+--source include/diff_tables.inc
+
+--let $diff_tables= server1:t12, server2:t12
+--source include/diff_tables.inc
+
+--let $diff_tables= server1:t13, server2:t13
+--source include/diff_tables.inc
+
+# Check replicated objects in the group
+--echo
+--sorted_result
+SHOW TABLES LIKE 't%';
+--sorted_result
+SELECT table_name FROM information_schema.views WHERE table_schema='test';
+--sorted_result
+SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
+--sorted_result
+SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
+--sorted_result
+SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
+
+#
+# Clean up
+#
+# Remove tables,views,procedures,functions
+--connection server1
+DROP VIEW IF EXISTS v11;
+DROP TABLE IF EXISTS t11,t12,t13;
+DROP PROCEDURE IF EXISTS p11;
+DROP FUNCTION IF EXISTS f1;
+DROP EVENT IF EXISTS e1;
+
+--source include/group_replication_end.inc

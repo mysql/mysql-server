@@ -1,0 +1,202 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+***************** Test 1 ************************
+
+CREATE TABLE t1 (a INT NOT NULL auto_increment,b INT, PRIMARY KEY (a)) ENGINE=NDB auto_increment=3;
+insert into t1 values (NULL,1),(NULL,2),(NULL,3);
+******* Select from Master *************
+
+select * from t1 ORDER BY a;
+a	b
+3	1
+4	2
+5	3
+******* Select from Slave *************
+
+select * from t1 ORDER BY a;
+a	b
+3	1
+4	2
+5	3
+drop table t1;
+create table t1 (a int not null auto_increment,b int, primary key (a)) engine=NDB;
+insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);
+delete from t1 where b=4;
+insert into t1 values (NULL,5),(NULL,6);
+******* Select from Master *************
+
+select * from t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+5	5
+6	6
+******* Select from Slave *************
+
+select * from t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+5	5
+6	6
+drop table t1;
+create table t1 (a int not null auto_increment, primary key (a)) engine=NDB;
+insert into t1 values (NULL),(5),(NULL);
+insert into t1 values (250),(NULL);
+******* Select from Master *************
+
+select * from t1 ORDER BY a;
+a
+1
+5
+6
+250
+251
+insert into t1 values (1000);
+set @@insert_id=400;
+insert into t1 values(NULL),(NULL);
+******* Select from Master *************
+
+select * from t1 ORDER BY a;
+a
+1
+5
+6
+250
+251
+400
+401
+1000
+******* Select from Slave *************
+
+select * from t1 ORDER BY a;
+a
+1
+5
+6
+250
+251
+400
+401
+1000
+drop table t1;
+create table t1 (a int not null auto_increment, primary key (a)) engine=NDB;
+insert into t1 values (NULL),(5),(NULL),(NULL);
+insert into t1 values (500),(NULL),(502),(NULL),(600);
+******* Select from Master *************
+
+select * from t1 ORDER BY a;
+a
+1
+5
+6
+7
+500
+501
+502
+503
+600
+set @@insert_id=600;
+insert into t1 values(600),(NULL),(NULL);
+ERROR 23000: Can't write; duplicate key in table ''
+set @@insert_id=600;
+insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
+Warnings:
+Warning	1062	Duplicate entry '600' for key 'PRIMARY'
+Warning	1062	Duplicate entry '600' for key 'PRIMARY'
+Warning	1062	Duplicate entry '600' for key 'PRIMARY'
+******* Select from Master *************
+
+select * from t1 ORDER BY a;
+a
+1
+5
+6
+7
+500
+501
+502
+503
+600
+610
+611
+******* Select from Slave *************
+
+select * from t1 ORDER BY a;
+a
+1
+5
+6
+7
+500
+501
+502
+503
+600
+610
+611
+drop table t1;
+create table t1 (a int not null auto_increment, primary key (a)) engine=NDB;
+insert into t1 values(2),(12),(22),(32),(42);
+insert into t1 values (NULL),(NULL);
+insert into t1 values (3),(NULL),(NULL);
+******* Select from Master *************
+
+select * from t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
+******* Select from Slave *************
+
+** Slave should have 2, 12, 22, 32, 42 **
+** Master will have 2 but not 12, 22, 32, 42 **
+
+select * from t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
+12
+22
+32
+42
+drop table t1;
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 32;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT KEY) ENGINE=ndb;
+INSERT INTO t1 () VALUES (),(),();
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 32;
+select * from t1 order by id;
+id
+1
+2
+3
+INSERT INTO t1 () VALUES (),(),();
+select * from t1 order by id;
+id
+1
+2
+3
+4
+5
+6
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+select * from t1 order by id;
+id
+1
+2
+3
+drop table t1;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+include/rpl_end.inc

@@ -1,0 +1,178 @@
+############## mysql-test\t\slow_launch_time_basic.test ###############
+#                                                                             #
+# Variable Name: slow_launch_time                                             #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:   2                                                           #
+# Range:  -                                                                    #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable slow_launch_time         #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+######################################################################## 
+#                    START OF slow_launch_time TESTS                  #
+######################################################################## 
+
+
+######################################################################## 
+# Saving initial value of slow_launch_time in a temporary variable    #
+######################################################################## 
+
+SET @start_value = @@global.slow_launch_time;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_150_01------------------------#'
+######################################################################## 
+#              Display the DEFAULT value of slow_launch_time          #
+######################################################################## 
+
+SET @@global.slow_launch_time = 99;
+SET @@global.slow_launch_time = DEFAULT;
+SELECT @@global.slow_launch_time;
+
+
+--echo '#---------------------FN_DYNVARS_150_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.slow_launch_time = @start_value;
+SELECT @@global.slow_launch_time = 2;
+
+
+--echo '#--------------------FN_DYNVARS_150_03------------------------#'
+######################################################################## 
+#        Change the value of slow_launch_time to a valid value         #
+######################################################################## 
+
+SET @@global.slow_launch_time = 0;
+SELECT @@global.slow_launch_time;
+SET @@global.slow_launch_time = 1;
+SELECT @@global.slow_launch_time;
+SET @@global.slow_launch_time = 31536000;
+SELECT @@global.slow_launch_time;
+SET @@global.slow_launch_time = 31535999;
+SELECT @@global.slow_launch_time;
+SET @@global.slow_launch_time = 65536;
+SELECT @@global.slow_launch_time;
+
+--echo '#--------------------FN_DYNVARS_150_04-------------------------#'
+########################################################################### 
+#         Change the value of slow_launch_time to invalid value           #
+########################################################################### 
+
+SET @@global.slow_launch_time = -1;
+SELECT @@global.slow_launch_time;
+SET @@global.slow_launch_time = 31536001;
+SELECT @@global.slow_launch_time;
+SET @@global.slow_launch_time = 10240022115;
+SELECT @@global.slow_launch_time;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.slow_launch_time = 10000.01;
+SELECT @@global.slow_launch_time;
+SET @@global.slow_launch_time = -1024;
+SELECT @@global.slow_launch_time;
+SET @@global.slow_launch_time = 42949672950;
+SELECT @@global.slow_launch_time;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.slow_launch_time = ON;
+SELECT @@global.slow_launch_time;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.slow_launch_time = 'test';
+SELECT @@global.slow_launch_time;
+
+
+--echo '#-------------------FN_DYNVARS_150_05----------------------------#'
+########################################################################### 
+#       Test if accessing session slow_launch_time gives error            #
+########################################################################### 
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.slow_launch_time = 0;
+SELECT @@slow_launch_time;
+
+
+--echo '#----------------------FN_DYNVARS_150_06------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+--disable_warnings
+SELECT @@global.slow_launch_time = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='slow_launch_time';
+
+SELECT @@slow_launch_time = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='slow_launch_time';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_150_07----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.slow_launch_time = TRUE;
+SELECT @@global.slow_launch_time;
+SET @@global.slow_launch_time = FALSE;
+SELECT @@global.slow_launch_time;
+
+
+--echo '#---------------------FN_DYNVARS_150_08----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@global.slow_launch_time = 1;
+SELECT @@slow_launch_time = @@global.slow_launch_time;
+
+
+--echo '#---------------------FN_DYNVARS_150_09----------------------#'
+##########################################################################  
+#   Check if slow_launch_time can be accessed with and without @@ sign   #
+##########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET slow_launch_time = 1;
+SELECT @@slow_launch_time;
+--Error ER_PARSE_ERROR
+SET local.slow_launch_time = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.slow_launch_time;
+--Error ER_PARSE_ERROR
+SET global.slow_launch_time = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT global.slow_launch_time;
+--Error ER_BAD_FIELD_ERROR
+SELECT slow_launch_time = @@session.slow_launch_time;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.slow_launch_time = @start_value;
+SELECT @@global.slow_launch_time;
+
+
+######################################################################## 
+#              END OF slow_launch_time TESTS                           #
+######################################################################## 

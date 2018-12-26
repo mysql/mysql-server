@@ -1,0 +1,18 @@
+#### suite/funcs_1/t/memory_bitdata
+
+# Memory tables should be used
+#
+# Set $engine_type
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+# --source include/have_memory.inc
+let $engine_type= memory;
+
+let $message= NOT YET IMPLEMENTED: bitdata tests;
+--source include/show_msg80.inc
+exit;
+
+# Create some objects needed in many testcases
+USE test;
+--source suite/funcs_1/include/memory_tb4.inc
+
+--source suite/funcs_1/bitdata/bitdata_master.test

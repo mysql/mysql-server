@@ -1,0 +1,1 @@
+--sporadic-binlog-dump-fail --max-binlog-dump-events=2

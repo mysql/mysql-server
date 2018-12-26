@@ -1,0 +1,35 @@
+#
+# Bug #24843257: CURRENT_ROLE(), ROLES_GRAPHML() RETURN VALUE
+#   HAS INCORRECT CHARACTER SET
+# Expect system charset for empty
+SELECT CHARSET(CURRENT_ROLE()) = @@character_set_system;
+CHARSET(CURRENT_ROLE()) = @@character_set_system
+1
+SELECT CHARSET(ROLES_GRAPHML()) = @@character_set_system;
+CHARSET(ROLES_GRAPHML()) = @@character_set_system
+1
+# Expect blobs
+CREATE TABLE t1 AS
+SELECT CURRENT_ROLE() AS CURRENT_ROLE, ROLES_GRAPHML() AS ROLES_GRAPHML;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `CURRENT_ROLE` longtext CHARACTER SET utf8,
+  `ROLES_GRAPHML` longtext CHARACTER SET utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# create some roles
+CREATE ROLE r1;
+GRANT r1 TO root@localhost;
+SET ROLE r1;
+# Expect system charset for actual content
+SELECT CHARSET(CURRENT_ROLE()) = @@character_set_system;
+CHARSET(CURRENT_ROLE()) = @@character_set_system
+1
+SELECT CHARSET(ROLES_GRAPHML()) = @@character_set_system;
+CHARSET(ROLES_GRAPHML()) = @@character_set_system
+1
+cleanup
+SET ROLE DEFAULT;
+REVOKE r1 FROM root@localhost;
+DROP ROLE r1;

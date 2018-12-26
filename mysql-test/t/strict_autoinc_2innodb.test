@@ -1,0 +1,9 @@
+
+#
+# Bug#20573 Strict mode auto-increment
+#
+
+let $type= 'InnoDB' ;
+--source include/strict_autoinc.inc
+
+# end of test

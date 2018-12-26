@@ -1,0 +1,375 @@
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+************************************************************
+* Creating table with char+binary types
+************************************************************
+CREATE TABLE t2(
+c1 char(2), c2 char(128), c3 char(255),
+b1 binary(2), b2 binary(128), b3 binary(255),
+vc1 varchar(2), vc2 varchar(255), vc3 varchar(1024),
+vb1 varbinary(2), vb2 varbinary(255), vb3 varbinary(1024)
+) CHARACTER SET latin1 ENGINE=NDB;
+INSERT INTO t2 VALUES(
+repeat('a', 2), repeat('b', 128), repeat('c', 255),
+repeat('d', 2), repeat('e', 128), repeat('f', 255),
+repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+************************************************************
+* Backing up table with char+binary types
+************************************************************
+************************************************************
+* Restoring table with unchanged char+binary types:
+*     char(2)            -->    char(2)
+*     char(128)          -->    char(128)
+*     char(255)          -->    char(255)
+*     binary(2)          -->    binary(2)
+*     binary(128)        -->    binary(128)
+*     binary(255)        -->    binary(255)
+*     varchar(2)         -->    varchar(2)
+*     varchar(255)       -->    varchar(255)
+*     varchar(1024)      -->    varchar(1024)
+*     varbinary(2)       -->    varbinary(2)
+*     varbinary(255)     -->    varbinary(255)
+*     varbinary(1024)    -->    varbinary(1024)
+************************************************************
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+DELETE FROM t2;
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+2	128	255	2	128	128	2	255	1024	2	255	1024
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+COUNT(*)
+1
+DROP TABLE t2_myisam;
+************************************************************
+* Restoring table with 1st degree demoted char+binary types:
+*     char(2)            -->    char(1)
+*     char(128)          -->    char(2)
+*     char(255)          -->    char(128)
+*     binary(2)          -->    binary(1)
+*     binary(128)        -->    binary(2)
+*     binary(255)        -->    binary(128)
+*     varchar(2)         -->    varchar(1)
+*     varchar(255)       -->    varchar(2)
+*     varchar(1024)      -->    varchar(512)
+*     varbinary(2)       -->    varbinary(1)
+*     varbinary(255)     -->    varbinary(2)
+*     varbinary(1024)    -->    varbinary(512)
+************************************************************
+ALTER TABLE t2
+modify c1 char(1), modify c2 char(2), modify c3 char(128),
+modify b1 binary(1), modify b2 binary(2), modify b3 binary(128),
+modify vc1 varchar(1), modify vc2 varchar(2), modify vc3 varchar(512),
+modify vb1 varbinary(1), modify vb2 varbinary(2), modify vb3 varbinary(512);
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	2	128	1	2	2	1	2	512	1	2	512
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+DELETE FROM t2;
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	2	128	1	2	2	1	2	512	1	2	512
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+COUNT(*)
+1
+DROP TABLE t2_myisam;
+************************************************************
+* Restoring table with 2nd degree demoted char+binary types:
+*     char(2)            -->    char(1)
+*     char(128)          -->    char(1)
+*     char(255)          -->    char(2)
+*     binary(2)          -->    binary(1)
+*     binary(128)        -->    binary(1)
+*     binary(255)        -->    binary(2)
+*     varchar(2)         -->    varchar(1)
+*     varchar(255)       -->    varchar(1)
+*     varchar(1024)      -->    varchar(255)
+*     varbinary(2)       -->    varbinary(1)
+*     varbinary(255)     -->    varbinary(1)
+*     varbinary(1024)    -->    varbinary(255)
+************************************************************
+ALTER TABLE t2
+modify c1 char(1), modify c2 char(1), modify c3 char(2),
+modify b1 binary(1), modify b2 binary(1), modify b3 binary(2),
+modify vc1 varchar(1), modify vc2 varchar(1), modify vc3 varchar(255),
+modify vb1 varbinary(1), modify vb2 varbinary(1), modify vb3 varbinary(255);
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	1	2	1	1	1	1	1	255	1	1	255
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+DELETE FROM t2;
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	1	2	1	1	1	1	1	255	1	1	255
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+COUNT(*)
+1
+DROP TABLE t2_myisam;
+************************************************************
+* Restoring table with 3rd degree demoted char+binary types:
+*     char(2)            -->    char(1)
+*     char(128)          -->    char(1)
+*     char(255)          -->    char(1)
+*     binary(2)          -->    binary(1)
+*     binary(128)        -->    binary(1)
+*     binary(255)        -->    binary(1)
+*     varchar(2)         -->    varchar(1)
+*     varchar(255)       -->    varchar(1)
+*     varchar(1024)      -->    varchar(1)
+*     varbinary(2)       -->    varbinary(1)
+*     varbinary(255)     -->    varbinary(1)
+*     varbinary(1024)    -->    varbinary(1)
+************************************************************
+ALTER TABLE t2
+modify c1 char(1), modify c2 char(1), modify c3 char(1),
+modify b1 binary(1), modify b2 binary(1), modify b3 binary(1),
+modify vc1 varchar(1), modify vc2 varchar(1), modify vc3 varchar(1),
+modify vb1 varbinary(1), modify vb2 varbinary(1), modify vb3 varbinary(1);
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	1	1	1	1	1	1	1	1	1	1	1
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+DELETE FROM t2;
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	1	1	1	1	1	1	1	1	1	1	1
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+COUNT(*)
+1
+DROP TABLE t2_myisam;
+************************************************************
+* Restoring table with changed var-ness of char+binary types:
+*     char(2)            -->    varchar(2)
+*     char(128)          -->    varchar(128)
+*     char(255)          -->    varchar(255)
+*     binary(2)          -->    varbinary(2)
+*     binary(128)        -->    varbinary(128)
+*     binary(255)        -->    varbinary(255)
+*     varchar(2)         -->    char(2)
+*     varchar(255)       -->    char(255)
+*     varchar(1024)      -->    varchar(1024)
+*     varbinary(2)       -->    binary(2)
+*     varbinary(255)     -->    binary(255)
+*     varbinary(1024)    -->    varbinary(1024)
+************************************************************
+DELETE FROM t2;
+ALTER TABLE t2
+modify c1 varchar(2), modify c2 varchar(128), modify c3 varchar(255),
+modify b1 varbinary(2), modify b2 varbinary(128), modify b3 varbinary(255),
+modify vc1 char(2), modify vc2 char(255), modify vc3 varchar(1024),
+modify vb1 binary(2), modify vb2 binary(255), modify vb3 varbinary(1024);
+INSERT INTO t2 VALUES(
+repeat('a', 2), repeat('b', 128), repeat('c', 255),
+repeat('d', 2), repeat('e', 128), repeat('f', 255),
+repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+2	128	255	2	128	128	2	255	1024	2	255	1024
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+DELETE FROM t2;
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+2	128	255	2	128	128	2	255	1024	2	255	1024
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+COUNT(*)
+1
+DROP TABLE t2_myisam;
+************************************************************
+* Restoring table with changed varness + 1st degree demoted types:
+*     char(2)            -->    varchar(1)
+*     char(128)          -->    varchar(2)
+*     char(255)          -->    varchar(128)
+*     binary(2)          -->    varbinary(1)
+*     binary(128)        -->    varbinary(2)
+*     binary(255)        -->    varbinary(128)
+*     varchar(2)         -->    char(1)
+*     varchar(255)       -->    char(2)
+*     varchar(1024)      -->    char(255)
+*     varbinary(2)       -->    binary(1)
+*     varbinary(255)     -->    binary(2)
+*     varbinary(1024)    -->    binary(255)
+************************************************************
+DELETE FROM t2;
+ALTER TABLE t2
+modify c1 varchar(1), modify c2 varchar(2), modify c3 varchar(128),
+modify b1 varbinary(1), modify b2 varbinary(2), modify b3 varbinary(128),
+modify vc1 char(1), modify vc2 char(2), modify vc3 char(255),
+modify vb1 binary(1), modify vb2 binary(2), modify vb3 binary(255);
+INSERT INTO t2 VALUES(
+repeat('a', 2), repeat('b', 128), repeat('c', 255),
+repeat('d', 2), repeat('e', 128), repeat('f', 255),
+repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	2	128	1	2	2	1	2	255	1	2	255
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+DELETE FROM t2;
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	2	128	1	2	2	1	2	255	1	2	255
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+COUNT(*)
+1
+DROP TABLE t2_myisam;
+************************************************************
+* Restoring table with changed varness + 2nd degree demoted types:
+*     char(2)            -->    varchar(1)
+*     char(128)          -->    varchar(1)
+*     char(255)          -->    varchar(2)
+*     binary(2)          -->    varbinary(1)
+*     binary(128)        -->    varbinary(1)
+*     binary(255)        -->    varbinary(2)
+*     varchar(2)         -->    char(1)
+*     varchar(255)       -->    char(1)
+*     varchar(1024)      -->    char(255)
+*     varbinary(2)       -->    binary(1)
+*     varbinary(255)     -->    binary(1)
+*     varbinary(1024)    -->    binary(255)
+************************************************************
+DELETE FROM t2;
+ALTER TABLE t2
+modify c1 varchar(1), modify c2 varchar(1), modify c3 varchar(2),
+modify b1 varbinary(1), modify b2 varbinary(1), modify b3 varbinary(2),
+modify vc1 char(1), modify vc2 char(1), modify vc3 char(255),
+modify vb1 binary(1), modify vb2 binary(1), modify vb3 binary(255);
+INSERT INTO t2 VALUES(
+repeat('a', 2), repeat('b', 128), repeat('c', 255),
+repeat('d', 2), repeat('e', 128), repeat('f', 255),
+repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	1	2	1	1	1	1	1	255	1	1	255
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+DELETE FROM t2;
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	1	2	1	1	1	1	1	255	1	1	255
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+COUNT(*)
+1
+DROP TABLE t2_myisam;
+************************************************************
+* Restoring table with changed varness + 3rd degree demoted types:
+*     char(2)            -->    varchar(1)
+*     char(128)          -->    varchar(1)
+*     char(255)          -->    varchar(1)
+*     binary(2)          -->    varbinary(1)
+*     binary(128)        -->    varbinary(1)
+*     binary(255)        -->    varbinary(1)
+*     varchar(2)         -->    char(1)
+*     varchar(255)       -->    char(1)
+*     varchar(1024)      -->    char(1)
+*     varbinary(2)       -->    binary(1)
+*     varbinary(255)     -->    binary(1)
+*     varbinary(1024)    -->    binary(1)
+************************************************************
+DELETE FROM t2;
+ALTER TABLE t2
+modify c1 varchar(1), modify c2 varchar(1), modify c3 varchar(1),
+modify b1 varbinary(1), modify b2 varbinary(1), modify b3 varbinary(1),
+modify vc1 char(1), modify vc2 char(1), modify vc3 char(1),
+modify vb1 binary(1), modify vb2 binary(1), modify vb3 binary(1);
+INSERT INTO t2 VALUES(
+repeat('a', 2), repeat('b', 128), repeat('c', 255),
+repeat('d', 2), repeat('e', 128), repeat('f', 255),
+repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	1	1	1	1	1	1	1	1	1	1	1
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+DELETE FROM t2;
+SELECT
+length(c1), length(c2), length(c3),
+length(b1), length(b2), length(b2),
+length(vc1), length(vc2), length(vc3),
+length(vb1), length(vb2), length(vb3)
+FROM t2;
+length(c1)	length(c2)	length(c3)	length(b1)	length(b2)	length(b2)	length(vc1)	length(vc2)	length(vc3)	length(vb1)	length(vb2)	length(vb3)
+1	1	1	1	1	1	1	1	1	1	1	1
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+COUNT(*)
+1
+DROP TABLE t2_myisam;
+************************************************************
+* Deleting table with char+binary types
+************************************************************
+DROP TABLE t2;

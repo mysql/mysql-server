@@ -1,0 +1,275 @@
+############## mysql-test\t\updatable_views_with_limit_basic.test #############
+#                                                                             #
+# Variable Name: updatable_views_with_limit                                   #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: 1                                                            #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-14                                                   #
+# Author:  Sharique Abdullah                                                      #
+#                                                                             #
+# Description: Test Case of Dynamic System Variable updatable_views_with_limit#
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html#option_mysqld_updatable_views_with_limit      #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#           START OF updatable_views_with_limit TESTS                  #
+########################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.updatable_views_with_limit;
+SELECT @start_global_value;
+SET @start_session_value = @@session.updatable_views_with_limit;
+SELECT @start_session_value;
+
+
+
+--echo '#--------------------FN_DYNVARS_005_01-------------------------#'
+########################################################################
+#     Display the DEFAULT value of updatable_views_with_limit          #
+########################################################################
+
+SET @@global.updatable_views_with_limit = 'NO';
+SET @@global.updatable_views_with_limit = DEFAULT;
+SELECT @@global.updatable_views_with_limit;
+
+
+SET @@session.updatable_views_with_limit = 'NO';
+SET @@session.updatable_views_with_limit = DEFAULT;
+SELECT @@session.updatable_views_with_limit;
+
+
+
+--echo '#--------------------FN_DYNVARS_005_02-------------------------#'
+########################################################################
+#     Check the DEFAULT value of updatable_views_with_limit            #
+########################################################################
+
+SET @@global.updatable_views_with_limit = DEFAULT;
+SELECT @@global.updatable_views_with_limit = 'Yes';
+
+SET @@session.updatable_views_with_limit = DEFAULT;
+SELECT @@session.updatable_views_with_limit ='Yes';
+
+
+
+--echo '#--------------------FN_DYNVARS_005_03-------------------------#'
+##################################################################
+# Change the value of variable to a valid value for GLOBAL Scope #
+##################################################################
+
+SET @@global.updatable_views_with_limit = NO;
+SELECT @@global.updatable_views_with_limit;
+
+SET @@global.updatable_views_with_limit = 'NO';
+SELECT @@global.updatable_views_with_limit;
+
+SET @@global.updatable_views_with_limit = YES;
+SELECT @@global.updatable_views_with_limit;
+
+SET @@global.updatable_views_with_limit = 'YES';
+SELECT @@global.updatable_views_with_limit;
+
+SET @@global.updatable_views_with_limit = "NO";
+SELECT @@global.updatable_views_with_limit;
+
+SET @@global.updatable_views_with_limit = "YES";
+SELECT @@global.updatable_views_with_limit;
+
+SET @@global.updatable_views_with_limit = 1;
+SELECT @@global.updatable_views_with_limit;
+
+SET @@global.updatable_views_with_limit = 0;
+SELECT @@global.updatable_views_with_limit;
+
+SET @@global.updatable_views_with_limit = TRUE;
+SELECT @@global.updatable_views_with_limit;
+	
+SET @@global.updatable_views_with_limit = False;
+SELECT @@global.updatable_views_with_limit;
+
+
+--echo '#--------------------FN_DYNVARS_005_04-------------------------#'
+###################################################################
+# Change the value of variable to a valid value for SESSION Scope #
+###################################################################
+ 
+SET @@session.updatable_views_with_limit = NO;
+SELECT @@session.updatable_views_with_limit;
+
+SET @@session.updatable_views_with_limit = 'NO';
+SELECT @@session.updatable_views_with_limit;
+
+SET @@session.updatable_views_with_limit = YES;
+SELECT @@session.updatable_views_with_limit;
+
+SET @@session.updatable_views_with_limit = 'YES';
+SELECT @@session.updatable_views_with_limit;
+
+SET @@session.updatable_views_with_limit = "YES";
+SELECT @@session.updatable_views_with_limit;
+
+SET @@session.updatable_views_with_limit = "NO";
+SELECT @@session.updatable_views_with_limit;
+
+
+
+SET @@session.updatable_views_with_limit =1;
+SELECT @@session.updatable_views_with_limit;
+
+SET @@session.updatable_views_with_limit = 0;
+SELECT @@session.updatable_views_with_limit;
+
+SET @@session.updatable_views_with_limit = True;
+SELECT @@session.updatable_views_with_limit;
+
+SET @@session.updatable_views_with_limit = False;
+SELECT @@session.updatable_views_with_limit;
+
+
+
+--echo '#------------------FN_DYNVARS_005_05-----------------------#'
+########################################################################
+# Change the value of 'updatable_views_with_limit' to an invalid value #
+########################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.updatable_views_with_limit = "TRUE";
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.updatable_views_with_limit = -1024;
+
+
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.updatable_views_with_limit = 2345;
+
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.updatable_views_with_limit = "FALSE";
+
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.updatable_views_with_limit = 65530.34;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.updatable_views_with_limit ="Testing";
+
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.updatable_views_with_limit = "ON";
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.updatable_views_with_limit = "OFF";
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.updatable_views_with_limit = "True";
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.updatable_views_with_limit = "False";
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.updatable_views_with_limit = "Test";
+
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.updatable_views_with_limit = 'test';
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.updatable_views_with_limit = 123456789031;
+
+
+--echo '#------------------FN_DYNVARS_005_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@global.updatable_views_with_limit = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='updatable_views_with_limit';
+--enable_warnings
+
+--echo '#------------------FN_DYNVARS_005_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@session.updatable_views_with_limit = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='updatable_views_with_limit';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_001_08----------------------#'
+###########################################################################
+#  Check if global and session variable are independent of each other     #
+###########################################################################
+
+SET @@global.updatable_views_with_limit = NO;
+SET @@session.updatable_views_with_limit = YES;
+SELECT @@updatable_views_with_limit = @@global.updatable_views_with_limit;
+ 
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+########################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE  #
+#    points to same session variable                                   #
+########################################################################
+
+SET @@updatable_views_with_limit = YES;
+SELECT @@updatable_views_with_limit = @@local.updatable_views_with_limit;
+SELECT @@local.updatable_views_with_limit = @@session.updatable_views_with_limit;
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+################################################################
+#   Check if variable can be accessed with and without @@ sign #
+################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET updatable_views_with_limit = 1027;
+SELECT @@updatable_views_with_limit;
+
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.updatable_views_with_limit;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.updatable_views_with_limit;
+
+--Error ER_BAD_FIELD_ERROR
+SELECT updatable_views_with_limit = @@session.updatable_views_with_limit;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.updatable_views_with_limit = @start_global_value;
+SELECT @@global.updatable_views_with_limit;
+SET @@session.updatable_views_with_limit = @start_session_value;
+SELECT @@session.updatable_views_with_limit;
+
+
+#############################################################
+#                 END OF updatable_views_with_limit TESTS   #
+#############################################################
+

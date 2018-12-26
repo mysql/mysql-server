@@ -1,0 +1,229 @@
+SET @start_global_value = @@global.max_heap_table_size;
+SELECT @start_global_value;
+@start_global_value
+16777216
+SET @start_session_value = @@session.max_heap_table_size;
+SELECT @start_session_value;
+@start_session_value
+16777216
+'#--------------------FN_DYNVARS_077_01-------------------------#'
+SET @@global.max_heap_table_size = 1677721610;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '1677721610'
+SET @@global.max_heap_table_size = DEFAULT;
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16777216
+SET @@session.max_heap_table_size = 1677721610;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '1677721610'
+SET @@session.max_heap_table_size = DEFAULT;
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+16777216
+'#--------------------FN_DYNVARS_077_02-------------------------#'
+SET @@global.max_heap_table_size = DEFAULT;
+SELECT @@global.max_heap_table_size = 16777216;
+@@global.max_heap_table_size = 16777216
+1
+SET @@session.max_heap_table_size = DEFAULT;
+SELECT @@session.max_heap_table_size = 16777216;
+@@session.max_heap_table_size = 16777216
+1
+'#--------------------FN_DYNVARS_077_03-------------------------#'
+SET @@global.max_heap_table_size = 16384;
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16384
+SET @@global.max_heap_table_size = 16385;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '16385'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16384
+SET @@global.max_heap_table_size = 65535;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '65535'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+64512
+SET @@global.max_heap_table_size = 4294967294;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967294'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+4294966272
+SET @@global.max_heap_table_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967295'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+4294966272
+'#--------------------FN_DYNVARS_077_04-------------------------#'
+SET @@session.max_heap_table_size = 16384;
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+16384
+SET @@session.max_heap_table_size = 16385;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '16385'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+16384
+SET @@session.max_heap_table_size = 65535;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '65535'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+64512
+SET @@session.max_heap_table_size = 4294967294;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967294'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+4294966272
+SET @@session.max_heap_table_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967295'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+4294966272
+'#------------------FN_DYNVARS_077_05-----------------------#'
+SET @@global.max_heap_table_size = -1;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '-1'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16384
+SET @@global.max_heap_table_size = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '-1024'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16384
+SET @@global.max_heap_table_size = 1024;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '1024'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16384
+SET @@global.max_heap_table_size = 16383;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '16383'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16384
+SET @@global.max_heap_table_size = 4294967296;
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+4294967296
+SET @@global.max_heap_table_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+4294967296
+SET @@global.max_heap_table_size = test;
+ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+4294967296
+SET @@global.max_heap_table_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+4294967296
+SET @@session.max_heap_table_size = -1;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '-1'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+16384
+SET @@session.max_heap_table_size = 16383;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '16383'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+16384
+SET @@session.max_heap_table_size = 4294967296;
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+4294967296
+SET @@session.max_heap_table_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
+SET @@session.max_heap_table_size = 10737418241;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '10737418241'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+10737418240
+SET @@session.max_heap_table_size = test;
+ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+10737418240
+SET @@session.max_heap_table_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+10737418240
+'#------------------FN_DYNVARS_077_06-----------------------#'
+SELECT @@global.max_heap_table_size = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='max_heap_table_size';
+@@global.max_heap_table_size = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_077_07-----------------------#'
+SELECT @@session.max_heap_table_size = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='max_heap_table_size';
+@@session.max_heap_table_size = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_077_08-----------------------#'
+SET @@global.max_heap_table_size = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '1'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16384
+SET @@global.max_heap_table_size = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '0'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16384
+'#---------------------FN_DYNVARS_077_09----------------------#'
+SET @@global.max_heap_table_size = 163845;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '163845'
+SELECT @@max_heap_table_size = @@global.max_heap_table_size;
+@@max_heap_table_size = @@global.max_heap_table_size
+0
+'#---------------------FN_DYNVARS_077_10----------------------#'
+SET @@max_heap_table_size = 16777216;
+SELECT @@max_heap_table_size = @@local.max_heap_table_size;
+@@max_heap_table_size = @@local.max_heap_table_size
+1
+SELECT @@local.max_heap_table_size = @@session.max_heap_table_size;
+@@local.max_heap_table_size = @@session.max_heap_table_size
+1
+'#---------------------FN_DYNVARS_077_11----------------------#'
+SET max_heap_table_size = 316777216;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '316777216'
+SELECT @@max_heap_table_size;
+@@max_heap_table_size
+316776448
+SELECT local.max_heap_table_size;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.max_heap_table_size;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT max_heap_table_size = @@session.max_heap_table_size;
+ERROR 42S22: Unknown column 'max_heap_table_size' in 'field list'
+SET @@global.max_heap_table_size = @start_global_value;
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+16777216
+SET @@session.max_heap_table_size = @start_session_value;
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+16777216

@@ -1,0 +1,18 @@
+--echo #
+--echo # Bug#25054104 DATA DICTIONARY INITIALIZATION FAILS WHEN USING BINARY
+--echo # CHARSETS
+--echo #
+--echo # Some collation names must be quoted. E.g. the follwing fails:
+--error ER_PARSE_ERROR
+CREATE SCHEMA s1 COLLATE binary;
+
+--echo # While this is ok:
+CREATE SCHEMA s2 COLLATE 'binary';
+
+--echo # The collation used when creating the DD schema is taken from the
+--echo # startup option --collation_server, but was not quoted, which caused the same
+--echo # error as for s1 above. Fix is to add quotes (which is always safe).
+--echo # This test runs with --collation_server=binary and getting here, shows that it
+--echo # works.
+
+DROP SCHEMA s2;

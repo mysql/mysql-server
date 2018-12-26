@@ -1,0 +1,77 @@
+#
+# WL#6469: Optimizing CREATE/DROP performance for temporary tables
+#
+
+--source include/no_valgrind_without_big.inc
+
+#########################################################################
+#									#
+# Will test following scenarios:					#
+# 1. Vary innodb_change_buffering value for temp-table			#
+#########################################################################
+
+
+#-------------------------------------------------------------
+#
+# create test-bed.
+#
+let $change_buffer_value = `select @@global.innodb_change_buffering`;
+set global innodb_file_per_table = 0;
+
+#-------------------------------------------------------------
+#
+# 1. Vary innodb_change_buffering value
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+select @@global.innodb_change_buffering;
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc)) engine = innodb;
+create index idx on t1(keyc, c1(20));
+delimiter |;
+create procedure populate_t1(IN `rows` INT)
+begin
+	declare i int default 1;
+	while (i <= `rows`) DO
+		insert into t1 values (i, 'a', 'b');
+		set i = i + 1;
+	end while;
+end|
+delimiter ;|
+set autocommit=0;
+select count(*) from t1;
+call populate_t1(1000);
+select count(*) from t1;
+select * from t1 limit 10;
+commit;
+update t1 set keyc = -1 * keyc where keyc%50 = 0;
+select count(*) from t1 where keyc < 0;
+drop table t1;
+
+# change innodb_change_buffering value to none
+set @@global.innodb_change_buffering = none ;
+select @@global.innodb_change_buffering;
+
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc)) engine = innodb;
+create index idx on t1(keyc, c1(20));
+set autocommit=0;
+select count(*) from t1;
+CALL populate_t1(1000);
+select count(*) from t1;
+select * from t1 limit 10;
+commit;
+update t1 set keyc = -1 * keyc where keyc%50 = 0;
+select count(*) from t1 where keyc < 0;
+drop table t1;
+drop procedure if exists populate_t1;
+eval set global innodb_change_buffering = $change_buffer_value;
+
+#-------------------------------------------------------------
+#
+# remove test-bed.
+#
+set global innodb_file_per_table = default;

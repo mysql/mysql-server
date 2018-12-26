@@ -1,0 +1,39 @@
+# Tests for PERFORMANCE_SCHEMA
+
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table replication_applier_status.
+
+--disable_result_log
+SELECT * FROM performance_schema.replication_applier_status
+  LIMIT 1;
+
+SELECT * FROM performance_schema.replication_applier_status
+  WHERE service_state='YES' OR remaining_delay=12;
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_status
+  SET service_state='YES', remaining_delay=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_status
+  SET remaining_delay=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_status
+  SET remaining_delay=12 WHERE service_state='YES';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_status
+  WHERE service_state='YES';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_status;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_applier_status READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_applier_status WRITE;
+UNLOCK TABLES;

@@ -1,0 +1,258 @@
+################################################################################
+# Bug #24479782 GR UNABLE TO DETECT CONFLICTS WHEN INSERTING SAME VALUE INTO
+#               UNIQUE COLUMN
+# Test cases to verify that concurrent transactions with intersecting
+# write set, NULLABLE UNIQUE KEY, do conflict and test cases to verify
+# that value NULL does not participate in conflicting transactions.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE. Create a table on M1.
+# 2. With different test combinations,
+#    call gr_parallel_local_and_remote_transactions.inc
+#    and test the behaviour as expected or not.
+#  2.1 UNIQUE KEY, NULLABLE, SINGLE COLUMN KEY,
+#          conflicting case (1,2) vs (3,2).
+#  2.2 UNIQUE KEY, NULLABLE, SINGLE COLUMN KEY,
+#          non-conflicting case (5,6) vs (7,8).
+#  2.3 UNIQUE KEY, NULLABLE, SINGLE COLUMN KEY,
+#          non-conflicting case (NULL vs NULL).
+#  2.4 UNIQUE KEY, NULLABLE, COMPOSITE KEY,
+#          non-conflicting case (x,NULL) vs (x, NULL).
+#  2.5 UNIQUE KEY, NULLABLE, COMPOSITE KEY,
+#          non-conflicting case (NULL,NULL) vs (NULL, NULL).
+#  2.6 FOREIGN KEY ON NULLABLE UNIQUE KEY,
+#          non-conflicting case (NULL referring key while it is getting
+#          updated in the parent table).
+# 3. Do the tuple sanity check after test combinations.
+# 4. After all the above experiments, check that server's
+#    (server1's and server2's) binlog content is good for replay purpose.
+
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # Create a table with Nullable UNIQUEY KEY
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY);
+--source include/rpl_sync.inc
+
+--echo
+--echo ###########################################################
+--echo # Scenario 1: UNIQUE NULL KEY, conflicting case
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES (1, 2)
+--let $remote_transaction=INSERT INTO t1 VALUES (3, 2)
+--let $conflict_test=1
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ############################################################
+--echo # Scenario 2: UNIQUE NULL KEY, non-conflicting case
+--echo
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES (5, 6)
+--let $remote_transaction=INSERT INTO t1 VALUES (7, 8)
+--let $conflict_test=0
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ############################################################
+--echo # Check the data sanity
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3 AND t1.c2 = 2, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 5 AND t1.c2 = 6, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 7 AND t1.c2 = 8, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain 3 rows after the above execution
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "3"
+--source include/assert.inc
+
+--echo
+--echo ##################################################################
+--echo # Scenario 3: UNIQUE NULL KEY, non-conflicting case (NULL vs NULL)
+--echo
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES (8, NULL)
+--let $remote_transaction=INSERT INTO t1 VALUES (9, NULL)
+--let $conflict_test=0
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ############################################################
+--echo # Check the data sanity
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 8 OR t1.c1 = 9, count, 1]" = "2"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain 5 rows after the above execution
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "5"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # Create a table with composite UNIQUE KEY on server1.
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT, UNIQUE KEY(c2,c3));
+--source include/rpl_sync.inc
+
+--echo
+--echo ##################################################################
+--echo # Scenario 4: COMPOSITE UNIQUE KEY
+--echo #    non-conflicting case (x,NULL) vs (x,NULL)
+--echo ##################################################################
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES (1, 2, NULL)
+--let $remote_transaction=INSERT INTO t1 VALUES (2, 2, NULL)
+--let $conflict_test=0
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ##################################################################
+--echo # Scenario 5: COMPOSITE UNIQUE KEY
+--echo #    (non-conflicting case (NULL,NULL) vs (NULL,NULL)
+--echo ##################################################################
+--echo
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES (3, NULL, NULL)
+--let $remote_transaction=INSERT INTO t1 VALUES (4, NULL, NULL)
+--let $conflict_test=0
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ############################################################
+--echo # Check the data sanity
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 >=1 AND t1.c1 <= 4, count, 1]" = "4"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain 4 rows after the above execution
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "4"
+--source include/assert.inc
+
+--echo
+--echo ###################################################################
+--echo # Create two tables (parent and child) and create a foreign key in
+--echo # child table that refers Nullable Unique key of the parent table
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT, FOREIGN KEY (c2) REFERENCES t1(c2));
+INSERT INTO t1 VALUES (1, NULL);
+--source include/rpl_sync.inc
+
+--echo
+--echo ##################################################################
+--echo # Scenario 6: Non-conflicting case (NULL tuple does not care for
+--echo #  a matching tuple in parent table)
+--echo
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction= UPDATE t1 SET c2=10
+--let $remote_transaction= INSERT INTO t2 VALUES (1, NULL);
+--let $conflict_test=0
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ############################################################
+--echo # Check the data sanity
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 =1 AND t1.c2 = 10, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 will contain row after the above execution
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t2 WHERE t2.c1 =1, count, 1]" = "1"
+--source include/assert.inc
+
+--echo
+--echo ######################################################################
+--echo # Scenario 7: After all the above experiments, check that server's
+--echo # (server1's and server2's) binlog content is good for replay purpose.
+--echo
+
+# Switch off the GR and binlog before going for replay.
+--source include/stop_group_replication.inc
+SET SQL_LOG_BIN=0;
+# Create backup for t1 and t2 tables
+RENAME TABLE t2 TO t4;
+RENAME TABLE t1 TO t3;
+# Check Server1's binlog.
+--exec $MYSQL_BINLOG --force-if-open $server_1_datadir/server-binary-log.000001 > $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
+# Before replaying, RESET MASTER, so that GTID numbers are cleared and server
+# state is ready for replay.
+RESET MASTER;
+# Replay the binlog content.
+--exec $MYSQL --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1 < $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
+
+# Compare the data with our backup.
+--let $diff_tables= server1:t1,server1:t3
+--source include/diff_tables.inc
+
+--let $diff_tables= server1:t2,server1:t4
+--source include/diff_tables.inc
+
+# Delete the tables so that server state is ready for next test case.
+DROP TABLE t2, t1;
+
+# Check Server2's binlog.
+--exec $MYSQL_BINLOG --force-if-open $server_2_datadir/server-binary-log.000001 > $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
+# Before replaying, RESET MASTER, so that GTID numbers are cleared and server
+# state is ready for replay.
+RESET MASTER;
+# Replay the binlog content.
+--exec $MYSQL --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1 < $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
+
+# Compare the data with our backup.
+--let $diff_tables= server1:t1,server1:t3
+--source include/diff_tables.inc
+
+--let $diff_tables= server1:t2,server1:t4
+--source include/diff_tables.inc
+
+# Delete the tables so that server state is ready for next test case.
+DROP TABLE t4, t3, t2, t1;
+
+# Put back to the original server state after the above experiments.
+RESET MASTER;
+--exec $MYSQL --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1 < $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
+SET SQL_LOG_BIN=1;
+--source include/start_group_replication.inc
+
+--echo
+--echo ############
+--echo # Cleanup
+--echo
+DROP TABLE t2;
+DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
+
+--source include/group_replication_end.inc

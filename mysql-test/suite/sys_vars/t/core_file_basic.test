@@ -1,0 +1,4 @@
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE '%core%';
+--enable_warnings
+SHOW GLOBAL VARIABLES LIKE '%core%';

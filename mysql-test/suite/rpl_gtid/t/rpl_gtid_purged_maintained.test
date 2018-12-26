@@ -1,0 +1,198 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+# Adding big test option for this test.
+--source include/big_test.inc
+--source include/not_group_replication_plugin.inc
+# ==== Purpose ====
+#
+# Test that @@GLOBAL.GTID_PURGED is maintained correctly when the server
+# restarts and when logs are purged.
+#
+# @@GLOBAL.GTID_PURGED contains the GTIDs that were in binary logs that
+# have been purged.  It is initialized at server start and updated
+# each time logs are purged.
+#
+# Test that GTID_PURGED is:
+# - updated when a log is purged
+# - initialized when the server is started
+# - initialized correctly even when the first binlog begins with a
+#   truncated Previous_gtids_log_event
+# - initialized correctly even when the first binlog is truncated
+#   before the Previous_gtids_log_event
+#
+# ==== Implementation ====
+#
+# Make three big iterations:
+#  - first, the server behaves normally and generates a Gtid_log_event
+#  - second, the server generates a binlog that is truncated in the
+#    middle of the Gtid_log_event
+#  - third, the server generates a binlog that is truncated just before
+#    the Gtid_log_event
+#
+# Each big iteration has two phases:
+#  - In the first phase, we generate a sequence of binlogs.
+#  - In the second phase, we purge the binlogs, one at a time, and
+#    verify that GTID_PURGED is updated accordingly.
+#
+# In the first phase, we have three nested loops:
+#  - The innermost loop generates a sequence of transactions.
+#  - The middle loop executes FLUSH LOGS before and after invoking the
+#    innermost loop.
+#  - The outermost loop restarts the server after invoking the middle
+#    loop.
+#
+# ==== References ====
+#
+# Added in WL#3584 - Global Transaction Identifiers
+
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+--source include/have_debug.inc
+
+--echo ######## Initialize ########
+
+--let $master_uuid= `SELECT @@SERVER_UUID`
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+--source include/sync_slave_sql_with_master.inc
+
+--let $corruption_mode_count= 2
+--let $restart_count= 2
+--let $flush_count= 2
+--let $corruption_mode_flag_1= --debug=d,skip_writing_previous_gtids_log_event
+--let $corruption_mode_flag_2=
+# Does not work: --let $corruption_mode_flag_2= --debug=d,write_partial_previous_gtids_log_event
+
+--let $corruption_mode= 1
+while ($corruption_mode <= $corruption_mode_count)
+{
+  --echo ######## corruption_mode = $corruption_mode of $corruption_mode_count ########
+  --echo Phase one: Generating logs
+
+  --source include/rpl_reset.inc
+
+  # Restart the server three times
+  --let $restart_i= 1
+  --let $gno= 0
+  while ($restart_i <= $restart_count)
+  {
+    --echo ======== restart_i = $restart_i of $restart_count ========
+
+    --connection slave
+    --source include/stop_slave.inc
+
+    --let $rpl_server_number= 1
+    --let $rpl_start_with_gtids= 1
+    --let $rpl_server_parameters= \$corruption_mode_flag_$corruption_mode
+    --source include/rpl_restart_server.inc
+
+    --let $rpl_server_parameters=
+    --source include/rpl_restart_server.inc
+
+    --source include/start_slave.inc
+    --connection master
+
+    # For each restart, flush the log three times
+    --let $flush_i= 1
+    while ($flush_i <= $flush_count)
+    {
+      --echo -------- flush_i = $flush_i of $flush_count --------
+      FLUSH LOGS;
+      --let $transaction_count= $flush_i
+      --let $transaction_i= 1
+      while ($transaction_i <= $transaction_count)
+      {
+        --inc $gno
+        eval INSERT INTO t1 VALUES ($gno);
+        --inc $transaction_i
+      }
+      FLUSH LOGS;
+
+      --echo [on slave]
+      --source include/sync_slave_sql_with_master.inc
+
+      --let $assert_text= no gtids lost yet on slave
+      --let $assert_cond= @@GTID_PURGED = ""
+      --source include/assert.inc
+
+      --let $assert_text= committed gno $gno on slave
+      --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1-$gno")
+      --source include/assert.inc
+
+      --echo [on master]
+      --connection master
+
+      --let $assert_text= no gtids lost yet on master
+      --let $assert_cond= @@GTID_PURGED = ""
+      --source include/assert.inc
+
+      --let $assert_text= committed gno $gno on master
+      --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1-$gno")
+      --source include/assert.inc
+
+      --inc $flush_i
+    }
+
+    --inc $restart_i
+  }
+  FLUSH LOGS;
+
+  --source include/sync_slave_sql_with_master.inc
+  --connection master
+
+  --echo ######## corruption_mode = $corruption_mode ########
+  --echo Phase two: Purging logs
+  --let $gno= 0
+
+  # Purge one log at a time, in the same sequence that we created logs above.
+  --let $restart_i= 1
+  while ($restart_i <= $restart_count)
+  {
+    --echo ======== restart_i = $restart_i of $restart_count ========
+
+    --source include/purge_first_log.inc
+    --let $assert_text= lost gtids from 1 to $gno on master
+    --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
+    --source include/assert.inc
+
+    --source include/purge_first_log.inc
+    --let $assert_text= lost gtids from 1 to $gno on master
+    --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
+    --source include/assert.inc
+
+    --let $flush_i= 1
+    while ($flush_i <= $flush_count)
+    {
+      # Purge one log for each FLUSH LOGS above.
+      --echo -------- flush_i = $flush_i of $flush_count --------
+      --source include/purge_first_log.inc
+      --let $assert_text= lost gtids from 1 to $gno on master
+      --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
+      --source include/assert.inc
+
+      # Increase $gno in the same manner as above.
+      --let $transaction_count= $flush_i
+      --let $transaction_i= 1
+      while ($transaction_i <= $transaction_count)
+      {
+        --inc $gno
+        --inc $transaction_i
+      }
+
+      --source include/purge_first_log.inc
+      --let $assert_text= lost gtids from 1 to $gno on master
+      --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
+      --source include/assert.inc
+
+      --inc $flush_i
+    }
+
+    --inc $restart_i
+  }
+
+  --inc $corruption_mode
+}
+
+--echo ######## Clean up ########
+--connection master
+DROP TABLE t1;
+--source include/rpl_end.inc

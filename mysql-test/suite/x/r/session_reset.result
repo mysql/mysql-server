@@ -1,0 +1,40 @@
+# restart
+call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unhandled message of type 12'");
+call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unhandled message of type 12'");
+select sleep(1);
+sleep(1)
+0
+SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC;
+user	host	db	command	state	info
+event_scheduler	localhost	NULL	Daemon	Waiting on empty queue	NULL
+root	localhost	test	Query	executing	SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC
+Sending 39 bytes raw data...
+2.1
+2.1
+0 rows affected
+Mysqlx.Ok {
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok
+Sending 39 bytes raw data...
+2.1
+2.1
+0 rows affected
+Mysqlx.Ok {
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok

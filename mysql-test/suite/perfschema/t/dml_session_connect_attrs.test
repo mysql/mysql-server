@@ -1,0 +1,35 @@
+--disable_result_log
+SELECT * FROM performance_schema.session_connect_attrs
+  LIMIT 1;
+
+SELECT * FROM performance_schema.session_connect_attrs
+  where ATTR_NAME='FOO' OR ATTR_VALUE='BAR';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.session_connect_attrs
+  SET ATTR_NAME='FOO', ATTR_VALUE='BAR',
+  ORDINAL_POSITION=100, PROCESS_ID=102;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.session_connect_attrs
+  SET ATTR_NAME='FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.session_connect_attrs
+  SET ATTR_NAME='FOO' WHERE ATTR_VALUE='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.session_connect_attrs
+  WHERE ATTR_VALUE='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.session_connect_attrs;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.session_connect_attrs READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.session_connect_attrs WRITE;
+UNLOCK TABLES;

@@ -1,0 +1,68 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+#
+# Test whether FLUSH LOGS flushes upto
+# session_last_committed_epoch to Binlog.
+#
+
+# Set Binlog size large enough to avoid size-based rotate
+SET @default_max_binlog_size = @@global.max_binlog_size;
+set global max_binlog_size=1048576; #1MB
+
+create table test.tn (b varchar(1000)) engine=ndb;
+
+# Method to generate load on NDB
+delimiter %;
+create procedure create_load(loops int)
+begin
+  set @x = 0;
+  repeat
+    insert into tn values (repeat('C', 100));
+    insert into tn values (repeat('C', 100));
+    insert into tn values (repeat('C', 100));
+    insert into tn values (repeat('C', 100));
+    insert into tn values (repeat('C', 100));
+    insert into tn values (repeat('C', 100));
+    insert into tn values (repeat('C', 100));
+    insert into tn values (repeat('C', 100));
+    insert into tn values (repeat('C', 100));
+    insert into tn values (repeat('C', 100));
+    delete from tn;
+    set @x = @x + 1;
+  until @x = loops
+  end repeat;
+end%
+delimiter ;%
+
+# Generate much load on NDB in order to make Binlog to lag behind
+--disable_result_log
+call create_load(20);
+--enable_result_log
+
+# Get the last committed epoch of the session
+--source ndb_binlog_init_epoch_vals.inc
+let $session_epoch= query_get_value(select @init_session_epoch as e, e, 1);
+
+# Flush Binlog
+FLUSH LOGS;
+
+# Get the maximum epoch written to Binlog
+let $max_epoch_after_flush = `select max(epoch) as epoch from
+mysql.ndb_binlog_index`;
+
+if ($max_epoch_after_flush < $session_epoch)
+{
+  --echo
+  --echo Max epoch found in Binlog after FLUSH LOGS ($max_epoch_after_flush)
+  --echo is less than the last committed epoch of the session
+($session_epoch)
+  --echo
+  die "FLUSH LOGS failed to flush upto the last committed epoch of the
+session";
+}
+
+drop procedure create_load;
+drop table tn;
+
+set global max_binlog_size= @default_max_binlog_size;

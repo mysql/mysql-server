@@ -1,0 +1,36 @@
+# Save the count of columns in mysql
+# shut server down
+# Server is down
+#
+# Try --initialize --default-authentication-plugin=sha256_password
+#
+# Run the server with --initialize --default-authentication-plugin=sha256_password
+extract the root password
+password found
+# Restart the server against DDIR
+# connect as root
+# must fail due to password expiration
+SELECT 1;
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+# reset the password
+SET PASSWORD='';
+# Check the count of columns in mysql
+# check the user account
+SELECT user, host, plugin, LENGTH(authentication_string) > 0
+FROM mysql.user ORDER BY user;
+user	host	plugin	LENGTH(authentication_string) > 0
+mysql.infoschema	localhost	caching_sha2_password	1
+mysql.session	localhost	caching_sha2_password	1
+mysql.sys	localhost	caching_sha2_password	1
+root	localhost	sha256_password	0
+CREATE DATABASE test;
+# shut server down
+# Server is down
+# close the test connection
+# remove the password file
+# delete mysqld log
+# delete datadir
+#
+# Cleanup
+#
+# Restarting the server

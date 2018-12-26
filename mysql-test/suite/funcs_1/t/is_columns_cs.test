@@ -1,0 +1,456 @@
+# suite/funcs_1/t/is_columns.test
+#
+# Check the layout of information_schema.columns and the impact of
+# CREATE/ALTER/DROP TABLE/VIEW/SCHEMA/COLUMN ... on its content.
+#
+# Note:
+#    This test is not intended
+#    - to show information about the all time existing tables
+#      within the databases information_schema and mysql
+#    - for checking storage engine properties
+#      Therefore please do not alter $engine_type and $other_engine_type.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
+
+let $is_table = COLUMNS;
+# The table INFORMATION_SCHEMA.COLUMNS must exist
+eval SHOW TABLES FROM information_schema LIKE '$is_table';
+
+--echo #######################################################################
+--echo # Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+--echo #######################################################################
+# Ensure that every INFORMATION_SCHEMA table can be queried with a SELECT
+# statement, just as if it were an ordinary user-defined table.
+#
+--source suite/funcs_1/datadict/is_table_query.inc
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.6.1: INFORMATION_SCHEMA.COLUMNS layout
+--echo #########################################################################
+# Ensure that the INFORMATION_SCHEMA.COLUMNS table has the following columns,
+# in the following order:
+#
+# TABLE_CATALOG (always shows NULL),
+# TABLE_SCHEMA (shows the name of the database, or schema, in which an
+#       accessible table resides),
+# TABLE_NAME (shows the name of an accessible table),
+# COLUMN_NAME (shows the name of a column within that table),
+# ORDINAL_POSITION (shows the ordinal position of that column in that table),
+# COLUMN_DEFAULT (shows the column's default value),
+# IS_NULLABLE (shows whether the column may accept NULL values),
+# DATA_TYPE (shows the column's defined data type; keyword only),
+# CHARACTER_MAXIMUM_LENGTH (shows, for a string column, the column's defined
+#       maximum length in characters; otherwise NULL),
+# CHARACTER_OCTET_LENGTH (shows, for a string column, the column's defined
+#       maximum length in octets; otherwise NULL),
+# NUMERIC_PRECISION (shows, for a numeric column, the column's or data type's
+#       defined precision; otherwise NULL),
+# NUMERIC_SCALE (shows, for a numeric column, the column's or data type's
+#       defined scale; otherwise NULL),
+# CHARACTER_SET_NAME (shows, for a character string column, the column's default
+#       character set; otherwise NULL),
+# COLLATION_NAME (shows, for a character string column, the column's default
+#       collation; otherwise NULL),
+# COLUMN_TYPE (shows the column's complete, defined data type),
+# COLUMN_KEY (shows whether the column is indexed; possible values are PRI if
+#       the column is part of a PRIMARY KEY, UNI if the column is part of a
+#       UNIQUE key, MUL if the column is part of an index key that allows
+#       duplicates),
+# EXTRA (shows any additional column definition information, e.g. whether the
+#       column was defined with the AUTO_INCREMENT attribute),
+# PRIVILEGES (shows the privileges available to the user on the column),
+# COLUMN_COMMENT (shows the comment, if any, defined for the comment;
+#       otherwise NULL).
+#
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval DESCRIBE          information_schema.$is_table;
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
+eval SHOW CREATE TABLE information_schema.$is_table;
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval SHOW COLUMNS FROM information_schema.$is_table;
+
+# Note: Retrieval of information within information_schema.columns about
+#       information_schema.columns is in is_columns_is.test.
+
+# Show that TABLE_CATALOG is always 'def'.
+SELECT table_catalog, table_schema, table_name, column_name
+FROM information_schema.columns WHERE table_catalog IS NULL OR table_catalog <> 'def';
+
+
+--echo ###############################################################################
+--echo # Testcase 3.2.6.2 + 3.2.6.3: INFORMATION_SCHEMA.COLUMNS accessible information
+--echo ###############################################################################
+# 3.2.6.2:  Ensure that the table shows the relevant information on the columns
+#           of every table that is accessible to the current user or to PUBLIC.
+# 3.2.6.3:  Ensure that the table does not show any information on the columns
+#           of any table which is not accessible to the current user or PUBLIC.
+#
+# Note: Check of content within information_schema.columns about
+#       databases           is in
+#       mysql               is_columns_mysql.test
+#       information_schema  is_columns_is.test
+#       test%               is_columns_<engine>.test
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser2'@'localhost';
+CREATE USER 'testuser2'@'localhost';
+
+--replace_result $other_engine_type <other_engine_type>
+eval
+CREATE TABLE db_datadict.t1
+   (f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT AUTO_INCREMENT,
+    UNIQUE INDEX MUL_IDX(f1,f3), PRIMARY KEY (f4))
+ENGINE = $other_engine_type;
+ANALYZE TABLE db_datadict.t1;
+CREATE VIEW db_datadict.v1 AS SELECT 1 AS f1, 1 AS f2;
+GRANT SELECT(f1, f2) ON db_datadict.t1 TO 'testuser1'@'localhost';
+GRANT SELECT(f2)     ON db_datadict.v1 TO 'testuser1'@'localhost';
+
+--replace_result $other_engine_type <other_engine_type>
+eval
+CREATE TABLE db_datadict.t2
+(f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT, PRIMARY KEY (f1,f4))
+ENGINE = $other_engine_type;
+ANALYZE TABLE db_datadict.t2;
+GRANT INSERT(f1, f2) ON db_datadict.t2 TO 'testuser2'@'localhost';
+
+let $my_select= SELECT * FROM information_schema.columns
+             WHERE table_schema = 'db_datadict'
+ORDER BY table_schema, table_name, ordinal_position;
+let $my_show1 = SHOW COLUMNS FROM db_datadict.t1;
+let $my_show2 = SHOW COLUMNS FROM db_datadict.t2;
+let $my_show3 = SHOW COLUMNS FROM db_datadict.v1;
+
+# Point of view of user root.
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval $my_select;
+eval $my_show1;
+eval $my_show2;
+eval $my_show3;
+
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , db_datadict);
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval $my_select;
+eval $my_show1;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_show2;
+eval $my_show3;
+
+--echo # Establish connection testuser2 (user=testuser2)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser2, localhost, testuser2, , db_datadict);
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval $my_select;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_show1;
+eval $my_show2;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_show3;
+
+--echo # Switch to connection default and close connections testuser1, testuser2
+connection default;
+disconnect testuser1;
+disconnect testuser2;
+
+# Cleanup
+DROP USER 'testuser1'@'localhost';
+DROP USER 'testuser2'@'localhost';
+DROP DATABASE IF EXISTS db_datadict;
+
+
+--echo ###############################################################################
+--echo # Testcase 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.COLUMNS modifications
+--echo ###############################################################################
+# 3.2.1.13: Ensure that the creation of any new database object (e.g. table or
+#           column) automatically inserts all relevant information on that
+#           object into every appropriate INFORMATION_SCHEMA table.
+# 3.2.1.14: Ensure that the alteration of any existing database object
+#           automatically updates all relevant information on that object in
+#           every appropriate INFORMATION_SCHEMA table.
+# 3.2.1.15: Ensure that the dropping of any existing database object
+#           automatically deletes all relevant information on that object from
+#           every appropriate INFORMATION_SCHEMA table.
+#
+--disable_warnings
+DROP TABLE IF EXISTS test.t1_my_table;
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+
+SELECT table_name FROM information_schema.columns
+WHERE table_name LIKE 't1_my_table%';
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE test.t1_my_table (f1 CHAR(12))
+DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
+ENGINE = $engine_type;
+# Settings used in CREATE TABLE must be visible in information_schema.columns.
+--vertical_results
+SELECT * FROM information_schema.columns
+WHERE table_name = 't1_my_table';
+--horizontal_results
+#
+# Check modification of TABLE_NAME
+SELECT table_name FROM information_schema.columns
+WHERE table_name LIKE 't1_my_table%';
+RENAME TABLE test.t1_my_table TO test.t1_my_tablex;
+SELECT table_name FROM information_schema.columns
+WHERE table_name LIKE 't1_my_table%';
+#
+# Check modification of TABLE_SCHEMA
+SELECT table_schema,table_name FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+RENAME TABLE test.t1_my_tablex TO db_datadict.t1_my_tablex;
+SELECT table_schema,table_name FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check modification of COLUMN_NAME
+SELECT table_name, column_name FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex CHANGE COLUMN f1 first_col CHAR(12);
+SELECT table_name, column_name FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check modification of COLUMN size
+SELECT table_name, column_name, character_maximum_length,
+       character_octet_length, column_type
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex
+MODIFY COLUMN first_col CHAR(20);
+SELECT table_name, column_name, character_maximum_length,
+       character_octet_length, column_type
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check modification of COLUMN type
+SELECT table_name, column_name, character_maximum_length,
+       character_octet_length, column_type
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex
+MODIFY COLUMN first_col VARCHAR(20);
+SELECT table_name, column_name, character_maximum_length,
+       character_octet_length, column_type
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check modify COLUMN DEFAULT
+SELECT table_name, column_name, column_default
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex
+MODIFY COLUMN first_col CHAR(10) DEFAULT 'hello';
+SELECT table_name, column_name, column_default
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check modify IS_NULLABLE
+SELECT table_name, column_name, is_nullable
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex
+MODIFY COLUMN first_col CHAR(10) NOT NULL;
+SELECT table_name, column_name, is_nullable
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check modify COLLATION
+SELECT table_name, column_name, collation_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex
+MODIFY COLUMN first_col CHAR(10) COLLATE 'latin1_general_cs';
+SELECT table_name, column_name, collation_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check modify CHARACTER SET
+SELECT table_name, column_name, character_maximum_length,
+       character_octet_length, character_set_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex
+MODIFY COLUMN first_col CHAR(10) CHARACTER SET utf8;
+SELECT table_name, column_name, character_maximum_length,
+       character_octet_length, character_set_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check modify COLUMN_COMMENT
+SELECT table_name, column_name, column_comment
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex
+MODIFY COLUMN first_col CHAR(10) COMMENT 'Hello';
+SELECT table_name, column_name, column_comment
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check ADD COLUMN
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex
+ADD COLUMN second_col CHAR(10);
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
+#
+# Check switch ordinal position of column
+SELECT table_name, column_name, ordinal_position
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
+ALTER TABLE db_datadict.t1_my_tablex
+MODIFY COLUMN second_col CHAR(10) FIRST;
+SELECT table_name, column_name, ordinal_position
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
+#
+# Check DROP COLUMN
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
+ALTER TABLE db_datadict.t1_my_tablex
+DROP COLUMN first_col;
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check set COLUMN UNIQUE
+SELECT table_name, column_name, column_key
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+ALTER TABLE db_datadict.t1_my_tablex
+ADD UNIQUE INDEX IDX(second_col);
+SELECT table_name, column_name, column_key
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check impact of DROP TABLE
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+DROP TABLE db_datadict.t1_my_tablex;
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+#
+# Check a VIEW
+set names latin1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE VIEW test.t1_my_tablex
+AS SELECT 1 AS "col1", 'A' collate latin1_german1_ci AS "col2";
+--vertical_results
+SELECT * FROM information_schema.columns
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_name, column_name;
+--horizontal_results
+DROP VIEW test.t1_my_tablex;
+SELECT table_name FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+SET sql_mode = default;
+set names utf8mb4;
+#
+# Check impact of DROP SCHEMA
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE db_datadict.t1_my_tablex
+ENGINE = $engine_type AS
+SELECT 1;
+SELECT table_name FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+DROP DATABASE db_datadict;
+SELECT table_name FROM information_schema.columns
+WHERE table_name = 't1_my_tablex';
+
+
+--echo ########################################################################
+--echo # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+--echo #           DDL on INFORMATION_SCHEMA table are not supported
+--echo ########################################################################
+# 3.2.1.3:  Ensure that no user may execute an INSERT statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.4:  Ensure that no user may execute an UPDATE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.5:  Ensure that no user may execute a DELETE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.8:  Ensure that no user may create an index on an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.9:  Ensure that no user may alter the definition of an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.10: Ensure that no user may drop an INFORMATION_SCHEMA table.
+# 3.2.1.11: Ensure that no user may move an INFORMATION_SCHEMA table to any
+#           other database.
+# 3.2.1.12: Ensure that no user may directly add to, alter, or delete any data
+#           in an INFORMATION_SCHEMA table.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+DROP TABLE IF EXISTS test.t1;
+--enable_warnings
+CREATE DATABASE db_datadict;
+CREATE TABLE test.t1 (f1 BIGINT);
+
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.columns (table_schema,table_name,column_name)
+VALUES('test','t1', 'f2');
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.columns (table_schema,table_name,column_name)
+VALUES('test','t2', 'f1');
+
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.columns SET table_name = 't4' WHERE table_name = 't1';
+
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM information_schema.columns WHERE table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+TRUNCATE information_schema.columns;
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE INDEX i3 ON information_schema.columns(table_name);
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.columns ADD f1 INT;
+
+--error ER_DBACCESS_DENIED_ERROR
+DROP TABLE information_schema.columns;
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.columns RENAME db_datadict.columns;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.columns RENAME information_schema.xcolumns;
+
+# Cleanup
+DROP TABLE test.t1;
+DROP DATABASE db_datadict;

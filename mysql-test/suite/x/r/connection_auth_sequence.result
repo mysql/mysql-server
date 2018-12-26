@@ -1,0 +1,212 @@
+call mtr.add_suppression("Maximum number of authentication attempts reached");
+call mtr.add_suppression("Access denied for user .*");
+CREATE USER user_to_lock@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'xxx';
+GRANT ALL ON *.* TO user_to_lock@localhost;
+RUN select 1
+
+1
+1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ALTER USER user_to_lock@localhost ACCOUNT LOCK;
+Application terminated with expected error: Access denied for user 'user_to_lock'@'localhost'. Account is locked. (code 3118)
+Got expected error: Access denied for user 'locked_user   pass    test    sha256_memory'@'localhost' (using password: NO) (code 1045)
+Got expected error: Access denied for user 'locked_user   pass    test    mysql41'@'localhost' (using password: NO) (code 1045)
+ok
+CREATE USER xuser_native@'localhost'
+IDENTIFIED WITH 'mysql_native_password' BY 'native';
+CREATE USER xuser_sha256@'localhost'
+IDENTIFIED WITH 'sha256_password' BY 'sha256';
+CREATE USER xuser_cache2@'localhost'
+IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
+#
+## Try to authenticate two times, last one succesfull
+#
+connecting...
+active session is now 'seq'
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Login OK
+closing session seq
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+#
+## 1. User must be able to perform authentication sequence with different mechanism
+##
+## * Try to authenticate three times, last one succesfull
+##
+## Requirements: PROTO1
+#
+
+connecting...
+active session is now 'seq'
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Login OK
+closing session seq
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+#
+## 2. Server must disconnect user that tries too many authentications
+##
+## * Try to authenticate three times, after last error connection is disconnected
+##
+## Requirements: PROTO2
+#
+
+connecting...
+active session is now 'seq'
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+closing session seq
+switched to session default
+
+#######################################################################
+## 3. After succesfull authentication, user must be able to reset session and use
+##    authentication sequence
+##
+## * Establish a session, reset it, try to do the sequence ending succesful
+## * Establish a session, reset it, try to do the sequence ending with failure
+##
+## Requirements: PROTO3
+#
+
+#######################################################################
+# Sequence succesfull
+connecting...
+active session is now 'seq'
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+Login OK
+send Mysqlx.Session.Reset {
+}
+
+Mysqlx.Ok {
+}
+
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Login OK
+closing session seq
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+
+#######################################################################
+# Sequence failed
+connecting...
+active session is now 'seq'
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+Login OK
+send Mysqlx.Session.Reset {
+}
+
+Mysqlx.Ok {
+}
+
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+closing session seq
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP USER user_to_lock@localhost;
+DROP USER xuser_native@'localhost';
+DROP USER xuser_sha256@'localhost';
+DROP USER xuser_cache2@'localhost';

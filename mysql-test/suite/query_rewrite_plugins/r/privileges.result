@@ -1,0 +1,40 @@
+# Query rewrite plugin was installed.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "original"', 'SELECT "rewritten"' );
+CALL query_rewrite.flush_rewrite_rules();
+CREATE USER mysqluser1@localhost;
+INSERT INTO query_rewrite.rewrite_rules ( pattern ) VALUES ( '' );
+ERROR 42000: INSERT command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+INSERT INTO query_rewrite.rewrite_rules ( replacement ) VALUES ( '' );
+ERROR 42000: INSERT command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+INSERT INTO query_rewrite.rewrite_rules ( enabled ) VALUES ( '' );
+ERROR 42000: INSERT command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+INSERT INTO query_rewrite.rewrite_rules ( message ) VALUES ( '' );
+ERROR 42000: INSERT command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+SELECT pattern FROM query_rewrite.rewrite_rules;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+SELECT replacement FROM query_rewrite.rewrite_rules;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+SELECT enabled FROM query_rewrite.rewrite_rules;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+SELECT message FROM query_rewrite.rewrite_rules;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+UPDATE query_rewrite.rewrite_rules SET pattern = '';
+ERROR 42000: UPDATE command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+UPDATE query_rewrite.rewrite_rules SET replacement = '';
+ERROR 42000: UPDATE command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+UPDATE query_rewrite.rewrite_rules SET enabled = '';
+ERROR 42000: UPDATE command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+UPDATE query_rewrite.rewrite_rules SET message = '';
+ERROR 42000: UPDATE command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'
+CALL query_rewrite.flush_rewrite_rules();
+ERROR 42000: execute command denied to user 'mysqluser1'@'localhost' for routine 'query_rewrite.flush_rewrite_rules'
+SELECT 'original';
+rewritten
+rewritten
+Warnings:
+Note	1105	Query 'SELECT 'original'' rewritten to 'SELECT "rewritten"' by a query rewrite plugin
+DROP USER mysqluser1@localhost;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

@@ -1,0 +1,18 @@
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+CREATE DATABASE mysql;
+ERROR HY000: Access to system schema 'mysql' is rejected.
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test

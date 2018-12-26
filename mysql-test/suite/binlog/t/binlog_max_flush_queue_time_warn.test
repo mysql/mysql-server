@@ -1,0 +1,23 @@
+# ==== Purpose ====
+#
+# Verify that a warning is written into an error log when starting
+# server with an option "--binlog_max_flush_queue_time".
+#
+# ==== Implementation ====
+#
+# Source assert_grep.inc to assert a warning in an error log.
+#
+# ==== References ====
+#
+# WL#8756  Deprecate binlog_max_flush_queue_time in 5.7
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+# Make sure the test is repeatable
+RESET MASTER;
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count= 1
+--let $assert_select= The syntax '--binlog_max_flush_queue_time' is deprecated and will be removed in a future release
+--let $assert_text= Found the expected warning "The syntax '--binlog_max_flush_queue_time' is deprecated and will be removed in a future release" in server's error log.
+--source include/assert_grep.inc

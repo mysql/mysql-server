@@ -1,0 +1,86 @@
+###############################################################################
+# Bug#20797764: FAILED CREATE VIEW IS BINLOGGED, AND NOT FILTERED OUT
+#
+# Problem:
+# ========
+# Replication slave choke on statement that should be ignored instead.
+#
+# Test:
+# =====
+# Create two database db_a and db_b. Add a replicate-do-db=db_a filter on
+# slave. On master create a view view_b on master on db_b database. This
+# statement will be replicated and ignored on slave. Re-executing same CREATE
+# VIEW statement on master will result in an error. As part of test we prove
+# that failed CREATE VIEW statement is not binlogged and slave will not error
+# out saying "query caused different errors on master and slave". Slave should
+# be in sync with master.
+###############################################################################
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+echo "Test case1";
+--source include/rpl_connection_master.inc
+CREATE DATABASE db_a;
+CREATE DATABASE db_b;
+--source include/sync_slave_sql_with_master.inc
+FLUSH LOCAL RELAY LOGS;
+
+--source include/rpl_connection_master.inc
+USE db_b;
+CREATE VIEW view_b AS SELECT NULL;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+--error ER_TABLE_EXISTS_ERROR
+CREATE VIEW view_b AS SELECT NULL;
+# Prove that CREATE VIEW statement is binlogged only once
+--source include/show_binlog_events.inc
+# Prove that slave doesnot error out and is in sync with master
+--source include/sync_slave_sql_with_master.inc
+# Prove that CREATE VIEW statement was received by slave
+--let $binlog_file= LAST
+--source include/show_relaylog_events.inc
+# Prove that the CREATE VIEW statement is ignored by slave
+--error ER_NO_SUCH_TABLE
+EXPLAIN view_b;
+
+--source include/rpl_connection_master.inc
+DROP DATABASE db_a;
+DROP DATABASE db_b;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_reset.inc
+
+echo "Test case2";
+# Create two databases db_a and db_b. Execute a partial update statement such
+# that it results in an error on master and still gets binlogged. When the
+# statement is received on slave it should not cause the slave to break.
+# Without fix slave will error out with following error message.
+# Last_Error Query caused different errors on master and slave.     Error on
+# master: message (format)='Duplicate entry '%-.192s' for key %d' error
+# code=1062 ; Error on slave: actual message='no error', error code=0. Default
+# database: 'db_b'. Query: 'update t2 set f=f+2 where f>=2'.
+--source include/rpl_connection_master.inc
+CREATE DATABASE db_a;
+CREATE DATABASE db_b;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+USE db_b;
+CREATE TABLE t2 (f INT PRIMARY KEY) ENGINE=MYISAM;
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t2 VALUES (3);
+INSERT INTO t2 VALUES (5);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+--error ER_DUP_ENTRY
+UPDATE t2 SET f=f+2 WHERE f>=2;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+DROP DATABASE db_a;
+DROP DATABASE db_b;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

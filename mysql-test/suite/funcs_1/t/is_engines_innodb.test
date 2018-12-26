@@ -1,0 +1,16 @@
+# suite/funcs_1/t/is_engines_innodb.test
+#
+# Check the content of information_schema.engines
+# Variant for storage engine InnoDB
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#
+
+
+
+let $engine_type= InnoDB;
+--vertical_results
+eval SELECT * FROM information_schema.engines
+WHERE ENGINE = '$engine_type';

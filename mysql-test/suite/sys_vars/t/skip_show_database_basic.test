@@ -1,0 +1,20 @@
+#
+# only global
+#
+select @@global.skip_show_database;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.skip_show_database;
+show global variables like 'skip_show_database';
+show session variables like 'skip_show_database';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='skip_show_database';
+select * from performance_schema.session_variables where variable_name='skip_show_database';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global skip_show_database=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session skip_show_database=1;

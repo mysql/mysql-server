@@ -1,0 +1,179 @@
+############## mysql-test\t\sql_buffer_result_basic.test ######################
+#                                                                             #
+# Variable Name: sql_buffer_result                                            #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value:                                                              #
+# Valid Values : 0,1                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable sql_buffer_result        #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF sql_buffer_result TESTS                  #
+######################################################################## 
+
+
+################################################################################ 
+#      Saving initial value of sql_buffer_result in a temporary variable       #
+################################################################################ 
+
+SET @session_start_value = @@session.sql_buffer_result;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_155_01------------------------#'
+######################################################################## 
+#           Display the DEFAULT value of sql_buffer_result             #
+######################################################################## 
+
+SET @@session.sql_buffer_result = 0;
+SET @@session.sql_buffer_result = DEFAULT;
+SELECT @@session.sql_buffer_result;
+
+SET @@session.sql_buffer_result = 1;
+SET @@session.sql_buffer_result = DEFAULT;
+SELECT @@session.sql_buffer_result;
+
+
+--echo '#---------------------FN_DYNVARS_155_02-------------------------#'
+############################################################################# 
+#   Check if sql_buffer_result can be accessed with and without @@ sign     #
+############################################################################# 
+
+SET sql_buffer_result = 1;
+SELECT @@sql_buffer_result;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.sql_buffer_result;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.sql_buffer_result;
+
+SET session sql_buffer_result = 0;
+SELECT @@session.sql_buffer_result;
+
+
+--echo '#--------------------FN_DYNVARS_155_03------------------------#'
+######################################################################## 
+#      change the value of sql_buffer_result to a valid value          #
+######################################################################## 
+
+SET @@session.sql_buffer_result = 0;
+SELECT @@session.sql_buffer_result;
+SET @@session.sql_buffer_result = 1;
+SELECT @@session.sql_buffer_result;
+
+
+--echo '#--------------------FN_DYNVARS_155_04-------------------------#'
+########################################################################### 
+#       Change the value of sql_buffer_result to invalid value            #
+########################################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_buffer_result = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_buffer_result = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_buffer_result = "TRU";
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.sql_buffer_result = 0.4;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_buffer_result = TRÜE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_buffer_result = ÕN;
+--error ER_PARSE_ERROR
+SET @@session.sql_buffer_result = OF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_buffer_result = ÓFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_buffer_result = '¹';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_buffer_result = NO;
+
+
+--echo '#-------------------FN_DYNVARS_155_05----------------------------#'
+########################################################################### 
+#       Test if accessing global sql_buffer_result gives error            #
+########################################################################### 
+
+SET @@global.sql_buffer_result = 1-@@global.sql_buffer_result;
+SELECT @@global.sql_buffer_result;
+SET @@global.sql_buffer_result = 1-@@global.sql_buffer_result;
+SELECT @@global.sql_buffer_result;
+
+--echo '#----------------------FN_DYNVARS_155_06------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table contains variable value        #
+#########################################################################
+
+--disable_warnings
+SELECT count(VARIABLE_VALUE) 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='sql_buffer_result';
+--enable_warnings
+
+--echo '#----------------------FN_DYNVARS_155_07------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT IF(@@session.sql_buffer_result, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_buffer_result';
+--enable_warnings
+SELECT @@session.sql_buffer_result;
+--disable_warnings
+SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_buffer_result';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_155_08-------------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+################################################################### 
+
+SET @@session.sql_buffer_result = OFF;
+SELECT @@session.sql_buffer_result;
+SET @@session.sql_buffer_result = ON;
+SELECT @@session.sql_buffer_result;
+
+--echo '#---------------------FN_DYNVARS_155_09----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@session.sql_buffer_result = TRUE;
+SELECT @@session.sql_buffer_result;
+SET @@session.sql_buffer_result = FALSE;
+SELECT @@session.sql_buffer_result;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@session.sql_buffer_result = @session_start_value;
+SELECT @@session.sql_buffer_result;
+
+###############################################################
+#                    END OF sql_buffer_result TESTS           #
+############################################################### 

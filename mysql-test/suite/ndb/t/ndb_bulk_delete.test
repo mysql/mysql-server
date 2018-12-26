@@ -1,0 +1,139 @@
+#
+# Basic test of bulk delete interface. Test counts number of execute
+# as measurement of number of round trips to kernel.
+#
+-- source include/have_ndb.inc
+
+create table t1 (a int key) engine ndb;
+insert into t1 values (1);
+insert into t1 select a+1 from t1;
+insert into t1 select a+2 from t1;
+insert into t1 select a+4 from t1;
+insert into t1 select a+8 from t1;
+insert into t1 select a+16 from t1;
+insert into t1 select a+32 from t1;
+insert into t1 select a+64 from t1;
+insert into t1 select a+128 from t1;
+select count(*) from t1; # 256 rows
+
+--enable_info
+
+--echo
+--echo # test: simple delete of multiple pk's
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows (with read before delete, this is 1)
+--echo # 0 - delete the rows (without bulk update this is 5 + 1 for execute no commit)
+--echo # 1 - delete the row + commit the transaction
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+delete from t1 where a in (1,7, 90, 100, 130);
+--source suite/ndb/include/ndb_execute_count.inc
+
+# Test delete with non existant pk
+# Bug 37153
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows 
+--echo # 0 - delete the rows 
+--echo # 1 - commit
+--echo # affected = 0
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+delete from t1 where a=1000;
+--source suite/ndb/include/ndb_execute_count.inc
+
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows 
+--echo # 0 - delete the rows 
+--echo # 1 - commit
+--echo # affected = 0
+--echo
+--source suite/ndb/include/ndb_init_execute_count.inc
+delete from t1 where a in (1000, 1001, 1002, 1003, 1004);
+--source suite/ndb/include/ndb_execute_count.inc
+
+--disable_info
+
+# Check that the expected rows remains
+select count(*) as "0(was deleted)" from t1 where a in (1,7, 90, 100, 130);
+select count(*) as "0(never existed)" from t1 where a=1000;
+select count(*) as "0(never existed)" from t1
+  where a in (1000, 1001, 1002, 1003, 1004);
+select count(*) as "251(remaining)" from t1;
+select count(*) as "5(not deleted)" from t1 where a in (2, 3, 4, 5, 6);
+
+# cleanup
+drop table t1;
+
+
+# Build table t2 with 2000 rows
+create table t2 (
+  a int primary key,
+  b varchar(256) character set latin1)
+engine ndb;
+--disable_result_log
+--disable_query_log
+let $i = 200;
+while($i)
+{
+  eval insert into t2 values
+   ($i*10,"building a table"),
+   ($i*10+1, "one row"), ($i*10+2, "another row"),
+   ($i*10+3, "the third row"), ($i*10+4, ""),
+   ($i*10+5, "fifth"), ($i*10+6, "a longer string at line six"),
+   ($i*10+7, "in the sevent it will get even longer"),
+   ($i*10+8, "another row 8"), ($i*10+9, "another row 9");
+  dec $i;
+}
+--enable_result_log
+select count(*) as "Has loaded 2000 rows" from t2;
+--enable_query_log
+
+# Build table t3 and delete from it with increasing
+# number of values in the IN clause, don't do too many
+# as mysqld will switch to full table scan
+--disable_query_log
+--disable_result_log
+create table t3 like t2;
+let $i = 50;
+let $in = $i;
+while($i)
+{
+  # Repopulate t3 with all rows
+  replace into t3 select * from t2;
+
+  # Extend the IN clause with another 10 values
+  let $in =$in,$i*10,$i*10+1,$i*10+2,$i*10+3,$i*10+4,$i*10+5,
+           $i*10+6,$i*10+7,$i*10+8,$i*10+9;
+
+  # Get the execute count before DELETE
+  let $before= `select VARIABLE_VALUE from performance_schema.session_status
+                  where variable_name like 'NDB_EXECUTE_COUNT'`;
+
+  # Run the query
+  eval delete from t3 where a in ($in);
+
+  # Check that execute count after DELETE is not greater than 3
+  let $after= `select VARIABLE_VALUE from performance_schema.session_status
+                 where variable_name like 'NDB_EXECUTE_COUNT'`;
+  if (!`select $after-$before <= 3`)
+  {
+    echo before: $before;
+    echo after: $after;
+    enable_result_log;
+    show session status like 'ndb%';
+    die Got unexpected ndb_execute_count value;
+  }
+
+  dec $i;
+}
+--enable_result_log
+select count(*) as "Should be 1500 rows left now" from t3;
+--enable_query_log
+
+# Cleanup
+drop table t2, t3;
+
+

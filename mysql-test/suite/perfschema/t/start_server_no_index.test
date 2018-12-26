@@ -1,0 +1,61 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+#############################
+# Setup database and tables.
+#############################
+--disable_warnings
+drop table if exists db1.t1;
+drop database if exists db1;
+--enable_warnings
+create database db1;
+create table db1.t1 (a int, b char(10) default 'default',
+                         unique key uidx(a));
+
+#######################
+# Execute few queries.
+#######################
+insert into db1.t1 values('1', 'abc');
+insert into db1.t1 values('2', 'abc');
+select * from db1.t1 where a='1';
+
+#####################################################
+# Run few queries on Performance Schema stats tables.
+#####################################################
+# There should be 3 entries in following table. 2 for insert and 1 for select.
+# This is because lock stats are still in the table handles
+select COUNT_STAR from performance_schema.table_io_waits_summary_by_table
+       where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+# There should be 1 entry in following table. Thats is for select.
+# This is because lock stats are still in the table handles
+select COUNT_STAR from performance_schema.table_io_waits_summary_by_index_usage
+       where INDEX_NAME!='NULL';
+
+# Now force aggregation by closing table handles
+FLUSH TABLES;
+
+# Stats are now missing
+select COUNT_STAR from performance_schema.table_io_waits_summary_by_table
+       where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+
+# Stats are now missing
+select COUNT_STAR from performance_schema.table_io_waits_summary_by_index_usage
+       where INDEX_NAME!='NULL';
+
+# Expect INDEX_STAT lost
+--disable_warnings
+select variable_value > 0 from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+
+# While at it, check that FLUSH STATUS Resets the lost counter
+FLUSH STATUS;
+
+select variable_value from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+--enable_warnings
+
+###########
+# Cleanup.
+###########
+drop database db1;

@@ -1,0 +1,80 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for GRANT : Routine grants
+
+CREATE USER userX, userY, userZ;
+CREATE DATABASE db1;
+DELIMITER ||;
+CREATE PROCEDURE db1.proc1()
+BEGIN
+  SELECT 1234;
+END ||
+DELIMITER ;||
+--source include/save_binlog_position.inc
+
+--echo # Case 1 : Valid grants
+
+GRANT EXECUTE ON PROCEDURE db1.proc1 TO userX, userY, userZ;
+
+--echo # Must show new grant
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $event= !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 6 : Create new user with an account without CREATE USER privilege
+
+CREATE USER userA, userB;
+GRANT EXECUTE ON PROCEDURE db1.proc1 to userX WITH GRANT OPTION;
+
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+SHOW GRANTS FOR userA;
+SHOW GRANTS FOR userB;
+
+--source include/save_binlog_position.inc
+connect(conn_userX, localhost, userX,,,,,);
+connection conn_userX;
+
+--echo # should succeed
+GRANT EXECUTE ON PROCEDURE db1.proc1 TO userY, userZ;
+
+--echo # should fail
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT EXECUTE ON PROCEDURE db1.proc1 TO userA, userB, userC;
+
+connection default;
+disconnect conn_userX;
+
+--echo # Must show updated grants
+
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--echo # Must not have any change
+SHOW GRANTS FOR userA;
+SHOW GRANTS FOR userB;
+
+--let $event= !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+DROP USER userX, userY, userZ, userA, userB;
+DROP PROCEDURE db1.proc1;
+DROP DATABASE db1;
+--source include/save_binlog_position.inc
+
+--echo # End : Tests for GRANT : Routine grants
+
+--echo # ----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

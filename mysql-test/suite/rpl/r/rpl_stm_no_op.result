@@ -1,0 +1,62 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create database mysqltest;
+drop database if exists mysqltest;
+Warnings:
+Note	1008	Can't drop database 'mysqltest'; database doesn't exist
+include/sync_slave_sql_with_master.inc
+show tables from mysqltest;
+ERROR 42000: Unknown database 'mysqltest'
+create table t1 (a int);
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+include/sync_slave_sql_with_master.inc
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table t1 (a int, b int);
+include/sync_slave_sql_with_master.inc
+insert into t1 values(1,1);
+delete from t1;
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a	b
+insert into t1 values(1,1);
+insert into t1 values(2,1);
+update t1 set a=2;
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a	b
+2	1
+2	1
+create table t2 (a int, b int);
+delete from t1;
+insert into t1 values(1,1);
+insert into t2 values(1,1);
+include/sync_slave_sql_with_master.inc
+update t1 set a=2;
+UPDATE t1, t2 SET t1.a = t2.a;
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a	b
+1	1
+select * from t2;
+a	b
+1	1
+delete from t1;
+delete from t2;
+include/sync_slave_sql_with_master.inc
+insert into t1 values(1,1);
+insert into t2 values(1,1);
+DELETE t1.*, t2.* from t1, t2;
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a	b
+select * from t2;
+a	b
+drop table t1, t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

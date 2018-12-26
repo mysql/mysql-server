@@ -1,0 +1,222 @@
+#
+# WL#5569 MTS
+#
+# The test checks cases of hashing conflicts forcing a special hanling.
+# The cases include
+#
+# I. two Worker jobs conflict to each other
+#
+#   a. two multi-statement transactions containing more than one partition
+#      in which one is common are mapped to different Workers.
+#   b. similarly two autocommit queries or ddl:s
+#
+# Handling of the cases is carried out as the following:
+# when Coordinator hits to an occupied by not the currenly assigned Worker
+# partition it marks the partition and goes to wait till the Worker-owner
+# has released it and signaled.
+#
+# II. An event requires the sequential execution
+#
+# Coordinator does not schedule the event and is waiting till all workers have
+# released their partitions and signalled.
+
+--source include/not_group_replication_plugin.inc
+--source include/have_slave_parallel_type_database.inc
+--source include/master-slave.inc
+
+#
+#  Testing with the statement format requires
+#  @@global.slave_run_query_in_parallel = 1.
+#  Notice, parallelization for Query-log-event is limitted
+#  to the default dababase. That's why 'use db'.
+#  With the default @@global.slave_run_query_in_parallel == 0
+#  the tests in stmt format still run to prove switching to the sequential.
+
+#  TODO: convert this file into two tests for either value of
+#        @@global.slave_run_query_in_parallel
+--source include/have_binlog_format_row.inc
+
+connection slave;
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression('Error reading slave worker configuration');
+--enable_query_log
+--enable_result_log
+
+create view coord_wait_list  as SELECT id from Information_Schema.processlist where state like 'Waiting for Slave Worker%';
+
+source include/stop_slave.inc;
+
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @@global.slave_parallel_workers= 4;
+
+source include/start_slave.inc;
+
+
+connection master;
+
+create database d1;
+create database d2;
+create database d3;
+create table d1.t1 (a int auto_increment primary key) engine=innodb;
+create table d2.t1 (a int auto_increment primary key) engine=innodb;
+create table d3.t1 (a int auto_increment primary key) engine=innodb;
+
+#
+
+# I. Two parallel jobs conflict
+#
+# two conflicting jobs to follow
+
+--source include/sync_slave_sql_with_master.inc
+# To be really conflicting slave needs to block commit of the first.
+#connection slave;
+
+begin;
+insert into d2.t1 values (1);
+
+connection master;
+
+# Job_1
+begin;
+use d1;
+insert into d1.t1 values (null);
+use d2;
+insert into d2.t1 values (1);   # will be block at this point on Worker
+commit;
+
+# Job_2
+begin;
+use d3;
+insert into d3.t1 values (null);
+use d1;
+insert into d1.t1 values (null); #  will be block at this point on Coord
+commit;
+
+connection slave;
+
+--echo *** Coordinator must be in waiting for a Worker to unassign from a partition ***
+
+let $count= 1;
+let $table= coord_wait_list;
+source include/wait_until_rows_count.inc;
+
+# release the Worker
+rollback;
+
+# Bug#21461991 : RPL.RPL_PARALLEL_CONFLICTS FAILS SPORADICALLY
+# ON DAILY AND WEEKLY TRUNK
+# Waits until the slave SQL thread has been synced with master
+connection master;
+--source include/sync_slave_sql_with_master.inc
+
+let $count= 2;
+let $table= d1.t1;
+source include/wait_until_rows_count.inc;
+
+
+#
+# II. The only-sequential conflicts with ongoing parallel applying
+#
+
+# a. DDL waits for all workers have processed their earlier scheduled assignments
+
+connection slave1;
+
+# fix the tables status. Tables are supposed to exist, possibly with data left
+# after previous part.
+
+select count(*) from d1.t1 into @d1;
+select count(*) from d2.t1 into @d2;
+select count(*) from d3.t1 into @d3;
+use d1;
+create table `exists_only_on_slave` (a int);
+
+connection slave;
+
+# put in the way of workers blocking load
+
+begin;
+insert into d1.t1 values (null);
+insert into d2.t1 values (null);
+insert into d3.t1 values (null);
+
+connection master;
+
+# Job_1
+begin;
+use d1;
+insert into d1.t1 values (null);
+commit;
+
+# Job_2
+begin;
+use d2;
+insert into d2.t1 values (null);
+commit;
+
+
+# Job_3
+begin;
+use d3;
+insert into d3.t1 values (null);
+commit;
+
+--disable_warnings
+use d1;
+drop table if exists `exists_only_on_slave`;
+--enable_warnings
+
+
+connection slave1;
+
+select sleep(1);  # give Workers a little time to process (but they won't)
+
+select count(*) - @d1 as 'zero' from d1.t1;
+select count(*) - @d2 as 'zero' from d2.t1;
+select count(*) - @d3 as 'zero' from d3.t1;
+
+# proof the master DDL has not got through
+use d1;
+select count(*) as 'zero' from `exists_only_on_slave`;
+
+connection slave;
+
+rollback; # release workers
+
+connection slave1;
+
+# to finish up with getting all committed.
+
+let $count= `select @d1 + 1`;
+let $table= d1.t1;
+source include/wait_until_rows_count.inc;
+
+let $count= `select @d2 + 1`;
+let $table= d2.t1;
+source include/wait_until_rows_count.inc;
+
+let $count= `select @d3 + 1`;
+let $table= d3.t1;
+source include/wait_until_rows_count.inc;
+connection slave;
+
+
+#
+# cleanup
+#
+
+connection master;
+
+drop database d1;
+drop database d2;
+drop database d3;
+
+--source include/sync_slave_sql_with_master.inc
+#connection slave;
+
+drop view coord_wait_list;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+
+--source include/rpl_end.inc

@@ -1,0 +1,46 @@
+# Test that register and unregister of UDFs are in init of different components.
+
+# Register 3 UDFs in init of component.
+INSTALL COMPONENT "file://component_udf_reg_only_3_func";
+
+# Check of performance_schema contents.
+SELECT * FROM performance_schema.user_defined_functions
+  WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
+  ORDER BY udf_name;
+
+# Verify UDFs are usable.
+--error ER_CANT_INITIALIZE_UDF
+select myfunc_double();
+select myfunc_double(1);
+select myfunc_double(78654);
+
+select myfunc_int();
+select myfunc_int(5);
+select myfunc_int('MySQL V8.0');
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 values (1,1),(2,2);
+SELECT myfunc_int(a AS attr_name) FROM t1;
+drop table t1;
+
+create table t1(sum int, price float(24));
+insert into t1 values(100, 50.00), (100, 100.00);
+select avgcost(sum, price) from t1;
+delete from t1;
+insert into t1 values(100, 54.33), (200, 199.99);
+select avgcost(sum, price) from t1;
+drop table t1;
+
+# Unregister UDFs in init of the component.
+--echo # remove the plugin
+INSTALL COMPONENT "file://component_udf_unreg_3_func";
+
+# Verify UDFs are not more usable.
+--error ER_SP_DOES_NOT_EXIST
+select myfunc_double(1);
+--error ER_SP_DOES_NOT_EXIST
+select myfunc_int(5);
+
+# Unload components (deinit is in both components empty.
+UNINSTALL COMPONENT "file://component_udf_reg_only_3_func";
+UNINSTALL COMPONENT "file://component_udf_unreg_3_func";

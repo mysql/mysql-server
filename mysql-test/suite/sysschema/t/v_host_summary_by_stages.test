@@ -1,0 +1,21 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.host_summary_by_stages view
+
+# Ensure structure changes don't slip in
+DESC sys.host_summary_by_stages;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.host_summary_by_stages;
+--enable_result_log
+
+
+# Ensure structure changes don't slip in
+DESC sys.x$host_summary_by_stages;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$host_summary_by_stages;
+--enable_result_log
+

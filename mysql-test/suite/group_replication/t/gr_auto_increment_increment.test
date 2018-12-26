@@ -1,0 +1,304 @@
+################################################################################
+# Verify following auto_increment behaviours:
+#
+# Test:
+# 0. This test starts with 4 non-started members.
+# 1. Check the defaults of group_replication_auto_increment_increment,
+#    auto_increment_increment and auto_increment_offset.
+# 2. Check that the value of group_replication_auto_increment_increment
+#    can be set before GR start, but its effects on
+#    auto_increment_increment and auto_increment_offset do not happen.
+# 3. Check that the effects of group_replication_auto_increment_increment
+#    on auto_increment_increment and auto_increment_offset happen on
+#    starting GR.
+# 4. When the number of members is bigger than the auto_increment_increment
+#    value, an error is logged.
+# 5. When auto_increment_increment and auto_increment_offset are not equal to 1,
+#    group_replication should not update their value on START and STOP.
+# 6. When auto_increment_increment and auto_increment_offset are equal to 1,
+#    then verify if plugin on start set auto_increment_increment variable
+#    equal to group_replication_auto_increment_increment value.
+# 7. When group_replication is stopped verify that plugin reset
+#    auto_increment_increment and auto_increment_offset values to 1.
+# 8. Verify start/stop group_replication plugin doesn't affect setting
+#    auto_increment_increment from group_replication_auto_increment_increment
+#    value.
+# 9. Verify server restart doesn't affect setting auto_increment_increment from
+#    group_replication_auto_increment_increment value.
+# 10. Verify group_replication_auto_increment_increment can't be set when
+#    group_replication plugin is running.
+# 11. Validate that when user tries to set invalid values a
+#     error is thrown.
+# 12. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
+
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--source include/group_replication.inc
+
+--connection server1
+--source include/start_and_bootstrap_group_replication.inc
+
+--connection server3
+--source include/start_group_replication.inc
+
+--connection server4
+--source include/start_group_replication.inc
+
+# Use server2 so that we can set
+# group_replication_auto_increment_increment-slave.opt
+--connection server2
+
+# changing GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT for server2
+# and so storing it only for server2
+--let $_init_auto_increment= `SELECT @@GLOBAL.GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT`
+
+--echo #######################################################################
+--echo # 1. Check the defaults of group_replication_auto_increment_increment,
+--echo #    auto_increment_increment and auto_increment_offset.
+--echo #######################################################################
+--let $assert_text= The default value of group_replication_auto_increment_increment for server2 should be 7
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_auto_increment_increment] = 7
+--source include/assert.inc
+--let $assert_text= The default value of auto_increment_increment for server2 should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+--let $assert_text= The default value of auto_increment_offset for server2 should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+--echo #######################################################################
+--echo # 2. Check that the value of group_replication_auto_increment_increment
+--echo #    can be set before GR start, but its effects on
+--echo #    auto_increment_increment and auto_increment_offset do not happen.
+--echo #######################################################################
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 3;
+--let $assert_text= The value of group_replication_auto_increment_increment is set to 3
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_auto_increment_increment] = 3
+--source include/assert.inc
+--let $assert_text= The value of auto_increment_increment is not affected
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+--let $assert_text= The value of auto_increment_offset is not affected
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+
+--echo #########################################################################
+--echo # 3. Check that the effects of group_replication_auto_increment_increment
+--echo #    on auto_increment_increment and auto_increment_offset happen on
+--echo #    starting GR.
+--echo #########################################################################
+--let $assert_text= The value of group_replication_auto_increment_increment is still 3
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_auto_increment_increment] = 3
+--source include/assert.inc
+--let $assert_text= The value of auto_increment_increment is set to 3
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 3
+--source include/assert.inc
+--let $assert_text= The value of auto_increment_offset is set to 2
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 2
+--source include/assert.inc
+
+
+--echo ############################################################
+--echo # 4. When the number of members is bigger than
+--echo #    the auto_increment_increment value, an error is logged.
+--echo ############################################################
+
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^]]*\] */DATE_TIME [ERROR] /
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_auto_increment_increment_log.err
+--let $grep_pattern=Group contains 4 members which is greater than group_replication_auto_increment_increment value of 3. This can lead to an higher rate of transactional aborts.
+--source include/grep_pattern.inc
+
+--echo ############################################################
+--echo # 5. When auto_increment_increment and auto_increment_offset
+--echo #    not set to default value
+--echo #    i.e. auto_increment_increment= 1
+--echo #         auto_increment_offset= 1
+--echo #    group_replication should not update their value.
+--echo ############################################################
+
+--source include/stop_group_replication.inc
+
+SET GLOBAL AUTO_INCREMENT_INCREMENT= 5;
+SET GLOBAL AUTO_INCREMENT_OFFSET= 5;
+
+--source include/start_group_replication.inc
+
+--let $assert_text= The value of auto_increment_increment for server2 should be 5
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 5
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset for server2 should be 5
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 5
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+--let $assert_text= The value of auto_increment_increment for server2 should be 5
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 5
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset for server2 should be 5
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 5
+--source include/assert.inc
+
+--echo ############################################################
+--echo # 6. When auto_increment_increment and auto_increment_offset are equal
+--echo #    to 1, then verify if plugin on start set auto_increment_increment
+--echo #    variable equal to group_replication_auto_increment_increment value.
+--echo ############################################################
+
+SET GLOBAL AUTO_INCREMENT_INCREMENT= 1;
+SET GLOBAL AUTO_INCREMENT_OFFSET= 1;
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 4;
+
+--source include/start_group_replication.inc
+
+--let $assert_text= The value of auto_increment_increment for server2 should be 4
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 4
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset for server2 should be 2
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 2
+--source include/assert.inc
+
+--echo ############################################################
+--echo # 7. When group_replication is stopped verify that plugin reset
+--echo #    auto_increment_increment and auto_increment_offset values to 1.
+--echo ############################################################
+
+--source include/stop_group_replication.inc
+
+--let $assert_text= The value of auto_increment_increment for server2 should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset for server2 should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+# Set GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT to 1, so that it doesn't
+# affect when starting group_replication again.
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 1;
+
+--echo ############################################################
+--echo # 8. Verify start/stop group_replication plugin doesn't affect
+--echo #    setting auto_increment_increment from
+--echo #    group_replication_auto_increment_increment value.
+--echo ############################################################
+
+--source include/start_group_replication.inc
+
+--let $assert_text= The value of auto_increment_increment for server2 should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset for server2 should be 2
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 2
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 9;
+
+--source include/start_group_replication.inc
+
+--let $assert_text= The value of auto_increment_increment for server2 should be 9
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 9
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset for server2 should be 2
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 2
+--source include/assert.inc
+
+--echo ############################################################
+--echo # 9. Verify server restart doesn't affect setting
+--echo #    auto_increment_increment from
+--echo #    group_replication_auto_increment_increment value.
+--echo ############################################################
+
+--source include/stop_group_replication.inc
+
+--let $assert_text= The value of auto_increment_increment for server2 should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset for server2 should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+# Set GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT to 1, so that it doesn't
+# affect when starting group_replication again.
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 1;
+
+--source include/start_group_replication.inc
+
+--let $assert_text= The value of auto_increment_increment for server2 should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset for server2 should be 2
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 2
+--source include/assert.inc
+
+# restart server
+--let $allow_rpl_inited= 1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 9;
+
+--source include/start_group_replication.inc
+
+--let $assert_text= The value of auto_increment_increment for server2 should be 9
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 9
+--source include/assert.inc
+
+--let $assert_text= The value of auto_increment_offset for server2 should be 2
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 2
+--source include/assert.inc
+
+--echo ############################################################
+--echo # 10. Verify group_replication_auto_increment_increment can't be set
+--echo #     when group_replication plugin is running.
+--echo ############################################################
+
+--error ER_GROUP_REPLICATION_RUNNING
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 9;
+
+--echo ############################################################
+--echo # 11. Validate that when user tries to set invalid values a
+--echo #     error is thrown.
+--echo ############################################################
+--connection server2
+--source include/stop_group_replication.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 65536;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 0;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 'a';
+
+--echo ############################################################
+--echo # 12. clean up and reset auto_increment variables value
+--echo ############################################################
+--eval SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= $_init_auto_increment
+--source include/group_replication_end.inc

@@ -1,0 +1,170 @@
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
+			 "in the InnoDB internal");
+set global innodb_file_per_table = off;
+"testing creation of tablepsace by enabling error path"
+# files in MYSQL_DATA_DIR
+ibtmp1
+"Temp-tablespace removed on shutdown"
+# files in MYSQL_DATA_DIR
+--innodb-force-recovery-crash=100
+"Next stmt will crash server"
+Pattern "Creating shared tablespace for temporary tables" found
+# restart
+# files in MYSQL_DATA_DIR
+ibtmp1
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
+insert into t1 values (1, 'c', 'b');
+select * from t1;
+keyc	c1	c2
+1	c	b
+drop table t1;
+"try hitting crash-point during table creation"
+# files in MYSQL_DATA_DIR
+ibtmp1
+set session debug="+d,ib_ddl_crash_during_create2";
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+ERROR HY000: Lost connection to MySQL server during query
+# files in MYSQL_DATA_DIR
+ibtmp1
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (1, 2);
+select * from t1;
+a	b
+1	2
+drop table t1;
+set session debug="-d,ib_ddl_crash_during_create";
+use test;
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+create table t2
+(a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1_t2()
+begin
+declare i int default 1;
+while (i <= 5000) DO
+insert into t1 values (i, 'a', 'b');
+insert into t2 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+set autocommit = 0;
+# set debug point ib_crash_during_tablespace_extension
+set session debug="+d,ib_crash_during_tablespace_extension";
+select count(*) from t1;
+count(*)
+5000
+select count(*) from t2;
+count(*)
+5000
+commit;
+show tables;
+Tables_in_test
+t2
+select count(*) from t1;
+count(*)
+5000
+select count(*) from t2;
+count(*)
+5000
+# stnt will result in tablespace extension
+call populate_t1_t2();
+ERROR HY000: Lost connection to MySQL server during query
+use test;
+show tables;
+Tables_in_test
+t2
+select count(*) from t2;
+count(*)
+5000
+select * from t2 limit 10;
+a	b	c
+1	a	b
+2	a	b
+3	a	b
+4	a	b
+5	a	b
+6	a	b
+7	a	b
+8	a	b
+9	a	b
+10	a	b
+set autocommit = 1;
+truncate table t2;
+select count(*) from t2;
+count(*)
+0
+drop procedure populate_t1_t2;
+drop table t2;
+use test;
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+create table t2
+(a int, b char(100), c char(100)) engine = innodb;
+insert into t1 values (1, 'a', 'b');
+insert into t2 values (1, 'a', 'b');
+select * from t1;
+a	b	c
+1	a	b
+select * from t2;
+a	b	c
+1	a	b
+set session debug="+d,crash_commit_after";
+insert into t2 values (2, 'a', 'b');
+ERROR HY000: Lost connection to MySQL server during query
+use test;
+show tables;
+Tables_in_test
+t2
+select * from t2;
+a	b	c
+1	a	b
+2	a	b
+insert into t2 values (3, 'a', 'b');
+select * from t2;
+a	b	c
+1	a	b
+2	a	b
+3	a	b
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+insert into t1 values (1, 'a', 'b');
+begin;
+insert into t2 values (4, 'a', 'b');
+# Kill and restart
+show tables;
+Tables_in_test
+t2
+select * from t2;
+a	b	c
+1	a	b
+2	a	b
+3	a	b
+update t2 set a = a * -1;
+select * from t2 order by a;
+a	b	c
+-3	a	b
+-2	a	b
+-1	a	b
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+insert into t1 values (1, 'a', 'b');
+begin;
+insert into t1 values (4, 'a', 'b');
+# Kill and restart
+show tables;
+Tables_in_test
+t2
+SELECT * from t2;
+a	b	c
+-1	a	b
+-2	a	b
+-3	a	b
+update t2 set a = a * -1;
+SELECT * from t2 order by a;
+a	b	c
+1	a	b
+2	a	b
+3	a	b
+drop table t2;

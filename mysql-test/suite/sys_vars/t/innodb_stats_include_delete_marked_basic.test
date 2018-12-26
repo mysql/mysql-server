@@ -1,0 +1,52 @@
+ ###############################################################################
+#                                                                             #
+# Variable Name: innodb_stats_include_delete_marked                           #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2016-08-29                                                   #
+# Author : Aditya                                                             #
+#                                                                             #
+#                                                                             #
+# Description:                                                                #
+#              * Value check                                                  #
+#              * Scope check                                                  #
+#                                                                             #
+###############################################################################
+
+
+####################################################################
+#   Display default value                                          #
+####################################################################
+SELECT @@innodb_stats_include_delete_marked;
+
+SET GLOBAL innodb_stats_include_delete_marked=1;
+
+SELECT @@innodb_stats_include_delete_marked;
+
+# check error
+--error ER_GLOBAL_VARIABLE
+SET SESSION innodb_stats_include_delete_marked=1;
+
+# check error
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_stats_include_delete_marked=100;
+
+# check error
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_stats_include_delete_marked=foo;
+
+SET GLOBAL innodb_stats_include_delete_marked=OFF ;
+
+SELECT @@innodb_stats_include_delete_marked;
+
+SET GLOBAL innodb_stats_include_delete_marked=ON ;
+
+SELECT @@innodb_stats_include_delete_marked;
+
+# Check with default setting
+SET GLOBAL innodb_stats_include_delete_marked=Default ;
+
+SELECT @@innodb_stats_include_delete_marked;

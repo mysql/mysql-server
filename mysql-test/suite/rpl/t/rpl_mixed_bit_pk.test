@@ -1,0 +1,85 @@
+#
+# BUG
+# ---
+#  BUG#39753: Replication failure on MIXED + bit + myisam + no PK
+#
+# Description
+# -----------
+#  Simple statements against a bit column cause failure in mixed-mode
+#  replication.
+#
+#  Implementation is as follows:
+#     i) A table with two bit fields is created. One of them is a key.
+#    ii) A record is inserted without specifying the key value.
+#   iii) The record is deleted using a where clause that matches it.
+#    iv) repeat i-iii) for bit key that has different size, generating
+#        different extra bits values 
+#     v) The slave is synchronized with master 
+#    vi) The table is dropped on master and the slave is re-synchronized
+#        with master.
+#
+#  Step v) made the bug evident before the patch, as the slave would 
+#  fail to find the correspondent row in its database (although it did
+#  the insert in step ii) ).
+#
+# Obs
+# --- 
+#  This test is based on the "how to repeat" section from the bug report.
+#
+#
+
+--source include/not_group_replication_plugin.inc
+--source include/have_myisam.inc
+--source include/master-slave.inc
+
+disable_query_log;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
+--disable_warnings
+# setup
+
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
+CREATE TABLE t1 (`bit_key` bit, `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t2 (`bit_key` bit(4), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t3 (`bit_key` bit(7), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t4 (`bit_key` bit(8), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t5 (`bit_key` bit(9), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t6 (`bit_key` bit(14), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t7 (`bit_key` bit(15), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+CREATE TABLE t8 (`bit_key` bit(16), `bit` bit, key (`bit_key` )) ENGINE=MyISAM;
+
+# insert and delete
+INSERT INTO `t1` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t1` WHERE `bit` < 2 LIMIT 4;
+
+INSERT INTO `t2` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t2` WHERE `bit` < 2 LIMIT 4;
+
+INSERT INTO `t3` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t3` WHERE `bit` < 2 LIMIT 4;
+
+INSERT INTO `t4` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t4` WHERE `bit` < 2 LIMIT 4;
+
+INSERT INTO `t5` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t5` WHERE `bit` < 2 LIMIT 4;
+
+INSERT INTO `t6` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t6` WHERE `bit` < 2 LIMIT 4;
+
+INSERT INTO `t7` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t7` WHERE `bit` < 2 LIMIT 4;
+
+INSERT INTO `t8` ( `bit` ) VALUES ( 0 );
+DELETE FROM `t8` WHERE `bit` < 2 LIMIT 4;
+
+
+--enable_warnings
+--source include/sync_slave_sql_with_master.inc
+
+# clean up 
+connection master;
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

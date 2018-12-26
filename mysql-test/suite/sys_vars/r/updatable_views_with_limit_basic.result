@@ -1,0 +1,183 @@
+SET @start_global_value = @@global.updatable_views_with_limit;
+SELECT @start_global_value;
+@start_global_value
+YES
+SET @start_session_value = @@session.updatable_views_with_limit;
+SELECT @start_session_value;
+@start_session_value
+YES
+'#--------------------FN_DYNVARS_005_01-------------------------#'
+SET @@global.updatable_views_with_limit = 'NO';
+SET @@global.updatable_views_with_limit = DEFAULT;
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+YES
+SET @@session.updatable_views_with_limit = 'NO';
+SET @@session.updatable_views_with_limit = DEFAULT;
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+YES
+'#--------------------FN_DYNVARS_005_02-------------------------#'
+SET @@global.updatable_views_with_limit = DEFAULT;
+SELECT @@global.updatable_views_with_limit = 'Yes';
+@@global.updatable_views_with_limit = 'Yes'
+1
+SET @@session.updatable_views_with_limit = DEFAULT;
+SELECT @@session.updatable_views_with_limit ='Yes';
+@@session.updatable_views_with_limit ='Yes'
+1
+'#--------------------FN_DYNVARS_005_03-------------------------#'
+SET @@global.updatable_views_with_limit = NO;
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+NO
+SET @@global.updatable_views_with_limit = 'NO';
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+NO
+SET @@global.updatable_views_with_limit = YES;
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+YES
+SET @@global.updatable_views_with_limit = 'YES';
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+YES
+SET @@global.updatable_views_with_limit = "NO";
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+NO
+SET @@global.updatable_views_with_limit = "YES";
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+YES
+SET @@global.updatable_views_with_limit = 1;
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+YES
+SET @@global.updatable_views_with_limit = 0;
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+NO
+SET @@global.updatable_views_with_limit = TRUE;
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+YES
+SET @@global.updatable_views_with_limit = False;
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+NO
+'#--------------------FN_DYNVARS_005_04-------------------------#'
+SET @@session.updatable_views_with_limit = NO;
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+NO
+SET @@session.updatable_views_with_limit = 'NO';
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+NO
+SET @@session.updatable_views_with_limit = YES;
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+YES
+SET @@session.updatable_views_with_limit = 'YES';
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+YES
+SET @@session.updatable_views_with_limit = "YES";
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+YES
+SET @@session.updatable_views_with_limit = "NO";
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+NO
+SET @@session.updatable_views_with_limit =1;
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+YES
+SET @@session.updatable_views_with_limit = 0;
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+NO
+SET @@session.updatable_views_with_limit = True;
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+YES
+SET @@session.updatable_views_with_limit = False;
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+NO
+'#------------------FN_DYNVARS_005_05-----------------------#'
+SET @@global.updatable_views_with_limit = "TRUE";
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'TRUE'
+SET @@global.updatable_views_with_limit = -1024;
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of '-1024'
+SET @@global.updatable_views_with_limit = 2345;
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of '2345'
+SET @@global.updatable_views_with_limit = "FALSE";
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'FALSE'
+SET @@global.updatable_views_with_limit = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'updatable_views_with_limit'
+SET @@global.updatable_views_with_limit ="Testing";
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'Testing'
+SET @@session.updatable_views_with_limit = "ON";
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'ON'
+SET @@session.updatable_views_with_limit = "OFF";
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'OFF'
+SET @@session.updatable_views_with_limit = "True";
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'True'
+SET @@session.updatable_views_with_limit = "False";
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'False'
+SET @@session.updatable_views_with_limit = "Test";
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'Test'
+SET @@session.updatable_views_with_limit = 'test';
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'test'
+SET @@session.updatable_views_with_limit = 123456789031;
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of '123456789031'
+'#------------------FN_DYNVARS_005_06-----------------------#'
+SELECT @@global.updatable_views_with_limit = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='updatable_views_with_limit';
+@@global.updatable_views_with_limit = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_005_07-----------------------#'
+SELECT @@session.updatable_views_with_limit = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='updatable_views_with_limit';
+@@session.updatable_views_with_limit = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_001_08----------------------#'
+SET @@global.updatable_views_with_limit = NO;
+SET @@session.updatable_views_with_limit = YES;
+SELECT @@updatable_views_with_limit = @@global.updatable_views_with_limit;
+@@updatable_views_with_limit = @@global.updatable_views_with_limit
+0
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@updatable_views_with_limit = YES;
+SELECT @@updatable_views_with_limit = @@local.updatable_views_with_limit;
+@@updatable_views_with_limit = @@local.updatable_views_with_limit
+1
+SELECT @@local.updatable_views_with_limit = @@session.updatable_views_with_limit;
+@@local.updatable_views_with_limit = @@session.updatable_views_with_limit
+1
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET updatable_views_with_limit = 1027;
+ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of '1027'
+SELECT @@updatable_views_with_limit;
+@@updatable_views_with_limit
+YES
+SELECT local.updatable_views_with_limit;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.updatable_views_with_limit;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT updatable_views_with_limit = @@session.updatable_views_with_limit;
+ERROR 42S22: Unknown column 'updatable_views_with_limit' in 'field list'
+SET @@global.updatable_views_with_limit = @start_global_value;
+SELECT @@global.updatable_views_with_limit;
+@@global.updatable_views_with_limit
+YES
+SET @@session.updatable_views_with_limit = @start_session_value;
+SELECT @@session.updatable_views_with_limit;
+@@session.updatable_views_with_limit
+YES

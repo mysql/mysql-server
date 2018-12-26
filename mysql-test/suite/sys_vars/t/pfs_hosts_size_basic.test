@@ -1,0 +1,32 @@
+
+#
+# Only global
+#
+
+select @@global.performance_schema_hosts_size;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.performance_schema_hosts_size;
+
+show global variables like 'performance_schema_hosts_size';
+
+show session variables like 'performance_schema_hosts_size';
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_hosts_size';
+
+select * from performance_schema.session_variables
+  where variable_name='performance_schema_hosts_size';
+--enable_warnings
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global performance_schema_hosts_size=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session performance_schema_hosts_size=1;
+

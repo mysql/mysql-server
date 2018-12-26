@@ -1,0 +1,57 @@
+#
+# Test of the various values of the verbose variable.
+#
+SET sql_mode = 'PIPES_AS_CONCAT';
+# Query rewrite plugin was installed.
+SHOW VARIABLES LIKE 'Rewriter_verbose';
+Variable_name	Value
+rewriter_verbose	1
+# We want notes to show in the error log.
+SET @orig_log_error_verbosity= @@GLOBAL.log_error_verbosity;
+SET @@global.log_error_verbosity=3;
+SELECT @@log_error_verbosity;
+@@log_error_verbosity
+3
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT 1', 'SELECT "rewritten"' );
+CALL query_rewrite.flush_rewrite_rules();
+UPDATE performance_schema.setup_consumers
+SET enabled = 'YES'
+WHERE NAME = 'events_statements_history';
+SET @@global.rewriter_verbose = 2;
+SELECT 1;
+rewritten
+rewritten
+Warnings:
+Note	1105	Query 'SELECT 1' rewritten to 'SELECT "rewritten"' by a query rewrite plugin
+SELECT 'nonrewritten';
+nonrewritten
+nonrewritten
+SET @@global.rewriter_verbose = DEFAULT;
+CREATE TABLE IF NOT EXISTS error_log ( line TEXT );
+DELETE FROM error_log;
+LOAD DATA LOCAL INFILE 'ERROR_LOG'
+INTO TABLE error_log FIELDS TERMINATED BY '\t';
+UPDATE error_log SET line = replace ( line, '\r', '' );
+SELECT search_error_log( '[Note]', "%Plugin Rewriter reported: " ||
+"'Statement \"SELECT 'nonrewritten'\"%" ) INTO @line;
+SELECT @line;
+@line
+[Note] [MY-011235] [Server] Plugin Rewriter reported: 'Statement "SELECT 'nonrewritten'" with digest "d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae" did not match any rule.'
+SELECT digest INTO @pfs_digest
+FROM performance_schema.events_statements_history_long
+WHERE sql_text = "SELECT 'nonrewritten'"
+LIMIT 1;
+# Mask out the digest from the message
+SELECT substring_index(substring_index(@line, 'digest "', -1), '"', 1)
+INTO @log_digest;
+SELECT @pfs_digest = @log_digest AS digest_is_correct;
+digest_is_correct
+1
+DROP TABLE error_log;
+DROP FUNCTION search_error_log;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
+SET sql_mode = DEFAULT;
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;

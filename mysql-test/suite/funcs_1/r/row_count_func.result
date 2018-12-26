@@ -1,0 +1,79 @@
+
+# -- 
+# -- Test case for Bug#21818.
+# -- 
+
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+# -- Check 1.
+SELECT * FROM t1 INTO OUTFILE "MYSQL_TMP_DIR/bug21818.txt";
+affected rows: 3
+
+SELECT ROW_COUNT();
+ROW_COUNT()
+3
+
+# -- Check 2.
+SELECT a FROM t1 LIMIT 1 INTO @a;
+affected rows: 1
+
+SELECT ROW_COUNT();
+ROW_COUNT()
+1
+
+# -- Check 3.
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+affected rows: 1
+
+SELECT ROW_COUNT();
+ROW_COUNT()
+1
+DROP DATABASE mysqltest1;
+
+# -- Check 4.
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQL_TMP_DIR/bug21818.txt' INTO TABLE t1(a);
+affected rows: 3
+info: Records: 3  Deleted: 0  Skipped: 0  Warnings: 0
+
+SELECT ROW_COUNT();
+ROW_COUNT()
+3
+
+# -- Check 5.
+ALTER TABLE t1 ADD COLUMN b VARCHAR(255);
+affected rows: 3
+info: Records: 3  Duplicates: 0  Warnings: 0
+
+SELECT ROW_COUNT();
+ROW_COUNT()
+3
+
+DROP TABLE t1;
+
+# -- Check 6.
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1(a INT) ENGINE = MyISAM;
+CREATE TABLE t2(a INT) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (ROW_COUNT());
+SELECT * FROM t2;
+a
+3
+DROP TABLE t1;
+DROP TABLE t2;
+
+# -- Check 7 (check that SQL errors reset row_count to -1).
+CREATE TABLE t1(a INT) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+SELECT f1();
+ERROR 42000: FUNCTION test.f1 does not exist
+SELECT ROW_COUNT();
+ROW_COUNT()
+-1
+DROP TABLE t1;
+
+# -- End of test case for Bug#21818.

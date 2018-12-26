@@ -1,0 +1,63 @@
+#
+# Inserts some rules, tests them and then inserts another one.
+#
+use test;
+CREATE TABLE t1 ( c1 VARCHAR(10), c2 VARCHAR(10) );
+INSERT INTO t1 VALUES ( 'abc', 'def' ),
+( 'ghi', 'klm' ),
+( 'nop', 'qrs' );
+CREATE TABLE t2 ( c1 VARCHAR(10) );
+INSERT INTO t2 VALUES ( 'abc' ),
+( 'klm' );
+# Query rewrite plugin was installed.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1 WHERE ( c1 = ? AND TRUE ) OR c2 = ?',
+'SELECT c1 FROM test.t1 WHERE c1 = ?' ),
+( 'SELECT * FROM test.t2',
+'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = t2.c1' );
+CALL query_rewrite.flush_rewrite_rules();
+SHOW STATUS LIKE 'Rewriter_number_loaded_rules';
+Variable_name	Value
+Rewriter_number_loaded_rules	2
+SHOW STATUS LIKE 'Rewriter_number_reloads';
+Variable_name	Value
+Rewriter_number_reloads	2
+SELECT c2 FROM test.t1;
+c2
+def
+klm
+qrs
+# Check that a rewrite works.
+SELECT * FROM test.t2;
+c1	c2	c1
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = t2.c1' by a query rewrite plugin
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c2 FROM test.t1', 'SELECT * FROM test.t1' );
+CALL query_rewrite.flush_rewrite_rules();
+SHOW STATUS LIKE 'Rewriter_number_loaded_rules';
+Variable_name	Value
+Rewriter_number_loaded_rules	3
+SHOW STATUS LIKE 'Rewriter_number_reloads';
+Variable_name	Value
+Rewriter_number_reloads	3
+SET @@global.rewriter_verbose = 2;
+# Check that the new rule works.
+SELECT c2 FROM test.t1;
+c1	c2
+abc	def
+ghi	klm
+nop	qrs
+Warnings:
+Note	1105	Query 'SELECT c2 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by a query rewrite plugin
+# Check that the old rewrites still work.
+SELECT * FROM test.t2;
+c1	c2	c1
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = t2.c1' by a query rewrite plugin
+DROP TABLE t1, t2;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

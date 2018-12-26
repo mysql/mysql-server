@@ -1,0 +1,56 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Verify the statements can be binlogged correctly when error happens
+# ------------------------------------------------------------------
+CREATE TABLE t1(c1 INT KEY) ENGINE=MyISAM;
+CREATE TABLE t2(c1 INT KEY) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+# Nothing is inserted.
+INSERT INTO t1 VALUES(1),(2);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+include/show_binlog_events.inc
+
+# A row is inserted.
+INSERT INTO t1 VALUES(2),(1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# Nothing is inserted.
+INSERT INTO t1 SELECT 1 UNION SELECT 2;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+include/show_binlog_events.inc
+
+# A row is inserted.
+INSERT INTO t1 SELECT 3 UNION SELECT 2;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# A row is updated.
+UPDATE t1 SET c1=4;
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+# Nothing is updated.
+UPDATE t1 SET c1=4;
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+include/show_binlog_events.inc
+
+# A row is updated.
+UPDATE t1, t2 SET t1.c1= 5, t2.c1=5;
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+Nothing is updated.
+UPDATE t1, t2 SET t1.c1= 5, t2.c1=5;
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+include/show_binlog_events.inc
+DROP TABLE t1, t2;
+include/rpl_end.inc

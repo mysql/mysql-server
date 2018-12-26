@@ -1,0 +1,178 @@
+
+#
+# Test behavior of various per-account limits (aka quotas)
+#
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+set @orig_sql_mode= @@sql_mode;
+
+# Prepare play-ground
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+# Just be sure that nothing will bother us
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+
+# Limits doesn't work with prepared statements (yet)
+--disable_ps_protocol
+
+# Test of MAX_QUERIES_PER_HOUR limit
+create user mysqltest_1@localhost with max_queries_per_hour 2;
+# This ensures that counters are reset and makes test scheduling independent
+flush user_resources;
+connect (mqph, localhost, mysqltest_1,,);
+connection mqph;
+select * from t1;
+select * from t1;
+--error ER_USER_LIMIT_REACHED
+select * from t1;
+connect (mqph2, localhost, mysqltest_1,,);
+connection mqph2;
+--error ER_USER_LIMIT_REACHED
+select * from t1;
+# cleanup
+connection default;
+drop user mysqltest_1@localhost;
+disconnect mqph;
+disconnect mqph2;
+
+# Test of MAX_UPDATES_PER_HOUR limit
+create user mysqltest_1@localhost with max_updates_per_hour 2;
+flush user_resources;
+connect (muph, localhost, mysqltest_1,,);
+connection muph;
+select * from t1;
+select * from t1;
+select * from t1;
+delete from t1;
+delete from t1;
+--error ER_USER_LIMIT_REACHED
+delete from t1;
+select * from t1;
+connect (muph2, localhost, mysqltest_1,,);
+connection muph2;
+--error ER_USER_LIMIT_REACHED
+delete from t1;
+select * from t1;
+# Cleanup
+connection default;
+drop user mysqltest_1@localhost;
+disconnect muph;
+disconnect muph2;
+
+# Test of MAX_CONNECTIONS_PER_HOUR limit
+create user mysqltest_1@localhost with max_connections_per_hour 2;
+flush user_resources;
+connect (mcph1, localhost, mysqltest_1,,);
+connection mcph1;
+select * from t1;
+connect (mcph2, localhost, mysqltest_1,,);
+connection mcph2;
+select * from t1;
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_USER_LIMIT_REACHED
+connect (mcph3, localhost, mysqltest_1,,);
+# Old connection is still ok
+select * from t1;
+# Let us try to close old connections and try again. This will also test that
+# counters are not thrown away if there are no connections for this user.
+disconnect mcph1;
+disconnect mcph2;
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_USER_LIMIT_REACHED
+connect (mcph3, localhost, mysqltest_1,,);
+# Cleanup
+connection default;
+drop user mysqltest_1@localhost;
+
+# Test of MAX_USER_CONNECTIONS limit
+# We need this to reset internal mqh_used variable
+flush privileges;
+create user mysqltest_1@localhost with max_user_connections 2;
+flush user_resources;
+connect (muc1, localhost, mysqltest_1,,);
+connection muc1;
+select * from t1;
+connect (muc2, localhost, mysqltest_1,,);
+connection muc2;
+select * from t1;
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_USER_LIMIT_REACHED
+connect (muc3, localhost, mysqltest_1,,);
+# Closing of one of connections should help
+disconnect muc1;
+connect (muc3, localhost, mysqltest_1,,);
+select * from t1;
+# Changing of limit should also help (and immediately)
+connection default;
+alter user mysqltest_1@localhost with max_user_connections 3;
+flush user_resources;
+connect (muc4, localhost, mysqltest_1,,);
+connection muc4;
+select * from t1;
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_USER_LIMIT_REACHED
+connect (muc5, localhost, mysqltest_1,,);
+# Clean up
+connection default;
+disconnect muc2;
+disconnect muc3;
+disconnect muc4;
+drop user mysqltest_1@localhost;
+
+# Now let us test interaction between global and per-account
+# max_user_connections limits
+select @@session.max_user_connections, @@global.max_user_connections;
+# Local max_user_connections variable can't be set directly
+# since this limit is per-account
+--error ER_VARIABLE_IS_READONLY
+set session max_user_connections= 2;
+# But it is ok to set global max_user_connections
+set global max_user_connections= 2;
+select @@session.max_user_connections, @@global.max_user_connections;
+# Let us check that global limit works
+create user mysqltest_1@localhost;
+flush user_resources;
+connect (muca1, localhost, mysqltest_1,,);
+connection muca1;
+select @@session.max_user_connections, @@global.max_user_connections;
+connect (muca2, localhost, mysqltest_1,,);
+connection muca2;
+select * from t1;
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_TOO_MANY_USER_CONNECTIONS
+connect (muca3, localhost, mysqltest_1,,);
+# Now we are testing that per-account limit prevails over gloabl limit
+connection default;
+alter user mysqltest_1@localhost with max_user_connections 3;
+flush user_resources;
+connect (muca3, localhost, mysqltest_1,,);
+connection muca3;
+select @@session.max_user_connections, @@global.max_user_connections;
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_USER_LIMIT_REACHED
+connect (muca4, localhost, mysqltest_1,,);
+# Cleanup
+connection default;
+disconnect muca1;
+disconnect muca2;
+disconnect muca3;
+set global max_user_connections= 0;
+drop user mysqltest_1@localhost;
+--enable_ps_protocol
+
+# Final cleanup
+drop table t1;
+
+set sql_mode= @orig_sql_mode;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

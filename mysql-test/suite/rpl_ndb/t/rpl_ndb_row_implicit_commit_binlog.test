@@ -1,0 +1,9 @@
+################################################################################
+# Check file extra/rpl_tests/rpl_implicit_commit_binlog.test
+################################################################################
+--source include/have_binlog_format_row.inc
+--source include/have_ndb.inc
+--source include/master-slave.inc
+
+--let $engine=NDB
+--source extra/rpl_tests/rpl_implicit_commit_binlog.test

@@ -1,0 +1,47 @@
+#------------------------------------------------------------------------------
+# Test mysql_tzinfo_to_sql program against bundled zoneinfo files.
+# The mysql_tzinfo_to_sql program loads the time zone tables in the mysql 
+# database. It is used on systems that have a zoneinfo database (the set of 
+# files describing time zones). 
+# Examples of such systems are Linux, FreeBSD, Solaris, and Mac OS X. One 
+# likely location for these files is the /usr/share/zoneinfo directory 
+# (/usr/share/lib/zoneinfo on Solaris) This test loads zoneinfo files from 
+# std_data/zoneinfo to ensure stability. 
+# usage: 
+# 1] mysql_tzinfo_to_sql tz_dir
+# 2] mysql_tzinfo_to_sql tz_file tz_name
+# 3] mysql_tzinfo_to_sql --leap tz_file
+# Test aims loading zone tables in the mysql with above command.
+# Data is loaded into zone table from test_zone database instead of mysql 
+# database.
+#------------------------------------------------------------------------------
+--source include/not_windows.inc
+
+# Create tables zone tables in test_zone database
+CREATE DATABASE test_zone;
+USE test_zone;
+CREATE TABLE time_zone as SELECT * FROM mysql.time_zone WHERE 1 = 0;
+CREATE TABLE time_zone_leap_second as SELECT * FROM mysql.time_zone_leap_second WHERE 1 = 0;
+CREATE TABLE time_zone_name as SELECT * FROM mysql.time_zone_name WHERE 1 = 0;
+CREATE TABLE time_zone_transition as SELECT * FROM mysql.time_zone_transition WHERE 1 = 0;
+CREATE TABLE time_zone_transition_type as SELECT * FROM mysql.time_zone_transition_type WHERE 1 = 0;
+
+--echo # Load zone table for Japanese zones. (mysql_tzinfo_to_sql std_data/Japan test_japan).
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/std_data/Japan test_japan >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+--source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+
+--echo # Load Moscow zone table with --leap option. (mysql_tzinfo_to_sql --leap std_data/Moscow_leap)
+--exec $MYSQL_TZINFO_TO_SQL --leap $MYSQLTEST_VARDIR/std_data/Moscow_leap >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+--source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+
+--echo # Load zone table files in Europe folder. (mysql_tzinfo_to_sql std_data/Europe)
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/std_data/Europe >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+--source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
+
+# Load timezone info file with garbage content
+--error 1
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/std_data/Factory test_junk_content
+
+# Cleanup
+DROP DATABASE test_zone;
+--remove_file $MYSQLTEST_VARDIR/tmp/loadzonefile.sql

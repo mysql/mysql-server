@@ -1,0 +1,146 @@
+RUN drop schema if exists xtest
+
+0 rows affected
+RUN create schema xtest
+
+1 rows affected
+RUN use xtest
+
+0 rows affected
+RUN create table mycoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY)
+
+0 rows affected
+RUN insert into mycoll (doc, _id) values ('{"_id": "1", "name": "Joe1"}', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into mycoll (doc, _id) values ('{"_id": "2", "name": "Joe2", "last_name": "Smith"}', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into mycoll (doc, _id) values ('{"_id": "3", "name": "Joe2", "last_name": "Shmo"}', json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN create table mytable (id int primary key, name varchar(40), price decimal(5,2), info json)
+
+0 rows affected
+RUN insert into mytable values (1, 'banana', 1.20, '{"color": "yellow"}')
+
+1 rows affected
+RUN insert into mytable values (2, 'apple', 0.25, '{"color":"red"}')
+
+1 rows affected
+RUN insert into mytable values (3, 'tomato', 1.80, '{"color":"red"}')
+
+1 rows affected
+RUN insert into mytable values (4, 'mango', 3.14, '{"color":"green"}')
+
+1 rows affected
+RUN insert into mytable values (5, 'orange', 0.90, '{"color":"orange"}')
+
+1 rows affected
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "mytable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: ">"
+          param {
+            type: IDENT
+            identifier {
+              name: "bla"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_DOUBLE
+              v_double: 100
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "=="
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "color"
+              }
+              name: "info"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "red"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1054
+  msg: "Unknown column \'bla\' in \'where clause\'"
+  sql_state: "42S22"
+}
+
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "mytable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "bogus"
+          }
+          name: "info"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "red"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+0 rows affected
+RUN drop schema if exists xtest
+
+2 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

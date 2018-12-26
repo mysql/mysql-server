@@ -1,0 +1,256 @@
+################################################################################
+# The aim of the testcase is to test GR with 'READ-COMMITTED' isolation level
+#
+# Test:
+# 0. Start 2 servers with GR
+# 1. Set isolation level to 'READ-COMMITTED' on both server1, server2
+# 2. Create a table (t1), Insert some data
+# 3. Check the negative scenarios with conflicting transaction,
+#    3.1 set a debug sync and execute a transaction (T1) on server_1 so that it
+#         is blocked before broadcast.
+#    3.2 check that changes made in connection server_1 has not propogated and
+#        wait until server1 reaches the debug sync point.
+#    3.3 execute a conflicting transaction (T2) on server2 that will reach
+#        certification first.
+#    3.4 Signal the waiting thread on server1 to resume.
+#    3.5 Check the error on server1, it will rollback T1 as it is conflicting
+#        with T2.
+#    Another conflicting transaction, but transaction will rollback
+#    3.6 ROLL BACK a transaction on server1
+#    3.7 Execute a transaction on server2
+#    3.8 Transaction originated on server2 will be successful as ROLLED BACK
+#        transactions are not broadcasted.
+# 4. Check the positive scenarios with non-conflicting transaction,
+#    4.1 set a debug sync and execute a transaction (T1) on server_1 so that it
+#         is blocked before broadcast.
+#    4.2 wait until server1 reaches the debug sync point.
+#    4.3 execute a non-conflicting transaction (T2) on server2 that will reach
+#        certification first.
+#    4.4 Signal the waiting thread on server1 to resume.
+#    4.5 Check that both T1 and T2 are executed successfully.
+# 5. Validate that server1, server2 has same set of data and assert that number
+#    of negatively certified queries are expected ones.
+# 6. clean-up
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ## 1. Set global isolation level to 'READ-COMMITTED' on server1, server2
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Store default isolation level
+SET @transaction_isolation_global_orig = @@global.transaction_isolation;
+SET GLOBAL transaction_isolation= 'READ-COMMITTED';
+SET @transaction_isolation_session_orig = @@global.transaction_isolation;
+SET SESSION transaction_isolation= 'READ-COMMITTED';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @transaction_isolation_global_orig = @@global.transaction_isolation;
+SET GLOBAL transaction_isolation= 'READ-COMMITTED';
+SET @transaction_isolation_session_orig = @@global.transaction_isolation;
+SET SESSION transaction_isolation= 'READ-COMMITTED';
+
+--echo
+--echo ## 2. Create table and insert some data
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (10),(20);
+--source include/rpl_sync.inc
+
+--echo
+--echo ## 3.1 Set a debug sync before broadcast message to group on server1
+--echo ##    Commit a transaction that will be blocked before broadcast.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+BEGIN;
+UPDATE t1 set a= 1 where a= 10;
+--send COMMIT
+
+--echo
+--echo ## 3.2 Wait until server_1 connection reaches the
+--echo ##    'group_replication_before_message_broadcast' debug sync point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Assert that data on t1 remain unchanged
+--let $assert_text= 'Table t1 should contain a row with a=10'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 where t1.a= 10, count, 1]= 1
+--source include/assert.inc
+
+--let $assert_text= 'Table t1 should contain a row with a=20'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 where t1.a= 20, count, 1]= 1
+--source include/assert.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--echo
+--echo ## 3.3. Execute a transaction on server2, that will reach first
+--echo ##    certification, since server_1 is blocked before broadcast.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=10;
+DELETE FROM t1 where a=20;
+COMMIT;
+
+--echo
+--echo ## 3.4 Signal the waiting thread on server1 to resume.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--echo
+--echo ## 3.5 It will end up in an error stating that it was aborted, since
+--echo ##     transactions are conflicting and server2 was ordered first.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+--reap
+
+--echo
+--echo ## 3.6 ROLL BACK a transaction on server1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+BEGIN;
+UPDATE t1 set a= 30 where a= 3;
+--send ROLLBACK
+
+--echo
+--echo ## 3.7 Execute a transaction on server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+BEGIN;
+UPDATE t1 SET a=10 WHERE a=3;
+COMMIT;
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ## 3.8 Transaction originated on server2 will be successful as ROLLED BACK
+--echo ##     transactions are not broadcasted.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+
+--echo ## Validating data on server1 and server2
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= 'Table t1 has a row with a=10'
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 10, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= 'Table t1 will contain 1 row after the above execution'
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1, count, 1]" = "1"
+--source include/assert.inc
+
+# Check that t1 on Server1, Server2 has same data
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo ## Checking the positive case in which there is no conflict.
+--echo
+--echo ## 4.1 Commit a transaction that will be block before broadcast.
+--echo ##     Set a debug sync before broadcast message to group on server1.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SELECT * FROM t1;
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+BEGIN;
+INSERT INTO t1 VALUES (2);
+--send COMMIT
+
+--echo
+--echo ## 4.2 Wait until server_1 connection reaches the
+--echo ## group_replication_before_message_broadcast debug sync point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--echo
+--echo ## 4.3 Execute a non-conflicting transaction on server2, that will reach
+--echo ##    first certification, since server_1 is blocked before broadcast.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+UPDATE t1 SET a=1 where a=10;
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ## 4.4 Signal the waiting thread on server_1 to resume.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--echo
+--echo ## 4.5 Transaction will be executed
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+
+--source include/rpl_sync.inc
+--echo
+--echo ## 5. Assert that number of certified transactions are the
+--echo ##    expected ones.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Table t1 will contain row with a=1'
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 1, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= 'Table t1 will contain row with a=2'
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 2, count, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= 'Table t1 will contain 2 rows after the above execution'
+--let $assert_cond= "[SELECT COUNT(*) AS count FROM t1, count, 1]" = "2"
+--source include/assert.inc
+
+--let $assert_text= 'The value of Count_Transactions_Checked should be 7 after starting group replication'
+--let $assert_cond= "[SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_Checked, 1]" = "7"
+--source include/assert.inc
+
+--let $assert_text= 'The value of Count_Conflicts_Detected should be 1 after starting group replication'
+--let $assert_cond= "[SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Conflicts_Detected, 1]" = "1"
+--source include/assert.inc
+
+# Check that t1 on Server1, Server2 has same data
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo ## 6. Clean up.
+
+# Restore original isolation levels
+SET GLOBAL transaction_isolation= @transaction_isolation_global_orig;
+SET SESSION transaction_isolation= @transaction_isolation_session_orig;
+
+SET DEBUG_SYNC='RESET';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL transaction_isolation= @transaction_isolation_global_orig;
+SET SESSION transaction_isolation= @transaction_isolation_session_orig;
+# Drop table
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

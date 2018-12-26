@@ -1,0 +1,110 @@
+# suite/funcs_1/t/charset_collation.test
+#
+# Tests checking the content of the information_schema tables
+#      character_sets
+#      collations
+#      collation_character_set_applicability
+# This test is not dedicated to check some storage engine. 
+#
+# Created:
+# 2009-04-28 mleich Replace the charset_collation_* test which failed too often
+#                   because of changes
+#                   - in general available character sets and collations
+#                   - in build types
+#                   (Bug#40545, Bug#40209, Bug#40618, Bug#38346)
+#
+
+# Create a low privileged user.
+--error 0, ER_CANNOT_USER
+DROP USER dbdict_test@localhost;
+CREATE USER dbdict_test@localhost;
+
+--echo # Establish connection con (user=dbdict_test)
+connect (con,localhost,dbdict_test,,);
+################################################################################
+#
+# The original requirements for the following tests were:
+#
+# 3.2.2.2: Ensure that the table (information_schema.character_sets) shows the
+#          relevant information on every character set for which the current
+#          user or PUBLIC have the USAGE privilege.
+#
+# 3.2.2.3: Ensure that the table (information_schema.character_sets) does not
+#          show any information on any character set for which the current user
+#          or PUBLIC have no USAGE privilege.
+#
+#
+# 3.2.3.2: Ensure that the table (information_schema.collations) shows the
+#          relevant information on every collation for which the current user
+#          or PUBLIC have the USAGE privilege.
+#
+# 3.2.3.3: Ensure that the table (information_schema.collations) does not show
+#          any information on any collations for which the current user and
+#          PUBLIC have no USAGE privilege.
+#
+#
+# 3.2.4.2: Ensure that the table
+#                information_schema.collation_character_set_applicability
+#          shows the relevant information on every collation/character set
+#          combination for which the current user or PUBLIC have the USAGE
+#          privilege.
+#
+# 3.2.4.3: Ensure that the table
+#                information_schema.collation_character_set_applicability
+#          does not show any information on any collation/character set
+#          combinations for which the current user and PUBLIC have no
+#          USAGE privilege.
+#
+# Notes (2009-04-28 mleich):
+# - The requirements are outdated because grant/revoke privilege for using a
+#   characterset/collation were never implemented.
+#   Therefore the tests focus on the completeness and correctness of the
+#   content (rows and columns) of these tables.
+# - The amount of collations/character sets grows with new MySQL releases.
+#   Even within the same release the amount of records within these tables
+#   can differ between different build types (community, enterprise, source,...)
+#   Therefore we limit the queries to character sets and collations which
+#   - exist in all build types
+#   - have in all build types the same "state".
+#   The character set
+#   - utf8 is used for Metadata
+#   - ascii is a quite usual
+#   The collations <character set>_general_ci and <character set>_bin seem
+#   to be available all time.
+#
+################################################################################
+
+let $char_set_condition= character_set_name IN ('utf8','latin1','binary');
+let $collation_condition=
+   (collation_name LIKE CONCAT(character_set_name,'_general_ci')
+    OR
+    collation_name LIKE CONCAT(character_set_name,'_bin'));
+--echo
+eval SELECT *
+FROM information_schema.character_sets
+WHERE $char_set_condition
+ORDER BY character_set_name;
+
+--echo
+eval SELECT *
+FROM information_schema.collations
+WHERE $char_set_condition
+  AND $collation_condition
+ORDER BY collation_name;
+
+--echo
+eval SELECT *
+FROM information_schema.collation_character_set_applicability
+WHERE $char_set_condition
+  AND $collation_condition
+ORDER BY collation_name, character_set_name;
+
+
+# Cleanup
+connection con;
+disconnect con;
+--source include/wait_until_disconnected.inc
+--echo # Switch to connection default
+connection default;
+DROP USER dbdict_test@localhost;
+

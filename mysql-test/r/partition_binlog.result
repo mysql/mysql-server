@@ -1,0 +1,58 @@
+DROP TABLE IF EXISTS t1;
+#
+# Bug#58147: ALTER TABLE w/ TRUNCATE PARTITION fails
+#            but the statement is written to binlog
+#
+CREATE TABLE t1(id INT)
+PARTITION BY RANGE (id)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION pmax VALUES LESS THAN (MAXVALUE));
+INSERT INTO t1 VALUES (1), (10), (100), (1000);
+RESET MASTER;
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+ERROR HY000: Unknown partition 'p1' in table 't1'
+ALTER TABLE t1 DROP PARTITION p1;
+ERROR HY000: Error in list of partitions to DROP
+# No error returned, output in table format instead:
+ALTER TABLE t1 ANALYZE PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Error in list of partitions to test.t1
+test.t1	analyze	status	Operation failed
+ALTER TABLE t1 CHECK PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Error in list of partitions to test.t1
+test.t1	check	status	Operation failed
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Error in list of partitions to test.t1
+test.t1	optimize	status	Operation failed
+ALTER TABLE t1 REPAIR PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	Error in list of partitions to test.t1
+test.t1	repair	status	Operation failed
+ALTER TABLE t1 ANALYZE PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ALTER TABLE t1 CHECK PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+test.t1	optimize	status	OK
+ALTER TABLE t1 REPAIR PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+ALTER TABLE t1 TRUNCATE PARTITION p0;
+ALTER TABLE t1 DROP PARTITION p0;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; ALTER TABLE t1 ANALYZE PARTITION p1
+binlog.000001	#	Query	#	#	use `test`; ALTER TABLE t1 OPTIMIZE PARTITION p1
+binlog.000001	#	Query	#	#	use `test`; ALTER TABLE t1 REPAIR PARTITION p1
+binlog.000001	#	Query	#	#	use `test`; ALTER TABLE t1 ANALYZE PARTITION p0
+binlog.000001	#	Query	#	#	use `test`; ALTER TABLE t1 OPTIMIZE PARTITION p0
+binlog.000001	#	Query	#	#	use `test`; ALTER TABLE t1 REPAIR PARTITION p0
+binlog.000001	#	Query	#	#	use `test`; ALTER TABLE t1 TRUNCATE PARTITION p0
+binlog.000001	#	Query	#	#	use `test`; ALTER TABLE t1 DROP PARTITION p0
+DROP TABLE t1;

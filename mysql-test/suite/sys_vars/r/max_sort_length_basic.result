@@ -1,0 +1,221 @@
+SET @start_global_value = @@global.max_sort_length;
+SELECT @start_global_value;
+@start_global_value
+1024
+SET @start_session_value = @@session.max_sort_length;
+SELECT @start_session_value;
+@start_session_value
+1024
+'#--------------------FN_DYNVARS_084_01-------------------------#'
+SET @@global.max_sort_length = 1000;
+SET @@global.max_sort_length = DEFAULT;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+1024
+SET @@session.max_sort_length = 1000;
+SET @@session.max_sort_length = DEFAULT;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+1024
+'#--------------------FN_DYNVARS_084_02-------------------------#'
+SET @@global.max_sort_length = DEFAULT;
+SELECT @@global.max_sort_length = 1024;
+@@global.max_sort_length = 1024
+1
+SET @@session.max_sort_length = DEFAULT;
+SELECT @@session.max_sort_length = 1024;
+@@session.max_sort_length = 1024
+1
+'#--------------------FN_DYNVARS_084_03-------------------------#'
+SET @@global.max_sort_length = 4;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+4
+SET @@global.max_sort_length = 5;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+5
+SET @@global.max_sort_length = 8388608;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+8388608
+SET @@global.max_sort_length = 8388607;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+8388607
+SET @@global.max_sort_length = 65536;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+65536
+'#--------------------FN_DYNVARS_084_04-------------------------#'
+SET @@session.max_sort_length = 4;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+4
+SET @@session.max_sort_length = 5;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+5
+SET @@session.max_sort_length = 8388608;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+8388608
+SET @@session.max_sort_length = 8388607;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+8388607
+SET @@session.max_sort_length = 65536;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+65536
+'#------------------FN_DYNVARS_084_05-----------------------#'
+SET @@global.max_sort_length = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '-1024'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+4
+SET @@global.max_sort_length = 3;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '3'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+4
+SET @@global.max_sort_length = 8388609;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '8388609'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+8388608
+SET @@global.max_sort_length = 0;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '0'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+4
+SET @@global.max_sort_length = 1075692835;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '1075692835'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+8388608
+SET @@global.max_sort_length = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+8388608
+SET @@global.max_sort_length = test;
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+8388608
+SET @@global.max_sort_length = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+8388608
+SET @@session.max_sort_length = 8388610;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '8388610'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+8388608
+SET @@session.max_sort_length = -1;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '-1'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+4
+SET @@session.max_sort_length = 3;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '3'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+4
+SET @@session.max_sort_length = 0;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '0'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+4
+SET @@session.max_sort_length = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '-1024'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+4
+SET @@session.max_sort_length = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
+SET @@session.max_sort_length = 10737418241;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '10737418241'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+8388608
+SET @@session.max_sort_length = test;
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+8388608
+SET @@session.max_sort_length = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+8388608
+'#------------------FN_DYNVARS_084_06-----------------------#'
+SELECT @@global.max_sort_length = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='max_sort_length';
+@@global.max_sort_length = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_084_07-----------------------#'
+SELECT @@session.max_sort_length = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='max_sort_length';
+@@session.max_sort_length = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_084_08-----------------------#'
+SET @@global.max_sort_length = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '1'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+4
+SET @@global.max_sort_length = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '0'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+4
+'#---------------------FN_DYNVARS_084_09----------------------#'
+SET @@global.max_sort_length = 2048;
+SELECT @@max_sort_length = @@global.max_sort_length;
+@@max_sort_length = @@global.max_sort_length
+0
+'#---------------------FN_DYNVARS_084_10----------------------#'
+SET @@max_sort_length = 100000;
+SELECT @@max_sort_length = @@local.max_sort_length;
+@@max_sort_length = @@local.max_sort_length
+1
+SELECT @@local.max_sort_length = @@session.max_sort_length;
+@@local.max_sort_length = @@session.max_sort_length
+1
+'#---------------------FN_DYNVARS_084_11----------------------#'
+SET max_sort_length = 1024;
+SELECT @@max_sort_length;
+@@max_sort_length
+1024
+SELECT local.max_sort_length;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.max_sort_length;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT max_sort_length = @@session.max_sort_length;
+ERROR 42S22: Unknown column 'max_sort_length' in 'field list'
+SET @@global.max_sort_length = @start_global_value;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+1024
+SET @@session.max_sort_length = @start_session_value;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+1024

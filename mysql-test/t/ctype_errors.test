@@ -1,0 +1,63 @@
+
+--echo Start of 5.4 tests
+
+#
+# ls_messages
+#
+CREATE TABLE t1(f1 INT);
+connect (con1,localhost,root,,test);
+connection con1;
+SET lc_messages=ru_RU;
+SHOW VARIABLES LIKE 'lc_messages';
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE t1(f1 INT);
+SET NAMES utf8;
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE t1(f1 INT);
+connection default;
+SHOW VARIABLES LIKE 'lc_messages';
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE t1(f1 INT);
+
+SHOW GLOBAL VARIABLES LIKE 'lc_messages';
+SET GLOBAL lc_messages=ru_RU;
+SHOW GLOBAL VARIABLES LIKE 'lc_messages';
+SET GLOBAL lc_messages=en_US;
+
+disconnect con1;
+DROP TABLE t1;
+
+#
+# Bug#1406 Tablename in Errormessage not in default characterset
+#
+--error ER_BAD_TABLE_ERROR
+drop table `ק`;
+
+#
+# Bug#14602 Error messages not returned in character_set_results
+#
+connect (con1,localhost,root,,test);
+connection con1;
+SET lc_messages=cs_CZ;
+SET NAMES UTF8;
+--error ER_BAD_DB_ERROR
+USE nonexistant;
+disconnect con1;
+connection default;
+
+--echo #
+--echo # Bug#12736295: Buffer overflow for variable converted_err
+--echo #               with non-latin1 server error message
+--echo #
+
+connect (con1,localhost,root,,test);
+--echo # Connection con1
+SET lc_messages=ru_RU;
+SET NAMES latin1;
+--error ER_PARSE_ERROR
+--query SELECT '01234567890123456789012345678901234\'
+disconnect con1;
+--echo # Connection default
+connection default;
+
+--echo End of 5.5 tests

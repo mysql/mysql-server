@@ -1,0 +1,38 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 #
+select * from performance_schema.events_waits_summary_by_account_by_event_name
+  where event_name like 'Wait/Synch/%' limit 1;
+
+select * from performance_schema.events_waits_summary_by_account_by_event_name
+  where event_name='FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.events_waits_summary_by_account_by_event_name
+  set event_name='FOO', user='BAR', host='BAZ',
+  count_star=1, sum_timer_wait=2, min_timer_wait=3,
+  avg_timer_wait=4, max_timer_wait=5;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_waits_summary_by_account_by_event_name
+  set count_star=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_waits_summary_by_account_by_event_name
+  set count_star=12 where event_name like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_waits_summary_by_account_by_event_name
+  where count_star=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_waits_summary_by_account_by_event_name;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_waits_summary_by_account_by_event_name READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_waits_summary_by_account_by_event_name WRITE;
+UNLOCK TABLES;
+

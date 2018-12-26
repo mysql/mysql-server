@@ -1,0 +1,26 @@
+DROP DATABASE IF EXISTS test_jfg2;
+Warnings:
+Note	1008	Can't drop database 'test_jfg2'; database doesn't exist
+DROP DATABASE IF EXISTS test_jfg;
+Warnings:
+Note	1008	Can't drop database 'test_jfg'; database doesn't exist
+CREATE DATABASE test_jfg;
+CREATE DATABASE test_jfg2;
+CREATE TABLE test_jfg.test (a int unsigned NOT NULL PRIMARY KEY);
+RENAME TABLE test_jfg.test TO test_jfg2.test;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_DATAFILES  WHERE PATH LIKE "%test%";
+SPACE	PATH
+#	./test_jfg2/test.ibd
+DROP DATABASE test_jfg;
+# restart
+DROP DATABASE test_jfg2;
+CREATE DATABASE abc_def;
+CREATE DATABASE abc_def2;
+CREATE TABLE abc_def.test (a int unsigned NOT NULL PRIMARY KEY);
+RENAME TABLE abc_def.test TO abc_def2.test1;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE PATH LIKE "%test%";
+SPACE	PATH
+#	./abc_def2/test1.ibd
+DROP DATABASE abc_def;
+# restart
+DROP DATABASE abc_def2;

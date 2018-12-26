@@ -1,0 +1,54 @@
+reset master;
+create database mysqltest;
+use mysqltest;
+create table t1 (a int primary key, b int) engine=ndb;
+insert into t1 values (1, 1);
+use test;
+insert into mysqltest.t1 values(2,2);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+drop database mysqltest;
+--bug58698 Epoch not in ndb_apply_status 
+reset master;
+use mysql;
+-- MyISAM table in mysql db
+create table invisible(a int primary key) engine=myisam;
+insert into invisible values (1);
+insert into invisible values (2);
+delete from invisible;
+drop table invisible;
+-- Should be nothing in binlog
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-- Ndb table in mysql db
+create table invisible(a int primary key) engine=ndb;
+insert into invisible values (1);
+insert into invisible values (2);
+delete from invisible;
+drop table invisible;
+-- Should be nothing in binlog
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-- ndb_binlog_index table (MyISAM) in mysql db 
+insert into ndb_binlog_index values (12, 'F', 23, 0, 0, 0, 0, 3, 44, 55, 66, 'H');
+insert into ndb_binlog_index values (20, 'G', 23, 0, 0, 0, 0, 5, 44, 55, 77, 'I');
+delete from ndb_binlog_index;
+-- Should be nothing in binlog
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-- Non-ignored db (test2)
+create database test2;
+use test2;
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (1);
+insert into t1 values (2);
+delete from t1;
+drop table t1;
+drop database test2;
+-- Should have events in Binlog, *including ndb_apply_status*
+use test;
+create table raw_binlog_rows (txt varchar(1000));
+select count(1) > 0 from raw_binlog_rows where txt like '%ndb_apply_status%';
+count(1) > 0
+1
+drop table raw_binlog_rows;

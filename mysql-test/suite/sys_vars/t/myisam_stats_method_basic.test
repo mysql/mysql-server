@@ -1,0 +1,208 @@
+############## mysql-test\t\myisam_stats_method_basic.test ####################
+#                                                                             #
+# Variable Name: myisam_stats_method                                          #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: enumeration                                                      #
+# Default Value: nulls_equal                                                  #
+# Valid Values: nulls_equal, nulls_unequal                                    #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable myisam_stats_method      #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF myisam_stats_method TESTS                #
+######################################################################## 
+
+
+########################################################################### 
+#     Saving initial value of myisam_stats_method in a temporary variable #
+########################################################################### 
+
+SET @global_start_value = @@global.myisam_stats_method;
+SELECT @global_start_value;
+
+SET @session_start_value = @@session.myisam_stats_method;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_097_01------------------------#'
+######################################################################## 
+#                    Display the DEFAULT value of myisam_stats_method  #
+######################################################################## 
+
+SET @@global.myisam_stats_method = nulls_equal;
+SET @@global.myisam_stats_method = DEFAULT;
+SELECT @@global.myisam_stats_method;
+
+SET @@session.myisam_stats_method = nulls_equal;
+SET @@session.myisam_stats_method = DEFAULT;
+SELECT @@session.myisam_stats_method;
+
+
+--echo '#---------------------FN_DYNVARS_097_02-------------------------#'
+######################################################### 
+#      Check if NULL or empty value is accepeted        #
+######################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.myisam_stats_method = NULL;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.myisam_stats_method = '';
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.myisam_stats_method = NULL;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.myisam_stats_method = '';
+
+--echo '#--------------------FN_DYNVARS_097_03------------------------#'
+######################################################################## 
+#          Change the value of myisam_stats_method to a valid value    #
+######################################################################## 
+
+SET @@global.myisam_stats_method = 'nulls_equal';
+SELECT @@global.myisam_stats_method;
+
+SET @@global.myisam_stats_method = 'nulls_unequal';
+SELECT @@global.myisam_stats_method;
+
+SET @@global.myisam_stats_method = 'nulls_ignored';
+SELECT @@global.myisam_stats_method;
+
+--echo 'Bug: Value of nulls_ignored is not documented. Its ordinal value is 2'
+
+SET @@session.myisam_stats_method = 'nulls_equal';
+SELECT @@session.myisam_stats_method;
+
+SET @@session.myisam_stats_method = 'nulls_unequal';
+SELECT @@session.myisam_stats_method;
+
+SET @@session.myisam_stats_method = 'nulls_ignored';
+SELECT @@session.myisam_stats_method;
+
+
+--echo '#--------------------FN_DYNVARS_097_04-------------------------#'
+########################################################################### 
+#           Change the value of myisam_stats_method to invalid value      #
+########################################################################### 
+
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.myisam_stats_method = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.myisam_stats_method = unequal;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.myisam_stats_method = ENABLED;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.myisam_stats_method = 'equal';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.myisam_stats_method = 'null_equal';
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.myisam_stats_method = ' ';
+
+
+--echo '#-------------------FN_DYNVARS_097_05----------------------------#'
+######################################################################### 
+#     Check if the value in session Table matches value in variable     #
+#########################################################################
+
+--disable_warnings
+SELECT @@session.myisam_stats_method = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='myisam_stats_method';
+--enable_warnings
+
+--echo '#----------------------FN_DYNVARS_097_06------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT @@global.myisam_stats_method = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='myisam_stats_method';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_097_07-------------------------#'
+################################################################### 
+#        Check if numbers can be used on variable                 #
+################################################################### 
+
+# test if variable accepts 0,1,2
+SET @@global.myisam_stats_method = 0;
+SELECT @@global.myisam_stats_method;
+
+SET @@global.myisam_stats_method = 1;
+SELECT @@global.myisam_stats_method;
+
+SET @@global.myisam_stats_method = 2;
+SELECT @@global.myisam_stats_method;
+
+# use of decimal values
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.myisam_stats_method = 0.4;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.myisam_stats_method = 3;
+
+
+--echo '#---------------------FN_DYNVARS_097_08----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.myisam_stats_method = TRUE;
+SELECT @@global.myisam_stats_method;
+SET @@global.myisam_stats_method = FALSE;
+SELECT @@global.myisam_stats_method;
+
+--echo '#---------------------FN_DYNVARS_097_09----------------------#'
+#########################################################################  
+# Check if myisam_stats_method can be accessed with and without @@ sign #
+#########################################################################
+
+SET myisam_stats_method = 'nulls_equal';
+
+--Error ER_PARSE_ERROR
+SET session.myisam_stats_method = 'nulls_equal';
+--Error ER_PARSE_ERROR
+SET global.myisam_stats_method = 'nulls_equal';
+
+SET session myisam_stats_method = 'nulls_equal';
+SELECT @@myisam_stats_method;
+
+SET global myisam_stats_method = 'nulls_equal';
+SELECT @@global.myisam_stats_method;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.myisam_stats_method = @global_start_value;
+SELECT @@global.myisam_stats_method;
+
+SET @@session.myisam_stats_method = @session_start_value;
+SELECT @@session.myisam_stats_method;
+
+######################################################################## 
+#                    END OF myisam_stats_method TESTS                  #
+######################################################################## 

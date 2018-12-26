@@ -1,0 +1,42 @@
+#
+# Bug#24509 cannot use more than 2048 file descriptors on windows
+#
+
+#
+# This test requires approximately 6000 of files to be open simultaneously.
+# Let us skip it on platforms where open files limit is too low.
+let $max_open_files_limit= `SELECT @@open_files_limit < 6100`;
+if ($max_open_files_limit)
+{
+  skip Need open_files_limit to be greater than 6100;
+}
+
+--disable_query_log
+create database many_tables;
+use many_tables;
+let $max_tables=3000;
+let $i=$max_tables;
+
+--disable_warnings
+create table t (i int);
+let $table_list=t READ; 
+
+while ($i)
+{
+ eval create table t$i (i int);
+ let $table_list= $table_list ,t$i READ;
+ dec $i;
+}
+
+#lock all tables we just created (resembles mysqldump startup is doing with --all-databases operation)
+#There will be 2 descriptors for each table (table.MYI and table.MYD files) means 6000 files
+#descriptors altogether. For Microsoft C runtime, this is way too many.
+
+eval LOCK TABLES $table_list;
+unlock tables;
+
+drop database many_tables;
+--enable_query_log
+--echo all done
+
+

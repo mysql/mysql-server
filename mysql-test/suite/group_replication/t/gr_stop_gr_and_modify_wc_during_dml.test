@@ -1,0 +1,162 @@
+###############################################################################
+# WL#11512
+# While some DML's are happening on member M1, modify write_concurrency via M2
+# and M3, and then stop group replication on M3.
+#
+# This test attempts to validate the behaviour of the system when multiple event
+# horizon reconfigurations takes place concurrently with a node leaving the
+# group.
+
+# This test uses 3 servers M1, M2 and M3
+# M1 -> server1,  M2 -> server2, M3 -> server3
+#
+# Test:
+# 1. Start 3 servers and add them into group replication group
+# 2. Modify write_concurrency via M1
+# 3. Start a insert operation on M1 which inserts 500 records using "send call"
+# 4. While inserts are happening on M1:
+#    a. Modify write_concurrency via M2 almost simulateously with
+#    b. Modify write_concurrency and stop group replication on M3
+# 5. Modify write_concurrency via M2
+# 6. Check the number of servers online and status of servers
+# 7. Start group replication again on M3
+# 8. Validate servers' state
+# 9. Cleanup
+#
+# Note: based off gr_stop_gr_during_dml_01
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo ###############################################################################
+--echo # 2. Increase write_concurrency via M1
+--let $gr_write_concurrency= 15
+--eval SELECT group_replication_set_write_concurrency($gr_write_concurrency)
+--let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_write_concurrency
+--source include/wait_condition.inc
+
+--echo ################################################################################
+--echo # 3. Start a insert operation on M1 which inserts 500 records using "send call"
+CREATE TABLE test.t1 (a int primary key);
+
+# Ensure server2 already contains table test.t1 on step 4a.
+--source include/rpl_sync.inc
+
+USE test;
+delimiter $$;
+CREATE PROCEDURE insert_into_t1()
+     BEGIN
+     declare x INT;
+     set x=1;
+     while x<500 do
+     insert into t1 values (x);
+     set x=x+1;
+     end  while;
+     end$$
+delimiter ;$$
+--echo
+
+--echo ----call procedure----
+--send call insert_into_t1()
+--echo
+
+--echo ################################################################################
+--echo # 4. While inserts are happening on M1:
+--echo # 4a. Decrease write_concurrency via M2 once at least 50 records are replicated
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*)>=50 FROM test.t1
+--source include/wait_condition.inc
+
+--let $gr_write_concurrency_m2= 42
+--eval SELECT group_replication_set_write_concurrency($gr_write_concurrency_m2)
+
+--echo # 4b. Modify write_concurrency and stop group replication on M3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $gr_write_concurrency_m3= 23
+--eval SELECT group_replication_set_write_concurrency($gr_write_concurrency_m3)
+
+--source include/stop_group_replication.inc
+
+--echo ###############################################################################
+--echo # 5. Modify write_concurrency via M2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $gr_write_concurrency_m2= 10
+--eval SELECT group_replication_set_write_concurrency($gr_write_concurrency_m2)
+
+# NOTE:
+# We cannot be sure which ends up being the freshest write concurrency: 42, 23,
+# or 10. Therefore we abstain from asserting.
+# This is because group_replication_set_write_concurrency is asynchronous and
+# XCom, at least at the time of writing, does not enforce any particular order
+# between asynchronous calls. In this particular case, the outcome is not
+# necessarily equivalent to the order in which the calls to
+# group_replication_set_write_concurrency are written in the test.
+
+--echo ###############################################################################
+--echo # 6. Check the number of servers online and status of servers
+# reap has to be done after send
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+--let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--echo ###############################################################################
+--echo # 7. Start group replication again on M3
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+# M3 will download, in the worst case, all 499 records.
+# We set $wait_timeout to prevent include/start_group_replication.inc from
+# timing out.
+--let $wait_timeout= 600
+--source include/start_group_replication.inc
+
+--echo ###############################################################################
+--echo # 8. Validate servers' state
+# server 3
+--let $assert_text= 'server3 is supposed to have 499 records in test.t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 499
+--source include/assert.inc
+
+# server 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'server2 is supposed to have 499 records in test.t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 499
+--source include/assert.inc
+
+# server 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'server1 is supposed to have 499 records in test.t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 499
+--source include/assert.inc
+
+--echo ###############################################################################
+--echo # 9. Cleanup
+DROP TABLE test.t1;
+DROP PROCEDURE insert_into_t1;
+
+--source include/group_replication_end.inc
+

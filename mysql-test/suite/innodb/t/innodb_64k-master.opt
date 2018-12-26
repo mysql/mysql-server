@@ -1,0 +1,2 @@
+--innodb_buffer_pool_size=5M
+--bootstrap --innodb_page_size=64k

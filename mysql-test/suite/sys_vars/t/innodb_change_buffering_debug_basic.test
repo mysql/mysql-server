@@ -1,0 +1,59 @@
+--source include/have_debug.inc
+
+SET @start_global_value = @@global.innodb_change_buffering_debug;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.innodb_change_buffering_debug in (0, 1);
+select @@global.innodb_change_buffering_debug;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_change_buffering_debug;
+show global variables like 'innodb_change_buffering_debug';
+show session variables like 'innodb_change_buffering_debug';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering_debug';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering_debug';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_change_buffering_debug=1;
+select @@global.innodb_change_buffering_debug;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering_debug';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering_debug';
+--enable_warnings
+set @@global.innodb_change_buffering_debug=0;
+select @@global.innodb_change_buffering_debug;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering_debug';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering_debug';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session innodb_change_buffering_debug='some';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_change_buffering_debug='some';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_change_buffering_debug=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_change_buffering_debug='foo';
+set global innodb_change_buffering_debug=-2;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_change_buffering_debug=1e1;
+# The value 2 is supposed to kill the server if there are unmerged changes.
+# Do not try to set the value to 2 or anything that can be clamped to 2.
+#set global innodb_change_buffering_debug=2;
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_change_buffering_debug = @start_global_value;
+SELECT @@global.innodb_change_buffering_debug;

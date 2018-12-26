@@ -1,0 +1,275 @@
+drop table if exists `£Τ£±`;
+drop table if exists `£Τ£²`;
+drop table if exists `£Τ£³`;
+drop table if exists `£Τ£΄`;
+drop table if exists `£Τ£µ`;
+drop table if exists `£Τ£¶`;
+drop table if exists `£Τ£·`;
+drop table if exists `£Τ£Έ`;
+drop table if exists `£Τ£Ή`;
+SET NAMES ujis;
+SET character_set_database = ucs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET collation_connection = ucs2_general_ci;
+CREATE TABLE `£Τ£±` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£²` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£³` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£΄` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£µ` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£¶` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£·` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+INSERT INTO `£Τ£±` VALUES ('±'),('²'),('³');
+INSERT INTO `£Τ£²` VALUES ('¤Ά'),('¤¤'),('¤¦');
+INSERT INTO `£Τ£³` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£΄` VALUES ('±'),('²'),('³');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά'),('¤¤'),('¤¦');
+INSERT INTO `£Τ£¶` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£·` VALUES ('±'),('²'),('³');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά'),('¤¤'),('¤¦');
+INSERT INTO `£Τ£Ή` VALUES ('νά'),('νέ'),('νή');
+SELECT * FROM `£Τ£±`;
+£Γ£±
+±
+²
+³
+SELECT * FROM `£Τ£²`;
+£Γ£±
+¤Ά
+¤¤
+¤¦
+SELECT * FROM `£Τ£³`;
+£Γ£±
+νά
+νέ
+νή
+SELECT * FROM `£Τ£΄`;
+£Γ£±
+±
+²
+³
+SELECT * FROM `£Τ£µ`;
+£Γ£±
+¤Ά
+¤¤
+¤¦
+SELECT * FROM `£Τ£¶`;
+£Γ£±
+νά
+νέ
+νή
+SELECT * FROM `£Τ£·`;
+£Γ£±
+±
+²
+³
+SELECT * FROM `£Τ£Έ`;
+£Γ£±
+¤Ά
+¤¤
+¤¦
+SELECT * FROM `£Τ£Ή`;
+£Γ£±
+νά
+νέ
+νή
+SHOW CREATE TABLE `£Τ£±`;
+Table	Create Table
+£Τ£±	CREATE TABLE `£Τ£±` (
+  `£Γ£±` enum('±','²','³') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=InnoDB DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£²`;
+Table	Create Table
+£Τ£²	CREATE TABLE `£Τ£²` (
+  `£Γ£±` enum('¤Ά','¤¤','¤¦') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=InnoDB DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£³`;
+Table	Create Table
+£Τ£³	CREATE TABLE `£Τ£³` (
+  `£Γ£±` enum('νά','νέ','νή') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=InnoDB DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£΄`;
+Table	Create Table
+£Τ£΄	CREATE TABLE `£Τ£΄` (
+  `£Γ£±` enum('±','²','³') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£µ`;
+Table	Create Table
+£Τ£µ	CREATE TABLE `£Τ£µ` (
+  `£Γ£±` enum('¤Ά','¤¤','¤¦') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£¶`;
+Table	Create Table
+£Τ£¶	CREATE TABLE `£Τ£¶` (
+  `£Γ£±` enum('νά','νέ','νή') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£·`;
+Table	Create Table
+£Τ£·	CREATE TABLE `£Τ£·` (
+  `£Γ£±` enum('±','²','³') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£Έ`;
+Table	Create Table
+£Τ£Έ	CREATE TABLE `£Τ£Έ` (
+  `£Γ£±` enum('¤Ά','¤¤','¤¦') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£Ή`;
+Table	Create Table
+£Τ£Ή	CREATE TABLE `£Τ£Ή` (
+  `£Γ£±` enum('νά','νέ','νή') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
+DESC `£Τ£±`;
+Field	Type	Null	Key	Default	Extra
+£Γ£±	enum('±','²','³')	YES	MUL	NULL	
+DESC `£Τ£²`;
+Field	Type	Null	Key	Default	Extra
+£Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
+DESC `£Τ£³`;
+Field	Type	Null	Key	Default	Extra
+£Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
+DESC `£Τ£΄`;
+Field	Type	Null	Key	Default	Extra
+£Γ£±	enum('±','²','³')	YES	MUL	NULL	
+DESC `£Τ£µ`;
+Field	Type	Null	Key	Default	Extra
+£Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
+DESC `£Τ£¶`;
+Field	Type	Null	Key	Default	Extra
+£Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
+DESC `£Τ£·`;
+Field	Type	Null	Key	Default	Extra
+£Γ£±	enum('±','²','³')	YES	MUL	NULL	
+DESC `£Τ£Έ`;
+Field	Type	Null	Key	Default	Extra
+£Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
+DESC `£Τ£Ή`;
+Field	Type	Null	Key	Default	Extra
+£Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
+ALTER TABLE `£Τ£±` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£²` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£³` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£΄` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£µ` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£¶` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£·` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£Έ` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£Ή` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+SHOW CREATE TABLE `£Τ£±`;
+Table	Create Table
+£Τ£±	CREATE TABLE `£Τ£±` (
+  `£Γ£²` char(1) NOT NULL,
+  `£Γ£±` enum('±','²','³') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=InnoDB DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£²`;
+Table	Create Table
+£Τ£²	CREATE TABLE `£Τ£²` (
+  `£Γ£²` char(1) NOT NULL,
+  `£Γ£±` enum('¤Ά','¤¤','¤¦') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=InnoDB DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£³`;
+Table	Create Table
+£Τ£³	CREATE TABLE `£Τ£³` (
+  `£Γ£²` char(1) NOT NULL,
+  `£Γ£±` enum('νά','νέ','νή') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=InnoDB DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£΄`;
+Table	Create Table
+£Τ£΄	CREATE TABLE `£Τ£΄` (
+  `£Γ£²` char(1) NOT NULL,
+  `£Γ£±` enum('±','²','³') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£µ`;
+Table	Create Table
+£Τ£µ	CREATE TABLE `£Τ£µ` (
+  `£Γ£²` char(1) NOT NULL,
+  `£Γ£±` enum('¤Ά','¤¤','¤¦') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£¶`;
+Table	Create Table
+£Τ£¶	CREATE TABLE `£Τ£¶` (
+  `£Γ£²` char(1) NOT NULL,
+  `£Γ£±` enum('νά','νέ','νή') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£·`;
+Table	Create Table
+£Τ£·	CREATE TABLE `£Τ£·` (
+  `£Γ£²` char(1) NOT NULL,
+  `£Γ£±` enum('±','²','³') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£Έ`;
+Table	Create Table
+£Τ£Έ	CREATE TABLE `£Τ£Έ` (
+  `£Γ£²` char(1) NOT NULL,
+  `£Γ£±` enum('¤Ά','¤¤','¤¦') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
+SHOW CREATE TABLE `£Τ£Ή`;
+Table	Create Table
+£Τ£Ή	CREATE TABLE `£Τ£Ή` (
+  `£Γ£²` char(1) NOT NULL,
+  `£Γ£±` enum('νά','νέ','νή') DEFAULT NULL,
+  KEY `£Γ£±` (`£Γ£±`)
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
+DESC `£Τ£±`;
+Field	Type	Null	Key	Default	Extra
+£Γ£²	char(1)	NO		NULL	
+£Γ£±	enum('±','²','³')	YES	MUL	NULL	
+DESC `£Τ£²`;
+Field	Type	Null	Key	Default	Extra
+£Γ£²	char(1)	NO		NULL	
+£Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
+DESC `£Τ£³`;
+Field	Type	Null	Key	Default	Extra
+£Γ£²	char(1)	NO		NULL	
+£Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
+DESC `£Τ£΄`;
+Field	Type	Null	Key	Default	Extra
+£Γ£²	char(1)	NO		NULL	
+£Γ£±	enum('±','²','³')	YES	MUL	NULL	
+DESC `£Τ£µ`;
+Field	Type	Null	Key	Default	Extra
+£Γ£²	char(1)	NO		NULL	
+£Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
+DESC `£Τ£¶`;
+Field	Type	Null	Key	Default	Extra
+£Γ£²	char(1)	NO		NULL	
+£Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
+DESC `£Τ£·`;
+Field	Type	Null	Key	Default	Extra
+£Γ£²	char(1)	NO		NULL	
+£Γ£±	enum('±','²','³')	YES	MUL	NULL	
+DESC `£Τ£Έ`;
+Field	Type	Null	Key	Default	Extra
+£Γ£²	char(1)	NO		NULL	
+£Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
+DESC `£Τ£Ή`;
+Field	Type	Null	Key	Default	Extra
+£Γ£²	char(1)	NO		NULL	
+£Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
+DROP TABLE `£Τ£±`;
+DROP TABLE `£Τ£²`;
+DROP TABLE `£Τ£³`;
+DROP TABLE `£Τ£΄`;
+DROP TABLE `£Τ£µ`;
+DROP TABLE `£Τ£¶`;
+DROP TABLE `£Τ£·`;
+DROP TABLE `£Τ£Έ`;
+DROP TABLE `£Τ£Ή`;

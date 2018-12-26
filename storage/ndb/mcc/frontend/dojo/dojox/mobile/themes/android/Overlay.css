@@ -1,0 +1,80 @@
+.mblCoverv.mblOut {
+	z-index: -100;
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	-webkit-transform: translate3d(0px,0%,-1px) !important;
+}
+.mblCoverv.mblOut.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transition-duration: .4s;
+	-webkit-transform: translate3d(0px,0%,0px) !important;
+}
+.mblCoverv.mblIn {
+	z-index: 0;
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	-webkit-transform: translate3d(0px,100%,0px) !important;
+}
+.mblCoverv.mblIn.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transition-duration: .4s;
+	-webkit-transform: translate3d(0px,0%,0px) !important;
+}
+.mblCoverv.mblIn.mblReverse {
+	-webkit-transition-property: none;
+	-webkit-transform: translate3d(0px,-100%,0px) !important;
+}
+.mblCoverv.mblIn.mblReverse.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transform: translate3d(0px,0%,0px) !important;
+}
+.dj_android.dj_tablet .mblCoverv.mblOut.mblTransition,
+.dj_android.dj_tablet .mblCoverv.mblIn.mblTransition {
+	-webkit-transition-duration: .6s;
+	-webkit-transition-timing-function: linear;
+}
+.mblRevealv.mblOut {
+	z-index: 0;
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	-webkit-transform: translate3d(0px,0%,0px) !important;
+}
+.mblRevealv.mblOut.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transition-duration: .4s;
+	-webkit-transform: translate3d(0px,-100%,0px) !important;
+}
+.mblRevealv.mblIn {
+	z-index: -100;
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	-webkit-transform: translate3d(0px,0%,-1px) !important;
+}
+.mblRevealv.mblIn.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transition-duration: .4s;
+	-webkit-transform: translate3d(0px,0%,0px) !important;
+}
+.mblRevealv.mblOut.mblReverse.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transform: translate3d(0px,100%,0px) !important;
+}
+.dj_android.dj_tablet .mblRevealv.mblOut.mblTransition,
+.dj_android.dj_tablet .mblRevealv.mblIn.mblTransition {
+	-webkit-transition-duration: .6s;
+	-webkit-transition-timing-function: linear;
+}
+.mblOverlay {
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  bottom: 0;
+  margin: 0;
+  width: 100%;
+  text-align: -webkit-center;
+  background-color: #333333;
+  background-image: none;
+}
+.mblOverlayHidden *, .mblOverlayHidden {
+  visibility: hidden !important;
+}

@@ -1,0 +1,71 @@
+
+# This is the test case for bug#13628249. Make sure that InnoDB starts
+# up correctly and is able to shutdown with --innodb-force-recovery >= 3
+# after a crash with active user tranactions.
+
+--disable_query_log
+call mtr.add_suppression(' Failed to find tablespace for table `mysql`\..* in the cache');
+call mtr.add_suppression(' Failed to find tablespace for table `test`\.`t1` in the cache');
+call mtr.add_suppression(' Allocated tablespace [0-9]+, old maximum was [0-9]+');
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+call mtr.add_suppression("Unable to use user mysql.session account when connecting the server for internal plugin requests");
+--enable_query_log
+
+--echo # Restart the server in force recovery mode (2)
+let $restart_parameters = restart: --innodb-force-recovery=2;
+--source include/restart_mysqld.inc
+
+SELECT @@innodb_force_recovery;
+
+--echo # Restart server in normal mode
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+SELECT @@innodb_force_recovery;
+
+#
+# Create test data.
+#
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=0;
+BEGIN;
+INSERT INTO t1 VALUES(1), (2), (3), (4);
+
+# Ensure that the above data is flushed to the InnoDB redo log,
+# by committing transactions (which will force a log flush).
+connect (con1, localhost, root);
+CREATE TABLE t2(c2 INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=0;
+DROP TABLE t2;
+disconnect con1;
+connection default;
+
+--echo # Restart the server in force recovery mode (3)
+let $restart_parameters = restart: --innodb-force-recovery=3;
+--source include/kill_and_restart_mysqld.inc
+
+SELECT @@innodb_force_recovery;
+
+SELECT COUNT(*) IN (0,4) yes FROM t1;
+
+--echo # Restart the server in force recovery mode (5)
+let $restart_parameters = restart: --innodb-force-recovery=5;
+--source include/restart_mysqld.inc
+
+SELECT @@innodb_force_recovery;
+
+SELECT COUNT(*) IN (0,4) yes FROM t1;
+
+# Restart the server in normal mode now, otherwise the DROP TABLE t1;
+# will cause an assertion failure because essentially it is in read-only
+# mode. For -innodb-force-recovery >= 3 a transaction is not assigned a
+# rollback segment.
+--echo # Restart server in normal mode
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+SELECT @@innodb_force_recovery;
+
+SELECT COUNT(*) IN (0,4) yes FROM t1;
+
+DROP TABLE t1;

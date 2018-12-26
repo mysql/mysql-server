@@ -1,0 +1,158 @@
+################# mysql-test\t\connect_timeout_basic.test ######################
+#                                                                              #
+# Variable Name: connect_timeout                                               #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 5                                                             #
+# Range: 2 - 31536000                                                          #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "connect_timeout"         #
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                          .                     #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#         server-system-variables.html#option_mysqld_connect_timeout           #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+###############################################################
+#           START OF connect_timeout TESTS                    #
+###############################################################
+
+#######################################################################
+# Saving initial value of connect_timeout in a temporary variable     #
+#######################################################################
+
+SET @start_value = @@global.connect_timeout;
+SELECT @start_value;
+
+--echo '#--------------------FN_DYNVARS_019_01------------------------#'
+#######################################################################
+#              Display the DEFAULT value of connect_timeout           #
+#######################################################################
+
+SET @@global.connect_timeout = 100;
+SET @@global.connect_timeout = DEFAULT;
+SELECT @@global.connect_timeout;
+
+
+--echo '#---------------------FN_DYNVARS_019_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+###############################################
+
+SET @@global.connect_timeout = @start_value;
+SELECT @@global.connect_timeout = 5;
+
+
+--echo '#--------------------FN_DYNVARS_019_03------------------------#'
+#######################################################################
+#        Change the value of connect_timeout to a valid value         #
+#######################################################################
+
+SET @@global.connect_timeout = 2;
+SELECT @@global.connect_timeout;
+SET @@global.connect_timeout = 10000;
+SELECT @@global.connect_timeout;
+SET @@global.connect_timeout = 21221204;
+SELECT @@global.connect_timeout;
+SET @@global.connect_timeout = 31536000;
+SELECT @@global.connect_timeout;
+
+
+--echo '#--------------------FN_DYNVARS_019_04-------------------------#'
+##########################################################################
+#         Change the value of connect_timeout to invalid value           #
+##########################################################################
+
+SET @@global.connect_timeout = 1;
+SELECT @@global.connect_timeout;
+SET @@global.connect_timeout = -1024;
+SELECT @@global.connect_timeout;
+SET @@global.connect_timeout = 31536001;
+SELECT @@global.connect_timeout;
+SET @@global.connect_timeout = 42949672950;
+SELECT @@global.connect_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connect_timeout = 21221204.10;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.connect_timeout = ON;
+
+
+--echo '#-------------------FN_DYNVARS_019_05----------------------------#'
+##########################################################################
+#       Test if accessing session connect_timeout gives error            #
+##########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.connect_timeout = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.connect_timeout;
+
+
+--echo '#----------------------FN_DYNVARS_019_06------------------------#'
+####################################################################
+# Check if the value in GLOBAL Tables matches values in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@global.connect_timeout = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='connect_timeout';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_019_07----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.connect_timeout = TRUE;
+SELECT @@global.connect_timeout;
+SET @@global.connect_timeout = FALSE;
+SELECT @@global.connect_timeout;
+
+
+--echo '#---------------------FN_DYNVARS_019_08----------------------#'
+###############################################################################
+#    Check if accessing variable without SCOPE points to same global variable #
+###############################################################################
+
+SET @@global.connect_timeout = 5;
+SELECT @@connect_timeout = @@global.connect_timeout;
+
+--echo '#---------------------FN_DYNVARS_019_09----------------------#'
+#########################################################################
+#   Check if connect_timeout can be accessed with and without @@ sign   #
+#########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET connect_timeout = 1;
+--Error ER_PARSE_ERROR
+SET global.connect_timeout = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT global.connect_timeout;
+--Error ER_BAD_FIELD_ERROR
+SELECT connect_timeout = @@session.connect_timeout;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.connect_timeout = @start_value;
+SELECT @@global.connect_timeout;
+
+
+#########################################################
+#              END OF connect_timeout TESTS             #
+#########################################################
+

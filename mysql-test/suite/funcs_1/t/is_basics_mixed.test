@@ -1,0 +1,500 @@
+# $engine_type must point to storage engine which is all time available.
+let $engine_type = InnoDB;
+
+# suite/funcs_1/t/is_basics_mixed.test
+#
+# Checks of some basic properties of the INFORMATION_SCHEMA which are not
+# related to a certain INFORMATION_SCHEMA table.
+#
+# This test should not check properties related to storage engines.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+--source suite/funcs_1/datadict/datadict.pre
+
+
+
+# The INFORMATION_SCHEMA database must exist.
+SHOW DATABASES LIKE 'information_schema';
+
+
+--echo #######################################################################
+--echo # Testcase 3.2.1.20: USE INFORMATION_SCHEMA is supported
+--echo #######################################################################
+# Ensure that USE INFORMATION_SCHEMA allows the user to switch to the
+# INFORMATION_SCHEMA database, for query purposes only.
+#
+# Note: The "for query purposes only" is checked in other tests.
+# High privileged user (root)
+--echo # Switch to connection default
+connection default;
+USE test;
+SELECT DATABASE();
+USE information_schema;
+SELECT DATABASE();
+#
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+# Low privileged user
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , test);
+SELECT DATABASE();
+USE information_schema;
+SELECT DATABASE();
+#
+--echo # Switch to connection default and close connection testuser1
+connection default;
+disconnect testuser1;
+DROP   USER 'testuser1'@'localhost';
+
+
+--echo #######################################################################
+--echo # Testcase TBD1: The INFORMATION_SCHEMA cannot be dropped.
+--echo #######################################################################
+--error ER_DBACCESS_DENIED_ERROR
+DROP DATABASE information_schema;
+
+
+--echo #######################################################################
+--echo # Testcase TBD2: There cannot be a second database INFORMATION_SCHEMA.
+--echo #######################################################################
+--error ER_DBACCESS_DENIED_ERROR
+CREATE DATABASE information_schema;
+
+
+--echo ##################################################################################
+--echo # Testcase 3.2.1.6+3.2.1.7: No user may create an INFORMATION_SCHEMA table or view
+--echo ##################################################################################
+# 3.2.1.6 Ensure that no user may create an INFORMATION_SCHEMA base table.
+# 3.2.1.7 Ensure that no user may create an INFORMATION_SCHEMA view
+#
+
+# 1. High privileged user (root)
+--echo # Switch to connection default (user=root)
+connection default;
+--source suite/funcs_1/datadict/basics_mixed1.inc
+
+# 2. High privileged user (testuser1)
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT ALL ON *.* TO testuser1@localhost;
+SHOW GRANTS FOR testuser1@localhost;
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , test);
+--source suite/funcs_1/datadict/basics_mixed1.inc
+
+--echo # Switch to connection default (user=root) and close connection testuser1
+connection default;
+disconnect testuser1;
+DROP   USER 'testuser1'@'localhost';
+
+--echo ###############################################################################
+--echo # Testcase 3.2.1.1+3.2.1.2: INFORMATION_SCHEMA tables can be queried via SELECT
+--echo ###############################################################################
+# 3.2.1.1 Ensure that every INFORMATION_SCHEMA table can be queried with
+#         a SELECT statement, just as if it were an ordinary user-defined table.
+# 3.2.1.2 Ensure that queries on an INFORMATION_SCHEMA table can accept all
+#         SELECT statement options and are always correctly evaluated.
+#
+# Some notes(mleich):
+# - Currently here only a subset of select statement options is checked, it's
+#   still not possible to check here all possible options
+# - The content of many INFORMATION_SCHEMA tables is checked in other tests.
+# - We work here only with a subset of the columns of information_schema.tables
+#   because we want have a stable base (all time existing table, stable layout).
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+--replace_result $engine_type <some_engine>
+eval
+CREATE TABLE db_datadict.t1_first (f1 BIGINT UNIQUE, f2 BIGINT)
+ENGINE = $engine_type;
+--replace_result $engine_type <some_engine>
+eval
+CREATE TABLE db_datadict.t1_second (f1 BIGINT UNIQUE, f2 BIGINT)
+ENGINE = $engine_type;
+
+# SELECT *
+--echo # Attention: The protocolling of the next result set is disabled.
+--disable_result_log
+SELECT * FROM information_schema.tables;
+--enable_result_log
+#
+# SELECT <some columns> + WHERE
+--sorted_result
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'db_datadict';
+#
+# SELECT string_function(<some column>) + ORDER BY
+SELECT LENGTH(table_name) FROM information_schema.tables
+WHERE table_schema = 'db_datadict' ORDER BY table_name;
+#
+# SELECT aggregate_function(<some column>) + WHERE with LIKE
+SELECT count(table_name) FROM information_schema.tables
+WHERE table_schema LIKE 'db_datadic%';
+#
+# SELECT with addition in column list
+--sorted_result
+SELECT CAST((LENGTH(table_schema) + LENGTH(table_name)) AS DECIMAL(15,1))
+FROM information_schema.tables
+WHERE table_schema = 'db_datadict';
+#
+# WHERE with IN + LIMIT
+SELECT table_name FROM information_schema.tables
+WHERE table_name IN ('t1_first','t1_second') ORDER BY table_name LIMIT 1;
+SELECT table_name FROM information_schema.tables
+WHERE table_name IN ('t1_first','t1_second') ORDER BY table_name LIMIT 1,1;
+#
+# WHERE with AND
+SELECT table_name,table_schema AS my_col FROM information_schema.tables
+WHERE table_name = 't1_first' AND table_schema = 'db_datadict';
+#
+# SELECT HIGH_PRIORITY + WHERE with OR
+--sorted_result
+SELECT HIGH_PRIORITY table_name AS my_col FROM information_schema.tables
+WHERE table_name = 't1_first' OR table_name = 't1_second';
+#
+# Empty result set
+SELECT 1 AS my_col FROM information_schema.tables
+WHERE table_name = 't1_third';
+#
+# SELECT INTO USER VARIABLE
+SELECT table_name,table_schema INTO @table_name,@table_schema
+FROM information_schema.tables
+WHERE table_schema = 'db_datadict' ORDER BY table_name LIMIT 1;
+SELECT @table_name,@table_schema;
+#
+# SELECT INTO OUTFILE
+let $OUTFILE = $MYSQLTEST_VARDIR/tmp/datadict.out;
+--error 0,1
+remove_file $OUTFILE;
+--replace_result $OUTFILE <OUTFILE>
+eval SELECT table_name,table_schema
+INTO OUTFILE '$OUTFILE'
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+FROM information_schema.tables
+WHERE table_schema = 'db_datadict' ORDER BY table_name;
+cat_file $OUTFILE;
+remove_file $OUTFILE;
+#
+# UNION
+--sorted_result
+SELECT table_name FROM information_schema.tables
+WHERE table_name = 't1_first'
+UNION ALL
+SELECT table_name FROM information_schema.tables
+WHERE table_name = 't1_second';
+#
+# DISTINCT + SUBQUERY
+--source include/turn_off_only_full_group_by.inc
+SELECT DISTINCT table_schema FROM information_schema.tables
+WHERE table_name IN (SELECT table_name FROM information_schema.tables
+                     WHERE table_schema = 'db_datadict')
+ORDER BY table_name;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+#
+# JOIN
+SELECT table_name FROM information_schema.tables t1
+LEFT JOIN information_schema.tables t2 USING(table_name,table_schema)
+WHERE t2.table_schema = 'db_datadict'
+ORDER BY table_name;
+#
+# No schema assigned in SELECT + we are in SCHEMA test
+#    --> The table tables does not exist
+USE test;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM tables;
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.1.17+3.2.1.18
+--echo #########################################################################
+# 3.2.1.17: Ensure that the SELECT privilege is granted TO PUBLIC WITH GRANT
+#           OPTION on every INFORMATION_SCHEMA table.
+#
+# 3.2.1.18: Ensure that the CREATE VIEW privilege on an INFORMATION_SCHEMA table
+#           may be granted to any user.
+#
+# Note (mleich): The requirements are to some extend outdated.
+#                Every user is allowed to SELECT on the INFORMATION_SCHEMA.
+#                But the result sets depend on the privileges of the user.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+--replace_result $engine_type <some_engine>
+eval
+CREATE TABLE db_datadict.t1 (f1 BIGINT UNIQUE, f2 BIGINT)
+ENGINE = $engine_type;
+SELECT * FROM db_datadict.t1;
+
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser2'@'localhost';
+CREATE USER 'testuser2'@'localhost';
+GRANT CREATE VIEW,SELECT ON db_datadict.* TO testuser1@localhost
+WITH GRANT OPTION;
+GRANT USAGE ON db_datadict.* TO testuser2@localhost;
+FLUSH PRIVILEGES;
+
+# Check 0: Reveal that GRANT <some privilege> ON INFORMATION_SCHEMA is no
+#          longer allowed.
+--error ER_DBACCESS_DENIED_ERROR
+GRANT SELECT on information_schema.* TO testuser1@localhost;
+--error ER_DBACCESS_DENIED_ERROR
+GRANT CREATE VIEW ON information_schema.* TO 'u_6_401018'@'localhost';
+
+# Check 1: Show that a "simple" user (<> root) has the permission to SELECT
+#          on some INFORMATION_SCHEMA table.
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , db_datadict);
+SELECT table_schema,table_name FROM information_schema.tables
+WHERE table_schema = 'information_schema' AND table_name = 'TABLES';
+
+# Check 2: Show the privileges of the user on some INFORMATION_SCHEMA tables.
+SELECT * FROM information_schema.table_privileges
+WHERE table_schema = 'information_schema';
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'information_schema';
+
+# Check 3: Show the following
+#          1. If a simple user (testuser1) has the privilege to create a VIEW
+#             than this VIEW could use a SELECT on an INFORMATION_SCHEMA table.
+#          2. This user (testuser1) is also able to GRANT the SELECT privilege
+#             on this VIEW to another user (testuser2).
+#          3. The other user (testuser2) must be able to SELECT on this VIEW
+#             but gets a different result set than testuser1.
+CREATE VIEW db_datadict.v2 AS
+SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE
+FROM information_schema.tables WHERE table_schema = 'db_datadict';
+SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE
+FROM db_datadict.v2;
+SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE
+FROM information_schema.tables WHERE table_schema = 'db_datadict';
+GRANT SELECT ON db_datadict.v2 to testuser2@localhost;
+#
+--echo # Establish connection testuser2 (user=testuser2)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser2, localhost, testuser2, , db_datadict);
+SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE
+FROM db_datadict.v2;
+SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE
+FROM information_schema.tables WHERE table_schema = 'db_datadict';
+
+# Cleanup
+--echo # Switch to connection default and close connections testuser1 and testuser2
+connection default;
+disconnect testuser1;
+disconnect testuser2;
+DROP USER 'testuser1'@'localhost';
+DROP USER 'testuser2'@'localhost';
+DROP DATABASE db_datadict;
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.1.19
+--echo #########################################################################
+# Ensure that no other privilege on an INFORMATION_SCHEMA table is granted, or
+# may be granted, to any user.
+#
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+
+# Initial privileges on the INFORMATION_SCHEMA tables (empty result sets)
+let $my_select1 = SELECT 'empty result set was expected' AS my_col
+FROM information_schema.schema_privileges
+WHERE table_schema = 'information_schema';
+let $my_select2 = SELECT 'empty result set was expected' AS my_col
+FROM information_schema.table_privileges
+WHERE table_schema = 'information_schema';
+let $my_select3 = SELECT 'empty result set was expected' AS my_col
+FROM information_schema.column_privileges
+WHERE table_schema = 'information_schema';
+eval $my_select1;
+eval $my_select2;
+eval $my_select3;
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT ALTER ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT ALTER ROUTINE ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT CREATE ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT CREATE ROUTINE ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT CREATE TEMPORARY TABLES ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT DELETE ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT DROP ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT EXECUTE ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT INDEX ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT INSERT ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT LOCK TABLES ON information_schema.*
+TO 'testuser1'@'localhost';
+
+#FIXME: check GRANT on IS
+--error ER_DBACCESS_DENIED_ERROR
+GRANT UPDATE ON information_schema.*
+TO 'testuser1'@'localhost';
+
+# Has something accidently changed?
+eval $my_select1;
+eval $my_select2;
+eval $my_select3;
+
+# Cleanup
+DROP USER 'testuser1'@'localhost';
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.1.16
+--echo #########################################################################
+# Ensure that no user may use any INFORMATION_SCHEMA table to determine any
+# information on a database and/or its structure unless authorized to get that
+# information.
+# Note: The plan is to create a new database and objects within it so that
+#       any INFORMATION_SCHEMA table gets additional rows if possible.
+#       A user having no rights on the new database and no rights on objects
+#       must nowhere see tha name of the new database.
+--source suite/funcs_1/datadict/basics_mixed3.inc
+
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+--replace_result $engine_type <some_engine>
+eval
+CREATE TABLE db_datadict.t1 (f1 BIGINT, f2 BIGINT NOT NULL, f3 BIGINT,
+PRIMARY KEY(f1))
+ENGINE = $engine_type;
+CREATE UNIQUE INDEX UIDX ON db_datadict.t1(f3);
+CREATE PROCEDURE db_datadict.sproc1()      SELECT 'db_datadict';
+CREATE FUNCTION db_datadict.func1() RETURNS INT RETURN 0;
+CREATE TRIGGER db_datadict.trig1 BEFORE INSERT ON db_datadict.t1
+FOR EACH ROW SET @aux = 1;
+CREATE VIEW db_datadict.v1 AS SELECT * FROM db_datadict.t1;
+CREATE VIEW db_datadict.v2 AS SELECT * FROM information_schema.tables;
+
+--source suite/funcs_1/datadict/basics_mixed3.inc
+
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT ALL ON test.* TO 'testuser1'@'localhost';
+
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , test);
+--source suite/funcs_1/datadict/basics_mixed3.inc
+
+# Cleanup
+--echo # Switch to connection default and close connections testuser1 and testuser2
+connection default;
+disconnect testuser1;
+DROP   USER 'testuser1'@'localhost';
+DROP DATABASE db_datadict;
+
+--echo ########################################################################
+--echo # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+--echo #           DDL on INFORMATION_SCHEMA tables are not supported
+--echo ########################################################################
+# Thorough tests checking the requirements above per every INFORMATION_SCHEMA
+# table are within other scripts.
+# We check here only that the requirement is fulfilled even when using a
+# STORED PROCEDURE.
+--disable_warnings
+DROP PROCEDURE IF EXISTS test.p1;
+--enable_warnings
+--error ER_DBACCESS_DENIED_ERROR
+CREATE PROCEDURE test.p1()
+INSERT INTO information_schema.tables
+SELECT * FROM information_schema.tables LIMIT 1;
+
+CREATE PROCEDURE test.p1()
+UPDATE information_schema.columns SET table_schema = 'garbage';
+--error ER_DBACCESS_DENIED_ERROR
+CALL test.p1();
+
+DROP PROCEDURE test.p1;
+--error ER_DBACCESS_DENIED_ERROR
+CREATE PROCEDURE test.p1()
+DELETE FROM information_schema.schemata;
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.17.1+3.2.17.2: To be implemented outside of this script
+--echo #########################################################################
+# 3.2.17.1 Ensure that every INFORMATION_SCHEMA table shows all the correct
+#          information, and no incorrect information, for a database to which
+#          100 different users, each of which has a randomly issued set of
+#          privileges and access to a randomly chosen set of database objects,
+#          have access.
+#          The database should contain a mixture of all types of database
+#          objects (i.e. tables, views, stored procedures, triggers).
+# 3.2.17.2 Ensure that every INFORMATION_SCHEMA table shows all the correct
+#          information, and no incorrect information, for 10 different
+#          databases to which 50 different users, each of which has a randomly
+#          issued set of privileges and access to a randomly chosen set of
+#          database objects in two or more of the databases, have access.
+#          The databases should each contain a mixture of all types of database
+#          objects (i.e. tables, views, stored procedures, triggers).
+#
+# Note(mleich): These requirements are kept here so that they do not get lost.
+#          The tests are not yet implemented.
+#          If they are ever developed than they should be stored in other
+#          scripts. They will have most probably a long runtime because
+#          the current INFORMATION_SCHEMA implementation has some performance
+#          issues if a lot of users, privileges and objects are involved.
+#

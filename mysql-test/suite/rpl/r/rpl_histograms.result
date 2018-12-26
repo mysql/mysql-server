@@ -1,0 +1,46 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Verify that column statistics are replicated according to the
+# "NO_WRITE_TO_BINLOG"-flag.
+CREATE TABLE not_replicated (col1 INT);
+CREATE TABLE replicated (col1 INT);
+INSERT INTO not_replicated VALUES (1), (2);
+INSERT INTO replicated VALUES (1), (2);
+# Create histograms on 'not_replicated' without writing to binlog
+ANALYZE NO_WRITE_TO_BINLOG TABLE not_replicated
+UPDATE HISTOGRAM ON col1 WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.not_replicated	histogram	status	Histogram statistics created for column 'col1'.
+# Create histograms on 'replicated' (should be written to the binlog)
+ANALYZE TABLE replicated UPDATE HISTOGRAM ON col1 WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.replicated	histogram	status	Histogram statistics created for column 'col1'.
+# Both tables should be present on the master
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	not_replicated	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	replicated	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+# Sync slave with master, and verify that we only have column statistics
+# for table 'replicated' on the slave
+include/sync_slave_sql_with_master.inc
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	replicated	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+DROP TABLE replicated, not_replicated;
+#
+# Bug#26041269 WL8943(RPL):ASSERTION `HEAD->VARIABLES.GTID_NEXT.TYPE !=
+#              UNDEFINED_GROUP' FAILED
+#
+CREATE TABLE foo (col1 INT);
+ANALYZE TABLE foo UPDATE HISTOGRAM ON meh WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.foo	histogram	Error	The column 'meh' does not exist.
+DROP TABLE foo;
+include/rpl_end.inc

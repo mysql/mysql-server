@@ -1,0 +1,121 @@
+#==============================================================================
+# Establish the level of IPV6 support
+#==============================================================================
+#==============================================================================
+# Get hostname, port number
+#==============================================================================
+SELECT @@hostname INTO @MY_HOSTNAME;
+SELECT @@port INTO @MY_MASTER_PORT;
+#==============================================================================
+# 1.0 TEST INITIALIZATION
+#==============================================================================
+
+# 1.1 Disable instrumentation of the default (this) connection
+
+UPDATE performance_schema.threads
+SET INSTRUMENTED='NO' WHERE PROCESSLIST_ID = CONNECTION_ID();
+
+# 1.2 Get the default THREAD_ID;
+
+SELECT THREAD_ID INTO @my_thread_id
+FROM performance_schema.threads
+WHERE PROCESSLIST_ID = CONNECTION_ID();
+
+# 1.3 Get the default OBJECT_INSTANCE_BEGIN
+
+SELECT OBJECT_INSTANCE_BEGIN INTO @my_object_instance_begin
+FROM performance_schema.socket_instances
+WHERE THREAD_ID = @my_thread_id;
+
+# 1.4 Create a test database
+
+CREATE SCHEMA mysqltest;
+
+# 1.5 Create a table to store summary values from socket_summary_by_instance
+and socket_summary_by_event_name
+
+CREATE TABLE mysqltest.my_socket_summary AS
+SELECT * FROM performance_schema.socket_summary_by_instance
+WHERE 1 = 0;
+
+# 1.6 Drop object_instance_begin from my_socket_summary
+
+ALTER TABLE mysqltest.my_socket_summary
+DROP COLUMN OBJECT_INSTANCE_BEGIN;
+
+# 1.7 Add an auto_inc column to my_socket_summary
+
+ALTER TABLE mysqltest.my_socket_summary
+ADD COLUMN (n INT AUTO_INCREMENT, PRIMARY KEY(n));
+
+# 1.8 Create test tables
+
+CREATE TABLE mysqltest.t1 (n INT AUTO_INCREMENT, s1 VARCHAR(1024), PRIMARY KEY(n));
+CREATE TABLE mysqltest.t2 (n INT AUTO_INCREMENT, s1 VARCHAR(1024), PRIMARY KEY(n));
+#==============================================================================
+# 2.0 ESTABLISH CLIENT CONNECTIONS
+#==============================================================================
+
+# 2.1 Connection 1 (tcp/ip, 127.0.0.1 or ::1)
+
+
+# 2.2 Connection 2 (localhost or unix domain socket)
+
+#==============================================================================
+# 3.0 RUN THE TESTS
+#==============================================================================
+
+# 3.1 Clear performance schema tables
+
+TRUNCATE performance_schema.socket_summary_by_instance;
+TRUNCATE performance_schema.socket_summary_by_event_name;
+
+# 3.2 Get the 'before' sum of bytes written from socket_summary_by_instance
+for later comparison to the 'after' byte count as a simple confirmation
+that the table was updated.
+
+SELECT sum(SUM_NUMBER_OF_BYTES_WRITE) INTO @my_write_count
+FROM performance_schema.socket_summary_by_instance;
+
+# 3.3 From connection 1, insert one a 1K row of data into t1
+
+USE mysqltest;
+INSERT INTO t1 (s1) VALUES (REPEAT('a', 1024));
+INSERT INTO t1 (s1) SELECT s1 FROM t1;
+
+# 3.4 From connection 2, insert one a 1K row of data into t2
+
+USE mysqltest;
+INSERT INTO t2 (s1) VALUES (REPEAT('a', 1024));
+INSERT INTO t2 (s1) SELECT s1 FROM t2;
+
+# 3.5 Get the 'after' sum of bytes written from socket_summary_by_instance
+
+SELECT sum(SUM_NUMBER_OF_BYTES_WRITE) INTO @my_write_count
+FROM performance_schema.socket_summary_by_instance;
+
+# 3.6 Verify that SUM_NUMBER_OF_BYTES_WRITE increased
+
+
+# socket_summary_by_instance was updated
+
+#==============================================================================
+# 4.0 VERIFY RESULTS
+#==============================================================================
+
+# 4.1 Verify that the totals in socket_summary_by_event_name are
+consistent with totals in socket_summary_by_instance
+
+#==============================================================================
+# 5.0 Clean up
+#==============================================================================
+
+# 5.1 Disconnect con1
+
+
+# 5.2 Disconnect con2
+
+
+# 5.3 Drop mysqltest
+
+DROP DATABASE mysqltest;

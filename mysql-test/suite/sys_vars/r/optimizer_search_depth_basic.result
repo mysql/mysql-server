@@ -1,0 +1,187 @@
+SET @start_global_value = @@global.optimizer_search_depth;
+SELECT @start_global_value;
+@start_global_value
+62
+SET @start_session_value = @@session.optimizer_search_depth;
+SELECT @start_session_value;
+@start_session_value
+62
+'#--------------------FN_DYNVARS_116_01-------------------------#'
+SET @@global.optimizer_search_depth = 100;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '100'
+SET @@global.optimizer_search_depth = DEFAULT;
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+62
+SET @@session.optimizer_search_depth = 200;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '200'
+SET @@session.optimizer_search_depth = DEFAULT;
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+62
+'#--------------------FN_DYNVARS_116_02-------------------------#'
+SET @@global.optimizer_search_depth = DEFAULT;
+SELECT @@global.optimizer_search_depth = 62;
+@@global.optimizer_search_depth = 62
+1
+SET @@session.optimizer_search_depth = DEFAULT;
+SELECT @@session.optimizer_search_depth = 62;
+@@session.optimizer_search_depth = 62
+1
+'#--------------------FN_DYNVARS_116_03-------------------------#'
+SET @@global.optimizer_search_depth = 0;
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+0
+SET @@global.optimizer_search_depth = 1;
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+1
+SET @@global.optimizer_search_depth = 62;
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+62
+'#--------------------FN_DYNVARS_116_04-------------------------#'
+SET @@session.optimizer_search_depth = 0;
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+0
+SET @@session.optimizer_search_depth = 1;
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+1
+SET @@session.optimizer_search_depth = 62;
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+62
+'#------------------FN_DYNVARS_116_05-----------------------#'
+SET @@global.optimizer_search_depth = 63;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '63'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+62
+SET @@global.optimizer_search_depth = -1;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '-1'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+0
+SET @@global.optimizer_search_depth = 65536;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '65536'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+62
+SET @@global.optimizer_search_depth = -1024;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '-1024'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+0
+SET @@global.optimizer_search_depth = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+0
+SET @@global.optimizer_search_depth = test;
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+0
+SET @@global.optimizer_search_depth = ' ';
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+0
+SET @@session.optimizer_search_depth = 64;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '64'
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+62
+SET @@session.optimizer_search_depth = -2;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '-2'
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+0
+SET @@session.optimizer_search_depth = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SET @@session.optimizer_search_depth = 65550;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '65550'
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+62
+SET @@session.optimizer_search_depth = -1024;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '-1024'
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+0
+SET @@session.optimizer_search_depth = test;
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+0
+SET @@session.optimizer_search_depth = ' ';
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+0
+'#------------------FN_DYNVARS_116_06-----------------------#'
+SELECT @@global.optimizer_search_depth = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='optimizer_search_depth';
+@@global.optimizer_search_depth = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_116_07-----------------------#'
+SELECT @@session.optimizer_search_depth = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='optimizer_search_depth';
+@@session.optimizer_search_depth = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_116_08-----------------------#'
+SET @@global.optimizer_search_depth = TRUE;
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+1
+SET @@global.optimizer_search_depth = FALSE;
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+0
+'#---------------------FN_DYNVARS_116_09----------------------#'
+SET @@global.optimizer_search_depth = 10;
+SELECT @@optimizer_search_depth = @@global.optimizer_search_depth;
+@@optimizer_search_depth = @@global.optimizer_search_depth
+0
+'#---------------------FN_DYNVARS_116_10----------------------#'
+SET @@optimizer_search_depth = 10;
+SELECT @@optimizer_search_depth = @@local.optimizer_search_depth;
+@@optimizer_search_depth = @@local.optimizer_search_depth
+1
+SELECT @@local.optimizer_search_depth = @@session.optimizer_search_depth;
+@@local.optimizer_search_depth = @@session.optimizer_search_depth
+1
+'#---------------------FN_DYNVARS_116_11----------------------#'
+SET optimizer_search_depth = 1;
+SELECT @@optimizer_search_depth;
+@@optimizer_search_depth
+1
+SELECT local.optimizer_search_depth;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.optimizer_search_depth;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT optimizer_search_depth = @@session.optimizer_search_depth;
+ERROR 42S22: Unknown column 'optimizer_search_depth' in 'field list'
+SET @@global.optimizer_search_depth = @start_global_value;
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+62
+SET @@session.optimizer_search_depth = @start_session_value;
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+62

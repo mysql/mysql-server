@@ -1,0 +1,55 @@
+# ==== Usage ====
+# --let $channel_id= channel identification number
+# --source extra/rpl_tests/rpl_multi_source_generate_mts_gap.test
+#
+# Parameters:
+#
+#   $channel_id
+#     Identification number for a channel.
+
+# Following test first creates two databases (d1_$ch_id and d2_$ch_id)
+# for the given channel and setup slave to use two parallel workers.
+# The test case then insert on the slave a tuple that will
+# block writes on d2_$ch_id and generate gaps.
+
+--let $ch_id= $channel_id
+--let $rpl_connection_name= server_$ch_id
+--source include/rpl_connection.inc
+--eval CREATE DATABASE d1_$ch_id;
+--eval CREATE DATABASE d2_$ch_id;;
+--eval CREATE TABLE d1_$ch_id.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+--eval CREATE TABLE d2_$ch_id.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+
+#sync the slave with server_$ch_id
+--let $rpl_channel_name= 'channel_$ch_id'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+connect(slave_con_channel$ch_id,127.0.0.1,root,,test,$SLAVE_MYPORT);
+--let $rpl_connection_name= slave_con_channel$ch_id
+--source include/rpl_connection.inc
+BEGIN;
+--eval INSERT INTO d2_$ch_id.t VALUES (2, 'Slave local'); # Hold T3
+--eval INSERT INTO d1_$ch_id.t VALUES (3, 'Slave local'); # Hold T6
+
+--let $rpl_connection_name= server_$ch_id
+--source include/rpl_connection.inc
+--eval INSERT INTO d1_$ch_id.t VALUES (1, 'T1');
+--eval INSERT INTO d2_$ch_id.t VALUES (1, 'T2');
+--eval INSERT INTO d2_$ch_id.t VALUES (2, 'T3'); # This will be a gap when executed on slave
+--eval INSERT INTO d2_$ch_id.t VALUES (3, 'T4'); # This will be a gap when executed on slave
+--eval INSERT INTO d1_$ch_id.t VALUES (2, 'T5');
+
+--let $rpl_channel_name= 'channel_$ch_id'
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $table=d1_$ch_id.t
+--let $count=2
+--source include/wait_until_rows_count.inc
+
+--echo # Now d1_$ch_id.t has two rows and d2_$m_id.t has one row.
+
+# Wait for coordinator to populate worker's queues.
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= = 'Slave has read all relay log; waiting for more updates'
+--source include/wait_show_condition.inc

@@ -1,0 +1,496 @@
+DROP TABLE IF EXISTS `ｱｱｱ`;
+DROP TABLE IF EXISTS `ｲｲｲ`;
+DROP TABLE IF EXISTS `あああ`;
+DROP TABLE IF EXISTS `いいい`;
+DROP TABLE IF EXISTS `龖龖龖`;
+DROP TABLE IF EXISTS `龗龗龗`;
+SET NAMES ujis;
+SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = ujis engine=INNODB;
+CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = ujis engine=INNODB;
+CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = ujis engine=INNODB;
+CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = ujis engine=INNODB;
+CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = ujis engine=INNODB;
+CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = ujis engine=INNODB;
+INSERT INTO `ｱｱｱ` VALUES ('ｱｱｱｱｱ'),('ｲｲｲｲｲ'),('ｳｳｳｳｳ');
+INSERT INTO `あああ` VALUES ('あああああ'),('いいいいい'),('ううううう');
+INSERT INTO `龖龖龖` VALUES ('丂丂丂丂丂'),('丄丄丄丄丄'),('丅丅丅丅丅');
+ALTER TABLE `ｱｱｱ` ADD `ｶｶｶ` char(1) FIRST;
+ALTER TABLE `ｱｱｱ` ADD `ｸｸｸ` char(1) AFTER `ｷｷｷ`;
+ALTER TABLE `ｱｱｱ` ADD `ｹｹｹ` char(1);
+ALTER TABLE `ｱｱｱ` ADD INDEX (`ｶｶｶ`);
+ALTER TABLE `ｱｱｱ` ADD PRIMARY KEY (`ｷｷｷ`);
+ALTER TABLE `ｱｱｱ` ADD UNIQUE (`ｸｸｸ`);
+ALTER TABLE `ｱｱｱ` CHANGE `ｶｶｶ` `ｶｶ` char(1);
+ALTER TABLE `ｱｱｱ` MODIFY `ｷｷｷ` char(6);
+SELECT * FROM `ｱｱｱ`;
+ｶｶ	ｷｷｷ	ｸｸｸ	ｹｹｹ
+NULL	ｱｱｱｱｱ	NULL	NULL
+NULL	ｲｲｲｲｲ	NULL	NULL
+NULL	ｳｳｳｳｳ	NULL	NULL
+DESC `ｱｱｱ`;
+Field	Type	Null	Key	Default	Extra
+ｶｶ	char(1)	YES	MUL	NULL	
+ｷｷｷ	char(6)	NO	PRI	NULL	
+ｸｸｸ	char(1)	YES	UNI	NULL	
+ｹｹｹ	char(1)	YES		NULL	
+SHOW CREATE TABLE `ｱｱｱ`;
+Table	Create Table
+ｱｱｱ	CREATE TABLE `ｱｱｱ` (
+  `ｶｶ` char(1) DEFAULT NULL,
+  `ｷｷｷ` char(6) NOT NULL,
+  `ｸｸｸ` char(1) DEFAULT NULL,
+  `ｹｹｹ` char(1) DEFAULT NULL,
+  PRIMARY KEY (`ｷｷｷ`),
+  UNIQUE KEY `ｸｸｸ` (`ｸｸｸ`),
+  KEY `ｶｶｶ` (`ｶｶ`)
+) ENGINE=InnoDB DEFAULT CHARSET=ujis
+ALTER TABLE `ｱｱｱ` DROP INDEX `ｶｶｶ`;
+ALTER TABLE `ｱｱｱ` DROP PRIMARY KEY;
+ALTER TABLE `ｱｱｱ` DROP INDEX `ｸｸｸ`;
+ALTER TABLE `ｱｱｱ` DROP `ｶｶ`;
+ALTER TABLE `ｱｱｱ` DROP `ｸｸｸ`;
+ALTER TABLE `ｱｱｱ` DROP `ｹｹｹ`;
+SELECT * FROM `ｱｱｱ`;
+ｷｷｷ
+ｱｱｱｱｱ
+ｲｲｲｲｲ
+ｳｳｳｳｳ
+DESC `ｱｱｱ`;
+Field	Type	Null	Key	Default	Extra
+ｷｷｷ	char(6)	NO		NULL	
+SHOW CREATE TABLE `ｱｱｱ`;
+Table	Create Table
+ｱｱｱ	CREATE TABLE `ｱｱｱ` (
+  `ｷｷｷ` char(6) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=ujis
+ALTER TABLE `あああ` ADD `かかか` char(1) FIRST;
+ALTER TABLE `あああ` ADD `くくく` char(1) AFTER `ききき`;
+ALTER TABLE `あああ` ADD `けけけ` char(1);
+ALTER TABLE `あああ` ADD INDEX (`かかか`);
+ALTER TABLE `あああ` ADD PRIMARY KEY (`ききき`);
+ALTER TABLE `あああ` ADD UNIQUE (`くくく`);
+ALTER TABLE `あああ` CHANGE `かかか` `かか` char(1);
+ALTER TABLE `あああ` MODIFY `ききき` char(6);
+SELECT * FROM `あああ`;
+かか	ききき	くくく	けけけ
+NULL	あああああ	NULL	NULL
+NULL	いいいいい	NULL	NULL
+NULL	ううううう	NULL	NULL
+DESC `あああ`;
+Field	Type	Null	Key	Default	Extra
+かか	char(1)	YES	MUL	NULL	
+ききき	char(6)	NO	PRI	NULL	
+くくく	char(1)	YES	UNI	NULL	
+けけけ	char(1)	YES		NULL	
+SHOW CREATE TABLE `あああ`;
+Table	Create Table
+あああ	CREATE TABLE `あああ` (
+  `かか` char(1) DEFAULT NULL,
+  `ききき` char(6) NOT NULL,
+  `くくく` char(1) DEFAULT NULL,
+  `けけけ` char(1) DEFAULT NULL,
+  PRIMARY KEY (`ききき`),
+  UNIQUE KEY `くくく` (`くくく`),
+  KEY `かかか` (`かか`)
+) ENGINE=InnoDB DEFAULT CHARSET=ujis
+ALTER TABLE `あああ` DROP INDEX `かかか`;
+ALTER TABLE `あああ` DROP PRIMARY KEY;
+ALTER TABLE `あああ` DROP INDEX `くくく`;
+ALTER TABLE `あああ` DROP `かか`;
+ALTER TABLE `あああ` DROP `くくく`;
+ALTER TABLE `あああ` DROP `けけけ`;
+SELECT * FROM `あああ`;
+ききき
+あああああ
+いいいいい
+ううううう
+DESC `あああ`;
+Field	Type	Null	Key	Default	Extra
+ききき	char(6)	NO		NULL	
+SHOW CREATE TABLE `あああ`;
+Table	Create Table
+あああ	CREATE TABLE `あああ` (
+  `ききき` char(6) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=ujis
+ALTER TABLE `龖龖龖` ADD `丄丄丄` char(1) FIRST;
+ALTER TABLE `龖龖龖` ADD `丅丅丅` char(1) AFTER `丂丂丂`;
+ALTER TABLE `龖龖龖` ADD `乚乚乚` char(1);
+ALTER TABLE `龖龖龖` ADD INDEX (`丄丄丄`);
+ALTER TABLE `龖龖龖` ADD PRIMARY KEY (`丂丂丂`);
+ALTER TABLE `龖龖龖` ADD UNIQUE (`丅丅丅`);
+ALTER TABLE `龖龖龖` CHANGE `丄丄丄` `丄丄` char(1);
+ALTER TABLE `龖龖龖` MODIFY `丂丂丂` char(6);
+SELECT * FROM `龖龖龖`;
+丄丄	丂丂丂	丅丅丅	乚乚乚
+NULL	丂丂丂丂丂	NULL	NULL
+NULL	丄丄丄丄丄	NULL	NULL
+NULL	丅丅丅丅丅	NULL	NULL
+DESC `龖龖龖`;
+Field	Type	Null	Key	Default	Extra
+丄丄	char(1)	YES	MUL	NULL	
+丂丂丂	char(6)	NO	PRI	NULL	
+丅丅丅	char(1)	YES	UNI	NULL	
+乚乚乚	char(1)	YES		NULL	
+SHOW CREATE TABLE `龖龖龖`;
+Table	Create Table
+龖龖龖	CREATE TABLE `龖龖龖` (
+  `丄丄` char(1) DEFAULT NULL,
+  `丂丂丂` char(6) NOT NULL,
+  `丅丅丅` char(1) DEFAULT NULL,
+  `乚乚乚` char(1) DEFAULT NULL,
+  PRIMARY KEY (`丂丂丂`),
+  UNIQUE KEY `丅丅丅` (`丅丅丅`),
+  KEY `丄丄丄` (`丄丄`)
+) ENGINE=InnoDB DEFAULT CHARSET=ujis
+ALTER TABLE `龖龖龖` DROP INDEX `丄丄丄`;
+ALTER TABLE `龖龖龖` DROP PRIMARY KEY;
+ALTER TABLE `龖龖龖` DROP INDEX `丅丅丅`;
+ALTER TABLE `龖龖龖` DROP `丄丄`;
+ALTER TABLE `龖龖龖` DROP `丅丅丅`;
+ALTER TABLE `龖龖龖` DROP `乚乚乚`;
+SELECT * FROM `龖龖龖`;
+丂丂丂
+丂丂丂丂丂
+丄丄丄丄丄
+丅丅丅丅丅
+DESC `龖龖龖`;
+Field	Type	Null	Key	Default	Extra
+丂丂丂	char(6)	NO		NULL	
+SHOW CREATE TABLE `龖龖龖`;
+Table	Create Table
+龖龖龖	CREATE TABLE `龖龖龖` (
+  `丂丂丂` char(6) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=ujis
+DROP TABLE `ｱｱｱ`;
+DROP TABLE `ｲｲｲ`;
+DROP TABLE `あああ`;
+DROP TABLE `いいい`;
+DROP TABLE `龖龖龖`;
+DROP TABLE `龗龗龗`;
+CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = ujis engine=MYISAM;
+CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = ujis engine=MYISAM;
+CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = ujis engine=MYISAM;
+CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = ujis engine=MYISAM;
+CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = ujis engine=MYISAM;
+CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = ujis engine=MYISAM;
+INSERT INTO `ｱｱｱ` VALUES ('ｱｱｱｱｱ'),('ｲｲｲｲｲ'),('ｳｳｳｳｳ');
+INSERT INTO `あああ` VALUES ('あああああ'),('いいいいい'),('ううううう');
+INSERT INTO `龖龖龖` VALUES ('丂丂丂丂丂'),('丄丄丄丄丄'),('丅丅丅丅丅');
+ALTER TABLE `ｱｱｱ` ADD `ｶｶｶ` char(1) FIRST;
+ALTER TABLE `ｱｱｱ` ADD `ｸｸｸ` char(1) AFTER `ｷｷｷ`;
+ALTER TABLE `ｱｱｱ` ADD `ｹｹｹ` char(1);
+ALTER TABLE `ｱｱｱ` ADD INDEX (`ｶｶｶ`);
+ALTER TABLE `ｱｱｱ` ADD PRIMARY KEY (`ｷｷｷ`);
+ALTER TABLE `ｱｱｱ` ADD UNIQUE (`ｸｸｸ`);
+ALTER TABLE `ｱｱｱ` CHANGE `ｶｶｶ` `ｶｶ` char(1);
+ALTER TABLE `ｱｱｱ` MODIFY `ｷｷｷ` char(6);
+SELECT * FROM `ｱｱｱ`;
+ｶｶ	ｷｷｷ	ｸｸｸ	ｹｹｹ
+NULL	ｱｱｱｱｱ	NULL	NULL
+NULL	ｲｲｲｲｲ	NULL	NULL
+NULL	ｳｳｳｳｳ	NULL	NULL
+DESC `ｱｱｱ`;
+Field	Type	Null	Key	Default	Extra
+ｶｶ	char(1)	YES	MUL	NULL	
+ｷｷｷ	char(6)	NO	PRI	NULL	
+ｸｸｸ	char(1)	YES	UNI	NULL	
+ｹｹｹ	char(1)	YES		NULL	
+SHOW CREATE TABLE `ｱｱｱ`;
+Table	Create Table
+ｱｱｱ	CREATE TABLE `ｱｱｱ` (
+  `ｶｶ` char(1) DEFAULT NULL,
+  `ｷｷｷ` char(6) NOT NULL,
+  `ｸｸｸ` char(1) DEFAULT NULL,
+  `ｹｹｹ` char(1) DEFAULT NULL,
+  PRIMARY KEY (`ｷｷｷ`),
+  UNIQUE KEY `ｸｸｸ` (`ｸｸｸ`),
+  KEY `ｶｶｶ` (`ｶｶ`)
+) ENGINE=MyISAM DEFAULT CHARSET=ujis
+ALTER TABLE `ｱｱｱ` DROP INDEX `ｶｶｶ`;
+ALTER TABLE `ｱｱｱ` DROP PRIMARY KEY;
+ALTER TABLE `ｱｱｱ` DROP INDEX `ｸｸｸ`;
+ALTER TABLE `ｱｱｱ` DROP `ｶｶ`;
+ALTER TABLE `ｱｱｱ` DROP `ｸｸｸ`;
+ALTER TABLE `ｱｱｱ` DROP `ｹｹｹ`;
+SELECT * FROM `ｱｱｱ`;
+ｷｷｷ
+ｱｱｱｱｱ
+ｲｲｲｲｲ
+ｳｳｳｳｳ
+DESC `ｱｱｱ`;
+Field	Type	Null	Key	Default	Extra
+ｷｷｷ	char(6)	NO		NULL	
+SHOW CREATE TABLE `ｱｱｱ`;
+Table	Create Table
+ｱｱｱ	CREATE TABLE `ｱｱｱ` (
+  `ｷｷｷ` char(6) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=ujis
+ALTER TABLE `あああ` ADD `かかか` char(1) FIRST;
+ALTER TABLE `あああ` ADD `くくく` char(1) AFTER `ききき`;
+ALTER TABLE `あああ` ADD `けけけ` char(1);
+ALTER TABLE `あああ` ADD INDEX (`かかか`);
+ALTER TABLE `あああ` ADD PRIMARY KEY (`ききき`);
+ALTER TABLE `あああ` ADD UNIQUE (`くくく`);
+ALTER TABLE `あああ` CHANGE `かかか` `かか` char(1);
+ALTER TABLE `あああ` MODIFY `ききき` char(6);
+SELECT * FROM `あああ`;
+かか	ききき	くくく	けけけ
+NULL	あああああ	NULL	NULL
+NULL	いいいいい	NULL	NULL
+NULL	ううううう	NULL	NULL
+DESC `あああ`;
+Field	Type	Null	Key	Default	Extra
+かか	char(1)	YES	MUL	NULL	
+ききき	char(6)	NO	PRI	NULL	
+くくく	char(1)	YES	UNI	NULL	
+けけけ	char(1)	YES		NULL	
+SHOW CREATE TABLE `あああ`;
+Table	Create Table
+あああ	CREATE TABLE `あああ` (
+  `かか` char(1) DEFAULT NULL,
+  `ききき` char(6) NOT NULL,
+  `くくく` char(1) DEFAULT NULL,
+  `けけけ` char(1) DEFAULT NULL,
+  PRIMARY KEY (`ききき`),
+  UNIQUE KEY `くくく` (`くくく`),
+  KEY `かかか` (`かか`)
+) ENGINE=MyISAM DEFAULT CHARSET=ujis
+ALTER TABLE `あああ` DROP INDEX `かかか`;
+ALTER TABLE `あああ` DROP PRIMARY KEY;
+ALTER TABLE `あああ` DROP INDEX `くくく`;
+ALTER TABLE `あああ` DROP `かか`;
+ALTER TABLE `あああ` DROP `くくく`;
+ALTER TABLE `あああ` DROP `けけけ`;
+SELECT * FROM `あああ`;
+ききき
+あああああ
+いいいいい
+ううううう
+DESC `あああ`;
+Field	Type	Null	Key	Default	Extra
+ききき	char(6)	NO		NULL	
+SHOW CREATE TABLE `あああ`;
+Table	Create Table
+あああ	CREATE TABLE `あああ` (
+  `ききき` char(6) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=ujis
+ALTER TABLE `龖龖龖` ADD `丄丄丄` char(1) FIRST;
+ALTER TABLE `龖龖龖` ADD `丅丅丅` char(1) AFTER `丂丂丂`;
+ALTER TABLE `龖龖龖` ADD `乚乚乚` char(1);
+ALTER TABLE `龖龖龖` ADD INDEX (`丄丄丄`);
+ALTER TABLE `龖龖龖` ADD PRIMARY KEY (`丂丂丂`);
+ALTER TABLE `龖龖龖` ADD UNIQUE (`丅丅丅`);
+ALTER TABLE `龖龖龖` CHANGE `丄丄丄` `丄丄` char(1);
+ALTER TABLE `龖龖龖` MODIFY `丂丂丂` char(6);
+SELECT * FROM `龖龖龖`;
+丄丄	丂丂丂	丅丅丅	乚乚乚
+NULL	丂丂丂丂丂	NULL	NULL
+NULL	丄丄丄丄丄	NULL	NULL
+NULL	丅丅丅丅丅	NULL	NULL
+DESC `龖龖龖`;
+Field	Type	Null	Key	Default	Extra
+丄丄	char(1)	YES	MUL	NULL	
+丂丂丂	char(6)	NO	PRI	NULL	
+丅丅丅	char(1)	YES	UNI	NULL	
+乚乚乚	char(1)	YES		NULL	
+SHOW CREATE TABLE `龖龖龖`;
+Table	Create Table
+龖龖龖	CREATE TABLE `龖龖龖` (
+  `丄丄` char(1) DEFAULT NULL,
+  `丂丂丂` char(6) NOT NULL,
+  `丅丅丅` char(1) DEFAULT NULL,
+  `乚乚乚` char(1) DEFAULT NULL,
+  PRIMARY KEY (`丂丂丂`),
+  UNIQUE KEY `丅丅丅` (`丅丅丅`),
+  KEY `丄丄丄` (`丄丄`)
+) ENGINE=MyISAM DEFAULT CHARSET=ujis
+ALTER TABLE `龖龖龖` DROP INDEX `丄丄丄`;
+ALTER TABLE `龖龖龖` DROP PRIMARY KEY;
+ALTER TABLE `龖龖龖` DROP INDEX `丅丅丅`;
+ALTER TABLE `龖龖龖` DROP `丄丄`;
+ALTER TABLE `龖龖龖` DROP `丅丅丅`;
+ALTER TABLE `龖龖龖` DROP `乚乚乚`;
+SELECT * FROM `龖龖龖`;
+丂丂丂
+丂丂丂丂丂
+丄丄丄丄丄
+丅丅丅丅丅
+DESC `龖龖龖`;
+Field	Type	Null	Key	Default	Extra
+丂丂丂	char(6)	NO		NULL	
+SHOW CREATE TABLE `龖龖龖`;
+Table	Create Table
+龖龖龖	CREATE TABLE `龖龖龖` (
+  `丂丂丂` char(6) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=ujis
+DROP TABLE `ｱｱｱ`;
+DROP TABLE `ｲｲｲ`;
+DROP TABLE `あああ`;
+DROP TABLE `いいい`;
+DROP TABLE `龖龖龖`;
+DROP TABLE `龗龗龗`;
+CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = ujis engine=MEMORY;
+CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = ujis engine=MEMORY;
+CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = ujis engine=MEMORY;
+CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = ujis engine=MEMORY;
+CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = ujis engine=MEMORY;
+CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = ujis engine=MEMORY;
+INSERT INTO `ｱｱｱ` VALUES ('ｱｱｱｱｱ'),('ｲｲｲｲｲ'),('ｳｳｳｳｳ');
+INSERT INTO `あああ` VALUES ('あああああ'),('いいいいい'),('ううううう');
+INSERT INTO `龖龖龖` VALUES ('丂丂丂丂丂'),('丄丄丄丄丄'),('丅丅丅丅丅');
+ALTER TABLE `ｱｱｱ` ADD `ｶｶｶ` char(1) FIRST;
+ALTER TABLE `ｱｱｱ` ADD `ｸｸｸ` char(1) AFTER `ｷｷｷ`;
+ALTER TABLE `ｱｱｱ` ADD `ｹｹｹ` char(1);
+ALTER TABLE `ｱｱｱ` ADD INDEX (`ｶｶｶ`);
+ALTER TABLE `ｱｱｱ` ADD PRIMARY KEY (`ｷｷｷ`);
+ALTER TABLE `ｱｱｱ` ADD UNIQUE (`ｸｸｸ`);
+ALTER TABLE `ｱｱｱ` CHANGE `ｶｶｶ` `ｶｶ` char(1);
+ALTER TABLE `ｱｱｱ` MODIFY `ｷｷｷ` char(6);
+SELECT * FROM `ｱｱｱ`;
+ｶｶ	ｷｷｷ	ｸｸｸ	ｹｹｹ
+NULL	ｱｱｱｱｱ	NULL	NULL
+NULL	ｲｲｲｲｲ	NULL	NULL
+NULL	ｳｳｳｳｳ	NULL	NULL
+DESC `ｱｱｱ`;
+Field	Type	Null	Key	Default	Extra
+ｶｶ	char(1)	YES	MUL	NULL	
+ｷｷｷ	char(6)	NO	PRI	NULL	
+ｸｸｸ	char(1)	YES	UNI	NULL	
+ｹｹｹ	char(1)	YES		NULL	
+SHOW CREATE TABLE `ｱｱｱ`;
+Table	Create Table
+ｱｱｱ	CREATE TABLE `ｱｱｱ` (
+  `ｶｶ` char(1) DEFAULT NULL,
+  `ｷｷｷ` char(6) NOT NULL,
+  `ｸｸｸ` char(1) DEFAULT NULL,
+  `ｹｹｹ` char(1) DEFAULT NULL,
+  PRIMARY KEY (`ｷｷｷ`),
+  UNIQUE KEY `ｸｸｸ` (`ｸｸｸ`),
+  KEY `ｶｶｶ` (`ｶｶ`)
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
+ALTER TABLE `ｱｱｱ` DROP INDEX `ｶｶｶ`;
+ALTER TABLE `ｱｱｱ` DROP PRIMARY KEY;
+ALTER TABLE `ｱｱｱ` DROP INDEX `ｸｸｸ`;
+ALTER TABLE `ｱｱｱ` DROP `ｶｶ`;
+ALTER TABLE `ｱｱｱ` DROP `ｸｸｸ`;
+ALTER TABLE `ｱｱｱ` DROP `ｹｹｹ`;
+SELECT * FROM `ｱｱｱ`;
+ｷｷｷ
+ｱｱｱｱｱ
+ｲｲｲｲｲ
+ｳｳｳｳｳ
+DESC `ｱｱｱ`;
+Field	Type	Null	Key	Default	Extra
+ｷｷｷ	char(6)	NO		NULL	
+SHOW CREATE TABLE `ｱｱｱ`;
+Table	Create Table
+ｱｱｱ	CREATE TABLE `ｱｱｱ` (
+  `ｷｷｷ` char(6) NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
+ALTER TABLE `あああ` ADD `かかか` char(1) FIRST;
+ALTER TABLE `あああ` ADD `くくく` char(1) AFTER `ききき`;
+ALTER TABLE `あああ` ADD `けけけ` char(1);
+ALTER TABLE `あああ` ADD INDEX (`かかか`);
+ALTER TABLE `あああ` ADD PRIMARY KEY (`ききき`);
+ALTER TABLE `あああ` ADD UNIQUE (`くくく`);
+ALTER TABLE `あああ` CHANGE `かかか` `かか` char(1);
+ALTER TABLE `あああ` MODIFY `ききき` char(6);
+SELECT * FROM `あああ`;
+かか	ききき	くくく	けけけ
+NULL	あああああ	NULL	NULL
+NULL	いいいいい	NULL	NULL
+NULL	ううううう	NULL	NULL
+DESC `あああ`;
+Field	Type	Null	Key	Default	Extra
+かか	char(1)	YES	MUL	NULL	
+ききき	char(6)	NO	PRI	NULL	
+くくく	char(1)	YES	UNI	NULL	
+けけけ	char(1)	YES		NULL	
+SHOW CREATE TABLE `あああ`;
+Table	Create Table
+あああ	CREATE TABLE `あああ` (
+  `かか` char(1) DEFAULT NULL,
+  `ききき` char(6) NOT NULL,
+  `くくく` char(1) DEFAULT NULL,
+  `けけけ` char(1) DEFAULT NULL,
+  PRIMARY KEY (`ききき`),
+  UNIQUE KEY `くくく` (`くくく`),
+  KEY `かかか` (`かか`)
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
+ALTER TABLE `あああ` DROP INDEX `かかか`;
+ALTER TABLE `あああ` DROP PRIMARY KEY;
+ALTER TABLE `あああ` DROP INDEX `くくく`;
+ALTER TABLE `あああ` DROP `かか`;
+ALTER TABLE `あああ` DROP `くくく`;
+ALTER TABLE `あああ` DROP `けけけ`;
+SELECT * FROM `あああ`;
+ききき
+あああああ
+いいいいい
+ううううう
+DESC `あああ`;
+Field	Type	Null	Key	Default	Extra
+ききき	char(6)	NO		NULL	
+SHOW CREATE TABLE `あああ`;
+Table	Create Table
+あああ	CREATE TABLE `あああ` (
+  `ききき` char(6) NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
+ALTER TABLE `龖龖龖` ADD `丄丄丄` char(1) FIRST;
+ALTER TABLE `龖龖龖` ADD `丅丅丅` char(1) AFTER `丂丂丂`;
+ALTER TABLE `龖龖龖` ADD `乚乚乚` char(1);
+ALTER TABLE `龖龖龖` ADD INDEX (`丄丄丄`);
+ALTER TABLE `龖龖龖` ADD PRIMARY KEY (`丂丂丂`);
+ALTER TABLE `龖龖龖` ADD UNIQUE (`丅丅丅`);
+ALTER TABLE `龖龖龖` CHANGE `丄丄丄` `丄丄` char(1);
+ALTER TABLE `龖龖龖` MODIFY `丂丂丂` char(6);
+SELECT * FROM `龖龖龖`;
+丄丄	丂丂丂	丅丅丅	乚乚乚
+NULL	丂丂丂丂丂	NULL	NULL
+NULL	丄丄丄丄丄	NULL	NULL
+NULL	丅丅丅丅丅	NULL	NULL
+DESC `龖龖龖`;
+Field	Type	Null	Key	Default	Extra
+丄丄	char(1)	YES	MUL	NULL	
+丂丂丂	char(6)	NO	PRI	NULL	
+丅丅丅	char(1)	YES	UNI	NULL	
+乚乚乚	char(1)	YES		NULL	
+SHOW CREATE TABLE `龖龖龖`;
+Table	Create Table
+龖龖龖	CREATE TABLE `龖龖龖` (
+  `丄丄` char(1) DEFAULT NULL,
+  `丂丂丂` char(6) NOT NULL,
+  `丅丅丅` char(1) DEFAULT NULL,
+  `乚乚乚` char(1) DEFAULT NULL,
+  PRIMARY KEY (`丂丂丂`),
+  UNIQUE KEY `丅丅丅` (`丅丅丅`),
+  KEY `丄丄丄` (`丄丄`)
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
+ALTER TABLE `龖龖龖` DROP INDEX `丄丄丄`;
+ALTER TABLE `龖龖龖` DROP PRIMARY KEY;
+ALTER TABLE `龖龖龖` DROP INDEX `丅丅丅`;
+ALTER TABLE `龖龖龖` DROP `丄丄`;
+ALTER TABLE `龖龖龖` DROP `丅丅丅`;
+ALTER TABLE `龖龖龖` DROP `乚乚乚`;
+SELECT * FROM `龖龖龖`;
+丂丂丂
+丂丂丂丂丂
+丄丄丄丄丄
+丅丅丅丅丅
+DESC `龖龖龖`;
+Field	Type	Null	Key	Default	Extra
+丂丂丂	char(6)	NO		NULL	
+SHOW CREATE TABLE `龖龖龖`;
+Table	Create Table
+龖龖龖	CREATE TABLE `龖龖龖` (
+  `丂丂丂` char(6) NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
+DROP TABLE `ｱｱｱ`;
+DROP TABLE `ｲｲｲ`;
+DROP TABLE `あああ`;
+DROP TABLE `いいい`;
+DROP TABLE `龖龖龖`;
+DROP TABLE `龗龗龗`;

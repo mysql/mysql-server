@@ -1,0 +1,7 @@
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global lc_messages_dir=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session lc_messages_dir=1;

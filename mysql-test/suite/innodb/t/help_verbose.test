@@ -1,0 +1,31 @@
+#
+# BUG#20856397 MYSQLD --HELP --VERBOSE TAKES 50 SECONDS ON UNLOADED SYSTEM
+#
+
+
+let bugdir= $MYSQL_TMP_DIR/help_verbose;
+let datadir= $MYSQL_TMP_DIR/help_verbose/data;
+
+--mkdir $bugdir
+--mkdir $datadir
+
+let SEARCH_FILE = $bugdir/mysqld.log;
+let $args=--no-defaults --innodb_dedicated_server=OFF --lc_messages_dir=$MYSQL_SHAREDIR --datadir=$datadir --skip-grant-tables --secure-file-priv=$bugdir>$SEARCH_FILE 2>&1 ;
+
+--echo # Initialize
+--exec $MYSQLD $args --initialize
+
+--echo # Start with 64M buffer pool
+--exec $MYSQLD $args --innodb_buffer_pool_size=64M --help --verbose
+
+let SEARCH_PATTERN= innodb-buffer-pool-size                                      67108864;
+--source include/search_pattern.inc
+
+--echo # Start with 1G buffer pool
+--exec $MYSQLD $args --innodb_buffer_pool_size=1G --help --verbose
+
+let SEARCH_PATTERN= innodb-buffer-pool-size                                      1073741824;
+--source include/search_pattern.inc
+
+--echo # Cleanup
+--force-rmdir $bugdir

@@ -1,0 +1,32 @@
+
+--echo #
+--echo # Variable name : persisted_globals_load
+--echo # Scope         : Global Read only
+--echo #
+
+--echo # Global - default
+SELECT @@global.persisted_globals_load;
+
+--echo # via performance_schema.global_variables
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME
+  LIKE 'persisted_globals_load';
+--enable_warnings
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@local.persisted_globals_load;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.persisted_globals_load;
+
+--Error ER_BAD_FIELD_ERROR
+SELECT persisted_globals_load = @@SESSION.persisted_globals_load;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL persisted_globals_load= 1;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST persisted_globals_load= 1;
+
+--echo # End of tests.
+

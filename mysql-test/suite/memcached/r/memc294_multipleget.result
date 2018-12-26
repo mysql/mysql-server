@@ -1,0 +1,89 @@
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "0");
+INSERT INTO containers VALUES ("desc_t1", "test", "t1", "c1", "c2,
+c21,c22,c23,c24,c25", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desc_t2", "test", "t2", "c1",
+"c2,c3", "c4", "c5", "c6", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (c1 VARCHAR(32),c2 VARCHAR(40),c21 VARCHAR(40),c22 VARCHAR(40),
+c23 VARCHAR(40),c24 VARCHAR(40),c25 VARCHAR(40),c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', '4', 'hhhhhhhhhh', '4567', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('N', NULL, NULL, NULL, NULL, NULL, '2012', 0, 0, 0);
+CREATE TABLE t2(c1 VARCHAR(32),c2 VARCHAR(1024),c3 VARCHAR(1024),
+c4 INT, c5 BIGINT UNSIGNED, c6 INT, primary key(c1)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ('DD','DELHI','DAHAR', 0, 0, 0);
+INSERT INTO t2 VALUES ('BB','BOMBAY', 'BANGALORE', 0, 0, 0);
+INSERT INTO t2 VALUES ('CC','CALICUTT','CHENNAI', 0, 0 ,0);
+INSERT INTO t2 VALUES ('HH','HYDERABAD','HOSPET', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+c1	c2	c21	c22	c23	c24	c25
+B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
+C	Cottbus	West	3	cccccccccccccc	3456	2012
+D	Darmstadt	City	1	dddddddddddddd	1234	2012
+H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
+N	NULL	NULL	NULL	NULL	NULL	2012
+SELECT SLEEP(2);
+SLEEP(2)
+0
+# case 1: Fetch results for all Keys
+Here the memcached results with D B C H D B C H N:
+B => Berlin0Mitte020bbbbbbbbbbbbbb0234502012
+C => Cottbus0West030cccccccccccccc0345602012
+D => Darmstadt0City010dddddddddddddd0123402012
+H => Hamburg0Norderstedt040hhhhhhhhhh0456702012
+N => 000002012
+SELECT SLEEP(2);
+SLEEP(2)
+0
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+c1	c2	c21	c22	c23	c24	c25
+B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
+C	Cottbus	West	3	cccccccccccccc	3456	2012
+D	Darmstadt	City	1	dddddddddddddd	1234	2012
+H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
+N	NULL	NULL	NULL	NULL	NULL	2012
+# case 2: Fetch results, when no values are exist for some keys
+Here the memcached results with D B C H I J K L M N O P NULL Q R S T U V X Y Z A D B C H:
+B => Berlin0Mitte020bbbbbbbbbbbbbb0234502012
+C => Cottbus0West030cccccccccccccc0345602012
+D => Darmstadt0City010dddddddddddddd0123402012
+H => Hamburg0Norderstedt040hhhhhhhhhh0456702012
+N => 000002012
+SELECT SLEEP(2);
+SLEEP(2)
+0
+SELECT c1,c2,c3 FROM t2;
+c1	c2	c3
+BB	BOMBAY	BANGALORE
+CC	CALICUTT	CHENNAI
+DD	DELHI	DAHAR
+HH	HYDERABAD	HOSPET
+# case 3: No support switch between the tables t2 and t1
+# Here it shows the results of table t2 and not for t1
+Here the memcached results with @@desc_t2.DD @@desc_t2.BB @@desc_t2.CC @@desc_t1.c @@desc_t2.HH @@desc_t1.H:
+@@desc_t2.BB => BOMBAY0BANGALORE
+@@desc_t2.CC => CALICUTT0CHENNAI
+@@desc_t2.DD => DELHI0DAHAR
+@@desc_t2.HH => HYDERABAD0HOSPET
+SELECT SLEEP(2);
+SLEEP(2)
+0
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+c1	c2	c21	c22	c23	c24	c25
+B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
+C	Cottbus	West	3	cccccccccccccc	3456	2012
+D	Darmstadt	City	1	dddddddddddddd	1234	2012
+H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
+N	NULL	NULL	NULL	NULL	NULL	2012
+DROP TABLE t1;
+DROP TABLE t2;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;

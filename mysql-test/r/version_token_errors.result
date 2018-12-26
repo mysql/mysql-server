@@ -1,0 +1,65 @@
+# Set up the plugin APIs
+INSTALL PLUGIN version_tokens SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_set RETURNS STRING SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_show RETURNS STRING SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_edit RETURNS STRING SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_delete RETURNS STRING SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_lock_shared RETURNS INT SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_lock_exclusive RETURNS INT SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_unlock RETURNS INT SONAME 'version_token.so';
+# tests
+#
+# Bug #21645001  VERSION_TOKENS_DELETE() UDF DOESN'T TRIM WHITESPACE
+#
+SELECT version_tokens_set(' * = a ; y = b ');
+version_tokens_set(' * = a ; y = b ')
+2 version tokens set.
+SELECT version_tokens_show();
+version_tokens_show()
+*=a;y=b;
+SELECT version_tokens_delete(' * ');
+version_tokens_delete(' * ')
+1 version tokens deleted.
+SELECT version_tokens_show();
+version_tokens_show()
+y=b;
+SELECT version_tokens_delete(' ; y ');
+version_tokens_delete(' ; y ')
+1 version tokens deleted.
+SELECT version_tokens_show();
+version_tokens_show()
+NULL
+#
+# Bug #21645944: VERSION_TOKENS : CRASH WITH EMPTY TOKEN NAME
+#
+# Must not crash
+SELECT version_tokens_edit('=');
+version_tokens_edit('=')
+0 version tokens updated.
+Warnings:
+Warning	42000	Invalid version token pair encountered. The list provided is only partially updated.
+#
+# Bug #21646017: VERSION_TOKENS : CRASH WITH INVALID TIMEOUT PARAMETER
+#
+# Must not crash
+SELECT version_tokens_lock_shared('a',''>''%'0');
+ERROR 22003: timeout value is out of range in 'version_tokens_lock_shared'
+#
+# Bug #21646106: VERSION_TOKENS : CRASH WITH NULL INPUTS
+#
+# Must not crash
+SELECT version_tokens_delete(null);
+version_tokens_delete(null)
+0 version tokens deleted.
+# End of 5.7 tests
+# Clean up the plugin APIs
+UNINSTALL PLUGIN version_tokens;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+DROP FUNCTION version_tokens_set;
+DROP FUNCTION version_tokens_show;
+DROP FUNCTION version_tokens_edit;
+DROP FUNCTION version_tokens_delete;
+DROP FUNCTION version_tokens_lock_shared;
+DROP FUNCTION version_tokens_lock_exclusive;
+DROP FUNCTION version_tokens_unlock;

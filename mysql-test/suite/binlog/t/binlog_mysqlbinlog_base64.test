@@ -1,0 +1,108 @@
+
+-- source include/have_binlog_format_row.inc
+-- source include/no_valgrind_without_big.inc
+#
+# Reset master to cleanup binlog
+#
+reset master;
+
+#
+#  Write different events to binlog
+#
+create table t1 (a int);
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+update t1 set a=a+2 where a=2;
+update t1 set a=a+2 where a=3;
+
+create table t2 (word varchar(20));
+load data infile '../../std_data/words.dat' into table t2;
+
+#
+#  Save binlog
+#
+let $MYSQLD_DATADIR=`select @@datadir`;
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+flush logs;
+--exec $MYSQL_BINLOG --hexdump $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+
+#
+#  Clear database and restore from binlog
+#
+drop table t1;
+drop table t2;
+RESET MASTER;
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+
+#
+#  Verify that all binlog events have been executed
+#
+select * from t1;
+select * from t2;
+
+#
+#  Verify that events larger than the default IO_CACHE buffer
+#  are handled correctly (BUG#25628).
+#
+flush logs;
+drop table t2;
+create table t2 (word varchar(20));
+load data infile '../../std_data/words.dat' into table t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+select count(*) from t2;
+
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+flush logs;
+--exec $MYSQL_BINLOG --hexdump $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+RESET MASTER;
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+
+#
+#  Verify that all binlog events have been executed
+#
+select count(*) from t2;
+
+#
+#  Test cleanup
+#
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+drop table t1;
+drop table t2;
+
+#
+# BUG#12354268
+#
+# This test verifies that using --start-position with DECODE-ROWS
+# does not make mysqlbinlog to output an error stating that it
+# does not contain any FD event.
+#
+
+RESET MASTER;
+USE test;
+SET @old_binlog_format= @@binlog_format;
+SET SESSION binlog_format='ROW';
+CREATE TABLE t1(c1 INT);
+--let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+INSERT INTO t1 VALUES (1);
+
+FLUSH LOGS;
+
+--disable_result_log 
+--exec $MYSQL_BINLOG --base64-output=DECODE-ROWS --start-position=$master_pos -v $MYSQLD_DATADIR/$master_binlog
+--enable_result_log 
+
+DROP TABLE t1;
+SET SESSION binlog_format= @old_binlog_format;
+RESET MASTER;

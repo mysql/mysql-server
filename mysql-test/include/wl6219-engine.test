@@ -1,0 +1,149 @@
+#
+# WL#6219: Deprecate and remove YEAR(2) type
+#          Storage engine-specific test
+#
+#
+# Variables which have to be set before calling this script:
+#
+#   $engine_type -- Storage engine to be tested
+#
+
+let $wl6219_default_storage_engine=`select @@global.default_storage_engine`;
+eval SET global default_storage_engine=$engine_type;
+eval SET session default_storage_engine=$engine_type;
+
+--echo # Test for warnings on column creation
+
+CREATE TABLE t1 (y YEAR(4) NOT NULL);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (y YEAR(-4) NOT NULL);
+
+
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (y YEAR(0) NOT NULL);
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (y YEAR(1) NOT NULL);
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (y YEAR(2) NOT NULL);
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (y YEAR(5) NOT NULL);
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (y YEAR(10240) NOT NULL);
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (y YEAR(-1) NOT NULL);
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (y YEAR(-4294967296) NOT NULL);
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (y YEAR(-4294967295) NOT NULL);
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (y YEAR(NULL) NOT NULL);
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (y YEAR('') NOT NULL);
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (y YEAR('a') NOT NULL);
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (y YEAR('-a') NOT NULL);
+
+
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (y YEAR(4294967296) NOT NULL);
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (y YEAR(4294967295) NOT NULL);
+
+--echo # Test for default column width value
+
+CREATE TABLE t1 (y YEAR NOT NULL);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Check various ALTER TABLE operations on YEAR(2) type
+--echo #
+
+CREATE TABLE t1 (i INT NOT NULL);
+
+--echo # Try to create new YEAR(2) column with ALTER TABLE
+
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+ALTER TABLE t1 ADD COLUMN y YEAR(2) NOT NULL;
+SHOW CREATE TABLE t1;
+
+--echo # Try to convert YEAR(4) column to YEAR(2) with ALTER TABLE
+
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+ALTER TABLE t1 MODIFY COLUMN y YEAR(2) NOT NULL;
+SHOW CREATE TABLE t1;
+
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+ALTER TABLE t1 MODIFY COLUMN i YEAR(2) NOT NULL;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 MODIFY COLUMN i INT NOT NULL;
+
+DROP TABLE t1;
+
+
+if ($engine_type != "MERGE") {
+
+--echo #
+--echo # Regression tests
+--echo #
+
+CREATE TABLE t1 (y YEAR NOT NULL DEFAULT 0,
+                 i INT NOT NULL DEFAULT 0,
+		 c VARCHAR(20) NOT NULL DEFAULT '');
+
+--disable_query_log
+--echo # insert [1901..2155]
+let $i = 255;
+while ($i) {
+  let $x = 1901 + 255 - $i;
+  eval INSERT INTO t1 (i, c) VALUES($x, $x);
+  dec $i;
+}
+--echo # insert [0..99]
+let $i = 100;
+while ($i) {
+  let $x = 100 - $i;
+  eval INSERT INTO t1 (i, c) VALUES($x, $x);
+  dec $i;
+}
+--enable_query_log
+
+UPDATE t1 SET i = c;
+
+--echo # should return no warnings
+UPDATE t1 SET y = c;
+--echo # should return no warnings
+UPDATE t1 SET y = i;
+--echo # should return no warnings
+INSERT INTO t1 (y) VALUES (0), ('00'), ('0000');
+TRUNCATE t1;
+
+--echo # test out-of-range values, should return warnings
+
+INSERT INTO t1 (i) VALUES (-1), (1800), (2156), (2147483647);
+--echo # should return 4 warnings
+UPDATE IGNORE t1 SET y = i;
+--sorted_result
+SELECT y, i FROM t1;
+TRUNCATE t1;
+
+--echo # should return 4 warnings
+INSERT INTO t1 (c) VALUES (''), (' '), ('2012qwer'), ('qwer');
+UPDATE IGNORE t1 SET y = c;
+--sorted_result
+SELECT y, CONCAT('"', c, '"') FROM t1;
+
+DROP TABLE t1;
+
+} # if ($engine_type != "MERGE")
+
+eval SET @@global.default_storage_engine = $wl6219_default_storage_engine;
+eval SET @@session.default_storage_engine = $wl6219_default_storage_engine;
+
+--echo # 

@@ -1,0 +1,31 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Initialize ====
+[connection slave]
+SET @old_slave_rows_search_algorithms = @@global.slave_rows_search_algorithms;
+SET @@global.slave_rows_search_algorithms = 'INDEX_SCAN,TABLE_SCAN';
+include/start_slave.inc
+[connection master]
+SET @@session.binlog_row_image = 'MINIMAL';
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY(b));
+SET @@session.sql_log_bin = 1;
+[connection slave]
+CREATE TABLE t1 (a INT, b INT NOT NULL, UNIQUE KEY(b), PRIMARY KEY(a));
+[connection master]
+INSERT INTO t1 VALUES [100 rows];
+include/sync_slave_sql_with_master.inc
+==== Test ====
+[connection master]
+DELETE FROM t1 WHERE b != 0 ORDER BY b DESC;
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The search algorithm used while deleting rows is INDEX_SCAN, in the code before this bug it was TABLE_SCAN]
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET @@global.slave_rows_search_algorithms = @old_slave_rows_search_algorithms;
+include/rpl_end.inc

@@ -1,0 +1,8 @@
+# Tests for sys schema
+# Verify the sys.extract_table_from_file_name() function perfoms as expected
+
+# Passing NULL should return NULL
+SELECT sys.extract_table_from_file_name(NULL);
+
+# Ensure the right part of the path is extracted
+SELECT sys.extract_table_from_file_name('/var/lib/mysql/employees/employee.ibd');

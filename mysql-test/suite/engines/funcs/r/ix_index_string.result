@@ -1,0 +1,113 @@
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2(c1 CHAR(50) NULL);
+CREATE INDEX i1 ON t2(c1);
+SHOW TABLES;
+Tables_in_test
+t2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` char(50) DEFAULT NULL,
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t2(c1 VARCHAR(50) NULL);
+CREATE INDEX i1 ON t2(c1);
+SHOW TABLES;
+Tables_in_test
+t2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` varchar(50) DEFAULT NULL,
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t2(c1 BINARY(50) NULL);
+CREATE INDEX i1 ON t2(c1);
+SHOW TABLES;
+Tables_in_test
+t2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` binary(50) DEFAULT NULL,
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t2(c1 VARBINARY(50) NULL);
+CREATE INDEX i1 ON t2(c1);
+SHOW TABLES;
+Tables_in_test
+t2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` varbinary(50) DEFAULT NULL,
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t2(c1 CHAR(50) NOT NULL);
+CREATE INDEX i1 ON t2(c1);
+SHOW TABLES;
+Tables_in_test
+t2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` char(50) NOT NULL,
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t2(c1 VARCHAR(50) NOT NULL);
+CREATE INDEX i1 ON t2(c1);
+SHOW TABLES;
+Tables_in_test
+t2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` varchar(50) NOT NULL,
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t2(c1 BINARY(50) NOT NULL);
+CREATE INDEX i1 ON t2(c1);
+SHOW TABLES;
+Tables_in_test
+t2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` binary(50) NOT NULL,
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t2(c1 VARBINARY(50) NOT NULL);
+CREATE INDEX i1 ON t2(c1);
+SHOW TABLES;
+Tables_in_test
+t2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` varbinary(50) NOT NULL,
+  KEY `i1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SHOW TABLES;
+Tables_in_test

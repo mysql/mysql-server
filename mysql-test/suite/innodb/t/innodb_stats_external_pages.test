@@ -1,0 +1,83 @@
+#
+# Bug#18384390 WRONG STATISTICS WITH BIG ROW LENGTH AND PERSISTENT STATS
+#
+
+-- source include/have_innodb_max_16k.inc
+
+CREATE TABLE bug18384390 (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	txt VARCHAR(10000)
+) ENGINE=INNODB STATS_AUTO_RECALC=0;
+
+INSERT INTO bug18384390 (txt) VALUES (REPEAT('0', 10000));
+-- let $i = 0
+while ($i < 10) {
+	INSERT INTO bug18384390 (txt) SELECT txt FROM bug18384390;
+	-- inc $i
+}
+
+# Now we have 1024 rows in bug18384390
+
+-- let $count = `SELECT COUNT(*) FROM bug18384390`
+
+ANALYZE TABLE bug18384390;
+
+-- let $n_rows = `SELECT n_rows FROM mysql.innodb_table_stats WHERE table_name = 'bug18384390'`
+
+-- let $table_rows = `SELECT table_rows FROM information_schema.tables WHERE table_name = 'bug18384390'`
+
+-- let $n_diff = `SELECT stat_value FROM mysql.innodb_index_stats WHERE table_name = 'bug18384390' AND stat_name = 'n_diff_pfx01'`
+
+-- let $cardinality = `SELECT cardinality FROM information_schema.statistics WHERE table_name = 'bug18384390'`
+
+-- let $margin_of_err_pct = 30
+-- let $margin_of_err_rows = `SELECT ROUND($count * $margin_of_err_pct / 100)`
+
+-- let $min_allowed = `SELECT $count - $margin_of_err_rows`
+-- let $max_allowed = `SELECT $count + $margin_of_err_rows`
+
+-- let $dump_sql = SELECT COUNT(*) FROM bug18384390; SELECT * FROM mysql.innodb_table_stats; SELECT * FROM mysql.innodb_index_stats; SELECT * FROM information_schema.tables WHERE table_name = 'bug18384390'; SELECT * FROM information_schema.statistics WHERE table_name = 'bug18384390';
+
+-- vertical_results
+
+if ($n_rows < $min_allowed) {
+	-- echo mysql.innodb_table_stats.n_rows is too small ($n_rows < $min_allowed)
+	-- eval $dump_sql
+}
+
+if ($n_rows > $max_allowed) {
+	-- echo mysql.innodb_table_stats.n_rows is too big ($n_rows > $max_allowed)
+	-- eval $dump_sql
+}
+
+if ($table_rows < $min_allowed) {
+	-- echo information_schema.tables.table_rows is too small ($table_rows < $min_allowed)
+	-- eval $dump_sql
+}
+
+if ($table_rows > $max_allowed) {
+	-- echo information_schema.tables.table_rows is too big ($table_rows > $max_allowed)
+	-- eval $dump_sql
+}
+
+if ($n_diff < $min_allowed) {
+	-- echo mysql.innodb_index_stats.stat_value is too small ($n_diff < $min_allowed)
+	-- eval $dump_sql
+}
+
+if ($n_diff > $max_allowed) {
+	-- echo mysql.innodb_index_stats.stat_value is too big ($n_diff > $max_allowed)
+	-- eval $dump_sql
+}
+
+if ($cardinality < $min_allowed) {
+	-- echo information_schema.statistics.cardinality is too small ($cardinality < $min_allowed)
+	-- eval $dump_sql
+}
+
+if ($cardinality > $max_allowed) {
+	-- echo information_schema.statistics.cardinality is too big ($cardinality > $max_allowed)
+	-- eval $dump_sql
+}
+
+DROP TABLE bug18384390;

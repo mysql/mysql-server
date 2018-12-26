@@ -1,0 +1,249 @@
+###############################################################################
+#                                                                             #
+# ST_MakeEnvelope makes a rectangle polygon, i.e. an envelope using           #
+# two diagonal points.                                                        #
+#                                                                             #
+# Creation Date: 2014-12-03                                                   #
+# Author : Pavan Naik                                                         #
+#                                                                             #
+###############################################################################
+
+
+############################################################################################
+# Creating the spatial objects                                                             #
+############################################################################################
+
+--echo # Creating the spatial Geometry object
+USE test;
+
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+
+############################################################################################
+# Inserting the values specific to the spatial objects                                     #
+############################################################################################
+
+# Geometric elements constructing a star and some of its elememts as base
+SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center= 'POINT(15 10)';
+SET @star_top= 'POINT(15 25)';
+SET @star_bottom_left= 'POINT(5 0)';
+SET @star_bottom_right= 'POINT(25 0)';
+SET @star_bottom_points= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+
+--echo # INSERT base star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (100,ST_GEOMFROMTEXT(@star)),
+ (101,ST_GEOMFROMTEXT(@star_elem_vertical)),
+ (102,ST_GEOMFROMTEXT(@star_elem_horizontal)),
+ (103,ST_GEOMFROMTEXT(@star_of_elems)),
+ (104,ST_GEOMFROMTEXT(@star_top)),
+ (105,ST_GEOMFROMTEXT(@star_center)),
+ (106,ST_GEOMFROMTEXT(@star_bottom_left)),
+ (107,ST_GEOMFROMTEXT(@star_bottom_right)),
+ (108,ST_GEOMFROMTEXT(@star_bottom_points)),
+ (109,ST_GEOMFROMTEXT(@star_all_points)),
+ (110,ST_GEOMFROMTEXT(@star_line_horizontal)),
+ (111,ST_GEOMFROMTEXT(@star_line_vertical)),
+ (112,ST_GEOMFROMTEXT(@star_top_to_center)),
+ (113,ST_GEOMFROMTEXT(@star_lines_near_horizontal)),
+ (114,ST_GEOMFROMTEXT(@star_lines_near_vertical)),
+ (115,ST_GEOMFROMTEXT(@star_collection_elems)),
+ (116,ST_GEOMFROMTEXT(@star_collection_multilinestr));
+--enable_warnings
+
+--echo # Checking the integrity of the above create/insert statements 
+
+--echo # 17 rows. 
+SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
+
+--echo #####################################################################################
+--echo # ST_MAKEENVELOPE(point, point)
+--echo #####################################################################################
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 -1)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(-1 1)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(-1 -1)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(1 -1)'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(-1 1)'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(-1 -1)'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 10)'), ST_GEOMFROMTEXT('POINT(10 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(10 0)'), ST_GEOMFROMTEXT('POINT(0 10)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(10 0)'), ST_GEOMFROMTEXT('POINT(10 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(100 -100)'), ST_GEOMFROMTEXT('POINT(100.00 -100.000)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 1)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(1 0)'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(-1 -1)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0.0 -0.0)'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(1 -100)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(1e100 -1e100)'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(1e100 -1e100)'), ST_GEOMFROMTEXT('POINT(1e100 -1e100)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(1e100 1e100)'), ST_GEOMFROMTEXT('POINT(-1e100 -1e100)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(-1e100 -1e100)'), ST_GEOMFROMTEXT('POINT(1e100 -1e100)')));
+
+--echo #####################################################################################
+--echo # Invalid function calls
+--echo #####################################################################################
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_ASTEXT(ST_MAKEENVELOPE());
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(10 10)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(10 10)'),NULL));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(NULL,ST_GEOMFROMTEXT('POINT(10 10)')));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(NULL,ST_GEOMFROMTEXT(@star_top)));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT(@star_of_elems),NULL));
+
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(NULL,NULL));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('POINT(0 0)')));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('POINT(0 0)')));
+
+--error ER_PARSE_ERROR
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)')));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('POINT(0 0)')));
+
+--error ER_PARSE_ERROR
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(,));
+
+--error ER_PARSE_ERROR
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT(@star_of_elems),));
+
+--error ER_PARSE_ERROR
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(,ST_GEOMFROMTEXT(@star_top)));
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', -1024), ST_GEOMFROMTEXT('POINT(-1 1)', -1024)));
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', -1), ST_GEOMFROMTEXT('POINT(-1 1)', -1)));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(-1 1)', 4145)));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0), ST_GEOMFROMTEXT('POINT(0 0)', 4236)));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('MULTIPOINT(0 0)')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('MULTIPOINT(0 1)'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('MULTIPOINT(0 1)'), ST_GEOMFROMTEXT('MULTIPOINT(0 0)')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1))'), ST_GEOMFROMTEXT('POINT(0 0)')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0)))')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),GEOMETRYCOLLECTION())')));
+
+--error ER_WRONG_ARGUMENTS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1e1000)'));
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'));
+
+--echo # Clean up
+DROP TABLE gis_geometrycollection;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+DO ST_MAKEENVELOPE(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+
+--echo # Projected SRS (should pass)
+DO ST_MAKEENVELOPE(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+DO ST_MAKEENVELOPE(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_MAKEENVELOPE(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);

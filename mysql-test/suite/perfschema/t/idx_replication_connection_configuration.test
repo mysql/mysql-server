@@ -1,0 +1,42 @@
+# Tests for PERFORMANCE_SCHEMA
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+#setup
+let $select_column = HOST;
+let $table = performance_schema.replication_connection_configuration;
+
+--disable_warnings
+--source include/master-slave.inc
+
+--connection slave
+
+source include/stop_slave.inc;
+RESET SLAVE ALL;
+--disable_query_log
+eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_DELAY=2 FOR CHANNEL 'channel_1';
+--enable_query_log
+source include/start_slave.inc;
+--enable_warnings
+
+###########################################################################
+# Test index on CHANNEL_NAME
+###########################################################################
+
+let $column_count = 1;
+let $col1 = CHANNEL_NAME;
+let $col1_act = "channel_1";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+source include/stop_slave.inc;
+RESET SLAVE ALL;
+--disable_warnings
+--disable_query_log
+eval change master to master_host='127.0.0.1', master_port=$MASTER_MYPORT, master_user='root';
+--enable_query_log
+--enable_warnings
+source include/start_slave.inc;
+--connection master
+
+--source include/rpl_end.inc

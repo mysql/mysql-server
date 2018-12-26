@@ -1,0 +1,88 @@
+-- source include/have_myisam.inc
+-- source include/have_binlog_format_statement.inc
+RESET MASTER;
+#
+# BUG#49562: SBR out of sync when using numeric data types + user variable
+#
+
+-- let $max_unsigned_long= 18446744073709551615
+-- let $min_signed_long= -9223372036854775808
+-- eval SET @positive= $max_unsigned_long
+-- eval SET @negative= $min_signed_long
+
+CREATE TABLE t1 (`tinyint` TINYINT,
+                 `smallint` SMALLINT,
+                 `mediumint` MEDIUMINT,
+                 `integer` INTEGER,
+                 `bigint` BIGINT,
+                 `utinyint` TINYINT UNSIGNED,
+                 `usmallint` SMALLINT UNSIGNED,
+                 `umediumint` MEDIUMINT UNSIGNED,
+                 `uinteger` INTEGER UNSIGNED,
+                 `ubigint` BIGINT UNSIGNED,
+                 `double` DOUBLE,
+                 `float` FLOAT,
+                 `real` REAL(30,2),
+                 `decimal` DECIMAL(30,2)) ENGINE = MyISAM;
+
+-- echo ### insert max unsigned
+-- echo ### a) declarative
+-- disable_warnings
+-- eval INSERT IGNORE INTO t1 VALUES ($max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long,$max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long);
+-- enable_warnings
+TRUNCATE t1;
+
+-- echo ### b) user var
+-- disable_warnings
+INSERT IGNORE INTO t1 VALUES (@positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive);
+-- enable_warnings
+
+-- echo ## assertion: checks that User_var_log_event::pack_info 
+-- echo ## correctly displays the binlog content by taking into 
+-- echo ## account the unsigned_flag
+-- source include/show_binlog_events.inc
+
+-- echo ### insert min signed
+-- echo ### a) declarative
+-- disable_warnings
+-- eval INSERT IGNORE INTO t1 VALUES ($min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long,$min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long);
+-- enable_warnings
+TRUNCATE t1;
+
+-- echo ### b) user var
+-- disable_warnings
+INSERT IGNORE INTO t1 VALUES (@negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative);
+-- enable_warnings
+
+-- echo ## assertion: checks that User_var_log_event::pack_info 
+-- echo ## correctly displays the binlog content by taking into 
+-- echo ## account the unsigned_flag
+-- source include/show_binlog_events.inc
+
+DROP TABLE t1;

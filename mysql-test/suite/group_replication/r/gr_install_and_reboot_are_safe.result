@@ -1,0 +1,36 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Function 'group_replication' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'group_replication' with soname 'group_replication.so'.");
+SET SESSION sql_log_bin=1;
+
+# 1. Uninstall and install Group Replication via inc file do not log error.
+include/uninstall_group_replication_plugin.inc
+include/install_group_replication_plugin.inc
+
+# 2. Reboot server.
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/assert.inc ['INSTALL PLUGIN cleanup successful using clean_group_replication_install_entry.inc']
+include/rpl_reconnect.inc
+
+# 3. Verify no ERROR is logged.
+include/assert_grep.inc [Found the expected error in group_replication_applier channel.]
+
+# 4. Uninstall and install Group Replication via commands (not inc) log error.
+include/uninstall_group_replication_plugin.inc
+include/install_group_replication_plugin.inc
+
+# 5. Reboot server.
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/assert.inc ['INSTALL PLUGIN leaves entry in mysql.plugin table so cleanup is required done in group_replication_end.inc']
+include/rpl_reconnect.inc
+
+# 6. Verify ERROR is logged.
+include/assert_grep.inc [Found the expected error in group_replication_applier channel.]
+
+# 7. Cleanup.
+include/group_replication_end.inc

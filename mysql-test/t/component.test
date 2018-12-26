@@ -1,0 +1,235 @@
+--source include/have_example_component.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # Simple load test
+INSTALL COMPONENT "file://component_example_component1";
+UNINSTALL COMPONENT "file://component_example_component1";
+
+--echo # Double load test
+INSTALL COMPONENT "file://component_example_component1";
+--error ER_COMPONENTS_CANT_LOAD
+INSTALL COMPONENT "file://component_example_component1";
+UNINSTALL COMPONENT "file://component_example_component1";
+
+--echo # Load not existing
+--error ER_COMPONENTS_CANT_LOAD
+INSTALL COMPONENT "file://component_example_component4";
+
+--echo # Load with unsatisfied dependencies
+--error ER_COMPONENTS_CANT_SATISFY_DEPENDENCY
+INSTALL COMPONENT "file://component_example_component3";
+
+--echo # Load with no schema
+--error ER_COMPONENTS_NO_SCHEME
+INSTALL COMPONENT "file:component_example_component3";
+
+--echo # Load with bad schema
+--error ER_COMPONENTS_NO_SCHEME_SERVICE
+INSTALL COMPONENT "bad_scheme://component_example_component3";
+
+--echo # Load with path
+--error ER_COMPONENTS_CANT_LOAD
+INSTALL COMPONENT "file:///component_example_component3";
+--error ER_COMPONENTS_CANT_LOAD
+INSTALL COMPONENT "file://./component_example_component3";
+--error ER_COMPONENTS_CANT_LOAD
+INSTALL COMPONENT "file://../component_example_component3";
+
+--echo # Load with unsatisfied dependencies after unload
+INSTALL COMPONENT "file://component_example_component1";
+UNINSTALL COMPONENT "file://component_example_component1";
+--error ER_COMPONENTS_CANT_SATISFY_DEPENDENCY
+INSTALL COMPONENT "file://component_example_component3";
+
+-- echo # Unload not existing
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "file://component_example_component4";
+
+-- echo # Unload not loaded
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "file://component_example_component1";
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "file://component_example_component1";
+
+-- echo # Load/unload group of components without dependencies
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component2", "file://component_example_component1";
+
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component1";
+UNINSTALL COMPONENT "file://component_example_component2";
+
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component1";
+
+INSTALL COMPONENT "file://component_example_component1";
+INSTALL COMPONENT "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component2", "file://component_example_component1";
+
+INSTALL COMPONENT "file://component_example_component1";
+INSTALL COMPONENT "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+
+-- echo # Load/unload group of components with dependencies
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component3";
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component3";
+
+INSTALL COMPONENT "file://component_example_component3", "file://component_example_component1";
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component3";
+
+INSTALL COMPONENT "file://component_example_component3", "file://component_example_component1";
+UNINSTALL COMPONENT "file://component_example_component3", "file://component_example_component1";
+
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component3";
+UNINSTALL COMPONENT "file://component_example_component3";
+UNINSTALL COMPONENT "file://component_example_component1";
+
+INSTALL COMPONENT "file://component_example_component3", "file://component_example_component1";
+UNINSTALL COMPONENT "file://component_example_component3";
+UNINSTALL COMPONENT "file://component_example_component1";
+
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component2", "file://component_example_component3";
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2", "file://component_example_component3";
+
+--echo # Test more dependencies and groups
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component2", "file://component_example_component3";
+--error ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component3";
+UNINSTALL COMPONENT "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component1";
+
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component3";
+INSTALL COMPONENT "file://component_example_component2";
+--error ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component3";
+UNINSTALL COMPONENT "file://component_example_component1";
+
+--echo # Test overlapping groups load/unload
+INSTALL COMPONENT "file://component_example_component1";
+INSTALL COMPONENT "file://component_example_component2", "file://component_example_component3";
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component3";
+UNINSTALL COMPONENT "file://component_example_component2";
+
+INSTALL COMPONENT "file://component_example_component1";
+INSTALL COMPONENT "file://component_example_component2", "file://component_example_component3";
+--error ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2", "file://component_example_component3";
+
+INSTALL COMPONENT "file://component_example_component1", "file://component_example_component2";
+--error ER_COMPONENTS_CANT_LOAD
+INSTALL COMPONENT "file://component_example_component3", "file://component_example_component2";
+INSTALL COMPONENT "file://component_example_component3";
+--echo # all three components should present
+SELECT COUNT(*) FROM mysql.component;
+
+--error ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP
+UNINSTALL COMPONENT "file://component_example_component2", "file://component_example_component2";
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2", "file://component_example_component3";
+--echo # zero components should present
+SELECT COUNT(*) FROM mysql.component;
+
+--echo #
+--echo # Checking component persistance code. Install a component, shutdown
+--echo # and restart the server, the components should present.
+--echo #
+INSTALL COMPONENT "file://component_example_component1";
+INSTALL COMPONENT "file://component_example_component2", "file://component_example_component3";
+--echo # all three components should present
+SELECT COUNT(*) FROM mysql.component;
+--echo # shutdown the server from mtr.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # restart the server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # all three components should present
+SELECT COUNT(*) FROM mysql.component;
+
+UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component2", "file://component_example_component3";
+--echo # zero components should present
+SELECT COUNT(*) FROM mysql.component;
+--echo # shutdown the server from mtr.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # restart the server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # zero components should present
+SELECT COUNT(*) FROM mysql.component;
+
+--echo # Name of component is invalid
+--error ER_COMPONENTS_NO_SCHEME
+INSTALL COMPONENT "dynamic_loader_test_lib1";
+--error ER_COMPONENTS_CANT_LOAD
+INSTALL COMPONENT "file://dynamic_loader_test_lib2", "dynamic_loader_test_lib3";
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "fle://dynamic_loader_test_lib1", "file://dynamic_loader_test_lib3";
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "dynamic_loader_test_lib2";
+--error ER_COMPONENTS_CANT_LOAD
+INSTALL COMPONENT "file://localhost/tmp/dynamic_loader_test_lib1";
+--error ER_COMPONENTS_NO_SCHEME_SERVICE
+INSTALL COMPONENT "http://dynamic_loader_test_lib1";
+--error ER_COMPONENTS_CANT_LOAD
+INSTALL COMPONENT "file://dynamic_loader_test_lib2", "http://dynamic_loader_test_lib3";
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "file://dynamic_loader_test_lib1", "http://dynamic_loader_test_lib3";
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "http://dynamic_loader_test_lib2";
+
+--echo #
+--echo # Bug #24528148 UNPRIVILEGED USER ABLE TO LOAD COMPONENTS TO
+--echo #               MYSQL.COMPONENT
+--echo #
+CREATE USER mysqltest_u1@localhost;
+connect (conn1, localhost, mysqltest_u1, ,);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSTALL COMPONENT "file://component_example_component1";
+--error ER_TABLEACCESS_DENIED_ERROR
+UNINSTALL COMPONENT "file://component_example_component1";
+
+disconnect conn1;
+connection default;
+DROP USER mysqltest_u1@localhost;
+
+
+--echo #
+--echo # Bug #27041374: ASSERTION `NEXT_INSERT_ID == 0' FAILED.
+--echo #
+
+SET @@session.insert_id=42949672950;
+
+--echo # Must not assert
+--error ER_COMPONENT_MANIPULATE_ROW_FAILED
+INSTALL COMPONENT
+"file://component_example_component2","file://component_example_component3";
+
+--echo # reset back the insert_id and auto_increment
+SET @@session.insert_id=0;
+ALTER TABLE mysql.component AUTO_INCREMENT=1;
+
+
+--echo # End of 8.0 tests
+
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

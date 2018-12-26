@@ -1,0 +1,19 @@
+# Tests for PERFORMANCE_SCHEMA
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.events_errors_summary_by_host_by_error
+  add column foo integer;
+
+truncate table performance_schema.events_errors_summary_by_host_by_error;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.events_errors_summary_by_host_by_error
+  ADD INDEX test_index(HOSTNAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index
+  ON performance_schema.events_errors_summary_by_host_by_error(HOSTNAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `HOST`
+  ON performance_schema.events_errors_summary_by_host_by_error;

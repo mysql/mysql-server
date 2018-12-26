@@ -1,0 +1,192 @@
+# Alter a fts table non-rebuilt with hidden fts doc id index
+# but without fts index, the hidden index should be kept.
+
+--echo # Case 1 : WITHOUT FTS_DOC_ID
+CREATE TABLE t1 (
+       id INT,
+       title VARCHAR(200),
+       FULLTEXT fidx(title)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id, title) VALUES (1, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 ALTER COLUMN id DROP DEFAULT;
+
+INSERT INTO t1 (id, title) VALUES (2, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+--source include/restart_mysqld.inc
+
+ALTER TABLE t1 DROP KEY fidx;
+
+ALTER TABLE t1 ALTER COLUMN id DROP DEFAULT;
+
+DELETE FROM t1 WHERE id < 2;
+
+INSERT INTO t1 (id, title) VALUES (3, 'MySQL Tutorial');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+--source include/restart_mysqld.inc
+
+INSERT INTO t1 (id, title) VALUES (4, 'MySQL Tutorial');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 ADD FULLTEXT KEY fidx (title);
+
+INSERT INTO t1 (id, title) VALUES (5, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 DROP KEY fidx;
+
+ALTER TABLE t1 ALTER COLUMN id DROP DEFAULT;
+
+DELETE FROM t1 WHERE id < 5;
+
+INSERT INTO t1 (id, title) VALUES (6, 'MySQL Tutorial');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 ADD FULLTEXT KEY fidx(title);
+
+INSERT INTO t1 (id, title) VALUES (7, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+DROP TABLE t1;
+
+--echo # Case 2 : WITH FTS_DOC_ID PRIMARY KEY
+CREATE TABLE t1 (
+       FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL,
+       id INT,
+       title VARCHAR(200),
+       PRIMARY KEY(FTS_DOC_ID),
+       FULLTEXT fidx(title)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id, title) VALUES (1, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 ALTER COLUMN id DROP DEFAULT;
+
+INSERT INTO t1 (id, title) VALUES (2, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+--source include/restart_mysqld.inc
+
+ALTER TABLE t1 DROP KEY fidx;
+
+ALTER TABLE t1 ALTER COLUMN id DROP DEFAULT;
+
+DELETE FROM t1 WHERE id < 2;
+
+INSERT INTO t1 (id, title) VALUES (3, 'MySQL Tutorial');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+--source include/restart_mysqld.inc
+
+INSERT INTO t1 (id, title) VALUES (4, 'MySQL Tutorial');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 ADD FULLTEXT KEY fidx (title);
+
+INSERT INTO t1 (id, title) VALUES (5, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 DROP KEY fidx;
+
+ALTER TABLE t1 ALTER COLUMN id DROP DEFAULT;
+
+DELETE FROM t1 WHERE id < 5;
+
+INSERT INTO t1 (id, title) VALUES (6, 'MySQL Tutorial');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 ADD FULLTEXT KEY fidx(title);
+
+INSERT INTO t1 (id, title) VALUES (7, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+DROP TABLE t1;
+
+--echo # Case 3 : WITH FTS_DOC_ID FTS_DOC_ID_INDEX KEY
+CREATE TABLE t1 (
+       FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL,
+       id INT,
+       title VARCHAR(200),
+       UNIQUE KEY FTS_DOC_ID_INDEX(FTS_DOC_ID),
+       FULLTEXT fidx(title)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id, title) VALUES (1, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 ALTER COLUMN id DROP DEFAULT;
+
+INSERT INTO t1 (id, title) VALUES (2, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+--source include/restart_mysqld.inc
+
+ALTER TABLE t1 DROP KEY fidx;
+
+ALTER TABLE t1 ALTER COLUMN id DROP DEFAULT;
+
+DELETE FROM t1 WHERE id < 2;
+
+INSERT INTO t1 (id, title) VALUES (3, 'MySQL Tutorial');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+--source include/restart_mysqld.inc
+
+INSERT INTO t1 (id, title) VALUES (4, 'MySQL Tutorial');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 ADD FULLTEXT KEY fidx (title);
+
+INSERT INTO t1 (id, title) VALUES (5, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 DROP KEY fidx;
+
+ALTER TABLE t1 ALTER COLUMN id DROP DEFAULT;
+
+DELETE FROM t1 WHERE id < 5;
+
+INSERT INTO t1 (id, title) VALUES (6, 'MySQL Tutorial');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+ALTER TABLE t1 ADD FULLTEXT KEY fidx(title);
+
+INSERT INTO t1 (id, title) VALUES (7, 'MySQL Tutorial');
+
+SELECT id, title FROM t1 WHERE MATCH(title) AGAINST('mysql');
+
+DROP TABLE t1;

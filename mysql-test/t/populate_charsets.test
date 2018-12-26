@@ -1,0 +1,41 @@
+--echo # Bug #22284224: REWRITE REPOPULATION OF CHARACTER SETS AND COLLATIONS DURING STARTUP
+--echo #
+--echo # Verify that new collations become available in the server
+--echo # after a restart. Verify that previously existing
+--echo # collations are deleted if they are not present in the
+--echo # character sets dir when restarting.
+
+--echo #
+--echo # New character sets dir:
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+SHOW VARIABLES LIKE 'character_sets_dir%';
+
+--echo #
+--echo # Show new collation available in the new character sets dir:
+SHOW COLLATION LIKE 'utf8_phone_ci';
+
+--echo #
+--echo # Create and drop a table using the new collation:
+CREATE TABLE t1 (pk INTEGER) COLLATE utf8_phone_ci;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Restart server with original character sets dir:
+--let $restart_parameters=restart:--character-sets-dir=$MYSQL_CHARSETSDIR
+--replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Reverted to old character sets dir:
+--replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
+SHOW VARIABLES LIKE 'character_sets_dir%';
+
+--echo #
+--echo # The newly added collation has been deleted:
+SHOW COLLATION LIKE 'utf8_phone_ci';
+
+--echo #
+--echo # Create a table using the deleted collation, expected to fail:
+--error ER_UNKNOWN_COLLATION
+CREATE TABLE t1 (pk INTEGER) COLLATE utf8_phone_ci;

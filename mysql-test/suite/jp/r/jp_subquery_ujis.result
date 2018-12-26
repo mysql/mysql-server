@@ -1,0 +1,166 @@
+DROP TABLE IF EXISTS `£Τ£±a`;
+DROP TABLE IF EXISTS `£Τ£±b`;
+DROP TABLE IF EXISTS `£Τ£²a`;
+DROP TABLE IF EXISTS `£Τ£²b`;
+DROP TABLE IF EXISTS `£Τ£³a`;
+DROP TABLE IF EXISTS `£Τ£³b`;
+DROP TABLE IF EXISTS `£Τ£΄a`;
+DROP TABLE IF EXISTS `£Τ£΄b`;
+DROP TABLE IF EXISTS `£Τ£µa`;
+DROP TABLE IF EXISTS `£Τ£µb`;
+DROP TABLE IF EXISTS `£Τ£¶a`;
+DROP TABLE IF EXISTS `£Τ£¶b`;
+DROP TABLE IF EXISTS `£Τ£·a`;
+DROP TABLE IF EXISTS `£Τ£·b`;
+DROP TABLE IF EXISTS `£Τ£Έa`;
+DROP TABLE IF EXISTS `£Τ£Έb`;
+DROP TABLE IF EXISTS `£Τ£Ήa`;
+DROP TABLE IF EXISTS `£Τ£Ήb`;
+SET NAMES ujis;
+SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `£Τ£±a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£±b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£²a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£²b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£³a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£³b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£΄a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£΄b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£µa` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£µb` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£¶a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£¶b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£Τ£·a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£·b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Έa` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Έb` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Ήa` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Ήb` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+INSERT INTO `£Τ£±a` VALUES ('±'),('¶'),('»');
+INSERT INTO `£Τ£±b` VALUES ('±');
+INSERT INTO `£Τ£²a` VALUES ('¤Ά'),('¤«'),('¤µ');
+INSERT INTO `£Τ£²b` VALUES ('¤Ά');
+INSERT INTO `£Τ£³a` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£³b` VALUES ('νά');
+INSERT INTO `£Τ£΄a` VALUES ('±'),('¶'),('»');
+INSERT INTO `£Τ£΄b` VALUES ('±');
+INSERT INTO `£Τ£µa` VALUES ('¤Ά'),('¤«'),('¤µ');
+INSERT INTO `£Τ£µb` VALUES ('¤Ά');
+INSERT INTO `£Τ£¶a` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£¶b` VALUES ('νά');
+INSERT INTO `£Τ£·a` VALUES ('±'),('¶'),('»');
+INSERT INTO `£Τ£·b` VALUES ('±');
+INSERT INTO `£Τ£Έa` VALUES ('¤Ά'),('¤«'),('¤µ');
+INSERT INTO `£Τ£Έb` VALUES ('¤Ά');
+INSERT INTO `£Τ£Ήa` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£Ήb` VALUES ('νά');
+SELECT `£Γ£±` FROM `£Τ£±a` WHERE `£Γ£±` IN (SELECT `£Γ£±` FROM `£Τ£±b`);
+£Γ£±
+±
+SELECT `£Γ£±` FROM `£Τ£±a` WHERE EXISTS (SELECT `£Γ£±` FROM `£Τ£±b` WHERE `£Τ£±a`.`£Γ£±` = `£Τ£±b`.`£Γ£±`);
+£Γ£±
+±
+SELECT `£Γ£±` FROM `£Τ£±a` WHERE NOT EXISTS (SELECT `£Γ£±` FROM `£Τ£±b` WHERE `£Τ£±a`.`£Γ£±` = `£Τ£±b`.`£Γ£±`);
+£Γ£±
+¶
+»
+SELECT `£Γ£±` FROM `£Τ£²a` WHERE `£Γ£±` IN (SELECT `£Γ£±` FROM `£Τ£²b`);
+£Γ£±
+¤Ά
+SELECT `£Γ£±` FROM `£Τ£²a` WHERE EXISTS (SELECT `£Γ£±` FROM `£Τ£²b` WHERE `£Τ£²a`.`£Γ£±` = `£Τ£²b`.`£Γ£±`);
+£Γ£±
+¤Ά
+SELECT `£Γ£±` FROM `£Τ£²a` WHERE NOT EXISTS (SELECT `£Γ£±` FROM `£Τ£²b` WHERE `£Τ£²a`.`£Γ£±` = `£Τ£²b`.`£Γ£±`);
+£Γ£±
+¤«
+¤µ
+SELECT `£Γ£±` FROM `£Τ£³a` WHERE `£Γ£±` IN (SELECT `£Γ£±` FROM `£Τ£³b`);
+£Γ£±
+νά
+SELECT `£Γ£±` FROM `£Τ£³a` WHERE EXISTS (SELECT `£Γ£±` FROM `£Τ£³b` WHERE `£Τ£³a`.`£Γ£±` = `£Τ£³b`.`£Γ£±`);
+£Γ£±
+νά
+SELECT `£Γ£±` FROM `£Τ£³a` WHERE NOT EXISTS (SELECT `£Γ£±` FROM `£Τ£³b` WHERE `£Τ£³a`.`£Γ£±` = `£Τ£³b`.`£Γ£±`);
+£Γ£±
+νέ
+νή
+SELECT `£Γ£±` FROM `£Τ£΄a` WHERE `£Γ£±` IN (SELECT `£Γ£±` FROM `£Τ£΄b`);
+£Γ£±
+±
+SELECT `£Γ£±` FROM `£Τ£΄a` WHERE EXISTS (SELECT `£Γ£±` FROM `£Τ£΄b` WHERE `£Τ£΄a`.`£Γ£±` = `£Τ£΄b`.`£Γ£±`);
+£Γ£±
+±
+SELECT `£Γ£±` FROM `£Τ£΄a` WHERE NOT EXISTS (SELECT `£Γ£±` FROM `£Τ£΄b` WHERE `£Τ£΄a`.`£Γ£±` = `£Τ£΄b`.`£Γ£±`);
+£Γ£±
+¶
+»
+SELECT `£Γ£±` FROM `£Τ£µa` WHERE `£Γ£±` IN (SELECT `£Γ£±` FROM `£Τ£µb`);
+£Γ£±
+¤Ά
+SELECT `£Γ£±` FROM `£Τ£µa` WHERE EXISTS (SELECT `£Γ£±` FROM `£Τ£µb` WHERE `£Τ£µa`.`£Γ£±` = `£Τ£µb`.`£Γ£±`);
+£Γ£±
+¤Ά
+SELECT `£Γ£±` FROM `£Τ£µa` WHERE NOT EXISTS (SELECT `£Γ£±` FROM `£Τ£µb` WHERE `£Τ£µa`.`£Γ£±` = `£Τ£µb`.`£Γ£±`);
+£Γ£±
+¤«
+¤µ
+SELECT `£Γ£±` FROM `£Τ£¶a` WHERE `£Γ£±` IN (SELECT `£Γ£±` FROM `£Τ£¶b`);
+£Γ£±
+νά
+SELECT `£Γ£±` FROM `£Τ£¶a` WHERE EXISTS (SELECT `£Γ£±` FROM `£Τ£¶b` WHERE `£Τ£¶a`.`£Γ£±` = `£Τ£¶b`.`£Γ£±`);
+£Γ£±
+νά
+SELECT `£Γ£±` FROM `£Τ£¶a` WHERE NOT EXISTS (SELECT `£Γ£±` FROM `£Τ£¶b` WHERE `£Τ£¶a`.`£Γ£±` = `£Τ£¶b`.`£Γ£±`);
+£Γ£±
+νέ
+νή
+SELECT `£Γ£±` FROM `£Τ£·a` WHERE `£Γ£±` IN (SELECT `£Γ£±` FROM `£Τ£·b`);
+£Γ£±
+±
+SELECT `£Γ£±` FROM `£Τ£·a` WHERE EXISTS (SELECT `£Γ£±` FROM `£Τ£·b` WHERE `£Τ£·a`.`£Γ£±` = `£Τ£·b`.`£Γ£±`);
+£Γ£±
+±
+SELECT `£Γ£±` FROM `£Τ£·a` WHERE NOT EXISTS (SELECT `£Γ£±` FROM `£Τ£·b` WHERE `£Τ£·a`.`£Γ£±` = `£Τ£·b`.`£Γ£±`);
+£Γ£±
+¶
+»
+SELECT `£Γ£±` FROM `£Τ£Έa` WHERE `£Γ£±` IN (SELECT `£Γ£±` FROM `£Τ£Έb`);
+£Γ£±
+¤Ά
+SELECT `£Γ£±` FROM `£Τ£Έa` WHERE EXISTS (SELECT `£Γ£±` FROM `£Τ£Έb` WHERE `£Τ£Έa`.`£Γ£±` = `£Τ£Έb`.`£Γ£±`);
+£Γ£±
+¤Ά
+SELECT `£Γ£±` FROM `£Τ£Έa` WHERE NOT EXISTS (SELECT `£Γ£±` FROM `£Τ£Έb` WHERE `£Τ£Έa`.`£Γ£±` = `£Τ£Έb`.`£Γ£±`);
+£Γ£±
+¤«
+¤µ
+SELECT `£Γ£±` FROM `£Τ£Ήa` WHERE `£Γ£±` IN (SELECT `£Γ£±` FROM `£Τ£Ήb`);
+£Γ£±
+νά
+SELECT `£Γ£±` FROM `£Τ£Ήa` WHERE EXISTS (SELECT `£Γ£±` FROM `£Τ£Ήb` WHERE `£Τ£Ήa`.`£Γ£±` = `£Τ£Ήb`.`£Γ£±`);
+£Γ£±
+νά
+SELECT `£Γ£±` FROM `£Τ£Ήa` WHERE NOT EXISTS (SELECT `£Γ£±` FROM `£Τ£Ήb` WHERE `£Τ£Ήa`.`£Γ£±` = `£Τ£Ήb`.`£Γ£±`);
+£Γ£±
+νέ
+νή
+DROP TABLE `£Τ£±a`;
+DROP TABLE `£Τ£±b`;
+DROP TABLE `£Τ£²a`;
+DROP TABLE `£Τ£²b`;
+DROP TABLE `£Τ£³a`;
+DROP TABLE `£Τ£³b`;
+DROP TABLE `£Τ£΄a`;
+DROP TABLE `£Τ£΄b`;
+DROP TABLE `£Τ£µa`;
+DROP TABLE `£Τ£µb`;
+DROP TABLE `£Τ£¶a`;
+DROP TABLE `£Τ£¶b`;
+DROP TABLE `£Τ£·a`;
+DROP TABLE `£Τ£·b`;
+DROP TABLE `£Τ£Έa`;
+DROP TABLE `£Τ£Έb`;
+DROP TABLE `£Τ£Ήa`;
+DROP TABLE `£Τ£Ήb`;

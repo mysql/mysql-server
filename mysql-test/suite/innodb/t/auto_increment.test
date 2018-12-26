@@ -1,0 +1,2286 @@
+##########################################################################################
+# The aim of this test is to improve test coverage for auto_increment in InnoDB.         #
+#                                                                                        #
+# The variable innodb_autoinc_lock_mode has 3 values                                     #
+#                                                                                        #
+#    1. innodb_autoinc_lock_mode = 0 : Traditional lock mode                             #
+#    2. innodb_autoinc_lock_mode = 1 : Consecutive lock mode                             #
+#    3. innodb_autoinc_lock_mode = 2 : Interleaved lock mode (Default mode)              #
+#                                                                                        #
+# The following scenarios are tested for each of the innodb_autoinc_lock_modes :         #
+#                                                                                        #
+#     1. Simple inserts                                                                  #
+#     2. Changing auto_increment_offset and auto_increment_increment                     #
+#     3. Bulk inserts                                                                    #
+#     4. Mixed mode inserts                                                              #
+#     5. Concurrency testing with different insert types                                 #
+#     6. Transactions                                                                    #
+#                                                                                        #
+# Creation Date : 2015-12-14                                                             #
+# Author : Deepa Dixit                                                                   #
+#                                                                                        #
+#                                                                                        #
+##########################################################################################
+
+# innodb_autoinc_lock_mode is not a dynamic variable and server needs to be restarted
+# to change its value
+
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+--source include/have_debug.inc
+
+##########################################################################################
+# Interleaved lock mode (innodb_autoinc_lock_mode = 2 [default])                          #
+##########################################################################################
+SET @default_innodb_autoinc_lock_mode = @@global.innodb_autoinc_lock_mode;
+
+SELECT @@global.innodb_autoinc_lock_mode;
+
+SET @default_auto_increment_offset = @@global.auto_increment_offset;
+SET @default_auto_increment_increment = @@global.auto_increment_increment;
+
+--echo # Bulk inserts in interleaved lock mode
+CREATE TABLE t3(cc INT);
+INSERT INTO t3 VALUES (10),(20),(30),(40),(50),(60),(70),(80);
+CREATE TABLE t4(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+INSERT INTO t4(cc) SELECT * FROM t3;
+
+SHOW CREATE TABLE t4;
+
+INSERT INTO t4(cc) SELECT * FROM t3;
+
+# Gaps expected between successive bulk insert statements
+SHOW CREATE TABLE t4;
+
+DROP TABLE t4;
+DROP TABLE t3;
+
+#########################
+# Concurrency testing   #
+#########################
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+
+--echo # Concurrent simple inserts in interleaved lock mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+IF ((i%2) =0 ) THEN
+DELETE FROM t1 WHERE bb=i;
+END IF;
+SET i = i+1;
+END WHILE;
+END //
+DELIMITER ;//
+
+# connect to connection 1
+--connection conn1
+
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+--connection conn2
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto increment offset
+
+SET @@global.auto_increment_offset = 9;
+SET @@global.auto_increment_increment = 10;
+
+TRUNCATE TABLE t1;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# connect to connection 1
+--connection conn1
+
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+--connection conn2
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+
+
+--echo # Concurrent bulk inserts in interleaved lock mode
+
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+CREATE TABLE t2 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t1 (aa INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1 VALUES(i);
+SET i =  i +1;
+END WHILE;
+INSERT INTO t2(aa) SELECT * FROM t1;
+
+END //
+DELIMITER ;//
+
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP()
+
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+# Non-deterministic results
+
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto increment offset
+
+SET @@global.auto_increment_offset = 7;
+SET @@global.auto_increment_increment = 15;
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP()
+
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+# Non-deterministic results
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE POP;
+
+--echo # Concurrent mixed mode inserts in interleaved lock mode
+
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+
+END //
+
+DELIMITER ;//
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+CALL POP2(120);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+# Gaps in the auto increment values expected and values may vary
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto increment offset
+
+SET @@global.auto_increment_offset = 13;
+SET @@global.auto_increment_increment = 43;
+
+TRUNCATE TABLE t1;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+CALL POP2(280);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+# Gaps in the auto increment values expected and values may vary
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+
+
+#########################
+# Transactions          #
+#########################
+
+--echo # Transactions in interleaved lock mode
+
+# Simple inserts
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+# Gaps expected in the sequence of autoinc numbers
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Bulk inserts
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+ROLLBACK;
+
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Mixed mode inserts
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # Simple, Mixed and Bulk inserts with auto increment offset in interleaved locking mode
+
+SET @@auto_increment_offset = 17;
+SET @@auto_increment_increment = 40;
+
+# Simple inserts with auto increment offset
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+
+# Gaps expected in the sequence of autoinc numbers
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Bulk inserts with auto increment offset
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+ROLLBACK;
+
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Mixed mode inserts with auto increment offset
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+
+--echo # Transactions with concurrency in interleaved locking mode
+
+# Simple inserts with concurrency
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+SET i = i+1;
+END WHILE;
+END //
+DELIMITER ;//
+
+# connect to connection 1
+--connection conn1
+
+START TRANSACTION;
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+ROLLBACK;
+
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+
+
+# Mixed mode inserts with concurrency
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+
+END //
+
+DELIMITER ;//
+
+# Connect to connection 1
+--connection conn1
+
+START TRANSACTION;
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP2(60);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+ROLLBACK;
+
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP2(280);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+
+#########################
+# Crash Recovery        #
+#########################
+--echo # Crash server in interleaved lock mode
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1(aa) VALUES(i);
+SET i =  i +1;
+END WHILE;
+
+END //
+
+DELIMITER ;//
+
+
+START TRANSACTION;
+
+CALL POP();
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_after";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+START TRANSACTION;
+
+CALL POP();
+
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_before";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+TRUNCATE TABLE t1;
+
+# Test with auto increment offset
+
+SET @@auto_increment_offset = 20;
+SET @@auto_increment_increment = 40;
+
+
+START TRANSACTION;
+
+CALL POP();
+
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_after";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+START TRANSACTION;
+
+CALL POP();
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_before";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
+DROP PROCEDURE POP;
+
+#######################################
+# Load Testing with concurrency       #
+#######################################
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+--echo # Concurrent load inserts in interleaved lock mode
+CREATE TABLE loads ( pkey INT PRIMARY KEY AUTO_INCREMENT, ww CHAR(50));
+
+# Connect to connection 1
+--connection conn1
+
+--send LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww)
+
+# Connect to connection 2
+--connection conn2
+
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+
+# Switch back to connection 1
+--connection conn1
+
+--reap
+
+# Order of the values may vary
+SELECT MAX(pkey) FROM loads;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto increment offset
+
+SET @@global.auto_increment_offset = 12;
+SET @@global.auto_increment_increment = 50;
+
+TRUNCATE TABLE loads;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww)
+
+# Connect to connection 2
+--connection conn2
+
+
+
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+
+# Switch back to connection 1
+--connection conn1
+
+--reap
+
+# Order of the values may vary
+SELECT MAX(pkey) FROM loads;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+DROP TABLE loads;
+##########################################################################################
+# Consecutive lock mode	(innodb_autoinc_lock_mode = 1)                                   #
+##########################################################################################
+--echo # Restart server with innodb_autoinc_lock_mode = 1
+let $restart_parameters=restart: --innodb_autoinc_lock_mode=1;
+--source include/restart_mysqld.inc
+
+# Check whether the lock mode has been changed
+SELECT @@global.innodb_autoinc_lock_mode;
+
+SET @default_auto_increment_offset = @@global.auto_increment_offset;
+SET @default_auto_increment_increment = @@global.auto_increment_increment;
+
+# Create a table with auto_increment key and insert values
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a INT);
+INSERT INTO t1 values (NULL,3),
+                      (NULL,6),
+                      (NULL,9),
+                      (NULL,12),
+                      (NULL,15);
+SELECT * FROM t1;
+
+# Update last row in the table
+UPDATE t1 SET pkey = 6
+WHERE a = 15;
+
+SELECT * FROM t1;
+
+# As of MySQL Version 5.8.0 and above there is no duplicate entry error
+INSERT INTO t1 VALUES (NULL,18);
+SELECT * FROM t1;
+
+# Delete a row from table
+DELETE FROM t1 WHERE a = 18;
+
+# Insert another row
+INSERT INTO t1 VALUES (NULL,18);
+
+SELECT * FROM t1;
+
+# Change auto_increment_offset and auto_increment_increment
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET @@auto_increment_increment=10;
+SELECT @@session.auto_increment_increment;
+INSERT INTO t1 VALUES (NULL,21),
+                      (NULL,24),
+                      (NULL,27);
+
+SELECT * FROM t1;
+
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @@auto_increment_offset=5;
+SELECT @@auto_increment_offset;
+
+INSERT INTO t1 VALUES (NULL,30),
+                      (NULL,33),
+                      (NULL,36);
+
+SELECT * FROM t1;
+
+# If auto_increment_offset is greater than the auto_increment_increment
+# the auto_increment_offset value is ignored
+
+SET @@auto_increment_offset =150;
+SELECT @@auto_increment_offset;
+
+INSERT INTO t1 VALUES (NULL,39),
+                      (NULL,42),
+                      (NULL,45);
+
+SELECT * FROM t1;
+
+SET @@auto_increment_increment = @default_auto_increment_increment;
+SET @@auto_increment_offset = @default_auto_increment_offset;
+DROP TABLE t1;
+
+--echo # Mixed mode inserts in consecutive lock mode
+CREATE TABLE t2( pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT );
+INSERT INTO t2 VALUES (NULL,10),
+                      (12,20),
+                      (NULL,30),
+                      (NULL,40),
+                      (40,50),
+                      (NULL,60),
+                      (NULL,70);
+SELECT * FROM t2;
+DROP TABLE t2;
+
+--echo # Bulk inserts in consecutive lock mode
+# No gaps in the autoinc values till the end of statement
+# Gaps may occur between two insert statements
+CREATE TABLE t3(cc INT);
+INSERT INTO t3 VALUES (10),(20),(30),(40),(50),(60),(70),(80);
+CREATE TABLE t4(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+
+DROP TABLE t4;
+DROP TABLE t3;
+
+#########################
+# Concurrency testing   #
+#########################
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+--echo # Concurrent simple inserts in consecutive lock mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+IF ( (i%2) = 0 ) THEN
+DELETE FROM t1 WHERE bb=i;
+END IF;
+SET i = i+1;
+END WHILE;
+END //
+DELIMITER ;//
+
+# connect to connection 1
+--connection conn1
+
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+--connection conn2
+# Results may vary due to different rows being deleted
+SELECT COUNT(*) FROM t1;
+
+# Inserts with auto increment offset
+--connection default
+--disconnect conn1
+--disconnect conn2
+SET @@global.auto_increment_offset=10;
+SET @@global.auto_increment_increment=25;
+
+TRUNCATE TABLE t1;
+
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+# connect to connection1
+--connection conn1
+
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+--connection conn2
+SELECT COUNT(*) FROM t1;
+
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+
+--echo # Concurrent bulk inserts in consecutive lock mode
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+CREATE TABLE t2 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t1 (aa INT);
+
+
+DELIMITER //;
+
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1 VALUES(i);
+SET i =  i +1;
+END WHILE;
+INSERT INTO t2(aa) SELECT * FROM t1;
+
+END //
+
+DELIMITER ;//
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP()
+
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP();
+
+# Switch back to connection1
+--connection conn1
+--reap
+
+# Non-deterministic results
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto_increment_offset too
+SET @@global.auto_increment_offset = 16;
+SET @@global.auto_increment_increment = 32;
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP()
+
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP();
+
+# Switch back to connection1
+--connection conn1
+--reap
+
+# Non-deterministic result
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP;
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo # Concurrent mixed mode inserts in consecutive lock mode
+
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+
+END //
+
+DELIMITER ;//
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP2(70);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+
+--connection conn2
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto increment offset
+SET @@global.auto_increment_offset = 3;
+SET @@global.auto_increment_increment = 4;
+TRUNCATE TABLE t1;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP2(80);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+
+--connection conn2
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+
+
+#########################
+# Transactions          #
+#########################
+
+--echo # Transactions in consecutive lock mode
+
+# Simple inserts
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+
+# Gaps expected in the sequence of autoinc numbers
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Bulk inserts
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+ROLLBACK;
+
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Mixed mode inserts
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # Simple, Mixed and Bulk inserts with auto increment offset in default locking mode
+
+SET @@auto_increment_offset = 17;
+SET @@auto_increment_increment = 40;
+
+# Simple inserts with auto increment offset
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+
+# Gaps expected in the sequence of autoinc numbers
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Bulk inserts with auto increment offset
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+ROLLBACK;
+
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Mixed mode inserts with auto increment offset
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+
+--echo # Transactions with concurrency in consecutive locking mode
+
+# Simple inserts with concurrency
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+SET i = i+1;
+END WHILE;
+END //
+DELIMITER ;//
+
+# connect to connection 1
+--connection conn1
+
+START TRANSACTION;
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+ROLLBACK;
+
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+
+
+# Mixed mode inserts with concurrency
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+
+END //
+
+DELIMITER ;//
+
+# Connect to connection 1
+--connection conn1
+
+START TRANSACTION;
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP2(51);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+ROLLBACK;
+
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP2(150);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+
+
+#########################
+# Crash Recovery        #
+#########################
+--echo # Crash server in default locking mode
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1(aa) VALUES(i);
+SET i =  i +1;
+END WHILE;
+
+END //
+
+DELIMITER ;//
+
+
+START TRANSACTION;
+
+CALL POP();
+
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_after";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+START TRANSACTION;
+
+CALL POP();
+
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_before";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+TRUNCATE TABLE t1;
+
+
+# Test with auto increment offset
+
+SET @@auto_increment_offset = 8;
+SET @@auto_increment_increment = 13;
+
+
+START TRANSACTION;
+
+CALL POP();
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_after";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+
+START TRANSACTION;
+
+CALL POP();
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_before";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
+DROP PROCEDURE POP;
+
+
+#######################################
+# Load Testing with concurrency       #
+#######################################
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+--echo # Concurrent load inserts in consecutive lock mode
+CREATE TABLE loads ( pkey INT PRIMARY KEY AUTO_INCREMENT, ww CHAR(50));
+
+# Connect to connection 1
+--connection conn1
+
+--send LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww)
+
+# Connect to connection 2
+--connection conn2
+
+
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+
+# Switch back to connection 1
+--connection conn1
+
+--reap
+
+SELECT * FROM loads;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto increment offset
+
+SET @@global.auto_increment_offset = 12;
+SET @@global.auto_increment_increment = 50;
+
+TRUNCATE TABLE loads;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww)
+
+# Connect to connection 2
+--connection conn2
+
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+
+# Switch back to connection 1
+--connection conn1
+
+--reap
+
+SELECT * FROM loads;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+DROP TABLE loads;
+
+
+
+##########################################################################################
+# Traditional locking mode (innodb_autoinc_lock_mode = 0)                                #
+##########################################################################################
+--echo # Restart server with innodb_autoinc_lock_mode = 0
+let $restart_parameters=restart: --innodb_autoinc_lock_mode=0;
+--source include/restart_mysqld.inc
+
+SET @default_auto_increment_offset = @@global.auto_increment_offset;
+SET @default_auto_increment_increment = @@global.auto_increment_increment;
+
+
+# Check whether the value has been changed
+SELECT @@global.innodb_autoinc_lock_mode;
+
+
+--echo # Bulk inserts in traditional lock mode
+CREATE TABLE t3(cc INT);
+INSERT INTO t3 VALUES (10),(20),(30),(40),(50),(60),(70),(80);
+CREATE TABLE t4(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+
+# No gaps in the auto increment values
+INSERT INTO t4(cc) SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+
+SELECT * FROM t4;
+
+DROP TABLE t4;
+DROP TABLE t3;
+
+#########################
+# Concurrency testing   #
+#########################
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+--echo # Concurrent simple inserts in traditional lock mode
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+IF ((i%2) = 0) THEN
+DELETE FROM t1 WHERE bb=i;
+END IF;
+SET i = i+1;
+END WHILE;
+END //
+DELIMITER ;//
+
+# connect to connection 1
+--connection conn1
+
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+--connection conn2
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+# Test with auto increment offset
+SET @@global.auto_increment_offset = 30;
+SET @@global.auto_increment_increment = 48;
+
+TRUNCATE TABLE t1;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# connect to connection 1
+--connection conn1
+
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+--connection conn2
+
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+
+
+--echo # Concurrent bulk inserts in traditional lock mode
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+CREATE TABLE t2 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t1 (aa INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1 VALUES(i);
+SET i =  i +1;
+END WHILE;
+INSERT INTO t2(aa) SELECT * FROM t1;
+
+END //
+
+DELIMITER ;//
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP()
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP();
+
+# Switch back to connection1
+--connection conn1
+--reap
+
+# Non-deterministic result
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto increment offset
+SET @@global.auto_increment_offset = 12;
+SET @@global.auto_increment_increment = 50;
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP()
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP();
+
+# Switch back to connection1
+--connection conn1
+--reap
+
+
+# Non-deterministic result
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP;
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo # Concurrent mixed mode inserts in traditonal lock mode
+
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+
+END //
+
+DELIMITER ;//
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+CALL POP2(50);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+--connection conn2
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto increment offset
+SET @@global.auto_increment_offset = 32;
+SET @@global.auto_increment_increment = 100;
+
+TRUNCATE TABLE t1;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+CALL POP2(180);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+SET @@global.auto_increment_offset = @default_auto_increment_offset;
+SET @@global.auto_increment_increment = @default_auto_increment_increment;
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+
+#########################
+# Transactions          #
+#########################
+
+--echo # Transactions in traditional lock mode
+
+# Simple inserts
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+
+# Gaps expected in the sequence of autoinc numbers
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Bulk inserts
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+ROLLBACK;
+
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Mixed mode inserts
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # Simple, Mixed and Bulk inserts with auto increment offset in traditional locking mode
+
+SET @@auto_increment_offset = 17;
+SET @@auto_increment_increment = 40;
+
+# Simple inserts with auto increment offset
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+
+# Gaps expected in the sequence of autoinc numbers
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Bulk inserts with auto increment offset
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+CREATE TABLE t2(aa INT);
+
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5),(6),(7);
+START TRANSACTION;
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+ROLLBACK;
+
+INSERT INTO t1(aa) SELECT * FROM t2;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Mixed mode inserts with auto increment offset
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+ROLLBACK;
+
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (23),(24);
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+INSERT INTO t1 VALUES (34);
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+
+--echo # Transactions with concurrency in traditional locking mode
+
+# Simple inserts with concurrency
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<= 10) DO
+INSERT INTO t1 VALUES(NULL,i);
+SET i = i+1;
+END WHILE;
+END //
+DELIMITER ;//
+
+# connect to connection 1
+--connection conn1
+
+START TRANSACTION;
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+ROLLBACK;
+
+--send CALL POP1()
+
+# connect to connection 2
+--connection conn2
+
+CALL POP1();
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+DROP PROCEDURE POP1;
+DROP TABLE t1;
+
+
+# Mixed mode inserts with concurrency
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, cc INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP2(IN j INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i<=5) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES(100+j,20);
+WHILE(i>=5 && i<=10) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+INSERT INTO t1 VALUES (200+j,25);
+WHILE(i>=10 && i<=15) DO
+INSERT INTO t1(cc) VALUES(i);
+SET i=i+1;
+END WHILE;
+
+END //
+
+DELIMITER ;//
+
+# Connect to connection 1
+--connection conn1
+
+START TRANSACTION;
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP2(120);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+ROLLBACK;
+
+--send CALL POP2(1)
+
+# Connect to connection 2
+--connection conn2
+
+CALL POP2(280);
+
+# Switch back to connection 1
+--connection conn1
+--reap
+
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+DROP PROCEDURE POP2;
+DROP TABLE t1;
+
+
+
+#########################
+# Crash Recovery        #
+#########################
+--echo # Crash server in traditional locking mode
+
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE POP()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 10) DO
+INSERT INTO t1(aa) VALUES(i);
+SET i =  i +1;
+END WHILE;
+
+END //
+
+DELIMITER ;//
+
+
+START TRANSACTION;
+
+--send CALL POP()
+
+
+--echo # Connection 1
+connect(conn1, localhost,root,,);
+
+INSERT INTO t1(aa) VALUES (20);
+
+--echo # Switch back to default connection
+--connection default
+
+--reap
+
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_after";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+--disconnect conn1
+
+START TRANSACTION;
+
+--send CALL POP()
+
+--echo # Connection 1
+connect(conn1,localhost,root,,);
+
+INSERT INTO t1(aa) VALUES (20);
+
+--echo # Switch back to default connection
+--connection default
+
+--reap
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_before";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+TRUNCATE TABLE t1;
+
+--disconnect conn1
+
+# Test with auto increment offset
+
+SET @@auto_increment_offset = 15;
+SET @@auto_increment_increment = 30;
+
+
+START TRANSACTION;
+
+--send CALL POP()
+
+--echo # Connection 1
+connect(conn1, localhost,root,,);
+
+SET @@auto_increment_offset = 15;
+SET @@auto_increment_increment = 30;
+
+INSERT INTO t1(aa) VALUES (20);
+
+--echo # Switch back to default connection
+--connection default
+
+--reap
+
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_after";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+--connection default
+--disconnect conn1
+
+SET @@auto_increment_offset = 15;
+SET @@auto_increment_increment = 30;
+
+START TRANSACTION;
+
+--send CALL POP()
+
+--echo # Connection 1
+connect(conn1,localhost,root,,);
+
+SET @@auto_increment_offset = 15;
+SET @@auto_increment_increment = 30;
+
+
+INSERT INTO t1(aa) VALUES (20);
+
+--echo # Switch back to default connection
+--connection default
+
+--reap
+
+# Server will crash on next commit
+--source include/expect_crash.inc
+SET SESSION DEBUG="+d,crash_commit_before";
+--echo CR_SERVER_LOST
+--error 2013
+
+COMMIT;
+
+--source include/start_mysqld.inc
+
+# Results may vary
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
+DROP PROCEDURE POP;
+
+
+--disconnect conn1
+
+
+#######################################
+# Load Testing with concurrency       #
+#######################################
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+--echo # Concurrent load inserts in traditional lock mode
+CREATE TABLE loads ( pkey INT PRIMARY KEY AUTO_INCREMENT, ww CHAR(50));
+
+# Connect to connection 1
+--connection conn1
+
+--send LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww)
+
+# Connect to connection 2
+--connection conn2
+
+
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+
+# Switch back to connection 1
+--connection conn1
+
+--reap
+
+SELECT * FROM loads;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Test with auto increment offset
+
+SET @@global.auto_increment_offset = 12;
+SET @@global.auto_increment_increment = 50;
+
+TRUNCATE TABLE loads;
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww)
+
+# Connect to connection 2
+--connection conn2
+
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE loads(ww);
+
+# Switch back to connection 1
+--connection conn1
+
+--reap
+
+SELECT * FROM loads;
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+DROP TABLE loads;

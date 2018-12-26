@@ -1,0 +1,445 @@
+################################################################################
+# inc/partition.pre                                                            #
+#                                                                              #
+# Purpose:                                                                     #
+#   Auxiliary script creating prerequisites needed by the partitioning tests   #
+#   The name of the toplevel scripts sourcing this one is                      #
+#         t/partition_<feature>_<storage engine>.test                          #
+#                                                                              #
+# Several parameters have to be set before this file is sourced.               #
+# Please refer to the README.                                                  #
+#                                                                              #
+# The README for the partitioning testcases is at the end of this file.        #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: mleich                                                      #
+# Original Date:   2006-03-05                                                  #
+# Change Author:   mleich                                                      #
+# Change Date:     2007-10-08                                                  #
+# Change:          Minor cleanup and fix for                                   #
+#                  Bug#31243 Test "partition_basic_myisam" truncates path names#
+#                  - Blow column file_list up to VARBINARY(10000)              #
+#                  - remove reference to fixed bugs #17455, #19305             #
+################################################################################
+
+# Set the session storage engine
+eval SET @@session.default_storage_engine = $engine;
+
+##### Disabled/affected testcases, because of open bugs #####
+# --echo
+# --echo #------------------------------------------------------------------------
+# --echo # There are several testcases disabled because of the open bugs
+# if (`SELECT @@session.default_storage_engine IN('ndbcluster')`)
+# {
+# --echo # #18730
+# }
+# --echo #------------------------------------------------------------------------
+# # Attention: Only bugs appearing in all storage engines should be mentioned above.
+# #            The top level test wrapper (example: t/partition_basic_ndb.test)
+# #            may set the $fixed_bug<nnnnn> variable to 0 after sourcing
+# #            this file.
+# # Bug#18730: Partitions: NDB, crash on SELECT MIN(<unique column>)
+# # Attention: NDB testcases set this variable later to 0
+# let $fixed_bug18730= 1;
+
+--echo
+--echo #------------------------------------------------------------------------
+--echo #  0. Setting of auxiliary variables + Creation of an auxiliary tables
+--echo #     needed in many testcases
+--echo #------------------------------------------------------------------------
+# Set the variable $no_debug depending on the current value of $debug;
+--disable_query_log
+eval SET @aux = $debug;
+let $no_debug= `SELECT @aux = 0`;
+--enable_query_log
+if ($debug)
+{
+--echo # Attention: Script debugging is swiched on.
+--echo #       - all statements will be protocolled
+--echo #        - some additional will be executed
+--echo #       It is to be expected, that we get huge differences.
+}
+
+let $ER_DUP_KEY=                          1022;
+let $ER_GET_ERRNO=                        1030;
+let $ER_BAD_NULL_ERROR=                   1048;
+let $ER_DUP_ENTRY=                        1062;
+let $ER_PARSE_ERROR=                      1064;
+let $ER_TOO_MANY_PARTITIONS_ERROR=        1499;
+let $ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF= 1503;
+let $ER_NO_PARTS_ERROR=                   1504;
+let $ER_DROP_PARTITION_NON_EXISTENT=      1507;
+let $ER_SAME_NAME_PARTITION=              1517;
+let $ER_NO_PARTITION_FOR_GIVEN_VALUE=     1526;
+
+# Set the variable $engine_other to a storage engine <> $engine
+--disable_query_log
+eval SELECT UPPER($engine) = 'MEMORY' INTO @aux;
+let $aux= `SELECT @aux`;
+if ($aux)
+{
+   let $engine_other= 'MyISAM';
+}
+if (!$aux)
+{
+   let $engine_other= 'MEMORY';
+}
+--enable_query_log
+
+# Numbers used for
+# - partitioning           Example: ... PARTITION part1 VALUES LESS THAN ($max_row_div2)
+# - INSERT/SELECT/UPDATE/DELETE    Example: ... WHERE f_int1 > @max_row_div3
+let $max_row= `SELECT @max_row`;
+SELECT @max_row DIV 2 INTO @max_row_div2;
+let $max_row_div2= `SELECT @max_row_div2`;
+SELECT @max_row DIV 3 INTO @max_row_div3;
+let $max_row_div3= `SELECT @max_row_div3`;
+SELECT @max_row DIV 4 INTO @max_row_div4;
+let $max_row_div4= `SELECT @max_row_div4`;
+SET @max_int_4 = 2147483647;
+let $max_int_4= `SELECT @max_int_4`;
+
+# Three insert statements used in many testcases.
+let $insert_first_half= INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
+WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
+let $insert_second_half= INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
+WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
+#
+let $insert_first_third= INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
+WHERE f_int1 BETWEEN 1 AND @max_row_div3 - 1;
+let $insert_second_third= INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
+WHERE f_int1 BETWEEN @max_row_div3 AND 2 * @max_row_div3 - 1;
+let $insert_third_third= INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
+WHERE f_int1 BETWEEN 2 * @max_row_div3 AND @max_row;
+#
+let $insert_all= INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
+
+# Column list with definition for all tables to be checked
+let $column_list= f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000);
+
+# Currently (April 2006) the default compiled NDB cannot manage
+#    no_of_partitions (no subpartitioning) > 8
+#    no_of_partitions * no_of_subpartitions > 8
+# This NDB specific limitation will cause
+#   1005: Can't create table 'test.t1' (errno: 1224)
+# in partition_methods[1|2].inc and partition_alter_1[1|3].inc
+# when $sub_part_no is set to >= 3.
+let $sub_part_no= 3;
+if (`SELECT @@session.default_storage_engine = 'ndbcluster'`)
+{
+  let $sub_part_no= 2;
+}
+
+# Auxiliary table used for many experiments (INSERT INTO t1 ... SELECT ...)
+# on the tables to be checked
+--disable_warnings
+DROP TABLE IF EXISTS t0_template;
+--enable_warnings
+eval CREATE TABLE t0_template (
+$column_list ,
+PRIMARY KEY(f_int1))
+ENGINE = MEMORY;
+--echo #     Logging of <max_row> INSERTs into t0_template suppressed
+--disable_query_log
+let $num= `SELECT @max_row`;
+while ($num)
+{
+  eval INSERT INTO t0_template
+SET f_int1 = $num, f_int2 = $num, f_char1 = '$num', f_char2 = '$num',
+f_charbig = '===$num===';
+
+  dec $num;
+}
+--enable_query_log
+
+# Auxiliary table used for comparisons of table definitions and file lists
+--disable_warnings
+DROP TABLE IF EXISTS t0_definition;
+--enable_warnings
+CREATE TABLE t0_definition (
+state CHAR(3),
+create_command VARBINARY(5000),
+file_list      VARBINARY(10000),
+PRIMARY KEY (state)
+) ENGINE = MEMORY;
+
+# Auxiliary table used for trigger experiments
+--disable_warnings
+DROP TABLE IF EXISTS t0_aux;
+--enable_warnings
+eval CREATE TABLE t0_aux ( $column_list )
+ENGINE = MEMORY;
+
+# Prevent that a change of defaults breaks the tests.
+SET AUTOCOMMIT= 1;
+SET @@session.sql_mode= '';
+
+--echo # End of basic preparations needed for all tests
+--echo #-----------------------------------------------
+
+if (0)
+{
+# README for the partioning tests (t/partition_<feature>_<engine>.test)
+# ========================================================================
+#
+# 1. Explanation of the variables to be assigned in the top-level storage engine
+#    specific scripts
+#------------------------------------------------------------------------------#
+#
+# Options, for mostly test(script+logic+result) debugging support:
+#     $debug= 0 (default)
+#          --> The protocolling of auxiliary stuff is suppressed.
+#              The file with expected results fits to this setting.
+#     $debug= 1
+#          --> All executed statements will be printed into the protocol.
+#              That means statements which
+#              - are most time of low interest and do auxiliary stuff
+#                like generating the next SQL statement to be executed
+#              - additional statements giving informations about table
+#                contents or the value of some variables
+#                You will get huge differences, because the file with the
+#                expected results was created with $debug = 0 .
+#
+#     $with_partitioning= 1 (default)
+#          --> Do the test with really partitioned tables.
+#     $with_partitioning= 0
+#          --> Do not use partitioned tables. This means omit the
+#              "PARTITION BY ... SUBPARTITION BY ..." part of the CREATE TABLE
+#              statement. This setting has only an effect on tests where
+#              partition_methods1.inc and/or partition_methods2.inc are sourced.
+#
+#              You will get differences when the CREATE TABLE statements
+#              and table related files are printed or testcases check
+#              partition borders, but most server responses and result
+#              sets should be usable as reference for the test with the
+#              partioned tables.
+#              Please make a run with $with_partitioning= 0, whenever
+#              - you do not trust the scripts (routines checking server codes/
+#                result sets)
+#              - fear that there is a new bug affecting partitioned and non
+#                partitioned tables
+#
+#
+# Execute the test of "table" files
+#     $do_file_tests= 1 (default for
+#                        - all storage engines within the extended QA test
+#                        - only MyISAM within the main regression tests)
+#          --> Collect the file list and compare the file list before and after
+#              OPTIMIZE/REPAIR/TRUNCATE
+#     $do_file_tests= 0 (default for non MyISAM storage engines within the
+#                        main regression tests)
+#          --> Do not collect the file list.
+#     Only MyISAM has files per PARTITION/SUBPARTITION, PRIMARY KEY, INDEX, ..
+#     There is a low probability that this tests detects bugs when used in
+#     connection with other storage engines.
+#
+# Option, for displaying files:
+#     $ls= 1 (default)
+#          --> Display the table related directory content via
+#                "ls $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*"
+#              if these informations were collected.
+#              This is probably not portable to some OS.
+#     $ls= 0
+#          --> Omit displaying the directory
+#
+#
+# Number of rows for the INSERT/UPDATE/DELETE/SELECT experiments
+# on partitioned tables:
+#     @max_row is the number of rows which will be filled into the auxiliary
+#     MEMORY table t0_template. This table is used for INSERT ... SELECT
+#     experiments. The typical test table t1 contains most of the time
+#     about @max_row DIV 2 rows.
+#     Too small values of @max_row should be avoided, because some statements
+#     should affect several rows and partitions.
+#     Too big values of @max_row should be avoided, because of runtime issues.
+#     @max_row= 20 (default for the main regression tests)
+#              The file with expected results fits to this amount of rows.
+#     @max_row= 300 (default for extended QA test)
+#          --> Use <number rows>.
+#              There should be only a few systematic differences to the file
+#              with expected results, because most SQL statements use @max_row and
+#              variables like max_row_div2 instead of a constant with the actual
+#              number of rows.
+#              I assume a value of 300 rows should be
+#
+#
+# Perform the variant with extended tests:
+#     $more_trigger_tests, $more_pk_ui_tests(PK=PRIMARY KEY,UI=UNIQUE INDEX),
+#       =0 (default for the main regression tests)
+#           - There is a very low probability, that the omitted tests reveal a
+#             bug which cannot be detected with the other tests.
+#           - Limiting the partitioning tests solves issues with runtime and
+#             protocol size.
+#       =1 (default for extended QA test)
+#
+#
+# Perform PRIMARY KEY specific tests:
+#     $do_pk_tests= 0;
+#          --> Do not execute the PRIMARY KEY related tests.
+#     $do_pk_tests= 1 (default for extended QA test)
+#          --> Execute the PRIMARY KEY related tests.
+#     The default setting for the main regression tests depends on the
+#     storage engine. The PRIMARY KEY tests must be executed for every storage
+#     engine, where the existence of a PRIMARY KEY affects the kind how the
+#     table rows are stored.
+#     Examples for the main rgression tests:
+#       InnoDB - The PRIMARY KEY is a clustered index where the data for the
+#                rows are stored.       $do_pk_tests= 1
+#       NDB    - The PRIMARY KEY is used for implicit partitioning (NDB).
+#                                       $do_pk_tests= 1
+#       MyISAM - AFAIK there is no effect on the tree containing the rows.
+#                                       $do_pk_tests= 0
+#
+# Assign a big number smaller than the maximum value for partitions
+# and smaller than the maximum value of SIGNED INTEGER
+# The NDB handler only supports 32 bit integers in VALUES
+#     2147483647 seems to be too big.
+#     $MAX_VALUE= (2147483646);
+#
+#
+# 2. Typical architecture of a test:
+#------------------------------------------------------------------------------#
+# 2.1. storage engine specific script on top level
+#      (t/partition_<feature>_<engine>.test)
+#      a) General not engine specific settings and requirements
+#         $debug, $ls, @max_row, $more_trigger_tests, .....
+#         --source inc/have_partition.inc
+#      b) Engine specific settings and requirements
+#         $do_pk_tests, $MAX_VALUE, $engine
+#         SET SESSION default_storage_engine
+#         $engine_other
+#      c) Generate the prerequisites ($variables, @variables, tables) needed
+#         via
+#         --source inc/partition.pre
+#      d) Set "fixed_bug<number>" variables to 1 if there are open engine
+#         specific bugs which need worarounds.
+#      e) Execute the feature specific testscript via
+#         --source inc/partition_<feature>.inc
+#      f) Perform a cleanup by removing all objects created within the tests
+#         --source inc/partition_cleanup.inc
+#
+# 2.2. script generating the prerequisites needed in all tests
+#      (inc/partition.pre)
+#      a) Message about open bugs causing that
+#         - some testcases are disabled
+#         - it cannot be avoided that the file with expected results suffers
+#           from open bugs
+#           This should not occur often !
+#           Example: There is extreme often an auxiliary testscript sourced,
+#                    but the the conditions vary. We get under a certain combination
+#                  of conditions a wrong result set or server response.
+#      b) Set "fixed_bug<number>" variables to 0 if there are open engine
+#         specific bugs. They are later set to 1 within the toplevel script.
+#         Set "fixed_bug<number>" variables to 1 if there are open NOT engine
+#         specific bugs.
+#      c) Setting of auxiliary variables
+#      d) Creation of auxiliary tables ....
+#
+# 2.3. script checking a feature
+#      (inc/partition_<feature.inc>.inc)
+#      Example:
+#      a) "set/compute" a CREATE TABLE t1 .. and an ALTER TABLE ... statement
+#      b) CREATE TABLE t1 ...
+#      c) INSERT INTO t1 (.....) SELECT .... FROM t0_template WHERE ...
+#         The first 50 % of all t0_template rows will be inserted into t1.
+#      d) ALTER TABLE t1 (Example: ADD/DROP UNIQUE INDEX)
+#      e) INSERT INTO t1 (.....) SELECT .... FROM t0_template WHERE ...
+#         The second 50 % of all t0_template rows will be inserted into t1.
+#      Now t1 and t0_template should have the same content.
+#      f) Check the "usability" of the current table t1
+#         via
+#         --source inc/partition_check.pre
+#      g) DROP TABLE t1
+#      Switch to other CREATE and ALTER statements and run sequence a)-g) again
+#      ...
+#
+# 2.4. script checking if a certain table shows the expected behaviour
+#      ("usability" check):   inc/partition_check.inc
+#      - SELECT/INSERT/UPDATE/DELETE affecting single and multiple records
+#      - check of values of special interest like NULL etc.
+#      - INSERT/UPDATE with BEFORE/AFTER triggers
+#      - violations of UNIQUE constraints, if there are any defined
+#      - transactions ...
+#      - TRUNCATE/OPTIMIZE/..
+#      - ...
+#
+#
+# 2.5. There are some auxiliary scripts with sub tests where we cannot predict
+#      if we get an error and if we get one, which one.
+#      Example: INSERT a record where the value for a certain column equals
+#         some existing record.
+#         Depending on existing/not existing PRIMARY KEYs, UNIQUE INDEXes
+#         the response might be "no error", ER_DUP_KEY, ER_DUP_ENTRY.
+#      Our requirements:
+#      1. We cannot abort whenever get an error message from the server.
+#      2. We want the exact server message into the protocol.
+#      3. We want abort testing if we know that a certain error must not happen.
+#      Common but unusable Solutions:
+#      a) --error 0, ER_DUP_KEY, ER_DUP_ENTRY
+#         <statment>
+#         We get no error message even if the statement fails.
+#      b) --error ER_DUP_KEY, ER_DUP_ENTRY
+#         <statment>
+#         We might get "got one of the expected errors".
+#         There are situations where the statement must be successful.
+#      c) --disable_abort_on_error
+#         <statment>
+#         --enable_abort_on_error
+#         And nothing extra
+#         We do not abort in case of unexpected server errors.
+#
+#      Final solution:
+#         --disable_abort_on_error
+#         <statment>
+#         --enable_abort_on_error
+#         Check via error number if the error is not totally unexpected.
+#         The sub tests use $ER_DUP_KEY, $ER_DUP_ENTRY, etc.
+#         Assignment of values happen in this file.
+#
+#
+# 3. How to analyze a partitioning bug revealed with these tests/ How to build
+#    a small replay script from the monstrous protocols ?
+#------------------------------------------------------------------------------#
+# a) crash    -- use the file var/mysqld.1/data/mysql/general_log.CSV
+# b) no crash, but unexpected server response (there is no "reject file)
+#             -- use the file r/<testcase>.log
+#                Please be aware that the option $debug= 0 suppresses the
+#                protocolling of some queries.
+# c) no crash, but unexpected result set
+#             -- use the file r/<testcase>.reject
+#                Please be aware that the option $debug= 0 suppresses the
+#                protocolling of some queries.
+# In most cases you will find that the r/<testcase>.<log/reject> contains at
+# least a line "#       # check <something>:       0".
+# That means that a check within inc/partition_check did not got the
+# expected result.
+# A good start for a replay script would be
+#   1. Copy t/partition_<feature>_<engine>.test to t/my_test.test
+#   2. Edit t/my_test.test
+#      - set $debug to 1
+#      - replace the line
+#        "--source inc/partition_<feature>.inc"
+#        with all statements between the last
+#        CREATE TABLE t1 statement (included this)
+#        and the line
+#        "# Start usability test (inc/partition_check.inc)"
+#      - add the content of inc/partition_check.inc at the end.
+#
+# Please excuse that the partitioning tests generate such huge protocols which
+# and are not very handy when it comes to bug analysis. I tried to squeez out
+# as much test coverage as possible by writing some hopefully smart routines
+# and reusing them in various combinations.
+#
+# Matthias
+#
+}

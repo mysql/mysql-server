@@ -1,0 +1,12 @@
+DESC sys.host_summary_by_file_io;
+Field	Type	Null	Key	Default	Extra
+host	varchar(60)	YES		NULL	
+ios	decimal(42,0)	YES		NULL	
+io_latency	text	YES		NULL	
+SELECT * FROM sys.host_summary_by_file_io;
+DESC sys.x$host_summary_by_file_io;
+Field	Type	Null	Key	Default	Extra
+host	varchar(60)	YES		NULL	
+ios	decimal(42,0)	YES		NULL	
+io_latency	decimal(42,0)	YES		NULL	
+SELECT * FROM sys.x$host_summary_by_file_io;

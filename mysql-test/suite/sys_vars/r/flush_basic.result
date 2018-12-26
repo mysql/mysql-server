@@ -1,0 +1,95 @@
+SET @start_value = @@global.flush;
+SELECT @start_value;
+@start_value
+0
+'#--------------------FN_DYNVARS_030_01------------------------#'
+SET @@global.flush = ON;
+SET @@global.flush = DEFAULT;
+SELECT @@global.flush;
+@@global.flush
+0
+'#---------------------FN_DYNVARS_030_02-------------------------#'
+SET @@global.flush = @start_value;
+SELECT @@global.flush;
+@@global.flush
+0
+'#--------------------FN_DYNVARS_030_03------------------------#'
+SET @@global.flush = ON;
+SELECT @@global.flush;
+@@global.flush
+1
+SET @@global.flush = OFF;
+SELECT @@global.flush;
+@@global.flush
+0
+SET @@global.flush = 0;
+SELECT @@global.flush;
+@@global.flush
+0
+SET @@global.flush = 1;
+SELECT @@global.flush;
+@@global.flush
+1
+'#--------------------FN_DYNVARS_030_04-------------------------#'
+SET @@global.flush = 2;
+ERROR 42000: Variable 'flush' can't be set to the value of '2'
+SET @@global.flush = -1;
+ERROR 42000: Variable 'flush' can't be set to the value of '-1'
+SET @@global.flush = TRUEF;
+ERROR 42000: Variable 'flush' can't be set to the value of 'TRUEF'
+SET @@global.flush = TRUE_F;
+ERROR 42000: Variable 'flush' can't be set to the value of 'TRUE_F'
+SET @@global.flush = FALSE0;
+ERROR 42000: Variable 'flush' can't be set to the value of 'FALSE0'
+SET @@global.flush = OON;
+ERROR 42000: Variable 'flush' can't be set to the value of 'OON'
+SET @@global.flush = ONN;
+ERROR 42000: Variable 'flush' can't be set to the value of 'ONN'
+SET @@global.flush = OOFF;
+ERROR 42000: Variable 'flush' can't be set to the value of 'OOFF'
+SET @@global.flush = 0FF;
+ERROR 42000: Variable 'flush' can't be set to the value of '0FF'
+SET @@global.flush = ' ';
+ERROR 42000: Variable 'flush' can't be set to the value of ' '
+SET @@global.flush = " ";
+ERROR 42000: Variable 'flush' can't be set to the value of ' '
+SET @@global.flush = '';
+ERROR 42000: Variable 'flush' can't be set to the value of ''
+'#-------------------FN_DYNVARS_030_05----------------------------#'
+SET @@session.flush = 1;
+ERROR HY000: Variable 'flush' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.flush;
+ERROR HY000: Variable 'flush' is a GLOBAL variable
+'#----------------------FN_DYNVARS_030_06------------------------#'
+SELECT IF(@@global.flush, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='flush';
+IF(@@global.flush, "ON", "OFF") = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_030_07----------------------#'
+SET @@global.flush = TRUE;
+SELECT @@global.flush;
+@@global.flush
+1
+SET @@global.flush = FALSE;
+SELECT @@global.flush;
+@@global.flush
+0
+'#---------------------FN_DYNVARS_030_08----------------------#'
+SET @@global.flush = 1;
+SELECT @@flush = @@global.flush;
+@@flush = @@global.flush
+1
+'#---------------------FN_DYNVARS_030_09----------------------#'
+SET flush = 1;
+ERROR HY000: Variable 'flush' is a GLOBAL variable and should be set with SET GLOBAL
+SET global.flush = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.flush = 1' at line 1
+SELECT global.flush;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT flush = @@session.flush;
+ERROR 42S22: Unknown column 'flush' in 'field list'
+SET @@global.flush = @start_value;
+SELECT @@global.flush;
+@@global.flush
+0

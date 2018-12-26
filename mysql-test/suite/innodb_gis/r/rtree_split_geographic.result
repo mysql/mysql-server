@@ -1,0 +1,87 @@
+create table t1 (c1 int, c2 geometry srid 4326 not null, spatial index (c2))engine=innodb;
+insert into t1 values(1, ST_SRID(Point(1,1), 4326));
+insert into t1 values(2, ST_SRID(Point(2,2), 4326));
+insert into t1 values(3, ST_SRID(Point(3,3), 4326));
+insert into t1 values(4, ST_SRID(Point(4,4), 4326));
+insert into t1 values(5, ST_SRID(Point(5,5), 4326));
+insert into t1 values(6, ST_SRID(Point(6,6), 4326));
+insert into t1 values(7, ST_SRID(Point(7,7), 4326));
+insert into t1 values(8, ST_SRID(Point(8,8), 4326));
+insert into t1 values(9, ST_SRID(Point(9,9), 4326));
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+SET SESSION debug="+d, rtr_page_need_second_split";
+insert into t1 select * from t1;
+SET SESSION debug="-d, rtr_page_need_second_split";
+delete from t1;
+insert into t1 values(1, ST_SRID(Point(1,1), 4326));
+insert into t1 values(2, ST_SRID(Point(2,2), 4326));
+insert into t1 values(3, ST_SRID(Point(3,3), 4326));
+insert into t1 values(4, ST_SRID(Point(4,4), 4326));
+insert into t1 values(5, ST_SRID(Point(5,5), 4326));
+insert into t1 values(6, ST_SRID(Point(6,6), 4326));
+insert into t1 values(7, ST_SRID(Point(7,7), 4326));
+insert into t1 values(8, ST_SRID(Point(8,8), 4326));
+insert into t1 values(9, ST_SRID(Point(9,9), 4326));
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+start transaction;
+insert into t1 select * from t1;
+rollback;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select count(*) from t1;
+count(*)
+73728
+set @g1 = ST_GeomFromText('Polygon((-90 -180,-90 180,90 180,90 -180,-90 -180))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+0
+set @g1 = ST_GeomFromText('Polygon((10 10,10 180,90 180,90 10,10 10))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+0
+drop index c2 on t1;
+create spatial index idx2 on t1(c2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` geometry NOT NULL /*!80003 SRID 4326 */,
+  SPATIAL KEY `idx2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+set @g1 = ST_GeomFromText('Polygon((-90 -180,-90 180,90 180,90 -180,-90 -180))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+0
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
+set @g1 = ST_GeomFromText('Polygon((-90 -180,-90 180,90 180,90 -180,-90 -180))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+0
+set @g1 = ST_GeomFromText('Polygon((2 2,2 180,90 180,90 2,2 2))', 4326);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+count(*)
+57344
+# restart
+drop table t1;

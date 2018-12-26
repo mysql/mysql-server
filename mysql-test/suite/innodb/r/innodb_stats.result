@@ -1,0 +1,542 @@
+TRUNCATE TABLE test_innodb_stats;
+SELECT 'dummy INSERT, the table should be empty';
+dummy INSERT, the table should be empty
+dummy INSERT, the table should be empty
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	0
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	0
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	0
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL
+TRUNCATE TABLE test_innodb_stats;
+INSERT INTO test_innodb_stats (a) VALUES (1);
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	1
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	1
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	1
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL
+TRUNCATE TABLE test_innodb_stats;
+INSERT INTO test_innodb_stats (a) VALUES (1), (1);
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	1
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	2
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	1
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL
+TRUNCATE TABLE test_innodb_stats;
+INSERT INTO test_innodb_stats (a) VALUES (1), (1), (1);
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	1
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	3
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	1
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL
+TRUNCATE TABLE test_innodb_stats;
+INSERT INTO test_innodb_stats (a) VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	1
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	10
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	1
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL
+TRUNCATE TABLE test_innodb_stats;
+INSERT INTO test_innodb_stats (a) VALUES (1), (2);
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	2
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	2
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	2
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL
+TRUNCATE TABLE test_innodb_stats;
+INSERT INTO test_innodb_stats (a) VALUES (1), (1), (2);
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	2
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	3
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	2
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL
+TRUNCATE TABLE test_innodb_stats;
+INSERT INTO test_innodb_stats (a) VALUES (1), (2), (3);
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	3
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	3
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	3
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL
+TRUNCATE TABLE test_innodb_stats;
+INSERT INTO test_innodb_stats (a) VALUES (1), (1), (2), (3), (3);
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	3
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	5
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	3
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL
+TRUNCATE TABLE test_innodb_stats;
+INSERT INTO test_innodb_stats (a) VALUES (1), (2), (3), (4), (5), (1), (2), (3), (4), (5);
+ANALYZE TABLE test_innodb_stats;
+Table	Op	Msg_type	Msg_text
+test.test_innodb_stats	analyze	status	OK
+SELECT
+stat_name,
+stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE
+database_name = DATABASE() AND
+table_name = 'test_innodb_stats' AND
+index_name = 'a_key' AND
+stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
+ORDER BY stat_name;
+stat_name	n_diff_pfx01
+stat_value	5
+sample_size	1
+stat_description	a
+stat_name	n_diff_pfx02
+stat_value	10
+sample_size	1
+stat_description	a,DB_ROW_ID
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+FLUSH TABLE test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	5
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
+IS_VISIBLE	YES
+EXPRESSION	NULL

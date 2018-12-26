@@ -1,0 +1,25 @@
+#
+# only global
+#
+select @@global.have_profiling="1";
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.have_profiling;
+--replace_column 2 #
+show global variables like 'have_profiling';
+--replace_column 2 #
+show session variables like 'have_profiling';
+--disable_warnings
+--replace_column 2 #
+select * from performance_schema.global_variables where variable_name='have_profiling';
+--replace_column 2 #
+select * from performance_schema.session_variables where variable_name='have_profiling';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global have_profiling=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session have_profiling=1;
+

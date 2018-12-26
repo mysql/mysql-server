@@ -1,0 +1,49 @@
+*** Copy thread
+
+  Scan rowids with GCP > starting nodes GCP
+  Cases for different ROWID combinations
+
+RI  Primary     Starting    Result
+1   A           A           Update A
+2   B           B*          Delete B* + Insert B
+3   C           C*          Delete C* + Delete C + Insert C
+                C
+4   Deleted     D           Delete D
+5   E           Deleted     Insert E
+6   F           Deleted     Delete F + Insert F
+                F
+7   Deleted     Deleted     Update GCP
+
+*** Ordinary operations
+Op           Starting        Result
+Insert A@1   A@1             Update A
+Insert A@1   A@2             Delete A@2, Insert A@1
+Insert A@1   1 busy, A@2     Delete 1, Delete A@2, Insert A@1
+Insert A@1   1 busy          Delete 1, Insert A@1
+
+Delete A@1   A@1             Delete A@1
+Delete A@1   else            noop
+
+Update A@1   A@1             Update A
+Update A@1   else            noop
+
+***
+
+Rationale:
+
+If copy has passed rowid, 
+  then no ordinary operation should be a noop
+
+If copy has not passed, 
+  then it's ok to do a noop as copy will get there sooner or later
+
+Copy may not end up in lock queue, as no lock is held on primary.
+  therefore ordinary ops must be noops when rowid missmatch
+
+When not scanning in rowid order (e.g. disk order) one must
+1 make a second pass in rowid order
+  - finding deletes and inserts (as 2)
+2 mark all inserts "earlier" than current scan pos
+  so they will be found during second pass
+
+Note: Dealloc is performed first on backup then on primary

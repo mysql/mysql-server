@@ -1,0 +1,53 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
+#
+# WL#8540: Support IF [NOT] EXISTS clause in CREATE/DROP USER
+#
+CREATE USER u1@localhost;
+CREATE USER IF NOT EXISTS u1@localhost, u2@localhost;
+Warnings:
+Note	3163	Authorization ID 'u1'@'localhost' already exists.
+ALTER USER IF EXISTS u1@localhost ACCOUNT LOCK;
+DROP USER u1@localhost;
+DROP USER IF EXISTS u2@localhost;
+#
+# Bug #21807286: "CREATE USER IF NOT EXISTS" REPORTS AN ERROR
+#
+CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha';
+CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha2';
+Warnings:
+Note	3163	Authorization ID 'b21807286'@'localhost' already exists.
+ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'haha3';
+ALTER USER IF EXISTS b21807286_not_exists@localhost IDENTIFIED BY 'haha4';
+Warnings:
+Note	3162	Authorization ID 'b21807286_not_exists'@'localhost' does not exist.
+DROP USER b21807286@localhost;
+include/sync_slave_sql_with_master.inc
+[On Slave]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' ACCOUNT LOCK
+slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
+slave-bin.000001	#	Query	#	#	use `test`; DROP USER IF EXISTS u2@localhost
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'b21807286'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'b21807286'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'b21807286'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'b21807286_not_exists'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; DROP USER b21807286@localhost
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
+include/rpl_end.inc
+
+End of 5.7 tests!
+

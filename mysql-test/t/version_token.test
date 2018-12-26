@@ -1,0 +1,327 @@
+# Save the initial number of concurrent sessions
+--disable_ps_protocol
+--source include/count_sessions.inc
+
+if ( !$VERSION_TOKEN ) {
+  skip Locking service plugin requires the environment variable \$VERSION_TOKEN to be set (normally done by mtr);
+}
+
+--echo #
+--echo # Bug #23210850: VERSION_TOKEN better protected
+--echo #
+
+--echo # Define a UDF before installing the plugin
+--replace_regex /\.dll/.so/
+eval create function version_tokens_show returns string soname '$VERSION_TOKEN';
+--error ER_CANT_INITIALIZE_UDF
+SELECT version_tokens_show();
+
+--echo # Testing installing the plugin twice while there's a UDF defined
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+UNINSTALL PLUGIN version_tokens;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+UNINSTALL PLUGIN version_tokens;
+
+--echo # Should not crash when unloading the so through removing the UDF
+drop function version_tokens_show;
+
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval create function version_tokens_set returns string soname '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval create function version_tokens_show returns string soname '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval create function version_tokens_edit returns string soname '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval create function version_tokens_delete returns string soname '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval create function version_tokens_lock_shared returns int soname '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval create function version_tokens_lock_exclusive returns int soname '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval create function version_tokens_unlock returns int soname '$VERSION_TOKEN';
+
+
+-- echo
+-- echo # Error checks for UDFs
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_set("token1    =     abc;token2=       def",123);
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_edit("token1= 123;         token3     =         asdf",123);
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_delete("token1;token3",123);
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_show("123");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_set(123);
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_edit(123);
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_delete(123);
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_lock_shared("Less arguments");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_lock_shared(1,"Wrong argument type");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_lock_exclusive("Less arguments");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_lock_exclusive(1,"Wrong argument type");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_unlock("Takes no arguments");
+
+--error ER_DATA_OUT_OF_RANGE
+select version_tokens_lock_shared("gizmo", -1);
+
+--error ER_DATA_OUT_OF_RANGE
+select version_tokens_lock_exclusive("gizmo", -1);
+
+-- echo
+CREATE USER vbhagi@localhost;
+
+-- echo
+select version_tokens_set("token1    =     abc;token2=       def");
+select version_tokens_show();
+
+-- echo
+select version_tokens_set("");
+select version_tokens_show();
+
+-- echo
+select version_tokens_set("token1    =     abc;token2=       def");
+select version_tokens_show();
+
+-- echo
+select version_tokens_edit("token1= 123;         token3     =         asdf");
+select version_tokens_show();
+
+-- echo
+do version_tokens_set("token1    =     def;;;;      ;invalid_token; token2= abc;;");
+select version_tokens_show();
+
+-- echo
+do version_tokens_set("token1    =     def;; token111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111=123;;      ;invalid_token; token2= abc;;");
+select version_tokens_show();
+
+-- echo
+do version_tokens_set("token1    =     none;;;;      ;invalid_token; token2= 123;;");
+select version_tokens_show();
+
+-- echo
+do version_tokens_set("token1=def;token2= abc;          ;token3=ghi");
+select version_tokens_show();
+
+-- echo
+select version_tokens_delete("invalid=token");
+select version_tokens_show();
+
+-- echo
+select version_tokens_delete("token1;token3");
+select version_tokens_show();
+
+-- echo
+select version_tokens_delete("*");
+select version_tokens_show();
+
+-- echo
+do version_tokens_set("token1=def;token2= abc;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112");
+select version_tokens_show();
+
+-- echo
+connect (con1,localhost,vbhagi,,test);
+connection con1;
+-- echo # Connection: con1
+-- echo
+-- echo # The UDFs fail due to lack of privileges.
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_set("token1    =     abc;token2=       def");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_edit("token1= 123;         token3     =         asdf");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_delete("token1;token3");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_show();
+set @@version_tokens_session= "token1=def";
+
+-- echo
+select 1;
+select 1;
+
+-- echo
+set @@version_tokens_session= "token3=abc";
+
+-- echo
+--error ER_VTOKEN_PLUGIN_TOKEN_MISMATCH
+select 1;
+
+-- echo
+disconnect con1;
+--source include/wait_until_disconnected.inc
+-- echo # Connection: con1 refreshed
+connect (con1,localhost,vbhagi,,test);
+connection con1;
+-- echo
+-- echo # Next statement goes through as the connection is refreshed.
+select @@version_tokens_session;
+
+--echo
+set @@version_tokens_session= "token111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111=abc;;";
+-- echo
+disconnect con1;
+--source include/wait_until_disconnected.inc
+-- echo # Connection: con1 refreshed
+connect (con1,localhost,vbhagi,,test);
+connection con1;
+-- echo
+-- echo # Next statement goes through as the connection is refreshed.
+select @@version_tokens_session;
+
+-- echo
+set @@version_tokens_session= ";;";
+set @@version_tokens_session= NULL;
+set @@version_tokens_session= "token1=def;;;;;;;;";
+set @@version_tokens_session= "token1=def;;;      token2  =   abc    ;   =  ;;;;";
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connect (con1,localhost,vbhagi,,test);
+-- echo
+-- echo # Connection: con1 refreshed
+-- echo
+connection con1;
+set @@version_tokens_session= "token1=def;;;      token2  =   abc    ;  sdf =  ;;;;";
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connect (con1,localhost,vbhagi,,test);
+-- echo
+-- echo # Connection: con1 refreshed
+-- echo
+connection con1;
+set @@version_tokens_session= "token1=def;;        ;      token2  =   abc    ;;;;;";
+-- echo # Next queries get through as the session tokens are valid
+use test;
+create table t1 (c1 int);
+drop table t1;
+set @@version_tokens_session= "token1=def;;;      token2  =   abc    ;   = sdf ;;;;";
+-- echo # This query fails as " = sdf" is not a valid token.
+--error ER_ACCESS_DENIED_ERROR
+create table t1 (c1 int);
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connect (con1,localhost,vbhagi,,test);
+-- echo
+-- echo # Connection: con1 refreshed
+-- echo
+connection con1;
+set @@version_tokens_session= "token100=def;;;      token2  =   abc    ;;;;;";
+--error ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
+create table t1 (c1 int);
+disconnect con1;
+
+-- echo
+-- echo # Connection: default
+connection default;
+
+--echo # Next statement goes through as it is from a different connection.
+select 1;
+
+--echo
+--echo # Testing VERSION_TOKEN_ADMIN
+--echo
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT VERSION_TOKEN_ADMIN ON *.* TO u1@localhost;
+
+--echo # Tests related to locking
+CONNECT (vtcon1, localhost, u1, foo,);
+CONNECT (vtcon2, localhost, root,,);
+CONNECT (vtcon3, localhost, root,,);
+
+-- echo # Connection: vtcon1 
+CONNECTION vtcon1;
+SELECT version_tokens_set("a=aa;b=bb;c=cc");
+set @@version_tokens_session= "a=aa";
+--let $t1_vtcon1 = `SELECT sysdate()`
+--send SELECT sleep(6); # sleep for 6 seconds in background.
+
+-- echo # Connection: vtcon2
+CONNECTION vtcon2;
+--let $t1_vtcon2 = `SELECT sysdate()`
+SELECT version_tokens_lock_exclusive("b",20);
+--let $t2_vtcon2 = `SELECT sysdate()`
+--let $t3_vtcon2 = `SELECT time_format(timediff("$t2_vtcon2","$t1_vtcon2"),'%S')`
+if ($t3_vtcon2 >= "03") {
+--echo vtcon2 - Time difference should not be there or very close to max 3 seconds because no waiting time required to acquire lock on b
+}
+
+-- echo # Connection: vtcon3
+CONNECTION vtcon3;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info like '%select sleep%' AND state='User sleep';
+source include/wait_condition.inc;
+SELECT version_tokens_lock_exclusive("a",20);
+--let $t2_vtcon3 = `SELECT sysdate()`
+--let $t3_vtcon3 = `SELECT time_format(timediff("$t2_vtcon3","$t1_vtcon1"),'%S')`
+if ($t3_vtcon3 < "05") {
+--echo vtcon2 - Time difference should be not less than 5 seconds, waited till lock on a is released by vtcon1. Actual wait time is : $t3_vtcon3
+}
+SELECT version_tokens_unlock();
+-- echo # Connection: vtcon1
+CONNECTION vtcon1;
+--reap
+disconnect vtcon1;
+disconnect vtcon2;
+disconnect vtcon3;
+connection default;
+
+
+-- echo
+UNINSTALL PLUGIN version_tokens;
+--disable_result_log
+--disable_query_log 
+let $mysql_errno = 0;
+# 1123=ER_CANT_INITIALIZE_UDF
+while ($mysql_errno != 1123)
+{
+  --error 0,1123
+  SELECT version_tokens_set("token1=abc;token2=def");
+  --sleep 0.1
+} 
+--enable_query_log
+--enable_result_log 
+
+-- echo
+-- echo # The UDFs fail as the plugin is uninstalled.
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_set("token1    =     abc;token2=       def");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_edit("token1= 123;         token3     =         asdf");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_delete("token1;token3");
+--error ER_CANT_INITIALIZE_UDF
+select version_tokens_show();
+
+--echo 
+--echo # VERSION_TOKEN_ADMIN shouldn't be visible in SHOW PRIVILEGES
+--sorted_result
+SHOW PRIVILEGES;
+
+--echo
+drop function version_tokens_set;
+drop function version_tokens_show;
+drop function version_tokens_edit;
+drop function version_tokens_delete;
+drop function version_tokens_lock_shared;
+drop function version_tokens_lock_exclusive;
+drop function version_tokens_unlock;
+drop user vbhagi@localhost;
+drop user u1@localhost;
+

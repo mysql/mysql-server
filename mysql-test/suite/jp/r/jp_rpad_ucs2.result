@@ -1,0 +1,113 @@
+drop table if exists `£Τ£±`;
+drop table if exists `£Τ£²`;
+drop table if exists `£Τ£³`;
+drop table if exists `£Τ£΄`;
+drop table if exists `£Τ£µ`;
+drop table if exists `£Τ£¶`;
+drop table if exists `£Τ£·`;
+drop table if exists `£Τ£Έ`;
+drop table if exists `£Τ£Ή`;
+SET NAMES ujis;
+SET character_set_database = ucs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET collation_connection = ucs2_general_ci;
+CREATE TABLE `£Τ£±` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£³` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£΄` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£µ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£¶` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+INSERT INTO `£Τ£±` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
+INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
+INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
+INSERT INTO `£Τ£΄` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
+INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
+INSERT INTO `£Τ£·` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
+INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
+SELECT `£Γ£±`, RPAD(`£Γ£±`,5,'΅') FROM `£Τ£±`;
+£Γ£±	RPAD(`£Γ£±`,5,'΅')
+	΅΅΅΅΅
+±	±΅΅΅΅
+±²	±²΅΅΅
+±²³	±²³΅΅
+±²³΄	±²³΄΅
+±²³΄µ	±²³΄µ
+SELECT `£Γ£±`, RPAD(`£Γ£±`,5,'£Ψ') FROM `£Τ£²`;
+£Γ£±	RPAD(`£Γ£±`,5,'£Ψ')
+	£Ψ£Ψ£Ψ£Ψ£Ψ
+¤Ά	¤Ά£Ψ£Ψ£Ψ£Ψ
+¤Ά¤¤	¤Ά¤¤£Ψ£Ψ£Ψ
+¤Ά¤¤¤¦	¤Ά¤¤¤¦£Ψ£Ψ
+¤Ά¤¤¤¦¤¨	¤Ά¤¤¤¦¤¨£Ψ
+¤Ά¤¤¤¦¤¨¤ª	¤Ά¤¤¤¦¤¨¤ª
+SELECT `£Γ£±`, RPAD(`£Γ£±`,5,'°Ά') FROM `£Τ£³`;
+£Γ£±	RPAD(`£Γ£±`,5,'°Ά')
+	°Ά°Ά°Ά°Ά°Ά
+νά	νά°Ά°Ά°Ά°Ά
+νάνέ	νάνέ°Ά°Ά°Ά
+νάνένή	νάνένή°Ά°Ά
+νάνένήνί	νάνένήνί°Ά
+νάνένήνίνΰ	νάνένήνίνΰ
+SELECT `£Γ£±`, RPAD(`£Γ£±`,5,'΅') FROM `£Τ£΄`;
+£Γ£±	RPAD(`£Γ£±`,5,'΅')
+	΅΅΅΅΅
+±	±΅΅΅΅
+±²	±²΅΅΅
+±²³	±²³΅΅
+±²³΄	±²³΄΅
+±²³΄µ	±²³΄µ
+SELECT `£Γ£±`, RPAD(`£Γ£±`,5,'£Ψ') FROM `£Τ£µ`;
+£Γ£±	RPAD(`£Γ£±`,5,'£Ψ')
+	£Ψ£Ψ£Ψ£Ψ£Ψ
+¤Ά	¤Ά£Ψ£Ψ£Ψ£Ψ
+¤Ά¤¤	¤Ά¤¤£Ψ£Ψ£Ψ
+¤Ά¤¤¤¦	¤Ά¤¤¤¦£Ψ£Ψ
+¤Ά¤¤¤¦¤¨	¤Ά¤¤¤¦¤¨£Ψ
+¤Ά¤¤¤¦¤¨¤ª	¤Ά¤¤¤¦¤¨¤ª
+SELECT `£Γ£±`, RPAD(`£Γ£±`,5,'°Ά' ) FROM `£Τ£¶`;
+£Γ£±	RPAD(`£Γ£±`,5,'°Ά' )
+	°Ά°Ά°Ά°Ά°Ά
+νά	νά°Ά°Ά°Ά°Ά
+νάνέ	νάνέ°Ά°Ά°Ά
+νάνένή	νάνένή°Ά°Ά
+νάνένήνί	νάνένήνί°Ά
+νάνένήνίνΰ	νάνένήνίνΰ
+SELECT `£Γ£±`, RPAD(`£Γ£±`,5,'΅') FROM `£Τ£·`;
+£Γ£±	RPAD(`£Γ£±`,5,'΅')
+±²³΄µ	±²³΄µ
+±²³΄	±²³΄΅
+±²³	±²³΅΅
+±²	±²΅΅΅
+±	±΅΅΅΅
+	΅΅΅΅΅
+SELECT `£Γ£±`, RPAD(`£Γ£±`,5,'£Ψ') FROM `£Τ£Έ`;
+£Γ£±	RPAD(`£Γ£±`,5,'£Ψ')
+¤Ά¤¤¤¦¤¨¤ª	¤Ά¤¤¤¦¤¨¤ª
+¤Ά¤¤¤¦¤¨	¤Ά¤¤¤¦¤¨£Ψ
+¤Ά¤¤¤¦	¤Ά¤¤¤¦£Ψ£Ψ
+¤Ά¤¤	¤Ά¤¤£Ψ£Ψ£Ψ
+¤Ά	¤Ά£Ψ£Ψ£Ψ£Ψ
+	£Ψ£Ψ£Ψ£Ψ£Ψ
+SELECT `£Γ£±`, RPAD(`£Γ£±`,5,'°Ά' ) FROM `£Τ£Ή`;
+£Γ£±	RPAD(`£Γ£±`,5,'°Ά' )
+νάνένήνίνΰ	νάνένήνίνΰ
+νάνένήνί	νάνένήνί°Ά
+νάνένή	νάνένή°Ά°Ά
+νάνέ	νάνέ°Ά°Ά°Ά
+νά	νά°Ά°Ά°Ά°Ά
+	°Ά°Ά°Ά°Ά°Ά
+DROP TABLE `£Τ£±`;
+DROP TABLE `£Τ£²`;
+DROP TABLE `£Τ£³`;
+DROP TABLE `£Τ£΄`;
+DROP TABLE `£Τ£µ`;
+DROP TABLE `£Τ£¶`;
+DROP TABLE `£Τ£·`;
+DROP TABLE `£Τ£Έ`;
+DROP TABLE `£Τ£Ή`;

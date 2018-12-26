@@ -1,0 +1,122 @@
+# DEBUG_SYNC must be compiled in.
+--source include/have_debug_sync.inc
+
+
+CREATE TABLE t1 (c1 INT , c2 CHAR(10), PRIMARY KEY (c1)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0, "0");
+INSERT INTO t1 VALUES(1, "1");
+INSERT INTO t1 VALUES(2, "2");
+INSERT INTO t1 VALUES(3, "3");
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+--connect (con3,localhost,root,,)
+--connect (con4,localhost,root,,)
+--connect (con5,localhost,root,,)
+--connect (con6,localhost,root,,)
+
+connection default;
+# Disable query log to avoid non-deterministic output conflicts
+SET AUTOCOMMIT=0;
+BEGIN;
+# Lock all the records
+SELECT * FROM t1 FOR UPDATE;
+--disable_query_log
+
+connection con1;
+SET AUTOCOMMIT=1;
+# Test if locking autocommit selects end up in the trx_sys_t::trx_list.
+# We check this via the INFORMATION_SCHEMA.INNODB_TRX.
+# This should block and show up in the I_S.
+SET DEBUG_SYNC='lock_wait_suspend_thread_enter SIGNAL waiting1';
+--send
+SELECT COUNT(*) FROM t1 LOCK IN SHARE MODE;
+
+connection con2;
+SET AUTOCOMMIT=1;
+# Test if non-locking autocommit selects end up in the trx_sys_t::trx_list.
+# We check this via the INFORMATION_SCHEMA.INNODB_TRX.
+# This should not block and should not show up in the I_S.
+--send
+SELECT COUNT(*) FROM t1;
+
+connection con3;
+SET AUTOCOMMIT=1;
+# Note: autocommit non-locking selects are not converted to locking selects
+# Therefore this should not block;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+--send
+SELECT COUNT(*) FROM t1;
+
+connection con4;
+SET AUTOCOMMIT=0;
+# Note: Non-locking selects are converted to locking selects
+# therefore this should block;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SET DEBUG_SYNC='now WAIT_FOR waiting1';
+SET DEBUG_SYNC='lock_wait_suspend_thread_enter SIGNAL waiting4';
+--send
+SELECT COUNT(*) FROM t1 WHERE c1 >= 0;
+
+connection con5;
+SET AUTOCOMMIT=1;
+# This should not block
+BEGIN;
+--send
+SELECT COUNT(*) FROM t1;
+
+connection con6;
+SET AUTOCOMMIT=1;
+# This will ignore the auto-commit setting but wont block because it is
+# a non-locking select.
+XA START '1';
+--enable_query_log
+SELECT * FROM t1 WHERE c1 <= 3;
+
+connection default;
+# Wait for SELECTs to get into the lock wait queue
+SET DEBUG_SYNC='now WAIT_FOR waiting4';
+
+# Check the number of non-locking transactions
+let $wait_condition =
+ SELECT COUNT(*) = 5
+ FROM INFORMATION_SCHEMA.INNODB_TRX
+ WHERE trx_autocommit_non_locking = 0;
+--source include/wait_condition.inc
+
+# Check the waiting transactions
+SELECT trx_state, trx_query, trx_autocommit_non_locking
+FROM INFORMATION_SCHEMA.INNODB_TRX
+WHERE trx_state = 'LOCK WAIT'
+ORDER BY trx_query;
+
+INSERT INTO t1 VALUES(4, '4');
+COMMIT;
+
+connection con6;
+SELECT * FROM t1 WHERE c1 <= 4;
+XA END '1';
+XA PREPARE '1';
+XA ROLLBACK '1';
+
+connection default;
+disconnect con2;
+disconnect con3;
+disconnect con5;
+disconnect con6;
+
+connection con1;
+reap;
+disconnect con1;
+
+connection con4;
+reap;
+disconnect con4;
+
+connection default;
+DROP TABLE t1;
+
+# Clean up resources used in this test case.
+--disable_warnings
+SET DEBUG_SYNC= 'RESET';
+--enable_warnings

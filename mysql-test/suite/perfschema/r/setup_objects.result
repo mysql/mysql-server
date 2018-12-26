@@ -1,0 +1,209 @@
+drop table if exists test.setup_objects;
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name in ('wait/io/table/sql/handler', 'wait/lock/table/sql/handler');
+truncate table performance_schema.events_waits_history_long;
+create table test.setup_objects as select * from performance_schema.setup_objects;
+truncate table performance_schema.setup_objects;
+insert into performance_schema.setup_objects
+values ('TABLE', 'db1', 't1', 'YES', 'YES');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db1', 't2', 'YES', 'NO');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db1', '%', 'YES', 'YES');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db2', 't1', 'YES', 'YES');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db2', 't2', 'YES', 'NO');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db3', 't1', 'YES', 'YES');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db3', 't2', 'NO', 'NO');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db3', '%', 'NO', 'YES');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db4', 't1', 'NO', 'YES');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db4', '%', 'YES', 'NO');
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+insert into performance_schema.setup_objects
+values ('SOMETHING', 'bad1', 'bad1', 'YES', 'NO');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'OBJECT_TYPE' at row 1
+Error	1452	Cannot add or update a child row: a foreign key constraint fails ()
+insert into performance_schema.setup_objects
+values ('TABLE', 'bad2', 'bad2', 'MAYBE', 'NO');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'ENABLED' at row 1
+Error	1452	Cannot add or update a child row: a foreign key constraint fails ()
+insert into performance_schema.setup_objects
+values ('TABLE', 'bad3', 'bad3', 'YES', 'MAYBE NOT');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'TIMED' at row 1
+Error	1452	Cannot add or update a child row: a foreign key constraint fails ()
+select * from performance_schema.setup_objects
+order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+TABLE	db1	%	YES	YES
+TABLE	db1	t1	YES	YES
+TABLE	db1	t2	YES	NO
+TABLE	db2	t1	YES	YES
+TABLE	db2	t2	YES	NO
+TABLE	db3	%	NO	YES
+TABLE	db3	t1	YES	YES
+TABLE	db3	t2	NO	NO
+TABLE	db4	%	YES	NO
+TABLE	db4	t1	NO	YES
+update performance_schema.setup_objects
+set OBJECT_TYPE='SOMETHING' where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.setup_objects
+set ENABLED='MAYBE' where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+update performance_schema.setup_objects
+set TIMED='MAYBE NOT' where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+select * from performance_schema.setup_objects
+order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+TABLE	db1	%	YES	YES
+TABLE	db1	t1	YES	YES
+TABLE	db1	t2	YES	NO
+TABLE	db2	t1	YES	YES
+TABLE	db2	t2	YES	NO
+TABLE	db3	%	NO	YES
+TABLE	db3	t1	YES	YES
+TABLE	db3	t2	NO	NO
+TABLE	db4	%	YES	NO
+TABLE	db4	t1	NO	YES
+SET sql_mode = default;
+drop database if exists db1;
+drop database if exists db2;
+drop database if exists db3;
+drop database if exists db4;
+drop database if exists db5;
+create database db1;
+create database db2;
+create database db3;
+create database db4;
+create database db5;
+create table db1.t1(a int);
+create table db1.t2(a int);
+create table db1.t3(a int);
+create table db1.t4(a int);
+create table db1.t5(a int);
+create table db2.t1(a int);
+create table db2.t2(a int);
+create table db2.t3(a int);
+create table db2.t4(a int);
+create table db2.t5(a int);
+create table db3.t1(a int);
+create table db3.t2(a int);
+create table db3.t3(a int);
+create table db3.t4(a int);
+create table db3.t5(a int);
+create table db4.t1(a int);
+create table db4.t2(a int);
+create table db4.t3(a int);
+create table db4.t4(a int);
+create table db4.t5(a int);
+create table db5.t1(a int);
+select * from db1.t1;
+a
+select * from db1.t2;
+a
+select * from db1.t3;
+a
+select * from db1.t4;
+a
+select * from db1.t5;
+a
+select * from db2.t1;
+a
+select * from db2.t2;
+a
+select * from db2.t3;
+a
+select * from db2.t4;
+a
+select * from db2.t5;
+a
+select * from db3.t1;
+a
+select * from db3.t2;
+a
+select * from db3.t3;
+a
+select * from db3.t4;
+a
+select * from db3.t5;
+a
+select * from db4.t1;
+a
+select * from db4.t2;
+a
+select * from db4.t3;
+a
+select * from db4.t4;
+a
+select * from db4.t5;
+a
+select * from db5.t1;
+a
+create table db5.t2(a int);
+select * from db3.t2;
+a
+select distinct OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA 
+from performance_schema.events_waits_history_long
+where OBJECT_SCHEMA like "db%"
+  group by OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA
+order by OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA;
+OBJECT_TYPE	OBJECT_NAME	OBJECT_SCHEMA
+TABLE	t1	db1
+TABLE	t1	db2
+TABLE	t1	db3
+TABLE	t2	db1
+TABLE	t2	db2
+TABLE	t2	db4
+TABLE	t3	db1
+TABLE	t3	db4
+TABLE	t4	db1
+TABLE	t4	db4
+TABLE	t5	db1
+TABLE	t5	db4
+select distinct OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA 
+from performance_schema.events_waits_history_long
+where OBJECT_SCHEMA like "db%" and TIMER_END is not NULL
+group by OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA
+order by OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA;
+OBJECT_TYPE	OBJECT_NAME	OBJECT_SCHEMA
+TABLE	t1	db1
+TABLE	t1	db2
+TABLE	t1	db3
+TABLE	t3	db1
+TABLE	t4	db1
+TABLE	t5	db1
+update performance_schema.setup_objects
+set timed='YES' where OBJECT_SCHEMA = '%';
+create table db5.t3(a int);
+select * from db3.t3;
+a
+truncate table performance_schema.setup_objects;
+select count(*) from performance_schema.setup_objects;
+count(*)
+0
+drop database db1;
+drop database db2;
+drop database db3;
+drop database db4;
+drop database db5;
+truncate table performance_schema.setup_objects;
+insert into performance_schema.setup_objects select * from test.setup_objects;
+drop table test.setup_objects;
+update performance_schema.setup_instruments set enabled='YES', timed='YES';

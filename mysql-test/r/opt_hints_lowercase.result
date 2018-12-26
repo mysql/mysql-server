@@ -1,0 +1,34 @@
+CREATE TABLE t1(f1 INT, f2 INT);
+INSERT INTO t1 VALUES
+(1,1),(2,2),(3,3);
+CREATE TABLE T1 (f1 INT NOT NULL, f2 INT, f3 VARCHAR(32),
+PRIMARY KEY(f1), KEY f2_idx(f1), KEY f3_idx(f3));
+INSERT INTO T1 VALUES
+(1, 1, 'qwerty'), (2, 1, 'ytrewq'),
+(3, 2, 'uiop'), (4, 2, 'poiu'), (5, 2, 'lkjh'),
+(6, 2, 'uiop'), (7, 2, 'poiu'), (8, 2, 'lkjh'),
+(9, 2, 'uiop'), (10, 2, 'poiu'), (11, 2, 'lkjh'),
+(12, 2, 'uiop'), (13, 2, 'poiu'), (14, 2, 'lkjh');
+INSERT INTO T1 SELECT f1 + 20, f2, f3 FROM T1;
+INSERT INTO T1 SELECT f1 + 40, f2, f3 FROM T1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE T1;
+Table	Op	Msg_type	Msg_text
+test.T1	analyze	status	OK
+EXPLAIN SELECT /*+ NO_BNL(t1) */ * FROM t1 t1, T1 T1 WHERE T1.f1 between 1 and 3
+AND t1.f2 = T1.f2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	T1	NULL	range	PRIMARY,f2_idx	PRIMARY	4	NULL	3	10.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t1`@`select#1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`T1`.`f1` AS `f1`,`test`.`T1`.`f2` AS `f2`,`test`.`T1`.`f3` AS `f3` from `test`.`t1` join `test`.`T1` where ((`test`.`T1`.`f2` = `test`.`t1`.`f2`) and (`test`.`T1`.`f1` between 1 and 3))
+EXPLAIN SELECT /*+ NO_BNL(T1) */ * FROM t1 t1, T1 T1 WHERE T1.f1 between 1 and 3
+AND t1.f2 = T1.f2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	T1	NULL	range	PRIMARY,f2_idx	PRIMARY	4	NULL	3	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`T1`@`select#1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`T1`.`f1` AS `f1`,`test`.`T1`.`f2` AS `f2`,`test`.`T1`.`f3` AS `f3` from `test`.`t1` join `test`.`T1` where ((`test`.`T1`.`f2` = `test`.`t1`.`f2`) and (`test`.`T1`.`f1` between 1 and 3))
+DROP TABLE t1, T1;

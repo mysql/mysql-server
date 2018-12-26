@@ -1,0 +1,28 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = VARIABLE_VALUE;
+let $table = performance_schema.status_by_user;
+
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+connect(con, localhost, foo,,);
+
+--echo # Connection con
+--connection con
+
+# Test index on USER, VARIABLE_NAME
+let $column_count = 2;
+let $col1 = USER;
+let $col2 = VARIABLE_NAME;
+let $col1_act = "foo";
+let $col2_act = "Max_execution_time_exceeded";
+
+--source ../include/idx_explain_test.inc
+
+--echo # Conenction default
+--connection default
+
+#Cleanup
+--disconnect con
+drop user foo@localhost;

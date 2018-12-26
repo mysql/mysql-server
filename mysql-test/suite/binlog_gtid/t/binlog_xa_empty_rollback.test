@@ -1,0 +1,379 @@
+# ==== Requirements ====
+#
+# R1. When '@@SESSION.GTID_NEXT' is set to 'AUTOMATIC', an XA empty
+#     transaction, ended with 'XA ROLLBACK', should not log anything to the
+#     binlog and should not add to GTID_EXECUTED.
+# R2. When '@@SESSION.GTID_NEXT' is set to a specific UUID, an XA empty
+#     transaction, ended with 'XA ROLLBACK', should not log anything to the
+#     binlog and should not add to GTID_EXECUTED.
+# R3. Above requirements should hold at any time and with any XA related
+#     sequence of commands.
+# R4. A non-empty XA transaction ended with XA ROLLBACK statement MUST
+#     both log to the binlog and add GTID_NEXT to GTID_EXECUTED.
+#
+# ==== Implementation ====
+#
+# USE-CASE 1 - rollback empty transaction as first statement and GTID_NEXT
+# set to autotmatic:
+# S1. Set GTID_NEXT to 'AUTOMATIC'.
+# S2. Start and end an XA transaction.
+# S3. Rollback the XA transaction.
+# S4. Check binlog for related event (should not be found).
+# S5. Check for an unchanged GTID_EXECUTED set.
+#
+# USE-CASE 2 - rollback empty transaction as first statement and GTID_NEXT
+# set to specific UUID:
+# S1. Set GTID_NEXT to a specific UUID.
+# S2. Start and end an XA transaction.
+# S3. Rollback the XA transaction.
+# S4. Check binlog for related event (should not be found).
+# S5. Check GTID_EXECUTED for the specific UUID (should not be found).
+#
+# USE-CASE 3 - start with GTID_NEXT set to a specific UUID and rollback empty
+# transaction after XA COMMIT ... ONE PHASE and GTID_NEXT set to a specific
+# UUID:
+# S1. Set GTID_NEXT to a specific UUID.
+# S2. Start and end an XA transaction.
+# S3. Commit the XA transaction with 'XA COMMIT ... ONE PHASE'.
+# S4. Set GTID_NEXT to a specific UUID.
+# S5. Start and end an XA transaction.
+# S6. Rollback the XA transaction.
+# S7. Check binlog for related event (should not be found).
+# S8. Check GTID_EXECUTED for the specific UUID (should not be found).
+#
+# USE-CASE 4 - start with GTID_NEXT set to 'AUTOMATIC' and rollback empty
+# transaction after XA COMMIT ... ONE PHASE and GTID_NEXT set to a specific
+# UUID:
+# S1. Set GTID_NEXT to 'AUTOMATIC'.
+# S2. Start and end an XA transaction.
+# S3. Commit the XA transaction with 'XA COMMIT ... ONE PHASE'.
+# S4. Set GTID_NEXT to a specific UUID.
+# S5. Start and end an XA transaction.
+# S6. Rollback the XA transaction.
+# S7. Check binlog for related event (should not be found).
+# S8. Check GTID_EXECUTED for the specific UUID (should not be found).
+#
+# USE-CASE 5 - rollback empty transaction after XA PREPARE and XA COMMIT and
+# GTID_NEXT set to a specific UUID:
+# S1. Set GTID_NEXT to a 'AUTOMATIC'.
+# S2. Start and end an XA transaction.
+# S3. Commit the XA transaction with 'XA PREPARE' and 'XA COMMIT'.
+# S4. Set GTID_NEXT to a specific UUID.
+# S5. Start and end an XA transaction.
+# S6. Rollback the XA transaction.
+# S7. Check binlog for related event (should not be found).
+# S8. Check GTID_EXECUTED for the specific UUID (should not be found).
+#
+# USE-CASE 6 - ensure that non-empty XA transactions are logged and
+# GITD-executed even if they are rolled back with XA ROLLBACK:
+# S1. Create a table
+# S2. Set GTID_NEXT to a 'AUTOMATIC'.
+# S3. Start an XA transaction.
+# s4. Insert values into created table.
+# S5. End the XA transaction.
+# s6. Prepare the XA transaction.
+# S7. Rollback the XA transaction.
+# S8. Check binlog for related event (should be found).
+# S9. Check GTID_EXECUTED for the executed UUID (should not be found).
+#
+# ==== References ====
+#
+# BUG#27041402: ASSERTION `NEW_VALUE >= 0' FAILED.
+# BUG#27435974: XA ROLLBACK GETS BINLOGGED AFTER 'XA COMMIT ONE PHASE' GTID
+# BUG#27407670: XA + GTID_NEXT: XA ROLLBACK IS COUNTED IN GTID_EXECUTED BUT WITHOUT BINLOG INFO
+#
+
+--source include/have_binlog_format_row.inc
+
+RESET MASTER;
+
+--echo #
+--echo # USE-CASE 1 - rollback empty transaction as first statement and GTID_NEXT
+--echo # set to autotmatic:
+--echo #
+
+--let $gtid_executed_count= `SELECT COUNT(*) FROM mysql.gtid_executed`
+
+--source include/save_binlog_position.inc
+--let $pre_commit_position= $binlog_position
+--echo #
+--echo # S1. Set GTID_NEXT to 'AUTOMATIC'.
+--echo #
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+--echo #
+--echo # S2. Start and end an XA transaction.
+--echo #
+XA START 'trx';
+XA END 'trx';
+--echo #
+--echo # S3. Rollback the XA transaction.
+--echo #
+XA ROLLBACK 'trx';
+
+--echo #
+--echo # S4. Check binlog for related event (should not be found).
+--echo #
+--source include/save_binlog_position.inc
+--let $assert_cond= $pre_commit_position = $binlog_position
+--let $assert_text= Empty transaction, binlog position is the same
+--source include/assert.inc
+
+--echo #
+--echo # S5. Check for an unchanged GTID_EXECUTED set.
+--echo #
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.gtid_executed] = $gtid_executed_count
+--let $assert_text= GTID_EXECUTED has not changed
+--source include/assert.inc
+
+--echo #
+--echo # USE-CASE 2 - rollback empty transaction as first statement and GTID_NEXT
+--echo # set to specific UUID:
+--echo #
+
+--source include/save_binlog_position.inc
+--let $pre_commit_position= $binlog_position
+--echo #
+--echo # S1. Set GTID_NEXT to a specific UUID.
+--echo #
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+--echo #
+--echo # S2. Start and end an XA transaction.
+--echo #
+XA START 'trx';
+XA END 'trx';
+--echo #
+--echo # S3. Rollback the XA transaction.
+--echo #
+XA ROLLBACK 'trx';
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+
+--echo #
+--echo # S4. Check binlog for related event (should not be found).
+--echo #
+--source include/save_binlog_position.inc
+--let $assert_cond= $pre_commit_position = $binlog_position
+--let $assert_text= Empty transaction, binlog position is the same
+--source include/assert.inc
+
+--echo #
+--echo # S5. Check GTID_EXECUTED for the specific UUID (should not be found).
+--echo #
+--let $assert_cond= [SELECT GTID_SUBSET("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1", @@GLOBAL.GTID_EXECUTED)] = 0
+--let $assert_text= Transaction is NOT present in GTID_EXECUTED
+--source include/assert.inc
+
+--echo #
+--echo # USE-CASE 3 - start with GTID_NEXT set to a specific UUID and rollback empty
+--echo # transaction after XA COMMIT ... ONE PHASE and GTID_NEXT set to a specific
+--echo # UUID:
+--echo #
+
+--echo #
+--echo # S1. Set GTID_NEXT to a specific UUID.
+--echo #
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+--echo #
+--echo # S2. Start and end an XA transaction.
+--echo #
+XA START 'trx';
+XA END 'trx';
+--echo #
+--echo # S3. Commit the XA transaction with 'XA COMMIT ... ONE PHASE'.
+--echo #
+XA COMMIT 'trx' ONE PHASE;
+
+--source include/save_binlog_position.inc
+--let $pre_commit_position= $binlog_position
+--echo #
+--echo # S4. Set GTID_NEXT to a specific UUID.
+--echo #
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+--echo #
+--echo # S5. Start and end an XA transaction.
+--echo #
+XA START 'trx';
+XA END 'trx';
+--echo #
+--echo # S6. Rollback the XA transaction.
+--echo #
+XA ROLLBACK 'trx';
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+
+--echo #
+--echo # S7. Check binlog for related event (should not be found).
+--echo #
+--source include/save_binlog_position.inc
+--let $assert_cond= $pre_commit_position = $binlog_position
+--let $assert_text= Empty transaction, binlog position is the same
+--source include/assert.inc
+
+--echo #
+--echo # S8. Check GTID_EXECUTED for the specific UUID (should not be found).
+--echo #
+--let $assert_cond= [SELECT GTID_SUBSET("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3", @@GLOBAL.GTID_EXECUTED)] = 0
+--let $assert_text= Transaction is NOT present in GTID_EXECUTED
+--source include/assert.inc
+
+--echo #
+--echo # USE-CASE 4 - start with GTID_NEXT set to 'AUTOMATIC' and rollback empty
+--echo # transaction after XA COMMIT ... ONE PHASE and GTID_NEXT set to a specific
+--echo # UUID:
+--echo #
+
+--echo #
+--echo # S1. Set GTID_NEXT to 'AUTOMATIC'.
+--echo #
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+--echo #
+--echo # S2. Start and end an XA transaction.
+--echo #
+XA START 'trx';
+XA END 'trx';
+--echo #
+--echo # S3. Commit the XA transaction with 'XA COMMIT ... ONE PHASE'.
+--echo #
+XA COMMIT 'trx' ONE PHASE;
+
+--source include/save_binlog_position.inc
+--let $pre_commit_position= $binlog_position
+--echo #
+--echo # S4. Set GTID_NEXT to a specific UUID.
+--echo #
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4';
+--echo #
+--echo # S5. Start and end an XA transaction.
+--echo #
+XA START 'trx';
+XA END 'trx';
+--echo #
+--echo # S6. Rollback the XA transaction.
+--echo #
+XA ROLLBACK 'trx';
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+
+--echo #
+--echo # S7. Check binlog for related event (should not be found).
+--echo #
+--source include/save_binlog_position.inc
+--let $assert_cond= $pre_commit_position = $binlog_position
+--let $assert_text= Empty transaction, binlog position is the same
+--source include/assert.inc
+
+--echo #
+--echo # S8. Check GTID_EXECUTED for the specific UUID (should not be found).
+--echo #
+--let $assert_cond= [SELECT GTID_SUBSET("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4", @@GLOBAL.GTID_EXECUTED)] = 0
+--let $assert_text= Transaction is NOT present in GTID_EXECUTED
+--source include/assert.inc
+
+--echo #
+--echo # USE-CASE 5 - rollback empty transaction after XA PREPARE and XA COMMIT and
+--echo # GTID_NEXT set to a specific UUID:
+--echo #
+
+--echo #
+--echo # S1. Set GTID_NEXT to 'AUTOMATIC'.
+--echo #
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+--echo #
+--echo # S2. Start and end an XA transaction.
+--echo #
+XA START 'trx';
+XA END 'trx';
+--echo #
+--echo # S3. Commit the XA transaction with 'XA PREPARE' and 'XA COMMIT'.
+--echo #
+XA PREPARE 'trx';
+XA COMMIT 'trx';
+
+--source include/save_binlog_position.inc
+--let $pre_commit_position= $binlog_position
+--echo #
+--echo # S4. Set GTID_NEXT to a specific UUID.
+--echo #
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:5';
+--echo #
+--echo # S5. Start and end an XA transaction.
+--echo #
+XA START 'trx';
+XA END 'trx';
+--echo #
+--echo # S6. Rollback the XA transaction.
+--echo #
+XA ROLLBACK 'trx';
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+
+--echo #
+--echo # S7. Check binlog for related event (should not be found).
+--echo #
+--source include/save_binlog_position.inc
+--let $assert_cond= $pre_commit_position = $binlog_position
+--let $assert_text= Empty transaction, binlog position is the same
+--source include/assert.inc
+
+--echo #
+--echo # S8. Check GTID_EXECUTED for the specific UUID (should not be found).
+--echo #
+--let $assert_cond= [SELECT GTID_SUBSET("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:5", @@GLOBAL.GTID_EXECUTED)] = 0
+--let $assert_text= Transaction is NOT present in GTID_EXECUTED
+--source include/assert.inc
+
+--echo #
+--echo # USE-CASE 6 - ensure that non-empty XA transactions are logged and
+--echo # GITD-executed even if they are rolled back with XA ROLLBACK:
+--echo #
+
+--echo #
+--echo # S1. Create a table
+--echo #
+CREATE TABLE t (a INT);
+
+--echo #
+--echo # S2. Set GTID_NEXT to a 'AUTOMATIC'.
+--echo #
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+
+--echo #
+--echo # S3. Start an XA transaction.
+--echo #
+XA START 'trx';
+
+--echo #
+--echo # s4. Insert values into created table.
+--echo #
+INSERT INTO t VALUES (1), (2), (3);
+
+--echo #
+--echo # S5. End the XA transaction.
+--echo #
+XA END 'trx';
+
+--echo #
+--echo # S6. Prepare the XA transaction.
+--echo #
+XA PREPARE 'trx';
+
+--echo #
+--echo # S7. Rollback the XA transaction.
+--echo #
+XA ROLLBACK 'trx';
+
+--echo #
+--echo # S8. Check binlog for related event (should be found).
+--echo #
+--let $event_sequence= Gtid/SET.* # Query/use.* # Gtid/SET.* # Query/XA START.* # Table_map/.* # Write_rows/.* # Query/XA END.* # XA_prepare/XA PREPARE.* # Gtid/SET.* # Query/XA ROLLBACK.*
+--source include/assert_binlog_events.inc
+
+--echo #
+--echo # S9. Check GTID_EXECUTED for the executed UUID (should be found).
+--echo #
+--let $gtid_set= query_get_value("SHOW BINLOG EVENTS LIMIT 13,1", Info, 1)
+--let $gtid_split= `SELECT SUBSTRING_INDEX("$gtid_set", "'", -2)`
+--let $gtid= `SELECT SUBSTRING_INDEX("$gtid_split", "'", 1)`
+
+--replace_result $gtid GTID
+--let $assert_cond= [SELECT GTID_SUBSET("$gtid", @@GLOBAL.GTID_EXECUTED)] != 0
+--let $assert_text= Transaction is present in GTID_EXECUTED
+--source include/assert.inc
+
+DROP TABLE t;

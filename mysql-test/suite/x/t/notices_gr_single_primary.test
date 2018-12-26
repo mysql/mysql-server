@@ -1,0 +1,245 @@
+################################################################################
+#
+# WL#10655: Global notification for GR membership changes
+#
+# This test case checks that enabled notices are triggered and delivered to
+# client.
+#
+# This file covers a few scenarios specific to Single Primary mode.
+#
+#
+# +----+---------------------------------------------+------------+---------|
+# | Lp | Scenario\Where                              |            |         |
+# |    |                                             | Server1    | Server2 |
+# |    |                                             | triggering |         |
+# |    |                                             | event      |         |
+# +----+---------------------------------------------+------------+---------|
+# |  1 | SERVER BOOTSTRAPS+RECOVERS+PRIMARY ELECTION | VC,RC,2xSC |         |
+# |  2 | PRIMARY LEAVES                              | VC,SC,RC   | VC,RC   |
+# +----+---------------------------------------------+------------+---------|
+#
+# Scenarios described inside the table will be repeated two times:
+#
+# * X Protocol GR notices enabled - verify delivery of the notices
+# * X Protocol GR notices disabled - verify that X Plugin doesn't send the notices
+#
+
+--source include/count_sessions.inc
+--source include/force_restart.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/have_mysqlx_plugin.inc
+
+## Test starts here
+--let $xtest=$MYSQL_TMP_DIR/group_replication_setup_and_xnotices_test.tmp
+--write_file $xtest
+-->import group_replication.macro
+-->import assert_notices.macro
+
+-->echo
+-->echo ###
+-->echo ### Sets up the group with two servers: server1 and server2
+-->echo ###
+
+callmacro Connect_to_all_mysqld_instances	verify	%SERVER_NUMBER%;
+callmacro %ENABLE_NOTICES%	%SERVER_NUMBER%
+	{"notice":["group_replication/membership/quorum_loss",
+             "group_replication/membership/view",
+             "group_replication/status/role_change",
+             "group_replication/status/state_change"]};
+
+callmacro Connect_to_all_mysqld_instances	server	%SERVER_NUMBER%;
+
+
+repeat %SERVER_NUMBER%	%ITERATION%;
+varlet %SESSION_ITERATION% %ITERATION%;
+varinc %SESSION_ITERATION% 1;
+callmacro Setsession	server_%SESSION_ITERATION%;
+noquery_result;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= OFF;
+SET GLOBAL group_replication_single_primary_mode= ON;
+SET GLOBAL group_replication_force_members='';
+query_result;
+endrepeat;
+
+callmacro GR_clear_bootstrap_group	%SERVER_NUMBER%;
+
+
+-->echo
+-->echo ### Scenario 1: SERVER BOOTSTRAPS+RECOVERS+PRIMARY ELECTION
+-->echo ### Expected:
+-->echo ### - Myself: 1 VIEW CHANGE, 2 STATE CHANGED, 1 ROLE CHANGED
+-->echo ### - Others: N/A
+-->echo ##########################################################################
+callmacro GR_start_and_bootstrap	%SERVER_NUMBER%	%GR_NAME%	ONLINE;
+callmacro GR_clear_bootstrap_group	%SERVER_NUMBER%;
+
+callmacro %ASSERT_NOTICES%	view_changed	verify_1;
+callmacro %ASSERT_NOTICES%	state_changed	verify_1;
+callmacro %ASSERT_NOTICES%	state_changed	verify_1;
+callmacro %ASSERT_NOTICES%	role_changed	verify_1;
+callmacro %ASSERT_NOTICES%	none	verify_1;
+callmacro %ASSERT_NOTICES%	none	verify_2;
+callmacro %ASSERT_NOTICES%	none	verify_3;
+
+
+-->echo
+-->echo ### Scenario 2: PRIMARY LEAVES the GROUP
+-->echo ### Expected:
+-->echo ### - Myself (old primary): 1 VIEW CHANGED, 1 STATE CHANGED, 1 ROLE CHANGED
+-->echo ### - Others (new primary): 1 VIEW CHANGED, 1 ROLE CHANGED
+-->echo ### - Others (secondary):   1 VIEW CHANGED, 1 ROLE CHANGED
+-->echo ##########################################################################
+
+callmacro Setsession	server_2;
+callmacro GR_start	%GR_NAME%	ONLINE;
+
+callmacro %ASSERT_NOTICES%	view_changed	verify_1;
+callmacro %ASSERT_NOTICES%	state_changed	verify_1;
+callmacro %ASSERT_NOTICES%	state_changed	verify_1;
+callmacro %ASSERT_NOTICES%	none	verify_1;
+
+callmacro %ASSERT_NOTICES%	view_changed	verify_2;
+callmacro %ASSERT_NOTICES%	state_changed	verify_2;
+callmacro %ASSERT_NOTICES%	state_changed	verify_2;
+callmacro %ASSERT_NOTICES%	none	verify_2;
+
+callmacro %ASSERT_NOTICES%	none	verify_3;
+
+
+callmacro Setsession	server_3;
+callmacro GR_start	%GR_NAME%	ONLINE;
+
+callmacro %ASSERT_NOTICES%	view_changed	verify_1;
+callmacro %ASSERT_NOTICES%	state_changed	verify_1;
+callmacro %ASSERT_NOTICES%	state_changed	verify_1;
+callmacro %ASSERT_NOTICES%	none	verify_1;
+
+callmacro %ASSERT_NOTICES%	view_changed	verify_2;
+callmacro %ASSERT_NOTICES%	state_changed	verify_2;
+callmacro %ASSERT_NOTICES%	state_changed	verify_2;
+callmacro %ASSERT_NOTICES%	none	verify_2;
+
+callmacro %ASSERT_NOTICES%	view_changed	verify_3;
+callmacro %ASSERT_NOTICES%	state_changed	verify_3;
+callmacro %ASSERT_NOTICES%	state_changed	verify_3;
+callmacro %ASSERT_NOTICES%	none	verify_3;
+
+callmacro Setsession	server_1;
+callmacro GR_stop;
+
+callmacro %ASSERT_NOTICES%	view_changed	verify_1;
+callmacro %ASSERT_NOTICES%	state_changed	verify_1;
+callmacro %ASSERT_NOTICES%	role_changed	verify_1;
+callmacro %ASSERT_NOTICES%	none	verify_1;
+
+callmacro Setsession	server_2;
+callmacro GR_wait_for_number_of_members	2;
+
+callmacro %ASSERT_NOTICES%	view_changed	verify_2;
+callmacro %ASSERT_NOTICES%	role_changed	verify_2;
+callmacro %ASSERT_NOTICES%	none	verify_2;
+
+callmacro Setsession	server_3;
+callmacro GR_wait_for_number_of_members	2;
+
+callmacro %ASSERT_NOTICES%	view_changed	verify_3;
+callmacro %ASSERT_NOTICES%	role_changed	verify_3;
+callmacro %ASSERT_NOTICES%	none	verify_3;
+
+
+-->echo
+-->echo ###
+-->echo ### In X test cleanup
+-->echo ###
+callmacro Setsession	server_2;
+callmacro GR_stop;
+
+callmacro Setsession	server_3;
+callmacro GR_stop;
+
+EOF
+
+## Setup X Plugin & GR
+--let $dont_reset_global_status_variables=1
+--source include/xplugin_preamble.inc
+
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $ceiling= `SELECT $rpl_server_count + 1`
+--let $i = 1
+
+while ($i < $ceiling)
+{
+  --let $rpl_connection_silent= 1
+  --let $rpl_connection_name= server$i
+  --echo [Setup XPlugin user on connection '$rpl_connection_name']
+  --source include/rpl_connection.inc
+  --let $create_user_disable_binlog=1
+  --source include/xplugin_create_user.inc
+  --inc $i
+}
+
+--let $rpl_connection_silent= 0
+
+--echo
+--echo ## Protocol GR notices enabled - verify delivery of the notices
+--echo ##########################################################################
+
+exec $MYSQLXTEST
+  -ux_root --ssl-mode=disabled --file=$xtest
+  -v %SERVER_NUMBER%=$rpl_server_count
+  -v %GR_NAME%=$group_replication_group_name
+  -v %ASSERT_NOTICES%=CHK_assert_notice
+  -v %ENABLE_NOTICES%=Enable_notice
+  -v %SERVER_XPORT_1%=$MASTER_X_MYPORT_1
+  -v %SERVER_XPORT_2%=$MASTER_X_MYPORT_2
+  -v %SERVER_XPORT_3%=$MASTER_X_MYPORT_3 2>&1;
+
+
+--echo
+--echo ## X Protocol GR notices disabled - verify that X Plugin doesn't send the notices
+--echo ##########################################################################
+
+exec $MYSQLXTEST
+  -ux_root --ssl-mode=disabled --file=$xtest
+  -v %SERVER_NUMBER%=$rpl_server_count
+  -v %GR_NAME%=$group_replication_group_name
+  -v %ASSERT_NOTICES%=CHK_assert_notice_none_ignore_args
+  -v %ENABLE_NOTICES%=Dont_enable_notice
+  -v %SERVER_XPORT_1%=$MASTER_X_MYPORT_1
+  -v %SERVER_XPORT_2%=$MASTER_X_MYPORT_2
+  -v %SERVER_XPORT_3%=$MASTER_X_MYPORT_3 2>&1;
+
+## Cleanup
+--remove_file $xtest
+
+--source include/group_replication_end.inc
+--let $i = 1
+--let $rpl_connection_silent=1
+while ($i < $ceiling)
+{
+  --let $rpl_connection_silent= 1
+  --let $rpl_connection_name= server$i
+  --source include/rpl_connection.inc
+  --source include/xplugin_drop_user.inc
+  --inc $i
+}
+
+# Following connections are established by group_replication.inc,
+# still group_replication_end.inc doesn't disconnects them.
+#
+# Releasing the connections manually
+#
+--disconnect server1
+--disconnect server2
+--disconnect server3
+--disconnect master1
+--disconnect master
+--disconnect slave1
+--disconnect slave
+--connection default
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

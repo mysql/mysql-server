@@ -1,0 +1,35 @@
+
+Master DIH                                      LQH
+==========                                      ==========
+
+1) TCGETOPSIZEREQ -> all TC
+
+2) If sum(operation size) < Threshold
+     Goto 1
+
+3) For each table
+     Calc Keep GCI (local using CONTINUEB)
+
+4) COPY_GCIREQ -> all DIH
+
+5) TC_CLOPSIZEREQ -> all TC
+
+6) For each fragment
+     LCP_FRAG_ORD -> LQH
+
+						Do LCP...
+						1) LCP_FRAG_REP -> all DIH
+						2) If last fragment
+						   LCP_COMPLETE_REP -> all DIH
+						
+7) When receiving LCP_COMPLETE_REP from DIH
+   1) If all DIHs have completed
+      Goto 1
+
+All DIHs
+==========
+1) When receiving LCP_FRAG_REP
+   If all fragments & replicas done in table
+     1) Save Table descriptor
+     2) If all tables done + LCP_COMPLETE_REP(from lqh) has arrived
+        LCP_COMPLETE_REP -> master DIH 

@@ -1,0 +1,67 @@
+# Author: Horst Hunger
+# Created: 2010-07-13
+
+
+let $engine_table= InnoDB;
+let $engine_part= InnoDB;
+let $engine_subpart= InnoDB;
+
+use test;
+
+--disable_result_log
+--disable_query_log
+--source suite/parts/inc/part_exch_tabs.inc
+--enable_result_log
+--enable_query_log
+
+# 17) Exchanges in Procedure, triggers and events.
+DELIMITER |;
+CREATE PROCEDURE test_p1 ()
+BEGIN
+ALTER TABLE t_10 ADD UNIQUE INDEX USING BTREE (a);
+ALTER TABLE tp   ADD UNIQUE INDEX USING BTREE (a);
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+ALTER TABLE tp   DROP INDEX a;
+ALTER TABLE t_10 DROP INDEX a;
+END|
+DELIMITER ;|
+CALL test_p1;
+--sorted_result
+SELECT * FROM t_10;
+--sorted_result
+SELECT * FROM tp WHERE a BETWEEN 0 AND 9;
+DROP PROCEDURE test_p1;
+
+SET @save_autocommit= @@autocommit;
+SET @@autocommit= OFF;
+SHOW VARIABLES LIKE '%autocommit%';
+DELIMITER |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER test_trg_1 BEFORE UPDATE ON tp FOR EACH ROW
+BEGIN
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+END|
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION test_f_1() RETURNS int
+BEGIN
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+END|
+DELIMITER ;|
+SET @@autocommit= @save_autocommit;
+
+SET @save_event_scheduler= @@global.event_scheduler;
+SET @@global.event_scheduler= ON;
+CREATE EVENT test_ev_1
+    ON SCHEDULE AT CURRENT_TIMESTAMP
+    DO
+       ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+let $wait_condition=SELECT count(*)=1 from t_10 WHERE a=1;
+--source include/wait_condition.inc
+--sorted_result
+SELECT * FROM t_10;
+--sorted_result
+SELECT * FROM tp WHERE a BETWEEN 0 AND 9;
+SET @@global.event_scheduler= @save_event_scheduler;
+
+--source suite/parts/inc/part_exch_drop_tabs.inc
+

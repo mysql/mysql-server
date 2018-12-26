@@ -1,0 +1,59 @@
+--echo #
+--echo # Inserts some rules, tests them and then inserts another one.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+use test;
+
+CREATE TABLE t1 ( c1 VARCHAR(10), c2 VARCHAR(10) );
+
+INSERT INTO t1 VALUES ( 'abc', 'def' ),
+                      ( 'ghi', 'klm' ),
+                      ( 'nop', 'qrs' );
+
+
+CREATE TABLE t2 ( c1 VARCHAR(10) );
+
+INSERT INTO t2 VALUES ( 'abc' ),
+                      ( 'klm' );
+
+--source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+
+VALUES ( 'SELECT * FROM test.t1 WHERE ( c1 = ? AND TRUE ) OR c2 = ?',
+         'SELECT c1 FROM test.t1 WHERE c1 = ?' ),
+
+       ( 'SELECT * FROM test.t2',
+         'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = t2.c1' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SHOW STATUS LIKE 'Rewriter_number_loaded_rules';
+SHOW STATUS LIKE 'Rewriter_number_reloads';
+
+# checks a query without rewrite
+SELECT c2 FROM test.t1;
+
+--echo # Check that a rewrite works.
+SELECT * FROM test.t2;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c2 FROM test.t1', 'SELECT * FROM test.t1' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SHOW STATUS LIKE 'Rewriter_number_loaded_rules';
+SHOW STATUS LIKE 'Rewriter_number_reloads';
+
+SET @@global.rewriter_verbose = 2;
+
+--echo # Check that the new rule works.
+SELECT c2 FROM test.t1;
+
+--echo # Check that the old rewrites still work.
+SELECT * FROM test.t2;
+
+DROP TABLE t1, t2;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

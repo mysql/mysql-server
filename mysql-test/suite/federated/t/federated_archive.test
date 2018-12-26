@@ -1,0 +1,58 @@
+source include/have_archive.inc;
+source suite/federated/include/federated.inc;
+
+
+connection slave;
+--disable_warnings
+DROP TABLE IF EXISTS federated.archive_table;
+--enable_warnings
+
+CREATE TABLE federated.archive_table (
+  `id` int(4) NOT NULL,
+  `name` varchar(54) default NULL
+  ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+
+
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+    `id` int(4) NOT NULL,
+    `name` varchar(54) default NULL,
+    PRIMARY KEY (`id`)
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/archive_table';
+
+INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
+INSERT INTO federated.t1 (id, name) VALUES (2, 'bar');
+
+SELECT * FROM federated.t1;
+
+--error 1296
+DELETE FROM federated.t1 WHERE id = 1;
+
+SELECT * FROM federated.t1;
+
+
+--error 1296
+UPDATE federated.t1 SET name='baz' WHERE id = 1;
+
+SELECT * FROM federated.t1;
+
+
+# --error 1296
+# TRUNCATE federated.t1;
+#
+# SELECT * from federated.t1;
+
+DROP TABLE federated.t1;
+connection slave;
+DROP TABLE federated.archive_table;
+
+
+source suite/federated/include/federated_cleanup.inc;
+

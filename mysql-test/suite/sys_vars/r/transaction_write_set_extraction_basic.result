@@ -1,0 +1,156 @@
+SET @start_global_value = @@GLOBAL.transaction_write_set_extraction;
+SELECT @start_global_value;
+@start_global_value
+OFF
+SET @start_session_value = @@SESSION.transaction_write_set_extraction;
+SELECT @start_session_value;
+@start_session_value
+OFF
+SET @start_global_binlog_format = @@GLOBAL.binlog_format;
+SELECT @start_global_binlog_format;
+@start_global_binlog_format
+ROW
+SET @@GLOBAL.binlog_format= 'ROW';
+SET global transaction_write_set_extraction= DEFAULT;
+SELECT @@global.transaction_write_set_extraction;
+@@global.transaction_write_set_extraction
+XXHASH64
+SET global transaction_write_set_extraction='OFF';
+SELECT @@global.transaction_write_set_extraction;
+@@global.transaction_write_set_extraction
+OFF
+SET global transaction_write_set_extraction= 0;
+SELECT @@global.transaction_write_set_extraction;
+@@global.transaction_write_set_extraction
+OFF
+SET global transaction_write_set_extraction='MURMUR32';
+SELECT @@global.transaction_write_set_extraction;
+@@global.transaction_write_set_extraction
+MURMUR32
+SET global transaction_write_set_extraction= 1;
+SELECT @@global.transaction_write_set_extraction;
+@@global.transaction_write_set_extraction
+MURMUR32
+SET global transaction_write_set_extraction='XXHASH64';
+SELECT @@global.transaction_write_set_extraction;
+@@global.transaction_write_set_extraction
+XXHASH64
+SET global transaction_write_set_extraction= 2;
+SELECT @@global.transaction_write_set_extraction;
+@@global.transaction_write_set_extraction
+XXHASH64
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+OFF
+SET @@SESSION.binlog_format= 'ROW';
+SET session transaction_write_set_extraction=DEFAULT;
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+XXHASH64
+SET session transaction_write_set_extraction='OFF';
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+OFF
+SET session transaction_write_set_extraction=0;
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+OFF
+SET session transaction_write_set_extraction='MURMUR32';
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+MURMUR32
+SET session transaction_write_set_extraction=1;
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+MURMUR32
+SET session transaction_write_set_extraction='XXHASH64';
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+XXHASH64
+SET session transaction_write_set_extraction=2;
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+XXHASH64
+SET session transaction_write_set_extraction='ABC';
+ERROR 42000: Variable 'transaction_write_set_extraction' can't be set to the value of 'ABC'
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+XXHASH64
+SET session transaction_write_set_extraction= 3;
+ERROR 42000: Variable 'transaction_write_set_extraction' can't be set to the value of '3'
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+XXHASH64
+SET session transaction_write_set_extraction='1';
+ERROR 42000: Variable 'transaction_write_set_extraction' can't be set to the value of '1'
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+XXHASH64
+SET @@global.transaction_write_set_extraction = @start_global_value;
+SELECT @@global.transaction_write_set_extraction;
+@@global.transaction_write_set_extraction
+OFF
+SET @@session.transaction_write_set_extraction = @start_session_value;
+SELECT @@session.transaction_write_set_extraction;
+@@session.transaction_write_set_extraction
+OFF
+SET @@GLOBAL.binlog_format= @start_global_binlog_format;
+SELECT @@GLOBAL.binlog_format;
+@@GLOBAL.binlog_format
+ROW
+include/assert.inc [The value for transaction_write_set_extraction shoudl be OFF]
+CREATE TABLE t1 (i INT PRIMARY KEY);
+SET @start_session_value = @@SESSION.transaction_write_set_extraction;
+SELECT @start_session_value;
+@start_session_value
+OFF
+BEGIN;
+SET @@SESSION.transaction_write_set_extraction= MURMUR32;
+ERROR HY000: The system variable transaction_write_set_extraction cannot be set when there is an ongoing transaction.
+COMMIT;
+CREATE TABLE t2(c1 INT, c2 INT);
+CREATE TRIGGER tr2 AFTER INSERT ON t2 FOR EACH ROW
+BEGIN
+SET @@SESSION.transaction_write_set_extraction= MURMUR32;
+END|
+INSERT INTO t2 VALUES (0,0);
+ERROR HY000: The system variable transaction_write_set_extraction cannot be set when there is an ongoing transaction.
+DROP TABLE t2;
+SET @@SESSION.transaction_write_set_extraction=MURMUR32;
+SELECT @@SESSION.transaction_write_set_extraction;
+@@SESSION.transaction_write_set_extraction
+MURMUR32
+SET @@SESSION.transaction_write_set_extraction=OFF;
+include/assert.inc [The value for transaction_write_set_extraction should be OFF]
+SET @@SESSION.binlog_format= 'STATEMENT';
+SET @@SESSION.transaction_write_set_extraction= MURMUR32;
+ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binary log format as ROW.
+SET @@SESSION.binlog_format= 'MIXED';
+SET @@SESSION.transaction_write_set_extraction= MURMUR32;
+ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binary log format as ROW.
+SET @@SESSION.binlog_format= 'ROW';
+SET @@SESSION.transaction_write_set_extraction= MURMUR32;
+SELECT @@SESSION.transaction_write_set_extraction;
+@@SESSION.transaction_write_set_extraction
+MURMUR32
+SET @@SESSION.transaction_write_set_extraction = @start_session_value;
+SELECT @@SESSION.transaction_write_set_extraction;
+@@SESSION.transaction_write_set_extraction
+OFF
+SET @@GLOBAL.binlog_format= 'STATEMENT';
+SET @@GLOBAL.transaction_write_set_extraction= MURMUR32;
+ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binary log format as ROW.
+SET @@GLOBAL.binlog_format= 'MIXED';
+SET @@GLOBAL.transaction_write_set_extraction= MURMUR32;
+ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binary log format as ROW.
+SET @@GLOBAL.binlog_format= 'ROW';
+SET @@GLOBAL.transaction_write_set_extraction= MURMUR32;
+SELECT @@GLOBAL.transaction_write_set_extraction;
+@@GLOBAL.transaction_write_set_extraction
+MURMUR32
+SET @@GLOBAL.transaction_write_set_extraction = @start_global_value;
+SELECT @@GLOBAL.transaction_write_set_extraction;
+@@GLOBAL.transaction_write_set_extraction
+OFF
+SET @@GLOBAL.binlog_format= @start_global_binlog_format;
+DROP TABLE t1;

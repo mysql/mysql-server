@@ -1,0 +1,32 @@
+--source include/not_windows.inc
+
+#
+# Check if the variable MY_PERROR is set
+#
+--source include/have_perror.inc
+
+--exec $MY_PERROR 150 > /dev/null
+--exec $MY_PERROR --silent 120 > /dev/null
+
+#
+# Bug#16561 Unknown ERROR msg "ERROR 1186 (HY000): Binlog closed" by perror
+#
+
+# Test with error code 20000 as it's a common "unknown error"
+# As there is no error code defined for 20000, expect error
+--error 1
+--exec $MY_PERROR 20000 2>&1
+
+#
+# Bug#10143 (Perror not showing error description)
+#
+
+# test reported case
+--exec $MY_PERROR 1062 2>&1
+
+# test errors that contain characters to escape in the text.
+--exec $MY_PERROR 1076 2>&1
+--exec $MY_PERROR 1459 2>&1
+--exec $MY_PERROR 1461 2>&1
+
+

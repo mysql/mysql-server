@@ -1,0 +1,216 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+DROP TABLE IF EXISTS t1, t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TRIGGER IF EXISTS tr1;
+DROP FUNCTION IF EXISTS f1;
+include/sync_slave_sql_with_master.inc
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE ins_count INT DEFAULT 10; 
+WHILE ins_count > 0 DO
+INSERT INTO t1 VALUES (NULL);
+SET ins_count = ins_count - 1;
+END WHILE;
+DELETE FROM t1 WHERE id = 1;
+DELETE FROM t1 WHERE id = 2;
+DELETE FROM t2 WHERE id = 1;
+DELETE FROM t2 WHERE id = 2;
+END//
+CREATE PROCEDURE p2()
+BEGIN
+INSERT INTO t1 VALUES (NULL);
+DELETE FROM t1 WHERE id = f1(3);
+DELETE FROM t1 WHERE id = f1(4);
+DELETE FROM t2 WHERE id = 3;
+DELETE FROM t2 WHERE id = 4;
+END//
+CREATE TRIGGER tr1 BEFORE DELETE
+ON t1 FOR EACH ROW 
+BEGIN
+INSERT INTO t2  VALUES (NULL);
+END//
+CREATE FUNCTION f1 (i int) RETURNS int
+BEGIN
+INSERT INTO t2 VALUES (NULL);
+RETURN i;
+END//
+CALL p1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=1
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=2
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=3
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=4
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=5
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=6
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=7
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=8
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=9
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=10
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=1
+master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1 WHERE id = 1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=2
+master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1 WHERE id = 2
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2 WHERE id = 1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2 WHERE id = 2
+master-bin.000001	#	Query	#	#	COMMIT
+# Result on master
+SELECT * FROM t1;
+id
+3
+4
+5
+6
+7
+8
+9
+10
+SELECT * FROM t2;
+id
+include/sync_slave_sql_with_master.inc
+# Result on slave
+SELECT * FROM t1;
+id
+3
+4
+5
+6
+7
+8
+9
+10
+SELECT * FROM t2;
+id
+DROP TRIGGER tr1;
+CALL p2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=11
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=3
+master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1 WHERE id = f1(3)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=12
+master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1 WHERE id = f1(4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2 WHERE id = 3
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2 WHERE id = 4
+master-bin.000001	#	Query	#	#	COMMIT
+# Result on master
+SELECT * FROM t1;
+id
+5
+6
+7
+8
+9
+10
+11
+SELECT * FROM t2;
+id
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+include/sync_slave_sql_with_master.inc
+# Result on slave
+SELECT * FROM t1;
+id
+5
+6
+7
+8
+9
+10
+11
+SELECT * FROM t2;
+id
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+DROP TABLE IF EXISTS t1, t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS tr1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

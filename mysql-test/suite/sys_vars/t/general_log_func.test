@@ -1,0 +1,102 @@
+################# mysql-test\t\general_log_func.test ###########################
+#                                                                              #
+# Variable Name: general_log                                                   #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: Boolean                                                           #
+# Default Value: OFF                                                           #
+# Valid Values: ON, OFF                                                        #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-17                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "general_log"             #
+#              that checks functionality of this variable                      #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#    server-system-variables.html#option_mysqld_general_log                    #
+#                                                                              #
+################################################################################
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+
+--echo ## Creating new table ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+
+--echo '#--------------------FN_DYNVARS_018_01-------------------------#'
+####################################################################
+#    Setting initial value of general_log to OFF and verifying
+#    its behavior
+####################################################################
+
+--echo ## Setting initial value of variable to OFF ##
+SET @@global.general_log = OFF;
+SELECT @@general_log;
+
+let $MYSQLD_LOGFILE= `select @@global.general_log_file`;
+
+#
+# truncate the existing log - it could be larger than max_allowed_packet
+# and that would cause load_file() below to fail
+#
+--remove_file $MYSQLD_LOGFILE
+flush logs;
+SET @@global.general_log = ON;
+flush logs;
+SET @@global.general_log = OFF;
+
+--copy_file $MYSQLD_LOGFILE $MYSQLD_LOGFILE.copy
+
+--echo ## Inserting some Records & Verifying output in log ##
+INSERT into t1(name) values('Record_1');
+INSERT into t1(name) values('Record_2');
+
+--echo ## There should be no difference, case should pass ##
+--diff_files $MYSQLD_LOGFILE $MYSQLD_LOGFILE.copy
+--remove_file $MYSQLD_LOGFILE.copy
+
+--echo '#--------------------FN_DYNVARS_018_01-------------------------#'
+####################################################################
+#    Setting initial value of general_log to ON and verifying
+#    its behavior
+####################################################################
+
+--echo ## Setting initial value of variable to OFF ##
+SET @@global.general_log = ON;
+SELECT @@general_log;
+
+--copy_file $MYSQLD_LOGFILE $MYSQLD_LOGFILE.copy
+--chmod 0777 $MYSQLD_LOGFILE.copy
+
+--echo ## Inserting some Records & Verifying output in log ##
+INSERT into t1(name) values('Record_3');
+INSERT into t1(name) values('Record_4');
+
+--copy_file $MYSQLD_LOGFILE $MYSQLD_LOGFILE.orig
+--chmod 0777 $MYSQLD_LOGFILE.orig
+
+--echo ## old log is a proper prefix of the new log ##
+--replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE
+eval SET @orig_file= load_file('$MYSQLD_LOGFILE.orig');
+--replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE
+eval SET @copy_file= load_file('$MYSQLD_LOGFILE.copy');
+SELECT @orig_file > @copy_file, left(@orig_file, length(@copy_file)) = @copy_file;
+--remove_file $MYSQLD_LOGFILE.copy
+--remove_file $MYSQLD_LOGFILE.orig
+
+--echo ## Dropping tables ##
+DROP TABLE t1;
+

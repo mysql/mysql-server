@@ -1,0 +1,3 @@
+--general-log
+--log-bin=mylog.log
+

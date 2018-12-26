@@ -1,0 +1,52 @@
+SET @start_global_value = @@global.optimizer_trace;
+SELECT @start_global_value;
+@start_global_value
+enabled=off,one_line=off
+select @@global.optimizer_trace;
+@@global.optimizer_trace
+enabled=off,one_line=off
+select @@session.optimizer_trace;
+@@session.optimizer_trace
+enabled=off,one_line=off
+show global variables like 'optimizer_trace';
+Variable_name	Value
+optimizer_trace	enabled=off,one_line=off
+show session variables like 'optimizer_trace';
+Variable_name	Value
+optimizer_trace	enabled=off,one_line=off
+select * from performance_schema.global_variables where variable_name='optimizer_trace';
+VARIABLE_NAME	VARIABLE_VALUE
+optimizer_trace	enabled=off,one_line=off
+select * from performance_schema.session_variables where variable_name='optimizer_trace';
+VARIABLE_NAME	VARIABLE_VALUE
+optimizer_trace	enabled=off,one_line=off
+set global optimizer_trace=1;
+select @@global.optimizer_trace;
+@@global.optimizer_trace
+enabled=on,one_line=off
+set session optimizer_trace=1;
+select @@session.optimizer_trace;
+@@session.optimizer_trace
+enabled=on,one_line=off
+set global optimizer_trace=0;
+select @@global.optimizer_trace;
+@@global.optimizer_trace
+enabled=off,one_line=off
+set session optimizer_trace=0;
+select @@session.optimizer_trace;
+@@session.optimizer_trace
+enabled=off,one_line=off
+set session optimizer_trace=default;
+select @@session.optimizer_trace;
+@@session.optimizer_trace
+enabled=off,one_line=off
+set global optimizer_trace=1.1;
+ERROR 42000: Incorrect argument type to variable 'optimizer_trace'
+set global optimizer_trace=1e1;
+ERROR 42000: Incorrect argument type to variable 'optimizer_trace'
+set session optimizer_trace="foobar";
+ERROR 42000: Variable 'optimizer_trace' can't be set to the value of 'foobar'
+SET @@global.optimizer_trace = @start_global_value;
+SELECT @@global.optimizer_trace;
+@@global.optimizer_trace
+enabled=off,one_line=off

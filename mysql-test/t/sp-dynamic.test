@@ -1,0 +1,362 @@
+delimiter |;
+
+--disable_warnings
+drop procedure if exists p1|
+drop procedure if exists p2|
+--enable_warnings
+
+###################################################################### 
+# Test Dynamic SQL in stored procedures. #############################
+###################################################################### 
+#
+# A. Basics
+#
+create procedure p1()
+begin
+  prepare stmt from "select 1";
+  execute stmt;
+  execute stmt;
+  execute stmt;
+  deallocate prepare stmt;
+end|
+call p1()|
+call p1()|
+call p1()|
+drop procedure p1|
+#
+# B. Recursion. Recusion is disabled in SP, and recursive use of PS is not
+# possible as well.
+#
+create procedure p1()
+begin
+  execute stmt;
+end|
+prepare stmt from "call p1()"|
+# Allow SP resursion to be show that it has not influence here
+set @SAVE_SP_RECURSION_LEVELS=@@max_sp_recursion_depth|
+set @@max_sp_recursion_depth=100|
+--error ER_PS_NO_RECURSION
+execute stmt|
+--error ER_PS_NO_RECURSION
+execute stmt|
+--error ER_PS_NO_RECURSION
+execute stmt|
+--error ER_PS_NO_RECURSION 
+call p1()|
+--error ER_PS_NO_RECURSION 
+call p1()|
+--error ER_PS_NO_RECURSION
+call p1()|
+set @@max_sp_recursion_depth=@SAVE_SP_RECURSION_LEVELS|
+--error ER_SP_RECURSION_LIMIT 
+call p1()|
+--error ER_SP_RECURSION_LIMIT
+call p1()|
+--error ER_SP_RECURSION_LIMIT
+call p1()|
+
+drop procedure p1|
+#
+# C. Create/drop a stored procedure in Dynamic SQL.
+# One cannot create stored procedure from a stored procedure because of
+# the way MySQL SP cache works: it's important that this limitation is not
+# possible to circumvent by means of Dynamic SQL.
+#
+create procedure p1()
+begin
+  prepare stmt from "create procedure p2() begin select 1; end";
+  execute stmt;
+  deallocate prepare stmt;
+end|
+--error ER_UNSUPPORTED_PS
+call p1()|
+--error ER_UNSUPPORTED_PS
+call p1()|
+drop procedure p1|
+create procedure p1()
+begin
+  prepare stmt from "drop procedure p2";
+  execute stmt;
+  deallocate prepare stmt;
+end|
+--error ER_UNSUPPORTED_PS
+call p1()|
+--error ER_UNSUPPORTED_PS
+call p1()|
+drop procedure p1|
+#
+# D. Create/Drop/Alter a table (a DDL that issues a commit) in Dynamic SQL.
+# (should work ok).
+#
+create procedure p1()
+begin
+  prepare stmt_drop from "drop table if exists t1";
+  execute stmt_drop;
+  prepare stmt from "create table t1 (a int)";
+  execute stmt;
+  insert into t1 (a) values (1);
+  select * from t1;
+  prepare stmt_alter from "alter table t1 add (b int)";
+  execute stmt_alter;
+  insert into t1 (a,b) values (2,1);
+  deallocate prepare stmt_alter;
+  deallocate prepare stmt;
+  deallocate prepare stmt_drop;
+end|
+call p1()|
+call p1()|
+drop procedure p1|
+#
+# A more real example (a case similar to submitted by 24/7).
+#
+create procedure p1()
+begin
+  set @tab_name=concat("tab_", replace(curdate(), '-', '_'));
+  set @drop_sql=concat("drop table if exists ", @tab_name);
+  set @create_sql=concat("create table ", @tab_name, " (a int)");
+  set @insert_sql=concat("insert into ", @tab_name, " values (1), (2), (3)");
+  set @select_sql=concat("select * from ", @tab_name); 
+  select @tab_name;
+  select @drop_sql;
+  select @create_sql;
+  select @insert_sql;
+  select @select_sql;
+  prepare stmt_drop from @drop_sql;
+  execute stmt_drop;
+  prepare stmt from @create_sql;
+  execute stmt;
+  prepare stmt from @insert_sql;
+  execute stmt;
+  prepare stmt from @select_sql;
+  execute stmt;
+  execute stmt_drop;
+  deallocate prepare stmt;
+  deallocate prepare stmt_drop;
+end|
+--disable_result_log
+call p1()|
+call p1()|
+--enable_result_log
+drop procedure p1|
+#
+# E. Calling a stored procedure with Dynamic SQL
+# from a stored function (currently disabled).
+# 
+create procedure p1()
+begin
+  prepare stmt_drop from "drop table if exists t1";
+  execute stmt_drop;
+  prepare stmt from "create table t1 (a int)";
+  execute stmt;
+  deallocate prepare stmt;
+  deallocate prepare stmt_drop;
+end|
+--disable_warnings
+drop function if exists f1|
+--enable_warnings
+create function f1(a int) returns int
+begin
+  call p1();
+  return 1;
+end|
+
+# Every stored procedure that contains Dynamic SQL is marked as
+# such. Stored procedures that contain Dynamic SQL are not
+# allowed in a stored function or trigger, and here we get the
+# corresponding error message.
+
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG 
+select f1(0)|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG 
+select f1(f1(0))|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG 
+select f1(f1(f1(0)))|
+drop function f1|
+drop procedure p1|
+#
+# F. Rollback and cleanup lists management in Dynamic SQL.
+#
+create procedure p1()
+begin
+  drop table if exists t1;
+  create table t1 (id integer not null primary key,
+                   name varchar(20) not null);
+  insert into t1 (id, name) values (1, 'aaa'), (2, 'bbb'), (3, 'ccc');
+  prepare stmt from "select name from t1";
+  execute stmt;
+  select name from t1;
+  execute stmt;
+  prepare stmt from
+    "select name from t1 where name=(select name from t1 where id=2)";
+  execute stmt;
+  select name from t1 where name=(select name from t1 where id=2);
+  execute stmt;
+end|
+call p1()|
+call p1()|
+drop procedure p1|
+#
+# H. Executing a statement prepared externally in SP.
+#
+prepare stmt from "select * from t1"|
+create procedure p1()
+begin
+  execute stmt;
+  deallocate prepare stmt;
+end|
+call p1()|
+--error ER_UNKNOWN_STMT_HANDLER
+call p1()|
+drop procedure p1|
+#
+# I. Use of an SP variable in Dynamic SQL is not possible and
+# this limitation is necessary for correct binary logging: prepared
+# statements do not substitute SP variables with their values for binlog, so
+# SP variables must be not accessible in Dynamic SQL.
+#
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION'|
+create procedure p1()
+begin
+  declare a char(10);
+  set a="sp-variable";
+  set @a="mysql-variable";
+  prepare stmt from "select 'dynamic sql:', @a, a";
+  execute stmt;
+end|
+--error ER_BAD_FIELD_ERROR 
+call p1()|
+--error ER_BAD_FIELD_ERROR
+call p1()|
+drop procedure p1|
+SET sql_mode = default|
+#
+# J. Use of placeholders in Dynamic SQL.
+# 
+create procedure p1()
+begin
+  prepare stmt from 'select ? as a';
+  execute stmt using @a;
+end|
+set @a=1|
+call p1()|
+call p1()|
+drop procedure p1|
+#
+# K. Use of continue handlers with Dynamic SQL.
+#
+drop table if exists t1|
+drop table if exists t2|
+create table t1 (id integer primary key auto_increment,
+                 stmt_text char(35), status varchar(20))|
+insert into t1 (stmt_text) values
+  ("select 1"), ("flush tables"), ("handler t1 open as ha"), 
+  ("analyze table t1"), ("check table t1"), ("checksum table t1"),
+  ("check table t1"), ("optimize table t1"), ("repair table t1"),
+  ("describe extended select * from t1"),
+  ("help help"), ("show databases"), ("show tables"),
+  ("show table status"), ("show open tables"), ("show storage engines"),
+  ("insert into t1 (id) values (1)"), ("update t1 set status=''"),
+  ("delete from t1"), ("truncate t1"), ("call p1()"), ("foo bar"),
+  ("create view v1 as select 1"), ("alter view v1 as select 2"),
+  ("drop view v1"),("create table t2 (a int)"),("alter table t2 add (b int)"),
+  ("drop table t2")|
+create procedure p1()
+begin
+  declare v_stmt_text varchar(255);
+  declare v_id integer;
+  declare done int default 0;
+  declare c cursor for select id, stmt_text from t1;
+  declare continue handler for 1295 -- ER_UNSUPPORTED_PS
+    set @status='not supported';
+  declare continue handler for 1064 -- ER_SYNTAX_ERROR
+    set @status='syntax error';
+  declare continue handler for sqlstate '02000' set done = 1;
+
+  prepare update_stmt from "update t1 set status=? where id=?";
+  open c;
+  repeat
+    if not done then
+      fetch c into v_id, v_stmt_text;
+      set @id=v_id, @stmt_text=v_stmt_text;
+      set @status="supported";
+      prepare stmt from @stmt_text;
+      execute update_stmt using @status, @id;
+    end if;
+  until done end repeat;
+  deallocate prepare update_stmt;
+end|
+call p1()|
+select * from t1|
+drop procedure p1|
+drop table t1|
+#
+# Bug#7115 "Prepared Statements: packet error if execution within stored
+# procedure".
+#
+prepare stmt from 'select 1'| 
+create procedure p1() execute stmt|
+call p1()|
+call p1()|
+drop procedure p1|
+#
+# Bug#10975 "Prepared statements: crash if function deallocates"
+# Check that a prepared statement that is currently in use 
+# can't be deallocated.
+#
+# a) Prepared statements and stored procedure cache:
+#
+# TODO: add when the corresponding bug (Bug #12093 "SP not found on second
+# PS execution if another thread drops other SP in between") is fixed.
+#
+# b) attempt to deallocate a prepared statement that is being executed
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG 
+create function f1() returns int
+begin
+  deallocate prepare stmt;
+  return 1;
+end|
+
+# b)-2 a crash (#1) spotted by Sergey Petrunia during code review
+create procedure p1()
+begin
+  prepare stmt from 'select 1 A';
+  execute stmt;
+end|
+prepare stmt from 'call p1()'|
+--error ER_PS_NO_RECURSION 
+execute stmt|
+--error ER_PS_NO_RECURSION 
+execute stmt|
+drop procedure p1|
+
+#
+# Bug#10605 "Stored procedure with multiple SQL prepared statements
+# disconnects client"
+#
+--disable_warnings
+drop table if exists t1, t2|
+--enable_warnings
+create procedure p1 (a int) language sql deterministic
+begin
+  declare rsql varchar(100);
+  drop table if exists t1, t2;
+  set @rsql= "create table t1 (a int)";
+  select @rsql;
+  prepare pst from @rsql;
+  execute pst;
+  set @rsql= null;
+  set @rsql= "create table t2 (a int)";
+  select @rsql;
+  prepare pst from @rsql;
+  execute pst;
+  drop table if exists t1, t2;
+end|
+set @a:=0|
+call p1(@a)|
+select @a|
+call p1(@a)|
+select @a|
+drop procedure if exists p1|
+
+# End of the test
+delimiter ;|

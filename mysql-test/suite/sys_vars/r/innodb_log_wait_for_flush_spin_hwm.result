@@ -1,0 +1,74 @@
+SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
+COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm)
+1
+1 Expected
+SET @@GLOBAL.innodb_log_wait_for_flush_spin_hwm=-1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_log_wait_for_flush_spin_h value: '-1'
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+@@innodb_log_wait_for_flush_spin_hwm
+0
+SET @@GLOBAL.innodb_log_wait_for_flush_spin_hwm=1;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+@@innodb_log_wait_for_flush_spin_hwm
+1
+SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
+COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm)
+1
+1 Expected
+SELECT @@GLOBAL.innodb_log_wait_for_flush_spin_hwm = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_log_wait_for_flush_spin_hwm';
+@@GLOBAL.innodb_log_wait_for_flush_spin_hwm = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
+COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_log_wait_for_flush_spin_hwm';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+SELECT @@innodb_log_wait_for_flush_spin_hwm = @@GLOBAL.innodb_log_wait_for_flush_spin_hwm;
+@@innodb_log_wait_for_flush_spin_hwm = @@GLOBAL.innodb_log_wait_for_flush_spin_hwm
+1
+1 Expected
+SELECT COUNT(@@innodb_log_wait_for_flush_spin_hwm);
+COUNT(@@innodb_log_wait_for_flush_spin_hwm)
+1
+1 Expected
+SELECT COUNT(@@local.innodb_log_wait_for_flush_spin_hwm);
+ERROR HY000: Variable 'innodb_log_wait_for_flush_spin_hwm' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.innodb_log_wait_for_flush_spin_hwm);
+ERROR HY000: Variable 'innodb_log_wait_for_flush_spin_hwm' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
+COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm)
+1
+1 Expected
+SELECT innodb_log_wait_for_flush_spin_hwm = @@SESSION.innodb_log_wait_for_flush_spin_hwm;
+ERROR 42S22: Unknown column 'innodb_log_wait_for_flush_spin_hwm' in 'field list'
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 1000;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+@@innodb_log_wait_for_flush_spin_hwm
+1000
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 0;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+@@innodb_log_wait_for_flush_spin_hwm
+0
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 80;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+@@innodb_log_wait_for_flush_spin_hwm
+80
+SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 50;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+@@innodb_log_wait_for_flush_spin_hwm
+50
+SET @@GLOBAL.innodb_log_wait_for_flush_spin_hwm=400;
+SELECT @@innodb_log_wait_for_flush_spin_hwm;
+@@innodb_log_wait_for_flush_spin_hwm
+400

@@ -1,0 +1,30 @@
+DESC sys.host_summary;
+Field	Type	Null	Key	Default	Extra
+host	varchar(60)	YES		NULL	
+statements	decimal(64,0)	YES		NULL	
+statement_latency	text	YES		NULL	
+statement_avg_latency	text	YES		NULL	
+table_scans	decimal(65,0)	YES		NULL	
+file_ios	decimal(64,0)	YES		NULL	
+file_io_latency	text	YES		NULL	
+current_connections	decimal(41,0)	YES		NULL	
+total_connections	decimal(41,0)	YES		NULL	
+unique_users	bigint(21)	NO		0	
+current_memory	text	YES		NULL	
+total_memory_allocated	text	YES		NULL	
+SELECT * FROM sys.host_summary;
+DESC sys.x$host_summary;
+Field	Type	Null	Key	Default	Extra
+host	varchar(60)	YES		NULL	
+statements	decimal(64,0)	YES		NULL	
+statement_latency	decimal(64,0)	YES		NULL	
+statement_avg_latency	decimal(65,4)	YES		NULL	
+table_scans	decimal(65,0)	YES		NULL	
+file_ios	decimal(64,0)	YES		NULL	
+file_io_latency	decimal(64,0)	YES		NULL	
+current_connections	decimal(41,0)	YES		NULL	
+total_connections	decimal(41,0)	YES		NULL	
+unique_users	bigint(21)	NO		0	
+current_memory	decimal(63,0)	YES		NULL	
+total_memory_allocated	decimal(64,0)	YES		NULL	
+SELECT * FROM sys.x$host_summary;

@@ -1,0 +1,16 @@
+DROP TABLE IF EXISTS t1;
+create table t1(  pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL,
+attr2 INT,
+attr3 VARCHAR(1024)
+) ENGINE = ndb;
+set @save_debug = @@session.debug;
+# Error injection in Ndb::init
+SET SESSION debug="+d,sleep_in_ndbinit";
+INSERT INTO t1 VALUES (9410, 9412, NULL, '9412');;
+# Restarting one node
+SET SESSION debug=@save_debug;
+select * from t1 order by pk1;
+pk1	attr1	attr2	attr3
+9410	9412	NULL	9412
+drop table t1;

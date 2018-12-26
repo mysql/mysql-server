@@ -1,0 +1,7 @@
+SET @start_value = @@global.require_secure_transport;
+SET @@global.require_secure_transport = ON;
+ERROR HY000: No secure transports (SSL or Shared Memory) are configured, unable to set --require_secure_transport=ON.
+SELECT @@global.require_secure_transport;
+@@global.require_secure_transport
+0
+SET @@global.require_secure_transport = @start_value;

@@ -1,0 +1,33 @@
+########### mysql-test\t\slow_query_log_file_func.test #########################
+#                                                                              #
+# Variable Name: slow_query_log_file                                           #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: Boolean                                                           #
+# Default Value: OFF                                                           #
+# Valid Values: ON, OFF                                                        #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-17                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "slow_query_log_file"     #
+#              that checks functionality of this variable                      #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#    server-system-variables.html#option_mysqld_slow_query_log_file            #
+#                                                                              #
+################################################################################
+
+
+--echo '#--------------------FN_DYNVARS_018_01-------------------------#'
+####################################################################
+#    Verifying log file after setting it in opt file               #
+####################################################################
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo ## Checking if my_slow_test.log exists in servers datadir ##
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--file_exists $MYSQLD_DATADIR/my_slow_test.log
+
+--echo ## This case should pass because we have set this filename in opt file ##

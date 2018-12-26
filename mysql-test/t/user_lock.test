@@ -1,0 +1,686 @@
+--echo #
+--echo # Coverage for GET_LOCK, RELEASE_LOCK, RELEASE_ALL_LOCKS,
+--echo # IS_USED_LOCK and IS_FREE_LOCK functions.
+--echo #
+--echo # Tests for WL#1159 "Allow multiple locks in GET_LOCK()".
+--echo #
+
+connection default;
+
+--enable_connect_log
+--echo # FT-1: The current connection has no user-level lock aquired at all.
+--echo #       There is no parallel connection holding the lock 'test'.
+--echo # FT-1.1: IS_USED_LOCK returns NULL if the lock is unused.
+SELECT IS_USED_LOCK('test') IS NULL AS expect_1;
+--echo # FT-1.2: IS_FREE_LOCK returns 1 if the lock is unused.
+SELECT IS_FREE_LOCK('test') = 1 AS expect_1;
+--echo # FT-1.3: RELEASE_LOCK returns NULL when none of the existing connections
+--echo #         holds the lock 'test'.
+SELECT RELEASE_LOCK('test') IS NULL AS expect_1;
+--echo # FT-1.4: RELEASE_ALL_LOCKS returns the number of own locks freed.
+--echo #         This is 0 because the connection had no locks acquired.
+SELECT RELEASE_ALL_LOCKS() = 0 AS expect_1;
+
+
+--echo # FT-2: The current connection has success in aquiring a user level lock.
+--echo # FT-2.1: GET_LOCK returns 1 if it manages to acquire a lock.
+SELECT GET_LOCK('test', 0) = 1 AS expect_1;
+--echo # FT-2.2: IS_USED_LOCK returns our connection id because its our lock.
+SELECT IS_USED_LOCK('test') = CONNECTION_ID() AS expect_1;
+--echo # FT-2.3: IS_FREE_LOCK returns 0 because the lock is held by our connection.
+SELECT IS_FREE_LOCK('test') = 0 AS expect_1;
+
+let $default_id= `SELECT CONNECTION_ID()`;
+connect (con1,localhost,root,,);
+connection con1;
+
+
+let $con1_id= `SELECT CONNECTION_ID()`;
+--echo # FT-3: Another connection holds a user-level lock.
+--echo # FT-3.1: IS_USED_LOCK returns the id of the other connection default
+--echo #         which holds that lock. The result fits to FT-2.2.
+--replace_result $default_id <default_id>
+eval SET @aux = $default_id;
+SELECT IS_USED_LOCK('test') = @aux AS expect_1;
+--echo # FT-3.2: IS_FREE_LOCK returns 0 because the lock is held by the other
+--echo #         connection default.
+SELECT IS_FREE_LOCK('test') = 0 AS expect_1;
+--echo # FT-3.3: GET_LOCK returns 0 if it can't acquire a lock (wait timeout).
+SELECT GET_LOCK('test', 0) = 0 expect_1;
+--echo # FT-3.4: RELEASE_LOCK returns 0 if the lock belongs to another connection.
+SELECT RELEASE_LOCK('test') = 0 AS expect_1;
+--echo # FT-3.5: RELEASE_ALL_LOCKS returns the number of own locks freed.
+--echo #         This is 0 because the connection had no locks acquired and
+--echo #         we also cannot free locks held by others.
+SELECT RELEASE_ALL_LOCKS() = 0 AS expect_1;
+
+
+connection default;
+
+--echo # FT-4.1: RELEASE_LOCK returns 1 if it successfully releases a lock.
+SELECT RELEASE_LOCK('test') = 1 AS expect_1;
+--echo # FT-4.2: RELEASE_LOCK returns NULL if it doesn't release a lock and
+--echo #         and there is no such lock. It also does not matter that we
+--echo #         held that lock somewhere before.
+SELECT RELEASE_LOCK('test') IS NULL;
+
+
+--echo # FT-5: A connection can hold multiple user-level locks.
+--echo # FT-5.1: Several statements aquiring one lock per statement. 
+SELECT GET_LOCK('test1',0);
+SELECT GET_LOCK('test2',0);
+--echo #         The connection holds two locks.
+SELECT IS_USED_LOCK('test1') = CONNECTION_ID()
+   AND IS_USED_LOCK('test2') = CONNECTION_ID() AS expect_1;
+--echo # FT-5.2: RELEASE_LOCK() frees the assigned user level lock only.
+SELECT RELEASE_LOCK('test1') = 1 AS expect_1;
+SELECT IS_FREE_LOCK('test1') = 1 AS expect_1;
+SELECT IS_FREE_LOCK('test2') = 0 AS expect_1;
+SELECT RELEASE_LOCK('test2') = 1 AS expect_1;
+--echo # FT-5.3: RELEASE_ALL_LOCKS frees all locks all at once
+--echo #         and returns the number of locks freed.
+SELECT GET_LOCK('test1',0);
+SELECT GET_LOCK('test2',0);
+SELECT RELEASE_ALL_LOCKS() = 2 AS expect_1;
+SELECT IS_FREE_LOCK('test1') AND IS_FREE_LOCK('test2') AS expect_1;
+--echo # FT-5.4: One statement aquiring more than one lock works the same way.
+--echo # FT-5.4.1: More than one result expression with GET_LOCK, one row.
+SELECT GET_LOCK('test1',0), GET_LOCK('test2',0);
+--echo #         The connections holds two locks.
+SELECT IS_USED_LOCK('test1') = CONNECTION_ID()
+   AND IS_USED_LOCK('test2') = CONNECTION_ID() AS expect_1;
+SELECT RELEASE_ALL_LOCKS() = 2 AS expect_1;
+SELECT IS_USED_LOCK('test1') IS NULL AND IS_USED_LOCK('test2') IS NULL AS expect_1;
+--echo # FT-5.4.2: More than one time GET_LOCK somewhere, one row.
+SELECT GET_LOCK('test1',0) FROM (SELECT 1 AS col1) AS my_tab
+WHERE GET_LOCK('test2',0) = 1;
+SELECT IS_USED_LOCK('test1') = CONNECTION_ID()
+   AND IS_USED_LOCK('test2') = CONNECTION_ID() AS expect_1;
+SELECT RELEASE_ALL_LOCKS() = 2 AS expect_1;
+SELECT IS_USED_LOCK('test1') IS NULL AND IS_USED_LOCK('test2') IS NULL AS expect_1;
+--echo # FT-5.4.3: One result expression with GET_LOCK, more than one result row.
+SELECT GET_LOCK(col1,0) FROM (SELECT 'test1' AS col1 UNION SELECT 'test2') AS my_tab;
+SELECT IS_USED_LOCK('test1') = CONNECTION_ID()
+   AND IS_USED_LOCK('test2') = CONNECTION_ID() AS expect_1;
+SELECT RELEASE_ALL_LOCKS() = 2 AS expect_1;
+SELECT IS_USED_LOCK('test1') IS NULL AND IS_USED_LOCK('test2') IS NULL AS expect_1;
+
+
+--echo # FT-6: A connection can hold multiple user-level locks with same name.
+--echo # FT-6.1: GET_LOCK() and RELEASE_LOCK() work recursively.
+SELECT GET_LOCK('test', 0);
+SELECT GET_LOCK('test', 0);
+SELECT GET_LOCK('test', 0);
+SELECT RELEASE_LOCK('test');
+SELECT RELEASE_LOCK('test');
+SELECT RELEASE_LOCK('test');
+--echo #         Once the last instance of the lock is released,
+--echo #         the next call returns NULL.
+SELECT RELEASE_LOCK('test') IS NULL AS expect_1;
+--echo # FT-6.2: Counting in RELEASE_ALL_LOCKS() for recursive locks is correct.
+SELECT GET_LOCK('test', 0), GET_LOCK('test', 0);
+SELECT RELEASE_ALL_LOCKS() = 2 AS expect_1;
+
+
+--echo # FT-7: Check a statement with GET_LOCK() getting killed.
+--echo # FT-7.1: KILL arrives when waiting for the user lock
+--echo #         The statement must return ER_QUERY_INTERRUPTED.
+SELECT GET_LOCK('test', 0);
+connection con1;
+let $stmt= SELECT GET_LOCK('test', 7200);
+--echo # Send statement and reap result later.
+--send
+eval $stmt;
+
+connection default;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'select%' AND state='User lock';
+source include/wait_condition.inc;
+--replace_result $con1_id <con1_id>
+eval SET @aux = $con1_id;
+KILL QUERY @aux;
+
+connection con1;
+--echo # Reap result of "$stmt".
+--error ER_QUERY_INTERRUPTED
+reap;
+--echo # Check that Connection con1 sees the right state.
+SELECT IS_FREE_LOCK('test') = 0 AS expect_1;
+SELECT IS_USED_LOCK('test') <> CONNECTION_ID() AS expect_1;
+
+connection default;
+SELECT RELEASE_LOCK('test') = 1 AS expect_1;
+
+--echo # FT-7.2: The lock is not held by some other connection.
+--echo #         KILL arrives during the SLEEP phase after the lock is taken.
+connection con1;
+let $stmt= SELECT GET_LOCK('test', 7200), SLEEP(10);
+--echo # Send statement and reap result later.
+--send
+eval $stmt;
+
+connection default;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'select%' AND state='User sleep';
+source include/wait_condition.inc;
+--replace_result $con1_id <con1_id>
+eval SET @aux = $con1_id;
+eval KILL QUERY @aux;
+--echo # Connection con1 has got the lock.
+SELECT IS_FREE_LOCK('test') = 0 AS expect_1;
+
+connection con1;
+--echo # Reap result of "$stmt".
+--echo # We intentionally do not print the result.
+--echo # If a statement killed in the 'user sleep' phase harvests finally
+--echo # success or ER_QUERY_INTERRUPTED is NOT in the scope of current check.
+--disable_result_log
+--disable_abort_on_error
+reap;
+--enable_abort_on_error
+--enable_result_log
+--echo # The essential is that the connection con1 has got that lock.
+SELECT IS_FREE_LOCK('test') = 0 AS expect_1;
+SELECT IS_USED_LOCK('test') = CONNECTION_ID() AS expect_1;
+
+connection default;
+SELECT IS_FREE_LOCK('test') = 0 AS expect_1;
+connection con1;
+SELECT RELEASE_LOCK('test') = 1 AS expect_1;
+
+
+--echo # FT-8: Check that user locks disappear if the session is killed.
+connection con1;
+SELECT GET_LOCK('test1', 0);
+SELECT GET_LOCK('test1', 0);
+let $con1_id= `SELECT CONNECTION_ID()`;
+connection default;
+SELECT IS_FREE_LOCK('test1') = 0 AS expect_1;
+--replace_result $con1_id <con1_id>
+eval SET @aux = $con1_id;
+eval KILL @aux;
+let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.processlist
+                     WHERE id = $con1_id;
+source include/wait_condition.inc;
+SELECT IS_FREE_LOCK('test1') = 1 AS expect_1;
+connection con1;
+disconnect con1;
+# Just reestablish the connection con1.
+connect (con1,localhost,root,,);
+
+
+--echo # FT-9: Check that Deadlocks are detected e.g. in case of a mutual wait.
+connection default;
+SELECT GET_LOCK('test1', 0);
+
+connection con1;
+SELECT GET_LOCK('test2', 0);
+let $stmt= SELECT GET_LOCK('test1', 7200);
+--echo # Send statement and reap result later.
+--send
+eval $stmt;
+
+connection default;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'select%' AND state='User lock';
+source include/wait_condition.inc;
+--error ER_USER_LOCK_DEADLOCK
+SELECT GET_LOCK('test2', 7200);
+
+SELECT RELEASE_LOCK('test1');
+
+connection con1;
+--echo # Reap result of "$stmt".
+reap;
+--echo #       Two RELEASE_LOCK in one statement must work too.
+SELECT RELEASE_LOCK('test2') + RELEASE_LOCK('test1') = 2 AS expect_1;
+
+
+--echo # FT-10: Non user lock related locking/unlocking does not free
+--echo #        user locks.
+--echo # FT-10.1: LOCK/UNLOCK TABLES
+connection default;
+CREATE TABLE t1 (id INT);
+SELECT GET_LOCK('test1', 0);
+LOCK TABLE t1 WRITE;
+SELECT GET_LOCK('test2', 0);
+UNLOCK TABLES;
+SELECT RELEASE_ALL_LOCKS() = 2 AS expect_1;
+
+--echo # FT-10.2: GLOBAL READ LOCK
+SELECT GET_LOCK('test1', 0);
+FLUSH TABLES WITH READ LOCK;
+SELECT GET_LOCK('test2', 0);
+UNLOCK TABLES;
+SELECT (RELEASE_LOCK('test1') = 1) AND (RELEASE_LOCK('test3') IS NULL)
+   AND (RELEASE_LOCK('test2') = 1) AS expect_1;
+
+--echo # FT-10.3: BEGIN/COMMIT/ROLLBACK don't unlock user locks.
+DELETE FROM t1;
+BEGIN;
+INSERT INTO t1 SET id = 1;
+SELECT GET_LOCK('test1', 0);
+COMMIT;
+BEGIN;
+INSERT INTO t1 SET id = 2;
+SELECT GET_LOCK('test2', 0);
+ROLLBACK;
+SELECT RELEASE_ALL_LOCKS() = 2 AS expect_1;
+SELECT id FROM t1 ORDER BY id;
+DELETE FROM t1;
+
+
+--echo # FT-11: Deadlocks between user locks and other metadata locks
+--echo #        are correctly detected.
+--echo #
+--echo # FT-11.1: Waits for user-level locks are preferred as victim over DDL.
+--echo #          Without any user locks : "default" waits till "con1" COMMITs.
+
+SELECT GET_LOCK('test', 0);
+
+connection con1;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+let $stmt= SELECT GET_LOCK('test', 7200);
+--echo # Send statement and reap result later.
+--send
+eval $stmt;
+
+connection default;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'select%' AND state = 'User lock';
+source include/wait_condition.inc;
+let $stmt1= RENAME TABLE t1 TO t2;
+--echo # Send statement and reap result later.
+--send
+eval $stmt1;
+
+connection con1;
+--echo # Reap result of "$stmt".
+--error ER_USER_LOCK_DEADLOCK
+reap;
+
+--echo #          When user-level lock wait is aborted due to deadlock the
+--echo #          transaction is not rolled back.
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'rename%' AND state = 'Waiting for table metadata lock';
+source include/wait_condition.inc;
+COMMIT;
+
+connection default;
+--echo # Reap result of "$stmt1".
+reap;
+RENAME TABLE t2 TO t1;
+
+SELECT RELEASE_LOCK('test');
+
+connection con1;
+--echo #          The row inserted in the committed transaction must exist.
+SELECT COUNT(*) = 1 AS expect_1 FROM t1 WHERE id = 1;
+
+connection default;
+
+--echo # FT-11.2: Waits for DML locks are preferred as victim over waits for
+--echo #          user-level locks.
+--echo #          Without any user locks : "default" waits till MDL lock timout kicks in.
+
+SELECT GET_LOCK('test', 0);
+
+connection con1;
+LOCK TABLE t1 WRITE;
+let $stmt= SELECT GET_LOCK('test', 7200);
+--echo # Send statement and reap result later.
+--send
+eval $stmt;
+
+connection default;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'select%' AND state = 'User lock';
+source include/wait_condition.inc;
+--error ER_LOCK_DEADLOCK
+SELECT COUNT(*) FROM t1;
+--echo #          User-level lock is not released even though transaction/statement
+--echo #          is rolled back in this case.
+SELECT RELEASE_LOCK('test') = 1 AS expect_1;
+
+connection con1;
+--echo # Reap result of "$stmt".
+reap;
+SELECT RELEASE_LOCK('test');
+UNLOCK TABLES;
+
+
+--echo # FT-12: GET_LOCK in some scenarios of interest.
+--echo #        The user-level lock related functions work well.
+--echo #        The "main" property of interest seen is:
+--echo #        Some failing statement might have taken user-level locks
+--echo #        and these locks will not get freed because the statement
+--echo #        failed.
+--echo # FT-12.1: GET_LOCK within some TRIGGER, User locks stay recursive
+connection default;
+DELETE FROM t1;
+--echo #        Warning: The trigger definition used is "evil" and not for use
+--echo #                 some production environment.
+CREATE TRIGGER trig_t1_ins BEFORE INSERT ON t1 FOR EACH ROW
+SET @aux = GET_LOCK(new.id,7200);
+SELECT GET_LOCK(CAST(2 AS CHAR),0);
+--echo #          Success == No collision with own user lock.
+--echo #          Get a second with same name and two with other names.
+INSERT INTO t1 VALUES(1),(2),(3);
+SELECT RELEASE_LOCK(1) = 1 AS expect_1;
+SELECT RELEASE_LOCK(2) = 1 AS expect_1;
+--echo # Get again 1.
+SELECT RELEASE_LOCK(2) = 1 AS expect_1;
+SELECT RELEASE_LOCK(3) = 1 AS expect_1;
+# Release what remains: 0
+SELECT RELEASE_ALL_LOCKS() = 0 AS expect_1;
+SELECT COUNT(*) FROM t1;
+
+--echo # FT-12.2: GET_LOCK in an INSERT TRIGGER loses against a MDL lock request.
+connection default;
+DELETE FROM t1;
+SELECT GET_LOCK(2,0);
+
+connection con1;
+let $stmt= INSERT INTO t1 VALUES(1),(2),(3);
+--echo # Send statement and reap result later.
+--send
+eval $stmt;
+
+connection default;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'SET @aux%' AND state = 'User lock';
+source include/wait_condition.inc;
+RENAME TABLE t1 TO t1x;
+RENAME TABLE t1x TO t1;
+
+connection con1;
+--echo # Reap result of "$stmt".
+--error ER_USER_LOCK_DEADLOCK
+reap;
+
+SELECT RELEASE_ALL_LOCKS();
+SELECT COUNT(*) FROM t1;
+
+connection default;
+SELECT RELEASE_ALL_LOCKS();
+
+
+--echo # FT-12.3: GET_LOCK in a better designed INSERT TRIGGER loses.
+--echo # FT-12.3.1: Session with INSERT loses via user lock deadlock.
+connection default;
+DELETE FROM t1;
+DROP TRIGGER trig_t1_ins;
+--delimiter |
+CREATE TRIGGER trig_t1_ins BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  SET @aux = GET_LOCK(2,1);
+  IF @aux <> 1 THEN
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'LOCK 2 not got. Abort.', MYSQL_ERRNO = 9999;
+  END IF;
+END;|
+--delimiter ;
+SELECT GET_LOCK(CAST(2 AS CHAR),0);
+
+connection con1;
+SELECT GET_LOCK(CAST(1 AS CHAR),0);
+
+connection default;
+let $stmt= SELECT GET_LOCK(CAST(1 AS CHAR),7200);
+--echo # Send statement and reap result later.
+--send
+eval $stmt;
+
+connection con1;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'select%' AND state = 'User lock';
+source include/wait_condition.inc;
+--error ER_USER_LOCK_DEADLOCK
+INSERT INTO t1 VALUES(1),(2),(3);
+SELECT RELEASE_ALL_LOCKS();
+SELECT COUNT(*) FROM t1;
+
+connection default;
+--echo # Reap result of "$stmt".
+--reap
+SELECT RELEASE_ALL_LOCKS();
+
+--echo # FT-12.3.2: INSERT fails in TRIGGER because not getting a user lock in time.
+connection default;
+DELETE FROM t1;
+SELECT GET_LOCK(CAST(2 AS CHAR),0);
+
+connection con1;
+--error 9999
+INSERT INTO t1 VALUES(1),(2),(3);
+SELECT @aux;
+SELECT RELEASE_ALL_LOCKS();
+SELECT COUNT(*) FROM t1;
+
+connection default;
+SELECT RELEASE_ALL_LOCKS();
+DROP TRIGGER trig_t1_ins;
+
+--echo # FT-12.4: User locks and violation of uniqueness.
+connection default;
+CREATE TABLE t2 (col1 INT, col2 INT, PRIMARY KEY(col1));
+DELETE FROM t1;
+INSERT INTO t1 VALUES(1),(2),(1);
+--error ER_DUP_ENTRY
+INSERT INTO t2 SELECT id, GET_LOCK(id,0) FROM t1;
+SELECT RELEASE_ALL_LOCKS();
+SELECT * FROM t2;
+DELETE FROM t1;
+DELETE FROM t2;
+INSERT INTO t1 VALUES(1),(1),(2);
+--error ER_DUP_ENTRY
+INSERT INTO t2 SELECT id, GET_LOCK(id,0) FROM t1;
+SELECT RELEASE_ALL_LOCKS();
+SELECT * FROM t2;
+
+DROP TABLE t2;
+
+--echo # FT-12.5: GET_LOCK in a statement having wrong syntax anyway.
+--echo #          We get no lock because full syntax check comes first.
+--error ER_BAD_FIELD_ERROR
+SELECT GET_LOCK('test', 0) ORDER BY oscar;
+SELECT RELEASE_ALL_LOCKS() = 0 AS expect_1;
+
+--echo # Cleanup.
+connection default;
+DROP TABLE t1;
+
+--echo # FT-12.6: Mix of GET_LOCK and RELEASE*LOCK*
+--echo #          Execution is from the left to the right.
+SELECT GET_LOCK('test', 0), RELEASE_LOCK('test');
+SELECT IS_FREE_LOCK('test') = 1 AS expect_1;
+SELECT GET_LOCK('test', 0), RELEASE_LOCK('test'), GET_LOCK('test', 0);
+SELECT IS_FREE_LOCK('test') = 0 AS expect_1;
+SELECT RELEASE_LOCK('test') = 1 AS expect_1;
+SELECT GET_LOCK('test', 0), GET_LOCK('test1', 0), RELEASE_ALL_LOCKS(),
+       GET_LOCK('test', 0);
+SELECT RELEASE_ALL_LOCKS() = 1 AS expect_1;
+
+
+--echo # FT-13: Check types of function results. 
+CREATE TABLE t1 AS SELECT GET_LOCK('test', 0) AS g, RELEASE_LOCK('test') AS r,
+RELEASE_ALL_LOCKS() AS ra, IS_USED_LOCK('test') AS isu,
+                       IS_FREE_LOCK('test') AS isf;
+DESCRIBE t1;
+DROP TABLE t1;
+
+
+--echo # FT-14: Check the handling of user-level lock related function parameters.
+--echo # FT-14.1: Lock names with NULL or "" assigned.
+--error ER_USER_LOCK_WRONG_NAME
+SELECT GET_LOCK(NULL, 0);
+--error ER_USER_LOCK_WRONG_NAME
+SELECT GET_LOCK("", 0);
+--error ER_USER_LOCK_WRONG_NAME
+SELECT RELEASE_LOCK(NULL);
+--error ER_USER_LOCK_WRONG_NAME
+SELECT RELEASE_LOCK("");
+--error ER_USER_LOCK_WRONG_NAME
+SELECT IS_USED_LOCK(NULL);
+--error ER_USER_LOCK_WRONG_NAME
+SELECT IS_USED_LOCK("");
+--error ER_USER_LOCK_WRONG_NAME
+SELECT IS_FREE_LOCK(NULL);
+--error ER_USER_LOCK_WRONG_NAME
+SELECT IS_FREE_LOCK("");
+
+--echo # FT-14.2: Length of lock name at the limit of 64.
+SELECT GET_LOCK(REPEAT('a', 64), 0) = 1 AS expect_1;
+SELECT IS_USED_LOCK(REPEAT('a', 64)) = CONNECTION_ID() AS expect_1;
+SELECT IS_FREE_LOCK(REPEAT('a', 64)) = 0 AS expect_1;
+SELECT RELEASE_LOCK(REPEAT('a', 64)) = 1 AS expect_1;
+
+--echo # FT-14.3: Lock name too long.
+--error ER_USER_LOCK_WRONG_NAME
+SELECT GET_LOCK(REPEAT('a', 65), 0);
+--error ER_USER_LOCK_WRONG_NAME
+SELECT IS_USED_LOCK(REPEAT('a', 65));
+--error ER_USER_LOCK_WRONG_NAME
+SELECT IS_FREE_LOCK(REPEAT('a', 65));
+--error ER_USER_LOCK_WRONG_NAME
+SELECT RELEASE_LOCK(REPEAT('a', 65));
+
+--echo # FT-14.4: Check that lock names are case-insensitive.
+SELECT GET_LOCK('A', 0);
+connection con1;
+SELECT GET_LOCK('a', 0);
+connection default;
+SELECT IS_USED_LOCK('a') = CONNECTION_ID();
+SELECT IS_FREE_LOCK('a');
+SELECT RELEASE_LOCK('a');
+
+--echo # FT-14.5: Check that lock names are converted and compared in utf-8,
+--echo # to do this use 'тест' in various encodings as lock name.
+SELECT GET_LOCK(_cp1251 0xf2e5f1f2, 0);
+connection con1;
+SELECT GET_LOCK(_utf8 0xd182d0b5d181d182, 0);
+connection default;
+SELECT IS_USED_LOCK(_koi8r 0xd4c5d3d4) = CONNECTION_ID();
+SELECT IS_FREE_LOCK(_utf8 0xd182d0b5d181d182);
+SELECT RELEASE_LOCK(_utf8 0xd182d0b5d181d182);
+
+--echo # FT-14.6: Check wrong number of parameters.
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT GET_LOCK('test');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT GET_LOCK('test', 0, 1);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT RELEASE_LOCK();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT RELEASE_LOCK('test', 1);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT RELEASE_ALL_LOCKS('test');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT IS_USED_LOCK();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT IS_USED_LOCK('test', 'test2');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT IS_FREE_LOCK();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT IS_FREE_LOCK('test', 'test2');
+
+--echo # FT-14.7: NULL timeout is interpreted as 0 timeout.
+connection con1;
+SELECT GET_LOCK("test", 0);
+connection default;
+--echo #        Interpretation as 0 leads to use of send/reap is not required.
+SELECT GET_LOCK("test", NULL) = 0 AS expect_1;
+connection con1;
+SELECT RELEASE_LOCK("test");
+connection default;
+
+--echo # FT-14.8: Check that a negative timeout is interpreted as infinite wait.
+--echo #         Test case for
+--echo #         BUG#11764049 GET_LOCK() TIMEOUT BEHAVES DIFFERENTLY ON
+--echo #                      DIFFERING PLATFORMS
+connection default;
+SELECT GET_LOCK('test', 0);
+
+connection con1;
+let $stmt= SELECT GET_LOCK('test', -1);
+--echo # Send statement and reap result later.
+--send
+eval $stmt;
+
+connection default;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'select%' AND state = 'User lock';
+source include/wait_condition.inc;
+SELECT RELEASE_LOCK('test');
+
+connection con1;
+--echo # Reap result of "$stmt".
+reap;
+SELECT RELEASE_LOCK('test');
+disconnect con1;
+
+
+# This sub test was in history placed in func_misc.test.
+#
+# Bug#16501: IS_USED_LOCK does not appear to work
+#
+
+connection default;
+CREATE TABLE t1 (conn CHAR(7), connection_id INT);
+INSERT INTO t1 VALUES ('default', CONNECTION_ID());
+
+SELECT GET_LOCK('bug16501',600);
+
+connect (con1,localhost,root,,);
+INSERT INTO t1 VALUES ('con1', CONNECTION_ID());
+SELECT IS_USED_LOCK('bug16501') = connection_id
+FROM t1
+WHERE conn = 'default';
+let $stmt= SELECT GET_LOCK('bug16501',600);
+--echo # Send statement and reap result later.
+--send
+eval $stmt;
+
+connection default;
+SELECT IS_USED_LOCK('bug16501') = CONNECTION_ID();
+SELECT RELEASE_LOCK('bug16501');
+connection con1;
+--echo # Reap result of "$stmt".
+reap;
+connection default;
+SELECT IS_USED_LOCK('bug16501') = connection_id
+FROM t1
+WHERE conn = 'con1';
+
+connection con1;
+SELECT IS_USED_LOCK('bug16501') = CONNECTION_ID();
+SELECT RELEASE_LOCK('bug16501');
+SELECT IS_USED_LOCK('bug16501');
+
+connection default;
+SELECT RELEASE_ALL_LOCKS();
+DROP TABLE t1;
+
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--disable_connect_log
+
+--echo #
+--echo # Bug#20031761 ASSERTION `SCALE >= 0 && PRECISION > 0 &&
+--echo #              SCALE <= PRECISION' FAILED
+--echo #
+
+SET @@session.div_precision_increment=0;
+select * from(SELECT MIN(GET_LOCK(0,0) / 1 ^ 0)) as a;
+select * from(SELECT MAX(RELEASE_LOCK(0) / 1 ^ 0)) as a;
+select * from(SELECT MAX(RELEASE_ALL_LOCKS() / 1 ^ 0)) as a;
+SET @@session.div_precision_increment=default;
+
+--echo #
+--echo # End of tests
+--echo #
+

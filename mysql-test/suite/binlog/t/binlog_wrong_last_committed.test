@@ -1,0 +1,81 @@
+################################################################################
+# BUG#25379659 MASTER MAY BINLOG A WRONG LAST_COMMITED
+#
+# Transactions could binlog a last_commited smaller than expected. With the
+# wrong last_commited values, the transactions which sould be applied
+# sequentially could be applied parallel. That caused applier errors or data
+#  inconsistency.
+#
+# When committing a transaction, its last_commited is set to the value of
+# max_committed_transaction. max_committed_transaction is the maximum
+# sequence_number of committed transactions. It is maintained just before
+# committing each transaction to engine. If its sequence_number is not
+# SEQ_UNINIT then updates max_committed_transaction accordingly.
+#
+# However, it checked wrong sequence_number(the sequence_number of the
+# leader thread's transaction instead of the sequence_number of the transaction).
+# That caused that max_committed_transaction was only updated in time for leader
+# thread's transaction. The update for following transactions were delay to
+# finish_commit() which was after the transaction commited to engine.
+#
+# The test verifys last_committed is corret in the bug situation.
+#
+# Step 1. Use debug sync to gurantee that commit queue has two transactions.
+# Step 2. Use debug sync to pause the second transaction when it enters
+#         finshi_commit()
+# Step 3. Execute a transaction and check if its last_committed is correct.
+################################################################################
+--source include/have_binlog_format_statement.inc
+--source include/have_debug_sync.inc
+
+# Reset sequence_number and last_committed, so we can check the exact number
+# Make sure it starts from binlog.000001
+RESET MASTER;
+
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT) ENGINE = InnoDB;
+
+# Make the INSERT to wait for another INSERT into the flush queue
+SET DEBUG_SYNC = "bgc_after_enrolling_for_commit_stage
+                  SIGNAL insert1_ready WAIT_FOR continue_commit_stage";
+--send INSERT INTO t1 VALUES(1, 1)
+
+--connect(conn1, localhost, root)
+--connect(conn2, localhost, root)
+--connection conn1
+
+# Make sure above INSERT is the leader
+SET DEBUG_SYNC = "now WAIT_FOR insert1_ready";
+# Record the INSERT's binlog position
+--let $binlog_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+# Pause the INSERT when it enters finishi_commit()
+SET DEBUG_SYNC = "reached_finish_commit WAIT_FOR insert2_finish";
+--send INSERT INTO t1 VALUES(2, 1)
+
+# Wait until above INSERT is binlogged
+--connection conn2
+--let $show_statement= SHOW MASTER STATUS
+--let $field= Position
+--let $condition= != '$binlog_pos'
+--source include/wait_show_condition.inc
+
+# Signal insert1 to finish the commit group
+SET DEBUG_SYNC = "now SIGNAL continue_commit_stage";
+--connection default
+--reap
+
+UPDATE t1 SET c2 = 2 WHERE c1 = 2;
+
+SET DEBUG_SYNC = "now SIGNAL insert2_finish";
+--connection conn1
+--reap
+
+--connection default
+# INSERT(2,1): sequence_number = 3
+# UPDATE: sequence_number = 4, last_committed = 3
+
+--let $binlog_file= binlog.000001
+--let $logical_timestamps= 3 4
+--source include/assert_logical_timestamps.inc
+
+DROP TABLE t1;

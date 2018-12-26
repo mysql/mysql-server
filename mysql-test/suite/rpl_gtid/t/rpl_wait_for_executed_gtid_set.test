@@ -1,0 +1,723 @@
+# ==== Purpose ====
+#
+# Test the functionality of WAIT_FOR_EXECUTED_GTID_SET. The following
+# properties should hold:
+#
+# 1. Error conditions:
+#    1.1. If input is NULL or is a string that does not represent a
+#         valid GTID set, the function returns an error.
+#    1.2. If the waiting client owns one of the GTIDs, it should
+#         return an error and not wait.
+#    1.3. If the function is called from a replication thread, it
+#         should return NULL immediately.
+#    1.4. If GTID_MODE=OFF the function should return an error and not
+#         wait.
+#         See also rpl_set_gtid_mode_ongoing_wait_function.test.
+#    1.5. If the waiting client session is killed (KILL thread_id), it
+#         should stop immediately.
+#    1.6. If the waiting client statement is killed (KILL QUERY
+#         thread_id), it should return an error.
+#
+# 2. If the GTID set is already part of GTID_EXECUTED, return
+#    immediately. This should hold when waiting for:
+#     2.1. no GTID (parameter is an empty string)
+#     2.2. a single GTID
+#     2.3. multiple GTIDs, all having the same UUID
+#     2.4. multiple GITDs, all having different UUIDs.
+#     2.5. multiple GTIDs from a huge set: it should finish fast, not
+#          take time O(size of set)
+#
+# 3. If the GTID set is not included in GTID_EXECUTED, it should still
+#    be waiting after 1 second, in case:
+#     3.1. the timeout is big
+#     3.2. no timeout is specified.
+#
+# 4. If the GTID set is not included in GTID_EXECUTED, but is included
+#    in the union of GTID_EXECUTED and GTID_OWNED, it should wait. If
+#    the owned GTIDs are rolled back, it should still wait. This should
+#    hold in case:
+#     4.1. the timeout is big
+#     4.2. no timeout is specified.
+#
+# 5. If the GTID set is not included in GTID_EXECUTED, and an
+#    anonymous transaction is committed, the function should still be
+#    waiting. This should hold in case:
+#     5.1. the timeout is big
+#     5.2. no timeout is specified
+#
+# 6. If the GTID set is not included in GTID_EXECUTED, and a timeout
+#    was specified, it should return after the timeout is reached.
+#
+# 7. If the function is waiting for GTIDs, and other threads commit
+#    GTIDs:
+#     7a. the function should not return before all GTIDs have
+#         committed;
+#     7b. it should return after all GTIDs have committed.
+#    The following cases are tested:
+#     7.1. The function waits for one GTID.
+#     7.2. The function waits for multiple GTIDs having the same
+#          UUID.
+#     7.3. The function waits for multiple GTIDs having different
+#          UUIDs.
+#     7.4. The function waits for multiple GTIDs having the same UUID,
+#          some of which have already been committed before the
+#          function starts.
+#     7.5. The function waits for multiple GTIDs having different
+#          UUIDs, where all the GTIDs for one of the UUIDs are already
+#          committed before the function starts.
+#     7.6. The function waits for a UUID which does not already exist
+#          in global_sid_map.
+#    This should all work in case the GTIDs are committed:
+#     7A. from a client on the same server using GTID_NEXT=AUTOMATIC
+#     7B. from a client on the same server using GTID_NEXT=UUID:NUMBER
+#     7C. from a slave thread, with slave binary log enabled
+#     7D. from a slave thread, with slave binary log disabled
+#
+# 8. If the function is waiting for multiple GTIDs and those GTIDs are
+#    provided by SET GTID_PURGED, the function should return.
+#     8.1. If the set provided by SET GTID_PURGED is huge, the
+#          function should return quickly; it should not take time
+#          O(number of GTIDs).
+#
+# 9. RESET MASTER should not confuse the function. That is, suppose
+#    the following happens:
+#     9a. The function waits for multiple GTIDs.
+#     9b. Some but not all GTIDs are committed.
+#     9c. RESET MASTER is issued.
+#     9d. The remaining GTIDs are committed
+#    At this point, despite all GTIDs were committed at some point,
+#    the function should not return, since not all GTIDs are included
+#    in GTID_EXECUTED.
+#     9e. The first GTIDs are committed again
+#    At this point, the function should finally return.
+#
+#    All this should hold in the following cases:
+#     I. The slave binary log is enabled.
+#     II. The slave binary log is disabled.
+#
+# ==== References ====
+#
+# WL#7796: WAIT_FOR_EXECUTED_GTID_SET
+# - First version of this test, introduced the function.
+# BUG#19579811: SET GTID_PURGED DOES NOT STOP WAIT_FOR_EXECUTED_GTID_SET
+# - Rewrote the test, improving general coverage and adding the bug cases.
+
+# Test requires binlog_format=statement to replicate nondeterministic function
+--source include/have_binlog_format_statement.inc
+# Disable auto_position protocol. This is needed since we switch to
+# gtid_mode=off temporarily.
+--let $use_gtids= 0
+--let $rpl_gtid_utils= 1
+--let $rpl_topology= 1->2, 1->3
+--source include/rpl_init.inc
+--source include/rpl_group_replication_plugin_installed.inc
+--source include/rpl_default_connections.inc
+
+--echo ==== 0. Initialize ====
+
+--let $server_number= 1
+while ($server_number <= 3)
+{
+  --let $rpl_connection_name= server_$server_number
+  --source include/rpl_connection.inc
+  eval SET GLOBAL GTID_PURGED = '$uuida:1-3,$uuidb:1-3,$uuidf:1-1234567890';
+  --inc $server_number
+}
+
+# server_3 uses skip-log-bin. If mtr is invoked with
+# --mysqld=--binlog-format=X, it gives the following warning.
+# The following statement uses connection server_3 (set in the loop above).
+CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
+CALL mtr.add_suppression('You need to use --log-bin to make --log-slave-updates work.');
+
+--source include/rpl_connection_master.inc
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.');
+--source include/rpl_sync.inc
+
+# Group replication commits two extra transactions. To make the test
+# behave the same way for group replication and async replication, we
+# commit these two dummy transactions if group replication is not
+# enabled.
+if (!$group_replication_plugin_installed)
+{
+  --disable_query_log
+  CREATE TABLE dummy(a INT);
+  DROP TABLE dummy;
+  --enable_query_log
+  --source include/rpl_sync.inc
+}
+
+CREATE TABLE t1 (a INT);
+
+# At this point the following GTIDs are committed:
+# $uuida:1-3, $uuidb:1-3, $uuidf:1-1234567890, $server_1_uuid:1-3
+
+--echo ==== 1. Error conditions ====
+
+--echo ---- 1.1. NULL or invalid string ----
+
+# NULL
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL, 5);
+
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL);
+
+# Invalid GTID set
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value');
+
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value', 5);
+
+# Wrong parameter count
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT WAIT_FOR_EXECUTED_GTID_SET();
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT WAIT_FOR_EXECUTED_GTID_SET('NULL', 5, 5);
+
+--echo ---- 1.2. Wait for GTID owned by the waiting client ----
+
+eval SET @@SESSION.GTID_NEXT = '$uuidc:1';
+
+# OK to wait for any other GTID. In this case it has already been committed.
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidb:1');
+
+# Error waiting for owned GTID.
+--error ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1');
+
+ROLLBACK;
+
+# OK to wait for the GTID now that we don't own it.
+# This should just timeout.
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1', 1);
+
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+
+--echo ---- 1.3. Function should return NULL in a replication thread ----
+
+eval INSERT INTO t1 VALUES (WAIT_FOR_EXECUTED_GTID_SET('$uuida:1'));
+
+--let $assert_cond= a = 0 FROM t1
+--let $assert_text= t1 should contain 0
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_cond= a IS NULL FROM t1
+--let $assert_text= t1 should contain NULL
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+
+--echo ---- 1.4. Function should generate error if GTID_MODE = OFF ----
+
+--let $rpl_gtid_mode= off
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+# Wait for GTID that is included in GTID_EXECUTED.
+--error ER_GTID_MODE_OFF
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:1');
+
+# Wait for GTID that is not included in GTID_EXECUTED.
+--error ER_GTID_MODE_OFF
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:9999');
+
+--let $rpl_gtid_mode= on
+--source include/rpl_set_gtid_mode.inc
+
+--echo ---- 1.5. Function should stop fast if client is killed ----
+
+--let $rpl_connection_name= con1
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
+--let $rpl_connection_name= con1
+--source include/rpl_connection.inc
+
+--let $thread_id= `SELECT CONNECTION_ID()`
+
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:9999');
+--sleep 1
+
+--source include/rpl_connection_master.inc
+
+--source include/wait_for_wait_for_executed_gtid_set.inc
+
+# Kill thread
+--replace_result $thread_id <THREAD_ID>
+eval KILL $thread_id;
+
+# Wait for thread to disappear (if this would not happen fast, the test
+# would time out).
+--let $wait_condition= SELECT COUNT(*) = 0 FROM performance_schema.threads WHERE PROCESSLIST_ID = $thread_id
+--source include/wait_condition.inc
+
+# Reap
+--let $rpl_connection_name= con1
+--source include/rpl_connection.inc
+--error 2013 # CR_SERVER_LOST
+--reap
+
+--source include/rpl_connection_master.inc
+
+--echo ---- 1.6. Function should return error if query is killed ----
+
+--source include/rpl_connection_master1.inc
+--let $thread_id= `SELECT CONNECTION_ID()`
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:9999');
+--source include/rpl_connection_master.inc
+
+--source include/wait_for_wait_for_executed_gtid_set.inc
+--let $rpl_connection_name= master1
+--source include/kill_wait_for_executed_gtid_set.inc
+
+--source include/rpl_connection_master.inc
+
+--echo ==== 2. Wait set is already part of GTID_EXECUTED ====
+
+--echo ---- 2.1. No GTID ----
+
+SELECT WAIT_FOR_EXECUTED_GTID_SET('');
+SELECT WAIT_FOR_EXECUTED_GTID_SET('', 999999);
+
+--echo ---- 2.2. Single GTID ----
+
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:1');
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:1', 999999);
+
+--echo ---- 2.3. Multiple GTIDs, all having the same UUID ----
+
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:1-3');
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:1-3', 999999);
+
+--echo ---- 2.4. Multiple GTIDs using different UUIDs ----
+
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:1-3,$uuidb:1-3');
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:1-3,$uuidb:1-3', 999999);
+
+--echo ---- 2.5. Huge GTID set ----
+
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidf:1-1234567890');
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidf:1-1234567890', 999999);
+
+--echo ==== 3. Still waiting after 1 second, if GTIDs not committed ====
+
+--echo ---- 3.1. Big timeout ----
+
+--source include/rpl_connection_master1.inc
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1', 999999);
+--source include/rpl_connection_master.inc
+
+--source include/wait_for_wait_for_executed_gtid_set.inc
+--sleep 1
+--let $rpl_connection_name= master1
+--source include/kill_wait_for_executed_gtid_set.inc
+
+--echo ---- 3.2. No timeout ----
+
+--source include/rpl_connection_master1.inc
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1');
+--source include/rpl_connection_master.inc
+
+--source include/wait_for_wait_for_executed_gtid_set.inc
+--sleep 1
+--let $rpl_connection_name= master1
+--source include/kill_wait_for_executed_gtid_set.inc
+
+--echo ==== 4. Still waiting after 1 second, even if GTID included in GTID_OWNED ====
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+eval SET GTID_NEXT = '$uuidc:1';
+
+--echo ---- 4.1. Big timeout ----
+
+--source include/rpl_connection_master1.inc
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1', 999999);
+--source include/rpl_connection_master.inc
+
+--source include/wait_for_wait_for_executed_gtid_set.inc
+--sleep 1
+--let $rpl_connection_name= master1
+--source include/kill_wait_for_executed_gtid_set.inc
+
+--echo ---- 4.2. No timeout ----
+
+--source include/rpl_connection_master1.inc
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1');
+--source include/rpl_connection_master.inc
+
+--source include/wait_for_wait_for_executed_gtid_set.inc
+--sleep 1
+--let $rpl_connection_name= master1
+--source include/kill_wait_for_executed_gtid_set.inc
+
+# Release GTID ownership.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+ROLLBACK;
+eval SET GTID_NEXT = 'AUTOMATIC';
+
+--echo ==== 5. Still waiting if anonymous transaction committed ====
+
+--let $rpl_gtid_mode= on_permissive
+--source include/rpl_set_gtid_mode.inc
+
+--echo ---- 5.1. Big timeout ----
+
+--source include/rpl_connection_master1.inc
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1', 999999);
+--source include/rpl_connection_master.inc
+
+--source include/wait_for_wait_for_executed_gtid_set.inc
+SET GTID_NEXT = 'ANONYMOUS';
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT = 'AUTOMATIC';
+--sleep 1
+--let $rpl_connection_name= master1
+--source include/kill_wait_for_executed_gtid_set.inc
+
+--echo ---- 5.2. No timeout ----
+
+--source include/rpl_connection_master1.inc
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1');
+--source include/rpl_connection_master.inc
+
+--source include/wait_for_wait_for_executed_gtid_set.inc
+SET GTID_NEXT = 'ANONYMOUS';
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT = 'AUTOMATIC';
+--sleep 1
+--let $rpl_connection_name= master1
+--source include/kill_wait_for_executed_gtid_set.inc
+
+--let $rpl_gtid_mode= on
+--source include/rpl_set_gtid_mode.inc
+
+--echo ==== 6. Stop after the timeout is reached ====
+
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1', 1);
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+eval SET GTID_NEXT = '$uuidc:1';
+--source include/rpl_connection_master.inc
+
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuidc:1', 1);
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+--source include/rpl_connection_master.inc
+
+--echo ==== 7. ====
+
+--let $it= 1
+while ($it <= 4)
+{
+  if ($it == 1)
+  {
+    --let $wait_connection= server_1
+    --let $wait_for_wait_connection= server_1_1
+    --let $uuid_1= $server_1_uuid
+    --let $uuid_2= $uuidd
+  }
+  if ($it == 2)
+  {
+    --let $wait_connection= server_1
+    --let $wait_for_wait_connection= server_1_1
+    --let $uuid_1= $uuidc
+    --let $uuid_2= $uuidd
+  }
+  if ($it == 3)
+  {
+    --let $wait_connection= server_2
+    --let $wait_for_wait_connection= server_2_1
+    --let $uuid_1= $uuidc
+    --let $uuid_2= $uuidd
+  }
+  if ($it == 4)
+  {
+    --let $wait_connection= server_3
+    --let $wait_for_wait_connection= server_3_1
+    --let $uuid_1= $uuidc
+    --let $uuid_2= $uuidd
+  }
+
+  --echo ---- 7.1 ($it) ----
+
+  --let $gtid= `SELECT GTID_NEXT_GENERATED_MULTIPLE(@@GLOBAL.GTID_EXECUTED, '$uuid_1', 1)`
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --let $thread_id= `SELECT CONNECTION_ID()`
+  --replace_result $server_1_uuid SERVER_UUID
+  --send
+  eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$gtid');
+
+  --let $rpl_connection_name= $wait_for_wait_connection
+  --source include/rpl_connection.inc
+  --source include/wait_for_wait_for_executed_gtid_set.inc
+
+  --source include/rpl_connection_master.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  eval SET GTID_NEXT = '$gtid';
+  COMMIT;
+  SET GTID_NEXT = 'AUTOMATIC';
+
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  --reap
+  --source include/rpl_connection_master.inc
+
+  --echo ---- 7.2 ($it) ----
+
+  --let $gtid_1= `SELECT GTID_NEXT_GENERATED_MULTIPLE(@@GLOBAL.GTID_EXECUTED, '$uuid_1', 1)`
+  --let $gtid_2= `SELECT GTID_NEXT_GENERATED_MULTIPLE(CONCAT(@@GLOBAL.GTID_EXECUTED, ',', '$gtid_1'), '$uuid_1', 1)`
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  --send
+  eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$gtid_1,$gtid_2');
+
+  --let $rpl_connection_name= $wait_for_wait_connection
+  --source include/rpl_connection.inc
+  --source include/wait_for_wait_for_executed_gtid_set.inc
+
+  --source include/rpl_connection_master.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  eval SET GTID_NEXT = '$gtid_1';
+  COMMIT;
+  SET GTID_NEXT = 'AUTOMATIC';
+
+  # Should still be waiting.
+  --sleep 1
+  --let $rpl_connection_name= $wait_for_wait_connection
+  --source include/rpl_connection.inc
+  --source include/wait_for_wait_for_executed_gtid_set.inc
+
+  --source include/rpl_connection_master.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  eval SET GTID_NEXT = '$gtid_2';
+  COMMIT;
+  SET GTID_NEXT = 'AUTOMATIC';
+
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  --reap
+  --source include/rpl_connection_master.inc
+
+  --echo ---- 7.3 ($it) ----
+
+  --let $gtid_1= `SELECT GTID_NEXT_GENERATED_MULTIPLE(@@GLOBAL.GTID_EXECUTED, '$uuid_1', 1)`
+  --let $gtid_2= `SELECT GTID_NEXT_GENERATED_MULTIPLE(@@GLOBAL.GTID_EXECUTED, '$uuid_2', 1)`
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  --send
+  eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$gtid_1,$gtid_2');
+
+  --let $rpl_connection_name= $wait_for_wait_connection
+  --source include/rpl_connection.inc
+  --source include/wait_for_wait_for_executed_gtid_set.inc
+
+  --source include/rpl_connection_master.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  eval SET GTID_NEXT = '$gtid_1';
+  COMMIT;
+  SET GTID_NEXT = 'AUTOMATIC';
+
+  # Should still be waiting.
+  --sleep 1
+  --let $rpl_connection_name= $wait_for_wait_connection
+  --source include/rpl_connection.inc
+  --source include/wait_for_wait_for_executed_gtid_set.inc
+
+  --source include/rpl_connection_master.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  eval SET GTID_NEXT = '$gtid_2';
+  COMMIT;
+  SET GTID_NEXT = 'AUTOMATIC';
+
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  --reap
+  --source include/rpl_connection_master.inc
+
+  --echo ---- 7.4 ($it) ----
+
+  --let $gtid_1= `SELECT GTID_NEXT_GENERATED_MULTIPLE(@@GLOBAL.GTID_EXECUTED, '$uuid_1', 1)`
+  --let $gtid_2= `SELECT GTID_NEXT_GENERATED_MULTIPLE(@@GLOBAL.GTID_EXECUTED, '$uuid_2', 1)`
+
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  --send
+  eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuid_1:1,$gtid_1,$gtid_2');
+
+  --let $rpl_connection_name= $wait_for_wait_connection
+  --source include/rpl_connection.inc
+  --source include/wait_for_wait_for_executed_gtid_set.inc
+
+  --source include/rpl_connection_master.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  eval SET GTID_NEXT = '$gtid_1';
+  COMMIT;
+  SET GTID_NEXT = 'AUTOMATIC';
+
+  # Should still be waiting.
+  --sleep 1
+  --let $rpl_connection_name= $wait_for_wait_connection
+  --source include/rpl_connection.inc
+  --source include/wait_for_wait_for_executed_gtid_set.inc
+
+  --source include/rpl_connection_master.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  eval SET GTID_NEXT = '$gtid_2';
+  COMMIT;
+  SET GTID_NEXT = 'AUTOMATIC';
+
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  --reap
+  --source include/rpl_connection_master.inc
+
+  --echo ---- 7.5 ($it) ----
+
+  --let $gtid_1= `SELECT GTID_NEXT_GENERATED_MULTIPLE(@@GLOBAL.GTID_EXECUTED, '$uuid_1', 1)`
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  --send
+  eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$gtid_1,$uuidb:1-3');
+
+  --let $rpl_connection_name= $wait_for_wait_connection
+  --source include/rpl_connection.inc
+  --source include/wait_for_wait_for_executed_gtid_set.inc
+
+  --source include/rpl_connection_master.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  eval SET GTID_NEXT = '$gtid_1';
+  COMMIT;
+  SET GTID_NEXT = 'AUTOMATIC';
+
+  --let $rpl_connection_name= $wait_connection
+  --source include/rpl_connection.inc
+  --replace_result $server_1_uuid SERVER_UUID
+  --reap
+  --source include/rpl_connection_master.inc
+
+  --echo ---- 7.6 ($it) ----
+
+  if ($it != 1)
+  {
+    --let $uuid= `SELECT UUID()`
+
+    --let $rpl_connection_name= $wait_connection
+    --source include/rpl_connection.inc
+    --replace_result $uuid UUID
+    --send
+    eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuid:1');
+
+    --let $rpl_connection_name= $wait_for_wait_connection
+    --source include/rpl_connection.inc
+    --source include/wait_for_wait_for_executed_gtid_set.inc
+
+    --source include/rpl_connection_master.inc
+    --replace_result $uuid UUID
+    eval SET GTID_NEXT = '$uuid:1';
+    COMMIT;
+    SET GTID_NEXT = 'AUTOMATIC';
+
+    --let $rpl_connection_name= $wait_connection
+    --source include/rpl_connection.inc
+    --replace_result $uuid UUID
+    --reap
+    --source include/rpl_connection_master.inc
+  }
+
+  --inc $it
+}
+
+--echo ==== 8.1 SET GTID_PURGED ====
+
+DROP TABLE t1;
+--source include/rpl_sync.inc
+--source include/rpl_stop_slaves.inc
+RESET MASTER;
+
+--source include/rpl_connection_master1.inc
+--let $thread_id= `SELECT CONNECTION_ID()`
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:1-1234567890');
+
+--source include/rpl_connection_master.inc
+--source include/wait_for_wait_for_executed_gtid_set.inc
+
+eval SET GLOBAL GTID_PURGED = '$uuida:1-1234567890';
+
+--source include/rpl_connection_master1.inc
+--reap
+
+--source include/rpl_connection_master.inc
+
+--echo ==== 9. RESET MASTER ====
+
+RESET MASTER;
+
+--source include/rpl_connection_master1.inc
+--send
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuida:1,$uuidb:1,$uuidc:1');
+
+--source include/rpl_connection_master.inc
+--source include/wait_for_wait_for_executed_gtid_set.inc
+
+eval SET GLOBAL GTID_PURGED = '$uuida:1';
+
+eval SET GTID_NEXT = '$uuidb:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+
+RESET MASTER;
+
+eval SET SESSION GTID_NEXT = '$uuidc:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+
+eval SET SESSION GTID_NEXT = '$uuida:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+
+--sleep 1
+
+# Should still be waiting
+--source include/wait_for_wait_for_executed_gtid_set.inc
+
+eval SET SESSION GTID_NEXT = '$uuidb:1';
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+
+--source include/rpl_connection_master1.inc
+--reap
+
+--source include/rpl_connection_master.inc
+
+--echo ==== 10. Clean up ====
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

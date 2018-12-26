@@ -1,0 +1,109 @@
+######## suite/innodb/t/innodb_prefix_iindex_restart_server.test #####
+#                                                                    #
+# Testcase for worklog WL#5743: Lift the limit of index key prefixes #
+# Test scenario : Stop the server in between when prefix index are   #
+# created and see if state is preserved after restart                #
+#                                                                    #
+# Creation:                                                          #
+# 2011-06-02 Implemented this test as part of WL#5743                #
+#                                                                    #
+######################################################################
+
+
+#------------------------------------------------------------------------------
+# Stop the server in between when prefix index are created and see if state is
+# correct when server is restarted.
+# Server is restarted at differnt points.
+
+CREATE TABLE worklog5743 (
+col_1_text TEXT(4000) , col_2_text TEXT(4000) ,
+PRIMARY KEY (col_1_text(3072))
+) charset latin1 ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 3500) , REPEAT("o", 3500));
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
+worklog5743;
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+
+
+--echo "In connection 2"
+--connect (con2,localhost,root,,)
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 3500) , REPEAT("o", 3500));
+
+
+--echo "In connection 1"
+--connection con1
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+START TRANSACTION;
+
+
+--echo "In connection default ....restarting the server"
+--connection default
+# Restart the server
+-- source include/restart_mysqld.inc
+SELECT COUNT(*) FROM worklog5743;
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
+worklog5743;
+
+--disconnect con1
+--disconnect con2
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 3500) , REPEAT("o", 3500));
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("b", 3500);
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+
+--echo "In connection default ....restarting the server"
+--connection default
+# Restart the server
+-- source include/restart_mysqld.inc
+SELECT COUNT(*) FROM worklog5743;
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
+worklog5743;
+
+--disconnect con1
+
+--echo "In connection 1"
+--connect (con2,localhost,root,,)
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+START TRANSACTION;
+UPDATE worklog5743 SET col_1_text = REPEAT("b", 3500) WHERE col_1_text = REPEAT("a", 3500);
+SELECT col_1_text = REPEAT("b", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+
+--echo "In connection default ....restarting the server"
+--connection default
+# Restart the server
+-- source include/restart_mysqld.inc
+SELECT COUNT(*) FROM worklog5743;
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
+worklog5743;
+
+DROP TABLE worklog5743;
+
+#
+# Bug#17530: Incorrect key truncation on table creation caused server crash.
+#
+
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+create table t1(f1 varchar(3800) binary not null, key(f1))
+  character set utf8 collate utf8_general_ci row_format=dynamic;
+insert into t1 values('aaa');
+drop table t1;
+SET sql_mode=default;

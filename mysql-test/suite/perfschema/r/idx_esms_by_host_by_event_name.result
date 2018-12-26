@@ -1,0 +1,75 @@
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+
+====================================================================
+Testing index for columns HOST, EVENT_NAME
+====================================================================
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_summary_by_host_by_event_name	NULL	ref	HOST	HOST	241	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_summary_by_host_by_event_name	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_summary_by_host_by_event_name	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST = "localhost";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_summary_by_host_by_event_name	NULL	ref	HOST	HOST	241	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST = "impossible"
+    and EVENT_NAME = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST = "localhost"
+and EVENT_NAME = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST = "localhost"
+and EVENT_NAME > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_summary_by_host_by_event_name	NULL	ref	HOST	HOST	241	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST = "localhost"
+and EVENT_NAME < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_summary_by_host_by_event_name	NULL	ref	HOST	HOST	241	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST = "localhost"
+and EVENT_NAME = "statement/sql/select";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	events_statements_summary_by_host_by_event_name	NULL	const	HOST	HOST	755	const,const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select COUNT_STAR
+from performance_schema.events_statements_summary_by_host_by_event_name
+where HOST = "localhost"
+and EVENT_NAME = "statement/sql/select";
+COUNT_STAR
+#
+OK: handler_read_key incremented
+drop user foo@localhost;

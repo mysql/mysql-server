@@ -1,0 +1,119 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 0. Test starts in Single primary mode with server1 as the primary
+include/start_and_bootstrap_group_replication.inc
+include/gr_assert_primary_member.inc
+CREATE TABLE t1(a int primary key);
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+# 1.1 Lock table on the new primary (server 2) and get a transaction stuck
+# Execute a primary change to server 2.
+# Check the new primary is in the applying buffered transactions stage
+# Others are in waiting on current primary transaction execution stage
+[connection server_2]
+SET @@GLOBAL.read_only= 0;
+LOCK TABLE t1 READ;
+[connection server1]
+INSERT INTO t1 VALUES (1);
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+[connection server2]
+include/assert.inc [The stage should be "Primary Election: applying buffered transactions"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+[connection server_1]
+include/assert.inc [The stage should be "Primary Election: waiting on current primary transaction execution"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+
+# 1.2 Lock a table on the old primary (server1) and execute a transaction
+# This will block the read mode enabling query on the now secondary
+# Unblock the table on the new primary (server2)
+# Check they are on Waiting for members to enable super_read_only
+[connection server_1]
+LOCK TABLE t1 READ;
+[connection server_1_1]
+INSERT INTO t1 VALUES (2);
+[connection server_2]
+UNLOCK TABLES;
+include/assert.inc [The stage should be "Primary Election: waiting for members to enable super_read_only"]
+include/assert.inc [The estimated work is 3]
+include/assert.inc [The completed work is 2]
+[connection server3]
+include/assert.inc [The stage should be "Primary Election: waiting for members to enable super_read_only"]
+include/assert.inc [The estimated work is 3]
+include/assert.inc [The completed work is 2]
+
+# 1.3 Lock table on the new primary (server 2)
+# Unlock the table on the secondary (server1) that will block on server2
+# Check election is on Stabilizing transactions from former primaries stage
+[connection server_2]
+LOCK TABLE t1 READ;
+[connection server_1]
+UNLOCK TABLES;
+[connection server_1_1]
+[connection server2]
+include/assert.inc [The stage should be "Primary Election: stabilizing transactions from former primaries"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+[connection server_1]
+include/assert.inc [The stage should be "Primary Election: stabilizing transactions from former primaries"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+
+# 1.4 Unblock to end the action.
+[connection server_2]
+UNLOCK TABLES;
+[connection server1]
+group_replication_set_as_primary("MEMBER2_UUID")
+Primary server switched to: MEMBER2_UUID
+
+# 2.0 Set the weights so server 1 is the new primary when server 2 leaves.
+#     Lock a table on the new primary (server1)
+[connection server1]
+SET GLOBAL group_replication_member_weight= 100;
+SET @@GLOBAL.read_only= 0;
+LOCK TABLE t1 READ;
+[connection server3]
+SET GLOBAL group_replication_member_weight= 1;
+
+# 2.1 Execute a transaction that will be stuck on server1
+# Stop server 2 so it leaves the group and a new election happens
+# Check the election stage on the new primary: applying buffered transactions
+# Check the election stage on secondary: waiting on current primary transaction execution
+[connection server2]
+INSERT INTO t1 VALUES (3);
+include/stop_group_replication.inc
+[connection server_1]
+include/assert.inc [The stage should be "Primary Election: applying buffered transactions"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+[connection server3]
+include/assert.inc [The stage should be "Primary Election: waiting on current primary transaction execution"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+
+# 2.2 Unblock the table
+# Check the election ends and there are no more stages.
+[connection server1]
+UNLOCK TABLES;
+include/gr_assert_primary_member.inc
+include/assert.inc [There is no stage present]
+[connection server3]
+include/assert.inc [There is no stage present]
+
+# 3. Clean up
+[connection server2]
+include/start_group_replication.inc
+[connection server1]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+DROP TABLE t1;
+[connection server3]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+include/group_replication_end.inc

@@ -1,0 +1,32 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+LOCK TABLES t1 WRITE;
+[connection master]
+INSERT INTO t1 (c1) VALUES (1);
+[connection slave]
+[connection master]
+Populate the table with additional 5 rows
+include/sync_slave_io_with_master.inc
+# Adding debug point 'pause_on_queue_event_after_write_buffer' to @@GLOBAL.debug
+[connection master]
+DROP TABLE t1;
+[connection slave]
+SET DEBUG_SYNC='now WAIT_FOR receiver_reached_pause_on_queue_event';
+UNLOCK TABLES;
+Wait until all the inserts are applied
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000002	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000002	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+slave-relay-bin.000002	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT) ENGINE=InnoDB
+slave-relay-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+# Removing debug point 'pause_on_queue_event_after_write_buffer' from @@GLOBAL.debug
+SET DEBUG_SYNC='now SIGNAL receiver_continue_queuing_event';
+include/rpl_end.inc

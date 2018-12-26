@@ -1,0 +1,10 @@
+# pipe protocol with ssl default (enabled).
+Variable_name	Value
+Ssl_cipher	
+# pipe protocol with ssl enforced.
+# pipe protocol with ssl disabled.
+Variable_name	Value
+Ssl_cipher	
+# pipe protocol with ssl certificate option.
+Variable_name	Value
+Ssl_cipher	

@@ -1,0 +1,77 @@
+--source include/have_debug.inc
+
+SET @start_global_value = @@global.innodb_log_checkpoint_fuzzy_now;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.innodb_log_checkpoint_fuzzy_now in (0, 1);
+select @@global.innodb_log_checkpoint_fuzzy_now;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_log_checkpoint_fuzzy_now;
+show global variables like 'innodb_log_checkpoint_fuzzy_now';
+show session variables like 'innodb_log_checkpoint_fuzzy_now';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_log_checkpoint_fuzzy_now=1;
+# Should always be OFF
+select @@global.innodb_log_checkpoint_fuzzy_now;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+--enable_warnings
+
+set @@global.innodb_log_checkpoint_fuzzy_now=0;
+# Should always be OFF
+select @@global.innodb_log_checkpoint_fuzzy_now;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+--enable_warnings
+
+set global innodb_log_checkpoint_fuzzy_now=ON;
+# Should always be OFF
+select @@global.innodb_log_checkpoint_fuzzy_now;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+--enable_warnings
+
+set global innodb_log_checkpoint_fuzzy_now=OFF;
+# Should always be OFF
+select @@global.innodb_log_checkpoint_fuzzy_now;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_fuzzy_now';
+--enable_warnings
+
+--error ER_GLOBAL_VARIABLE
+set session innodb_log_checkpoint_fuzzy_now='some';
+
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_log_checkpoint_fuzzy_now='some';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_log_checkpoint_fuzzy_now=1.1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_log_checkpoint_fuzzy_now='foo';
+set global innodb_log_checkpoint_fuzzy_now=-2;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_log_checkpoint_fuzzy_now=1e1;
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_log_checkpoint_fuzzy_now = @start_global_value;
+SELECT @@global.innodb_log_checkpoint_fuzzy_now;

@@ -1,0 +1,27 @@
+CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (1);
+ALTER TABLE t SECONDARY_LOAD;
+FLUSH STATUS;
+PREPARE ps FROM 'SELECT * FROM t';
+EXECUTE ps;
+x
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
+SET DEBUG = '+d,open_secondary_engine_tables_error';
+EXECUTE ps;
+x
+1
+SET DEBUG = '-d,open_secondary_engine_tables_error';
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+FLUSH STATUS;
+EXECUTE ps;
+x
+1
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+DROP TABLE t;

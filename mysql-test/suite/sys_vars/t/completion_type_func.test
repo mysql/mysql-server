@@ -1,0 +1,181 @@
+############## mysql-test/suite/sys_vars/t/completion_type_func.test ###########
+#                                                                              #
+# Variable Name: completion_type                                               #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 0                                                             #
+# Valid Values: 0,1 & 2                                                        #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "completion_type"         #
+#              that checks functionality of this variable                      #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#          server-system-variables.html#option_mysqld_completion_type          #
+#                                                                              #
+################################################################################
+
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+##############################
+# Setup: Table + connections #
+##############################
+
+--echo ## Creating new table ##
+CREATE TABLE t1
+(
+id INT NOT NULL,
+PRIMARY KEY (id),
+name VARCHAR(30)
+) ENGINE = INNODB;
+
+--echo ## Creating new connections test_con1, test_con2 ##
+connect (test_con1,localhost,root,,);
+connect (test_con2,localhost,root,,);
+
+connection default;
+
+--echo #########################################################
+--echo #    Setting initial value of completion_type to zero   #
+--echo #########################################################
+
+INSERT INTO t1 VALUES(1,'Record_1');
+SELECT * FROM t1;
+
+--echo ## Setting value of variable to 0 ##
+SET @@session.completion_type = 0;
+
+--echo ## Here commit & rollback should work normally ##
+--echo ## test commit ##
+START TRANSACTION;
+INSERT INTO t1 VALUES(2,'Record_2');
+INSERT INTO t1 VALUES(3,'Record_3');
+SELECT * FROM t1;
+
+--echo Switching to connection test_con1
+connection test_con1;
+--echo ## Don't expect to see id's 2 and 3 in the table w/o COMMIT ##
+SELECT * FROM t1;
+
+--echo Switching to default connection
+connection default;
+COMMIT;
+
+--echo ## test rollback ##
+START TRANSACTION;
+INSERT INTO t1 VALUES(4,'Record_4');
+INSERT INTO t1 VALUES(5,'Record_5');
+SELECT * FROM t1;
+
+--echo Switching to connection test_con1
+connection test_con1;
+--echo ## Don't expect to see id's 4 and 5 here ##
+--echo ## Expect to see 3, Record_3 ##
+SELECT * FROM t1;
+
+--echo Switching to connection default;
+connection default;
+
+
+ROLLBACK;
+--echo ## Don't expect to see id's 4 and 5 now ##
+SELECT * FROM t1;
+
+--echo 
+--echo #########################################################
+--echo #    Setting initial value of completion_type to one    #
+--echo #########################################################
+
+--echo Switching to connection test_con1;
+connection test_con1;
+SET @@session.completion_type = 1;
+
+START TRANSACTION;
+SELECT * FROM t1;
+INSERT INTO t1 VALUES(6,'Record_6');
+INSERT INTO t1 VALUES(7,'Record_7');
+COMMIT;
+
+--echo ## Expect to immediately have a new transaction ##
+INSERT INTO t1 VALUES(8,'Record_8');
+SELECT * FROM t1;
+
+connection test_con2;
+--echo switching to test_con2
+--echo ## Do not expect to see 8, Record_8 as no COMMIT has occurred ##
+SELECT * FROM t1;
+
+--echo switch to connection test_con1
+connection test_con1;
+
+--echo ## Testing ROLLBACK behavior
+START TRANSACTION;
+INSERT INTO t1 VALUES(9, 'Record_9');
+INSERT INTO t1 VALUES(10, 'Record_10');
+--echo ## Expect to see id's 8, 9, 10 here ##
+--echo ## 8, Record_8 COMMITted with the start of this transaction ##
+SELECT * FROM t1;
+ROLLBACK;
+--echo ## id's 9 and 10 are gone now due to ROLLBACK ##
+SELECT * FROM t1;
+
+--echo ## Expect a new transaction ##
+INSERT INTO t1 VALUES(9, 'Record_9');
+
+--echo Switching to connection test_con2
+connection test_con2;
+--echo ## Don't expect to see 9, Record_9 due to no COMMIT yet ##
+SELECT * FROM t1;
+
+--echo Switching to connection test_con1
+connection test_con1;
+ROLLBACK;
+--echo ## Don't expect to see 9, Record_9
+SELECT * FROM t1;
+
+--echo #########################################################
+--echo #    Setting initial value of completion_type to 2      #
+--echo #########################################################
+
+SET @@session.completion_type = 2;
+
+--echo ## Here commit should work as COMMIT RELEASE ##
+START TRANSACTION;
+SELECT * FROM t1;
+INSERT INTO t1 VALUES(9,'Record_9');
+INSERT INTO t1 VALUES(10,'Record_10');
+COMMIT;
+
+--echo ## Inserting rows should give error here because connection should ##
+--echo ## disconnect after using COMMIT ##
+--Error 2006,2013,ER_QUERY_INTERRUPTED
+INSERT INTO t1 VALUES(4,'Record_4');
+
+--echo switch to connection test_con2
+connection test_con2;
+SET @@session.completion_type = 2;
+
+--echo ## Inserting rows and using Rollback which should Rollback & release ##
+START TRANSACTION;
+SELECT * FROM t1;
+INSERT INTO t1 VALUES(11,'Record_11');
+INSERT INTO t1 VALUES(12,'Record_12');
+ROLLBACK;
+
+--echo ## Expect a failure due to COMMIT/ROLLBACK AND RELEASE behavior ##
+--Error 2006,2013,ER_QUERY_INTERRUPTED
+INSERT INTO t1 VALUES(4,'Record_4');
+
+connection default;
+disconnect test_con1;
+disconnect test_con2;
+
+DROP TABLE t1;
+

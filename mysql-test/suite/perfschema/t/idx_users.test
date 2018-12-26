@@ -1,0 +1,22 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = TOTAL_CONNECTIONS;
+let $table = performance_schema.users;
+
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+connect(con, localhost, foo,,);
+
+###########################################################################
+# Test index on USER
+###########################################################################
+
+let $column_count = 1;
+let $col1 = USER;
+let $col1_act = "foo";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+drop user foo@localhost;

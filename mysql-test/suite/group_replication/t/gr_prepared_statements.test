@@ -1,0 +1,119 @@
+############################################################################
+# WL#9053 : Group Replication: Push Group Replication Plugin to mysql-trunk
+#
+# This test does the basic check of prepared statements in
+# group replication environment
+#
+# 0. This test requires two servers
+# 1. Start Group Replication on two servers
+# 2. Execute the following prepared statements on the members of the group
+#  a) "CREATE TABLE.."
+#  b) "INSERT.."
+#  c) "SELECT.."
+#  d) "UPDATE.."
+#  e) "DELETE.."
+#  f) "DROP.."
+# 3. Verify the consistency of data across the group
+# 4. Clean-up
+############################################################################
+
+# Start GR with two servers
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+# On server1
+# Create a prepared statement to create table
+PREPARE stmt1 FROM "CREATE TABLE t1 (a INT PRIMARY KEY)";
+EXECUTE stmt1;
+# Create a prepared statement to insert into table
+PREPARE stmt2 FROM "INSERT INTO t1(a) value (?)";
+# Insert data
+SET @val=1;
+EXECUTE stmt2 USING @val;
+SET @val=2;
+EXECUTE stmt2 USING @val;
+SET @val=3;
+EXECUTE stmt2 USING @val;
+# Create a prepared statement to select
+PREPARE stmt3 FROM "SELECT * FROM t1 WHERE a>?";
+SET @val=0;
+EXECUTE stmt3 USING @val;
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+
+--source include/rpl_sync.inc
+
+# Connect to server2
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Check table t1 exist on server 2'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\"]" = 1
+--source include/assert.inc
+
+--let $assert_text= 'Check all records exists on server 2'
+--let $assert_cond= "[SELECT COUNT(*) FROM test.t1]" = 3
+--source include/assert.inc
+
+# Create a prepared statement to insert
+PREPARE stmt4 FROM "INSERT INTO t1(a) value (?)";
+# Insert data
+SET @val=4;
+EXECUTE stmt4 USING @val;
+SET @val=5;
+EXECUTE stmt4 USING @val;
+SET @val=6;
+EXECUTE stmt4 USING @val;
+# Conflict testing
+--error ER_DUP_ENTRY
+EXECUTE stmt4 USING @val;
+# Create a prepared statement to update
+PREPARE stmt5 FROM "UPDATE t1 SET a=a+?";
+SET @val=10;
+EXECUTE stmt5 USING@val;
+# Conflict testing
+PREPARE stmt FROM "UPDATE t1 SET a=11 WHERE a=?";
+SET @val=12;
+--error ER_DUP_ENTRY
+EXECUTE stmt USING@val;
+
+# Create a prepared statement to delete
+PREPARE stmt6 FROM "DELETE from t1 WHERE a=?";
+SET @val=11;
+EXECUTE stmt6 USING @val;
+SET @val=12;
+EXECUTE stmt6 USING @val;
+# Create a prepared statement to select
+PREPARE stmt7 FROM "SELECT * FROM t1 WHERE a>?";
+SET @val=10;
+EXECUTE stmt7 USING @val;
+DEALLOCATE PREPARE stmt4;
+DEALLOCATE PREPARE stmt5;
+DEALLOCATE PREPARE stmt6;
+DEALLOCATE PREPARE stmt7;
+
+--source include/rpl_sync.inc
+
+# Connect to server1 and verify the data with server2
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Check all records exists on server 1'
+--let $assert_cond= "[SELECT COUNT(*) FROM test.t1 WHERE a>10]" = 4
+--source include/assert.inc
+
+# Create a prepared statement to select
+PREPARE stmt8 FROM "SELECT * FROM t1";
+EXECUTE stmt8;
+DEALLOCATE PREPARE stmt8;
+
+# Clean-up
+# Drop table
+PREPARE stmt9 FROM "DROP TABLE t1";
+EXECUTE stmt9;
+DEALLOCATE PREPARE stmt9;
+
+--source include/group_replication_end.inc

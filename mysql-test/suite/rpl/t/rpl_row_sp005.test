@@ -1,0 +1,112 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/15/2005                                                #
+# Updated: Aug/29/2005: Removed sleeps                                      #     
+#############################################################################
+# Test: Tests SPs with cursors, flow logic, and alter sp. In addition the   #
+#       tests SPs with insert and update operations.                        #
+#############################################################################
+# 2006-02-08 By JBM added ORDER BY for use with NDB engine
+#############################################################################
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t2;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t3;
+--enable_warnings
+# End of cleanup
+
+# Begin test section 1
+CREATE TABLE IF NOT EXISTS test.t1(id INT, data CHAR(16),PRIMARY KEY(id));
+CREATE TABLE IF NOT EXISTS test.t2(id2 INT,PRIMARY KEY(id2));
+CREATE TABLE IF NOT EXISTS test.t3(id3 INT,PRIMARY KEY(id3), c CHAR(16));
+
+delimiter |;
+CREATE PROCEDURE test.p1()
+BEGIN
+DECLARE done INT DEFAULT 0;
+  DECLARE spa CHAR(16);
+  DECLARE spb,spc INT;
+  DECLARE cur1 CURSOR FOR SELECT id,data FROM test.t1 ORDER BY id;
+  DECLARE cur2 CURSOR FOR SELECT id2 FROM test.t2 ORDER BY id2;
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+
+  OPEN cur1;
+  OPEN cur2;
+
+  REPEAT
+    FETCH cur1 INTO spb, spa;
+    FETCH cur2 INTO spc;
+    IF NOT done THEN
+       IF spb < spc THEN
+          INSERT INTO test.t3 VALUES (spb,spa);
+       ELSE
+          INSERT INTO test.t3 VALUES (spc,spa);
+       END IF;
+    END IF;
+  UNTIL done END REPEAT;
+
+  CLOSE cur1;
+  CLOSE cur2;
+END|
+CREATE PROCEDURE test.p2()
+BEGIN
+  INSERT INTO test.t1 VALUES (4,'MySQL'),(20,'ROCKS'),(11,'Texas'),(10,'kyle');
+  INSERT INTO test.t2 VALUES (4),(2),(1),(3);
+  UPDATE test.t1 SET id=id+4 WHERE id=4;
+END|
+delimiter ;|
+
+let $message=< ---- Master selects-- >;
+--source include/show_msg.inc
+CALL test.p2();
+SELECT * FROM test.t1 ORDER BY id;
+SELECT * FROM test.t2 ORDER BY id2;
+
+let $message=< ---- Slave selects-- >;
+--source include/show_msg.inc
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t1 ORDER BY id;
+SELECT * FROM test.t2 ORDER BY id2;
+
+let $message=< ---- Master selects-- >;
+--source include/show_msg.inc
+connection master;
+CALL test.p1();
+
+let $wait_condition= SELECT COUNT(*) = 4 FROM t3;
+--source include/wait_condition_or_abort.inc
+save_master_pos;
+SELECT * FROM test.t3 ORDER BY id3;
+
+let $message=< ---- Slave selects-- >;
+--source include/show_msg.inc
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t3 ORDER BY id3;
+
+connection master;
+
+ALTER PROCEDURE test.p1 MODIFIES SQL DATA;
+#show binlog events;
+
+# Cleanup
+
+connection master;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+DROP TABLE IF EXISTS test.t3;
+--source include/sync_slave_sql_with_master.inc
+
+# End of 5.0 test case
+--source include/rpl_end.inc

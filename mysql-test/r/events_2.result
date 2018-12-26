@@ -1,0 +1,329 @@
+drop database if exists events_test;
+create database events_test;
+use events_test;
+create event e_26 on schedule at '2037-01-01 00:00:00' disable do set @a = 5;
+select  event_definition, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from information_schema.events;
+EVENT_DEFINITION	DEFINER	convert_tz(execute_at, 'UTC', 'SYSTEM')	ON_COMPLETION
+set @a = 5	root@localhost	2037-01-01 03:00:00	NOT PRESERVE
+drop event e_26;
+create event e_26 on schedule at NULL disable do set @a = 5;
+ERROR HY000: Incorrect AT value: 'NULL'
+create event e_26 on schedule at 'definitely not a datetime' disable do set @a = 5;
+ERROR HY000: Incorrect AT value: 'definitely not a datetime'
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
+drop event задачка;
+"DISABLE the scheduler. Testing that it does not work when the variable is 0"
+set global event_scheduler=off;
+select definer, event_name from information_schema.events;
+DEFINER	EVENT_NAME
+select get_lock("test_lock1", 20);
+get_lock("test_lock1", 20)
+1
+create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
+"Should return 1 row"
+select definer, event_name from information_schema.events;
+DEFINER	EVENT_NAME
+root@localhost	закачка
+"Should be only 0 process"
+select /*1*/ user, host, db, command, state, info
+from information_schema.processlist
+where (user='event_scheduler')
+order by info;
+user	host	db	command	state	info
+select release_lock("test_lock1");
+release_lock("test_lock1")
+1
+drop event закачка;
+"Should have 0 events"
+select count(*) from information_schema.events;
+count(*)
+0
+"ENABLE the scheduler and get a lock"
+set global event_scheduler=on;
+select get_lock("test_lock2", 20);
+get_lock("test_lock2", 20)
+1
+"Create an event which tries to acquire a mutex. The event locks on the mutex"
+create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
+"Should have only 2 processes: the scheduler and the locked event"
+select /*2*/ user, host, db, command, state, info
+from information_schema.processlist
+where (info like "select get_lock%" OR user='event_scheduler')
+order by info;
+user	host	db	command	state	info
+event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
+root	localhost	events_test	Connect	User lock	select get_lock("test_lock2", 20)
+"Release the mutex, the event worker should finish."
+select release_lock("test_lock2");
+release_lock("test_lock2")
+1
+drop event закачка;
+select get_lock("test_lock2_1", 20);
+get_lock("test_lock2_1", 20)
+1
+create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
+"Should have only 2 processes: the scheduler and the locked event"
+select /*3*/ user, host, db, command, state, info
+from information_schema.processlist
+where (info like "select get_lock%" OR user='event_scheduler')
+order by info;
+user	host	db	command	state	info
+event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
+root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
+set global event_scheduler=off;
+"Should have only our process now:"
+select /*4*/ user, host, db, command, state, info
+from information_schema.processlist
+where (info like "select get_lock%" OR user='event_scheduler')
+order by info;
+user	host	db	command	state	info
+root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
+select release_lock("test_lock2_1");
+release_lock("test_lock2_1")
+1
+drop event закачка21;
+set global event_scheduler = ON;
+create table t_16 (s1 int);
+create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
+drop table t_16;
+create event white_space
+on schedule every 10 hour
+disable
+do
+select 1;
+select event_schema, event_name, definer, event_definition from information_schema.events where event_name='white_space';
+EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_DEFINITION
+events_test	white_space	root@localhost	select 1
+drop event white_space;
+create event white_space on schedule every 10 hour disable do
+select 2;
+select event_schema, event_name, definer, event_definition from information_schema.events where event_name='white_space';
+EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_DEFINITION
+events_test	white_space	root@localhost	select 2
+drop event white_space;
+create event white_space on schedule every 10 hour disable do	select 3;
+select event_schema, event_name, definer, event_definition from information_schema.events where event_name='white_space';
+EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_DEFINITION
+events_test	white_space	root@localhost	select 3
+drop event white_space;
+create event e1 on schedule every 1 year do set @a = 5;
+create table t1 (s1 int);
+create trigger t1_ai after insert on t1 for each row show create event e1;
+ERROR 0A000: Not allowed to return a result set from a trigger
+drop table t1;
+drop event e1;
+SHOW EVENTS FROM aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+SHOW EVENTS FROM ``;
+ERROR 42000: Incorrect database name ''
+SHOW EVENTS FROM `events\\test`;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+
+LOCK TABLES mode.
+
+create table t1 (a int);
+create event e1 on schedule every 10 hour do select 1;
+lock table t1 read;
+show create event e1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	utf8mb4_0900_ai_ci
+select event_name from information_schema.events;
+EVENT_NAME
+e1
+create event e2 on schedule every 10 hour do select 1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter event e2 disable;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter event e2 rename to e3;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+drop event e2;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+drop event e1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+drop event e1;
+Make sure we have left no events
+select event_name from information_schema.events;
+EVENT_NAME
+
+Events in sub-statements, events and prelocking
+
+
+create event e1 on schedule every 10 hour do select 1;
+create function f1() returns int
+begin
+show create event e1;
+return 1;
+end|
+ERROR 0A000: Not allowed to return a result set from a function
+create trigger trg before insert on t1 for each row
+begin
+show create event e1;
+end|
+ERROR 0A000: Not allowed to return a result set from a trigger
+create function f1() returns int
+begin
+select event_name from information_schema.events;
+return 1;
+end|
+ERROR 0A000: Not allowed to return a result set from a function
+create trigger trg before insert on t1 for each row
+begin
+select event_name from information_schema.events;
+end|
+ERROR 0A000: Not allowed to return a result set from a trigger
+create function f1() returns int
+begin
+create event e2 on schedule every 10 hour do select 1;
+return 1;
+end|
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
+create function f1() returns int
+begin
+alter event e1 rename to e2;
+return 1;
+end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+create function f1() returns int
+begin
+drop event e2;
+return 1;
+end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+----------------------------------------------------------------------
+create trigger trg before insert on t1 for each row
+begin
+set new.a= f1();
+end|
+create function f1() returns int
+begin
+call p1();
+return 0;
+end|
+create procedure p1()
+begin
+select event_name from information_schema.events;
+end|
+insert into t1 (a) values (1)|
+ERROR 0A000: Not allowed to return a result set from a trigger
+drop procedure p1|
+create procedure p1()
+begin
+create temporary table tmp select event_name from information_schema.events;
+end|
+expected to work, since we redirect the output into a tmp table
+insert into t1 (a) values (1)|
+select * from tmp|
+EVENT_NAME
+e1
+drop temporary table tmp|
+drop procedure p1|
+create procedure p1()
+begin
+alter event e1 rename to e2;
+end|
+insert into t1 (a) values (1)|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+drop procedure p1|
+create procedure p1()
+begin
+drop event e1;
+end|
+insert into t1 (a) values (1)|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+drop table t1|
+drop event e1|
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create event имя_события_в_кодировке_утф8_длиной_больше_чем_48 on schedule every 2 year do select 1;
+select EVENT_NAME from information_schema.events
+where event_schema='test';
+EVENT_NAME
+drop event имя_события_в_кодировке_утф8_длиной_больше_чем_48;
+create event
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66
+on schedule every 2 year do select 1;
+ERROR 42000: Identifier name 'очень_очень_очень_очень_очень_очень_очень_очень_длинна' is too long
+create event event_35981 on schedule every 6 month on completion preserve
+disable
+do
+select 1;
+The following SELECTs should all give 1
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'PRESERVE';
+count(*)
+1
+alter   event event_35981 enable;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'PRESERVE';
+count(*)
+1
+alter   event event_35981 on completion not preserve;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'NOT PRESERVE';
+count(*)
+1
+alter   event event_35981 disable;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'NOT PRESERVE';
+count(*)
+1
+alter   event event_35981 on completion preserve;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'PRESERVE';
+count(*)
+1
+drop event event_35981;
+create event event_35981 on schedule every 6 month disable
+do
+select 1;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'NOT PRESERVE';
+count(*)
+1
+drop event event_35981;
+create event event_35981 on schedule every 1 hour starts current_timestamp
+on completion not preserve
+do
+select 1;
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00';
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future.
+drop event event_35981;
+create event event_35981 on schedule every 1 hour starts current_timestamp
+on completion not preserve
+do
+select 1;
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00' on completion preserve;
+Warnings:
+Note	1544	Event execution time is in the past. Event has been disabled
+drop event event_35981;
+create event event_35981 on schedule every 1 hour starts current_timestamp
+on completion preserve
+do
+select 1;
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00';
+Warnings:
+Note	1544	Event execution time is in the past. Event has been disabled
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00' on completion not preserve;
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future.
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00' on completion preserve;
+Warnings:
+Note	1544	Event execution time is in the past. Event has been disabled
+drop event event_35981;
+drop database events_test;

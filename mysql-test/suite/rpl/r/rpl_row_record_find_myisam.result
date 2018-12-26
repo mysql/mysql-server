@@ -1,0 +1,15 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 ( i1 int, c1 char(1), key ( i1 ));
+INSERT IGNORE INTO t1 VALUES (1, 'a');
+UPDATE t1 SET c1 = 'b' WHERE i1 = 1;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+CREATE TABLE table1_myisam ( `bit_key` bit, `int_key` int, key (`bit_key` ), key (`int_key` ));
+INSERT IGNORE INTO table1_myisam VALUES ('1', '-2146992385');
+UPDATE `table1_myisam` SET `bit_key` = 0 WHERE `bit_key` = 1;
+DROP TABLE table1_myisam;
+include/rpl_end.inc

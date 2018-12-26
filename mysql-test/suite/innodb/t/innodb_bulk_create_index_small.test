@@ -1,0 +1,148 @@
+#
+# wl#7277: InnoDB: Bulk Load for Create Index
+#
+
+-- source include/have_innodb_max_16k.inc
+
+# Create Insert Procedure
+DELIMITER |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+	DECLARE i int DEFAULT 1;
+
+	START TRANSACTION;
+	WHILE (i <= 1000) DO
+		INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+		SET i = i + 1;
+	END WHILE;
+	COMMIT;
+END|
+DELIMITER ;|
+
+SELECT @@innodb_fill_factor;
+
+# Test Compact Table
+CREATE TABLE t1(
+	class	INT,
+	id	INT,
+	title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+
+-- disable_query_log
+CALL populate_t1();
+-- enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+
+CREATE INDEX idx_title ON t1(title);
+
+/* Check table. */
+CHECK TABLE t1;
+
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 500;
+SELECT * FROM t1 WHERE title = 'a500';
+
+SELECT * FROM t1 WHERE id = 1000;
+SELECT * FROM t1 WHERE title = 'a1000';
+
+SELECT * FROM t1 WHERE id = 1010;
+SELECT * FROM t1 WHERE title = 'a1010';
+
+DROP TABLE t1;
+
+# Test Blob
+CREATE TABLE t1(
+	a INT PRIMARY KEY,
+	b TEXT,
+	c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+
+INSERT INTO t1 VALUES
+        (1, REPEAT('a',10000), 'a'),
+        (2, REPEAT('b',20000), 'b'),
+        (3, REPEAT('c',40000), 'c'),
+        (4, REPEAT('d',60000), 'd');
+
+ALTER TABLE t1 DROP COLUMN c;
+
+CHECK TABLE t1;
+
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_file_per_table=default;
+
+# Test Compressed Table
+SET GLOBAL innodb_file_per_table=1;
+
+CREATE TABLE t1(
+	class	INT,
+	id	INT,
+	title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+
+-- disable_query_log
+CALL populate_t1();
+-- enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+
+CREATE INDEX idx_title ON t1(title);
+
+/* Check table. */
+CHECK TABLE t1;
+
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 500;
+SELECT * FROM t1 WHERE title = 'a500';
+
+SELECT * FROM t1 WHERE id = 1000;
+SELECT * FROM t1 WHERE title = 'a1000';
+
+SELECT * FROM t1 WHERE id = 1010;
+SELECT * FROM t1 WHERE title = 'a1010';
+
+DROP TABLE t1;
+
+# Test Compression & Blob
+CREATE TABLE t1(
+	a INT PRIMARY KEY,
+	b TEXT,
+	c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+
+INSERT INTO t1 VALUES
+        (1, REPEAT('a',10000), 'a'),
+        (2, REPEAT('b',20000), 'b'),
+        (3, REPEAT('c',40000), 'c'),
+        (4, REPEAT('d',60000), 'd');
+
+ALTER TABLE t1 DROP COLUMN c;
+
+CHECK TABLE t1;
+
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_file_per_table=default;
+
+DROP PROCEDURE populate_t1;

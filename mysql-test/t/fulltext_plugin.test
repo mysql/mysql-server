@@ -1,0 +1,18 @@
+# This tests the functionality of the fulltext search of Myisam engine
+# The implementation of the fulltext search is different in InnoDB engine
+# All tests are required to run with Myisam.
+# Hence MTR starts mysqld with MyISAM as default
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+--source include/have_simple_parser.inc
+
+#
+# BUG#39746 - Debug flag breaks struct definition (server crash)
+#
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
+CREATE TABLE t1(a TEXT, b TEXT, FULLTEXT(a) WITH PARSER simple_parser);
+ALTER TABLE t1 ADD FULLTEXT(b) WITH PARSER simple_parser;
+DROP TABLE t1;
+UNINSTALL PLUGIN simple_parser;

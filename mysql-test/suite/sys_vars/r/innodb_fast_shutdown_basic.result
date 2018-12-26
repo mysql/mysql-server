@@ -1,0 +1,146 @@
+SET @global_start_value = @@global.innodb_fast_shutdown;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+1
+'#--------------------FN_DYNVARS_042_01------------------------#'
+SET @@global.innodb_fast_shutdown = 0;
+SET @@global.innodb_fast_shutdown = DEFAULT;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+1
+'#---------------------FN_DYNVARS_042_02-------------------------#'
+SET innodb_fast_shutdown = 1;
+ERROR HY000: Variable 'innodb_fast_shutdown' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@innodb_fast_shutdown;
+@@innodb_fast_shutdown
+1
+SELECT global.innodb_fast_shutdown;
+ERROR 42S02: Unknown table 'global' in field list
+SET global innodb_fast_shutdown = 1;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+1
+'#--------------------FN_DYNVARS_042_03------------------------#'
+SET @@global.innodb_fast_shutdown = 0;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = 1;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+1
+SET @@global.innodb_fast_shutdown = 2;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+2
+'#--------------------FN_DYNVARS_042_04-------------------------#'
+SET @@global.innodb_fast_shutdown = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_fast_shutdown value: '-1'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = TRU;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = TRUE_F;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = FALS;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = OON;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = ONN;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = OOFF;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = 0FF;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = '1';
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = "0";
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+'#-------------------FN_DYNVARS_042_05----------------------------#'
+SET @@session.innodb_fast_shutdown = 0;
+ERROR HY000: Variable 'innodb_fast_shutdown' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@innodb_fast_shutdown = 0;
+ERROR HY000: Variable 'innodb_fast_shutdown' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@local.innodb_fast_shutdown = 0;
+ERROR HY000: Variable 'innodb_fast_shutdown' is a GLOBAL variable and should be set with SET GLOBAL
+'#----------------------FN_DYNVARS_042_06------------------------#'
+SELECT count(VARIABLE_VALUE) AS res_is_0
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='innodb_fast_shutdown';
+res_is_0
+1
+'#----------------------FN_DYNVARS_042_07------------------------#'
+SELECT @@global.innodb_fast_shutdown =
+VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_fast_shutdown';
+@@global.innodb_fast_shutdown =
+VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_042_08-------------------------#'
+SET @@global.innodb_fast_shutdown = OFF;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_fast_shutdown'
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+'#---------------------FN_DYNVARS_042_09----------------------#'
+SET @@global.innodb_fast_shutdown = TRUE;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+1
+SET @@global.innodb_fast_shutdown = FALSE;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown = @global_start_value;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+1

@@ -1,0 +1,173 @@
+SET @start_global_value = @@global.net_read_timeout;
+SELECT @start_global_value;
+@start_global_value
+30
+SET @start_session_value = @@session.net_read_timeout;
+SELECT @start_session_value;
+@start_session_value
+30
+'#--------------------FN_DYNVARS_110_01-------------------------#'
+SET @@global.net_read_timeout = 100;
+SET @@global.net_read_timeout = DEFAULT;
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+30
+SET @@session.net_read_timeout = 200;
+SET @@session.net_read_timeout = DEFAULT;
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+30
+'#--------------------FN_DYNVARS_110_02-------------------------#'
+SET @@global.net_read_timeout = DEFAULT;
+SELECT @@global.net_read_timeout = 30;
+@@global.net_read_timeout = 30
+1
+SET @@session.net_read_timeout = DEFAULT;
+SELECT @@session.net_read_timeout = 30;
+@@session.net_read_timeout = 30
+1
+'#--------------------FN_DYNVARS_110_03-------------------------#'
+SET @@global.net_read_timeout = 1;
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+1
+SET @@global.net_read_timeout = 60020;
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+60020
+SET @@global.net_read_timeout = 65535;
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+65535
+'#--------------------FN_DYNVARS_110_04-------------------------#'
+SET @@session.net_read_timeout = 1;
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+1
+SET @@session.net_read_timeout = 50050;
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+50050
+SET @@session.net_read_timeout = 65535;
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+65535
+'#------------------FN_DYNVARS_110_05-----------------------#'
+SET @@global.net_read_timeout = 0;
+Warnings:
+Warning	1292	Truncated incorrect net_read_timeout value: '0'
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+1
+SET @@global.net_read_timeout = -1024;
+Warnings:
+Warning	1292	Truncated incorrect net_read_timeout value: '-1024'
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+1
+SET @@global.net_read_timeout = 655360354;
+Warnings:
+Warning	1292	Truncated incorrect net_read_timeout value: '655360354'
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+31536000
+SET @@global.net_read_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+31536000
+SET @@global.net_read_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+31536000
+SET @@global.net_read_timeout = ' ';
+ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+31536000
+SET @@session.net_read_timeout = 0;
+Warnings:
+Warning	1292	Truncated incorrect net_read_timeout value: '0'
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+1
+SET @@session.net_read_timeout = -2;
+Warnings:
+Warning	1292	Truncated incorrect net_read_timeout value: '-2'
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+1
+SET @@session.net_read_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
+SET @@session.net_read_timeout = 6555015425;
+Warnings:
+Warning	1292	Truncated incorrect net_read_timeout value: '6555015425'
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+31536000
+SET @@session.net_read_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+31536000
+SET @@session.net_read_timeout = ' ';
+ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+31536000
+'#------------------FN_DYNVARS_110_06-----------------------#'
+SELECT @@global.net_read_timeout = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='net_read_timeout';
+@@global.net_read_timeout = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_110_07-----------------------#'
+SELECT @@session.net_read_timeout = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='net_read_timeout';
+@@session.net_read_timeout = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_110_08-----------------------#'
+SET @@global.net_read_timeout = TRUE;
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+1
+SET @@global.net_read_timeout = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect net_read_timeout value: '0'
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+1
+'#---------------------FN_DYNVARS_110_09----------------------#'
+SET @@global.net_read_timeout = 10;
+SELECT @@net_read_timeout = @@global.net_read_timeout;
+@@net_read_timeout = @@global.net_read_timeout
+0
+'#---------------------FN_DYNVARS_110_10----------------------#'
+SET @@net_read_timeout = 100;
+SELECT @@net_read_timeout = @@local.net_read_timeout;
+@@net_read_timeout = @@local.net_read_timeout
+1
+SELECT @@local.net_read_timeout = @@session.net_read_timeout;
+@@local.net_read_timeout = @@session.net_read_timeout
+1
+'#---------------------FN_DYNVARS_110_11----------------------#'
+SET net_read_timeout = 1;
+SELECT @@net_read_timeout;
+@@net_read_timeout
+1
+SELECT local.net_read_timeout;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.net_read_timeout;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT net_read_timeout = @@session.net_read_timeout;
+ERROR 42S22: Unknown column 'net_read_timeout' in 'field list'
+SET @@global.net_read_timeout = @start_global_value;
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+30
+SET @@session.net_read_timeout = @start_session_value;
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+30

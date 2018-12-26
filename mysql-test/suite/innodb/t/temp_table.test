@@ -1,0 +1,53 @@
+
+####################################################################
+# TC to test temp-table DML optimization changes for correctness   #
+# Sceanrio covered:						   #
+# 1. bulk-insert with rollback + commit: this will ensure btree    #
+#    node split with rollback and commit.                          #
+####################################################################
+
+#-------------------------------------------------------------------
+#
+# 1. bulk-insert with rollback + commit: this will ensure btree    #
+#    node split with rollback and commit.                          #
+#
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc), index sec_index(c1)
+	) engine = innodb;
+create temporary table t2
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc), index sec_index(c1)
+	) engine = innodb;
+--source suite/innodb/include/dml_ops.inc
+drop temporary table t1,t2;
+#
+--error ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc), index sec_index(c1)
+	) engine = innodb key_block_size = 4;
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc), index sec_index(c1)
+	) engine = innodb;
+set innodb_strict_mode=off;
+--disable_warnings
+create temporary table t2
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc), index sec_index(c1)
+	) engine = innodb key_block_size = 8;
+set innodb_strict_mode=on;
+--enable_warnings
+--source suite/innodb/include/dml_ops.inc
+drop temporary table t1, t2;
+#
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc), index sec_index(c1)
+	) engine = innodb;
+create temporary table t2
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc), index sec_index(c1)
+	) engine = innodb;
+--source suite/innodb/include/dml_ops.inc

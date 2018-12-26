@@ -1,0 +1,23 @@
+# The test is not relevant when testing replication of error codes for
+# statements that are not replicated.  The test below could be changed
+# to rely on the replication of error codes for statements that are not
+# replicated row-based.
+#
+# See if an EE_ error in one event of the master's binlog stops replication
+# (it should not: in this configuration the EE_ error is probably not 
+# critical). Example: you do a DROP TABLE on a table which has no MYI file
+# check if START SLAVE, RESET SLAVE, CHANGE MASTER reset Last_slave_error and
+# Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986).
+####################################
+#"REQUIREMENT: A master DROP TABLE on a table with non-existing MYI
+# file must be correctly replicated to the slave"
+####################################
+-- source include/master-slave.inc
+
+eval create table t1 (a int) engine=$engine_type;
+flush tables;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/t1.MYI ;
+drop table if exists t1;
+
+--source include/rpl_end.inc

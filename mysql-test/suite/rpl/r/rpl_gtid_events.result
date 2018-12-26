@@ -1,0 +1,97 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Initialize ====
+==== Test presence of transaction events ====
+include/save_binlog_position.inc
+CREATE TABLE t1 (a VARCHAR(10000));
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+INSERT INTO t1 VALUES ('1');
+include/assert_binlog_events.inc
+==== Generate new binary logs in many ways ====
+---- RESET MASTER ----
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+INSERT INTO t1 VALUES ('2');
+include/start_slave_io.inc
+---- FLUSH LOGS ----
+FLUSH LOGS;
+INSERT INTO t1 VALUES ('3');
+---- Grow over the limit ----
+SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
+INSERT INTO t1 VALUES ('<LONG_TEXT>');
+SET @@GLOBAL.MAX_BINLOG_SIZE= 1073741824;
+INSERT INTO t1 VALUES ('4');
+---- Restart server ----
+include/sync_slave_io_with_master.inc
+include/stop_slave_io.inc
+include/rpl_restart_server.inc [server_number=1]
+INSERT INTO t1 VALUES ('5');
+==== Generate new relay logs in many ways ====
+---- Reconnect receiver thread ----
+include/save_master_pos.inc
+include/start_slave_io.inc
+include/sync_slave_io.inc
+include/stop_slave_io.inc
+SET @@GLOBAL.MAX_RELAY_LOG_SIZE= 4096;
+include/start_slave_io.inc
+INSERT INTO t1 VALUES ('6');
+include/sync_slave_io_with_master.inc
+---- FLUSH RELAY LOGS ----
+FLUSH RELAY LOGS;
+INSERT INTO t1 VALUES ('7');
+include/sync_slave_io_with_master.inc
+---- Grow over the limit ----
+INSERT INTO t1 VALUES ('<LONG_TEXT>');
+INSERT INTO t1 VALUES ('8');
+include/sync_slave_io_with_master.inc
+---- Restart slave server ----
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave_io.inc
+INSERT INTO t1 VALUES ('9');
+include/sync_slave_io_with_master.inc
+==== Test that binary logs contain Previous_gtids ====
+SET SQL_LOG_BIN= 0;
+CREATE TEMPORARY TABLE binlogs
+(id INT PRIMARY KEY AUTO_INCREMENT, filename VARCHAR(512));
+include/rpl_read_binlog_index_into_table.inc
+master-bin.000001
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+master-bin.000002
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+master-bin.000003
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+master-bin.000004
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+DROP TEMPORARY TABLE binlogs;
+SET SQL_LOG_BIN= 1;
+==== Test that relay logs contain Previous_gtids ====
+SET SQL_LOG_BIN= 0;
+CREATE TEMPORARY TABLE relay_logs
+(id INT PRIMARY KEY AUTO_INCREMENT, filename VARCHAR(512));
+include/rpl_read_binlog_index_into_table.inc
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+include/assert_binlog_events.inc [Format_desc # Previous_gtids(.|#)*]
+DROP TEMPORARY TABLE relay_logs;
+SET SQL_LOG_BIN= 1;
+==== Clean up ====
+include/start_slave_sql.inc
+DROP TABLE t1;
+include/rpl_end.inc

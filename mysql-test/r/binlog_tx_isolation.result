@@ -1,0 +1,48 @@
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
+SET BINLOG_FORMAT=STATEMENT;
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+ERROR HY000: Transaction isolation level 'READ-COMMITTED' is not safe for 'STATEMENT' binlog mode
+UPDATE t1 SET b = a*a WHERE a > 1;
+COMMIT;
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+UPDATE t1 SET b = a*a WHERE a > 1;
+COMMIT;
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+UPDATE t1 SET b = a*a WHERE a > 1;
+COMMIT;
+SET BINLOG_FORMAT=MIXED;
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+ERROR HY000: Transaction isolation level 'READ-COMMITTED' is not safe for 'MIXED' binlog mode
+UPDATE t1 SET b = a*a*a WHERE a > 2;
+COMMIT;
+SET BINLOG_FORMAT=ROW;
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+UPDATE t1 SET b = a*a*a*a WHERE a > 3;
+COMMIT;
+SELECT @@session.tx_isolation, @@session.binlog_format;
+@@session.tx_isolation	READ-COMMITTED
+@@session.binlog_format	ROW
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET BINLOG_FORMAT=MIXED;
+ERROR HY000: Transaction isolation level 'READ-COMMITTED' prevents leaving 'ROW' binlog mode
+UPDATE t1 SET b = a*a*a*a WHERE a > 3;
+COMMIT;
+SELECT @@session.tx_isolation, @@session.binlog_format;
+@@session.tx_isolation	READ-COMMITTED
+@@session.binlog_format	ROW
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET BINLOG_FORMAT=STATEMENT;
+ERROR HY000: Transaction isolation level 'READ-COMMITTED' prevents leaving 'ROW' binlog mode
+UPDATE t1 SET b = a*a*a*a WHERE a > 3;
+COMMIT;
+SELECT @@session.tx_isolation, @@session.binlog_format;
+@@session.tx_isolation	READ-COMMITTED
+@@session.binlog_format	ROW

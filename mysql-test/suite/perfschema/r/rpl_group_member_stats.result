@@ -1,0 +1,8 @@
+include/assert.inc [The value of member_id should not be present]
+include/assert.inc [The value of view_id should not be present]
+include/assert.inc [The value of Count_Transactions_in_queue should be 0]
+include/assert.inc [The value of Count_Transactions_checked should be 0]
+include/assert.inc [The value of Count_conflicts_detected should be 0]
+include/assert.inc [The value of Count_Transactions_rows_validating should be 0]
+include/assert.inc [The value of Transactions_Committed_all_members should be 0]
+include/assert.inc [The value of Last_conflict_free_transaction should not be present]

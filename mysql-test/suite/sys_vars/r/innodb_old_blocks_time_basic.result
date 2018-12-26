@@ -1,0 +1,56 @@
+SET @start_global_value = @@global.innodb_old_blocks_time;
+SELECT @start_global_value;
+@start_global_value
+1000
+Valid values are zero or above
+select @@global.innodb_old_blocks_time >=0;
+@@global.innodb_old_blocks_time >=0
+1
+select @@global.innodb_old_blocks_time;
+@@global.innodb_old_blocks_time
+1000
+select @@session.innodb_old_blocks_time;
+ERROR HY000: Variable 'innodb_old_blocks_time' is a GLOBAL variable
+show global variables like 'innodb_old_blocks_time';
+Variable_name	Value
+innodb_old_blocks_time	1000
+show session variables like 'innodb_old_blocks_time';
+Variable_name	Value
+innodb_old_blocks_time	1000
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_time';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_old_blocks_time	1000
+select * from performance_schema.session_variables where variable_name='innodb_old_blocks_time';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_old_blocks_time	1000
+set global innodb_old_blocks_time=10;
+select @@global.innodb_old_blocks_time;
+@@global.innodb_old_blocks_time
+10
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_time';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_old_blocks_time	10
+select * from performance_schema.session_variables where variable_name='innodb_old_blocks_time';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_old_blocks_time	10
+set session innodb_old_blocks_time=1;
+ERROR HY000: Variable 'innodb_old_blocks_time' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_old_blocks_time=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_old_blocks_time'
+set global innodb_old_blocks_time=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_old_blocks_time'
+set global innodb_old_blocks_time="foo";
+ERROR 42000: Incorrect argument type to variable 'innodb_old_blocks_time'
+set global innodb_old_blocks_time=-7;
+Warnings:
+Warning	1292	Truncated incorrect innodb_old_blocks_time value: '-7'
+select @@global.innodb_old_blocks_time;
+@@global.innodb_old_blocks_time
+0
+select * from performance_schema.global_variables where variable_name='innodb_old_blocks_time';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_old_blocks_time	0
+SET @@global.innodb_old_blocks_time = @start_global_value;
+SELECT @@global.innodb_old_blocks_time;
+@@global.innodb_old_blocks_time
+1000

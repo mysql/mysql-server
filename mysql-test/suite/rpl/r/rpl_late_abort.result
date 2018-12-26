@@ -1,0 +1,38 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+SET GLOBAL DEBUG="+d,dbug_set_high_prio_sql_thread";
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+[connection master]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+include/rpl_connect.inc [creating sigcon]
+[connection sigcon]
+include/sync_slave_sql_with_master.inc
+BEGIN;
+SELECT c1 FROM t1 WHERE c1=0 FOR UPDATE;
+c1
+0
+SET DEBUG_SYNC='trx_commit_for_mysql_checks_for_aborted WAIT_FOR waiting1';
+COMMIT;
+[connection slave]
+[connection master]
+UPDATE t1 SET c1=1 WHERE c1=0;
+[connection slave]
+SET DEBUG_SYNC='now SIGNAL waiting1';
+[connection sigcon]
+[connection sigcon]
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is a 1 in t1']
+include/assert.inc ['There is no 0 in t1']
+include/assert.inc ['There is no 99 in t1']
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+SET GLOBAL DEBUG="-d,dbug_set_high_prio_sql_thread";
+include/start_slave_sql.inc
+include/rpl_end.inc

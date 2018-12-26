@@ -1,0 +1,12 @@
+--echo ------ Run plugin ------------------------------------------------
+--replace_result $TEST_SQL_STMT TEST_SQL_STMT
+eval INSTALL PLUGIN test_sql_stmt SONAME '$TEST_SQL_STMT';
+--echo ------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_sql_stmt;
+
+--echo ------ plugin log ------------------------------------------------
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_stmt.log;
+remove_file $MYSQLD_DATADIR/test_sql_stmt.log;
+
+--echo ------ cleanup ---------------------------------------------------

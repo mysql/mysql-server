@@ -1,0 +1,53 @@
+################################################################################
+# t/gcol_merge.test                                                            #
+#                                                                              #
+# Purpose:                                                                     #
+#        MERGE branch                                                          #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: Andrey Zhakov                                               #
+# Original Date: 2008-09-03                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+--source suite/gcol/inc/gcol_init_vars.pre
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+# Set the session storage engine
+
+##### Workarounds for known open engine specific bugs
+#     none
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+create table t1 (a int, b int generated always as (a % 10) virtual);
+create table t2 (a int, b int generated always as (a % 10) virtual);
+insert into t1 values (1,default);
+insert into t2 values (2,default);
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+create table t3 (a int, b int generated always as (a % 10) virtual) engine=MERGE UNION=(t1,t2);
+drop table t1,t2;
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/gcol/inc/gcol_cleanup.inc

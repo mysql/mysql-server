@@ -1,0 +1,26 @@
+#
+# only global
+#
+--replace_regex s/[0-9]+/DEFAULT_MASTER_PORT/
+select @@global.report_port;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.report_port;
+--replace_column 2 'DEFAULT_MASTER_PORT'
+show global variables like 'report_port';
+--replace_column 2 'DEFAULT_MASTER_PORT'
+show session variables like 'report_port';
+--disable_warnings
+--replace_column 2 'DEFAULT_MASTER_PORT'
+select * from performance_schema.global_variables where variable_name='report_port';
+--replace_column 2 'DEFAULT_MASTER_PORT'
+select * from performance_schema.session_variables where variable_name='report_port';
+--replace_column 2 'DEFAULT_MASTER_PORT'
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global report_port=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session report_port=1;

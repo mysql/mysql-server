@@ -1,0 +1,26 @@
+--source include/have_ndb.inc
+
+#
+# Test that the mysql.ndb_binlog_index table has been created properly.
+# The table is used by MySQL Cluster replication to keep an index of
+# how epochs in the cluster relates to positions in the binary log.
+#
+# The table is created by SQL in the mysqld's bootstrap code and its
+# schema is kept up to date by SQL compiled into mysql_upgrade.
+#
+
+#
+# Check that the mysql.ndb_binlog_index table exist
+#
+select TABLE_SCHEMA, TABLE_NAME from information_schema.tables
+  where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_binlog_index';
+
+#
+# Check that mysql.ndb_binlog_index table contains the expected columns
+# and data types
+#
+select ORDINAL_POSITION, COLUMN_NAME, COLUMN_TYPE, COLUMN_DEFAULT,
+       IS_NULLABLE from information_schema.columns
+  where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_binlog_index'
+  order by ORDINAL_POSITION;
+

@@ -1,0 +1,279 @@
+show databases;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+select count(*) from performance_schema.performance_timers;
+count(*)
+4
+select count(*) from performance_schema.setup_consumers;
+count(*)
+15
+select count(*) > 4 from performance_schema.setup_instruments;
+count(*) > 4
+1
+select * from performance_schema.accounts;
+select * from performance_schema.cond_instances;
+select * from performance_schema.events_stages_current;
+select * from performance_schema.events_stages_history;
+select * from performance_schema.events_stages_history_long;
+select * from performance_schema.events_stages_summary_by_account_by_event_name;
+select * from performance_schema.events_stages_summary_by_host_by_event_name;
+select * from performance_schema.events_stages_summary_by_thread_by_event_name;
+select * from performance_schema.events_stages_summary_by_user_by_event_name;
+select * from performance_schema.events_stages_summary_global_by_event_name;
+select * from performance_schema.events_statements_current;
+select * from performance_schema.events_statements_histogram_by_digest;
+select * from performance_schema.events_statements_histogram_global;
+select * from performance_schema.events_statements_history;
+select * from performance_schema.events_statements_history_long;
+select * from performance_schema.events_statements_summary_by_account_by_event_name;
+select * from performance_schema.events_statements_summary_by_digest;
+select * from performance_schema.events_statements_summary_by_host_by_event_name;
+select * from performance_schema.events_statements_summary_by_thread_by_event_name;
+select * from performance_schema.events_statements_summary_by_user_by_event_name;
+select * from performance_schema.events_statements_summary_global_by_event_name;
+select * from performance_schema.events_transactions_current;
+select * from performance_schema.events_transactions_history;
+select * from performance_schema.events_transactions_history_long;
+select * from performance_schema.events_transactions_summary_by_account_by_event_name;
+select * from performance_schema.events_transactions_summary_by_host_by_event_name;
+select * from performance_schema.events_transactions_summary_by_thread_by_event_name;
+select * from performance_schema.events_transactions_summary_by_user_by_event_name;
+select * from performance_schema.events_transactions_summary_global_by_event_name;
+select * from performance_schema.events_waits_current;
+select * from performance_schema.events_waits_history;
+select * from performance_schema.events_waits_history_long;
+select * from performance_schema.events_waits_summary_by_account_by_event_name;
+select * from performance_schema.events_waits_summary_by_host_by_event_name;
+select * from performance_schema.events_waits_summary_by_instance;
+select * from performance_schema.events_waits_summary_by_thread_by_event_name;
+select * from performance_schema.events_waits_summary_by_user_by_event_name;
+select * from performance_schema.events_waits_summary_global_by_event_name;
+select * from performance_schema.memory_summary_by_account_by_event_name;
+select * from performance_schema.memory_summary_by_host_by_event_name;
+select * from performance_schema.memory_summary_by_thread_by_event_name;
+select * from performance_schema.memory_summary_by_user_by_event_name;
+select * from performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.events_errors_summary_by_account_by_error;
+select * from performance_schema.events_errors_summary_by_host_by_error;
+select * from performance_schema.events_errors_summary_by_thread_by_error;
+select * from performance_schema.events_errors_summary_by_user_by_error;
+select * from performance_schema.events_errors_summary_global_by_error;
+select * from performance_schema.file_instances;
+select * from performance_schema.file_summary_by_event_name;
+select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.host_cache;
+select * from performance_schema.hosts;
+select * from performance_schema.memory_summary_by_account_by_event_name;
+select * from performance_schema.memory_summary_by_host_by_event_name;
+select * from performance_schema.memory_summary_by_thread_by_event_name;
+select * from performance_schema.memory_summary_by_user_by_event_name;
+select * from performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.metadata_locks;
+select * from performance_schema.mutex_instances;
+select * from performance_schema.objects_summary_global_by_type;
+select * from performance_schema.performance_timers;
+select * from performance_schema.rwlock_instances;
+select * from performance_schema.data_locks;
+select * from performance_schema.data_lock_waits;
+select * from performance_schema.session_account_connect_attrs;
+select * from performance_schema.session_connect_attrs;
+select * from performance_schema.setup_actors;
+select * from performance_schema.setup_consumers;
+select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_objects;
+select * from performance_schema.setup_threads;
+select * from performance_schema.socket_instances;
+select * from performance_schema.socket_summary_by_instance;
+select * from performance_schema.socket_summary_by_event_name;
+select * from performance_schema.table_handles;
+select * from performance_schema.table_io_waits_summary_by_index_usage;
+select * from performance_schema.table_io_waits_summary_by_table;
+select * from performance_schema.table_lock_waits_summary_by_table;
+select * from performance_schema.threads;
+select * from performance_schema.users;
+select * from performance_schema.replication_connection_configuration;
+select * from performance_schema.replication_connection_status;
+select * from performance_schema.replication_applier_configuration;
+select * from performance_schema.replication_applier_status;
+select * from performance_schema.replication_applier_status_by_coordinator;
+select * from performance_schema.replication_applier_status_by_worker;
+select * from performance_schema.global_status;
+select * from performance_schema.status_by_thread;
+select * from performance_schema.status_by_user;
+select * from performance_schema.status_by_host;
+select * from performance_schema.status_by_account;
+select * from performance_schema.session_status;
+select * from performance_schema.global_variables;
+select * from performance_schema.variables_by_thread;
+select * from performance_schema.session_variables;
+show engine PERFORMANCE_SCHEMA status;
+show global status like "performance_schema%";
+show global variables like "performance_schema_max_program_instances";
+Variable_name	Value
+performance_schema_max_program_instances	0
+show global variables like "performance_schema_max_statement_stack";
+Variable_name	Value
+performance_schema_max_statement_stack	1
+##################### 
+# Setup
+##################### 
+# SET-UP
+CREATE DATABASE nested_sp;
+USE nested_sp;
+CREATE TABLE t1(
+id   CHAR(16) NOT NULL DEFAULT '',
+data INT NOT NULL
+);
+CREATE TABLE t2(
+n INT UNSIGNED NOT NULL, 
+f BIGINT UNSIGNED
+);
+############################
+# Creating Stored Programs #
+############################
+CREATE PROCEDURE c1(x INT)
+CALL c2("c", x)|
+CREATE PROCEDURE c2(s CHAR(16), x INT)
+CALL c3(x, s)|
+CREATE PROCEDURE c3(x INT, s CHAR(16))
+CALL c4("level", x, s)|
+CREATE PROCEDURE c4(l CHAR(8), x INT, s CHAR(16))
+INSERT INTO t1 VALUES (concat(l,s), x)|
+CREATE PROCEDURE iotest(x1 CHAR(16), x2 CHAR(16), y INT)
+BEGIN
+CALL inc2(x2, y);
+INSERT INTO t1 VALUES (x1, y);
+END|
+CREATE PROCEDURE inc2(x CHAR(16), y INT)
+BEGIN
+CALL inc(y);
+INSERT INTO t1 VALUES (x, y);
+END|
+CREATE PROCEDURE inc(inout io INT)
+SET io = io + 1|
+CREATE FUNCTION mul(x INT, y INT) RETURNS INT
+RETURN x*y|
+CREATE FUNCTION inc(i INT) RETURNS INT
+RETURN i+1|
+CREATE FUNCTION fac(n INT UNSIGNED) RETURNS BIGINT UNSIGNED
+BEGIN
+DECLARE f BIGINT UNSIGNED DEFAULT 1;
+WHILE n > 1 DO
+SET f = f * n;
+SET n = n - 1;
+END WHILE;
+RETURN f;
+END|
+CREATE FUNCTION fun(i INT, u INT UNSIGNED) RETURNS DOUBLE
+RETURN mul(inc(i), fac(u))|
+CREATE PROCEDURE ifac(n INT UNSIGNED)
+BEGIN
+DECLARE i BIGINT UNSIGNED DEFAULT 1;
+IF n > 20 THEN
+SET n = 20;         # bigint overflow otherwise
+END IF;
+WHILE i <= n DO
+BEGIN
+INSERT INTO t2 VALUES (i, fac(i));
+SET i = i + 1;
+END;
+END WHILE;
+END|
+CREATE TRIGGER trg AFTER INSERT ON t1 FOR EACH ROW
+CALL ifac(10)|
+TRUNCATE performance_schema.events_statements_summary_by_program;
+#####################
+# Executing Queries
+##################### 
+#####################
+# Executing queries #
+#####################
+CALL c1(42);
+SELECT * FROM t1;
+id	data
+levelc	42
+DELETE FROM t1;
+CALL iotest("io1", "io2", 1);
+SELECT * FROM t1 ORDER BY data DESC;
+id	data
+io2	2
+io1	1
+DELETE FROM t1;
+SELECT fun(6,10);
+fun(6,10)
+25401600
+INSERT INTO t1 VALUES (20,13);
+SELECT * FROM t2;
+n	f
+1	1
+2	2
+3	6
+4	24
+5	120
+6	720
+7	5040
+8	40320
+9	362880
+10	3628800
+1	1
+2	2
+3	6
+4	24
+5	120
+6	720
+7	5040
+8	40320
+9	362880
+10	3628800
+1	1
+2	2
+3	6
+4	24
+5	120
+6	720
+7	5040
+8	40320
+9	362880
+10	3628800
+1	1
+2	2
+3	6
+4	24
+5	120
+6	720
+7	5040
+8	40320
+9	362880
+10	3628800
+###########################################
+# Quering PS statement summary table      #
+########################################### 
+SELECT OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA
+FROM performance_schema.events_statements_summary_by_program;
+OBJECT_TYPE	OBJECT_NAME	OBJECT_SCHEMA
+SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_program;
+COUNT(*)
+0
+##################### 
+# Cleanup
+##################### 
+DROP PROCEDURE c4;
+DROP PROCEDURE c3;
+DROP PROCEDURE c2;
+DROP PROCEDURE c1;
+DROP PROCEDURE inc;
+DROP PROCEDURE inc2;
+DROP PROCEDURE iotest;
+DROP FUNCTION mul;
+DROP FUNCTION inc;
+DROP FUNCTION fac;
+DROP FUNCTION fun;
+DROP PROCEDURE ifac;
+DROP TRIGGER trg;
+DROP TABLE t1,t2;
+DROP DATABASE nested_sp;

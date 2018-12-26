@@ -1,0 +1,176 @@
+#
+# WL#7364 : RBR - Enhanced Applier Thread Progress
+#
+# 0. Create two masters and a slave and setup a multisource replication
+#    between them.
+# 1. Create a table on both masters and update data on that table.
+#    Test if the slave's applier thread displays the stats of
+#    row based replication for both channels as changed by WL#7364
+#
+# Note: Out of convention, server 2 is always made a slave for multisource testing.
+
+#Skip on group replication runs
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # set up masters server_1 and server_3 with server_2 being a slave.
+--echo #.
+--let $db = test
+--let $rpl_topology= 1->2,3->2
+--let $rpl_multi_source= 1
+--source include/rpl_init.inc
+
+--echo create table t1 on server_1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $old_binlog_rows_query_log_events_1=`SELECT @@binlog_rows_query_log_events`
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
+use test;
+CREATE TABLE t1(a int, PRIMARY KEY (a));
+
+# sync the slave with server_1
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo create table t1 on server_3
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--let $old_binlog_rows_query_log_events_3=`SELECT @@binlog_rows_query_log_events`
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
+use test;
+CREATE TABLE if not exists t1 (a int);
+
+# sync the slave with server_3
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--echo stop slave sql_thread for channel_1
+--let $rpl_channel_name= 'channel_1'
+--source include/stop_slave_sql.inc
+
+--echo stop slave sql_thread for channel_3
+--let $rpl_channel_name= 'channel_3'
+ --source include/stop_slave_sql.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--echo set debug point on slave
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/add_debug_point.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+Begin;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET a= 2;
+DELETE FROM t1 WHERE a=2;
+Commit;
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+Begin;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET a= 2;
+DELETE FROM t1 WHERE a=2;
+Commit;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+#--echo set debug point on slave
+#--let $debug_point=dbug.rpl_apply_sync_barrier
+#--source include/add_debug_point.inc
+
+--let $j=2 #For 2 channels
+while ($j)
+{
+  if($j == 2 )
+  {
+    --echo check on channel_1
+    --let $rpl_channel_name= 'channel_1'
+    --source include/start_slave_sql.inc
+  }
+  if($j == 1)
+  {
+    --echo check on channel_3
+    --let $rpl_channel_name= 'channel_3'
+    --source include/start_slave_sql.inc
+  }
+
+  --let $i=3
+  while($i)
+  {
+    if ($i == 3)
+    {
+      --let $state_progress= Applying batch of row changes (write)
+      --let $info= INSERT INTO t1 VALUES (1)
+    }
+    if ($i == 2)
+    {
+      --let $state_progress= Applying batch of row changes (update)
+      --let $info= UPDATE t1 SET a= 2
+    }
+    if ($i == 1)
+    {
+      --let $state_progress= Applying batch of row changes (delete)
+      --let $info= DELETE FROM t1 WHERE a=2
+    }
+
+    # this session waits for the progress to be updated
+    SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+
+    # applying
+
+    --let $state_stage= $state_progress
+    --let $state_db= $db
+    --let $state_command= Query
+    --let $state_info= $info
+    --source ../include/rpl_row_stages_validate.inc
+
+    # this session signals that applier can proceed to next row
+    SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+
+    --dec $i
+  }
+
+   --dec $j
+}
+
+
+# clean up
+
+#Remove debug point
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/remove_debug_point.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+Drop table t1;
+--eval SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=$old_binlog_rows_query_log_events_1
+
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+Drop table if exists t1;
+--eval SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=$old_binlog_rows_query_log_events_3
+
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

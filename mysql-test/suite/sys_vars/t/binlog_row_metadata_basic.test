@@ -1,0 +1,123 @@
+################## mysql-test\t\binlog_row_metadata_basic.test ################
+#                                                                             #
+# Variable Name: binlog_row_metadata                                          #
+# Scope: Global                                                               #
+# Data Type: enumeration                                                      #
+#                                                                             #
+# Creation Date: 2017-01-23                                                   #
+# Author : Libing Song                                                        #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable binlog_row_metadata       #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#   http://dev.mysql.com/doc/refman/8.X/en/server-system-variables.html       #
+#                                                                             #
+###############################################################################
+
+
+SELECT @@GLOBAL.binlog_row_metadata;
+--echo MINIMAL Expected
+--error 1238
+SELECT @@SESSION.binlog_row_metadata;
+
+--echo '#---------------------BS_STVARS_002_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SET @start_value= @@global.binlog_row_metadata;
+
+SELECT COUNT(@@GLOBAL.binlog_row_metadata);
+--echo 1 Expected
+
+--echo '#---------------------BS_STVARS_002_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+SET @@GLOBAL.binlog_row_metadata=0;
+SELECT @@GLOBAL.binlog_row_metadata;
+--echo MINIMAL Expected
+
+SET @@GLOBAL.binlog_row_metadata=1;
+SELECT @@GLOBAL.binlog_row_metadata;
+--echo FULL Expected
+
+SET @@GLOBAL.binlog_row_metadata=MINIMAL;
+SELECT @@GLOBAL.binlog_row_metadata;
+--echo MINIMAL Expected
+
+SET @@GLOBAL.binlog_row_metadata=FULL;
+SELECT @@GLOBAL.binlog_row_metadata;
+--echo FULL Expected
+
+SET @@GLOBAL.binlog_row_metadata='MINIMAL';
+SELECT @@GLOBAL.binlog_row_metadata;
+--echo MINIMAL Expected
+
+SET @@GLOBAL.binlog_row_metadata='FULL';
+SELECT @@GLOBAL.binlog_row_metadata;
+--echo FULL Expected
+
+--echo '#---------------------BS_STVARS_002_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.binlog_row_metadata = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='binlog_row_metadata';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.binlog_row_metadata);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='binlog_row_metadata';
+--enable_warnings
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_04----------------------#'
+#################################################################
+# Check if the value in SESSION Table matches value in variable #
+#################################################################
+
+SELECT @@GLOBAL.binlog_row_metadata = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME LIKE 'binlog_row_metadata';
+
+--echo '#---------------------BS_STVARS_002_05----------------------#'
+################################################################################
+#   Check if binlog_row_metadata can be accessed with and without @@ sign      #
+################################################################################
+
+SELECT COUNT(@@binlog_row_metadata);
+--echo 1 Expected
+SELECT COUNT(@@GLOBAL.binlog_row_metadata);
+--echo 1 Expected
+
+--echo '#---------------------BS_STVARS_002_06----------------------#'
+################################################################################
+#   Check if binlog_row_metadata can handle invalid values correctly           #
+################################################################################
+--error 1231 # Cannot set the value
+SET GLOBAL binlog_row_metadata = full1;
+
+--error 1231
+SET GLOBAL binlog_row_metadata = "full1";
+
+--error 1231
+SET GLOBAL binlog_row_metadata = 2;
+
+--error 1231
+SET GLOBAL binlog_row_metadata = -1;
+
+SET @@global.binlog_row_metadata= @start_value;
+

@@ -1,0 +1,23 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+[connection master]
+INSERT INTO test.t2 VALUES (100);
+INSERT INTO test.t2 VALUES (200);
+INSERT INTO test.t2 VALUES (300);
+include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.DEBUG= '+d,simulate_error_throttle_expiry';
+[connection master]
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.DEBUG= '$debug_saved';
+Matching lines are:
+DATE_TIME [Note] [MY-010584] [Repl] Slave SQL for channel '': Could not execute Query event. Detailed error: Slave SQL thread ignored the query because of replicate-*-table rules; Error log throttle is enabled. This error will not be displayed for next 60 secs. It will be suppressed, Error_code: MY-001237
+DATE_TIME [Note] [MY-013147] [Repl] Error log throttle: 3 time(s) Error_code: 1237 "Slave SQL thread ignored the query because of replicate-*-table rules" got suppressed.
+DATE_TIME [Note] [MY-010584] [Repl] Slave SQL for channel '': Could not execute Query event. Detailed error: Slave SQL thread ignored the query because of replicate-*-table rules; Error log throttle is enabled. This error will not be displayed for next 60 secs. It will be suppressed, Error_code: MY-001237
+Occurrences of 'Slave SQL thread ignored the query because of replicate' in the input file: 3
+include/rpl_end.inc

@@ -1,0 +1,110 @@
+#
+# fips support.
+#
+##Test: Default server fips mode.
+Variable_name	Value
+ssl_fips_mode	OFF
+MD5 digest:
+md5(8)
+c9f0f895fb98ab9159f51fd0297e236d
+##Test: Set server fips mode: OFF.
+Server fips mode:
+Variable_name	Value
+ssl_fips_mode	OFF
+MD5 digest:
+md5(8)
+c9f0f895fb98ab9159f51fd0297e236d
+##Test: Set server fips mode: ON.
+Server fips mode:
+Variable_name	Value
+ssl_fips_mode	ON
+MD5 digest:
+md5(8)
+00000000000000000000000000000000
+Level	Code	Message
+Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+##Test: Set server fips mode: STRICT.
+Server fips mode:
+Variable_name	Value
+ssl_fips_mode	STRICT
+MD5 digest:
+md5(8)
+00000000000000000000000000000000
+Level	Code	Message
+Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+##Test: Set server fips mode: INVALID.
+Server fips mode:
+Variable_name	Value
+ssl_fips_mode	STRICT
+##Test: Restart server and provide ssl-fips-mode at server startup:
+Server fips mode:
+Variable_name	Value
+ssl_fips_mode	OFF
+MD5 digest:
+md5(8)
+c9f0f895fb98ab9159f51fd0297e236d
+##Test: Restart server and provide ssl-fips-mode at server startup: ON
+Server fips mode:
+Variable_name	Value
+ssl_fips_mode	ON
+MD5 digest:
+md5(8)
+00000000000000000000000000000000
+Level	Code	Message
+Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+##Test: Restart server and provide ssl-fips-mode at server startup: ON with skip ssl
+Server fips mode:
+Variable_name	Value
+ssl_fips_mode	ON
+MD5 digest:
+md5(8)
+00000000000000000000000000000000
+Level	Code	Message
+Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+##Test: Restart server and provide ssl-fips-mode at server startup: STRICT
+Server fips mode:
+Variable_name	Value
+ssl_fips_mode	STRICT
+MD5 digest:
+md5(8)
+00000000000000000000000000000000
+Level	Code	Message
+Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+##Test: Restart server and provide weak cipher CAMELLIA256-SHA
+client will only able to connect with only FIPS mode OFF
+Variable_name	Value
+ssl_fips_mode	OFF
+Variable_name	Value
+ssl_fips_mode	OFF
+mysqld is alive
+mysqladmin: connect to server at '127.0.0.1' failed
+error: 'SSL connection error: Failed to set ciphers to use'
+mysqladmin: connect to server at '127.0.0.1' failed
+error: 'SSL connection error: Failed to set ciphers to use'
+# restart server using restart default values
+Restart server.
+##Test: MySQL client, Set fips mode: Default
+Variable_name	Value
+ssl_fips_mode	OFF
+MD5 digest:
+md5(8)
+c9f0f895fb98ab9159f51fd0297e236d
+##Test: MySQL client, Set fips mode: OFF
+Variable_name	Value
+ssl_fips_mode	OFF
+MD5 digest:
+md5(8)
+c9f0f895fb98ab9159f51fd0297e236d
+##Test: MySQL client, Set fips mode: ON
+Variable_name	Value
+ssl_fips_mode	OFF
+MD5 digest:
+md5(8)
+c9f0f895fb98ab9159f51fd0297e236d
+##Test: MySQL client, Set fips mode: STRICT
+Variable_name	Value
+ssl_fips_mode	OFF
+MD5 digest:
+md5(8)
+c9f0f895fb98ab9159f51fd0297e236d
+##Test: MySQL client, Set fips mode: INVALID

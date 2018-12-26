@@ -1,0 +1,147 @@
+###############################################################################
+#
+# No members can join the group while a configuration change is occurring
+# This test also checks the coordinator ignores messages if the member is not
+# Online
+#
+# Test:
+#   0. The test need two servers in multi primary mode
+#   1. Activate debug point that will block the group action when changing
+#      to single primary mode, before the action end.
+#   2. Execute action to change group to single primary mode
+#      Wait for it to reach the final stage
+#   3. A new member can't start GR while an action is being executed.
+#      We also block the member from leaving after the error
+#      Wait for the member to be visible on server 1
+#   4. Unlock the action on server 1
+#   5. Allow server 2 to leave
+#      Check an error was returned by the start process
+#   6. After action is executed we can add another member
+#   7. Cleanup
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 1. Activate debug point that will block the group action when changing
+--echo #    to single primary mode
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 2. Execute action to change group to single primary mode
+
+--replace_result $server1_uuid MEMBER1_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: waiting for%"
+--source include/wait_condition.inc
+
+--echo
+--echo # 3. A new member can't start GR while an action is being executed.
+--echo #    We also block the member from leaving after the error
+--echo #    Wait for the member to be visible on server 1
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $group_replication_group_name GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
+
+# Add a wait on failure here to check coordination messages are ignored.
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_leave_on_error';
+
+# Configure the member to use single-primary mode as server 1 is already configured
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+--send START GROUP_REPLICATION
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# Wait for 2 members to appear in the group
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 4. Unlock the action on server 1
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--reap
+
+# 2 members still are visible in the group
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 5. Allow server 2 to leave
+--echo # Check an error was returned by the start process
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+--reap
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# Confirm that only one member is present on the group
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 6. After action is executed we can add another member
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("A member cannot join the group while a group configuration operation is running");
+set session sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 7. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
+
+set session sql_log_bin=0;
+call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring.*");
+set session sql_log_bin=1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_leave_on_error';
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

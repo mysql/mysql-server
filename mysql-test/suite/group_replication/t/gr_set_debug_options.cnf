@@ -1,0 +1,6 @@
+!include ../my.cnf
+
+[mysqld.1]
+
+[mysqld.2]
+group_replication_communication_debug_options="GCS_DEBUG_INVALID"

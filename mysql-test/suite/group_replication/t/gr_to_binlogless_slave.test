@@ -1,0 +1,123 @@
+################################################################################
+# BUG#22045032 - SQL_THREAD OF BINLOG-LESS SLAVE FAILS WITHOUT ANY MESSAGE FOR
+#                VIEW_CHANGE EVENT
+#
+# This test verifies that the slave server with binlog disabled is able to
+# skip the view change events when replicating from a member which is part of
+# a Group.
+#
+# Bug#24754462	- ADD MTR TEST RELATED TO MYSQLBINLOG IN GR
+# This test  also checks replaying of mysqlbinlog output of GR member on a
+# binlog-less server and verifies that binlogless server cannot be added to
+# the GR group.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap start a group on M1. Start GR on M2 and add some data.
+# 2. Connect the third server to one of the member of the group, establishing
+#    an asynchronous replication connection (M1->M3). Start slave on M3.
+# 3. On the slave (M3), test that the data is properly replicated after the
+#    start slave is completed. Diff check the table on M1 and M3.
+# 4. Verify if the available backup (binlog file) can be later restored
+#    successfully on a binlogless-server.
+# 5. Verify if binlogless-server cannot be added to the GR group
+# 6. Ensure that the test is cleaned up and closed.
+################################################################################
+
+--source include/not_mts_slave_parallel_workers.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--source include/group_replication.inc
+
+# Start the first member here
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+# Start the second node. Add some data and sync it in the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+CREATE TABLE t1 (i INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+--source include/rpl_sync.inc
+
+# Establish an async connection between the third server and member 1 of
+# the group.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("You need to use --log-bin to make");
+SET SESSION sql_log_bin=1;
+
+# Make this server the slave of the first server which belongs to the group.
+--disable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
+--enable_warnings
+
+--source include/start_slave.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $sync_slave_connection= server3
+--source include/sync_slave_sql_with_master.inc
+
+--echo # On the slave (server3), test that the data is properly replicated
+--echo # after the start slave is complete.
+--let $diff_tables= server1:test.t1, server3:test.t1
+--source include/diff_tables.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Get the binlog file
+--let $server2_datadir= `SELECT @@DATADIR`
+--let $server2_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+# Restore the backup onto a server outside the GR group
+set sql_log_bin=0;
+call mtr.add_suppression("\\[ERROR\\] \\[MY-[^]]*\\] \\[Repl\\] Plugin group_replication reported: 'Binlog must be enabled for Group Replication'");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
+set sql_log_bin=1;
+
+# Setting the arguments to connect to server4
+--let $server4_connection_args= --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_4
+# Restoring the backup file on server4 using mysqlbinlog client and the connection arguments set above
+--exec $MYSQL_BINLOG $server2_datadir/$server2_binlog_file | $MYSQL $server4_connection_args
+
+# See if the data has been properly restored on server4
+--echo # check that t1 exists and has same values in all servers
+--let $diff_tables=server1:test.t1 ,server2:test.t1 ,server3:test.t1 ,server4:test.t1
+--source include/diff_tables.inc
+
+# Add server4 to GR group
+# This operation will fail as binlog is disabled in server4
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+# Drop table
+DROP TABLE t1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $sync_slave_connection= server3
+--source include/sync_slave_sql_with_master.inc
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_slave.inc
+--source include/rpl_reset_slave_helper.inc
+
+--source include/group_replication_end.inc

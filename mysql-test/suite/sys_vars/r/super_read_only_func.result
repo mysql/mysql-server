@@ -1,0 +1,78 @@
+** Setup **
+
+SET @default_read_only = @@global.read_only;
+SET @default_super_read_only = @@global.super_read_only;
+SET @@global.read_only = OFF;
+SET @@global.super_read_only = OFF;
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name BLOB
+);
+INSERT INTO t1 VALUES (1, 'good');
+SET @@global.super_read_only = OFF;
+SET @@global.read_only = OFF;
+SELECT IF(@@global.super_read_only, 'FAIL', 'OK') AS sro, IF(@@global.read_only, 'FAIL', 'OK') AS ro;
+sro	ro
+OK	OK
+SET @@global.super_read_only = ON;
+SELECT IF(@@global.super_read_only, 'OK', 'FAIL') AS sro, IF(@@global.read_only, 'OK', 'FAIL') AS ro;
+sro	ro
+OK	OK
+SET @@global.super_read_only = OFF;
+SELECT IF(@@global.super_read_only, 'FAIL', 'OK') AS sro, IF(@@global.read_only, 'OK', 'FAIL') AS ro;
+sro	ro
+OK	OK
+SET @@global.super_read_only = ON;
+SELECT IF(@@global.super_read_only, 'OK', 'FAIL') AS sro, IF(@@global.read_only, 'OK', 'FAIL') AS ro;
+sro	ro
+OK	OK
+SET @@global.read_only = OFF;
+SELECT IF(@@global.super_read_only, 'FAIL', 'OK') AS sro, IF(@@global.read_only, 'FAIL', 'OK') AS ro;
+sro	ro
+OK	OK
+** Creating new user with explicit super privilege**
+CREATE user sameea;
+GRANT SUPER ON *.* TO sameea;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+SET @@global.super_read_only = ON;
+** Connecting connn using username 'sameea' **
+CREATE TABLE t2
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name BLOB
+);
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+not updating values
+INSERT into t1(name) values("aaassssssssddddddddffffff");
+Got one of the listed errors
+UPDATE t1 SET name="samia" where id=1;
+Got one of the listed errors
+SELECT * FROM t1;
+id	name
+1	good
+'#--------------------FN_DYNVARS_140_03-------------------------#'
+CREATE TEMPORARY TABLE t3(a int);
+'#--------------------FN_DYNVARS_140_04-------------------------#'
+** Connection default **
+SET Global super_read_only=OFF;
+** Connection connn **
+CREATE TABLE t2
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name BLOB
+);
+updating values
+INSERT into t2(name) values("aaassssssssdddddddd");
+UPDATE t2 SET name="samia" where id=1;
+** Connection default **
+** Disconnecting connn **
+DROP USER sameea;
+DROP TABLE t1;
+DROP TABLE t2;
+SET global super_read_only = @default_super_read_only;
+SET global read_only = @default_read_only;

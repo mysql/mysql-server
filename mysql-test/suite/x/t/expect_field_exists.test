@@ -1,0 +1,148 @@
+########### ../t/expect_noerror.test                          #########
+###                                                                   #
+### This test runs aims to run expect.open and expect.close xmessage  #
+### with mysqlxtest client.                                           #
+### Test covers                                                       #
+###  - check condition_key (continue on error or not)                 #
+#      Do not continue on error if condition_key=1,default is         #
+#      to continue                                                    #
+###  - Inherit parent's open block condition with "op"                #
+###  - Nested open/close block                                        #
+###                                                                   #
+########################################################################
+#
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/expect_field.tmp
+-->import expect.macro
+
+#
+## Test
+#
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+field_exists=1]) / close()
+-->echo #
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "1"}	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+field_exists=1]) / query() / close()
+-->echo #
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "1"}	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+field_exists=1, +field_exists=2]) / query() / close()
+-->echo #
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "1"} cond {condition_key:2 condition_value: "2"}	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+field_exists=1, +field_exists=unknown]) / query() / close()
+-->echo #
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "1"} cond {condition_key:2 condition_value: "1.1"}	ER_X_EXPECT_FIELD_EXISTS_FAILED
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_X_EXPECT_FIELD_EXISTS_FAILED
+-->callmacro Expect_close	ER_X_EXPECT_FIELD_EXISTS_FAILED
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+field_exists=1]) / query():NOK / query() / close()
+-->echo #
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "1"}	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+field_exists=unknown]):NOK / query():NOK / close():NOK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "1.1"}	ER_X_EXPECT_FIELD_EXISTS_FAILED
+-->callmacro Execute_sql select "No" as 'Is_ok';	ER_X_EXPECT_FIELD_EXISTS_FAILED
+-->callmacro Expect_close	ER_X_EXPECT_FIELD_EXISTS_FAILED
+
+-->echo #
+-->echo ## Expectation block 
+-->echo ## open([+field_exists=unknown, +no_error]):NOK / query():NOK / close():NOK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "1.1"} cond {condition_key:1}	ER_X_EXPECT_FIELD_EXISTS_FAILED
+-->callmacro Execute_sql select "No" as 'Is_ok';	ER_X_EXPECT_FIELD_EXISTS_FAILED
+-->callmacro Expect_close	ER_X_EXPECT_FIELD_EXISTS_FAILED
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+field_exists=2,  +no_error]):OK/
+-->echo ##  query():OK / query(error):NOK / query():NOK
+-->echo ## close():NOK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "2"} cond {condition_key:1}	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Execute_sql select "No" as 'Is_ok';	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Expect_close	ER_X_EXPECT_NO_ERROR_FAILED
+
+-->echo #
+-->echo ## Nested expectation block
+-->echo ## open([+field_exists=2]):OK/
+-->echo ##  open([+no_error]):OK/
+-->echo ##   query():OK / query(error):NOK / query():NOK
+-->echo ##  close():NOK
+-->echo ##  query():OK
+-->echo ## close():OK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "2"}	ER_SUCCESS
+-->callmacro Expect_open	cond {condition_key:1}	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Execute_sql select "No" as 'Is_ok';	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Expect_close	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Nested expectation block
+-->echo ## open([+no_error]):OK/
+-->echo ##  open([+field_exists=2]):OK/
+-->echo ##   query(error):NOK
+-->echo ##  close():NOK
+-->echo ##  query():NOK
+-->echo ## close():NOK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:1}	ER_SUCCESS
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "2"}	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Expect_close	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Execute_sql select "No" as 'Is_ok';	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Expect_close	ER_X_EXPECT_NO_ERROR_FAILED
+
+-->echo #
+-->echo ## Nested expectation block
+-->echo ## open([+no_error]):OK/
+-->echo ##  open([+field_exists=2], new_context):OK/
+-->echo ##   query():NOK
+-->echo ##  close():OK
+-->echo ##  query():OK
+-->echo ## close():OK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:1}	ER_SUCCESS
+-->callmacro Expect_open	cond {condition_key:2 condition_value: "2"} op:EXPECT_CTX_EMPTY	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Expect_close	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/expect_field.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/expect_field.tmp
+--source include/xplugin_drop_user.inc

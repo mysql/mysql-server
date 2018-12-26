@@ -1,0 +1,8 @@
+MySQL error code MY-000150 (handler): Foreign key constraint is incorrectly formed
+Win32 error code 150: System trace information was not specified in your CONFIG.SYS file, or tracing is disallowed.
+OS error code  23:  Too many open files in system
+MySQL error code MY-000023: Out of resources when opening file '%s' (OS errno %d - %s)
+Win32 error code 23: Data error (cyclic redundancy check).
+MySQL error code MY-001062 (ER_DUP_ENTRY): Duplicate entry '%-.192s' for key %d
+Win32 error code 1062: The service has not been started.
+Illegal error code: 30000

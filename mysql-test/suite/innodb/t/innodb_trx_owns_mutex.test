@@ -1,0 +1,60 @@
+--source include/have_debug_sync.inc
+
+--echo ###########################################################
+--echo #                                                         #
+--echo # Bug # 90454: trx_t::owns_mutex is set to false without  #
+--echo #             lock_sys->mutex being held                  #
+--echo #                                                         #
+--echo ###########################################################
+
+    # In this test, we have two transactions being involved:
+    #   `updater` tries to UPDATE the row
+    #   `killer` KILLs QUERY of `updater`
+    # The timing is such that the `updater` has already made the decision to
+    # perform the UPDATE before the `killer` gets to KILL it.
+    # In particular `updater` is inside `lock_clust_rec_read_check_and_lock`
+    # before obtaining `lock_mutex_enter`, when the `killer` hits.
+    # The `killer` is inside `lock_trx_handle_wait` after releasing
+    # `lock_mutex_exit` but before setting trx->owns_mutex to `false`,
+    # when it gets swapped out.
+    # Then the `updater` continues it's work, obtains `lock_mutex_enter` and
+    # since the `trx->owns_mutex` is still `true` it thinks it owns the
+    # `trx->mutex`, which is not true and assertion fails.
+
+    # Prepare the stage
+        CREATE TABLE t1 (
+          id INT PRIMARY KEY,
+          val INT NOT NULL
+        ) ENGINE=InnoDB;
+        INSERT INTO t1 (id,val) VALUES (1,1);
+
+    # updater will start an update of record and get swapped out before obtaining lock_mutex
+        --connect (updater, localhost, root,,)
+        BEGIN;
+        --let $updater_id= `SELECT CONNECTION_ID()`
+        SET DEBUG_SYNC = 'before_lock_clust_rec_read_check_and_lock SIGNAL sig1 WAIT_FOR updater_can_continue';
+        SET DEBUG_SYNC = 'rec_lock_create_trx_mutex_enter SIGNAL killer_can_continue';
+        --send UPDATE t1 SET val = 13 WHERE id = 1
+
+    # killer kills updater
+        --connect (killer, localhost, root,,)
+        SET DEBUG_SYNC = 'now WAIT_FOR sig1';
+        SET DEBUG_SYNC = 'lock_trx_handle_wait_released_lock_mutex SIGNAL updater_can_continue WAIT_FOR killer_can_continue';
+        --replace_result $updater_id <target_id>
+        --send_eval KILL QUERY $updater_id
+
+    # updater finishes the query
+        --connection updater
+        --error ER_QUERY_INTERRUPTED
+        --reap
+        ROLLBACK;
+
+    # killer finishes the kill
+        --connection killer
+        --reap
+        ROLLBACK;
+
+    # clean up
+        --connection default
+        DROP TABLE t1;
+        SET DEBUG_SYNC = 'RESET';

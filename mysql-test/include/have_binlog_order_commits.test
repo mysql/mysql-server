@@ -1,0 +1,14 @@
+# ==== Purpose ====
+#
+# Ensure that the server is running with binlog_order_commits
+#
+# ==== Usage ====
+#
+# --source include/have_binlog_order_commits.inc
+
+--source include/have_log_bin.inc
+
+if (`SELECT @@GLOBAL.binlog_order_commits = FALSE`)
+{
+  --skip Test requires @@GLOBAL.binlog_order_commits = TRUE.
+}

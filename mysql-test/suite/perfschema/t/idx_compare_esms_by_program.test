@@ -1,0 +1,19 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "events_statements_summary_by_program";
+let $key_group = 10;
+let $target_type  = PROCEDURE;
+let $target_schema = TEST;
+let $target_name  = index_test;
+
+--echo TABLE: $table
+--echo INDEXES: PK (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

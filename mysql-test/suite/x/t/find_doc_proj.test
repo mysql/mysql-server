@@ -1,0 +1,298 @@
+## generated
+## Doc: Find a document with projection
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/find_doc_proj.tmp
+## Test data
+-->sql
+drop schema if exists xtest;
+create schema xtest default charset 'utf8mb4';
+use xtest;
+create table mycoll (doc JSON, _id VARBINARY(32) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
+insert into mycoll (doc) values ('{"_id": "1", "name": "Joe1"}');
+insert into mycoll (doc) values ('{"_id": "2", "name": "Joe2", "last_name": "Smith"}');
+insert into mycoll (doc) values ('{"_id": "3", "name": "Joe2", "last_name": "Shmo"}');
+insert into mycoll (doc) values ('{"_id": "4", "name": "小島", "last_name": "Bla"}');
+create table funkycoll (doc JSON, _id VARBINARY(32) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
+insert into funkycoll (doc) values ('{"_id": "1", "I love \\\"\'quotes\'\\\"\\n": "I love \\\"\'quotes\'\\\"\\n"}');
+insert into funkycoll (doc) values ('{"_id": "2", "I love \\\"\'quotes\'\\\"\\n": "\\\",$.array[2]\\\\\\\""}');
+insert into funkycoll (doc) values ('{"_id": "3", "\\\",$.array[2]\\\\\\\"": "I love \\\"\'quotes\'\\\"\\n"}');
+insert into funkycoll (doc) values ('{"_id": "4", "\\\",$.array[2]\\\\\\\"": "\\\",$.array[2]\\\\\\\""}');
+create table fancycoll (doc JSON, _id VARBINARY(32) NOT NULL KEY);
+insert into fancycoll (doc, _id) values ('\n{\n         \"_id\": \"X999_Y999\",\n         \"from\": {\n            \"name\": \"Tom Brady\", \"id\": \"X12\"\n         },\n         \"message\": \"Looking forward to 2010!\",\n         \"actions\": [\n            {\n               \"name\": \"Comment\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y999\"\n            },\n            {\n               \"name\": \"Like\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y999\"\n            }\n         ],\n         \"type\": \"status\",\n         \"created_time\": \"2010-08-02T21:27:44+0000\",\n         \"updated_time\": \"2010-08-02T21:27:44+0000\"\n      }\n', json_unquote(json_extract(doc, '$._id')));
+insert into fancycoll (doc, _id) values ('\n{\n         \"_id\": \"X999_Y998\",\n         \"from\": {\n            \"name\": \"Dom Crady\", \"id\": \"A12\"\n         },\n         \"message\": \"Looking forward to 2034!\",\n         \"actions\": [\n            {\n               \"name\": \"Comment\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y222\"\n            },\n            {\n               \"name\": \"Like\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y222\"\n            }\n         ],\n         \"type\": \"status\",\n         \"created_time\": \"2011-08-02T21:27:44+0000\",\n         \"updated_time\": \"2011-08-02T21:27:44+0000\"\n      }\n', json_unquote(json_extract(doc, '$._id')));
+CREATE TABLE `city` (
+  `ID` int(11) NOT NULL auto_increment,
+  `Name` char(35) NOT NULL default '',
+  `CountryCode` char(3) NOT NULL default '',
+  `District` char(20) NOT NULL default '',
+  `Population` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`ID`)
+);
+INSERT INTO `city` VALUES (1,'Kabul','AFG','Kabol',1780000);
+INSERT INTO `city` VALUES (2,'Qandahar','AFG','Qandahar',237500);
+INSERT INTO `city` VALUES (3,'Herat','AFG','Herat',186800);
+INSERT INTO `city` VALUES (4,'Mazar-e-Sharif','AFG','Balkh',127800);
+INSERT INTO `city` VALUES (5,'Amsterdam','NLD','Noord-Holland',731200);
+INSERT INTO `city` VALUES (6,'Rotterdam','NLD','Zuid-Holland',593321);
+INSERT INTO `city` VALUES (7,'Haag','NLD','Zuid-Holland',440900);
+INSERT INTO `city` VALUES (8,'Utrecht','NLD','Utrecht',234323);
+INSERT INTO `city` VALUES (9,'Eindhoven','NLD','Noord-Brabant',201843);
+INSERT INTO `city` VALUES (10,'Tilburg','NLD','Noord-Brabant',193238);
+INSERT INTO `city` VALUES (11,'Groningen','NLD','Groningen',172701);
+INSERT INTO `city` VALUES (12,'Breda','NLD','Noord-Brabant',160398);
+INSERT INTO `city` VALUES (13,'Apeldoorn','NLD','Gelderland',153491);
+INSERT INTO `city` VALUES (14,'Nijmegen','NLD','Gelderland',152463);
+INSERT INTO `city` VALUES (15,'Enschede','NLD','Overijssel',149544);
+INSERT INTO `city` VALUES (16,'Haarlem','NLD','Noord-Holland',148772);
+-->endsql
+Mysqlx.Crud.Find {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "name"
+        }
+      }
+    }
+    alias: "Name"
+  }
+}
+
+## expect Mysqlx.Resultset.ColumnMetaData
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.FetchDone
+-->recv
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recv
+
+## Bad projection
+Mysqlx.Crud.Find {
+  collection {
+    name: "funkycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "I love \"\'quotes\'\"\n"
+        }
+      }
+    }
+    alias: "key"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "_id"
+        }
+      }
+    }
+    alias: "\"\'"
+  }
+}
+
+## expect Mysqlx.Resultset.ColumnMetaData
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Sql.CursorFetchDone
+-->recv
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recv
+
+## Doc: Find document with projection, attempt to break
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "funkycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "I love \"\'quotes\'\"\n\\/\b\f\r\t"
+        }
+      }
+    }
+    alias: "I love \"\'quotes\'\"\n"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "_id"
+        }
+      }
+    }
+    alias: "\"\'"
+  }
+  limit {
+    row_count: 1
+    offset: 2
+  }
+}
+
+## expect Mysqlx.Resultset.ColumnMetaData
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Sql.CursorFetchDone
+-->recv
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recv
+
+## Doc: Find a document with projection with missing key in some rows
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "name"
+        }
+      }
+    }
+    alias: "name"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "last_name"
+        }
+      }
+    }
+    alias: "last_name"
+  }
+}
+
+## expect Mysqlx.Resultset.ColumnMetaData
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.Row
+-->recv
+## expect Mysqlx.Resultset.FetchDone
+-->recv
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recv
+
+## ERROR sceanrio
+## Doc: Find causing an error
+
+Mysqlx.Crud.Find {
+    collection {
+      name: "mycoll"
+      schema: "xtest"
+    }
+    data_model: DOCUMENT
+    projection {
+      source {
+        type: OBJECT
+        object {
+          fld {
+            key: "X"
+            value {
+              type: OPERATOR
+              operator {
+                name: "-"
+                param {
+                  type: OPERATOR
+                  operator {
+                    name: "cast"
+                    param {
+                    	type: LITERAL
+                  		literal {
+                    		type: V_SINT
+                    		v_signed_int: 0
+                  		}
+                  	}
+                  	param {
+                      type: LITERAL
+                      literal {
+                        type: V_OCTETS
+                        v_octets {value:"UNSIGNED"}
+                      }
+                    }
+                  }
+                }
+                param {
+                  type: LITERAL
+                  literal {
+	        		type: V_SINT
+	        		v_signed_int: 1
+                  }                
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+}
+
+-->expecterror 1690
+-->recvresult
+
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/find_doc_proj.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/find_doc_proj.tmp
+--source include/xplugin_drop_user.inc

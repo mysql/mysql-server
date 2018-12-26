@@ -1,0 +1,75 @@
+# === Purpose ===
+# The purpose of this test case is to make
+# sure that the binary data in tables is printed
+# as hex when the option binary-as-hex is enabled.
+#
+# === Related bugs and/or worklogs ===
+# Bug #25340722 - PRINT BINARY DATA AS HEX IN THE MYSQL
+#                 CLIENT (CONTRIBUTION)
+#
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+USE test;
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (c1  TINYBLOB,
+                 c2  BLOB,
+                 c3  MEDIUMBLOB,
+                 c4  LONGBLOB,
+                 c5  TEXT,
+                 c6  BIT(1),
+                 c7  CHAR,
+                 c8  VARCHAR(10),
+                 c9  GEOMETRY) CHARACTER SET = binary;
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES ('tinyblob-text readable', 'blob-text readable',
+                       'mediumblob-text readable', 'longblob-text readable',
+                       'text readable', b'1', 'c', 'variable',
+                        POINT(1, 1));
+
+CREATE TABLE t2(id int, `col1` binary(10),`col2` blob);
+
+SHOW CREATE TABLE t2;
+
+INSERT INTO t2 VALUES (1, X'AB1234', X'123ABC'), (2, X'DE1234', X'123DEF');
+
+--echo #Print the table contents when binary-as-hex option is off.
+--replace_column 6 # 9 #
+SELECT * FROM t1;
+
+--replace_column 2 # 3 #
+SELECT * FROM t2;
+
+--echo #Print the table contents after turning on the binary-as-hex option
+--echo
+--echo #Print the table contents in tab format
+--echo
+--exec $MYSQL test --binary-as-hex -e "SELECT * FROM t1; SELECT * FROM t2;"
+--echo
+--echo #Print the table contents in table format
+--echo
+--exec $MYSQL test --binary-as-hex --table -e "SELECT * FROM t1; SELECT * FROM t2 WHERE col2=0x123ABC;"
+--echo
+--echo #Print the table contents vertically
+--echo
+--exec $MYSQL test --binary-as-hex --vertical -e "SELECT * FROM t1;"
+--echo
+--echo #Print the table contents in xml format
+--echo
+--exec $MYSQL test --binary-as-hex --xml -e "SELECT * FROM t1; SELECT * FROM t2;"
+--echo
+--echo #Print the table contents in html format
+--echo
+--exec $MYSQL test --binary-as-hex --html -e "SELECT * FROM t1; SELECT * FROM t2;"
+
+#Cleanup
+DROP TABLE t1, t2;
+
+# Wait till all disconnects are completed
+ --source include/wait_until_count_sessions.inc

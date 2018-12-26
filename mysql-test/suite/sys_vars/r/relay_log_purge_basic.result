@@ -1,0 +1,94 @@
+SET @start_value = @@global.relay_log_purge;
+SELECT @start_value;
+@start_value
+1
+'#--------------------FN_DYNVARS_141_01------------------------#'
+SET @@global.relay_log_purge = FALSE;
+SET @@global.relay_log_purge = DEFAULT;
+SELECT @@global.relay_log_purge;
+@@global.relay_log_purge
+1
+'#---------------------FN_DYNVARS_141_02-------------------------#'
+SET @@global.relay_log_purge = @start_value;
+SELECT @@global.relay_log_purge = TRUE;
+@@global.relay_log_purge = TRUE
+1
+'#--------------------FN_DYNVARS_141_03------------------------#'
+SET @@global.relay_log_purge = ON;
+SELECT @@global.relay_log_purge;
+@@global.relay_log_purge
+1
+SET @@global.relay_log_purge = OFF;
+SELECT @@global.relay_log_purge;
+@@global.relay_log_purge
+0
+SET @@global.relay_log_purge = 0;
+SELECT @@global.relay_log_purge;
+@@global.relay_log_purge
+0
+SET @@global.relay_log_purge = 1;
+SELECT @@global.relay_log_purge;
+@@global.relay_log_purge
+1
+SET @@global.relay_log_purge = TRUE;
+SELECT @@global.relay_log_purge;
+@@global.relay_log_purge
+1
+SET @@global.relay_log_purge = FALSE;
+SELECT @@global.relay_log_purge;
+@@global.relay_log_purge
+0
+'#--------------------FN_DYNVARS_141_04-------------------------#'
+SET @@global.relay_log_purge = 2;
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of '2'
+SET @@global.relay_log_purge = -1;
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of '-1'
+SET @@global.relay_log_purge = TRUEF;
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of 'TRUEF'
+SET @@global.relay_log_purge = TRUE_F;
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of 'TRUE_F'
+SET @@global.relay_log_purge = FALSE0;
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of 'FALSE0'
+SET @@global.relay_log_purge = OON;
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of 'OON'
+SET @@global.relay_log_purge = ONN;
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of 'ONN'
+SET @@global.relay_log_purge = OOFF;
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of 'OOFF'
+SET @@global.relay_log_purge = 0FF;
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of '0FF'
+SET @@global.relay_log_purge = ' ';
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of ' '
+SET @@global.relay_log_purge = " ";
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of ' '
+SET @@global.relay_log_purge = '';
+ERROR 42000: Variable 'relay_log_purge' can't be set to the value of ''
+'#-------------------FN_DYNVARS_141_05----------------------------#'
+SET @@session.relay_log_purge = 1;
+ERROR HY000: Variable 'relay_log_purge' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.relay_log_purge;
+ERROR HY000: Variable 'relay_log_purge' is a GLOBAL variable
+'#----------------------FN_DYNVARS_141_06------------------------#'
+SELECT IF(@@global.relay_log_purge, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='relay_log_purge';
+IF(@@global.relay_log_purge, "ON", "OFF") = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_141_07----------------------#'
+SET @@global.relay_log_purge = 1;
+SELECT @@relay_log_purge = @@global.relay_log_purge;
+@@relay_log_purge = @@global.relay_log_purge
+1
+'#---------------------FN_DYNVARS_141_08----------------------#'
+SET relay_log_purge = 1;
+ERROR HY000: Variable 'relay_log_purge' is a GLOBAL variable and should be set with SET GLOBAL
+SET global.relay_log_purge = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.relay_log_purge = 1' at line 1
+SELECT global.relay_log_purge;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT relay_log_purge = @@session.relay_log_purge;
+ERROR 42S22: Unknown column 'relay_log_purge' in 'field list'
+SET @@global.relay_log_purge = @start_value;
+SELECT @@global.relay_log_purge;
+@@global.relay_log_purge
+1

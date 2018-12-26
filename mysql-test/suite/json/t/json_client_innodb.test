@@ -1,0 +1,10 @@
+########### suite/json/t/json_client_innodb.test                     #
+# Tests json client functions using the innodb storage engine        #
+#                                                                    #
+# This test copies some tests originally in json_client.test         #
+######################################################################
+# Set the default storage engine
+set default_storage_engine=innodb;
+
+# Run the test
+--source suite/json/inc/json_client.inc

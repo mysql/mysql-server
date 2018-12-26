@@ -1,0 +1,29 @@
+Next Session 10
+Next Global  10001
+
+
+#define MGM_ERROR_MAX_INJECT_SESSION_ONLY 10000
+Errors < 10000 are per-session only - in MgmApiSession.
+
+Others are for the whole mgm server.
+
+Error 0 is no error
+
+TIMEOUTS
+--------
+
+num	where		type		testing
+
+1	get config	sleep		begin
+2	get config	sleep		middle parsable
+3	get config	mangle		halfway through encoded properties
+
+4	end session	sleep		before reply
+
+5	node status	sleep		before reply
+6	node status	sleep		during parsable reply
+7	node status	sleep		after parsable, before status reply
+8	node status	sleep		partway through status reporting
+9	node status	sleep		end of status printing
+
+10000	events PING	no ping		don't send pings to event listeners

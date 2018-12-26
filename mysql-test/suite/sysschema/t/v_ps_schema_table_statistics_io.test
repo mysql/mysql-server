@@ -1,0 +1,23 @@
+-- source ../include/ps_truncate_all_tables.inc
+
+DESC sys.x$ps_schema_table_statistics_io;
+
+DESC sys.x$ps_schema_table_statistics_io;
+
+# Ensure structure changes don't slip in
+DESC sys.x$ps_schema_table_statistics_io;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$ps_schema_table_statistics_io;
+--enable_result_log
+
+
+# Ensure structure changes don't slip in
+DESC sys.x$ps_schema_table_statistics_io;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$ps_schema_table_statistics_io;
+--enable_result_log
+

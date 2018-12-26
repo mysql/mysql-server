@@ -1,0 +1,40 @@
+# ==== Purpose ====
+#
+# This test will set a value for binlog_group_commit_sync_delay
+# which will be a non multiple of delta(the waiting time is
+# broken into smaller chunks called as delta), and execute some
+# transactions after that.
+#
+# The test verifies that server does not hang when a non multiple of 10
+# is assigned to binlog_group_commit_sync_delay variable.
+#
+# Related bugs and Worklogs
+#
+# Bug#28091735:COMMIT WILL HANG IF BINLOG_GROUP_COMMIT_SYNC_DELAY
+#              IS NOT A MULTIPLE OF 10
+
+# this is binlog format agnostic
+--source include/have_binlog_format_row.inc
+
+--let $bgcd_saved = `SELECT @@GLOBAL.binlog_group_commit_sync_delay`
+--let $bgcc_saved = `SELECT @@GLOBAL.binlog_group_commit_sync_no_delay_count`
+
+CREATE TABLE t(s INT);
+
+# Set the delay to a non multiple of delta, in this case
+# delta will be 3, MAX(1, wait_time * .1) and so it will not be
+# a multiple of the waiting time which is 32
+
+SET GLOBAL binlog_group_commit_sync_delay = 32;
+SET GLOBAL binlog_group_commit_sync_no_delay_count = 0;
+
+BEGIN;
+INSERT INTO t VALUES(10);
+COMMIT; # Hangs here without the fix
+
+#cleanup
+
+--eval SET GLOBAL binlog_group_commit_sync_delay = $bgcd_saved
+--eval SET GLOBAL binlog_group_commit_sync_no_delay_count = $bgcc_saved
+DROP TABLE t;
+

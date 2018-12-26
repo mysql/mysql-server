@@ -1,0 +1,57 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');
+create table t1(id int, i int, r1 int, r2 int, p varchar(100));
+insert into t1 values(1, connection_id(), 0, 0, "");
+insert into t1 values(2, 0, rand()*1000, rand()*1000, "");
+set sql_log_bin=0;
+insert into t1 values(6, 0, rand(), rand(), "");
+delete from t1 where id=6;
+set sql_log_bin=1;
+select * into outfile 'rpl_misc_functions.outfile' from t1;
+include/sync_slave_sql_with_master.inc
+create temporary table t2 like t1;
+load data local infile 'MYSQLD_DATADIR/test/rpl_misc_functions.outfile' into table t2;
+select * from t1, t2 where (t1.id=t2.id) and not(t1.i=t2.i and t1.r1=t2.r1 and t1.r2=t2.r2 and t1.p=t2.p);
+id	i	r1	r2	p	id	i	r1	r2	p
+drop table t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+col_a DOUBLE DEFAULT NULL);
+CREATE PROCEDURE test_replication_sp1()
+BEGIN
+INSERT INTO t1 (col_a) VALUES (rand()), (rand());
+INSERT INTO t1 (col_a) VALUES (rand());
+END|
+CREATE PROCEDURE test_replication_sp2()
+BEGIN
+CALL test_replication_sp1();
+CALL test_replication_sp1();
+END|
+CREATE FUNCTION test_replication_sf() RETURNS DOUBLE DETERMINISTIC
+BEGIN
+RETURN (rand() + rand());
+END|
+CALL test_replication_sp1();
+CALL test_replication_sp2();
+INSERT INTO t1 (col_a) VALUES (test_replication_sf());
+INSERT INTO t1 (col_a) VALUES (test_replication_sf());
+INSERT INTO t1 (col_a) VALUES (test_replication_sf());
+include/sync_slave_sql_with_master.inc
+select * from t1 into outfile "../../tmp/t1_slave.txt";
+create temporary table t1_slave select * from t1 where 1=0;
+load data infile '../../tmp/t1_slave.txt' into table t1_slave;
+select count(*) into @aux from t1 join t1_slave using (id)
+where ABS(t1.col_a - t1_slave.col_a) < 0.0000001 ;
+SELECT @aux;
+@aux
+12
+DROP TABLE t1, t1_slave;
+DROP PROCEDURE test_replication_sp1;
+DROP PROCEDURE test_replication_sp2;
+DROP FUNCTION test_replication_sf;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

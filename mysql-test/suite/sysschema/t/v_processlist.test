@@ -1,0 +1,21 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.processlist view
+
+# Ensure structure changes don't slip in
+DESC sys.processlist;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.processlist;
+--enable_result_log
+
+
+# Ensure structure changes don't slip in
+DESC sys.x$processlist;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$processlist;
+--enable_result_log
+

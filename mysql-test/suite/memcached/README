@@ -1,0 +1,9 @@
+Created 2012-Feb-29.
+Author: Horst Hunger
+To run the memcached test you have to download and install the Memcached.pm module in Perl.
+It has to be installed in the Cache directory. 
+
+Each test in memcached is connecting to the memcached daemon with an IP and a port.
+The default IP is "127.0.0.1" and the default port number is 11211. Others can be used by setting the daemon_option -p, e.g. -p11212. Each test is connectiing with an own port number to be able to run in parallel to other memcached tests. The names of the memcached tests have the form memcXXX_... where XXX are the last 3 digits of the port number. The first 2 digits are "11", means the test "memc212_..." is uses the port "11212".
+As the port number should be clear use a not yet assigned port number for the test you want to add.
+

@@ -1,0 +1,10 @@
+SELECT @@GLOBAL.innodb_numa_interleave;
+@@GLOBAL.innodb_numa_interleave
+1
+SET @@GLOBAL.innodb_numa_interleave=off;
+ERROR HY000: Variable 'innodb_numa_interleave' is a read only variable
+SELECT @@GLOBAL.innodb_numa_interleave;
+@@GLOBAL.innodb_numa_interleave
+1
+SELECT @@SESSION.innodb_numa_interleave;
+ERROR HY000: Variable 'innodb_numa_interleave' is a GLOBAL variable

@@ -1,0 +1,128 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+set session sql_log_bin=0;
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1;
+set session sql_log_bin=0;
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1;
+create user 'foo'@'fakehost';
+create user 'foo'@'fakehost', 'bar'@'fakehost';
+ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
+create user 'bar'@'fakehost';
+create user 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password' BY 'foo1',
+'foo2'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111',
+'foo3'@'fakehost';
+include/sync_slave_sql_with_master.inc
+select Host,User from mysql.user where Host='fakehost';
+Host	User
+fakehost	bar
+fakehost	foo
+fakehost	foo1
+fakehost	foo2
+fakehost	foo3
+include/diff_tables.inc [master:mysql.user, slave:mysql.user]
+rename user 'foo'@'fakehost' to 'foofoo'@'fakehost';
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost';
+ERROR HY000: Operation RENAME USER failed for 'not_exist_user1'@'fakehost'
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'not_exist_user2'@'fakehost' to 'barfoo'@'fakehost';
+ERROR HY000: Operation RENAME USER failed for 'not_exist_user1'@'fakehost','not_exist_user2'@'fakehost'
+include/sync_slave_sql_with_master.inc
+select Host,User from mysql.user where Host='fakehost';
+Host	User
+fakehost	bar
+fakehost	foo1
+fakehost	foo2
+fakehost	foo3
+fakehost	foofoo
+drop user 'foofoo'@'fakehost';
+drop user 'bar'@'fakehost';
+drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost';
+drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';
+ERROR HY000: Operation DROP USER failed for 'not_exist_user1'@'fakehost','barbar'@'fakehost'
+drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
+ERROR HY000: Operation DROP USER failed for 'not_exist_user1'@'fakehost','not_exist_user2'@'fakehost'
+include/sync_slave_sql_with_master.inc
+select Host,User from mysql.user where Host='fakehost';
+Host	User
+#
+# WL2392: "Change Password at next login" (initial default for root)
+#
+CREATE USER must_change2@localhost IDENTIFIED BY 'aha';
+ALTER USER must_change2@localhost PASSWORD EXPIRE;
+include/sync_slave_sql_with_master.inc
+select Host,User,password_expired from mysql.user where user='must_change2';
+Host	User	password_expired
+localhost	must_change2	Y
+# must throw an error
+SELECT USER();
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+# setting a password unlocks it
+SET PASSWORD = 'aha2';
+include/sync_slave_sql_with_master.inc
+# must not throw an error
+SELECT USER();
+USER()
+must_change2@localhost
+DROP USER must_change2@localhost;
+include/sync_slave_sql_with_master.inc
+#
+# WL#9591: Caching sha2 authentication plugin
+#
+CREATE USER 9591_user@localhost IDENTIFIED WITH caching_sha2_password BY 'abcd' REQUIRE NONE;
+include/sync_slave_sql_with_master.inc
+SELECT Host, User, Plugin FROM mysql.user WHERE user='9591_user';
+Host	User	Plugin
+localhost	9591_user	caching_sha2_password
+SELECT CURRENT_USER();
+CURRENT_USER()
+9591_user@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+9591_user@localhost
+DROP USER 9591_user@localhost;
+include/sync_slave_sql_with_master.inc
+#
+# WL#11544: Current password required for SET PASSWORD
+# Create users with current password require clauses.
+#
+[connection master]
+CREATE USER 11544_u1@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT;
+CREATE USER 11544_u2@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT OPTIONAL;
+CREATE USER 11544_u3@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT DEFAULT;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user, Password_require_current FROM mysql.user WHERE user like '11544_u%';
+user	Password_require_current
+11544_u1	Y
+11544_u2	N
+11544_u3	NULL
+[connection master]
+DROP USER 11544_u1@localhost;
+DROP USER 11544_u2@localhost;
+DROP USER 11544_u3@localhost;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'fakehost' IDENTIFIED WITH 'caching_sha2_password'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'bar'@'fakehost' IDENTIFIED WITH 'caching_sha2_password'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*6EAC5249D53050AE649BDB0CC4B85D1AE90CA16E','foo2'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111','foo3'@'fakehost' IDENTIFIED WITH 'caching_sha2_password'
+master-bin.000001	#	Query	#	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; drop user 'foofoo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; drop user 'bar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'must_change2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' PASSWORD EXPIRE
+master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+master-bin.000001	#	Query	#	#	use `test`; DROP USER must_change2@localhost
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER '9591_user'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE
+master-bin.000001	#	Query	#	#	use `test`; DROP USER 9591_user@localhost
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER '11544_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD REQUIRE CURRENT
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER '11544_u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD REQUIRE CURRENT OPTIONAL
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER '11544_u3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD REQUIRE CURRENT DEFAULT
+master-bin.000001	#	Query	#	#	use `test`; DROP USER 11544_u1@localhost
+master-bin.000001	#	Query	#	#	use `test`; DROP USER 11544_u2@localhost
+master-bin.000001	#	Query	#	#	use `test`; DROP USER 11544_u3@localhost
+include/rpl_end.inc

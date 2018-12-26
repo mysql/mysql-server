@@ -1,0 +1,247 @@
+# Check the impact of different entries in performance_schema.setup_actors
+# on when and how activity of users is recordeed in performance_schema.threads.
+# The checks for indirect activity caused by users, system threads etc.
+# are within setup_actors1.test.
+
+--source include/not_windows.inc
+
+# The initial number of rows is 1. The initial row always looks like this:
+# mysql> select * from performance_schema.setup_actors;
+# +------+------+------+---------+---------+
+# | HOST | USER | ROLE | ENABLED | HISTORY |
+# +------+------+------+---------+---------+
+# | %    | %    | %    | YES     | YES     |
+# +------+------+------+---------+---------+
+select * from performance_schema.setup_actors;
+
+truncate table performance_schema.setup_actors;
+
+insert into performance_schema.setup_actors
+values ('hosta', 'user1', '%', 'YES', 'YES');
+
+insert into performance_schema.setup_actors
+values ('%', 'user2', '%', 'YES', 'YES');
+
+insert into performance_schema.setup_actors
+values ('localhost', 'user3', '%', 'YES', 'YES');
+
+insert into performance_schema.setup_actors
+values ('hostb', '%', '%', 'YES', 'YES');
+
+select * from performance_schema.setup_actors
+order by USER, HOST, `ROLE`;
+
+create user user1@localhost, user2@localhost,
+            user3@localhost, user4@localhost,
+            user5@localhost;
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+grant select on test.* to user5@localhost;
+
+flush privileges;
+
+--echo # Switch to (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+
+# INSTRUMENTED must be NO because there is no match in performance_schema.setup_actors
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+let $con1_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--echo # Switch to connection default
+--connection default
+insert into performance_schema.setup_actors
+values ('%', 'user1', '%', 'YES', 'YES');
+
+--echo # Switch to connection con1
+--connection con1
+# INSTRUMENTED must be NO because there was no match in performance_schema.setup_actors
+# when our current session made its connect. Later changes in setup_actors have no
+# impact.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Disconnect con1
+--disconnect con1
+
+--echo # Switch to (con2, localhost, user2, , )
+connect (con2, localhost, user2, , );
+
+# INSTRUMENTED must be YES because there is a match via
+# (HOST,USER,ROLE) = ('%', 'user2', '%') in performance_schema.setup_actors.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID=connection_id();
+let $con2_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--echo # Disconnect con2
+--disconnect con2
+
+--echo # Switch to connection default
+--connection default
+# If a thread dies, we don't expect its THREAD_ID value will be re-used.
+if ($con2_thread_id <= $con1_thread_id)
+{
+   --echo ERROR: THREAD_ID of con2 is not bigger than THREAD_ID of con1
+   eval SELECT $con2_thread_id as THREAD_ID_con2, $con1_thread_id THREAD_ID_con1;
+}
+
+--disable_warnings
+drop table if exists test.t1;
+--enable_warnings
+create table test.t1 (col1 bigint);
+lock table test.t1 write;
+
+--echo # Switch to (con3, localhost, user3, , )
+connect (con3, localhost, user3, , );
+
+# INSTRUMENTED must be YES because there is a match via
+# (HOST,USER,ROLE) = ('localhost', 'user3', '%') in performance_schema.setup_actors.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+# PROCESSLIST_ columns are:
+#   (if name like '%OneConnection') all the same as what you'd get if you
+#   run a select on INFORMATION_SCHEMA.PROCESSLIST for the corresponding thread.
+# Check at least once that this is fulfilled.
+# Note(mleich):
+#   A join between INFORMATION_SCHEMA.PROCESSLIST and performance_schema.threads
+#   Example:
+#      select count(*) = 1
+#      from performance_schema.threads T inner join information_schema.PROCESSLIST P
+#      on T.PROCESSLIST_ID = P.ID and T.PROCESSLIST_USER = P.USER and
+#         T.PROCESSLIST_HOST = P.HOST and T.PROCESSLIST_DB = P.DB and
+#         T.PROCESSLIST_COMMAND = P.COMMAND and T.PROCESSLIST_INFO = P.INFO
+#      where T.PROCESSLIST_ID = connection_id() and T.NAME = 'thread/sql/one_connection'
+#   executed by the current connection looks like some of the most elegant solutions
+#   for revealing this. But such a join suffers from sporadic differences like
+#      column |  observation
+#      -------|-------------
+#      state  |  "Sending data" vs. "executing"
+#      time   |  0 vs. 1 (high load on the testing box)
+#      info   |  <full statement> vs. NULL (use of "--ps-protocol")
+#   IMHO the differences are harmless.
+#   Therefore we use here a different solution.
+#
+--echo # Send a statement to the server, but do not wait till the result
+--echo # comes back. We will pull this later.
+send
+insert into test.t1 set col1 = 1;
+--echo # Switch to (con4, localhost, user4, , )
+connect (con4, localhost, user4, , );
+--echo # Poll till INFO is no more NULL and State = 'Waiting for table metadata lock'.
+let $wait_condition= select count(*) from information_schema.processlist
+        where user = 'user3' and info is not null
+        and state = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+# Expect to get 1 now
+select count(*) = 1
+from performance_schema.threads T inner join information_schema.PROCESSLIST P
+  on T.PROCESSLIST_ID = P.ID and T.PROCESSLIST_USER = P.USER and
+     T.PROCESSLIST_HOST = P.HOST and T.PROCESSLIST_DB = P.DB and
+     T.PROCESSLIST_COMMAND = P.COMMAND and T.PROCESSLIST_INFO = P.INFO
+where T.PROCESSLIST_USER = 'user3' and T.NAME = 'thread/sql/one_connection';
+
+# Resolve the situation + some cleanup
+--echo # Switch to connection default
+--connection default
+unlock tables;
+--echo # Switch to connection con3 and reap the result of the no more blocked insert
+--connection con3
+--reap
+--echo # Switch to connection default
+--connection default
+drop table test.t1;
+--echo # Disconnect con3
+--disconnect con3
+
+--echo # Switch to connection con4
+--connection con4
+# INSTRUMENTED must be NO because there is no match in performance_schema.setup_actors
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Disconnect con4
+--disconnect con4
+
+--echo # Switch to connection default
+--connection default
+
+insert into performance_schema.setup_actors
+values ('localhost', '%', '%', 'YES', 'YES');
+
+select * from performance_schema.setup_actors
+order by USER, HOST, `ROLE`;
+
+--echo # Switch to (con4b, localhost, user4, , )
+connect (con4b, localhost, user4, , );
+
+# INSTRUMENTED must be YES because there is a match via
+# (HOST,USER,ROLE) = ('localhost', '%', '%') in performance_schema.setup_actors.
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Disconnect con4b
+--disconnect con4b
+
+--echo # Switch to connection default
+--connection default
+insert into performance_schema.setup_actors
+values ('%', 'user5', '%', 'YES', 'YES');
+
+create sql security definer view test.v1 as select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to (con5, localhost, user5, , )
+connect (con5, localhost, user5, , );
+
+--error ER_TABLEACCESS_DENIED_ERROR
+select * from performance_schema.threads;
+# 1. INSTRUMENTED must be YES because there are two matches
+#    (HOST,USER,ROLE) = ('localhost', '%', '%')
+#    (HOST,USER,ROLE) = ('%', 'user5', '%')
+#    in performance_schema.setup_actors.
+#    But the instrument will only count once which means we must get only one row.
+# 2. PROCESSLIST_USER refers to USER(), the user who connected,
+#    not the user we might be temporarily acting as (with definer's rights).
+#    Therefore PROCESSLIST_USER must be 'user5' though we run with right's of definer 'root'
+select * from test.v1;
+
+--echo # Disconnect con5
+--disconnect con5
+--source include/wait_until_disconnected.inc
+
+
+--echo # Switch to connection default and cleanup
+--connection default
+
+drop view test.v1;
+revoke all privileges, grant option from user1@localhost;
+revoke all privileges, grant option from user2@localhost;
+revoke all privileges, grant option from user3@localhost;
+revoke all privileges, grant option from user4@localhost;
+revoke all privileges, grant option from user5@localhost;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+drop user user5@localhost;
+flush privileges;
+
+truncate table performance_schema.setup_actors;
+
+insert into performance_schema.setup_actors
+values ('%', '%', '%', 'YES', 'YES');
+
+select * from performance_schema.setup_actors;
+

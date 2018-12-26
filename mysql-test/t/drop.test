@@ -1,0 +1,305 @@
+
+# Initialise
+--disable_warnings
+drop table if exists t1;
+drop database if exists mysqltest;
+# If earlier test failed
+drop database if exists client_test_db;
+--enable_warnings
+
+--error 1051
+drop table t1;
+create table t1(n int);
+insert into t1 values(1);
+create temporary table t1( n int);
+insert into t1 values(2);
+--error 1050
+create table t1(n int);
+drop table t1;
+select * from t1;
+
+# now test for a bug in drop database - it is important that the name
+# of the table is the same as the name of the database - in the original
+# code this triggered a bug
+create database mysqltest;
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.mysqltest (n int);
+insert into mysqltest.mysqltest values (4);
+select * from mysqltest.mysqltest;
+--enable_info
+drop database if exists mysqltest;
+--disable_info
+create database mysqltest;
+
+#
+# drop many tables - bug#3891
+# we'll do it in mysqltest db, to be able to use longer table names
+# (tableN instead on tN)
+#
+use mysqltest;
+--error 1051
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28;
+
+--error 1051
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28, table29, table30;
+
+use test;
+drop database mysqltest;
+
+# test drop/create database and FLUSH TABLES WITH READ LOCK
+flush tables with read lock;
+--error 1209,1223
+create database mysqltest;
+unlock tables;
+create database mysqltest;
+select schema_name from information_schema.schemata order by schema_name;
+flush tables with read lock;
+--error 1208,1223
+drop database mysqltest;
+unlock tables;
+drop database mysqltest;
+select schema_name from information_schema.schemata order by schema_name;
+--error 1008
+drop database mysqltest;
+
+# test create table and FLUSH TABLES WITH READ LOCK
+drop table t1;
+flush tables with read lock;
+--error 1223
+create table t1(n int);
+unlock tables;
+create table t1(n int);
+show tables;
+drop table t1;
+
+# End of 4.1 tests
+
+
+#
+# Test for bug#21216 "Simultaneous DROP TABLE and SHOW OPEN TABLES causes
+# server to crash". Crash (caused by failed assertion in 5.0 or by null
+# pointer dereference in 5.1) happened when one ran SHOW OPEN TABLES
+# while concurrently doing DROP TABLE (or RENAME TABLE, CREATE TABLE LIKE
+# or any other command that takes name-lock) in other connection.
+# 
+# Also includes test for similar bug#12212 "Crash that happens during
+# removing of database name from cache" reappeared in 5.1 as bug#19403
+# In its case crash happened when one concurrently executed DROP DATABASE
+# and one of name-locking command.
+# 
+--disable_warnings
+drop database if exists mysqltest;
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+create database mysqltest;
+lock tables t1 read;
+connect (addconroot1, localhost, root,,);
+--send drop table t1
+connect (addconroot2, localhost, root,,);
+# Server should not crash in any of the following statements
+--disable_result_log
+show open tables;
+--enable_result_log
+--send drop database mysqltest
+connection default;
+select 1;
+unlock tables;
+connection addconroot1;
+--reap
+connection addconroot2;
+--reap
+disconnect addconroot2;
+--source include/wait_until_disconnected.inc
+connection addconroot1;
+disconnect addconroot1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+#
+# Bug#25858 Some DROP TABLE under LOCK TABLES can cause deadlocks
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 read;
+--error ER_TABLE_NOT_LOCKED
+drop table t2;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+drop table t1;
+unlock tables;
+drop table t1,t2;
+connect (addconroot, localhost, root,,);
+connection default;
+create table t1 (i int);
+create table t2 (i int);
+lock tables t1 read;
+connection addconroot;
+lock tables t2 read;
+--error ER_TABLE_NOT_LOCKED
+drop table t1;
+connection default;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+drop table t1,t2;
+disconnect addconroot;
+connection default;
+unlock tables;
+drop table t1,t2;
+
+--echo End of 5.0 tests
+
+
+###########################################################################
+
+--echo
+#
+# Bug#26703: DROP DATABASE fails if database contains a #mysql50# table with backticks
+#
+create database mysqltestbug26703;
+use mysqltestbug26703;
+create table `#mysql50#abc``def` ( id int );
+--error ER_TOO_LONG_IDENT
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+--error ER_TOO_LONG_IDENT
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+use test;
+drop database mysqltestbug26703;
+
+--echo End of 5.1 tests
+
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#37431 (DROP TABLE does not report errors correctly).
+--echo # --
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+
+SHOW WARNINGS;
+
+--echo
+--echo # --
+--echo # -- End of Bug#37431.
+--echo # --
+
+
+--echo #
+--echo # Bug#54282 Crash in MDL_context::upgrade_shared_lock_to_exclusive
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+LOCK TABLE t1 WRITE;
+--error ER_NONUNIQ_TABLE
+DROP TABLE t1, t1;
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#34750: Print database name in Unknown Table error message
+--echo #
+
+--echo 
+--echo # Test error message when droping table/view
+
+--error ER_BAD_TABLE_ERROR
+DROP TABLE table1;
+--error ER_BAD_TABLE_ERROR
+DROP TABLE table1,table2;
+--error ER_BAD_TABLE_ERROR
+DROP VIEW view1,view2,view3,view4;
+--echo
+DROP TABLE IF EXISTS table1;
+DROP TABLE IF EXISTS table1,table2;
+DROP VIEW IF EXISTS view1,view2,view3,view4;
+
+--echo
+--echo # Test error message when trigger does not find table
+
+CREATE TABLE table1(a int);
+CREATE TABLE table2(b int);
+
+# Database name is only available (for printing) if specified in 
+# the trigger definition
+CREATE TRIGGER trg1 AFTER INSERT ON table1
+FOR EACH ROW
+  INSERT INTO table2 SELECT t.notable.*;
+
+--error ER_BAD_TABLE_ERROR
+INSERT INTO table1 VALUES (1);
+
+DROP TABLE table1,table2;
+
+--echo # End BUG#34750
+
+--echo
+--echo # Test Bug#19573998 DATABASE CAN NOT BE DROPPED IF IT CONTAINS .CFG FILES
+--enable_connect_log 
+CREATE DATABASE bug19573998;
+USE bug19573998;
+CREATE TABLE t1(i int);
+
+--echo # Start FLUSH TABLES command which will create .cfg files
+--echo # and block DROP DATABASE
+FLUSH TABLES t1 FOR EXPORT;
+
+--connect(con1, localhost, root, '', bug19573998)
+--echo # Non-blocking (--send):
+--send DROP DATABASE bug19573998
+
+--connection default
+--echo # Wait until DROP DATABASE becomes blocked on table metadata lock
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for schema metadata lock" AND
+        info = "DROP DATABASE bug19573998";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--connection con1
+--echo # Wait for DROP DATABASE to complete (--reap)
+--reap
+--echo # DROP DATABASE completed
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--echo # Connection con1 has disconnected
+
+--connection default
+--echo # Try to manually inject a .cfg file into the database directory
+CREATE DATABASE bug19573998;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo # Write a dummy file into the database directory
+--write_file $MYSQLD_DATADIR/bug19573998/dummy.cfg
+EOF
+
+--echo # Verify that it is possible to drop the database
+DROP DATABASE bug19573998;
+USE test;
+--disable_connect_log
+--echo # End Bug#19573998
+

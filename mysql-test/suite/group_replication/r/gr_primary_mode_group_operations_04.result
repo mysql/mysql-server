@@ -1,0 +1,60 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Create table to use on test
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+[connection server2]
+
+# 2. Lock table on server2 to monitor
+#    group_replication_enforce_update_everywhere_checks
+LOCK TABLE t1 WRITE;
+
+# 3. Push data to server1.
+#    It won't be committed on server2 due to the lock on the table
+[connection server1]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+
+# 4. Execute action switch to single primary mode,
+#    with server2 as primary member
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+
+# 5. Confirm stages on server2
+[connection server2]
+include/assert.inc [stage/group_rpl/Single-primary Switch: executing Primary election]
+include/assert.inc [stage/group_rpl/Primary Election: stabilizing transactions from former primaries]
+
+# 6. Since server2 has table t1 locked, the values aren't committed, so
+#    group_replication_enforce_update_everywhere_checks is enabled
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+
+# 7. Unlock table on server2
+UNLOCK TABLES;
+
+# 8. On primary member the super_read_only shall be disable
+include/assert.inc [The super_read_only mode should be 0 here.]
+
+# 9. Confirm server2 is the group primary member.
+[connection server1]
+group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
+Mode switched to single-primary successfully.
+[connection server2]
+
+# 10. server2 after update all queued transactions will disable
+#    group_replication_enforce_update_everywhere_checks
+include/gr_assert_primary_member.inc
+
+# 11. The secondary member shall have the super_read_only enable
+[connection server1]
+include/gr_assert_secondary_member.inc
+
+# 12. Cleanup
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

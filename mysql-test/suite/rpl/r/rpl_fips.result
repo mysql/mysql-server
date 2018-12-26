@@ -1,0 +1,48 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("Failed to set up SSL because of the following *");
+CALL mtr.add_suppression("Slave SQL for channel '': Request to stop slave SQL Thread received while *");
+[on master]
+SET GLOBAL ssl_fips_mode=on;
+[on slave]
+include/stop_slave.inc
+# R1: Set the ssl connection OFF
+CHANGE MASTER TO master_user = 'root', master_password = '', master_ssl = 0;;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+include/check_slave_no_error.inc
+[on slave]
+include/stop_slave.inc
+# R2: Set the ssl connection ON  and weak cipher CAMELLIA256-SHA
+CHANGE MASTER TO master_user = 'root', master_password = '', master_ssl = 1, master_ssl_cipher = 'CAMELLIA256-SHA', master_retry_count = 1;;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE;
+include/wait_for_slave_io_error.inc [errno=2026]
+select SERVICE_STATE, LAST_ERROR_NUMBER from performance_schema.replication_connection_status;
+SERVICE_STATE	LAST_ERROR_NUMBER
+OFF	2026
+# R3: Set the ssl connection ON and strong cipher
+include/stop_slave.inc
+CHANGE MASTER TO master_user = 'root', master_password = '', master_ssl = 1, master_ssl_cipher = 'AES128-SHA';;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+include/check_slave_no_error.inc
+include/stop_slave.inc
+==== Cleanup (Note that slave IO thread is not running) ====
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', master_ssl=0;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_reset.inc
+[on master]
+SET GLOBAL ssl_fips_mode=off;
+include/rpl_end.inc

@@ -1,0 +1,18 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+==== Check that we still understand the old format of relay-log.info ====
+include/stop_slave.inc
+RESET SLAVE;
+# Read relay-log.info
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_to_start.inc
+# Check that relay log coordinates are equal to those we saved in old-format_relay-log.info
+= , 0, slave-relay-bin.000001, 4
+include/rpl_end.inc

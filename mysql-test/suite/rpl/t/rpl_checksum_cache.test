@@ -1,0 +1,253 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+--source include/not_group_replication_plugin.inc
+-- source include/master-slave.inc
+
+--disable_warnings
+call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t2 set data=repeat.*'a', @act_size.*");
+call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t1 values.* NAME_CONST.*'n',.*, @data .*");
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+--enable_warnings
+
+connection master;
+set @save_binlog_cache_size = @@global.binlog_cache_size;
+set @save_binlog_checksum = @@global.binlog_checksum;
+set @save_master_verify_checksum = @@global.master_verify_checksum;
+set @@global.binlog_cache_size = 4096;
+set @@global.binlog_checksum = CRC32;
+set @@global.master_verify_checksum = 1;
+
+# Sync mtr suppressions before stopping the slave or else we can get "Slave
+# SQL Thread stopped with incomplete event group having non-transactional
+# changes" error.
+--source include/sync_slave_sql_with_master.inc
+# restart slave to force the dump thread to verify events (on master side)
+source include/stop_slave.inc;
+source include/start_slave.inc;
+
+connection master;
+
+#
+# Testing a critical part of checksum handling dealing with transaction cache.
+# The cache's buffer size is set to be less than the transaction's footprint
+# in binlog.
+#
+# To verify combined buffer-by-buffer read out of the file and fixing crc per event
+# there are the following parts:
+#
+# 1. the event size is much less than the cache's buffer
+# 2. the event size is bigger than the cache's buffer
+# 3. the event size if approximately the same as the cache's buffer
+# 4. all in above
+
+#
+# 1. the event size is much less than the cache's buffer
+#
+
+flush status;
+show status like "binlog_cache_use";
+show status like "binlog_cache_disk_use";
+
+#
+# parameter to ensure the test slightly varies binlog content
+# between different invocations
+#
+let $deviation_size=32;
+eval create table t1 (a int PRIMARY KEY, b CHAR($deviation_size)) engine=innodb;
+
+# Now we are going to create transaction which is long enough so its 
+# transaction binlog will be flushed to disk...
+
+delimiter |;
+create procedure test.p_init (n int, size int) 
+begin
+  while n > 0 do
+    select round(RAND() * size) into @act_size;
+    set @data = repeat('a', @act_size);
+    insert into t1 values(n, @data );
+    set n= n-1;
+  end while;
+end|
+
+delimiter ;|
+
+let $1 = 4000; # PB2 can run it slow to time out on following sync_slave_with_master:s
+
+begin;
+--disable_warnings
+# todo: check if it is really so.
+#+Note   1592    Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+eval call test.p_init($1, $deviation_size);
+--enable_warnings
+commit;
+
+show status like "binlog_cache_use";
+--echo *** binlog_cache_disk_use must be non-zero ***
+show status like "binlog_cache_disk_use";
+
+--source include/sync_slave_sql_with_master.inc
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+# undoing changes with verifying the above once again
+connection master;
+
+begin;
+delete from t1;
+commit;
+
+--source include/sync_slave_sql_with_master.inc
+
+#
+# 2. the event size is bigger than the cache's buffer
+#
+connection master;
+
+flush status;
+let $t2_data_size= `select 3 * @@global.binlog_cache_size`;
+let $t2_aver_size= `select 2 * @@global.binlog_cache_size`;
+let $t2_max_rand=  `select 1 * @@global.binlog_cache_size`;
+
+eval create table t2(a int auto_increment primary key, data VARCHAR($t2_data_size)) ENGINE=Innodb;
+let $1=100;
+--disable_query_log
+begin;
+while ($1)
+{
+ eval select round($t2_aver_size + RAND() * $t2_max_rand) into @act_size;
+ set @data = repeat('a', @act_size);
+ insert into t2 set data = @data;
+ dec $1;
+}
+commit;
+--enable_query_log
+show status like "binlog_cache_use";
+--echo *** binlog_cache_disk_use must be non-zero ***
+show status like "binlog_cache_disk_use";
+
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:t2, slave:t2
+source include/diff_tables.inc;
+
+# undoing changes with verifying the above once again
+connection master;
+
+begin;
+delete from t2;
+commit;
+
+--source include/sync_slave_sql_with_master.inc
+#
+# 3. the event size if approximately the same as the cache's buffer
+#
+
+connection master;
+
+flush status;
+let $t3_data_size= `select 2 * @@global.binlog_cache_size`;
+let $t3_aver_size= `select (9 * @@global.binlog_cache_size) / 10`;
+let $t3_max_rand=  `select (2 * @@global.binlog_cache_size) / 10`;
+
+eval create table t3(a int auto_increment primary key, data VARCHAR($t3_data_size)) engine=innodb;
+
+let $1= 300;
+--disable_query_log
+begin;
+while ($1)
+{
+ eval select round($t3_aver_size + RAND() * $t3_max_rand) into @act_size;
+ insert into t3 set data= repeat('a', @act_size);
+ dec $1;
+}
+commit;
+--enable_query_log
+show status like "binlog_cache_use";
+--echo *** binlog_cache_disk_use must be non-zero ***
+show status like "binlog_cache_disk_use";
+
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:t3, slave:t3
+source include/diff_tables.inc;
+
+# undoing changes with verifying the above once again
+connection master;
+
+begin;
+delete from t3;
+commit;
+
+--source include/sync_slave_sql_with_master.inc
+
+#
+# 4. all in above
+#
+
+connection master;
+flush status;
+
+delimiter |;
+eval create procedure test.p1 (n int) 
+begin
+  while n > 0 do
+    case (select (round(rand()*100) % 3) + 1)
+    when 1 then
+      select round(RAND() * $deviation_size) into @act_size;
+      set @data = repeat('a', @act_size);
+      insert into t1 values(n, @data);
+    when 2 then
+      begin
+        select round($t2_aver_size + RAND() * $t2_max_rand) into @act_size;
+	insert into t2 set data=repeat('a', @act_size);
+      end;
+    when 3 then
+      begin
+        select round($t3_aver_size + RAND() * $t3_max_rand) into @act_size;
+	insert into t3 set data= repeat('a', @act_size);
+      end;
+    end case;
+    set n= n-1;
+  end while;
+end|
+delimiter ;|
+
+let $1= 1000;
+set autocommit= 0;
+begin;
+--disable_warnings
+eval call test.p1($1);
+--enable_warnings
+commit;
+
+show status like "binlog_cache_use";
+--echo *** binlog_cache_disk_use must be non-zero ***
+show status like "binlog_cache_disk_use";
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $diff_tables= master:t1, slave:t1
+source include/diff_tables.inc;
+
+--let $diff_tables= master:t2, slave:t2
+source include/diff_tables.inc;
+
+--let $diff_tables= master:t3, slave:t3
+source include/diff_tables.inc;
+
+
+connection master;
+
+begin;
+delete from t1;
+delete from t2;
+delete from t3;
+commit;
+
+drop table t1, t2, t3;
+set @@global.binlog_cache_size = @save_binlog_cache_size;
+set @@global.binlog_checksum = @save_binlog_checksum;
+set @@global.master_verify_checksum = @save_master_verify_checksum;
+drop procedure test.p_init;
+drop procedure test.p1;
+
+--source include/rpl_end.inc

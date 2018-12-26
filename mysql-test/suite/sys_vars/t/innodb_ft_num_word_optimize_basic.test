@@ -1,0 +1,57 @@
+
+#
+# 2011-11-17 - Added
+#
+
+
+SET @start_global_value = @@global.innodb_ft_num_word_optimize;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are zero or above
+select @@global.innodb_ft_num_word_optimize >=1000;
+select @@global.innodb_ft_num_word_optimize;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_ft_num_word_optimize;
+show global variables like 'innodb_ft_num_word_optimize';
+show session variables like 'innodb_ft_num_word_optimize';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
+select * from performance_schema.session_variables where variable_name='innodb_ft_num_word_optimize';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_ft_num_word_optimize=1000;
+select @@global.innodb_ft_num_word_optimize;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
+select * from performance_schema.session_variables where variable_name='innodb_ft_num_word_optimize';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+set session innodb_ft_num_word_optimize=1000;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_ft_num_word_optimize=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_ft_num_word_optimize=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_ft_num_word_optimize="foo";
+
+set global innodb_ft_num_word_optimize=-7;
+select @@global.innodb_ft_num_word_optimize;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
+--enable_warnings
+
+#
+# cleanup
+#
+SET @@global.innodb_ft_num_word_optimize = @start_global_value;
+SELECT @@global.innodb_ft_num_word_optimize;

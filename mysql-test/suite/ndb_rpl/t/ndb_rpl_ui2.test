@@ -1,0 +1,38 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--connection master
+
+CREATE TABLE t1 (pk int primary key, uk int not null, unique(uk)) engine=ndb;
+
+--sync_slave_with_master
+--connection slave
+STOP SLAVE;
+insert into t1 values (1,1);
+insert into t1 values (2,2);
+--connection master
+begin;
+insert into t1 values (1,2);
+insert into t1 values (2,1);
+commit;
+delete from t1;
+begin;
+insert into t1 values (1,1);
+insert into t1 values (2,2);
+commit;
+
+--connection slave
+start slave;
+
+--connection master
+--sync_slave_with_master
+--connection slave
+--sorted_result
+select * from t1;
+
+--connection master
+drop table t1;
+--sync_slave_with_master
+
+--source include/rpl_end.inc

@@ -1,0 +1,1667 @@
+-1 before test
+<No error> before test
+select otto from (select 1 as otto) as t1;
+otto
+1
+select otto from (select 1 as otto) as t1;
+otto
+1
+mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed.
+ERROR 1054 (42S22): Unknown column 'friedrich' in 'field list'
+select friedrich from (select 1 as otto) as t1;
+ERROR 42S22: Unknown column 'friedrich' in 'field list'
+select otto from (select 1 as otto) as t1;
+otto
+1
+mysqltest: At line 1: Query 'select otto from (select 1 as otto) as t1' succeeded, should have failed with error '42S22'
+mysqltest: At line 1: Expecting a SQLSTATE (00000) from query 'remove_file MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp' which cannot produce one.
+select friedrich from (select 1 as otto) as t1;
+ERROR 42S22: Unknown column 'friedrich' in 'field list'
+mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed with wrong error 1054: 'Unknown column 'friedrich' in 'field list'', should have failed with error '00000'.
+select otto from (select 1 as otto) as t1;
+otto
+1
+
+select 0 as "after_successful_stmt_errno" ;
+after_successful_stmt_errno
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
+select 1064 as "after_wrong_syntax_errno" ;
+after_wrong_syntax_errno
+1064
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
+select 1064 as "after_let_var_equal_value" ;
+after_let_var_equal_value
+1064
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+set @my_var= 'abc' ;
+
+select 0 as "after_set_var_equal_value" ;
+after_set_var_equal_value
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
+select 1064 as "after_disable_warnings_command" ;
+after_disable_warnings_command
+1064
+drop table if exists t1 ;
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+drop table if exists t1 ;
+
+select 0 as "after_disable_warnings" ;
+after_disable_warnings
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
+select 1146 as "after_minus_masked" ;
+after_minus_masked
+1146
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
+select 1146 as "after_!_masked" ;
+after_!_masked
+1146
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select -1 as "after_let_errno_equal_value" ;
+after_let_errno_equal_value
+-1
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+prepare stmt from "select 3 from t1" ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
+select 1146 as "after_failing_prepare" ;
+after_failing_prepare
+1146
+create table t1 ( f1 char(10));
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+prepare stmt from "select 3 from t1" ;
+
+select 0 as "after_successful_prepare" ;
+after_successful_prepare
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+execute stmt;
+3
+
+select 0 as "after_successful_execute" ;
+after_successful_execute
+0
+drop table t1;
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+execute stmt;
+ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
+select 1146 as "after_failing_execute" ;
+after_failing_execute
+1146
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+execute __stmt_;
+ERROR HY000: Unknown prepared statement handler (__stmt_) given to EXECUTE
+ER_UNKNOWN_STMT_HANDLER
+select 1243 as "after_failing_execute" ;
+after_failing_execute
+1243
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+deallocate prepare stmt;
+
+select 0 as "after_successful_deallocate" ;
+after_successful_deallocate
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+deallocate prepare __stmt_;
+ERROR HY000: Unknown prepared statement handler (__stmt_) given to DEALLOCATE PREPARE
+ER_UNKNOWN_STMT_HANDLER
+select 1243 as "after_failing_deallocate" ;
+after_failing_deallocate
+1243
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
+select 1064 as "after_--disable_abort_on_error" ;
+after_--disable_abort_on_error
+1064
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
+select 1146 as "after_!errno_masked_error" ;
+after_!errno_masked_error
+1146
+mysqltest: At line 1: Query 'select 3 from t1' failed with wrong error 1146: 'Table 'test.t1' doesn't exist', should have failed with error '1000'.
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ is empty
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'nonsense' at line 1
+ is empty
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
+select 1064 as "after_--enable_abort_on_error" ;
+after_--enable_abort_on_error
+1064
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+mysqltest: At line 1: Query 'select 3 from t1' failed with wrong error 1146: 'Table 'test.t1' doesn't exist', should have failed with error '1064'.
+garbage;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 2;
+select 3;
+3
+3
+select 5;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 7;
+7
+7
+mysqltest: At line 1: End of line junk detected: "OCNE"
+connect  con1,localhost,root,,;
+select 5 from t1;
+lower
+case
+name
+abc
+xyz
+ is empty
+ is empty
+"Yes it's empty"
+ER_FORBID_SCHEMA_CHANGE
+1105
+mysqltest: At line 1: Invalid error in input
+<Unknown>
+<Unknown>
+
+0
+0
+hello
+hello
+;;;;;;;;
+# MySQL: -- The
+mysqltest: At line 1: Extra argument '6' passed to 'sleep'
+mysqltest: At line 1: Extra argument '6' passed to 'sleep'
+mysqltest: At line 1: Extra argument 'A comment
+show status' passed to 'sleep'
+mysqltest: At line 1: End of line junk detected: "sleep 7
+# Another comment
+"
+mysqltest: At line 1: Extra argument 'comment
+# comment 3
+disable_query_log' passed to 'disconnect'
+mysqltest: At line 1: Extra argument 'comment
+# comment 3
+disable_query_log' passed to 'disconnect'
+mysqltest: At line 1: End of line junk detected: "disconnect default
+
+#
+# comment
+# comment2
+
+# comment 3
+--disable_query_log
+"
+mysqltest: At line 1: End of line junk detected: "disconnect default # comment
+# comment part2
+
+# comment 3
+--disable_query_log
+"
+mysqltest: At line 1: Extra delimiter ";" found
+mysqltest: At line 1: Extra delimiter ";" found
+mysqltest: At line 1: Spurious text after `query` expression
+mysqltest: At line 1: Spurious text after `query` expression
+mysqltest: At line 2: Spurious text after `query` expression
+mysqltest: At line 1: Missing argument(s) to 'error'
+mysqltest: At line 1: Missing argument(s) to 'error'
+mysqltest: At line 1: The sqlstate definition must start with an uppercase S.
+mysqltest: At line 1: The error name definition must start with an uppercase E or C.
+mysqltest: At line 1: Invalid argument to error: '9eeeee', the errno may only consist of digits[0-9]
+mysqltest: At line 1: Invalid argument to error: '1sssss', the errno may only consist of digits[0-9]
+mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
+mysqltest: At line 1: The sqlstate may only consist of digits[0-9] and _uppercase_ letters.
+mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
+mysqltest: At line 1: Unknown SQL error name 'E9999'
+mysqltest: At line 1: Invalid argument to error: '999e9', the errno may only consist of digits[0-9]
+mysqltest: At line 1: Invalid argument to error: '9b', the errno may only consist of digits[0-9]
+mysqltest: At line 1: Too many errorcodes specified.
+DROP TABLE table_does_not_exist;
+ERROR 42S02: Unknown table 'test.table_does_not_exist'
+DROP TABLE table_does_not_exist;
+ERROR 42S02: Unknown table 'test.table_does_not_exist'
+DROP TABLE table_does_not_exist;
+ERROR 42S02: Unknown table 'test.table_does_not_exist'
+DROP TABLE table_does_not_exist;
+ERROR 42S02: Unknown table 'test.table_does_not_exist'
+CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT);
+ERROR 42S01: Table 't1' already exists
+CREATE TABLE t1 (a INT);
+ERROR 42S01: Table 't1' already exists
+DROP TABLE t1;
+MySQL
+"MySQL"
+MySQL: The world''s most popular open source database
+"MySQL: The world's most popular open source database"
+MySQL: The world''s
+most popular open
+source database
+# MySQL: The world''s
+# most popular open
+# source database
+- MySQL: The world''s
+- most popular open
+- source database
+- MySQL: The world''s
+-- most popular
+-- open source database
+# MySQL: The
+--world''s
+# most popular
+-- open
+- source database
+"MySQL: The world's most popular; open source database"
+"MySQL: The world's most popular ; open source database"
+"MySQL: The world's most popular ;open source database"
+echo message echo message
+
+mysqltest: At line 1: Missing argument in exec
+1
+1
+2
+2
+X
+3
+MySQL
+"MySQL"
+MySQL: The
+world''s most
+popular open
+source database
+# MySQL: The
+# world''s most
+# popular open
+# source database
+-- MySQL: The
+-- world''s most
+-- popular
+-- open source database
+# MySQL: The
+- world''s most
+-- popular open
+# source database
+'# MySQL: The
+- world''s most
+-- popular open
+# source database'
+"# MySQL: The
+- world''s most
+-- popular open
+# source database"
+hej
+hej 
+hej
+1
+
+
+a long variable content
+a long variable content
+a long a long variable content variable content
+a long \$where variable content
+
+banana = banana
+Not a banana: ba\$cat\$cat
+with\`some"escaped\'quotes
+with\`some"escaped\'quotes
+single'tick`backtick
+mysqltest: At line 1: Missing arguments to let
+mysqltest: At line 1: Missing variable name in let
+mysqltest: At line 1: Missing assignment operator in let
+mysqltest: At line 1: Missing assignment operator in let
+mysqltest: At line 1: Missing assignment operator in let
+mysqltest: At line 1: Missing variable name in let
+mysqltest: At line 1: Missing variable name in let
+mysqltest: At line 1: Missing assignment operator in let
+# Execute: --echo # <whatever> success: $success
+# <whatever> success: 1
+# Execute: echo # <whatever> success: $success ;
+# <whatever> success: 1 
+# The next two variants work fine and expand the content of $success
+# Execute: --echo $success
+1
+# Execute: echo $success ;
+1 
+# Check if let $B = $A is an assignment per value.
+let $A = initial value of A;
+let $B = initial value of B;
+let $B = $A
+# Content of $A is: initial value of B
+let $A = changed value of A;
+# Content of $B is: initial value of B
+let $B = changed value of B;
+# Content of $A is: changed value of A
+var2: content of variable 1
+var3: content of variable 1 content of variable 1
+length of var3 is longer than 0
+var1
+hi	1	hi there
+var2
+2
+var2 again
+2
+var3 two columns with same name
+1	2	3
+var4 from query that returns NULL
+var5 from query that returns no row
+failing query in let
+create table t1 (a varchar(100)) charset utf8mb4;
+insert into t1 values ('`select 42`');
+`select 42`
+insert into t1 values ('$dollar');
+`select 42`
+$dollar
+drop table t1;
+mysqltest: At line 1: Query 'let $var2= `failing query`' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
+mysqltest: At line 1: Missing required argument 'filename' to command 'source'
+mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
+mysqltest: At line 1: Source directives are nesting too deep
+In included file MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
+included from <stdin>: 1
+mysqltest: At line 1: Query 'garbage ' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+In included file MYSQLTEST_VARDIR/tmp/error.sql: 1
+included from <stdin>: 1
+
+2 = outer loop variable after while
+here is the sourced script
+
+2 = outer loop variable before dec
+
+1 = outer loop variable after dec
+
+1 = outer loop variable after while
+here is the sourced script
+
+1 = outer loop variable before dec
+
+0 = outer loop variable after dec
+outer=2 ifval=0
+outer=1 ifval=1
+here is the sourced script
+ERROR 42S02: Table 'test.nowhere' doesn't exist
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'else' at line 1
+
+In loop
+here is the sourced script
+
+In loop
+here is the sourced script
+
+In loop
+here is the sourced script
+
+In loop
+here is the sourced script
+
+In loop
+here is the sourced script
+
+In loop
+here is the sourced script
+
+In loop
+here is the sourced script
+
+In loop
+here is the sourced script
+
+In loop
+here is the sourced script
+here is the sourced script
+"hello"
+"hello"
+mysqltest: At line 2: Invalid argument to sleep "xyz"
+mysqltest: At line 2: Invalid argument to real_sleep "xyz"
+mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'sleep'
+mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'real_sleep'
+mysqltest: At line 1: Invalid argument to sleep "abc"
+mysqltest: At line 1: Invalid argument to real_sleep "abc"
+1
+101
+-99
+mysqltest: At line 1: Missing argument to inc
+mysqltest: At line 1: The argument to inc must be a variable (start with $)
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+mysqltest: At line 1: End of line junk detected: "1000"
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+-96
+-96
+-1
+99
+mysqltest: At line 1: Missing argument to dec
+mysqltest: At line 1: The argument to dec must be a variable (start with $)
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+mysqltest: At line 1: End of line junk detected: "1000"
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+test
+test2
+test3
+test4
+outer
+true-inner
+true-inner again
+true-outer
+Counter is greater than 0, (counter=10)
+Counter should still be 10, is 10
+Counter is not 0, (counter=0)
+Not space var works
+Counter is true, (counter=alpha)
+while with string, only once
+5<7
+5<7 again
+5<7 still
+5<6
+5>=5
+5>=5 again
+5>3
+5==5
+5!=8
+5!=five
+5==3+2
+5   ==   5
+hello == hello
+hello   ==   hello
+hello != goodbye
+'quoted' == ''quoted''
+two words
+'two words'
+"two words"
+two words are two words
+right answer
+anything goes
+0 != string
+mysqltest: At line 2: Only == and != are supported for string values
+mysqltest: At line 2: Found junk '~= 6' after $variable in condition
+mysqltest: At line 2: Expression in if/while must beging with $, ` or a number
+mysqltest: At line 1: Missing right operand in comparison
+mysqltest: At line 1: Missing right operand in comparison
+counter is 2
+counter is 3
+counter is 4
+counter is 5
+counter is 6
+counter is 7
+1
+Testing while with not
+mysqltest: At line 64: Nesting too deeply
+In included file MYSQLTEST_VARDIR/tmp/mysqltest_while.inc: 65
+included from <stdin>: 1
+mysqltest: At line 1: missing '(' in while
+mysqltest: At line 1: missing ')' in while
+mysqltest: At line 1: Missing '{' after while. Found "dec $i"
+mysqltest: At line 1: Stray '}' - end of block before beginning
+mysqltest: At line 1: Stray 'end' command - end of block before beginning
+mysqltest: At line 1: Query '{' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
+mysqltest: At line 1: Missing '{' after while. Found "echo hej"
+mysqltest: At line 3: Missing end of block
+mysqltest: At line 3: Missing end of block
+mysqltest: At line 1: missing '(' in if
+mysqltest: At line 1: Stray 'end' command - end of block before beginning
+select "b" bs col1, "c" bs col2;
+col1	col2
+b	c
+seledt "b" bs dol1, "d" bs dol2;
+dol1	dol2
+b	d
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a'
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a;'
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a'
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a '
+OK
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a b c'
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a b c '
+select "a" as col1, "c" as col2;
+col1	col2
+b	c
+select "a" as col1, "c" as col2;
+col1	col2
+b	d
+mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a'
+mysqltest: At line 1: Wrong number of arguments to replace_column in 'replace_column 1'
+mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a b'
+mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a 1'
+mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1 b c '
+select "LONG_STRING" as x;
+x
+LONG_STRING
+dog
+mysqltest: At line 1: Invalid integer argument "10!"
+mysqltest: At line 1: Invalid integer argument "a"
+mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
+mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
+mysqltest: At line 1: Missing required argument 'host' to command 'connect'
+mysqltest: At line 1: Missing required argument 'host' to command 'connect'
+mysqltest: At line 1: Query 'connect  con2,localhost,root,,illegal_db' failed.
+ERROR 1049 (42000): Unknown database 'illegal_db'
+mysqltest: At line 1: Illegal argument for port: 'illegal_port'
+mysqltest: At line 1: Illegal option to connect: SMTP
+200 connects succeeded
+mysqltest: At line 3: connection 'test_con1' not found in connection pool
+In included file MYSQLTEST_VARDIR/tmp/mysqltest.sql: 3
+included from <stdin>: 1
+mysqltest: At line 2: Connection test_con1 already exists
+In included file MYSQLTEST_VARDIR/tmp/mysqltest.sql: 2
+included from <stdin>: 1
+show tables;
+ERROR 3D000: No database selected
+connect  con1,localhost,root,,;
+connection default;
+connection con1;
+disconnect con1;
+connection default;
+Output from mysqltest-x.inc
+Output from mysqltest-x.inc
+Output from mysqltest-x.inc
+mysqltest: Could not open './non_existing_file.inc' for reading, errno: 2
+failing_statement;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing_statement' at line 1
+failing_statement;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing_statement' at line 1
+SELECT 1 as a;
+a
+1
+select 1 as `a'b`, 2 as `a"b`;
+a'b	a"b
+1	2
+select 'aaa\\','aa''a',"aa""a";
+aaa\	aa'a	aa"a
+aaa\	aa'a	aa"a
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+
+Here comes a message
+--------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+
+root@localhost
+--------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+
+"Here comes a very very long message that
+    - is longer then 80 characters    and
+    - consists of several lines"
+--------------------------------------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+
+. Here comes a very very long message that
+.      - is longer then 80 characters    and
+.      - consists of several lines
+--------------------------------------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+mysqltest: The test didn't produce any output
+Failing multi statement query
+mysqltest: At line 3: Query 'create table t1 (a int primary key);
+insert into t1 values (1);
+select 'select-me';
+insertz 'error query'' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
+drop table t1;
+mysqltest: At line 3: Query 'create table t1 (a int primary key);
+insert into t1 values (1);
+select 'select-me';
+insertz 'error query'' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
+drop table t1;
+Multi statement using expected error
+create table t1 (a int primary key);
+insert into t1 values (1);
+select 'select-me';
+insertz error query||||
+select-me
+select-me
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz error query' at line 1
+drop table t1;
+drop table t1;
+sleep;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sleep' at line 1
+sleep;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sleep' at line 1
+;
+ERROR 42000: Query was empty
+select "b" as col1, "c" as col2;
+col1	col2
+b	c
+select "b" as col1, "b" as col2, "c" as col3;
+col1	col2	col3
+b	b	c
+seled "b" bs col1, "d" bs col2;
+col1	col2
+b	d
+select "raspberry and strawberry","blackberry","tomato";
+raspberry and strawberry	blackberry	tomato
+raspberry and strawberry	blackberry	tomato
+mysqltest: At line 1: Error parsing replace_regex "a"
+mysqltest: At line 1: Error parsing replace_regex "a;"
+mysqltest: At line 1: Error parsing replace_regex "a"
+mysqltest: At line 1: Error parsing replace_regex "a "
+mysqltest: At line 1: Error parsing replace_regex "a b"
+mysqltest: At line 1: Error parsing replace_regex "/a b c"
+mysqltest: At line 1: Error parsing replace_regex "/a /b c "
+create table t1 (a int, b int);
+insert into t1 values (1,3);
+insert into t1 values (2,4);
+select * from t1;
+a	D
+1	1
+1	4
+drop table t1;
+y
+txt
+b is b and more is more
+txt
+a is a and less is more
+create table t2 ( a char(10));
+garbage;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+garbage;
+Got one of the listed errors
+garbage;
+Got one of the listed errors
+insert into t1 values ("Abcd");
+Got one of the listed errors
+garbage;
+drop table t2;
+create table t1 ( f1 char(10));
+insert into t1 values ("Abcd");
+select * from t1;
+f1
+Abcd
+select * from t2;;
+ERROR 42S02: Table 'test.t2' doesn't exist
+select * from t1;
+f1
+Abcd
+select * from t1;;
+Result coming up
+f1
+Abcd
+select * from t1;;
+f1
+Abcd
+select * from t1;;
+mysqltest: At line 2: Cannot run query on connection between send and reap
+drop table t1;
+mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
+mysqltest: At line 1: Missing required argument 'directory' to command 'remove_files_wildcard'
+mysqltest: At line 1: Missing required argument 'pattern' to command 'remove_files_wildcard'
+mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
+mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
+Content for test_file1
+mysqltest: At line 1: File already exist: 'MYSQLTEST_VARDIR/tmp/test_file1.tmp'
+These lines should be repeated,
+if things work as expected
+These lines should be repeated,
+if things work as expected
+Some data
+for cat_file command
+of mysqltest
+mysqltest: At line 1: Command "cat_file" failed with error 1. (my_errno).
+mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
+mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
+mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
+mysqltest: At line 1: Missing required argument 'from_file' to command 'move_file'
+mysqltest: At line 1: Missing required argument 'to_file' to command 'move_file'
+mysqltest: At line 1: Missing required argument 'mode' to command 'chmod'
+mysqltest: At line 1: You must write a 4 digit octal number for mode
+mysqltest: At line 1: You must write a 4 digit octal number for mode
+mysqltest: At line 1: Missing required argument 'filename' to command 'chmod'
+mysqltest: At line 1: You must write a 4 digit octal number for mode
+mysqltest: At line 1: You must write a 4 digit octal number for mode
+hello
+hello
+hello
+mysqltest: At line 1: Max delimiter length(16) exceeded
+hello
+hello
+val is 5
+val is 5
+mysqltest: At line 1: test of die
+Some output
+create table t1( a int, b char(255), c timestamp);
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 2", '2007-04-05');
+insert into t1 values(1, 'Line 1', '2007-04-05'), (2, "Part 3", '2007-04-05');
+select * from t1;
+a	b	c
+1	Line 1	2007-04-05 00:00:00
+2	Part 2	2007-04-05 00:00:00
+1	Line 1	2007-04-05 00:00:00
+2	Part 3	2007-04-05 00:00:00
+select * from t1;
+a	b	c
+1	Line 1	2007-04-05 00:00:00
+1	Line 1	2007-04-05 00:00:00
+2	Part 2	2007-04-05 00:00:00
+2	Part 3	2007-04-05 00:00:00
+select * from t1;
+a	b	c
+1	Line 1	2007-04-05 00:00:00
+2	Part 2	2007-04-05 00:00:00
+1	Line 1	2007-04-05 00:00:00
+2	Part 3	2007-04-05 00:00:00
+select * from t1;
+select '';
+
+
+select "h";
+h
+h
+select "he";
+he
+he
+select "hep";
+hep
+hep
+select "hepp";
+hepp
+hepp
+drop table t1;
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT 2 as "my_col" UNION SELECT 1;
+my_col
+1
+2
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT '2' as "3"
+UNION
+SELECT '1';
+3
+1
+2
+CREATE TABLE t1( a CHAR);
+SELECT * FROM t1;
+a
+DROP TABLE t1;
+SELECT NULL as "my_col1",2 AS "my_col2"
+UNION
+SELECT NULL,1;
+my_col1	my_col2
+NULL	2
+NULL	1
+SELECT NULL as "my_col1",2 AS "my_col2"
+UNION
+SELECT NULL,1;
+my_col1	my_col2
+NULL	1
+NULL	2
+SELECT 2 as "my_col1",NULL AS "my_col2"
+UNION
+SELECT 1,NULL;
+my_col1	my_col2
+2	NULL
+1	NULL
+SELECT 2 as "my_col1",NULL AS "my_col2"
+UNION
+SELECT 1,NULL;
+my_col1	my_col2
+1	NULL
+2	NULL
+SET @a = 17;
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+2
+1
+SELECT 2 as "my_col"
+UNION
+SELECT 1;
+my_col
+1
+2
+SELECT '2' as "my_col1",2 as "my_col2"
+UNION
+SELECT '1',1 from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+SELECT '1' as "my_col1",2 as "my_col2"
+UNION
+SELECT '2',1;
+my_col1	my_col2
+#	1
+#	2
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 SET f1 = 1024;
+INSERT INTO t1 SELECT f1 - 1 FROM t1;
+INSERT INTO t1 SELECT f1 - 2 FROM t1;
+INSERT INTO t1 SELECT f1 - 4 FROM t1;
+INSERT INTO t1 SELECT f1 - 8 FROM t1;
+INSERT INTO t1 SELECT f1 - 16 FROM t1;
+INSERT INTO t1 SELECT f1 - 32 FROM t1;
+INSERT INTO t1 SELECT f1 - 64 FROM t1;
+INSERT INTO t1 SELECT f1 - 128 FROM t1;
+INSERT INTO t1 SELECT f1 - 256 FROM t1;
+INSERT INTO t1 SELECT f1 - 512 FROM t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+select "500g blåbærsyltetøy" as "will be lower cased";
+will be lower cased
+500g blåbærsyltetøy
+SELECT "UPPER" AS "WILL NOT BE lower cased";
+WILL NOT BE lower cased
+UPPER
+UP
+SELECT 0 as "UP AGAIN";
+UP AGAIN
+0
+select "abcdef" as "uvwxyz";
+uvwxyz
+abcdef
+select "xyz" as name union select "abc" as name order by name desc;
+name
+abc
+xyz
+select 1 as "some new text";
+some new text
+1
+set names latin1;
+select 0 as "will lower case �";
+will lower case �
+0
+set names utf8mb4;
+CREATE TABLE t1(
+a int, b varchar(255), c datetime
+);
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	datetime	YES		NULL	
+statement=SHOW COLUMNS FROM t1 row_number=1, column_name="Type", Value=int(11)
+statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=int(11)
+statement=SHOW COLUMNS FROM t1 row_number=1, column_name=Default, Value=NULL
+value= ->A B<-
+value= 1
+value= 2
+mysqltest: At line 1: query_get_value - argument list started with '(' must be ended with ')'
+mysqltest: At line 1: Missing required argument 'query' to command 'query_get_value'
+mysqltest: At line 1: Missing required argument 'column name' to command 'query_get_value'
+mysqltest: At line 1: Missing required argument 'row number' to command 'query_get_value'
+value= No such row
+value= No such row
+mysqltest: At line 1: Invalid row number: 'notnumber'
+mysqltest: At line 1: Could not find column 'column_not_exists' in the result of 'SHOW COLUMNS FROM t1'
+mysqltest: At line 1: Query 'SET @A = 1' didn't return a result set
+mysqltest: At line 1: Could not find column '1 AS B' in the result of 'SELECT 1 AS A'
+value= No such row
+mysqltest: At line 1: Query 'let $value= query_get_value(SHOW COLNS FROM t1, Field, 1)' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
+
+Field Type Null Key Default Extra
+a int(11) YES -><- NULL 
+b varchar(255) YES -><- NULL 
+c datetime YES -><- NULL 
+
+Number of columns with Default NULL: 3
+
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	datetime	YES		NULL	
+drop table t1;
+ERROR 42000: Unknown database 'inexistent'
+ERROR 28000: Access denied for user 'inexistent'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
+REPLACED_FILE1.txt
+file1.txt
+file2.txt
+prefix1.txt
+prefix2.txt
+prefix3.txt
+SELECT "bla bla file" as x;
+x
+bla bla file
+file11.txt
+dir-list.txt
+SELECT 'c:\\a.txt' AS col;
+col
+z
+select 1;
+1
+1
+select 1;
+1
+1
+-- a comment for the server;
+mysqltest: At line 1: Found line 'select 1;' beginning with -- that didn't contain a valid mysqltest command, check your syntax or use # if you intended to write a comment
+con1
+con2
+default
+con1
+con2
+con1
+con2
+con2
+-closed_connection-
+End of tests
+# To test cat_file command can handle \r\n at the 256th place
+# This test file will contain \r at the 256th position and in its
+# multiples.Extra characters to fill space,some more extra characters
+###############
+# inserting carraige return and line feed
+# Next in line is to add \r followed by \n but \r not being in 256th
+# position but in 255th position followed by \n 
+###### ###### ###### ######
+###### ###### ###### ######
+######## ###### ###### ###### ######
+# inserting carraige return and line feed
+
+# just a random carriage return and line feed
+
+# just a random carriage return only
+
+Bug#21963113 MYSQLTESTS REPLACE_REGEX CANNOT
+MATCH ^ (BEGINNING OF LINE) ATOM
+
+select "a" as a;
+R
+R
+select "R" Rs R;
+R
+R
+select "a" as R;
+R
+R
+#
+# Bug#22224687 : MTR TEST UTILITY SCRIPT 'INCLUDE/SEARCH_PATTERN.INC' SHOULD BE EXTENDED
+#
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = NONE
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST
+1: jan feb mar
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL
+1: jan feb mar
+5: jan feb mar
+9: jan feb mar
+13: jan feb mar
+17: jan feb oct
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'apr may', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'jun'
+Pattern "apr may" not found
+# SEARCH_PATTERN = 'apr may', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'jun'
+Pattern "apr may" not found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'mar'
+17: jan feb oct
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'march'
+1: jan feb mar
+5: jan feb mar
+9: jan feb mar
+13: jan feb mar
+17: jan feb oct
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 1
+1: jan feb mar
+2: apr may jun
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 2
+1: jan feb mar
+2: apr may jun
+3: jul aug sept
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, SEARCH_ECHO_CTX = 3
+1: jan feb mar
+2: apr may jun
+3: jul aug sept
+4: oct nov dec
+---
+2: apr may jun
+3: jul aug sept
+4: oct nov dec
+5: jan feb mar
+6: apr may jun
+7: jul aug sept
+8: oct nov dec
+---
+6: apr may jun
+7: jul aug sept
+8: oct nov dec
+9: jan feb mar
+10: apr may jun
+11: jul aug sept
+12: oct nov dec
+---
+10: apr may jun
+11: jul aug sept
+12: oct nov dec
+13: jan feb mar
+14: apr may jun
+15: jul aug sept
+16: oct nov dec
+---
+14: apr may jun
+15: jul aug sept
+16: oct nov dec
+17: jan feb oct
+---
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+Pattern "nov dec" not found
+# SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+Pattern "nov dec" not found
+# SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'october', SEARCH_ECHO_CTX = 3
+1: jan feb mar
+2: apr may jun
+3: jul aug sept
+4: oct nov dec
+5: jan feb mar
+6: apr may jun
+7: jul aug sept
+---
+5: jan feb mar
+6: apr may jun
+7: jul aug sept
+8: oct nov dec
+9: jan feb mar
+10: apr may jun
+11: jul aug sept
+---
+9: jan feb mar
+10: apr may jun
+11: jul aug sept
+12: oct nov dec
+13: jan feb mar
+14: apr may jun
+15: jul aug sept
+---
+13: jan feb mar
+14: apr may jun
+15: jul aug sept
+16: oct nov dec
+17: jan feb oct
+---
+Pattern "nov dec" found
+#
+# Bug#17944190 : MYSQLTEST CANNOT PARSE PERL BLOCK INSIDE IF THAT EVALUATES TO FALSE
+#
+True block
+Hello
+#
+# Bug#23035906 : MTR: MYSQLTEST PARSES QUOTES IN SQL COMMENTS LITERALLY LEADING TO EOL JUNK ERROR
+#
+SELECT 100 + /* Shouldn't fail */ 1 AS result;
+result
+101
+SELECT 100 /* Shouldn't fail */ + 1 AS result;
+result
+101
+SELECT 100 +
+/*
+Shouldn't
+fail
+*/
+1 AS result;
+result
+101
+SELECT 100
+/*
+Shouldn't
+fail
+*/
++ 1 AS result;
+result
+101
+SELECT 100 /* shouldn't / fail */ + 1 AS result;
+result
+101
+SELECT 100 /* shouldn't * fail */ + 1 AS result;
+result
+101
+SELECT 100 /* shouldn't /* fail */ + 1 AS result;
+result
+101
+SELECT 100 /* shouldn't /* fail */ + 1 AS res1, 'ABC' AS res2;
+res1	res2
+101	ABC
+SELECT 100 + /* "shouldnt fail */ 1 AS result;
+result
+101
+SELECT 100 + /* "shouldn't fail" */ 1 AS result;
+result
+101
+SELECT 100 + /* `shouldn't fail */ 1 AS result;
+result
+101
+SELECT 100 + /* `shouldn't fail` */ 1 AS result;
+result
+101
+SELECT 100 + /*  + shouldn't fail */ 1 AS result;
+result
+101
+SELECT 100 + /*  ! shouldn't fail */ 1 AS result;
+result
+101
+SELECT 1 /*!,"\'" */;
+1	'
+1	'
+SELECT 100 + /***/ 1 AS result;
+result
+101
+SELECT 100 + /**'*/ 1 AS result;
+result
+101
+SELECT 100 + /*/*/ 1 AS result;
+result
+101
+SELECT 100 + /*/'*/ 1 AS result;
+result
+101
+SELECT 100 + /* should */ fail */ 1 AS result;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/ 1 AS result' at line 1
+SELECT 100 + /* shoul'd */ fail */ 1 AS result;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/ 1 AS result' at line 1
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 values (1),(5),(10) /* doesn't throw error */;
+SELECT * FROM t1 /* shouldn't throw error */;
+a
+1
+5
+10
+DROP TABLE t1;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
+COUNT(*)
+0
+CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT) CHARSET utf8mb4;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
+COUNT(*)
+1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TEMPORARY TABLE t1;
+#
+# Bug#21048973 : SUPPORT "--ERROR CR_..." FOR COMMUNICATION RELATED ERRORS
+#
+SELECT 1 AS res;
+res
+1
+SELECT 1 AS res;
+ERROR HY000: MySQL server has gone away
+#
+# Bug#23743035: ADD A COPY_FILES_WILDCARD COMMAND
+#
+README_tablespace_portable_linux.txt
+bug20683959loaddata.txt
+bug30435_10k_items.txt
+bug30435_5k.txt
+cat_file.txt
+charset_utf8.txt
+crl-certificate-readme.txt
+loaddata1.dat
+loaddata2.dat
+loaddata3.dat
+loaddata4.dat
+loaddata5.dat
+loaddata6.dat
+loaddata7.dat
+loaddata_dq.dat
+loaddata_incomplete_escape.dat
+loaddata_incomplete_mb.dat
+loaddata_pair.dat
+loaddata_utf8.dat
+loadxml.dat
+loadxml2.dat
+numbers.txt
+wl5766_data.txt
+words.dat
+words2.dat
+README_tablespace_portable_linux.txt
+bug20683959loaddata.txt
+bug30435_10k_items.txt
+bug30435_5k.txt
+cat_file.txt
+charset_utf8.txt
+crl-certificate-readme.txt
+loaddata1.dat
+loaddata2.dat
+loaddata3.dat
+loaddata4.dat
+loaddata5.dat
+loaddata6.dat
+loaddata7.dat
+loaddata_dq.dat
+loaddata_incomplete_escape.dat
+loaddata_incomplete_mb.dat
+loaddata_pair.dat
+loaddata_utf8.dat
+loadxml.dat
+loadxml2.dat
+numbers.txt
+wl5766_data.txt
+words.dat
+words2.dat
+mysqltest: At line 1: Missing required argument 'pattern' to command 'copy_files_wildcard'
+#
+# Bug#24316799: --RMDIR DOES NOT DELETE DIRECTORY RECURSIVELY
+#
+#
+# Bug#21046241 : MTR CONNECT() NOT WORKING FOR TCP AND SOCKET PROTOCOL OPTIONS
+#
+#
+# Bug#24466969 : MTR CONNECT() ACCEPTS CONNECTION OPTIONS WITH ADDITIONAL TRAILING CHARACTERS
+#
+mysqltest: At line 1: Illegal option to connect: SOCKETNEW
+mysqltest: At line 1: Illegal option to connect: SSL3
+#
+# Bug#24806681 : MTR: INTRODUCE COMMAND TO COPY DIRECTORIES RECURSIVELY
+#
+# Destination directory doesn't exist and is created, should pass
+Berlin
+London
+Paris
+# Destination directory exists, should pass
+Berlin
+London
+Paris
+# Destination contains a subdirectory with the same name as a
+# subdirectory in source, should pass
+Berlin
+Italy
+London
+Paris
+# Source directory doesn't exist, should fail
+# Destination contains a file with the same name as a
+# subdirectory in source, should fail
+# Source directory path and destination directory path are same, should fail
+#
+# BUG#24806741 : MTR: INTRODUCE "EXPR" COMMAND
+#
+#
+# Arithmetic operation
+#
+# Addition operation
+expr $res= 10 + 20
+30
+expr $res= 20 + (-10)
+10
+expr $res= -10 + 10.5
+0.5
+expr $res= -3.5 + 10.5
+7
+expr $res= 1e10 + 1e10
+2e+10
+expr $res= 1e10 + 1e8
+1.01e+10
+# Subtraction operation
+expr $res= 10 - 20
+-10
+expr $res= 20 - (-10)
+30
+expr $res= -10 - 10
+-20
+expr $res= 10.5 - 10
+0.5
+expr $res= 1e10 - 1e8
+9900000000
+expr $res= 1e8 - 1e10
+-9900000000
+# Multiplication operation
+expr $res= 10 * 20
+200
+expr $res= 10 * (-10)
+-100
+expr $res= -10 * 10.5
+-105
+expr $res= 10.5 * (-3.5)
+-36.75
+expr $res= 1e10 * 1e8
+1e+18
+# Division operation
+expr $res= 10 / 20
+0.5
+expr $res= 20 / (-10)
+-2
+expr $res= 10.5 / (-3.5)
+-3
+expr $res= 1e10 / 1e8
+100
+# Modulo operation
+expr $res= 10 % 20
+10
+expr $res= 20 % (-10)
+0
+expr $res= 10.5 % -3.5
+1
+#
+# Logical operation
+#
+# Logical AND operation
+expr $res= 10 && 20
+1
+expr $res= -10 && 0
+0
+expr $res= 20 && -10
+1
+expr $res= 10.5 && -3.5
+1
+expr $res= -3.5 && 0
+0
+expr $res= 0 && 0
+0
+# Logical OR operation
+expr $res= 10 || 20
+1
+expr $res= -10 || 0
+1
+expr $res= -10 || -3.5
+1
+expr $res= 10.5 || 0
+1
+expr $res= 0 || 0
+0
+#
+# Bitwise operation
+#
+# Binary AND operation
+expr $res= 10 & 20
+0
+expr $res= 20 & 10.5
+0
+expr $res= 20 & 0
+0
+expr $res= 10 & 2
+2
+# Binary OR operation
+expr $res= 10 | 20
+30
+expr $res= 20 | 10.5
+30
+expr $res= 20 | 0
+20
+expr $res= 0 | 0
+0
+# Binary XOR operation
+expr $res= 10 ^ 20
+30
+expr $res= 20 ^ 10.5
+30
+expr $res= 20 ^ 0
+20
+# Binary right shift operation
+expr $res= 10 >> 2
+2
+expr $res= 20 >> 3
+2
+expr $res= 20 >> 0
+20
+# Binary left shift operation
+expr $res= 10 << 2
+40
+expr $res= 20 << 3
+160
+expr $res= 20 << 0
+20
+# Infinite result
+expr $res= 1e308 + 1e308
+inf
+# Division by 0, result will be an infinite value and MTR will print 'inf' keyword.
+expr $res= 10 / 0
+inf
+# 0.0 / 0.0, result will be NaN and MTR will print 'nan' keyword.
+expr $res= 0 / 0
+nan
+# Invalid mathematical expressions
+expr
+mysqltest: At line 1: Missing arguments to expr command.
+expr $res
+mysqltest: At line 1: Missing assignment operator in expr command.
+expr $res= $a
+mysqltest: At line 1: Undefined/invalid first operand '$a' in expr command.
+expr $res= $b + $a
+mysqltest: At line 1: Undefined/invalid first operand '$b' in expr command.
+expr $res= $a + $c
+mysqltest: At line 1: Undefined/invalid second operand '$c' in expr command.
+expr $res= $a + $c
+mysqltest: At line 1: Undefined/invalid second operand '$c' in expr command.
+expr $res= $a + $
+mysqltest: At line 1: Missing variable name.
+expr $re@s= $a + $a
+mysqltest: At line 1: Invalid variable name '$re@s'
+expr $res= $a + $a**
+mysqltest: At line 1: Invalid variable name '$a**'
+expr $res= $a + $b + $c
+mysqltest: At line 1: Invalid mathematical expression '$a + $b + $c' in expr command.
+expr $res= $a + b
+mysqltest: At line 1: Variable name 'b' should start with '$'
+expr $res= $a ++ $b
+mysqltest: At line 1: Invalid operator '++' in expr command
+#
+# BUG#25487471 : MYSQLTEST FAILS TO ESCAPE FILENAMES
+#
+# Test file name 'a_b.test'
+SELECT 100 AS res;
+res
+100
+# Test file name 'a-b.test'
+SELECT 100 AS res;
+res
+100
+# Test file name '-ab.test'
+mysqltest: Invalid file name '-ab.test', first character must be alpha-numeric.
+# Test file name '_ab.test'
+mysqltest: Invalid file name '_ab.test', first character must be alpha-numeric.
+# Test file name 'a=bc.test'
+mysqltest: Invalid file name 'a=bc.test'. Test or result file name should consist of only alpha-numeric characters, dash (-) or underscore (_), but should not start with dash or underscore.
+# Test file name 'abc@.test'
+mysqltest: Invalid file name 'abc@.test'. Test or result file name should consist of only alpha-numeric characters, dash (-) or underscore (_), but should not start with dash or underscore.
+# Result file name 'ab#c.result'
+mysqltest: Invalid file name 'ab#c.result'. Test or result file name should consist of only alpha-numeric characters, dash (-) or underscore (_), but should not start with dash or underscore.
+# Bug#23280117: 5.7 BUG XXXXX TEST REPLACE NUMBER ROUND+GIS PRECISION
+# DIFFERENCES (CONTRIBUTION)
+#
+# Insert values to be tested into a table
+CREATE TABLE t1(f FLOAT, k DOUBLE);
+INSERT INTO t1 VALUES(124.7892,1.23456e200);
+INSERT INTO t1 VALUES(6.9999999,1.000000000);
+INSERT INTO t1 VALUES(12900.019,37489e-12);
+SELECT * FROM t1;
+f	k
+124.79	1.23e+200
+7	1
+12900	0
+DROP TABLE t1;
+# Verify that the function rounds numeric values when they
+# are padded with characters
+SELECT 'aaaa(12.12348)';
+aaaa(12.12348)
+aaaa(12.12348)
+# Test case with precision 0. Value should be rounded off
+# to nearest whole number.
+SELECT 20;
+20
+20
+# An error is thrown if parameter count is 0
+mysqltest: At line 1: Missing required argument 'precision' to command 'replace_numeric_round'
+# The maximum value which can be passed is 16
+mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
+# The minimum value which can be passed is 0
+mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
+#
+# BUG#25840940 : MYSQLTEST WRITE_FILE IN NON-EXECUTED IF BLOCK BREAKS PARSING
+#
+# if condition evalutes to false
+# File shouldn't be created by write_file command inside
+# the if block, cat_file command should fail.
+# while condition evalutes to false
+# File shouldn't be created by write_file command inside
+# the while block, cat_file command should fail
+# Outer if condition evalutes to false
+# "Hello" shouldn't be repeated
+Hello
+# Outer while condition evalutes to false
+# "Hello" shouldn't be repeated
+Hello
+#
+# BUG#11766444 : MTR PRINTS WRONG FILE AND LINE NUMBER WHEN TESTS FAIL
+#
+mysqltest: At line 7: Query 'execute this invalid query' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1
+#
+# BUG#25821838 : --ERROR IS NOT PROPERLY WORKING IF IT IS USED INSIDE WHILE LOOP
+#
+DROP TABLE t1;
+ERROR 42S02: Unknown table 'test.t1'
+CREATE TABLE t1(c1 INT);
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t1(c1 INT);
+ERROR 42S01: Table 't1' already exists
+DROP TABLE t1;
+#
+# BUG#26090322 : MYSQLTEST CRASHES WITH 'NO-SKIP' OPTION
+#
+Sample test
+#
+# BUG#25929826 : SKIP COMMAND DOES NOT EXPAND VARIABLES
+#
+The test 'MYSQLTEST_VARDIR/tmp/bug25929826.test' is not supported by this installation
+Detected in file MYSQLTEST_VARDIR/tmp/bug25929826.test: 3
+reason: Skipping bug25929826.test
+#
+# BUG#26630826: MTR: REPLACE_RESULT IS NOT ABLE TO REPLACE LONG
+#               STRINGS IN PATH NAME
+#
+REPLACE_STRING
+mysqltest: At line 1: Query 'SELECT REPLACE_STRING FROM t1' failed.
+ERROR 1146 (42S02): Table 'test.t1' doesn't exist
+#
+# Bug#24671890: ENHANCE THE METHOD REMOVE_FILE IN MTR
+#
+# Test the retry argument for copy_file
+mysqltest: At line 1: Invalid value '5abc' for retry argument given to copy_file command.
+mysqltest: At line 1: Invalid value '-5' for retry argument given to copy_file command.
+mysqltest: At line 1: Invalid value '?' for retry argument given to copy_file command.
+mysqltest: At line 1: Invalid value 'abcd' for retry argument given to copy_file command.
+Interger value '2147483648' is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to copy_file command.
+# Test the retry argument for copy_files_wildcard
+mysqltest: At line 1: Invalid value '1oo1' for retry argument given to copy_files_wildcard command.
+mysqltest: At line 1: Invalid value 'abcd' for retry argument given to copy_files_wildcard command.
+mysqltest: At line 1: Invalid value ':' for retry argument given to copy_files_wildcard command.
+mysqltest: At line 1: Invalid value '-12' for retry argument given to copy_files_wildcard command.
+Interger value '2147483648000' is out of range. mysqltest: At line 1: Invalid value '2147483648000' for retry argument given to copy_files_wildcard command.
+# Test the retry argument for move_file command
+mysqltest: At line 1: Invalid value '11a' for retry argument given to move_file command.
+mysqltest: At line 1: Invalid value 'aabb' for retry argument given to move_file command.
+mysqltest: At line 1: Invalid value '-1' for retry argument given to move_file command.
+mysqltest: At line 1: Invalid value '??' for retry argument given to move_file command.
+Interger value '21474836489' is out of range. mysqltest: At line 1: Invalid value '21474836489' for retry argument given to move_file command.
+# Test the retry argument for file_exists command
+mysqltest: At line 1: Invalid value 'a10a' for retry argument given to file_exists command.
+mysqltest: At line 1: Invalid value 'ghghg' for retry argument given to file_exists command.
+mysqltest: At line 1: Invalid value '-5' for retry argument given to file_exists command.
+mysqltest: At line 1: Invalid value '!' for retry argument given to file_exists command.
+Interger value '21474836487' is out of range. mysqltest: At line 1: Invalid value '21474836487' for retry argument given to file_exists command.
+# Test the retry argument for remove_files_wildcard command
+mysqltest: At line 1: Invalid value 'blah' for retry argument given to remove_files_wildcard command.
+mysqltest: At line 1: Invalid value '-8' for retry argument given to remove_files_wildcard command.
+mysqltest: At line 1: Invalid value 'oo7' for retry argument given to remove_files_wildcard command.
+mysqltest: At line 1: Invalid value '?1' for retry argument given to remove_files_wildcard command.
+Interger value '21474836480' is out of range. mysqltest: At line 1: Invalid value '21474836480' for retry argument given to remove_files_wildcard command.
+# Test invalid values of retry for remove_file command
+mysqltest: At line 1: Invalid value 'xyz' for retry argument given to remove_file command.
+mysqltest: At line 1: Invalid value '-10' for retry argument given to remove_file command.
+mysqltest: At line 1: Invalid value 'll11' for retry argument given to remove_file command.
+mysqltest: At line 1: Invalid value '?1?' for retry argument given to remove_file command.
+Interger value '2147483648' is out of range. mysqltest: At line 1: Invalid value '2147483648' for retry argument given to remove_file command.
+#
+# BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
+#
+SELECT NUMBER_OF_CPUS;
+NUMBER_OF_CPUS
+NUMBER_OF_CPUS
+#
+# WL#11811: Rename and enhance [disable|enable]_parser test commands
+#
+executed
+this will be executed
+SELECT "this will be executed" AS executed;
+executed
+this will be executed
+SELECT "this will be executed" AS executed;
+executed
+this will be executed
+mysqltest: At line 1: Bug number mentioned in 'disable_testcase BUGG#0000' command is not in a correct format. It should be 'BUG#XXXX', where keyword 'BUG' is case-insensitive and 'XXXX' should contain only digits.
+mysqltest: At line 1: Bug number mentioned in 'disable_testcase BUG#A00A' command is not in a correct format. It should be 'BUG#XXXX', where keyword 'BUG' is case-insensitive and 'XXXX' should contain only digits.
+mysqltest: At line 1: Bug number mentioned in 'disable_testcase BUG#AAAA' command is not in a correct format. It should be 'BUG#XXXX', where keyword 'BUG' is case-insensitive and 'XXXX' should contain only digits.
+mysqltest: At line 3: Test case is already disabled.
+mysqltest: At line 4: Test case is already enabled.
+mysqltest: Test ended with test case execution disabled.
+#
+# BUG#28358835: MYSQLTEST: --ERROR IGNORES '0' IF ITS NOT THE FIRST
+#               ERROR CODE
+#
+SELECT 1 AS res;
+res
+1

@@ -1,0 +1,58 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Test if mysqladmin supports 'flush-logs error' command.
+# Make sure binary logs were not flushed
+# after execute 'flush error logs' statement.
+include/sync_slave_sql_with_master.inc
+# Make sure relay logs were not flushed
+# after execute 'flush error logs' statement.
+# Test if mysqladmin supports 'flush-logs relay' command.
+include/sync_slave_sql_with_master.inc
+# Check if 'slave-relay-bin.000003' file is created
+# after executing 'flush-logs relay' command.
+# Make sure binary logs were not flushed
+# after executeing 'flush-logs relay' command.
+# Test if mysqladmin supports 'flush-logs slow' command.
+# Make sure binary logs were not be flushed
+# after executing 'flush-logs slow' command.
+# Test if mysqladmin supports 'flush-logs general' command.
+# Make sure binary logs were not flushed
+# after execute 'flush-logs general' command.
+# Test if mysqladmin supports 'flush-logs engine' command.
+# Make sure binary logs were not flushed
+# after execute 'flush-logs engine' statement.
+# Make sure the 'master-bin.000002' file does not
+# exist before execution of 'flush-logs binary' command.
+# Test if mysqladmin supports 'flush-logs binary' command.
+# Check if 'master-bin.000002' file is created
+# after execution of 'flush-logs binary' statement.
+include/sync_slave_sql_with_master.inc
+# Make sure the 'slave-relay-bin.000006' file does not exist
+# exist before execute 'flush error logs, relay logs' statement.
+# Test if mysqladmin support combining multiple kinds of logs into one statement.
+# Make sure binary logs were not flushed
+# after execute 'flush error logs, relay logs' statement.
+include/sync_slave_sql_with_master.inc
+# Check the 'slave-relay-bin.000006' file is created after
+# execute 'flush error logs, relay logs' statement.
+# Make sure the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
+# files do not exist before execute 'flush error logs, relay logs'
+# statement.
+include/stop_slave_sql.inc
+# Test if 'flush-logs' command works fine and flush all the logs.
+# Check 'master-bin.000003' is created
+# after executing 'flush-logs' command.
+include/sync_slave_io_with_master.inc
+# Check the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
+# files are created after execute 'flush logs' statement.
+include/start_slave_sql.inc
+include/rpl_end.inc
+# Test multiple options to flush-logs
+# Must work
+mysqld is alive
+# Must work
+mysqld is alive
+mysqladmin: Unknown command: 'pong'

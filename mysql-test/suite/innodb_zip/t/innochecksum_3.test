@@ -1,0 +1,397 @@
+#************************************************************
+# WL6045:Improve Innochecksum
+#************************************************************
+# Run this a as big test, otherwise MTR's check-warnings times out
+--source include/big_test.inc
+--source include/have_innodb_max_16k.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac.
+--source include/not_crashrep.inc
+
+--echo # Set the environmental variables
+let MYSQLD_BASEDIR= `SELECT @@basedir`;
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+call mtr.add_suppression("Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("innodb_checksum_algorithm is set to");
+
+SET GLOBAL innodb_file_per_table=on;
+
+--echo [1]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
+
+CREATE TABLE tab1 (pk INTEGER NOT NULL PRIMARY KEY,
+linestring_key GEOMETRY NOT NULL,
+linestring_nokey GEOMETRY NOT NULL)
+ENGINE=InnoDB ;
+
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (1, ST_GeomFromText('POINT(10 10) '), ST_GeomFromText('POINT(10 10) '));
+
+--error ER_WRONG_SUB_KEY
+CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
+--error ER_WRONG_SUB_KEY
+ALTER TABLE tab1 ADD  KEY (linestring_key(5));
+
+--echo # create a compressed table
+CREATE TABLE tab2(col_1 CHAR (255) ,
+col_2 VARCHAR (255), col_3 longtext,
+col_4 longtext,col_5 longtext,
+col_6 longtext , col_7 int )
+engine = innodb row_format=compressed key_block_size=4;
+
+CREATE INDEX idx1 ON tab2(col_3(10));
+CREATE INDEX idx2 ON tab2(col_4(10));
+CREATE INDEX idx3 ON tab2(col_5(10));
+
+# load the with repeat function
+SET @col_1 = repeat('a', 5);
+SET @col_2 = repeat('b', 20);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+
+# insert 5 records
+let $i = 5;
+while ($i) {
+ eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+ dec $i;
+}
+
+--disable_result_log
+SELECT * FROM tab2 ORDER BY col_7;
+
+--echo # stop the server
+--source include/shutdown_mysqld.inc
+
+--echo [1(a)]: Rewrite into new checksum=InnoDB for all *.ibd file and ibdata1
+--exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/ibdata1
+perl;
+foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
+	system("$ENV{INNOCHECKSUM} --no-check --write=InnoDB $_")
+}
+EOF
+
+--echo : start the server with innodb_checksum_algorithm=strict_innodb
+--let restart_parameters=restart: --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB
+--source include/start_mysqld.inc
+
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (2, ST_GeomFromText('LINESTRING(10 10,20 20,30 30)'), ST_GeomFromText('LINESTRING(10 10,20 20,30 30)'));
+
+# load the with repeat function
+SET @col_1 = repeat('a', 5);
+SET @col_2 = repeat('b', 20);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+
+# check the table status is GOOD with DML
+let $i = 6;
+eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+
+-- disable_result_log
+SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+
+-- disable_result_log
+SELECT * FROM tab2 ORDER BY col_7;
+
+--echo # stop the server
+--source include/shutdown_mysqld.inc
+
+--echo [1(b)]: Rewrite into new checksum=crc32 for all *.ibd file and ibdata1
+--exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/ibdata1
+perl;
+foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
+	system("$ENV{INNOCHECKSUM} --no-check --write=crc32 $_")
+}
+EOF
+
+--echo # start the server with innodb_checksum_algorithm=strict_crc32
+--let restart_parameters=restart: --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
+--source include/start_mysqld.inc
+
+# check the table status is GOOD with DML
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (3, ST_GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
+ST_GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
+
+# load the with repeat function
+SET @col_1 = repeat('g', 5);
+SET @col_2 = repeat('h', 20);
+SET @col_3 = repeat('i', 100);
+SET @col_4 = repeat('j', 100);
+SET @col_5 = repeat('k', 100);
+SET @col_6 = repeat('l', 100);
+
+# check the table status is GOOD with DML
+let $i = 7;
+eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+
+# check the records from table
+-- disable_result_log
+SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+
+-- disable_result_log
+SELECT * FROM tab2 ORDER BY col_7;
+
+--echo # stop the server
+--source include/shutdown_mysqld.inc
+
+--echo [1(c)]: Rewrite into new checksum=none for all *.ibd file, ibdata1 and mysql.ibd
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/ibdata1
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/mysql.ibd
+perl;
+foreach (glob("$ENV{MYSQLD_DATADIR}/undo*")) {
+	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")
+}
+foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
+	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")
+}
+EOF
+
+let $restart_parameters = restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB;
+--source include/start_mysqld.inc
+
+# check the table status is GOOD with DML
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (4, ST_GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), ST_GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
+
+# load the with repeat function
+SET @col_1 = repeat('m', 5);
+SET @col_2 = repeat('n', 20);
+SET @col_3 = repeat('o', 100);
+SET @col_4 = repeat('p', 100);
+SET @col_5 = repeat('q', 100);
+SET @col_6 = repeat('r', 100);
+
+# check the table status is GOOD with DML
+let $i = 8;
+eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+
+# check the records from table
+-- disable_result_log
+SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+
+--disable_result_log
+SELECT * FROM tab2 ORDER BY col_7;
+--enable_result_log
+
+--echo # stop the server
+--source include/shutdown_mysqld.inc
+
+--echo [2]: Check the page type summary with shortform for tab1.ibd
+--replace_regex /File.*.ibd/File::tab1.ibd/ /[0-9]+/#/
+--exec $INNOCHECKSUM -S $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/page_summary_short.txt
+
+--echo [3]: Check the page type summary with longform for tab1.ibd
+--replace_regex /File.*.ibd/File::tab1.ibd/ /[0-9]+/#/
+--exec $INNOCHECKSUM --page-type-summary  $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/page_summary_long.txt
+
+--remove_file $MYSQLTEST_VARDIR/tmp/page_summary_short.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/page_summary_long.txt
+--echo [4]: Page type dump for  with longform for tab1.ibd
+--replace_result $MYSQLD_DATADIR MYSQL_DATADIR
+--exec $INNOCHECKSUM --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'} or die $!;
+my $datadir=$ENV{'MYSQLD_DATADIR'};
+$datadir =~ s/\\/\//g;
+opendir(DIR, $dir) or die $!;
+my $file= 'dump.txt';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace the integers to # and complete file path to file name only.
+ # We exclude Inode Page here because this will cause result content
+ # mismatch on 4k page size
+  unless (/Inode page/) {
+   s/\\/\//g;
+   s/$datadir/MYSQLD_DATADIR/g;
+   s/\s*[1-9][0-9]*\s*/#/g;
+   s/\s+0\s+/0/g;
+   print OUT_FILE;
+ }
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents stored in dump.txt
+cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+
+# Page type dump for ibdata1
+--exec $INNOCHECKSUM -v --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/ibdata1
+--file_exists $MYSQLTEST_VARDIR/tmp/dump.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+
+--echo [5]: Page type dump for with shortform for tab1.ibd
+--exec $INNOCHECKSUM -D $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+my $datadir=$ENV{'MYSQLD_DATADIR'};
+$datadir =~ s/\\/\//g;
+opendir(DIR, $dir) or die $!;
+my $file= 'dump.txt';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace the integers to # and complete file path to file name only.
+ # We exclude Inode Page here because this will cause result content
+ # mismatch on 4k page size
+ unless (/Inode page/) {
+   s/\\/\//g;
+   s/$datadir/MYSQLD_DATADIR/g;
+   s/\s*[1-9][0-9]*\s*/#/g;
+   s/\s+0\s+/0/g;
+   print OUT_FILE;
+ }
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+# Print the contents stored in dump.txt
+cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+
+--echo [6]: check the valid lower bound values for option
+--echo # allow-mismatches,page,start-page,end-page
+--exec $INNOCHECKSUM  --allow-mismatches=0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -a 0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --page=0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -p 0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --start-page=0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -s 0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --end-page=0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -e 0 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [7]: check the negative values for option
+--echo # allow-mismatches,page,start-page,end-page.
+--echo # They will reset to zero for negative values.
+--echo # check the invalid lower bound values
+--exec $INNOCHECKSUM  --allow-mismatches=-1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -a -1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --page=-1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -p -1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --start-page=-1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -s -1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --end-page=-1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -e -1 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [8]: check the valid upper bound values for
+--echo # both short and long options "allow-mismatches" and "end-page"
+
+--exec $INNOCHECKSUM  --allow-mismatches=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -a 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --end-page=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -e 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [9]: check the both short and long options "page" and "start-page" when
+--echo # seek value is larger than file size.
+--error 1
+--exec $INNOCHECKSUM --page=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM -p 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM --start-page=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM -s 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
+--source include/search_pattern.inc
+
+--echo [34]: check the invalid upper bound values for options, allow-mismatches, end-page, start-page and page.
+--echo # innochecksum will fail with error code: 1
+--error 1
+--exec $INNOCHECKSUM --allow-mismatches=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM -a 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM --end-page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM -e 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM --page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM -p 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM --start-page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern.inc
+
+--error 1
+--exec $INNOCHECKSUM -s 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern.inc
+--remove_file $SEARCH_FILE
+
+# Cleanup
+--echo # Restart the server
+--source include/start_mysqld.inc
+
+DROP TABLE tab1;
+DROP TABLE tab2;
+SET GLOBAL innodb_file_per_table=default;

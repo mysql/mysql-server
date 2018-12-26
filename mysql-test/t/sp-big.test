@@ -1,0 +1,85 @@
+#
+# Bug #11602: SP with very large body not handled well
+#
+
+--disable_warnings
+drop procedure if exists test.longprocedure;
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+
+let $body=`select repeat('select count(*) into out1 from t1;\n', 3072)`;
+
+delimiter //;
+--disable_query_log
+eval select length('$body') as length//
+eval create procedure test.longprocedure (out out1 int) deterministic
+begin
+  $body
+end//
+--enable_query_log
+
+delimiter ;//
+
+# this is larger than the length above, because it includes the 'begin' and
+# 'end' bits and some whitespace
+select length(routine_definition) from information_schema.routines where routine_schema = 'test' and routine_name = 'longprocedure';
+
+call test.longprocedure(@value); select @value;
+
+drop procedure test.longprocedure;
+drop table t1;
+#
+# Bug #9819 "Cursors: Mysql Server Crash while fetching from table with 5
+# million records.": 
+# To really test the bug, increase the number of loop iterations ($1).
+# For 4 millions set $1 to 22.
+create table t1 (f1 char(100) , f2 mediumint , f3 int , f4 real, f5 numeric);
+insert into t1 (f1, f2, f3, f4, f5) values
+("This is a test case for for Bug#9819", 1, 2, 3.0, 4.598);
+create table t2 like t1;
+let $1=8;
+--disable_query_log
+--disable_result_log
+while ($1)
+{
+  eval insert into t1 select * from t1;
+  dec $1;
+}
+--enable_result_log
+--enable_query_log
+select count(*) from t1;
+select count(*) from t2;
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+delimiter |;
+create procedure p1()
+begin
+  declare done integer default 0;
+  declare vf1 char(100) ;
+  declare vf2 mediumint;
+  declare vf3 int ;
+  declare vf4 real ;
+  declare vf5 numeric ;
+  declare cur1 cursor for select f1,f2,f3,f4,f5 from t1;  
+  declare continue handler for sqlstate '02000' set done = 1; 
+  open cur1;
+  while done <> 1 do
+    fetch cur1 into vf1, vf2, vf3, vf4, vf5;
+    if not done then
+      insert into t2 values (vf1, vf2, vf3, vf4, vf5);
+    end if;
+  end while;
+  close cur1;
+end|
+delimiter ;|
+call p1();
+select count(*) from t1;
+select count(*) from t2;
+select f1 from t1 limit 1;
+select f1 from t2 limit 1;
+drop procedure p1;
+drop table t1, t2;

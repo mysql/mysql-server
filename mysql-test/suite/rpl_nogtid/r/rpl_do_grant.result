@@ -1,0 +1,282 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("REVOKE/GRANT failed while storing routine level "
+                         "grants in the privilege tables. An incident event "
+                         "has been written to the binary log which will "
+                         "stop the slaves.");
+delete from mysql.user where user=_binary'rpl_do_grant';
+delete from mysql.db where user=_binary'rpl_do_grant';
+flush privileges;
+delete from mysql.user where user=_binary'rpl_ignore_grant';
+delete from mysql.db where user=_binary'rpl_ignore_grant';
+flush privileges;
+create user rpl_do_grant@localhost;
+grant select on *.* to rpl_do_grant@localhost;
+grant drop on test.* to rpl_do_grant@localhost;
+show grants for rpl_do_grant@localhost;
+Grants for rpl_do_grant@localhost
+GRANT SELECT ON *.* TO `rpl_do_grant`@`localhost`
+GRANT DROP ON `test`.* TO `rpl_do_grant`@`localhost`
+set password for rpl_do_grant@localhost="does it work?";
+select authentication_string<>_binary'' from mysql.user where user=_binary'rpl_do_grant';
+authentication_string<>_binary''
+1
+update mysql.user set authentication_string='' where user='rpl_do_grant';
+flush privileges;
+select authentication_string<>'' from mysql.user where user='rpl_do_grant';
+authentication_string<>''
+0
+set sql_mode='ANSI_QUOTES';
+set password for rpl_do_grant@localhost='does it work?';
+set sql_mode='';
+select authentication_string<>'' from mysql.user where user='rpl_do_grant';
+authentication_string<>''
+1
+delete from mysql.user where user=_binary'rpl_do_grant';
+delete from mysql.db where user=_binary'rpl_do_grant';
+flush privileges;
+delete from mysql.user where user=_binary'rpl_do_grant';
+delete from mysql.db where user=_binary'rpl_do_grant';
+flush privileges;
+show grants for rpl_do_grant@localhost;
+ERROR 42000: There is no such grant defined for user 'rpl_do_grant' on host 'localhost'
+show grants for rpl_do_grant@localhost;
+ERROR 42000: There is no such grant defined for user 'rpl_do_grant' on host 'localhost'
+create user rpl_do_grant@localhost;
+show grants for rpl_do_grant@localhost;
+Grants for rpl_do_grant@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant`@`localhost`
+show grants for rpl_do_grant2@localhost;
+ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
+show grants for rpl_do_grant@localhost;
+Grants for rpl_do_grant@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant`@`localhost`
+show grants for rpl_do_grant2@localhost;
+ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
+rename user rpl_do_grant@localhost to rpl_do_grant2@localhost;
+show grants for rpl_do_grant2@localhost;
+Grants for rpl_do_grant2@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+show grants for rpl_do_grant2@localhost;
+Grants for rpl_do_grant2@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+grant DELETE,INSERT on mysqltest1.* to rpl_do_grant2@localhost;
+show grants for rpl_do_grant2@localhost;
+Grants for rpl_do_grant2@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+GRANT INSERT, DELETE ON `mysqltest1`.* TO `rpl_do_grant2`@`localhost`
+show grants for rpl_do_grant2@localhost;
+Grants for rpl_do_grant2@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+GRANT INSERT, DELETE ON `mysqltest1`.* TO `rpl_do_grant2`@`localhost`
+revoke DELETE on mysqltest1.* from rpl_do_grant2@localhost;
+show grants for rpl_do_grant2@localhost;
+Grants for rpl_do_grant2@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+GRANT INSERT ON `mysqltest1`.* TO `rpl_do_grant2`@`localhost`
+show grants for rpl_do_grant2@localhost;
+Grants for rpl_do_grant2@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+GRANT INSERT ON `mysqltest1`.* TO `rpl_do_grant2`@`localhost`
+revoke all privileges, grant option from rpl_do_grant2@localhost;
+show grants for rpl_do_grant2@localhost;
+Grants for rpl_do_grant2@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+show grants for rpl_do_grant2@localhost;
+Grants for rpl_do_grant2@localhost
+GRANT USAGE ON *.* TO `rpl_do_grant2`@`localhost`
+drop user rpl_do_grant2@localhost;
+show grants for rpl_do_grant2@localhost;
+ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
+show grants for rpl_do_grant2@localhost;
+ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
+call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+DROP DATABASE IF EXISTS bug42217_db;
+CREATE DATABASE  bug42217_db;
+CREATE USER 'create_rout_db'@'localhost' IDENTIFIED BY 'create_rout_db';
+GRANT CREATE ROUTINE ON bug42217_db.* TO 'create_rout_db'@'localhost'
+  WITH GRANT OPTION;
+USE bug42217_db;
+CREATE FUNCTION upgrade_del_func() RETURNS CHAR(30)
+BEGIN
+RETURN "INSIDE upgrade_del_func()";
+END//
+USE bug42217_db;
+SELECT * FROM mysql.procs_priv;
+Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
+localhost	bug42217_db	create_rout_db	upgrade_del_func	FUNCTION	create_rout_db@localhost	Execute,Alter Routine	#
+SELECT upgrade_del_func();
+upgrade_del_func()
+INSIDE upgrade_del_func()
+FLUSH PRIVILEGES;
+FLUSH TABLES;
+SELECT * FROM mysql.procs_priv;
+Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
+localhost	bug42217_db	create_rout_db	upgrade_del_func	FUNCTION	create_rout_db@localhost	Execute,Alter Routine	#
+SHOW GRANTS FOR 'create_rout_db'@'localhost';
+Grants for create_rout_db@localhost
+GRANT USAGE ON *.* TO `create_rout_db`@`localhost`
+GRANT CREATE ROUTINE ON `bug42217_db`.* TO `create_rout_db`@`localhost` WITH GRANT OPTION
+GRANT EXECUTE, ALTER ROUTINE ON FUNCTION `bug42217_db`.`upgrade_del_func` TO `create_rout_db`@`localhost`
+USE bug42217_db;
+SHOW CREATE FUNCTION upgrade_del_func;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+upgrade_del_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET utf8mb4
+BEGIN
+RETURN "INSIDE upgrade_del_func()";
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT upgrade_del_func();
+upgrade_del_func()
+INSIDE upgrade_del_func()
+"Check whether the definer user will be able to execute the replicated routine on slave"
+USE bug42217_db;
+SHOW CREATE FUNCTION upgrade_del_func;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+upgrade_del_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET utf8mb4
+BEGIN
+RETURN "INSIDE upgrade_del_func()";
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT upgrade_del_func();
+upgrade_del_func()
+INSIDE upgrade_del_func()
+DELETE FROM mysql.procs_priv;
+FLUSH PRIVILEGES;
+USE bug42217_db;
+"Can't execute the replicated routine on slave like before after procs privilege is deleted "
+SELECT upgrade_del_func();
+ERROR 42000: execute command denied to user 'create_rout_db'@'localhost' for routine 'bug42217_db.upgrade_del_func'
+"Test the user who creates a function on master doesn't exist on slave."
+"Hence SQL thread ACL_GLOBAL privilege jumps in and no mysql.procs_priv is inserted"
+DROP USER 'create_rout_db'@'localhost';
+CREATE FUNCTION upgrade_alter_func() RETURNS CHAR(30)
+BEGIN
+RETURN "INSIDE upgrade_alter_func()";
+END//
+SELECT upgrade_alter_func();
+upgrade_alter_func()
+INSIDE upgrade_alter_func()
+SHOW CREATE FUNCTION upgrade_alter_func;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+upgrade_alter_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_alter_func`() RETURNS char(30) CHARSET utf8mb4
+BEGIN
+RETURN "INSIDE upgrade_alter_func()";
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+"Should no privilege record for upgrade_alter_func in mysql.procs_priv"
+SELECT * FROM mysql.procs_priv;
+Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
+SELECT upgrade_alter_func();
+ERROR HY000: The user specified as a definer ('create_rout_db'@'localhost') does not exist
+USE bug42217_db;
+DROP FUNCTION upgrade_del_func;
+DROP FUNCTION upgrade_alter_func;
+DROP DATABASE bug42217_db;
+SET SQL_LOG_BIN= 0;
+DROP USER 'create_rout_db'@'localhost';
+SET SQL_LOG_BIN= 1;
+include/rpl_reset.inc
+USE test;
+######## BUG#49119 #######
+### i) test case from the 'how to repeat section'
+CREATE TABLE t1(c1 INT);
+CREATE PROCEDURE p1() SELECT * FROM t1 |
+REVOKE EXECUTE ON PROCEDURE p1 FROM 'root'@'localhost';
+ERROR 42000: There is no such grant defined for user 'root' on host 'localhost' on routine 'p1'
+DROP TABLE t1;
+DROP PROCEDURE p1;
+### ii) Test case in which REVOKE partially succeeds
+include/rpl_reset.inc
+CREATE TABLE t1(c1 INT);
+CREATE PROCEDURE p1() SELECT * FROM t1 |
+CREATE USER 'user49119'@'localhost';
+GRANT EXECUTE ON PROCEDURE p1 TO 'user49119'@'localhost';
+##############################################################
+### Showing grants for both users: root and user49119 (master)
+SHOW GRANTS FOR 'user49119'@'localhost';
+Grants for user49119@localhost
+GRANT USAGE ON *.* TO `user49119`@`localhost`
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
+SHOW GRANTS FOR CURRENT_USER;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+##############################################################
+##############################################################
+### Showing grants for both users: root and user49119 (master)
+SHOW GRANTS FOR 'user49119'@'localhost';
+Grants for user49119@localhost
+GRANT USAGE ON *.* TO `user49119`@`localhost`
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
+SHOW GRANTS FOR CURRENT_USER;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+##############################################################
+## This statement will make the revoke fail because root has no
+## execute grant. However, it will still revoke the grant for
+## user49119.
+REVOKE EXECUTE ON PROCEDURE p1 FROM 'user49119'@'localhost', 'root'@'localhost';
+ERROR 42000: There is no such grant defined for user 'root' on host 'localhost' on routine 'p1'
+##############################################################
+### Showing grants for both users: root and user49119 (master)
+### after revoke statement failure
+SHOW GRANTS FOR 'user49119'@'localhost';
+Grants for user49119@localhost
+GRANT USAGE ON *.* TO `user49119`@`localhost`
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
+SHOW GRANTS FOR CURRENT_USER;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+##############################################################
+#############################################################
+### Showing grants for both users: root and user49119 (slave)
+### after revoke statement failure (should match 
+SHOW GRANTS FOR 'user49119'@'localhost';
+Grants for user49119@localhost
+GRANT USAGE ON *.* TO `user49119`@`localhost`
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
+SHOW GRANTS FOR CURRENT_USER;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+##############################################################
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DROP USER 'user49119'@'localhost';
+include/rpl_reset.inc
+create user foo@"1.2.3.4";
+grant all on *.* to foo@"1.2.3.4";
+revoke all privileges, grant option from "foo";
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'1.2.3.4' IDENTIFIED WITH 'caching_sha2_password'
+master-bin.000001	#	Query	#	#	use `test`; GRANT ALL PRIVILEGES ON *.* TO 'foo'@'1.2.3.4'
+DROP USER foo@"1.2.3.4";
+
+# Bug#27606 GRANT statement should be replicated with DEFINER information
+include/rpl_reset.inc
+CREATE USER user_bug27606@localhost;
+GRANT SELECT, INSERT ON mysql.user TO user_bug27606@localhost;
+SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
+Grantor
+root@localhost
+SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
+Grantor
+root@localhost
+REVOKE SELECT ON mysql.user FROM user_bug27606@localhost;
+SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
+Grantor
+root@localhost
+SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
+Grantor
+root@localhost
+DROP USER user_bug27606@localhost;
+include/rpl_end.inc

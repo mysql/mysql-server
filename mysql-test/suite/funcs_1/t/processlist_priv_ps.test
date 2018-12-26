@@ -1,0 +1,31 @@
+############# suite/funcs_1/t/processlist_priv_ps.test #################
+#                                                                      #
+# Testing of privileges around                                         #
+#     SELECT ... PROCESSLIST/SHOW PROCESSLIST                          #
+#                                                                      #
+# The no (ps/sp/view/cursor) protocol variant of this test is          #
+# suite/funcs_1/t/a_processlist_priv_no_prot.test.                     #
+#                                                                      #
+# There is important documentation within                              #
+#       suite/funcs_1/datadict/processlist_priv.inc                    #
+#                                                                      #
+# Creation:                                                            #
+# 2007-08-14 mleich  Create this test as part of                       #
+#                    WL#3982 Test information_schema.processlist       #
+#                                                                      #
+########################################################################
+
+
+# One subtest is skipped because of
+#    Bug#30395 strange results after REVOKE PROCESS ON *.* FROM ...
+let $fixed_bug_30395= 0;
+
+# The file with expected results fits only to a run with "--ps-protocol".
+--source include/have_ps_protocol.inc
+# Other protocols disabled
+--source include/no_sp_protocol.inc
+--source include/no_view_protocol.inc
+--source include/no_cursor_protocol.inc
+
+
+--source suite/funcs_1/datadict/processlist_priv.inc

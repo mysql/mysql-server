@@ -1,0 +1,15 @@
+#
+# Index_merge tests with UPDATE statements 
+#
+
+--source include/no_valgrind_without_big.inc
+
+--source include/index_merge_single_col_setup.inc
+--source include/index_merge_update.inc
+
+--source include/index_merge_multi_col_setup.inc
+--source include/index_merge_update.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+

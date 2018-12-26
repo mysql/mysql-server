@@ -1,0 +1,16 @@
+DROP TABLE IF EXISTS t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+#
+# Bug#51851: Server with SBR locks mutex twice on LOAD DATA into
+#            partitioned MyISAM table
+# The test was rewritten to use InnoDB after WL#8971.
+CREATE TABLE t1
+(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+name TINYBLOB NOT NULL,
+modified TIMESTAMP DEFAULT '0000-00-00 00:00:00',
+INDEX namelocs (name(255))) ENGINE = InnoDB
+PARTITION BY HASH(id) PARTITIONS 2;
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/init_file.txt'
+INTO TABLE t1 (name);
+DROP TABLE t1;
+SET sql_mode = default;

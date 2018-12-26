@@ -1,0 +1,127 @@
+SET @global_start_value = @@global.myisam_stats_method;
+SELECT @global_start_value;
+@global_start_value
+nulls_unequal
+SET @session_start_value = @@session.myisam_stats_method;
+SELECT @session_start_value;
+@session_start_value
+nulls_unequal
+'#--------------------FN_DYNVARS_097_01------------------------#'
+SET @@global.myisam_stats_method = nulls_equal;
+SET @@global.myisam_stats_method = DEFAULT;
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_unequal
+SET @@session.myisam_stats_method = nulls_equal;
+SET @@session.myisam_stats_method = DEFAULT;
+SELECT @@session.myisam_stats_method;
+@@session.myisam_stats_method
+nulls_unequal
+'#---------------------FN_DYNVARS_097_02-------------------------#'
+SET @@global.myisam_stats_method = NULL;
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of 'NULL'
+SET @@global.myisam_stats_method = '';
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of ''
+SET @@session.myisam_stats_method = NULL;
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of 'NULL'
+SET @@session.myisam_stats_method = '';
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of ''
+'#--------------------FN_DYNVARS_097_03------------------------#'
+SET @@global.myisam_stats_method = 'nulls_equal';
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_equal
+SET @@global.myisam_stats_method = 'nulls_unequal';
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_unequal
+SET @@global.myisam_stats_method = 'nulls_ignored';
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_ignored
+'Bug: Value of nulls_ignored is not documented. Its ordinal value is 2'
+SET @@session.myisam_stats_method = 'nulls_equal';
+SELECT @@session.myisam_stats_method;
+@@session.myisam_stats_method
+nulls_equal
+SET @@session.myisam_stats_method = 'nulls_unequal';
+SELECT @@session.myisam_stats_method;
+@@session.myisam_stats_method
+nulls_unequal
+SET @@session.myisam_stats_method = 'nulls_ignored';
+SELECT @@session.myisam_stats_method;
+@@session.myisam_stats_method
+nulls_ignored
+'#--------------------FN_DYNVARS_097_04-------------------------#'
+SET @@global.myisam_stats_method = -1;
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of '-1'
+SET @@global.myisam_stats_method = unequal;
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of 'unequal'
+SET @@global.myisam_stats_method = ENABLED;
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of 'ENABLED'
+SET @@global.myisam_stats_method = 'equal';
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of 'equal'
+SET @@global.myisam_stats_method = 'null_equal';
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of 'null_equal'
+SET @@global.myisam_stats_method = ' ';
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of ' '
+'#-------------------FN_DYNVARS_097_05----------------------------#'
+SELECT @@session.myisam_stats_method = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='myisam_stats_method';
+@@session.myisam_stats_method = VARIABLE_VALUE
+1
+'#----------------------FN_DYNVARS_097_06------------------------#'
+SELECT @@global.myisam_stats_method = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='myisam_stats_method';
+@@global.myisam_stats_method = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_097_07-------------------------#'
+SET @@global.myisam_stats_method = 0;
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_unequal
+SET @@global.myisam_stats_method = 1;
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_equal
+SET @@global.myisam_stats_method = 2;
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_ignored
+SET @@global.myisam_stats_method = 0.4;
+ERROR 42000: Incorrect argument type to variable 'myisam_stats_method'
+SET @@global.myisam_stats_method = 3;
+ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of '3'
+'#---------------------FN_DYNVARS_097_08----------------------#'
+SET @@global.myisam_stats_method = TRUE;
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_equal
+SET @@global.myisam_stats_method = FALSE;
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_unequal
+'#---------------------FN_DYNVARS_097_09----------------------#'
+SET myisam_stats_method = 'nulls_equal';
+SET session.myisam_stats_method = 'nulls_equal';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.myisam_stats_method = 'nulls_equal'' at line 1
+SET global.myisam_stats_method = 'nulls_equal';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.myisam_stats_method = 'nulls_equal'' at line 1
+SET session myisam_stats_method = 'nulls_equal';
+SELECT @@myisam_stats_method;
+@@myisam_stats_method
+nulls_equal
+SET global myisam_stats_method = 'nulls_equal';
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_equal
+SET @@global.myisam_stats_method = @global_start_value;
+SELECT @@global.myisam_stats_method;
+@@global.myisam_stats_method
+nulls_unequal
+SET @@session.myisam_stats_method = @session_start_value;
+SELECT @@session.myisam_stats_method;
+@@session.myisam_stats_method
+nulls_unequal

@@ -1,0 +1,55 @@
+# Warning: The current test has problematic properties at runtime
+# - non debug build ~ 3h
+# - debug build     ~ 8h
+# - space consumption in minimum 60 GB on disk
+#
+#   Therefore we skip in case '--big-test' is not assigned.
+--source include/big_test.inc
+#   Hence we skip on debug builds.
+--source include/have_nodebug.inc
+# Start server with MyISAM
+--source include/force_myisam_default.inc
+
+#
+# Bug#27029 alter table ... enable keys crashes mysqld on large table
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table `t1` (`c1` tinyint unsigned not null, key `c1` (`c1`))
+engine=myisam default charset=utf8;
+alter table `t1` disable keys;
+insert into t1 values (1),(2),(3),(4);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1 limit 2147483647; #Insert 4294967295 rows.
+alter table t1 enable keys;
+drop table t1;

@@ -1,0 +1,325 @@
+SELECT @@innodb_ft_server_stopword_table;
+@@innodb_ft_server_stopword_table
+NULL
+SELECT @@innodb_ft_enable_stopword;
+@@innodb_ft_enable_stopword
+1
+SELECT @@innodb_ft_user_stopword_table;
+@@innodb_ft_user_stopword_table
+NULL
+SET NAMES utf8;
+# Test 1 : default latin1_swedish_ci
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB;
+INSERT IGNORE INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+1	love
+2	LOVE
+3	lòve
+4	LÒVE
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+DROP TABLE articles;
+DROP TABLE user_stopword;
+# Test 2 : latin1_general_ci
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_general_ci;
+INSERT IGNORE INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+call mtr.add_suppression("InnoDB: user stopword table test/user_stopword does not exist.");
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+3	lòve
+4	LÒVE
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+DEFAULT CHARACTER SET latin1 COLLATE latin1_general_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+1	love
+2	LOVE
+DROP TABLE articles;
+DROP TABLE user_stopword;
+# Test 3 : latin1_spanish_ci
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_spanish_ci;
+INSERT IGNORE INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+1	love
+2	LOVE
+3	lòve
+4	LÒVE
+5	löve
+6	LÖVE
+7	løve
+8	LØVE
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+DEFAULT CHARACTER SET latin1 COLLATE latin1_spanish_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+DROP TABLE articles;
+DROP TABLE user_stopword;
+# Test 4 : utf8_general_ci
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+INSERT INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+1	love
+2	LOVE
+3	lòve
+4	LÒVE
+5	löve
+6	LÖVE
+9	lṓve
+10	LṒVE
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+DROP TABLE articles;
+DROP TABLE user_stopword;
+# Test 5 : utf8_unicode_ci
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_swedish_ci;
+INSERT INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+1	love
+2	LOVE
+3	lòve
+4	LÒVE
+9	lṓve
+10	LṒVE
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+DEFAULT CHARACTER SET utf8 COLLATE utf8_swedish_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+DROP TABLE articles;
+DROP TABLE user_stopword;
+# Test 6 : utf8_unicode_ci
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+INSERT INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+1	love
+2	LOVE
+3	lòve
+4	LÒVE
+5	löve
+6	LÖVE
+9	lṓve
+10	LṒVE
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+DROP TABLE articles;
+DROP TABLE user_stopword;
+# Test 7 : gb2312_chinese_ci
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+INSERT INTO articles (title) VALUES
+('相亲相爱'),('怜香惜爱'),('充满可爱'),('爱恨交织');
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('相亲相爱' IN NATURAL LANGUAGE MODE);
+id	title
+1	相亲相爱
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+INSERT INTO user_stopword VALUES('相亲相爱');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('相亲相爱' IN NATURAL LANGUAGE MODE);
+id	title
+1	相亲相爱
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('怜香惜爱' IN NATURAL LANGUAGE MODE);
+id	title
+2	怜香惜爱
+DROP TABLE articles;
+DROP TABLE user_stopword;
+# Test 8 : test shutdown to check if stopword still works
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB;
+INSERT IGNORE INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+1	love
+2	LOVE
+3	lòve
+4	LÒVE
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+# Shutdown and restart mysqld
+# restart
+SET NAMES utf8;
+INSERT IGNORE INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+DROP TABLE articles;
+DROP TABLE user_stopword;
+# Test 9 : drop user stopwrod table,test shutdown to check if it works
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200)
+) ENGINE=InnoDB;
+INSERT IGNORE INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+1	love
+2	LOVE
+3	lòve
+4	LÒVE
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+DROP TABLE user_stopword;
+# Shutdown and restart mysqld
+# restart
+SET NAMES utf8;
+INSERT IGNORE INTO articles (title) VALUES
+('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+('lṓve'),('LṒVE');
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+id	title
+11	love
+12	LOVE
+13	lòve
+14	LÒVE
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('love' IN NATURAL LANGUAGE MODE);
+id	title
+11	love
+12	LOVE
+13	lòve
+14	LÒVE
+DROP TABLE articles;
+SET SESSION innodb_ft_enable_stopword=1;
+SET GLOBAL innodb_ft_server_stopword_table=default;
+SET SESSION innodb_ft_user_stopword_table=default;

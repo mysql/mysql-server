@@ -1,0 +1,36 @@
+# Tests for PERFORMANCE_SCHEMA table io
+#       Reveal that in case of DML on an updatable view the
+#       base table used within the view shows up whereas
+#       the view itself never shows up.
+
+--source ../include/table_io_setup_helper.inc
+
+let $engine_type= MyISAM;
+let $table_item= test.v1;
+
+--disable_warnings
+eval drop view if exists $table_item;
+drop table if exists test.no_index_tab;
+--enable_warnings
+
+
+# Start recording events
+update performance_schema.setup_consumers set enabled='YES';
+insert into marker set a = 1;
+eval create table test.no_index_tab
+( a varchar(255) not null, b int not null) engine = $engine_type;
+insert into marker set a = 1;
+# Make sure the proper engine is used
+show create table test.no_index_tab;
+insert into marker set a = 1;
+eval create view $table_item as select * from test.no_index_tab;
+--source ../include/table_io_basic_dml.inc
+eval drop view $table_item;
+insert into marker set a = 1;
+drop table test.no_index_tab;
+
+# Stop recording events + pull result
+--source ../include/table_io_result_helper.inc
+
+# Cleanup
+--source ../include/table_io_cleanup_helper.inc

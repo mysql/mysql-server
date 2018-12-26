@@ -1,0 +1,168 @@
+# ==== Purpose ====
+#
+# Check that the execution of SHOW SLAVE STATUS command is not blocked when IO
+# thread is blocked waiting for disk space.
+#
+# ==== Implementation ====
+#
+# There are two steps on this test case:
+#
+# 1st Step
+#
+# Simulate a scenario where IO thread is waiting for disk space while writing
+# into the relay log. Execute SHOW SLAVE STATUS command after IO thread is
+# blocked waiting for space. The command should not be blocked.
+#
+# 2nd Step
+#
+# The slave server should respond promptly when asked to shutdown. No warnings
+# about the "STOP SLAVE" waiting for disk space should be generated.
+#
+# ==== References ====
+#
+# WL#10406: Improve usability when receiver thread is waiting for disk space
+# Bug#21753696: MAKE SHOW SLAVE STATUS NON BLOCKING IF IO THREAD WAITS FOR
+#               DISK SPACE
+#
+###############################################################################
+--source include/have_debug.inc
+--source include/master-slave.inc
+
+# Generate events to be replicated to the slave
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+--source include/sync_slave_sql_with_master.inc
+
+# Those errors will only happen in the slave
+CALL mtr.add_suppression("Disk is full writing");
+CALL mtr.add_suppression("Retry in 60 secs");
+CALL mtr.add_suppression("Relay log write failure");
+CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk before stopping");
+
+--echo #
+--echo # Step 1 - Monitor and kill I/O thread while waiting for disk space
+--echo #
+
+--let $io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/slave_io'`
+
+# Set the debug option that will simulate disk full
+--let $debug_point=simulate_io_thd_wait_for_disk_space
+--source include/add_debug_point.inc
+
+# Generate events to be replicated to the slave
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(2);
+
+--source include/rpl_connection_slave.inc
+# Wait until IO thread is waiting for disk space
+# Notice that this is performed by querying SHOW SLAVE STATUS
+--let $slave_param= Slave_IO_State
+--let $slave_param_value= Waiting for disk space
+--source include/wait_for_slave_param.inc
+
+# performance_schema.threads and information_schema.processlist checks
+--let $io_state=`SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE NAME = 'thread/sql/slave_io'`
+--let $assert_text= I/O thread PROCESSLIST_STATE should be Waiting for disk space at performance_schema.threads
+--let $assert_cond= "$io_state" = "Waiting for disk space"
+--source include/assert.inc
+
+--let $io_state=`SELECT STATE FROM information_schema.processlist WHERE ID = $io_id`
+--let $assert_text= I/O thread STATE should be Waiting for disk space at information_schema.processlist
+--let $assert_cond= "$io_state" = "Waiting for disk space"
+--source include/assert.inc
+
+# Get the relay log file name, also using SHOW SLAVE STATUS
+--let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+
+# STOP SLAVE IO_THREAD should be blocked
+--source include/rpl_connection_slave1.inc
+--send STOP SLAVE IO_THREAD
+
+# But the KILL on it should unblock it
+--source include/rpl_connection_slave.inc
+SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
+--replace_result $io_id IO_THREAD
+--eval KILL $io_id
+
+--source include/rpl_connection_slave1.inc
+--reap
+
+--source include/rpl_connection_slave.inc
+--let $slave_io_errno= convert_error(ER_SLAVE_RELAY_LOG_WRITE_FAILURE)
+--source include/wait_for_slave_io_error.inc
+
+# Restore the debug options to "simulate" freed space on disk
+--source include/remove_debug_point.inc
+
+# There should be a message in the error log of the slave stating
+# that it was waiting for space to write on the relay log.
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+# Grep only after the message that the I/O thread has started
+--let $assert_only_after= Slave I/O .* connected to master .*replication started in log .* at position
+--let $assert_count= 1
+--let $assert_select=Disk is full writing .*$relay_log_file.* No space left on device
+--let $assert_text= Found the disk full error message on the slave
+--source include/assert_grep.inc
+
+# There should be a message in the error log of the slave stating
+# that it truncate the relay log file.
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+# Grep only after the message that the I/O thread has started
+--let $assert_only_after= Slave I/O .* connected to master .*replication started in log .* at position
+--let $assert_count= 1
+--let $assert_select= Relaylog file .* size was .* but was truncated at
+--let $assert_text= Found the relay log truncate message on the slave
+--source include/assert_grep.inc
+
+# Start the I/O thread to let the slave to sync
+--source include/start_slave_io.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Step 2 - Restart the slave server while I/O thread is waiting for disk space
+--echo #
+
+# Set the debug option that will simulate disk full
+--let $debug_point=simulate_io_thd_wait_for_disk_space
+--source include/add_debug_point.inc
+
+# Generate events to be replicated to the slave
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(4);
+INSERT INTO t1 VALUES(5);
+INSERT INTO t1 VALUES(6);
+INSERT INTO t1 VALUES(7);
+INSERT INTO t1 VALUES(8);
+INSERT INTO t1 VALUES(9);
+
+--source include/rpl_connection_slave.inc
+# Wait until IO thread is waiting for disk space
+# Notice that this is performed by querying SHOW SLAVE STATUS
+--let $slave_param= Slave_IO_State
+--let $slave_param_value= Waiting for disk space
+--source include/wait_for_slave_param.inc
+
+# Restart the slave with relay log recovery
+--source include/stop_slave_sql.inc
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --relay_log_recovery --log-error-verbosity=3
+--source include/rpl_restart_server.inc
+--source include/start_slave.inc
+
+# There should not be a message in the error log of the slave stating
+# that it was waiting for space to stop the I/O thread.
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+# Grep only after the message that the I/O thread has started
+--let $assert_only_after= Slave I/O .* connected to master .*replication started in log .* at position
+--let $assert_count= 0
+--let $assert_select=Waiting until I/O thread for channel
+--let $assert_text= Found no warning messages about I/O thread waiting before stopping
+--source include/assert_grep.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

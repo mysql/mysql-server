@@ -1,0 +1,281 @@
+drop table if exists `ÇsÇP`;
+drop table if exists `ÇsÇQ`;
+drop table if exists `ÇsÇR`;
+drop table if exists `ÇsÇS`;
+drop table if exists `ÇsÇT`;
+drop table if exists `ÇsÇU`;
+drop table if exists `ÇsÇV`;
+drop table if exists `ÇsÇW`;
+drop table if exists `ÇsÇX`;
+drop table if exists t1;
+SET NAMES sjis;
+SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `ÇsÇP` (`ÇbÇP` ENUM('±','≤','≥'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇQ` (`ÇbÇP` ENUM('Ç†','Ç¢','Ç§'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇR` (`ÇbÇP` ENUM('É\','è\','ï\'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇS` (`ÇbÇP` ENUM('±','≤','≥'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇT` (`ÇbÇP` ENUM('Ç†','Ç¢','Ç§'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇU` (`ÇbÇP` ENUM('É\','è\','ï\'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` ENUM('±','≤','≥'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` ENUM('Ç†','Ç¢','Ç§'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` ENUM('É\','è\','ï\'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+INSERT INTO `ÇsÇP` VALUES ('±'),('≤'),('≥');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†'),('Ç¢'),('Ç§');
+INSERT INTO `ÇsÇR` VALUES ('É\'),('è\'),('ï\');
+INSERT INTO `ÇsÇS` VALUES ('±'),('≤'),('≥');
+INSERT INTO `ÇsÇT` VALUES ('Ç†'),('Ç¢'),('Ç§');
+INSERT INTO `ÇsÇU` VALUES ('É\'),('è\'),('ï\');
+INSERT INTO `ÇsÇV` VALUES ('±'),('≤'),('≥');
+INSERT INTO `ÇsÇW` VALUES ('Ç†'),('Ç¢'),('Ç§');
+INSERT INTO `ÇsÇX` VALUES ('É\'),('è\'),('ï\');
+SELECT * FROM `ÇsÇP`;
+ÇbÇP
+±
+≤
+≥
+SELECT * FROM `ÇsÇQ`;
+ÇbÇP
+Ç†
+Ç¢
+Ç§
+SELECT * FROM `ÇsÇR`;
+ÇbÇP
+É\
+è\
+ï\
+SELECT * FROM `ÇsÇS`;
+ÇbÇP
+±
+≤
+≥
+SELECT * FROM `ÇsÇT`;
+ÇbÇP
+Ç†
+Ç¢
+Ç§
+SELECT * FROM `ÇsÇU`;
+ÇbÇP
+É\
+è\
+ï\
+SELECT * FROM `ÇsÇV`;
+ÇbÇP
+±
+≤
+≥
+SELECT * FROM `ÇsÇW`;
+ÇbÇP
+Ç†
+Ç¢
+Ç§
+SELECT * FROM `ÇsÇX`;
+ÇbÇP
+É\
+è\
+ï\
+SHOW CREATE TABLE `ÇsÇP`;
+Table	Create Table
+ÇsÇP	CREATE TABLE `ÇsÇP` (
+  `ÇbÇP` enum('±','≤','≥') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇQ`;
+Table	Create Table
+ÇsÇQ	CREATE TABLE `ÇsÇQ` (
+  `ÇbÇP` enum('Ç†','Ç¢','Ç§') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇR`;
+Table	Create Table
+ÇsÇR	CREATE TABLE `ÇsÇR` (
+  `ÇbÇP` enum('É\','è\','ï\') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇS`;
+Table	Create Table
+ÇsÇS	CREATE TABLE `ÇsÇS` (
+  `ÇbÇP` enum('±','≤','≥') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇT`;
+Table	Create Table
+ÇsÇT	CREATE TABLE `ÇsÇT` (
+  `ÇbÇP` enum('Ç†','Ç¢','Ç§') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇU`;
+Table	Create Table
+ÇsÇU	CREATE TABLE `ÇsÇU` (
+  `ÇbÇP` enum('É\','è\','ï\') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇV`;
+Table	Create Table
+ÇsÇV	CREATE TABLE `ÇsÇV` (
+  `ÇbÇP` enum('±','≤','≥') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇW`;
+Table	Create Table
+ÇsÇW	CREATE TABLE `ÇsÇW` (
+  `ÇbÇP` enum('Ç†','Ç¢','Ç§') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇX`;
+Table	Create Table
+ÇsÇX	CREATE TABLE `ÇsÇX` (
+  `ÇbÇP` enum('É\','è\','ï\') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
+DESC `ÇsÇP`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇP	enum('±','≤','≥')	YES	MUL	NULL	
+DESC `ÇsÇQ`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇP	enum('Ç†','Ç¢','Ç§')	YES	MUL	NULL	
+DESC `ÇsÇR`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇP	enum('É\','è\','ï\')	YES	MUL	NULL	
+DESC `ÇsÇS`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇP	enum('±','≤','≥')	YES	MUL	NULL	
+DESC `ÇsÇT`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇP	enum('Ç†','Ç¢','Ç§')	YES	MUL	NULL	
+DESC `ÇsÇU`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇP	enum('É\','è\','ï\')	YES	MUL	NULL	
+DESC `ÇsÇV`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇP	enum('±','≤','≥')	YES	MUL	NULL	
+DESC `ÇsÇW`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇP	enum('Ç†','Ç¢','Ç§')	YES	MUL	NULL	
+DESC `ÇsÇX`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇP	enum('É\','è\','ï\')	YES	MUL	NULL	
+ALTER TABLE `ÇsÇP` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇQ` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇR` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇS` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇT` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇU` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇV` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇW` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇX` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+SHOW CREATE TABLE `ÇsÇP`;
+Table	Create Table
+ÇsÇP	CREATE TABLE `ÇsÇP` (
+  `ÇbÇQ` char(1) NOT NULL,
+  `ÇbÇP` enum('±','≤','≥') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇQ`;
+Table	Create Table
+ÇsÇQ	CREATE TABLE `ÇsÇQ` (
+  `ÇbÇQ` char(1) NOT NULL,
+  `ÇbÇP` enum('Ç†','Ç¢','Ç§') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇR`;
+Table	Create Table
+ÇsÇR	CREATE TABLE `ÇsÇR` (
+  `ÇbÇQ` char(1) NOT NULL,
+  `ÇbÇP` enum('É\','è\','ï\') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇS`;
+Table	Create Table
+ÇsÇS	CREATE TABLE `ÇsÇS` (
+  `ÇbÇQ` char(1) NOT NULL,
+  `ÇbÇP` enum('±','≤','≥') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇT`;
+Table	Create Table
+ÇsÇT	CREATE TABLE `ÇsÇT` (
+  `ÇbÇQ` char(1) NOT NULL,
+  `ÇbÇP` enum('Ç†','Ç¢','Ç§') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇU`;
+Table	Create Table
+ÇsÇU	CREATE TABLE `ÇsÇU` (
+  `ÇbÇQ` char(1) NOT NULL,
+  `ÇbÇP` enum('É\','è\','ï\') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇV`;
+Table	Create Table
+ÇsÇV	CREATE TABLE `ÇsÇV` (
+  `ÇbÇQ` char(1) NOT NULL,
+  `ÇbÇP` enum('±','≤','≥') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇW`;
+Table	Create Table
+ÇsÇW	CREATE TABLE `ÇsÇW` (
+  `ÇbÇQ` char(1) NOT NULL,
+  `ÇbÇP` enum('Ç†','Ç¢','Ç§') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ÇsÇX`;
+Table	Create Table
+ÇsÇX	CREATE TABLE `ÇsÇX` (
+  `ÇbÇQ` char(1) NOT NULL,
+  `ÇbÇP` enum('É\','è\','ï\') DEFAULT NULL,
+  KEY `ÇbÇP` (`ÇbÇP`)
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
+CREATE TABLE t1(c1 enum('ìS','ìs')) default character set = sjis;
+INSERT INTO t1 VALUES('ìS'),('ìs');
+SELECT * FROM t1 WHERE c1 LIKE 'ìS';
+c1
+ìS
+DROP TABLE t1;
+DESC `ÇsÇP`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇQ	char(1)	NO		NULL	
+ÇbÇP	enum('±','≤','≥')	YES	MUL	NULL	
+DESC `ÇsÇQ`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇQ	char(1)	NO		NULL	
+ÇbÇP	enum('Ç†','Ç¢','Ç§')	YES	MUL	NULL	
+DESC `ÇsÇR`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇQ	char(1)	NO		NULL	
+ÇbÇP	enum('É\','è\','ï\')	YES	MUL	NULL	
+DESC `ÇsÇS`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇQ	char(1)	NO		NULL	
+ÇbÇP	enum('±','≤','≥')	YES	MUL	NULL	
+DESC `ÇsÇT`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇQ	char(1)	NO		NULL	
+ÇbÇP	enum('Ç†','Ç¢','Ç§')	YES	MUL	NULL	
+DESC `ÇsÇU`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇQ	char(1)	NO		NULL	
+ÇbÇP	enum('É\','è\','ï\')	YES	MUL	NULL	
+DESC `ÇsÇV`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇQ	char(1)	NO		NULL	
+ÇbÇP	enum('±','≤','≥')	YES	MUL	NULL	
+DESC `ÇsÇW`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇQ	char(1)	NO		NULL	
+ÇbÇP	enum('Ç†','Ç¢','Ç§')	YES	MUL	NULL	
+DESC `ÇsÇX`;
+Field	Type	Null	Key	Default	Extra
+ÇbÇQ	char(1)	NO		NULL	
+ÇbÇP	enum('É\','è\','ï\')	YES	MUL	NULL	
+DROP TABLE `ÇsÇP`;
+DROP TABLE `ÇsÇQ`;
+DROP TABLE `ÇsÇR`;
+DROP TABLE `ÇsÇS`;
+DROP TABLE `ÇsÇT`;
+DROP TABLE `ÇsÇU`;
+DROP TABLE `ÇsÇV`;
+DROP TABLE `ÇsÇW`;
+DROP TABLE `ÇsÇX`;

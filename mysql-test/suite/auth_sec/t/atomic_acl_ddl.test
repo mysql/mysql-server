@@ -1,0 +1,44 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # -----------------------------------------------------------------------
+
+--echo # Begin : Tests for Atomic behavior of ACL DDLs
+
+--echo #
+--echo # Bug#26475282: ALTER FROM SUBSEQUENT TRANSACTION HITS
+--echo #               ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES
+--echo #
+
+--connect(conn1, localhost, root,,,,)
+--connect(conn2, localhost, root,,,,)
+
+--connection conn1
+START TRANSACTION;
+SELECT COUNT(*) FROM mysql.user;
+
+--connection conn2
+START TRANSACTION;
+SELECT COUNT(*) FROM mysql.user;
+
+--connection conn1
+--send ALTER USER non_existing IDENTIFIED BY 'haha'
+
+--connection conn2
+--error ER_CANNOT_USER
+ALTER USER non_existing IDENTIFIED BY 'haha';
+
+--connection conn1
+--error ER_CANNOT_USER
+--reap
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+--echo # End : Tests for Atomic behavior of ACL DDLs
+
+--echo # -----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

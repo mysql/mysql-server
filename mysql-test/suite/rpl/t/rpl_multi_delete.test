@@ -1,0 +1,26 @@
+--source include/not_group_replication_plugin.inc
+source include/master-slave.inc;
+create table t1 (a int primary key);
+create table t2 (a int);
+
+insert into t1 values (1);
+insert into t2 values (1);
+
+
+delete t1.* from t1, t2 where t1.a = t2.a;
+
+save_master_pos;
+select * from t1;
+select * from t2;
+
+connection slave;
+sync_with_master;
+select * from t1;
+select * from t2;
+
+connection master;
+drop table t1,t2;
+--source include/sync_slave_sql_with_master.inc
+
+# End of 4.1 tests
+--source include/rpl_end.inc

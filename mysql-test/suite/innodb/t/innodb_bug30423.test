@@ -1,0 +1,213 @@
+-- source include/big_test.inc
+# Test for Bug #30423, InnoDBs treatment of NULL in index stats causes
+# bad "rows examined" estimates.
+# Implemented InnoDB system variable "innodb_stats_method" with
+# "nulls_equal" (default), "nulls_unequal", and "nulls_ignored" options.
+
+
+let $innodb_stats_method_orig = `select @@innodb_stats_method`;
+
+# default setting for innodb_stats_method is "nulls_equal"
+set global innodb_stats_method = default;
+
+select @@innodb_stats_method;
+
+# create three tables, bug30243_1, bug30243_2 and bug30243_3.
+# The test scenario is adopted from original bug #30423 report.
+# table bug30243_1 and bug30243_3 have many NULL values
+
+-- disable_result_log
+-- disable_query_log
+
+DROP TABLE IF EXISTS bug30243_1;
+CREATE TABLE bug30243_1 (
+  org_id int(11) NOT NULL default '0',
+  UNIQUE KEY (org_id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+LOCK TABLES bug30243_1 WRITE;
+INSERT INTO bug30243_1 VALUES (11),(15),(16),(17),(19),(20),(21),(23),(24),
+(25),(26),(27),(28),(29),(30),(31),(32),(33),(34),(35),(37),(38),(40),(41),
+(42),(43),(44),(45),(46),(47),(48),(49),(50),(51),(52),(53),(54),(55),(56),
+(57),(58),(59),(60),(61),(62),(63),(64),(65),(66),(67),(68),(69),(70),(71),
+(72),(73),(74),(75),(76),(77),(78),(79),(80),(81),(82),(83),(84),(85),(86),
+(87),(88),(89),(90),(91),(92),(93),(94),(95),(96),(97),(98),(99),(100),(101),
+(102),(103),(104),(105),(106),(107),(108),(109),(110),(111),(112),(113),(114),
+(115),(116),(117),(118),(119),(120),(121),(122),(123),(124),(125),(126),(127),
+(128),(129),(130),(131),(132),(133),(134),(135),(136),(137),(138),(139),(140),
+(141),(142),(143),(144),(145);
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS bug30243_3;
+CREATE TABLE bug30243_3 (
+  org_id int(11) default NULL,
+  KEY (org_id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO bug30243_3 VALUES (NULL);
+
+begin;
+let $i=14;
+while ($i)
+{
+	INSERT INTO bug30243_3 SELECT NULL FROM bug30243_3;
+	dec $i;
+}
+
+INSERT INTO bug30243_3 VALUES (34),(34),(35),(56),(58),(62),(62),(64),(65),(66),(80),(135),(137),(138),(139),(140),(142),(143),(144),(145);
+commit;
+
+DROP TABLE IF EXISTS bug30243_2;
+CREATE TABLE bug30243_2 (
+  org_id int(11) default NULL,
+  KEY `contacts$org_id` (org_id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO bug30243_2 VALUES (NULL);
+
+begin;
+let $i=16;
+while ($i)
+{
+	INSERT INTO bug30243_2 SELECT NULL FROM bug30243_2;
+	dec $i;
+}
+
+INSERT INTO bug30243_2 VALUES (11),(15),(16),(17),(20),(21),(23),(24),(25),
+(26),(27),(28),(29),(30),(31),(32),(33),(34),(37),(38),(40),(41),(42),(43),
+(44),(45),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),
+(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),
+(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),
+(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),
+(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),
+(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(46),(48),
+(48),(50),(51),(52),(52),(53),(54),(55),(57),(60),(61),(62),(62),(62),(62),
+(62),(63),(64),(64),(65),(66),(66),(67),(68),(69),(70),(71),(72),(73),(74),
+(75),(76),(77),(78),(79),(80),(80),(81),(82),(83),(84),(85),(86),(87),(88),
+(89),(90),(91),(92),(93),(94),(95),(96),(97),(98),(99),(100),(101),(102),
+(103),(104),(105),(106),(107),(108),(109),(110),(111),(112),(113),(114),
+(115),(116),(117),(118),(119),(120),(121),(122),(123),(124),(125),(126),
+(127),(128),(129),(130),(131),(132),(133),(133),(135),(135),(135),(135),
+(136),(136),(138),(138),(139),(139),(139),(140),(141),(141),(142),(143),
+(143),(145),(145);
+commit;
+
+
+-- enable_result_log
+-- enable_query_log
+
+# check tables's value
+select count(*) from bug30243_3 where org_id is not NULL;
+select count(*) from bug30243_3 where org_id is NULL;
+
+select count(*) from bug30243_2 where org_id is not NULL;
+select count(*) from bug30243_2 where org_id is NULL;
+
+select @@innodb_stats_method;
+
+analyze table bug30243_1;
+analyze table bug30243_2;
+analyze table bug30243_3;
+
+# Following query plan shows that we over estimate the rows per
+# unique value (since there are many NULLs).
+# Skip this query log since the stats estimate could vary from runs
+-- disable_query_log
+-- disable_result_log
+explain SELECT COUNT(*), 0
+	FROM bug30243_1 orgs
+	LEFT JOIN bug30243_3 sa_opportunities
+		ON orgs.org_id=sa_opportunities.org_id
+	LEFT JOIN bug30243_2 contacts
+		ON orgs.org_id=contacts.org_id ;
+-- enable_query_log
+-- enable_result_log
+
+# following set operation will fail
+#--error ER_WRONG_VALUE_FOR_VAR
+--error 1231
+set global innodb_stats_method = "NULL";
+
+set global innodb_stats_method = "nulls_ignored";
+
+select @@innodb_stats_method;
+
+# Regenerate the stats with "nulls_ignored" option
+
+analyze table bug30243_1;
+analyze table bug30243_2;
+analyze table bug30243_3;
+
+# Following query plan shows that we get the correct rows per
+# unique value (should be approximately 1 row per value)
+-- replace_column 10 ROWS
+explain SELECT COUNT(*), 0
+	FROM bug30243_1 orgs
+	LEFT JOIN bug30243_3 sa_opportunities
+		ON orgs.org_id=sa_opportunities.org_id
+	LEFT JOIN bug30243_2 contacts
+		ON orgs.org_id=contacts.org_id ;
+
+select @@innodb_stats_method;
+
+# Try the "nulls_unequal" option
+set global innodb_stats_method = "nulls_unequal";
+
+select @@innodb_stats_method;
+
+analyze table bug30243_1;
+analyze table bug30243_2;
+analyze table bug30243_3;
+
+# Following query plan shows that we get the correct rows per
+# unique value (~1)
+-- replace_column 10 ROWS
+explain SELECT COUNT(*), 0
+	FROM bug30243_1 orgs
+	LEFT JOIN bug30243_3 sa_opportunities
+		ON orgs.org_id=sa_opportunities.org_id
+	LEFT JOIN bug30243_2 contacts
+		ON orgs.org_id=contacts.org_id;
+
+
+# Create a table with all NULL values, make sure the stats calculation
+# does not crash with table of all NULL values
+-- disable_query_log
+CREATE TABLE table_bug30423 (
+  org_id int(11) default NULL,
+  KEY(org_id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO `table_bug30423` VALUES (NULL);
+
+begin;
+let $i=10;
+while ($i)
+{
+	INSERT INTO table_bug30423 SELECT NULL FROM table_bug30423;
+	dec $i;
+}
+commit;
+
+-- enable_query_log
+
+SELECT COUNT(*) FROM table_bug30423 WHERE org_id IS NULL;
+
+# calculate the statistics for the table for "nulls_ignored" and
+# "nulls_unequal" option
+set global innodb_stats_method = "nulls_unequal";
+analyze table table_bug30423;
+
+set global innodb_stats_method = "nulls_ignored";
+analyze table table_bug30423;
+
+
+eval set global innodb_stats_method = $innodb_stats_method_orig;
+
+drop table bug30243_2;
+
+drop table bug30243_1;
+
+drop table bug30243_3;
+
+drop table table_bug30423;

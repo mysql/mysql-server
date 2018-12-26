@@ -1,0 +1,31 @@
+# Bug #59307 uninitialized value in rw_lock_set_writer_id_and_recursion_flag()
+# when Valgrind instrumentation (HAVE_VALGRIND) is not enabled
+
+CREATE TABLE t1 (
+  t1_int INT,
+  t1_time TIME
+) ENGINE=innodb;
+
+CREATE TABLE t2 (
+  t2_int int PRIMARY KEY,
+  t2_int2 INT
+) ENGINE=INNODB;
+
+INSERT IGNORE INTO t2 VALUES ();
+INSERT INTO t1 VALUES ();
+
+SELECT *
+FROM t1 AS t1a
+WHERE NOT EXISTS
+  (SELECT *
+   FROM t1 AS t1b
+   WHERE t1b.t1_int NOT IN
+     (SELECT t2.t2_int
+      FROM t2
+      WHERE t1b.t1_time LIKE t1b.t1_int
+      OR t1b.t1_time <> t2.t2_int2
+      AND 6=7
+ )
+)
+;
+DROP TABLE t1,t2;

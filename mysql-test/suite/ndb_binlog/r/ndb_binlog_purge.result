@@ -1,0 +1,49 @@
+Test binlog purging, especially 'automatic' purging
+Test expire-log-days handling as part of normal operation
+Logs are rotated as part of transaction COMMIT (to avoid
+a transaction being split across 2 files), rotation checks
+expire-logs-days to decide whether to purge, and purging
+calls into the Ndb handler to think about deleting rows
+from ndb_binlog_index.
+The delete from ndb_binlog_index is itself a SQL statement
+executing *during* the COMMIT of some other transaction,
+potentially in some other engine.  Don't want to think
+about that too closely
+show variables like 'log_bin';
+Variable_name	Value
+log_bin	ON
+use test;
+create table test.tm (b varchar(1000)) engine=myisam;
+create table test.tn (b varchar(1000)) engine=ndb;
+create procedure go_forth_and_make_binlog(loops int)
+begin
+set @x = 0;
+repeat
+insert into test.tm values (repeat('C', 1000));
+insert into test.tm values (repeat('C', 1000));
+insert into test.tm values (repeat('C', 1000));
+insert into test.tm values (repeat('C', 1000));
+insert into test.tm values (repeat('C', 1000));
+insert into test.tm values (repeat('C', 1000));
+insert into test.tm values (repeat('C', 1000));
+insert into test.tn values (repeat('N', 1000));
+delete from test.tm;
+delete from test.tn;
+select sleep(0.1);
+set @x = @x + 1;
+until @x = loops
+end repeat;
+end%
+call go_forth_and_make_binlog(40);
+Now test binlog expiration at startup...
+Disable the 'immediate expiration' mechanism
+set global debug='';
+Create some binlogs...
+call go_forth_and_make_binlog(40);
+Now restart, should re-pickup the expire-log-days
+debug setting from the config file, and perform
+expire-logs action at restart...
+# restart
+drop procedure go_forth_and_make_binlog;
+drop table tm;
+drop table tn;

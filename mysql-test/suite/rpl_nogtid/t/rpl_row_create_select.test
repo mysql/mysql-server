@@ -1,0 +1,27 @@
+# Testing table creations for row-based replication.
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # BUG#17994219: CREATE TABLE .. SELECT PRODUCES INVALID STRUCTURE, 
+--echo #               BREAKS RBR 
+--echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+connection master;
+--echo #After the patch, the display width is set to a default
+--echo #value of 21.
+CREATE TABLE t1 AS SELECT REPEAT('A', 1000) DIV 1 AS a;
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2 AS SELECT CONVERT(REPEAT('A', 255) USING UCS2) DIV 1 AS a;
+SHOW CREATE TABLE t2;
+
+--echo #After the patch, no error is reported.
+sync_slave_with_master;
+
+connection master;
+DROP TABLE t1;
+DROP TABLE t2;
+SET sql_mode = default;
+--source include/rpl_end.inc

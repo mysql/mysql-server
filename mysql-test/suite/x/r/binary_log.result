@@ -1,0 +1,38 @@
+CREATE TABLE x(id INT);
+connecting...
+active session is now 'con1'
+connecting...
+active session is now 'con2'
+switched to session con1
+RUN SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL opened WAIT_FOR xxxx_new'
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO x(id) VALUES(2);"
+  namespace: "sql"
+}
+
+switched to session con2
+RUN SET DEBUG_SYNC= 'bgc_after_enrolling_for_sync_stage SIGNAL xxxx_new'
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO x(id) VALUES(2);"
+  namespace: "sql"
+}
+
+
+1 rows affected
+switched to session con1
+
+1 rows affected
+closing session con1
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
+<ID>	root	<HOST_NAME>	test	Query	<TIME>	STATE	SHOW PROCESSLIST
+DROP TABLE x;

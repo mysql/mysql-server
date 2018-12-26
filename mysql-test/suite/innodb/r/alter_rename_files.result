@@ -1,0 +1,17 @@
+CREATE TABLE t1 (x INT NOT NULL UNIQUE KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(5);
+SET GLOBAL innodb_log_checkpoint_now=TRUE;
+SET DEBUG_SYNC='commit_cache_rebuild SIGNAL ready WAIT_FOR finish';
+ALTER TABLE t1 ADD PRIMARY KEY(x);
+SET DEBUG_SYNC='now WAIT_FOR ready';
+SET GLOBAL innodb_log_checkpoint_now=TRUE;
+SET DEBUG_SYNC='now SIGNAL finish';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `x` int(11) NOT NULL,
+  PRIMARY KEY (`x`),
+  UNIQUE KEY `x` (`x`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+SET DEBUG_SYNC='RESET';

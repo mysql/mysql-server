@@ -1,0 +1,43 @@
+--source include/no_valgrind_without_big.inc
+
+--echo #-----------------------------------------------------------------------
+--echo # Setup
+let restart_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+let SEARCH_FILE= $restart_log;
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+
+--echo # Try to restart server with invalid value for --secure-file-priv
+--exec echo "wait" > $restart_file
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--error 0,1
+--remove_file $restart_log
+
+# Following should fail
+--error 1
+--exec $MYSQLD_CMD --secure-file-priv=blahblahblah --loose-console > $restart_log 2>&1
+
+--echo # Search for : Failed to access directory for --secure-file-priv.
+let SEARCH_PATTERN= Failed to access directory for --secure-file-priv;
+--source include/search_pattern.inc
+
+--echo # Search for : No such file or directory
+let SEARCH_PATTERN= No such file or directory;
+--source include/search_pattern.inc
+
+--remove_file $restart_log 10
+
+--source include/wait_until_disconnected.inc
+# Dummy argument for restart
+--exec echo "restart: --ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+--echo # Restart completed.
+
+--echo # Restart
+--disable_warnings
+--source include/force_restart.inc
+--enable_warnings
+--echo #-----------------------------------------------------------------------

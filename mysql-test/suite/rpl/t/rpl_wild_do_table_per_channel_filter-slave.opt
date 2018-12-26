@@ -1,0 +1,5 @@
+--skip-slave-start=0
+--replicate-do-db=:db1
+--replicate-wild-do-table=:db1.t%
+--replicate-do-db=channel_3_2:db3
+--replicate-wild-do-table=channel_3_2:db3.t%

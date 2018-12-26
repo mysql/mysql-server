@@ -1,0 +1,14 @@
+create table t1 (a int, b text) engine=ndb;
+insert into t1 values (1,'xxx'),(2,'yyy'),(3,'zzz');
+select * from t1 order by a;
+a	b
+1	xxx
+2	yyy
+3	zzz
+# restart
+select * from t1 order by a;
+a	b
+1	xxx
+2	yyy
+3	zzz
+drop table t1;

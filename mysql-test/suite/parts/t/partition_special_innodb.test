@@ -1,0 +1,300 @@
+################################################################################
+# t/partition_special_innodb.test                                              #
+#                                                                              #
+# Purpose:                                                                     #
+#  different Tests                                                             #
+#        InnoDB branch                                                         #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: HH                                                          #
+# Original Date: 2006-08-01                                                    #
+# Change Author: MattiasJ                                                      #
+# Change Date: 2008-08-20                                                      #
+# Change: added test for bug#34604                                             #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+# Please read the README at the end of inc/partition.pre before changing
+# any of the variables.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+
+##### Options, for debugging support #####
+let $debug= 0;
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+let $engine= 'InnoDB';
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/parts/inc/partition_key_4col.inc
+--source suite/parts/inc/partition_key_8col.inc
+--source suite/parts/inc/partition_key_16col.inc
+--source suite/parts/inc/partition_key_32col.inc
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+--echo # Bug#34604 - Assertion 'inited==RND' failed in handler::ha_rnd_end
+
+CREATE TABLE t1 (
+  a INT AUTO_INCREMENT,
+  b VARCHAR(255),
+  PRIMARY KEY (a))
+ENGINE = InnoDB
+PARTITION BY HASH (a)
+PARTITIONS 2;
+
+connect (con1, localhost, root,,);
+connect (con2, localhost, root,,);
+
+--connection con1
+SET autocommit=OFF;
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL, 'first row t2');
+
+--connection con2
+SET autocommit=OFF;
+SET SESSION lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 AUTO_INCREMENT = 10;
+
+--disconnect con2
+--disconnect con1
+--connection default
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#53676: Unexpected errors and possible table corruption on
+--echo #            ADD PARTITION and LOCK TABLE
+--connect (con1,localhost,root,,)
+CREATE TABLE t1 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+        ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 2;
+INSERT INTO t1 VALUES (2, 2), (3, 3), (4, 4), (5, 5);
+
+--connect (con2,localhost,root,,)
+SET lock_wait_timeout = 2;
+
+--connection con1
+--echo #Connection 1 locks the table
+LOCK TABLE t1 READ;
+
+--connection con2
+--echo # Connection 2 tries to add partitions:
+--echo # First attempt: lock wait timeout (as expected)
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+--echo # Second attempt: says that partition already exists
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+--echo # Check that we only can select, not insert/update/delete.
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (NULL, 6), (NULL, 7), (10, 10), (11, 11);
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET i = 5 WHERE f = 2;
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t1 WHERE i = 10;
+--sorted_result
+SELECT * FROM t1;
+
+--connection con1
+--echo # Connection 1 unlocks the table and locks it again:
+UNLOCK TABLES;
+--real_sleep 1
+LOCK TABLE t1 READ;
+
+--connection con2
+--echo # Connection 2 tries again to add partitions:
+--echo # Third attempt: says that the table does not exist
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+--echo # Check table returns the same (not after fixing bug#56172!)
+CHECK TABLE t1;
+
+--connection con1
+UNLOCK TABLES;
+
+--connection con2
+DROP TABLE t1;
+
+# End of Test1
+
+# Test2
+
+--connection con1
+
+CREATE TABLE t2 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+        ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 2;
+
+--connection con2
+SET lock_wait_timeout = 2;
+
+--connection con1
+LOCK TABLE t2 READ;
+
+--connection con2
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t2 ADD PARTITION PARTITIONS 2;
+send ALTER TABLE t2 ADD PARTITION PARTITIONS 2;
+
+--connection con1
+UNLOCK TABLES;
+
+--connection con2
+--reap
+
+--connect (con3,localhost,root,,)
+CHECK TABLE t2;
+SELECT * FROM t2;
+DROP TABLE t2;
+
+# End of Test2
+# Test #3
+
+--connection con1
+
+CREATE TABLE t3 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+        ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 2;
+
+--connection con2
+SET lock_wait_timeout = 2;
+
+--connection con1
+--echo # Connection 1 locks the table
+LOCK TABLE t3 READ;
+
+--connection con2
+--echo # Connection 2 tries to add partitions (timeout):
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t3 ADD PARTITION PARTITIONS 2;
+
+--connection con3
+SET lock_wait_timeout = 2;
+--echo # Connection 3 tries to add partitions (partition already exists):
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t3 ADD PARTITION PARTITIONS 2;
+
+--connect (con4,localhost,root,,)
+--echo # Connection 4 tries to rename the table:
+send RENAME TABLE t3 TO t4;
+
+--connection con1
+--real_sleep 1
+--echo # Connection 1 unlocks the table:
+UNLOCK TABLES;
+
+--connection con4
+--echo # Connection 4 gets error on rename:
+--reap
+
+--connect (con5,localhost,root,,)
+--echo # SHOW TABLES returns the table (not renamed):
+SHOW TABLES;
+--echo # Connection 5 attempts to read from the table (table does not exist):
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t3;
+DROP TABLE t4;
+
+--disconnect con5
+--disconnect con4
+--disconnect con3
+--disconnect con2
+--disconnect con1
+--connection default
+# End of Test #3
+
+--echo # Test WRITE LOCK.
+--connect (con1,localhost,root,,)
+CREATE TABLE t1 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+        ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 2;
+INSERT INTO t1 VALUES (3, 3), (4, 4);
+
+--connect (con2,localhost,root,,)
+SET lock_wait_timeout = 2;
+
+--connection con1
+--echo #Connection 1 locks the table
+LOCK TABLE t1 WRITE;
+
+--connection con2
+--echo # Check that we still can SELECT, but not insert/update/delete.
+--echo # Check that we only can select, not insert/update/delete.
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (NULL, 1), (NULL, 2), (10, 10), (11, 11);
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET i = 5 WHERE f = 2;
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t1 WHERE i = 10;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+
+--connection con1
+UNLOCK TABLES;
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection con2
+DROP TABLE t1;
+
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+--echo #
+--echo # Bug#53770: Server crash at handler.cc:2076 on LOAD DATA
+--echo #            after timed out COALESCE PARTITION.
+--echo # Rewritten to use InnoDB after WL#8971.
+CREATE TABLE t1 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+        ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 3;
+
+--echo # Connection 1 starts transaction and gets lock
+START TRANSACTION;
+SELECT * FROM t1;
+
+--connect (con2,localhost,root,,)
+SET lock_wait_timeout = 2;
+--echo # Connection 2 tries to coalesce partitions (timeout):
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 COALESCE PARTITION 2;
+
+--connect (con3,localhost,root,,)
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--write_file $MYSQLD_DATADIR/test/load.in
+1
+2
+3
+EOF
+--echo # Connection 3 tries to load into the table:
+send LOAD DATA INFILE 'load.in' INTO TABLE t1 (f);
+
+--connection default
+--real_sleep 1
+--echo # Connection 1 commits the transaction
+COMMIT;
+
+--connection con3
+--echo # Connection 3...
+--reap
+DROP TABLE t1;
+
+--disconnect con3
+--source include/wait_until_disconnected.inc
+
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+--remove_file $MYSQLD_DATADIR/test/load.in

@@ -1,0 +1,15 @@
+--source include/have_innodb_max_16k.inc
+
+--echo #
+--echo # Bug #23645320 INNODB: ASSERTION FAILURE: UT0FITBLK.CC:319:RET == Z_STREAM_END
+--echo #
+
+CREATE TABLE t1 ( f1 longblob ) engine=innodb row_format=compressed;
+--echo #
+--echo # Inserting std_data/lob/earth215kb.jpg.
+--echo #
+--disable_query_log
+eval insert into t1 values (load_file('$MYSQLTEST_VARDIR/std_data/lob/earth215kb.jpg'));
+--enable_query_log
+drop table t1;
+

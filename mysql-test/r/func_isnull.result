@@ -1,0 +1,26 @@
+drop table if exists t1;
+create table t1 (id int auto_increment primary key not null, mydate date not null);
+insert into t1 values (0,"2002-05-01"),(0,"2002-05-01"),(0,"2002-05-01");
+flush tables;
+select * from t1 where isnull(to_days(mydate));
+id	mydate
+drop table t1;
+#
+# Bug#53933 crash when using uncacheable subquery in the having clause of outer query
+#
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (0),(0);
+SELECT ISNULL((SELECT GET_LOCK('Bug#53933', 0) FROM t1 GROUP BY f1)) AS f2
+FROM t1 GROUP BY f1 HAVING f2 = f2;
+f2
+0
+SELECT RELEASE_LOCK('Bug#53933');
+RELEASE_LOCK('Bug#53933')
+1
+DROP TABLE t1;
+End of 5.0 tests
+CREATE TABLE t1 (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id));
+INSERT INTO t1( id ) VALUES ( NULL );
+SELECT t1.id  FROM t1  WHERE (id  is not null and id is null );
+id
+DROP TABLE t1;

@@ -1,0 +1,235 @@
+drop table if exists t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE= InnoDB;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...');
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("where will");
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("when");
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("what" WITH QUERY EXPANSION);
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("whe*" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+what +will" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+from" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+where +(show what)" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"where will"@6' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"where will"@9' IN BOOLEAN MODE);
+id	a	b
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','request docteam@oraclehelp.com ...')  ,
+('Trial version','query performace @1255 minute on 2.1Hz Memory 2GB...')  ,
+('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"request"@10' IN BOOLEAN MODE);
+id	a	b
+4	MySQL Tutorial	request docteam@oraclehelp.com ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"Trial version"@0' IN BOOLEAN MODE);
+id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"request docteam@oraclehelp.com"@10' IN BOOLEAN MODE);
+id	a	b
+4	MySQL Tutorial	request docteam@oraclehelp.com ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"1255 minute"@1' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"1255 minute"@2' IN BOOLEAN MODE);
+id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"1255"@10' IN BOOLEAN MODE);
+id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('1255' WITH QUERY EXPANSION);
+id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"request docteam"@2' IN BOOLEAN MODE);
+id	a	b
+4	MySQL Tutorial	request docteam@oraclehelp.com ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"1255 minute"' IN BOOLEAN MODE);
+id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request docteam@oraclehelp.com');
+id	a	b
+4	MySQL Tutorial	request docteam@oraclehelp.com ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"MySQL request"@3' IN BOOLEAN MODE);
+id	a	b
+4	MySQL Tutorial	request docteam@oraclehelp.com ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"Trial memory"@10' IN BOOLEAN MODE);
+id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"Trial memory"@9' IN BOOLEAN MODE);
+id	a	b
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) CHARACTER SET = UTF8, ENGINE= InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...');
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','request docteam@oraclehelp.com ...')  ,
+('Trial version','query performace @1255 minute on 2.1Hz Memory 2GB...'),
+('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"mysql use"@2' IN BOOLEAN MODE);
+id	a	b
+2	when To Use MySQL Well	After that you went through a ...
+6	when To Use MySQL Well	for free faq  mail@xyz.com ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"mysql use"@1' IN BOOLEAN MODE);
+id	a	b
+INSERT INTO t1 (a,b) VALUES   ('XYZ, long blob', repeat("a", 9000));
+INSERT IGNORE INTO t1 (a,b) VALUES   (repeat("b", 9000), 'XYZ, long blob');
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SELECT count(*) FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"xyz blob"@3' IN BOOLEAN MODE);
+count(*)
+2
+DROP TABLE t1;
+set global innodb_file_per_table=1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a TEXT,
+b TEXT,
+c TEXT
+) CHARACTER SET = UTF8, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, very little long blob very much blob', 'very long blob');
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000),"very 租车 供 blob","new 供需分析information");
+CREATE FULLTEXT INDEX idx on t1 (a,b,c);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b,c) VALUES   (repeat("x", 19000), 'new, long text', 'very new blob');
+INSERT INTO t1 (a,b,c) VALUES   ('interesting, long text', repeat("x", 19000), 'very very good new blob');
+SELECT count(*) FROM t1
+WHERE MATCH (a,b,c)
+AGAINST ('"very blob"@3' IN BOOLEAN MODE);
+count(*)
+3
+SELECT count(*) FROM t1
+WHERE MATCH (a,b,c)
+AGAINST ('"very long blob"@0' IN BOOLEAN MODE);
+count(*)
+2
+SELECT count(*) FROM t1
+WHERE MATCH (a,b,c)
+AGAINST ('"very blob"@4' IN BOOLEAN MODE);
+count(*)
+5
+SELECT count(*) FROM t1
+WHERE MATCH (a,b,c)
+AGAINST ('"interesting blob"@9' IN BOOLEAN MODE);
+count(*)
+1
+SELECT COUNT(*) FROM t1
+WHERE MATCH (a,b,c)
+AGAINST ('"interesting blob"@9  "very long blob"@0' IN BOOLEAN MODE);
+COUNT(*)
+3
+SELECT COUNT(*) FROM t1
+WHERE MATCH (a,b,c)
+AGAINST ('"very blob"@4 - "interesting blob"@9' IN BOOLEAN MODE);
+COUNT(*)
+4
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) CHARACTER SET = UTF8, ENGINE= InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for    + DataBase ...');
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"stands database"@3' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for    + DataBase ...
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a TEXT,
+b TEXT,
+c TEXT
+) CHARACTER SET = UTF8, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
+INSERT INTO t1 (a,b,c) VALUES   ('XYZ, 租车 very little long blob very much blob', repeat("b", 19000), 'very long but smaller blob');
+CREATE FULLTEXT INDEX idx on t1 (a,b,c);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+DELETE FROM t1;
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
+INSERT INTO t1 (a,b,c) VALUES   ('XYZ, 租车 very little long blob is a very much longer blob', repeat("b", 19000), 'this is very long but smaller blob');
+SELECT count(*) FROM t1
+WHERE MATCH (a,b,c)
+AGAINST ('"very blob"@4' IN BOOLEAN MODE);
+count(*)
+2
+SELECT count(*) FROM t1
+WHERE MATCH (a,b,c)
+AGAINST ('"very blob"@3' IN BOOLEAN MODE);
+count(*)
+1
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=1;

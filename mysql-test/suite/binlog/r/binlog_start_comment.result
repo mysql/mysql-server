@@ -1,0 +1,16 @@
+reset master;
+drop table if exists t1,t2;
+create table t1 (word varchar(20)) -- create table t1;
+create table t2 (word varchar(20)) -- create table t2;
+load data infile '../../std_data/words.dat' into table t1 -- load data to t1;
+insert into t2 values ("Ada");
+flush logs;
+select * from t2;
+word
+Ada
+reset master;
+flush logs;
+select * from t2;
+word
+Ada
+drop table t1,t2;

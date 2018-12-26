@@ -1,0 +1,31 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Set an debug point on server to block group action after
+#    configuration is accepted
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+[connection server2]
+
+# 2. Execute switch to single primary mode
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+
+# 3. Kill server that is executing action
+[connection server_1]
+# Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+include/rpl_reconnect.inc
+
+# 4. Confirm other members executed the action
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+include/gr_assert_primary_member.inc
+[connection server3]
+include/gr_assert_secondary_member.inc
+
+# 5. Clean up
+[connection server1]
+ERROR HY000: Lost connection to MySQL server during query
+include/group_replication_end.inc

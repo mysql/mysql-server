@@ -1,0 +1,111 @@
+############## mysql-test\t\myisam_stats_method_func.test  ####################
+#                                                                             #
+# Variable Name: myisam_stats_method                                          #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: enumeration                                                      #
+# Default Value: nulls_equal                                                  #
+# Valid Values: nulls_equal, nulls_unequal                                    #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable myisam_stats_method      #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+--source include/force_myisam_default.inc
+--echo '#--------------------FN_DYNVARS_097_01-------------------------#'
+#####################################################################
+# Check if Setting myisam_stats_method is changed in new connection #
+#####################################################################
+
+SET @start_value = @@global.myisam_stats_method;
+
+SET @@global.myisam_stats_method = nulls_equal;
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+--echo 'connection con1'
+connection con1;
+SELECT @@global.myisam_stats_method;
+SELECT @@session.myisam_stats_method;
+disconnect con1;
+
+--echo '#--------------------FN_DYNVARS_097_02-------------------------#'
+###########################################################
+# Begin the functionality Testing of myisam_stats_method  #
+###########################################################
+
+--echo 'connection default'
+connection default;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT, KEY (a));
+INSERT INTO t1 VALUES (0),(1),(2),(3),(4);
+INSERT INTO t1 SELECT NULL FROM t1;
+
+#=======================================
+--echo 'default: NULLs considered unequal'
+#=======================================
+SET myisam_stats_method = nulls_unequal;
+
+ANALYZE TABLE t1;
+SHOW INDEX FROM t1;
+INSERT INTO t1 VALUES (11);
+DELETE FROM t1 WHERE a = 11;
+CHECK TABLE t1;
+SHOW INDEX FROM t1;
+
+
+#=====================================
+--echo 'Set nulls to be equal'
+#=====================================
+SET myisam_stats_method = nulls_equal;
+
+INSERT INTO t1 VALUES (11);
+DELETE FROM t1 WHERE a = 11;
+ANALYZE TABLE t1;
+SHOW INDEX FROM t1;
+INSERT INTO t1 VALUES (11);
+DELETE FROM t1 WHERE a = 11;
+CHECK TABLE t1;
+SHOW INDEX FROM t1;
+
+#=====================================
+--echo 'Set nulls to be ignored'
+#=====================================
+
+SET myisam_stats_method = nulls_ignored;
+SHOW VARIABLES LIKE 'myisam_stats_method';
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  a CHAR(3), b CHAR(4), c CHAR(5), d CHAR(6),
+  KEY(a,b,c,d)
+);
+INSERT INTO t1 VALUES ('bcd','def1', NULL, 'zz');
+INSERT INTO t1 VALUES ('bcd','def2', NULL, 'zz');
+INSERT INTO t1 VALUES ('bce','def1', 'yuu', NULL);
+INSERT INTO t1 VALUES ('bce','def2', NULL, 'quux');
+ANALYZE TABLE t1;
+SHOW INDEX FROM t1;
+DELETE FROM t1;
+ANALYZE TABLE t1;
+SHOW INDEX FROM t1;
+
+SET myisam_stats_method = DEFAULT;
+DROP TABLE t1;
+
+SET @@global.myisam_stats_method= @start_value;
+
+########################################################
+# End of functionality Testing for myisam_stats_method #
+########################################################
+

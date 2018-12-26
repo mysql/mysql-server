@@ -1,0 +1,225 @@
+########################### tmp_table_size_basic.test ##########################
+#                                                                              #
+# Variable Name: tmp_table_size                                                #
+# Scope: GLOBAL | SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: numeric                                                           #
+# Default Value: system dependend                                              #
+# Range: 1024-system dependend                                                 #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-13                                                    #
+# Author:  Salman                                                              #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable tmp_table_size            #
+#              that checks the behavior of this variable in the following ways #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+# Modified: 2008-12-04 HHunger                                                 #
+#              removed the differences between 64 and 32 bit platforms         #
+#                                                                              #
+# Reference:                                                                   #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html       #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+##############################################################
+#           START OF tmp_table_size TESTS                    #
+##############################################################
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.tmp_table_size;
+SET @start_session_value = @@session.tmp_table_size;
+
+--echo '#--------------------FN_DYNVARS_005_01-------------------------#'
+##############################################################
+#     Display the DEFAULT value of tmp_table_size            #
+##############################################################
+
+SET @@global.tmp_table_size = 100;
+SET @@global.tmp_table_size = DEFAULT;
+
+SET @@session.tmp_table_size = 200;
+SET @@session.tmp_table_size = DEFAULT;
+
+--echo '#--------------------FN_DYNVARS_005_02-------------------------#'
+########################################################################
+#     Check the DEFAULT value of tmp_table_size                        #
+########################################################################
+# The DEFAULT value is system dependend.
+# Therefore we have only a plausibility check here
+SELECT @@global.tmp_table_size >= 16777216;
+
+SELECT @@session.tmp_table_size >= 16777216;
+
+--echo '#--------------------FN_DYNVARS_005_03-------------------------#'
+########################################################################
+# Change the value of tmp_table_size to a valid value for GLOBAL Scope #
+########################################################################
+
+SET @@global.tmp_table_size = 1024;
+SELECT @@global.tmp_table_size;
+SET @@global.tmp_table_size = 60020;
+SELECT @@global.tmp_table_size;
+SET @@global.tmp_table_size = 4294967295;
+SELECT @@global.tmp_table_size;
+
+
+--echo '#--------------------FN_DYNVARS_005_04-------------------------#'
+#########################################################################
+# Change the value of tmp_table_size to a valid value for SESSION Scope #
+#########################################################################
+
+SET @@session.tmp_table_size = 1024;
+SELECT @@session.tmp_table_size;
+
+SET @@session.tmp_table_size = 4294967295;
+SELECT @@session.tmp_table_size;
+SET @@session.tmp_table_size = 65535;
+SELECT @@session.tmp_table_size;
+
+
+--echo '#------------------FN_DYNVARS_005_05-----------------------#'
+##########################################################
+# Change the value of tmp_table_size to an invalid value #
+##########################################################
+
+SET @@global.tmp_table_size = 0;
+SELECT @@global.tmp_table_size;
+
+SET @@global.tmp_table_size = -1024;
+SELECT @@global.tmp_table_size;
+
+
+SET @@global.tmp_table_size = 1000;
+SELECT @@global.tmp_table_size;
+SET @@global.tmp_table_size = 4294967299;
+SELECT @@global.tmp_table_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.tmp_table_size = ' ';
+SELECT @@global.tmp_table_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.tmp_table_size = ON;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.tmp_table_size = OFF;
+
+SET @@global.tmp_table_size = True;
+SELECT @@global.tmp_table_size;
+
+SET @@global.tmp_table_size = False;
+SELECT @@global.tmp_table_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.tmp_table_size = 65530.34;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.tmp_table_size ="Test";
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.tmp_table_size = ON;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.tmp_table_size = OFF;
+
+SET @@session.tmp_table_size = True;
+SELECT @@session.tmp_table_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.tmp_table_size = 65530.34;
+
+SET @@session.tmp_table_size = False;
+SELECT @@session.tmp_table_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.tmp_table_size = "Test";
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.tmp_table_size = ' ';
+SELECT @@session.tmp_table_size;
+
+SET @@session.tmp_table_size = 1000;
+SELECT @@session.tmp_table_size;
+SET @@session.tmp_table_size = 12345678901;
+
+# With a 64 bit mysqld:12345678901,with a 32 bit mysqld: 4294967295
+SELECT @@session.tmp_table_size IN (12345678901,4294967295);
+
+--echo '#------------------FN_DYNVARS_005_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@global.tmp_table_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='tmp_table_size';
+--enable_warnings
+
+--echo '#------------------FN_DYNVARS_005_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@session.tmp_table_size = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='tmp_table_size';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+########################################################################
+#  Check if global and session variables are independent of each other #
+########################################################################
+
+SET @@global.tmp_table_size = 1024;
+SET @@tmp_table_size = 4294967295;
+SELECT @@tmp_table_size = @@global.tmp_table_size;
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+##################################################################
+#    Check if accessing variable with SESSION,LOCAL and without  #
+#    SCOPE points to same session variable                       #
+##################################################################
+
+SET @@tmp_table_size = 100;
+SELECT @@tmp_table_size = @@local.tmp_table_size;
+SELECT @@local.tmp_table_size = @@session.tmp_table_size;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+#########################################################################
+#   Check if tmp_table_size can be accessed with and without @@ sign    #
+#########################################################################
+
+SET tmp_table_size = 1027;
+SELECT @@tmp_table_size;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.tmp_table_size;
+
+--Error ER_UNKNOWN_TABLE
+SELECT global.tmp_table_size;
+
+--Error ER_BAD_FIELD_ERROR
+SELECT tmp_table_size = @@session.tmp_table_size;
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.tmp_table_size = @start_global_value;
+SET @@session.tmp_table_size = @start_session_value;
+
+###################################################
+#                 END OF tmp_table_size TESTS     #
+###################################################
+

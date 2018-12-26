@@ -1,0 +1,29 @@
+
+# Test of grants when lower_case_table_names is on
+use mysql;
+
+# mixed-case database name for testing
+create database MYSQLtest;
+
+# check that database name gets forced to lowercase
+create user mysqltest_1@localhost;
+grant all on MySQLtest.* to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+
+# now force it to mixed case, but see that it is lowercased in the acl cache
+select * from db where user = 'mysqltest_1';
+update db set db = 'MYSQLtest' where db = 'mysqltest' and user = 'mysqltest_1' and host = 'localhost';
+flush privileges;
+show grants for mysqltest_1@localhost;
+select * from db where user = 'mysqltest_1';
+
+# clear out the user we created
+#
+# can't use REVOKE because of the mixed-case database name
+delete from db where db = 'MYSQLtest' and user = 'mysqltest_1' and host = 'localhost';
+flush privileges;
+drop user mysqltest_1@localhost;
+
+drop database MYSQLtest;
+
+# End of 4.1 tests

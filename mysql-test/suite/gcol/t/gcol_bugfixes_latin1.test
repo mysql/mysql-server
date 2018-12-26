@@ -1,0 +1,40 @@
+################################################################################
+# t/gcol_bugfixes_latin1.test                                                  #
+#                                                                              #
+# Purpose:                                                                     #
+#  Bug fixes that only need one storage engine, and latin1 encoding            #
+#                                                                              #
+################################################################################
+
+SET NAMES latin1;
+
+--echo #
+--echo # Bug#22991924 GCOLS: UTF16 STRING OPERATIONS GIVE DOUBLED \0\0 STRINGS
+--echo # ON EACH TABLE REBUILD
+--echo #
+
+CREATE TABLE t1 ( gc VARCHAR( 20 ) charset latin1 GENERATED ALWAYS AS ( 'Å' ) );
+
+INSERT INTO t1 VALUES ();
+
+SHOW CREATE TABLE t1;
+SELECT HEX( gc ) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT HEX( gc ) FROM t1;
+SHOW CREATE TABLE t1;
+
+SET NAMES utf8;
+
+SHOW CREATE TABLE t1;
+SELECT HEX( gc ) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT HEX( gc ) FROM t1;
+
+
+SHOW CREATE TABLE t1;
+
+SET NAMES latin1;
+SHOW CREATE TABLE t1;
+
+SET NAMES DEFAULT;
+DROP TABLE t1;

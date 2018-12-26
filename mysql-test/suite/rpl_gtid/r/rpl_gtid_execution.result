@@ -1,0 +1,1330 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#### Initialize ####
+CREATE table t (a INT PRIMARY KEY) ENGINE = InnoDB;
+INSERT INTO t VALUES (1);
+#### Specify test cases ####
+CREATE TABLE stmts (
+id INT PRIMARY KEY NOT NULL,
+connection INT NOT NULL,
+stmt_type TEXT(100) NOT NULL,
+gtid_executed TEXT(10000) NOT NULL,
+session_gtid_owned TEXT(10000) NOT NULL,
+global_gtid_owned TEXT(10000) NOT NULL,
+error INT NOT NULL)
+ENGINE = InnoDB;
+INSERT INTO stmts VALUES
+#  ID  CON  STATEMENT_TYPE      G.EXECUTED,   S.OWNED  G.OWNED  ERROR
+# DML statements
+(1000, 1, '1:1',              '',           '1:1',   '1:1',   0)
+,(1001, 1, 'AUTOCOMMIT=1',     '',           '',      '',      0)
+,(1002, 1, 'INSERT',           '1:1',        '~1:1',  '~1:1',  0)
+,(1003, 1, '1:3',              '',           '1:3',   '1:3',   0)
+,(1004, 1, 'INSERT',           '1:3',        '~1:3',  '~1:3',  0)
+# skipped DML statements
+,(1010, 1, '1:3',              '',           '',      '',      0)
+,(1011, 1, 'INSERT',           '',           '',      '',      0)
+,(1012, 1, '1:1',              '',           '',      '',      0)
+,(1013, 1, 'INSERT',           '',           '',      '',      0)
+# DDL statements
+,(1020, 1, '2:3',              '',           '2:3',   '2:3',   0)
+,(1021, 1, 'CREATE',           '2:3',        '~2:3',  '~2:3',  0)
+,(1022, 1, '2:4',              '',           '2:4',   '2:4',   0)
+,(1023, 1, 'CREATE',           '2:4',        '~2:4',  '~2:4',  0)
+# skipped DDL statements
+,(1030, 1, '2:3',              '',           '',      '',      0)
+,(1031, 1, 'CREATE-NODROP',    '',           '',      '',      0)
+,(1032, 1, '2:4',              '',           '',      '',      0)
+,(1033, 1, 'CREATE-NODROP',    '',           '',      '',      0)
+# simple transaction
+,(1040, 1, '4:1',              '',           '4:1',   '4:1',   0)
+,(1041, 1, 'BEGIN',            '',           '',      '',      0)
+,(1042, 1,   'INSERT',         '',           '',      '',      0)
+,(1043, 1,   'INSERT',         '',           '',      '',      0)
+,(1044, 1, 'COMMIT',           '4:1',        '~4:1',  '~4:1',  0)
+# skipped simple transaction
+,(1050, 1, '4:1',              '',           '',      '',      0)
+,(1051, 1, 'BEGIN',            '',           '',      '',      0)
+,(1052, 1,   'INSERT',         '',           '',      '',      0)
+,(1053, 1,   'INSERT',         '',           '',      '',      0)
+,(1054, 1, 'COMMIT',           '',           '',      '',      0)
+# rollback transaction
+,(1060, 1, '6:1',              '',           '6:1',   '6:1',   0)
+,(1061, 1, 'BEGIN',            '',           '',      '',      0)
+,(1062, 1,   'INSERT',         '',           '',      '',      0)
+,(1063, 1,   'INSERT',         '',           '',      '',      0)
+,(1064, 1, 'ROLLBACK',         '',           '~6:1',  '~6:1',  0)
+# rollback to savepoint, then rollback
+,(1070, 1, '6:1',              '',           '6:1',   '6:1',   0)
+,(1071, 1, 'BEGIN',            '',           '',      '',      0)
+,(1072, 1,   'SAVEPOINT 1',    '',           '',      '',      0)
+,(1073, 1,     'SAVEPOINT 2',  '',           '',      '',      0)
+,(1074, 1,       'INSERT',     '',           '',      '',      0)
+,(1075, 1,       'INSERT',     '',           '',      '',      0)
+,(1076, 1,     'ROLLBACK 2',   '',           '',      '',      0)
+,(1077, 1,     'SAVEPOINT 3',  '',           '',      '',      0)
+,(1078, 1,       'INSERT',     '',           '',      '',      0)
+,(1079, 1,       'SAVEPOINT 4','',           '',      '',      0)
+,(1080, 1,     'ROLLBACK 3',   '',           '',      '',      0)
+,(1081, 1,     'INSERT',       '',           '',      '',      0)
+,(1082, 1,     'SAVEPOINT 2',  '',           '',      '',      0)
+,(1083, 1,     'ROLLBACK 2',   '',           '',      '',      0)
+,(1084, 1,   'ROLLBACK 1',     '',           '',      '',      0)
+,(1085, 1, 'ROLLBACK',         '',           '~6:1',  '~6:1',  0)
+# empty group
+,(1090, 1, '9:1',              '',           '9:1',   '9:1',   0)
+,(1091, 1, 'COMMIT',           '9:1',        '~9:1',  '~9:1',  0)
+# skipped empty group
+,(1100, 1, '9:1',              '',           '',      '',      0)
+,(1101, 1, 'COMMIT',           '',           '',      '',      0)
+# rollback 'empty' group
+,(1110, 1, '11:1',             '',           '11:1',  '11:1',  0)
+,(1111, 1, 'ROLLBACK',         '',           '~11:1', '~11:1', 0)
+# concurrent group: committed and skipped
+,(1120, 1, '12:1',             '',           '12:1',  '12:1',  0)
+,(1121, 2, 'send 12:1',        '',           '',      '',      0)
+,(1122, 1, 'BEGIN',            '',           '',      '',      0)
+,(1123, 1, 'INSERT',           '',           '',      '',      0)
+,(1124, 2, 'running',          '',           '',      '',      0)
+,(1125, 1, 'COMMIT',           '12:1',       '~12:1', '~12:1', 0)
+,(1126, 2, 'reap',             '12:1',       '',      '~12:1', 0)
+# concurrent group: rolled back, other thread takes over
+,(1130, 1, '13:1',             '',           '13:1',  '13:1',  0)
+,(1131, 2, 'send 13:1',        '',           '',      '',      0)
+,(1132, 1, 'BEGIN',            '',           '',      '',      0)
+,(1133, 1, 'INSERT',           '',           '',      '',      0)
+,(1134, 2, 'running',          '',           '',      '',      0)
+,(1135, 1, 'ROLLBACK',         '',           '~13:1', '',      0)
+,(1136, 2, 'reap',             '',           '13:1',  '',      0)
+,(1137, 2, 'BEGIN',            '',           '',      '',      0)
+,(1138, 2, 'INSERT',           '',           '',      '',      0)
+,(1139, 2, 'COMMIT',           '13:1',       '~13:1', '~13:1', 0)
+# concurrent group: rolled back, ownership transferred from 1->2->3->1
+,(1140, 1, '14:1',             '',           '14:1',  '14:1',  0)
+,(1141, 2, 'send 14:1',        '',           '',      '',      0)
+,(1142, 1, 'BEGIN',            '',           '',      '',      0)
+,(1143, 1,   'INSERT',         '',           '',      '',      0)
+,(1144, 2, 'running',          '',           '',      '',      0)
+,(1145, 1, 'ROLLBACK',         '',           '~14:1', '',      0)
+,(1146, 2, 'reap',             '',           '14:1',  '',      0)
+,(1147, 2, 'BEGIN',            '',           '',      '',      0)
+,(1148, 2,   'INSERT',         '',           '',      '',      0)
+,(1149, 3, 'send 14:1',        '',           '',      '',      0)
+,(1150, 3, 'running',          '',           '',      '',      0)
+,(1151, 2, 'ROLLBACK',         '',           '~14:1', '',      0)
+,(1152, 3, 'reap',             '',           '14:1',  '',      0)
+,(1153, 1, 'send 14:1',        '',           '',      '',      0)
+,(1154, 3, 'BEGIN',            '',           '',      '',      0)
+,(1155, 3,   'INSERT',         '',           '',      '',      0)
+,(1156, 1, 'running',          '',           '',      '',      0)
+,(1157, 3, 'ROLLBACK',         '',           '~14:1', '',      0)
+,(1158, 1, 'reap',             '',           '14:1',  '',      0)
+,(1159, 1, 'BEGIN',            '',           '',      '',      0)
+,(1160, 1,   'INSERT',         '',           '',      '',      0)
+,(1161, 1, 'COMMIT',           '14:1',       '~14:1', '~14:1', 0)
+# concurrent group and rollback to savepoint
+,(1170, 1, '17:1',             '',           '17:1',  '17:1',  0)
+,(1171, 2, 'send 17:1',        '',           '',      '',      0)
+,(1172, 1, 'BEGIN',            '',           '',      '',      0)
+,(1173, 1,   'SAVEPOINT 1',    '',           '',      '',      0)
+,(1174, 1,     'INSERT',       '',           '',      '',      0)
+,(1175, 1,   'ROLLBACK 1',     '',           '',      '',      0)
+,(1176, 1,   'INSERT',         '',           '',      '',      0)
+,(1177, 2, 'running',          '',           '',      '',      0)
+,(1178, 1, 'ROLLBACK',         '',           '~17:1', '',      0)
+,(1179, 2, 'reap',             '',           '17:1',  '',      0)
+,(1180, 2, 'BEGIN',            '',           '',      '',      0)
+,(1181, 2, 'INSERT',           '',           '',      '',      0)
+,(1182, 2, 'COMMIT',           '17:1',       '~17:1', '~17:1', 0)
+# rollback to savepoint, then commit
+,(1190, 1, '19:1',             '',           '19:1',  '19:1',  0)
+,(1191, 1, 'BEGIN',            '',           '',      '',      0)
+,(1192, 1,   'SAVEPOINT 1',    '',           '',      '',      0)
+,(1193, 1,     'SAVEPOINT 2',  '',           '',      '',      0)
+,(1194, 1,       'INSERT',     '',           '',      '',      0)
+,(1195, 1,       'INSERT',     '',           '',      '',      0)
+,(1196, 1,     'ROLLBACK 2',   '',           '',      '',      0)
+,(1197, 1,     'SAVEPOINT 3',  '',           '',      '',      0)
+,(1198, 1,       'INSERT',     '',           '',      '',      0)
+,(1199, 1,       'SAVEPOINT 4','',           '',      '',      0)
+,(1200, 1,     'ROLLBACK 3',   '',           '',      '',      0)
+,(1201, 1,     'INSERT',       '',           '',      '',      0)
+,(1202, 1,     'SAVEPOINT 2',  '',           '',      '',      0)
+,(1203, 1,     'ROLLBACK 2',   '',           '',      '',      0)
+,(1204, 1,   'ROLLBACK 1',     '',           '',      '',      0)
+,(1205, 1, 'COMMIT',           '19:1',       '~19:1', '~19:1', 0)
+#
+# The following is waiting for BUG#13687542
+#
+#  # failing DML in transaction
+# ,(1190, 1, '19:1',             '',           '19:1',  '19:1',  0)
+# ,(1191, 1, 'INSERT-ERROR',     '',           '',      '',      1062)#dup
+# ,(1192, 1, 'ROLLBACK',         '',           '~19:1', '~19:1', 0)
+#  # failing DDL in transaction
+# ,(1200, 1, '20:1',             '',           '20:1',  '20:1',  0)
+# ,(1201, 1, 'CREATE-ERROR',     '',           '',      '',      1062)#dup
+# ,(1202, 1, 'ROLLBACK',         '',           '~20:1', '~20:1', 0)
+;
+include/rpl_reset.inc
+#### Test ####
+==== row-id = 1000 ====
+[connection server_1_1]
+1:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1000 @@GLOBAL.GTID_EXECUTED: '' + '' = '']
+include/assert.inc [#1000 @@SESSION.GTID_OWNED: '' + '1:1' = '1:1']
+include/assert.inc [#1000 @@GLOBAL.GTID_OWNED: '' + '1:1' = '1:1']
+include/assert.inc [#1000 slave:@@GLOBAL.GTID_EXECUTED: '' + '' = '']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1001 ====
+[connection server_1_1]
+AUTOCOMMIT=1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1001 @@GLOBAL.GTID_EXECUTED: '' + '' = '']
+include/assert.inc [#1001 @@SESSION.GTID_OWNED: '1:1' + '' = '1:1']
+include/assert.inc [#1001 @@GLOBAL.GTID_OWNED: '1:1' + '' = '1:1']
+include/assert.inc [#1001 slave:@@GLOBAL.GTID_EXECUTED: '' + '' = '']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1002 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1002 @@GLOBAL.GTID_EXECUTED: '' + '1:1' = '1:1']
+include/assert.inc [#1002 @@SESSION.GTID_OWNED: '1:1' + '~1:1' = '']
+include/assert.inc [#1002 @@GLOBAL.GTID_OWNED: '1:1' + '~1:1' = '']
+include/assert.inc [#1002 slave:@@GLOBAL.GTID_EXECUTED: '' + '1:1' = '1:1']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1003 ====
+[connection server_1_1]
+1:3
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1003 @@GLOBAL.GTID_EXECUTED: '1:1' + '' = '1:1']
+include/assert.inc [#1003 @@SESSION.GTID_OWNED: '' + '1:3' = '1:3']
+include/assert.inc [#1003 @@GLOBAL.GTID_OWNED: '' + '1:3' = '1:3']
+include/assert.inc [#1003 slave:@@GLOBAL.GTID_EXECUTED: '1:1' + '' = '1:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1004 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1004 @@GLOBAL.GTID_EXECUTED: '1:1' + '1:3' = '1:1:3']
+include/assert.inc [#1004 @@SESSION.GTID_OWNED: '1:3' + '~1:3' = '']
+include/assert.inc [#1004 @@GLOBAL.GTID_OWNED: '1:3' + '~1:3' = '']
+include/assert.inc [#1004 slave:@@GLOBAL.GTID_EXECUTED: '1:1' + '1:3' = '1:1:3']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1010 ====
+[connection server_1_1]
+1:3
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1010 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [#1010 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1010 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1010 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1011 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1011 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [#1011 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1011 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1011 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1012 ====
+[connection server_1_1]
+1:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1012 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [#1012 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1012 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1012 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1013 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1013 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [#1013 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1013 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1013 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1020 ====
+[connection server_1_1]
+2:3
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1020 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [#1020 @@SESSION.GTID_OWNED: '' + '2:3' = '2:3']
+include/assert.inc [#1020 @@GLOBAL.GTID_OWNED: '' + '2:3' = '2:3']
+include/assert.inc [#1020 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3' + '' = '1:1:3']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1021 ====
+[connection server_1_1]
+CREATE
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1021 @@GLOBAL.GTID_EXECUTED: '1:1:3' + '2:3' = '1:1:3,2:3']
+include/assert.inc [#1021 @@SESSION.GTID_OWNED: '2:3' + '~2:3' = '']
+include/assert.inc [#1021 @@GLOBAL.GTID_OWNED: '2:3' + '~2:3' = '']
+include/assert.inc [#1021 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3' + '2:3' = '1:1:3,2:3']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1022 ====
+[connection server_1_1]
+2:4
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1022 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3' + '' = '1:1:3,2:3']
+include/assert.inc [#1022 @@SESSION.GTID_OWNED: '' + '2:4' = '2:4']
+include/assert.inc [#1022 @@GLOBAL.GTID_OWNED: '' + '2:4' = '2:4']
+include/assert.inc [#1022 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3' + '' = '1:1:3,2:3']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1023 ====
+[connection server_1_1]
+CREATE
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1023 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3' + '2:4' = '1:1:3,2:3-4']
+include/assert.inc [#1023 @@SESSION.GTID_OWNED: '2:4' + '~2:4' = '']
+include/assert.inc [#1023 @@GLOBAL.GTID_OWNED: '2:4' + '~2:4' = '']
+include/assert.inc [#1023 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3' + '2:4' = '1:1:3,2:3-4']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1030 ====
+[connection server_1_1]
+2:3
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1030 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [#1030 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1030 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1030 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1031 ====
+[connection server_1_1]
+CREATE-NODROP
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1031 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [#1031 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1031 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1031 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1032 ====
+[connection server_1_1]
+2:4
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1032 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [#1032 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1032 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1032 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1033 ====
+[connection server_1_1]
+CREATE-NODROP
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1033 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [#1033 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1033 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1033 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1040 ====
+[connection server_1_1]
+4:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1040 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [#1040 @@SESSION.GTID_OWNED: '' + '4:1' = '4:1']
+include/assert.inc [#1040 @@GLOBAL.GTID_OWNED: '' + '4:1' = '4:1']
+include/assert.inc [#1040 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1041 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1041 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [#1041 @@SESSION.GTID_OWNED: '4:1' + '' = '4:1']
+include/assert.inc [#1041 @@GLOBAL.GTID_OWNED: '4:1' + '' = '4:1']
+include/assert.inc [#1041 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1042 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1042 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [#1042 @@SESSION.GTID_OWNED: '4:1' + '' = '4:1']
+include/assert.inc [#1042 @@GLOBAL.GTID_OWNED: '4:1' + '' = '4:1']
+include/assert.inc [#1042 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1043 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1043 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [#1043 @@SESSION.GTID_OWNED: '4:1' + '' = '4:1']
+include/assert.inc [#1043 @@GLOBAL.GTID_OWNED: '4:1' + '' = '4:1']
+include/assert.inc [#1043 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '' = '1:1:3,2:3-4']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1044 ====
+[connection server_1_1]
+COMMIT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1044 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '4:1' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1044 @@SESSION.GTID_OWNED: '4:1' + '~4:1' = '']
+include/assert.inc [#1044 @@GLOBAL.GTID_OWNED: '4:1' + '~4:1' = '']
+include/assert.inc [#1044 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4' + '4:1' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1050 ====
+[connection server_1_1]
+4:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1050 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1050 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1050 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1050 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1051 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1051 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1051 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1051 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1051 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1052 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1052 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1052 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1052 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1052 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1053 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1053 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1053 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1053 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1053 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1054 ====
+[connection server_1_1]
+COMMIT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1054 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1054 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1054 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1054 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1060 ====
+[connection server_1_1]
+6:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1060 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1060 @@SESSION.GTID_OWNED: '' + '6:1' = '6:1']
+include/assert.inc [#1060 @@GLOBAL.GTID_OWNED: '' + '6:1' = '6:1']
+include/assert.inc [#1060 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1061 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1061 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1061 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1061 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1061 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1062 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1062 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1062 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1062 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1062 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1063 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1063 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1063 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1063 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1063 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1064 ====
+[connection server_1_1]
+ROLLBACK
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1064 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1064 @@SESSION.GTID_OWNED: '6:1' + '~6:1' = '']
+include/assert.inc [#1064 @@GLOBAL.GTID_OWNED: '6:1' + '~6:1' = '']
+include/assert.inc [#1064 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1070 ====
+[connection server_1_1]
+6:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1070 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1070 @@SESSION.GTID_OWNED: '' + '6:1' = '6:1']
+include/assert.inc [#1070 @@GLOBAL.GTID_OWNED: '' + '6:1' = '6:1']
+include/assert.inc [#1070 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1071 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1071 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1071 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1071 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1071 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1072 ====
+[connection server_1_1]
+SAVEPOINT 1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1072 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1072 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1072 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1072 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1073 ====
+[connection server_1_1]
+SAVEPOINT 2
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1073 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1073 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1073 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1073 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1074 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1074 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1074 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1074 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1074 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1075 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1075 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1075 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1075 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1075 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1076 ====
+[connection server_1_1]
+ROLLBACK 2
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1076 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1076 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1076 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1076 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1077 ====
+[connection server_1_1]
+SAVEPOINT 3
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1077 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1077 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1077 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1077 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1078 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1078 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1078 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1078 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1078 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1079 ====
+[connection server_1_1]
+SAVEPOINT 4
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1079 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1079 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1079 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1079 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1080 ====
+[connection server_1_1]
+ROLLBACK 3
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1080 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1080 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1080 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1080 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1081 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1081 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1081 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1081 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1081 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1082 ====
+[connection server_1_1]
+SAVEPOINT 2
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1082 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1082 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1082 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1082 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1083 ====
+[connection server_1_1]
+ROLLBACK 2
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1083 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1083 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1083 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1083 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1084 ====
+[connection server_1_1]
+ROLLBACK 1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1084 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1084 @@SESSION.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1084 @@GLOBAL.GTID_OWNED: '6:1' + '' = '6:1']
+include/assert.inc [#1084 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1085 ====
+[connection server_1_1]
+ROLLBACK
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1085 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1085 @@SESSION.GTID_OWNED: '6:1' + '~6:1' = '']
+include/assert.inc [#1085 @@GLOBAL.GTID_OWNED: '6:1' + '~6:1' = '']
+include/assert.inc [#1085 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1090 ====
+[connection server_1_1]
+9:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1090 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [#1090 @@SESSION.GTID_OWNED: '' + '9:1' = '9:1']
+include/assert.inc [#1090 @@GLOBAL.GTID_OWNED: '' + '9:1' = '9:1']
+include/assert.inc [#1090 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '' = '1:1:3,2:3-4,4:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1091 ====
+[connection server_1_1]
+COMMIT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1091 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '9:1' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [#1091 @@SESSION.GTID_OWNED: '9:1' + '~9:1' = '']
+include/assert.inc [#1091 @@GLOBAL.GTID_OWNED: '9:1' + '~9:1' = '']
+include/assert.inc [#1091 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1' + '9:1' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1100 ====
+[connection server_1_1]
+9:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1100 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [#1100 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1100 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1100 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1101 ====
+[connection server_1_1]
+COMMIT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1101 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [#1101 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1101 @@GLOBAL.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1101 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1110 ====
+[connection server_1_1]
+11:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1110 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [#1110 @@SESSION.GTID_OWNED: '' + '11:1' = '11:1']
+include/assert.inc [#1110 @@GLOBAL.GTID_OWNED: '' + '11:1' = '11:1']
+include/assert.inc [#1110 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1111 ====
+[connection server_1_1]
+ROLLBACK
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1111 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [#1111 @@SESSION.GTID_OWNED: '11:1' + '~11:1' = '']
+include/assert.inc [#1111 @@GLOBAL.GTID_OWNED: '11:1' + '~11:1' = '']
+include/assert.inc [#1111 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1120 ====
+[connection server_1_1]
+12:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1120 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [#1120 @@SESSION.GTID_OWNED: '' + '12:1' = '12:1']
+include/assert.inc [#1120 @@GLOBAL.GTID_OWNED: '' + '12:1' = '12:1']
+include/assert.inc [#1120 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1121 ====
+[connection server_1_2]
+send 12:1
+==== row-id = 1122 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1122 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [#1122 @@SESSION.GTID_OWNED: '12:1' + '' = '12:1']
+include/assert.inc [#1122 @@GLOBAL.GTID_OWNED: '12:1' + '' = '12:1']
+include/assert.inc [#1122 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1123 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1123 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [#1123 @@SESSION.GTID_OWNED: '12:1' + '' = '12:1']
+include/assert.inc [#1123 @@GLOBAL.GTID_OWNED: '12:1' + '' = '12:1']
+include/assert.inc [#1123 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '' = '1:1:3,2:3-4,4:1,9:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1124 ====
+[connection server_1_2]
+running
+Checking that thread is still running query
+==== row-id = 1125 ====
+[connection server_1_1]
+COMMIT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1125 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '12:1' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [#1125 @@SESSION.GTID_OWNED: '12:1' + '~12:1' = '']
+include/assert.inc [#1125 @@GLOBAL.GTID_OWNED: '12:1' + '~12:1' = '']
+include/assert.inc [#1125 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '12:1' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1126 ====
+[connection server_1_2]
+reap
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1126 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '12:1' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [#1126 @@SESSION.GTID_OWNED: '' + '' = '']
+include/assert.inc [#1126 @@GLOBAL.GTID_OWNED: '12:1' + '~12:1' = '']
+include/assert.inc [#1126 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1' + '12:1' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1130 ====
+[connection server_1_1]
+13:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1130 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [#1130 @@SESSION.GTID_OWNED: '' + '13:1' = '13:1']
+include/assert.inc [#1130 @@GLOBAL.GTID_OWNED: '' + '13:1' = '13:1']
+include/assert.inc [#1130 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1131 ====
+[connection server_1_2]
+send 13:1
+==== row-id = 1132 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1132 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [#1132 @@SESSION.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1132 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1132 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1133 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1133 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [#1133 @@SESSION.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1133 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1133 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1134 ====
+[connection server_1_2]
+running
+Checking that thread is still running query
+==== row-id = 1135 ====
+[connection server_1_1]
+ROLLBACK
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1135 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [#1135 @@SESSION.GTID_OWNED: '13:1' + '~13:1' = '']
+include/assert.inc [#1135 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1135 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1136 ====
+[connection server_1_2]
+reap
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1136 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [#1136 @@SESSION.GTID_OWNED: '' + '13:1' = '13:1']
+include/assert.inc [#1136 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1136 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1137 ====
+[connection server_1_2]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1137 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [#1137 @@SESSION.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1137 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1137 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1138 ====
+[connection server_1_2]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1138 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [#1138 @@SESSION.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1138 @@GLOBAL.GTID_OWNED: '13:1' + '' = '13:1']
+include/assert.inc [#1138 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1139 ====
+[connection server_1_2]
+COMMIT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1139 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '13:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1139 @@SESSION.GTID_OWNED: '13:1' + '~13:1' = '']
+include/assert.inc [#1139 @@GLOBAL.GTID_OWNED: '13:1' + '~13:1' = '']
+include/assert.inc [#1139 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1' + '13:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1140 ====
+[connection server_1_1]
+14:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1140 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1140 @@SESSION.GTID_OWNED: '' + '14:1' = '14:1']
+include/assert.inc [#1140 @@GLOBAL.GTID_OWNED: '' + '14:1' = '14:1']
+include/assert.inc [#1140 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1141 ====
+[connection server_1_2]
+send 14:1
+==== row-id = 1142 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1142 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1142 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1142 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1142 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1143 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1143 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1143 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1143 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1143 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1144 ====
+[connection server_1_2]
+running
+Checking that thread is still running query
+==== row-id = 1145 ====
+[connection server_1_1]
+ROLLBACK
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1145 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1145 @@SESSION.GTID_OWNED: '14:1' + '~14:1' = '']
+include/assert.inc [#1145 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1145 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1146 ====
+[connection server_1_2]
+reap
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1146 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1146 @@SESSION.GTID_OWNED: '' + '14:1' = '14:1']
+include/assert.inc [#1146 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1146 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1147 ====
+[connection server_1_2]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1147 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1147 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1147 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1147 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1148 ====
+[connection server_1_2]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1148 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1148 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1148 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1148 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1149 ====
+[connection server_1_3]
+send 14:1
+==== row-id = 1150 ====
+[connection server_1_3]
+running
+Checking that thread is still running query
+==== row-id = 1151 ====
+[connection server_1_2]
+ROLLBACK
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1151 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1151 @@SESSION.GTID_OWNED: '14:1' + '~14:1' = '']
+include/assert.inc [#1151 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1151 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1152 ====
+[connection server_1_3]
+reap
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1152 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1152 @@SESSION.GTID_OWNED: '' + '14:1' = '14:1']
+include/assert.inc [#1152 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1152 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1153 ====
+[connection server_1_1]
+send 14:1
+==== row-id = 1154 ====
+[connection server_1_3]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1154 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1154 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1154 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1154 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1155 ====
+[connection server_1_3]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1155 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1155 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1155 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1155 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1156 ====
+[connection server_1_1]
+running
+Checking that thread is still running query
+==== row-id = 1157 ====
+[connection server_1_3]
+ROLLBACK
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1157 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1157 @@SESSION.GTID_OWNED: '14:1' + '~14:1' = '']
+include/assert.inc [#1157 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1157 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1158 ====
+[connection server_1_1]
+reap
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1158 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1158 @@SESSION.GTID_OWNED: '' + '14:1' = '14:1']
+include/assert.inc [#1158 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1158 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1159 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1159 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1159 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1159 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1159 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1160 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1160 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [#1160 @@SESSION.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1160 @@GLOBAL.GTID_OWNED: '14:1' + '' = '14:1']
+include/assert.inc [#1160 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1161 ====
+[connection server_1_1]
+COMMIT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1161 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '14:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1161 @@SESSION.GTID_OWNED: '14:1' + '~14:1' = '']
+include/assert.inc [#1161 @@GLOBAL.GTID_OWNED: '14:1' + '~14:1' = '']
+include/assert.inc [#1161 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1' + '14:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1170 ====
+[connection server_1_1]
+17:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1170 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1170 @@SESSION.GTID_OWNED: '' + '17:1' = '17:1']
+include/assert.inc [#1170 @@GLOBAL.GTID_OWNED: '' + '17:1' = '17:1']
+include/assert.inc [#1170 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1171 ====
+[connection server_1_2]
+send 17:1
+==== row-id = 1172 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1172 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1172 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1172 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1172 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1173 ====
+[connection server_1_1]
+SAVEPOINT 1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1173 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1173 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1173 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1173 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1174 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1174 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1174 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1174 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1174 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1175 ====
+[connection server_1_1]
+ROLLBACK 1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1175 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1175 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1175 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1175 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1176 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1176 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1176 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1176 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1176 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1177 ====
+[connection server_1_2]
+running
+Checking that thread is still running query
+==== row-id = 1178 ====
+[connection server_1_1]
+ROLLBACK
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1178 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1178 @@SESSION.GTID_OWNED: '17:1' + '~17:1' = '']
+include/assert.inc [#1178 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1178 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1179 ====
+[connection server_1_2]
+reap
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1179 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1179 @@SESSION.GTID_OWNED: '' + '17:1' = '17:1']
+include/assert.inc [#1179 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1179 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1180 ====
+[connection server_1_2]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1180 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1180 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1180 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1180 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1181 ====
+[connection server_1_2]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1181 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [#1181 @@SESSION.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1181 @@GLOBAL.GTID_OWNED: '17:1' + '' = '17:1']
+include/assert.inc [#1181 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1182 ====
+[connection server_1_2]
+COMMIT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1182 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '17:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1182 @@SESSION.GTID_OWNED: '17:1' + '~17:1' = '']
+include/assert.inc [#1182 @@GLOBAL.GTID_OWNED: '17:1' + '~17:1' = '']
+include/assert.inc [#1182 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1' + '17:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+==== row-id = 1190 ====
+[connection server_1_1]
+19:1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1190 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1190 @@SESSION.GTID_OWNED: '' + '19:1' = '19:1']
+include/assert.inc [#1190 @@GLOBAL.GTID_OWNED: '' + '19:1' = '19:1']
+include/assert.inc [#1190 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1191 ====
+[connection server_1_1]
+BEGIN
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1191 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1191 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1191 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1191 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1192 ====
+[connection server_1_1]
+SAVEPOINT 1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1192 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1192 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1192 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1192 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1193 ====
+[connection server_1_1]
+SAVEPOINT 2
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1193 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1193 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1193 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1193 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1194 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1194 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1194 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1194 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1194 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1195 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1195 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1195 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1195 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1195 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1196 ====
+[connection server_1_1]
+ROLLBACK 2
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1196 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1196 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1196 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1196 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1197 ====
+[connection server_1_1]
+SAVEPOINT 3
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1197 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1197 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1197 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1197 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1198 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1198 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1198 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1198 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1198 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1199 ====
+[connection server_1_1]
+SAVEPOINT 4
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1199 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1199 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1199 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1199 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1200 ====
+[connection server_1_1]
+ROLLBACK 3
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1200 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1200 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1200 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1200 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1201 ====
+[connection server_1_1]
+INSERT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1201 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1201 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1201 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1201 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1202 ====
+[connection server_1_1]
+SAVEPOINT 2
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1202 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1202 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1202 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1202 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1203 ====
+[connection server_1_1]
+ROLLBACK 2
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1203 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1203 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1203 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1203 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1204 ====
+[connection server_1_1]
+ROLLBACK 1
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1204 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [#1204 @@SESSION.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1204 @@GLOBAL.GTID_OWNED: '19:1' + '' = '19:1']
+include/assert.inc [#1204 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1']
+include/assert.inc [Binlog was not rotated]
+include/assert.inc [Binlog position was not updated]
+==== row-id = 1205 ====
+[connection server_1_1]
+COMMIT
+include/sync_slave_sql_with_master.inc
+include/assert.inc [#1205 @@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '19:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1,19:1']
+include/assert.inc [#1205 @@SESSION.GTID_OWNED: '19:1' + '~19:1' = '']
+include/assert.inc [#1205 @@GLOBAL.GTID_OWNED: '19:1' + '~19:1' = '']
+include/assert.inc [#1205 slave:@@GLOBAL.GTID_EXECUTED: '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1' + '19:1' = '1:1:3,2:3-4,4:1,9:1,12:1,13:1,14:1,17:1,19:1']
+include/assert.inc [Something was written to the binlog]
+include/assert.inc [The first added event in the binlog should be a Gtid_log_event]
+SET GTID_NEXT = 'AUTOMATIC';
+CREATE TABLE t1 (a INT);
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+CREATE TABLE t1 (a INT);
+ERROR 42S01: Table 't1' already exists
+SET GTID_NEXT = 'AUTOMATIC';
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t VALUES (1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SET GTID_NEXT = 'AUTOMATIC';
+DROP TABLE t1;
+#### Clean up ####
+ DROP TABLE t_1021; DROP TABLE t_1023;;
+DROP TABLE stmts;
+DROP TABLE t;
+include/rpl_end.inc

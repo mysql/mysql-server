@@ -1,0 +1,85 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Prepare phase: Start the servers, create a table
+#    Set server 2 weight so it becomes the next primary
+#    Server 3 has a user for recovery, so he is the only valid donor
+[connection server1]
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. A primary election is occurring in the group. Wait for it to end.");
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table*");
+set session sql_log_bin=1;
+CREATE TABLE test.t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT);
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_member_weight= 90;
+include/start_group_replication.inc
+[connection server3]
+SET sql_log_bin=0;
+CREATE USER 'recovery_user'@'%' IDENTIFIED BY 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+include/start_group_replication.inc
+
+# 2. Lock a table so the election gets stuck
+[connection server2]
+LOCK TABLE t1 READ;
+
+# 3. Execute a query and cause an election
+[connection server1]
+INSERT INTO t1 VALUES (1);
+include/stop_group_replication.inc
+
+# 4. Make server 1 return insuring it uses server 3 as a donor
+CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+include/start_group_replication.inc
+
+# 5. Check the election is running on server 2
+[connection server2]
+include/assert.inc [The stage should be "Primary Election: applying buffered transactions"]
+
+# 6. Check no election is running on server 1
+[connection server1]
+include/assert.inc [There is no stage present]
+
+# 7. Check we can't execute actions on server 1
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+ERROR HY000: The function 'group_replication_switch_to_multi_primary_mode' failed. A primary election is occurring in the group. Wait for it to end.
+
+# 8. Unlock the table to unblock the election
+[connection server2]
+UNLOCK TABLES;
+
+# 9. Check the election results are the expected
+include/gr_assert_primary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+[connection server3]
+include/gr_assert_secondary_member.inc
+
+# 10. Check that actions can now be executed on the joiner
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+include/gr_assert_multi_primary_mode.inc
+[connection server2]
+include/gr_assert_multi_primary_mode.inc
+[connection server3]
+include/gr_assert_multi_primary_mode.inc
+
+# 11. Cleanup
+[connection server3]
+SET sql_log_bin=0;
+DROP USER recovery_user;
+SET sql_log_bin=1;
+DROP TABLE t1;
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+include/group_replication_end.inc

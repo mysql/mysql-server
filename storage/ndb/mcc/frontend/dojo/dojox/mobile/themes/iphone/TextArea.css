@@ -1,0 +1,13 @@
+
+.mblTextArea {
+  padding: 4px 1px;
+  border-color: #9CACC0;
+  border-width: 1px;
+  border-style: inset;
+  -webkit-border-radius: 5px;
+  font-family: Helvetica;
+  font-size: 13px;
+}
+.mblExpandingTextArea {
+  margin: 2px;
+}

@@ -1,0 +1,99 @@
+# Test for
+# Bug#797: If a query is ignored on slave (replicate-ignore-table) the
+#          slave still checks that it has the same error as on the master.
+##########################################################################
+# 2006-02-07 JBM Added error code 1022 for NDB Engine + ORDER BY
+##########################################################################
+
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+--disable_query_log
+CALL mtr.add_suppression(
+            CONCAT("Unsafe statement written to the binary log ",
+                   "using statement format since BINLOG_FORMAT = STATEMENT."));
+--enable_query_log
+
+--connection master
+# Attention:
+# The table t1 MUST use some non transactional storage engine in order to
+# replay the scenario of Bug#797.
+create table t1 (a int primary key) engine = myisam;
+create table t4 (a int primary key);
+
+# The insert statement which follows
+# - fails with ER_DUP_KEY or ER_DUP_ENTRY
+# - but must be copied to the binlog when using mixed or statement based
+#   replication because the first row gets inserted into the table using
+#   the non transactional storage engine.
+--error ER_DUP_KEY, ER_DUP_ENTRY
+insert into t1 values (1),(1);
+# For debugging:
+# Expect to see "insert into t1 values (1),(1)" in the output of
+# --source include/show_binlog_events.inc
+insert into t4 values (1),(2);
+# as the t1 table is ignored on the slave, the slave should be able to sync
+--source include/sync_slave_sql_with_master.inc
+# check that the table has been ignored, because otherwise the test is nonsense
+show tables like 't1';
+show tables like 't4';
+SELECT * FROM test.t4 ORDER BY a;
+--connection master
+drop table t1;
+--source include/sync_slave_sql_with_master.inc
+
+# Now test that even critical errors (connection killed) are ignored if the
+# rules allow it. The "kill" idea was copied from rpl000001.test.
+
+--connection master1
+select get_lock('crash_lock%20C', 10);
+
+--connection master
+# Attention:
+# t2 MUST use some non transactional storage engine in order to replay the
+# intended scenario.
+create table t2 (a int primary key) engine = myisam;
+insert into t2 values(1),(2);
+let $master_id= `select connection_id()`;
+# The "if( a = 1, 10, get_lock ...." takes care that we have probably
+# already processed the first row before the waiting for the lock starts.
+send update t2 set a = a + if(a = 1, 10, get_lock('crash_lock%20C', 10));
+
+--connection master1
+# Wait until we can be sure that the execution of the update is in the phase
+# where it waits for getting the user lock.
+let $wait_condition= SELECT count(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'update%' AND state = 'User lock';
+--source include/wait_condition_or_abort.inc
+--replace_result $master_id <master_id>
+eval kill $master_id;
+# Wait until it is safe to issue DROP TABLE without causing deadlock.
+# let $wait_condition= SELECT count(*) = 0 FROM information_schema.processlist
+#                      WHERE info LIKE 'update%' AND state = 'User lock';
+let $wait_condition= SELECT count(*) = 0 FROM information_schema.processlist
+                     WHERE id = $master_id;
+--source include/wait_condition_or_abort.inc
+# For debugging:
+# Expect to see "update t2 set a = a + if(a = 1, ........."
+# --source include/show_binlog_events.inc
+drop table t2;
+insert into t4 values (3),(4);
+--connection master
+# The get_lock function causes warning for unsafe statement in case of using
+# binlog_format=statement.
+--disable_warnings
+--error 0,ER_QUERY_INTERRUPTED,2013
+reap;
+--enable_warnings
+--connection master1
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t4 ORDER BY a;
+
+--connection master1
+DROP TABLE test.t4;
+--source include/sync_slave_sql_with_master.inc
+# End of 4.1 tests
+# Adding comment for force manual merge 5.0 -> wl1012. delete me if needed
+
+
+--source include/rpl_end.inc

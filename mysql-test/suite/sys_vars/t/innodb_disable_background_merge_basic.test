@@ -1,0 +1,11 @@
+#
+# Basic test for innodb_disable_background_merge.
+#
+
+
+# The config variable is a debug variable
+-- source include/have_debug.inc
+
+# Check the default value
+SET @orig = @@global.innodb_disable_background_merge;
+SELECT @orig;

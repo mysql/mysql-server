@@ -1,0 +1,251 @@
+--echo ## Test the Performance Schema System service
+--echo ##
+--echo ## Verify that the SOURCE column in all wait, stage, statement,
+--echo ## transaction and metadata lock tables is set to NULL after a plugin
+--echo ## or component is unloaded.
+--echo ##
+--echo ## 0. Setup
+--echo ## 1. Install an example component to generate wait events
+--echo ## 2. Generate stage, statement and transaction events
+--echo ## 3. Unload the component / component
+--echo ## 4. Verify that the SOURCE column is null in relevant tables
+--echo ## 5. Re-install the test plugin
+--echo ## 6. Verify that the SOURCE column is re-enabled
+--echo ## 7. Cleanup
+
+# Note: MTR allows only one plugin or component loaded per test, so there
+# are two versions of this test--one for plugins and one for components.
+
+--source include/no_protocol.inc
+
+--echo
+--echo #
+--echo # 0) Setup
+--echo #
+
+# Create con0 for the test session, use default as the control.
+connect(con0, localhost, root,,);
+
+--echo Connection default
+--connection default
+USE performance_schema;
+
+--echo
+--echo # Disable all events from the control thread.
+--echo UPDATE performance_schema.threads SET instrumented = 'NO' WHERE processlist_id = CONNECTION_ID();
+--disable_query_log
+UPDATE performance_schema.threads SET instrumented = 'NO' WHERE processlist_id = CONNECTION_ID();
+--enable_query_log
+
+--echo
+--echo # Disable all events.
+UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'NO';
+
+--echo
+--echo # Clear the tables that have a SOURCE column.
+TRUNCATE events_waits_current;
+TRUNCATE events_waits_history;
+TRUNCATE events_waits_history_long;
+TRUNCATE events_stages_current;
+TRUNCATE events_stages_history;
+TRUNCATE events_stages_history_long;
+TRUNCATE events_statements_current;
+TRUNCATE events_statements_history;
+TRUNCATE events_statements_history_long;
+TRUNCATE events_transactions_current;
+TRUNCATE events_transactions_history;
+TRUNCATE events_transactions_history_long;
+--echo # metadata_locks is not truncatable
+
+--echo
+--echo #
+--echo # 1) Install a component that generates its own wait events.
+--echo #
+
+--echo Connection con0
+--connection con0
+USE test;
+
+INSTALL COMPONENT 'file://component_pfs_example';
+
+--echo
+--echo Connection default
+--connection default
+
+--echo
+--echo # Enable events that record the source file and line.
+UPDATE performance_schema.setup_instruments SET enabled = 'yes', timed = 'yes'
+  WHERE name LIKE 'stage/%' OR name LIKE 'statement/%' OR name = 'transaction' OR
+        name LIKE '%metadata/sql%' OR name LIKE 'wait/synch/mutex/sql/THD::%';
+
+--echo
+--echo Connection con0
+--connection con0
+
+--echo
+--echo #
+--echo # 2) Generate wait, stage, statement, transaction and metadata lock events. Keep the transaction open for now.
+--echo #
+CREATE TABLE t1 (s1 INT);
+START TRANSACTION;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo
+--echo Connection default
+--connection default
+
+#--echo DEBUG
+# SELECT * FROM performance_schema.events_waits_current;
+# SELECT * FROM performance_schema.events_waits_history;
+# SELECT * FROM performance_schema.events_waits_history_long;
+#--echo /DEBUG
+
+--echo
+--echo # Verify that the component registered and generated the wait events.
+--echo ## TODO Resolve timing issues with events_waits_history. ##
+--echo # SELECT (COUNT(*) > 0) AS "Expect 1" FROM performance_schema.events_waits_history WHERE event_name LIKE "%pfs_example%";
+--echo # SELECT (COUNT(*) > 0) AS "Expect 1" FROM performance_schema.events_waits_history_long WHERE event_name LIKE "%pfs_example%";
+
+--echo
+--echo # Verify that each table is non-empty and that the SOURCE columns are populated.
+--echo
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_waits_current AS t1 WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_waits_history WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_waits_history_long WHERE source <> "";
+--echo # May or may not contain rows, but shares same code path as _history and _history_long
+--echo # SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_stages_current WHERE source <> "";
+--echo
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_stages_history WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_stages_history_long WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_statements_current WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_statements_history WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_statements_history_long WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_transactions_current WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_transactions_history WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_transactions_history_long WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM metadata_locks WHERE object_schema = "test" AND source <> "";
+
+--echo
+--echo #
+--echo # 3) Uninstall the test component to force a reset of the SOURCE columns.
+--echo #
+UNINSTALL COMPONENT 'file://component_pfs_example';
+
+--echo
+--echo #
+--echo # 4) Verify that the SOURCE column was reset for all events.
+--echo #
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM events_waits_current WHERE source <> "";
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM events_waits_history WHERE source <> "";
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM events_waits_history_long WHERE source <> "";
+--echo # May or may not contain rows, but shares same code path as _history and _history_long
+--echo # SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_stages_current WHERE source = "";
+--echo
+--echo # Some stage events occur after the component is unloaded, so confirm that at least some of the SOURCE columns were reset.
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_stages_history WHERE source = "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_stages_history_long WHERE source = "";
+--echo
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM events_statements_current WHERE source <> "";
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM events_statements_history WHERE source <> "";
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM events_statements_history_long WHERE source <> "";
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM events_transactions_current WHERE source <> "";
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM events_transactions_history WHERE source <> "";
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM events_transactions_history_long WHERE source <> "";
+SELECT (COUNT(*) = 0) AS "Expect 1" FROM metadata_locks WHERE object_schema = "test" AND source <> "";
+
+--echo
+--echo Connection con0
+--connection con0
+
+--echo
+--echo # Commit the open transaction from step 2.
+COMMIT;
+
+--echo
+--echo Connection default
+--connection default
+
+--echo
+--echo # Clear tables with SOURCE columns.
+TRUNCATE events_waits_current;
+TRUNCATE events_waits_history;
+TRUNCATE events_waits_history_long;
+TRUNCATE events_stages_current;
+TRUNCATE events_stages_history;
+TRUNCATE events_stages_history_long;
+TRUNCATE events_statements_current;
+TRUNCATE events_statements_history;
+TRUNCATE events_statements_history_long;
+TRUNCATE events_transactions_current;
+TRUNCATE events_transactions_history;
+TRUNCATE events_transactions_history_long;
+--echo # metadata_locks is not truncatable
+
+--echo
+--echo Connection con0
+--connection con0
+
+--echo
+--echo #
+--echo # 5) Verify that the SOURCE columns are re-enabled after the reset.
+--echo #
+--echo
+
+--echo # Re-install the component.
+INSTALL COMPONENT 'file://component_pfs_example';
+
+--echo
+--echo # Generate new wait, stage, statement and transaction events. Leave the transaction open.
+START TRANSACTION;
+INSERT INTO t1 VALUES (4), (5), (6);
+
+--echo
+--echo Connection default
+--connection default
+
+--echo
+--echo #
+--echo # 6) Verify that each table is non-empty and that the SOURCE columns are populated.
+--echo #
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_waits_current AS t1 WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_waits_history WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_waits_history_long WHERE source <> "";
+--echo # May or may not contain rows, but shares same code path as _history and _history_long
+--echo # SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_stages_current WHERE source <> "";
+--echo
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_stages_history WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_stages_history_long WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_statements_current WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_statements_history WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_statements_history_long WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_transactions_current WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_transactions_history WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM events_transactions_history_long WHERE source <> "";
+SELECT (COUNT(*) > 0) AS "Expect 1" FROM metadata_locks WHERE object_schema = "test" AND source <> "";
+
+--echo
+--echo Connection con0
+--connection con0
+
+--echo
+--echo #
+--echo # 7) Clean up
+--echo #
+
+--echo
+--echo # Commit the open transaction from step 5.
+COMMIT;
+
+--connection con0
+--disconnect con0
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo Connection default
+--connection default
+DROP TABLE test.t1;
+UNINSTALL COMPONENT 'file://component_pfs_example';
+UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+--disable_query_log
+UPDATE performance_schema.threads SET instrumented = 'YES' WHERE processlist_id = CONNECTION_ID();
+--enable_query_log

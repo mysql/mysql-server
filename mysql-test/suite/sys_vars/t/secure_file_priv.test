@@ -1,0 +1,19 @@
+--echo #
+--echo # Bug50373 --secure-file-priv=""
+--echo #
+CREATE TABLE t1 (c1 VARCHAR(50));
+INSERT INTO t1 VALUES ("one"),("two"),("three"),("four"),("five");
+SHOW VARIABLES LIKE 'secure_file_priv';
+--disable_query_log
+# Atempt to create a file where we normally aren't allowed to create one.
+# Use the mysql-test dir
+--let $PROTECTED_FILE=$MYSQLTEST_VARDIR/tmp/bug50373.txt
+--eval SELECT * FROM t1 INTO OUTFILE '$PROTECTED_FILE';
+DELETE FROM t1;
+--eval LOAD DATA INFILE '$PROTECTED_FILE' INTO TABLE t1;
+SELECT * FROM t1;
+--eval SELECT load_file('$PROTECTED_FILE') AS loaded_file;
+--enable_query_log
+remove_file $PROTECTED_FILE;
+DROP TABLE t1;
+

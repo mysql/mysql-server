@@ -1,0 +1,19 @@
+# mysqlx_socket
+# global
+# Dynamic=no
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select @@global.mysqlx_socket;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.mysqlx_socket;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+show global variables like 'mysqlx_socket';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+show session variables like 'mysqlx_socket';
+--disable_warnings
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select * from performance_schema.global_variables where variable_name='mysqlx_socket';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select * from performance_schema.session_variables where variable_name='mysqlx_socket';
+--enable_warnings
+

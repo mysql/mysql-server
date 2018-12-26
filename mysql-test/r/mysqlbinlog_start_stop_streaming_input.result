@@ -1,0 +1,59 @@
+CREATE TABLE t1 (a INT);
+RESET MASTER;
+SET TIMESTAMP= UNIX_TIMESTAMP("2031-01-01 12:00:00");
+INSERT INTO t1 VALUES(1);
+SET TIMESTAMP= UNIX_TIMESTAMP("2032-01-01 12:00:00");
+INSERT INTO t1 VALUES(2);
+SET TIMESTAMP= UNIX_TIMESTAMP("2033-01-01 12:00:00");
+INSERT INTO t1 VALUES(3);
+FLUSH LOGS;
+SET TIMESTAMP= UNIX_TIMESTAMP("2034-01-01 12:00:00");
+INSERT INTO t1 VALUES(4);
+SET TIMESTAMP= UNIX_TIMESTAMP("2035-01-01 12:00:00");
+INSERT INTO t1 VALUES(5);
+FLUSH LOGS;
+
+==== Local ====
+
+---- base64-output with streaming input----
+
+---- offset with streaming input----
+
+---- start-position with streaming input----
+include/assert_grep.inc ["The events before start position should not appear in the log file"]
+
+---- stop-position with streaming input----
+
+---- start-position stop-position with streaming input----
+
+---- start-datetime with streaming input----
+include/assert_grep.inc ["The events after start datetime should appear in the log file"]
+include/assert_grep.inc ["The events before start datetime should not appear in the log file"]
+
+---- stop-datetime with streaming input----
+
+---- start-datetime stop-datetime with streaming input----
+
+==== Local with 2 binlogs on command line ====
+
+---- base64-output with streaming input----
+
+---- offset with streaming input----
+
+---- start-position with streaming input----
+include/assert_grep.inc ["The events before start position should not appear in the log file"]
+
+---- stop-position with streaming input----
+
+---- start-position stop-position with streaming input----
+
+---- start-datetime with streaming input----
+include/assert_grep.inc ["The events after start datetime should appear in the log file"]
+include/assert_grep.inc ["The events before start datetime should not appear in the log file"]
+
+---- stop-datetime with streaming input----
+
+---- start-datetime stop-datetime with streaming input----
+
+==== clean up ====
+DROP TABLE t1;

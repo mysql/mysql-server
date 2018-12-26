@@ -1,0 +1,25 @@
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug#25200952 	TRANSACTIONS WITH DML WITH SUBQUERIES ON I_S TABLES CAN BLOCK CONCURRENT DDL
+--echo #
+
+CREATE TABLE t1 (i INT);
+
+BEGIN;
+INSERT INTO t1 (SELECT COUNT(*) FROM information_schema.tables);
+
+--connect (con1, localhost, root,,)
+--echo # Connection 1
+--echo # This create table shouldn't be blocked because of I_S query on mysql.tables in another
+--echo # connection
+--send CREATE TABLE t2 (j INT)
+--reap
+--disconnect con1
+
+connection default;
+commit;
+DROP TABLE t1;
+DROP TABLE t2;
+--source include/wait_until_count_sessions.inc

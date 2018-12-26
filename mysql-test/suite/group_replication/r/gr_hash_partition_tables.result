@@ -1,0 +1,53 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+## Create table with HASH Partition ##
+CREATE TABLE t1 ( c1 int PRIMARY KEY )
+CHARSET=utf8mb4
+PARTITION BY HASH(c1)
+PARTITIONS 3;
+## Create table with KEY Partition ##
+CREATE TABLE t2 ( c1 int PRIMARY KEY )
+CHARSET=utf8mb4
+PARTITION BY KEY()
+PARTITIONS 3;
+include/rpl_sync.inc
+[connection server2]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`c1`)
+PARTITIONS 3 */
+INSERT INTO t1 values (1),(5),(11),(18),(20),(100),(33);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 3 */
+INSERT INTO t2 values (1),(5),(11),(18),(20),(100);
+include/rpl_sync.inc
+[connection server1]
+INSERT INTO t1 VALUES (15);
+DELETE FROM t1 WHERE c1= 5;
+DELETE FROM t2 WHERE c1= 100;
+include/rpl_sync.inc
+[connection server3]
+include/assert.inc ['Check that partition p0 on table t1 has 3 row(s)']
+include/assert.inc ['Check that partition p1 on table t1 has 2 row(s)']
+include/assert.inc ['Check that partition p2 on table t1 has 2 row(s)']
+include/assert.inc ['Check that partition p0 on table t2 has 2 row(s)']
+include/assert.inc ['Check that partition p1 on table t2 has 2 row(s)']
+include/assert.inc ['Check that partition p2 on table t2 has 1 row(s)']
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl_sync.inc
+include/group_replication_end.inc

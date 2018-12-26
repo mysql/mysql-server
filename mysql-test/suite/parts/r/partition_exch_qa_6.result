@@ -1,0 +1,105 @@
+CREATE USER test2@localhost;
+GRANT USAGE ON *.* TO test2@localhost;
+GRANT CREATE, DROP, ALTER, UPDATE, INSERT, SELECT ON test.* TO test2@localhost;
+connect (test2,localhost,test2,,test,MASTER_MYPORT,MASTER_MYSOCK);
+USE test;
+SHOW GRANTS FOR CURRENT_USER;
+Grants for test2@localhost
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, INSERT, UPDATE, CREATE, DROP, ALTER ON `test`.* TO `test2`@`localhost`
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+SELECT * FROM t_10;
+a	b
+2	Two
+4	Four
+6	Six
+8	Eight
+SELECT * FROM tp WHERE a BETWEEN 0 AND 10;
+a	b
+1	One
+3	Three
+5	Five
+9	Nine
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+SELECT * FROM t_10;
+a	b
+1	One
+3	Three
+5	Five
+9	Nine
+SELECT * FROM tp WHERE a BETWEEN 0 AND 10;
+a	b
+2	Two
+4	Four
+6	Six
+8	Eight
+ALTER TABLE tsp EXCHANGE PARTITION sp00 WITH TABLE tsp_00;
+SELECT * FROM tsp_00;
+a	b
+SELECT * FROM tsp WHERE a BETWEEN 0 AND 10;
+a	b
+2	Two
+4	Four
+5	Five
+6	Six
+8	Eight
+ALTER TABLE tsp EXCHANGE PARTITION sp00 WITH TABLE tsp_00;
+SELECT * FROM tsp_00;
+a	b
+5	Five
+SELECT * FROM tsp WHERE a BETWEEN 0 AND 10;
+a	b
+2	Two
+4	Four
+6	Six
+8	Eight
+disconnect test2;
+connection default;
+REVOKE INSERT ON test.* FROM test2@localhost;
+connect (test2,localhost,test2,,test,MASTER_MYPORT,MASTER_MYSOCK);
+USE test;
+SHOW GRANTS FOR CURRENT_USER;
+Grants for test2@localhost
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, UPDATE, CREATE, DROP, ALTER ON `test`.* TO `test2`@`localhost`
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+ERROR 42000: INSERT command denied to user 'test2'@'localhost' for table 'tp'
+disconnect test2;
+connection default;
+GRANT INSERT ON test.* TO test2@localhost;
+REVOKE CREATE ON test.* FROM test2@localhost;
+connect (test2,localhost,test2,,test,MASTER_MYPORT,MASTER_MYSOCK);
+USE test;
+SHOW GRANTS FOR CURRENT_USER;
+Grants for test2@localhost
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DROP, ALTER ON `test`.* TO `test2`@`localhost`
+ALTER TABLE tsp EXCHANGE PARTITION sp00 WITH TABLE tsp_00;
+ERROR 42000: CREATE command denied to user 'test2'@'localhost' for table 'tsp'
+disconnect test2;
+connection default;
+GRANT CREATE ON test.* TO test2@localhost;
+REVOKE DROP ON test.* FROM test2@localhost;
+connect (test2,localhost,test2,,test,MASTER_MYPORT,MASTER_MYSOCK);
+USE test;
+SHOW GRANTS FOR CURRENT_USER;
+Grants for test2@localhost
+GRANT USAGE ON *.* TO `test2`@`localhost`
+GRANT SELECT, INSERT, UPDATE, CREATE, ALTER ON `test`.* TO `test2`@`localhost`
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+ERROR 42000: DROP command denied to user 'test2'@'localhost' for table 'tp'
+disconnect test2;
+connection default;
+DROP TABLE IF EXISTS t_10;
+DROP TABLE IF EXISTS t_100;
+DROP TABLE IF EXISTS t_1000;
+DROP TABLE IF EXISTS tp;
+DROP TABLE IF EXISTS tsp;
+DROP TABLE IF EXISTS tsp_00;
+DROP TABLE IF EXISTS tsp_01;
+DROP TABLE IF EXISTS tsp_02;
+DROP TABLE IF EXISTS tsp_03;
+DROP TABLE IF EXISTS tsp_04;
+DROP TABLE IF EXISTS t_empty;
+DROP TABLE IF EXISTS t_null;
+DROP USER test2@localhost;

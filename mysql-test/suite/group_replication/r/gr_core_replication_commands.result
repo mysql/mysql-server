@@ -1,0 +1,92 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("'It is not possible to ensure the proper order when logging the view change log event.'");
+SET SESSION sql_log_bin= 1;
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+[connection server2]
+include/start_group_replication.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("'It is not possible to ensure the proper order when logging the view change log event.'");
+SET SESSION sql_log_bin= 1;
+[connection server1]
+CREATE TABLE test.t1 ( a int primary key);
+include/rpl_sync.inc
+SELECT WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-103');
+WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-103')
+0
+SELECT WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-120',5);
+WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-120',5)
+1
+include/rpl_sync.inc
+[connection server1]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server3]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error while sending message for group replication recovery");
+SET SESSION sql_log_bin= 1;
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+include/gr_wait_for_member_state.inc
+SELECT MASTER_POS_WAIT('server-binary-log.000001',SAVED_POS, 0,'group_replication_recovery');
+[connection server1]
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server3]
+include/stop_group_replication.inc
+SELECT MASTER_POS_WAIT('server-binary-log.000001',SAVED_POS, 0,'group_replication_recovery');
+MASTER_POS_WAIT('server-binary-log.000001',SAVED_POS, 0,'group_replication_recovery')
+NULL
+SELECT MASTER_POS_WAIT('server-binary-log.000001',SAVED_POS, 2,'group_replication_applier');
+MASTER_POS_WAIT('server-binary-log.000001',SAVED_POS, 2,'group_replication_applier')
+NULL
+
+[connection server2]
+CREATE TABLE test.t2 ( a int primary key);
+include/rpl_sync.inc
+include/rpl_sync.inc
+[connection server1]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server3]
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+include/gr_wait_for_member_state.inc
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GROUP_REPLICATION_GROUP_NAME:126", 20, "group_replication_recovery");
+SELECT WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-136',10);
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GROUP_REPLICATION_GROUP_NAME:1-155", 0, "group_replication_recovery");
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GROUP_REPLICATION_GROUP_NAME:1-155", 10, "group_replication_applier");
+WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GROUP_REPLICATION_GROUP_NAME:1-155", 10, "group_replication_applier")
+0
+[connection server1]
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server2]
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server3]
+include/assert.inc ['Checking the number of records in test.t1']
+include/assert.inc ['Checking the number of records in test.t2']
+[connection server2]
+include/assert.inc ['Checking the number of records in test.t1']
+include/assert.inc ['Checking the number of records in test.t2']
+## Cleanup ##
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+include/group_replication_end.inc

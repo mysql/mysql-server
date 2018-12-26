@@ -1,0 +1,40 @@
+# Tests for PERFORMANCE_SCHEMA
+
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table replication_applier_status_by_worker.
+
+--disable_result_log
+SELECT * FROM performance_schema.replication_applier_status_by_worker
+  LIMIT 1;
+
+SELECT * FROM performance_schema.replication_applier_status_by_worker
+  WHERE service_state='YES' OR last_error_message='ERROR';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_status_by_worker
+  SET service_state='YES', last_error_message='ERROR',
+  worker_id=1, thread_id=2, last_error_number=1234;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_status_by_worker
+  SET worker_id=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_status_by_worker
+  SET worker_d=12 where service_state like "YES";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_status_by_worker
+  WHERE worker_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_status_by_worker;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_applier_status_by_worker READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_applier_status_by_worker WRITE;
+UNLOCK TABLES;

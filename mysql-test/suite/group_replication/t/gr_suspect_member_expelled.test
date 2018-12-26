@@ -1,0 +1,118 @@
+#######################################################################################
+# WL11570 - GR: options to defer member eviction after a suspicion
+#
+# In a group of 3 servers, we crash one of them and test if the
+# non-responding server remains in the group for the configured waiting time,
+# instead of being immediately expelled.
+# Test :
+# 0. This test requires 3 servers
+# 1. Create a group replication setup with 3 members
+# 2. Set the group_replication_member_expel_timeout parameter to 30 seconds
+# 3. Crash server 3 and it will restart
+# 4. Then check if server 3 is still in the group
+# 5. 30 seconds later, server 3 should still be in the group as UNREACHABLE
+# 6. After 5 seconds, server 3 should have been expelled from the group
+# 7. Restart GR on server 3
+# 8. Server 3 should be back in the group
+#######################################################################################
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/force_restart.inc
+--source include/group_replication.inc
+
+
+--echo #
+--echo # Set group_replication_member_expel_timeout to 15 seconds
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+
+# Kill server3
+--echo #
+--echo # Crash server 3
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/kill_and_restart_mysqld.inc
+
+
+--echo # Restarting server 3
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+
+
+--echo #
+--echo # Check that all members are still in the group on servers 1 and 2,
+--echo # which should be ONLINE. Server 3 should still be in the group but
+--echo # UNREACHABLE
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+
+--echo #
+--echo # Check that server 3 has been removed from the group by servers 1 and 2
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
+--source include/wait_condition.inc
+
+
+--echo #
+--echo # Restarting GR on server3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+
+--echo #
+--echo # Check that all 3 members are alive and online again in the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--source include/group_replication_end.inc

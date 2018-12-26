@@ -1,0 +1,161 @@
+############## mysql-test\t\ft_boolean_syntax_basic.test ######################
+#                                                                             #
+# Variable Name: ft_boolean_syntax                                            #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value: +-><()~*:""&                                                 #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable ft_boolean_syntax        #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+###################################################
+##       START OF ft_boolean_syntax TESTS        ##
+###################################################
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+# save using implicit session scope
+SET @global_start_value = @@global.ft_boolean_syntax;
+SELECT @global_start_value;
+
+--echo '#--------------------FN_DYNVARS_033_01------------------#'
+###############################################################################
+#       Test Variable access and assignment with and without @@               #
+###############################################################################
+# select without @@
+--error ER_BAD_FIELD_ERROR
+SELECT ft_boolean_syntax;
+# access using no scope specified
+SELECT @@ft_boolean_syntax;
+# assign value without @@
+SET @@global.ft_boolean_syntax='+ -><()~*:""&|';
+SELECT @@global.ft_boolean_syntax;
+# using another syntax for accessing session variable
+SET global ft_boolean_syntax='$ -><()`*:""&|';
+# accessing variable with scope the wrong way
+--Error ER_BAD_FIELD_ERROR
+SELECT global ft_boolean_syntax;
+
+--echo '#--------------------FN_DYNVARS_033_02-------------------------#'
+#######################################################################
+#     Check the DEFAULT value of ft_boolean_syntax for global         #
+#######################################################################
+SET @@global.ft_boolean_syntax = '# -><()!*:""&|';
+SET @@global.ft_boolean_syntax = DEFAULT;
+SELECT @@global.ft_boolean_syntax;
+
+--echo '#--------------------FN_DYNVARS_033_03-------------------------#'
+######################################################################
+#     see if it is accessable using session scope                    #
+######################################################################
+--Error ER_GLOBAL_VARIABLE
+SET @@session.ft_boolean_syntax = '# -><()!*:""&|';
+--Error ER_GLOBAL_VARIABLE
+SET @@ft_boolean_syntax = '# -><()!*:""&|';
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.ft_boolean_syntax;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@local.ft_boolean_syntax;
+
+--echo '#--------------------FN_DYNVARS_033_04-------------------------#'
+##############################################################################
+#     Change the value of ft_boolean_syntax to a valid value                 #
+##############################################################################
+
+SET @@global.ft_boolean_syntax='+ -><()~*:""&|';
+SELECT @@global.ft_boolean_syntax;
+
+SET @@global.ft_boolean_syntax=' +-><()~*:""&|';
+SELECT @@global.ft_boolean_syntax;
+
+SET @@global.ft_boolean_syntax=' -+()<>~*:``&|';
+SELECT @@global.ft_boolean_syntax;
+
+SET @@global.ft_boolean_syntax='+ -><()~*:""@!';
+SELECT @@global.ft_boolean_syntax;
+
+SET @@global.ft_boolean_syntax=" +-><()~*:''&|";
+SELECT @@global.ft_boolean_syntax;
+
+SET @@global.ft_boolean_syntax=' ~/!@#$%^&*()-';
+SELECT @@global.ft_boolean_syntax;
+
+--echo '#--------------------FN_DYNVARS_033_05-------------------------#'
+###############################################################################
+#     Change the value of ft_boolean_syntax to an invalid value for global    #
+###############################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = '+-> <()~*:""&|';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = '0';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = '1 -><()~*:11&|';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = '# -><()~*:11&1';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = '1234567890ABCD';
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.ft_boolean_syntax = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = '+-> <((~*:".&|';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = ' ';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = ON;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.ft_boolean_syntax = true;
+--Error ER_PARSE_ERROR
+SET @@global.ft_boolean_syntax = + -><()~*:""&|;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = ENABLE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.ft_boolean_syntax = 'IGNORE';
+
+--echo '#--------------------FN_DYNVARS_033_06-------------------------#'
+#############################################################################
+#     Check if the value in GLOBAL Table matches value in variable          #
+#############################################################################
+--disable_warnings
+SELECT @@global.ft_boolean_syntax = (SELECT VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='ft_boolean_syntax') AS res;
+--enable_warnings
+
+
+--echo '#--------------------FN_DYNVARS_033_07-------------------------#'
+#############################################################################
+#     Assigning value from a temporary variable                             #
+#############################################################################
+# Content of initial variable
+SELECT @global_start_value;
+SET @@global.ft_boolean_syntax = @global_start_value;
+
+####################################
+#     Restore Default value        #
+####################################
+#restoring to default as we cant assign the initial value
+SET @@global.ft_boolean_syntax = DEFAULT;
+SELECT @@global.ft_boolean_syntax;
+
+##########################################################
+#                 END OF ft_boolean_syntax TESTS         #
+##########################################################

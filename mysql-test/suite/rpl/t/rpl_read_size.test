@@ -1,0 +1,102 @@
+#
+# It verifies that raising rpl_read_size option leads to less
+# file reads in the relay log files when replicating small events.
+#
+# This test also verifies that data is consistent across master and slave
+# even after dynamically changing the value of server variable
+# rpl_read_size on slave.
+
+# Reference: Bug #27147095: ADD RPL_READ_SIZE OPTION
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+CREATE TABLE t1(i INT, t LONGTEXT);
+
+--source include/sync_slave_sql_with_master.inc
+let $slave_rpl_read_size= `SELECT @@GLOBAL.rpl_read_size`;
+# Here we are going to check the read count of relay log
+# for two different inputs given to rpl_read_size.
+
+--let $case= 0
+while ($case < 2)
+{
+  # This is done to ensure that count_read is calculated
+  # for the new relay log file.
+  --source include/rpl_connection_master.inc
+  INSERT INTO t1 VALUES (1, 'start');
+  --source include/sync_slave_sql_with_master.inc
+
+  # Avoid reading relay log file while receiving events
+  --source include/stop_slave_sql.inc
+
+  # Move to the next relay log. This will ensure that the count_read
+  # variable will only contains the read done by belows INSERT query.
+   --let $count_read_start= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' ORDER BY file_name, count_read, 2)
+  --source include/rpl_connection_master.inc
+
+  --let $counter= 0
+  --disable_query_log
+  INSERT INTO t1 VALUES (1, lpad("foo", 7000, "bar"));
+  while ($counter < 10)
+  {
+    INSERT INTO t1 SELECT * FROM t1;
+    --inc $counter
+  }
+  TRUNCATE t1;
+  --enable_query_log
+  # Wait until all workload was replicated
+  --source include/sync_slave_io_with_master.inc
+  # Start reading from the relay log file
+  START SLAVE SQL_THREAD;
+  # Wait until all workload was read and applied
+  --source include/sync_slave_sql_with_io.inc
+
+  --let $count_read_end= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' ORDER BY file_name, count_read, 2)
+
+  --let $rpl_read_size_value= `SELECT @@GLOBAL.rpl_read_size`
+  --let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+  --let $expected_read_count= ` SELECT CEILING($relay_log_pos/$rpl_read_size_value)`
+  --expr $count_read= $count_read_end - $count_read_start
+
+  --let assert_text= "The expected read count and actual read count are same"
+  --let assert_cond= $expected_read_count=$count_read
+  --source include/assert.inc
+
+  --echo The read count for @@GLOBAL.rpl_read_size= $rpl_read_size_value is  $count_read
+  # change the read size for the next run.
+  eval SET @@GLOBAL.rpl_read_size= 1048576;
+
+  --source include/stop_slave.inc
+  --source include/start_slave.inc
+  --inc $case
+}
+
+# Test for checking the data consistency on changing
+# rpl_read_size dynamically on slave side.
+
+eval SET @@GLOBAL.rpl_read_size= $slave_rpl_read_size;
+
+SET @@GLOBAL.rpl_read_size = 1048576;
+SELECT @@GLOBAL.rpl_read_size;
+
+FLUSH RELAY LOGS;
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (0, "");
+INSERT INTO t1 VALUES (1, lpad("foo", 7000, "bar"));
+
+--source include/sync_slave_sql_with_master.inc
+# Verify the contents of table t1 on slave.
+# Should be same as contents in master.
+
+--let $diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+
+#Cleanup
+eval SET @@GLOBAL.rpl_read_size= $slave_rpl_read_size;
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

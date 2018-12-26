@@ -1,0 +1,78 @@
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (c1 INT, c2 CHAR(100),c3 FLOAT);
+INSERT INTO t1 VALUES (null,null,0.0);
+INSERT INTO t1 VALUES (1,'',1.0);
+INSERT INTO t1 VALUES (2,'abcde',2.0);
+INSERT INTO t1 VALUES (100,'abcdefghij',3.0);
+CREATE TABLE t2 (c1 INT, c2 VARCHAR(100));
+INSERT INTO t2 VALUES (1,'abcde');
+INSERT INTO t2 VALUES (2,'abcde');
+SELECT * FROM t1 WHERE c2 IN (SELECT c2 FROM t2 ORDER BY c1 LIMIT 1);
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+SELECT (SELECT c1, c2 FROM t2) FROM t1;
+ERROR 21000: Operand should contain 1 column(s)
+SELECT * FROM t1 WHERE c1 = (SELECT c1 FROM t2);
+ERROR 21000: Subquery returns more than 1 row
+UPDATE t1 SET c2 = (SELECT MAX(c1) FROM t2);
+UPDATE t1 SET c1 = (SELECT MAX(c1) FROM t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (c1 INT, c2 VARCHAR(100),c3 FLOAT);
+INSERT INTO t1 VALUES (null,null,0.0);
+INSERT INTO t1 VALUES (1,'',1.0);
+INSERT INTO t1 VALUES (2,'abcde',2.0);
+INSERT INTO t1 VALUES (100,'abcdefghij',3.0);
+CREATE TABLE t2 (c1 INT, c2 VARCHAR(100));
+INSERT INTO t2 VALUES (1,'abcde');
+INSERT INTO t2 VALUES (2,'abcde');
+SELECT * FROM t1 WHERE c2 IN (SELECT c2 FROM t2 ORDER BY c1 LIMIT 1);
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+SELECT (SELECT c1, c2 FROM t2) FROM t1;
+ERROR 21000: Operand should contain 1 column(s)
+SELECT * FROM t1 WHERE c1 = (SELECT c1 FROM t2);
+ERROR 21000: Subquery returns more than 1 row
+UPDATE t1 SET c2 = (SELECT MAX(c1) FROM t2);
+UPDATE t1 SET c1 = (SELECT MAX(c1) FROM t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (c1 INT, c2 BINARY(100),c3 FLOAT);
+INSERT INTO t1 VALUES (null,null,0.0);
+INSERT INTO t1 VALUES (1,'',1.0);
+INSERT INTO t1 VALUES (2,'abcde',2.0);
+INSERT INTO t1 VALUES (100,'abcdefghij',3.0);
+CREATE TABLE t2 (c1 INT, c2 VARCHAR(100));
+INSERT INTO t2 VALUES (1,'abcde');
+INSERT INTO t2 VALUES (2,'abcde');
+SELECT * FROM t1 WHERE c2 IN (SELECT c2 FROM t2 ORDER BY c1 LIMIT 1);
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+SELECT (SELECT c1, c2 FROM t2) FROM t1;
+ERROR 21000: Operand should contain 1 column(s)
+SELECT * FROM t1 WHERE c1 = (SELECT c1 FROM t2);
+ERROR 21000: Subquery returns more than 1 row
+UPDATE t1 SET c2 = (SELECT MAX(c1) FROM t2);
+UPDATE t1 SET c1 = (SELECT MAX(c1) FROM t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (c1 INT, c2 VARBINARY(100),c3 FLOAT);
+INSERT INTO t1 VALUES (null,null,0.0);
+INSERT INTO t1 VALUES (1,'',1.0);
+INSERT INTO t1 VALUES (2,'abcde',2.0);
+INSERT INTO t1 VALUES (100,'abcdefghij',3.0);
+CREATE TABLE t2 (c1 INT, c2 VARCHAR(100));
+INSERT INTO t2 VALUES (1,'abcde');
+INSERT INTO t2 VALUES (2,'abcde');
+SELECT * FROM t1 WHERE c2 IN (SELECT c2 FROM t2 ORDER BY c1 LIMIT 1);
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+SELECT (SELECT c1, c2 FROM t2) FROM t1;
+ERROR 21000: Operand should contain 1 column(s)
+SELECT * FROM t1 WHERE c1 = (SELECT c1 FROM t2);
+ERROR 21000: Subquery returns more than 1 row
+UPDATE t1 SET c2 = (SELECT MAX(c1) FROM t2);
+UPDATE t1 SET c1 = (SELECT MAX(c1) FROM t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+DROP TABLE t1;
+DROP TABLE t2;

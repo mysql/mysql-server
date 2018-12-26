@@ -1,0 +1,102 @@
+# === Purpose ===
+#
+# The purpose of this test is to check that after the START SLAVE command, the
+# APPLYING_TRANSACTION* fields in the performance_schema table
+# replication_applier_status_by_worker are cleared.
+#
+# === Implementation ===
+#
+# For both STS and MTS configurations, we perform the following operations:
+#  - create a transaction on the slave forcing a replicated transaction to reach
+#  the maximum slave_transaction_retries
+#  - Wait for the slave to reach the error condition ER_LOCK_WAIT_TIMEOUT and
+#  rollback the blocking transaction
+#  - collect the applying transaction GTID and start_apply timestamp
+#  - Start the slave and wait for it to synchronize with the master
+#  - collect the last applied transaction GTID and start_apply timestamp
+#  - check that the new start start timestamp is more recent than the one
+#  collected before the slave was started
+#
+# === References ===
+#
+# BUG#28248026 P_S.REPLICATION_APPLIER_STAT_BY_WORKER APPLYING_TRX* INCONSISTENT
+#              IN MTS AND STS
+
+# the test is binlog format agnostic
+--source include/have_binlog_format_row.inc
+# the test must start with a single-threaded slave
+--source include/not_mts_slave_parallel_workers.inc
+
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression(".*worker thread retried transaction 5 time.*");
+call mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET GLOBAL slave_transaction_retries = 5;
+SET GLOBAL innodb_lock_wait_timeout = 2;
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a INT UNIQUE);
+--source include/sync_slave_sql_with_master.inc
+
+# Scenario 1: single-threaded slave
+# Scenario 2: multi-threaded slave
+--let $ps_table = performance_schema.replication_applier_status_by_worker
+--let $scenario = 1
+while ($scenario < 3)
+{
+  # start a transaction on the slave that locks t1
+  BEGIN;
+  --eval INSERT INTO t1 VALUES ($scenario);
+
+  # execute a transaction on the master that will be blocked in the slave
+  --source include/rpl_connection_master.inc
+  --eval INSERT INTO t1 VALUES ($scenario);
+
+  --source include/rpl_connection_slave.inc
+  # wait for slave_transaction_retries to reach the maximum retry value
+  --let $slave_sql_errno = convert_error(ER_LOCK_WAIT_TIMEOUT)
+  --source include/wait_for_slave_sql_to_stop.inc
+
+
+  --let $applying_trx_before = query_get_value(SELECT APPLYING_TRANSACTION FROM $ps_table, APPLYING_TRANSACTION, 1)
+  --let $applying_trx_start_apply_before = query_get_value(SELECT APPLYING_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, APPLYING_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+
+  ROLLBACK;
+
+  --source include/start_slave_sql.inc
+  --source include/rpl_connection_master.inc
+  --source include/sync_slave_sql_with_master.inc
+
+  --let $last_applied_trx_after = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
+  --let $last_applied_trx_start_apply_after = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+
+  --let $assert_text = Confirm that we are checking the correct transaction
+  --let $assert_cond = "$last_applied_trx_after" = "$applying_trx_before"
+  --source include/assert.inc
+
+  --let $unix_ts_before= `SELECT UNIX_TIMESTAMP('$applying_trx_start_apply_before')`
+  --let $unix_ts_after= `SELECT UNIX_TIMESTAMP('$last_applied_trx_start_apply_after')`
+  --let $assert_text = Start apply timestamp must be more recent after start slave to prove that the transaction info was reset
+  --let $assert_cond = $unix_ts_after > $unix_ts_before
+  --source include/assert.inc
+
+  --source include/stop_slave.inc
+  SET GLOBAL slave_parallel_workers = 1;
+  --source include/start_slave.inc
+  --inc $scenario
+}
+
+# cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_workers = 0;
+--source include/start_slave.inc
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
+--source include/rpl_end.inc

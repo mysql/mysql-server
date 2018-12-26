@@ -1,0 +1,40 @@
+--echo # Verifying the CTE-specific output of EXPLAIN
+
+create table t1(a int);
+insert into t1 values(1),(2);
+
+--echo # In JSON "materialized_from_subquery" for the 2 last references
+--echo # points to 1st reference: no duplication. In TRADITIONAL,
+--echo # The 2 last references are 1) not expanded (underlying tables
+--echo # are not shown) 2) shown as <derivedN> where N is ID of 1st
+--echo # reference. So users understand we have single materialization.
+
+let $query=
+with qn(a) as (select 1 from t1 limit 2)
+select * from qn where qn.a=(select * from qn qn1 limit 1) ;
+
+eval explain format=json $query;
+eval explain format=traditional $query;
+
+let $query=
+with qn as (select cast("x" as char(100)) as a from t1 limit 2)
+select (select * from qn) from qn, qn qn1;
+
+eval explain format=json $query;
+eval explain format=traditional $query;
+
+--echo # Recursive query block has a mark:
+--echo # "recursive":true in JSON, "Recursive" on its first table in
+--echo # TRADITIONAL.
+
+let $query=
+with recursive qn as (select cast("x" as char(100)) as a from dual
+                      union all
+                      select concat("x",qn.a) from qn,t1 where
+                      length(qn.a)<10)
+select * from qn;
+
+eval explain format=json $query;
+eval explain format=traditional $query;
+
+drop table t1;

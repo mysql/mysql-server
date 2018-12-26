@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <properties>
+    <subproject>api</subproject>
+    <subproject.source-dir>${project.source-dir}/clusterj-${subproject}</subproject.source-dir>
+  </properties>
+
+  <parent>
+    <groupId>com.mysql.clusterj</groupId>
+    <artifactId>clusterj-aggregate</artifactId>
+    <version>@JAVA_NDB_VERSION@@JAVA_MVN_SUFFIX@</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.mysql.clusterj</groupId>
+  <artifactId>clusterj-api</artifactId>
+  <packaging>bundle</packaging>
+  <version>@JAVA_NDB_VERSION@@JAVA_MVN_SUFFIX@</version>
+  <name>ClusterJ API</name>
+  <description>The API for ClusterJ</description>
+  <build>
+    <sourceDirectory>${subproject.source-dir}/src/main/java</sourceDirectory>
+    <testSourceDirectory>${subproject.source-dir}/src/test/java</testSourceDirectory>
+    <resources>
+      <resource>
+        <directory>${subproject.source-dir}/src/main/resources</directory>
+      </resource>
+    </resources>
+    <testResources>
+      <testResource>
+        <directory>${subproject.source-dir}/src/test/resources</directory>
+      </testResource>
+    </testResources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.7</source>
+          <target>1.7</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <version>1.4.0</version>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <Export-Package>com.mysql.clusterj.*</Export-Package>
+            <Import-Package></Import-Package>
+          </instructions>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>   
+  <licenses>
+    <license>
+      <name>GPLv2</name>
+      <url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
+    </license>
+  </licenses>
+</project>

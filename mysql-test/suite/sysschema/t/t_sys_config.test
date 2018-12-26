@@ -1,0 +1,18 @@
+# Tests for sys schema
+# Verify the sys.sys_config table is as expected
+
+DESC sys.sys_config;
+
+SELECT variable, value, set_by FROM sys.sys_config;
+
+# Ensure the sys.sys_config_update_set_user trigger functions correctly
+UPDATE sys.sys_config SET value = 128 WHERE variable = 'statement_truncate_len';
+
+SELECT variable, value, set_by FROM sys.sys_config;
+
+# Ensure the sys.sys_config_insert_set_user trigger functions correctly
+INSERT INTO sys.sys_config (variable, value) VALUES ('foo', 'bar');
+
+SELECT variable, value, set_by FROM sys.sys_config;
+
+--source ../include/sys_config_cleanup.inc

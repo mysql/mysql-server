@@ -1,0 +1,37 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+## case #1 - last_null_bit_pos==0 in record_compare without X bit
+include/rpl_reset.inc
+CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 varchar(1) DEFAULT '', c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0, c8 bigint(20) DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
+INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
+UPDATE IGNORE t1 SET c5 = 'a';
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+## case #1.1 - last_null_bit_pos==0 in record_compare with X bit
+##             (1 column less and no varchar)
+include/rpl_reset.inc
+CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 bigint(20) DEFAULT 0, c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
+INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
+UPDATE IGNORE t1 SET c5 = 'a';
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+## case #2 - X bit is wrongly set.
+include/rpl_reset.inc
+CREATE TABLE t1 (c1 int, c2 varchar(1) default '') ENGINE=InnoDB DEFAULT CHARSET= latin1;
+INSERT INTO t1(c1) VALUES (10);
+INSERT INTO t1(c1) VALUES (NULL);
+UPDATE t1 SET c1= 0;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

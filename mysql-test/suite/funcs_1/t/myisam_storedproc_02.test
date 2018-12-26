@@ -1,0 +1,8 @@
+#### suite/funcs_1/t/myisam_storedproc_02.test
+#
+
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+--source include/have_myisam.inc
+let $engine_type= myisam;
+
+--source suite/funcs_1/storedproc/storedproc_02.inc

@@ -1,0 +1,191 @@
+CREATE TABLE t1 (c1 INT , c2 CHAR(10), PRIMARY KEY (c1)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0, "0");
+INSERT INTO t1 VALUES(1, "1");
+INSERT INTO t1 VALUES(2, "2");
+INSERT INTO t1 VALUES(3, "3");
+CREATE TABLE t2 (c1 INT , c2 CHAR(10), PRIMARY KEY (c1)) ENGINE = InnoDB;
+INSERT INTO t2 VALUES(0, "a");
+INSERT INTO t2 VALUES(1, "b");
+INSERT INTO t2 VALUES(2, "c");
+INSERT INTO t2 VALUES(3, "d");
+'T1'
+SET AUTOCOMMIT=0;
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+0	a
+1	b
+2	c
+3	d
+'T2'
+SET AUTOCOMMIT=0;
+BEGIN;
+SELECT * FROM t1;
+c1	c2
+0	0
+1	1
+2	2
+3	3
+'T3'
+SET AUTOCOMMIT=0;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+SELECT * FROM t1;
+c1	c2
+0	0
+1	1
+2	2
+3	3
+SELECT * FROM t2;
+c1	c2
+0	a
+1	b
+2	c
+3	d
+'T1'
+UPDATE t2 SET c1 = c1 + 100;
+SELECT * FROM t2;
+c1	c2
+100	a
+101	b
+102	c
+103	d
+COMMIT;
+'T2'
+UPDATE t1 SET c1 = c1 + 100;
+SELECT * FROM t1;
+c1	c2
+100	0
+101	1
+102	2
+103	3
+COMMIT;
+'T3'
+SET DEBUG_SYNC='row_search_for_mysql_before_return WAIT_FOR waiting1';
+SELECT * FROM t1;;
+'T2'
+SET DEBUG_SYNC='now SIGNAL waiting1';
+'Signalled T3'
+'T3'
+c1	c2
+0	0
+1	1
+2	2
+3	3
+'T3'
+SET DEBUG_SYNC='row_search_for_mysql_before_return WAIT_FOR waiting1';
+SELECT * FROM t2;;
+'T2'
+SET DEBUG_SYNC='now SIGNAL waiting1';
+'Signalled T3'
+'T3'
+c1	c2
+0	a
+1	b
+2	c
+3	d
+'T1'
+SET AUTOCOMMIT=0;
+BEGIN;
+SELECT * FROM t1;
+c1	c2
+100	0
+101	1
+102	2
+103	3
+'T2'
+SET AUTOCOMMIT=0;
+BEGIN;
+SELECT * FROM t2;
+c1	c2
+100	a
+101	b
+102	c
+103	d
+UPDATE t2 SET c1 = c1 + 100;
+SELECT * FROM t2;
+c1	c2
+200	a
+201	b
+202	c
+203	d
+COMMIT;
+'T3'
+SET AUTOCOMMIT=0;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+SELECT * FROM t1;
+c1	c2
+100	0
+101	1
+102	2
+103	3
+SELECT * FROM t2;
+c1	c2
+200	a
+201	b
+202	c
+203	d
+'T1'
+UPDATE t1 SET c1 = c1 + 100;
+SELECT * FROM t1;
+c1	c2
+200	0
+201	1
+202	2
+203	3
+COMMIT;
+'T3'
+SET DEBUG_SYNC='row_select_wait WAIT_FOR waiting1';
+SELECT * FROM t1;;
+'T2'
+SET DEBUG_SYNC='now SIGNAL waiting1';
+'Signalled T3'
+'T3'
+c1	c2
+100	0
+101	1
+102	2
+103	3
+'T3'
+SET DEBUG_SYNC='row_select_wait WAIT_FOR waiting1';
+SELECT * FROM t2;;
+'T2'
+SET DEBUG_SYNC='now SIGNAL waiting1';
+'Signalled T3'
+'T3'
+c1	c2
+200	a
+201	b
+202	c
+203	d
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Bug 21433768: NON-REPEATABLE READ WITH REPEATABLE READ ISOLATION
+#
+# connection con1
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 INT) ENGINE = InnoDB;
+INSERT INTO t1 values (1, 0), (2, 0);
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+1	0
+2	0
+START TRANSACTION;
+UPDATE t1 SET col2 = 100;
+SET DEBUG_SYNC = 'after_trx_committed_in_memory SIGNAL s1 WAIT_FOR s2';
+COMMIT;;
+# connection default
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+UPDATE t1 SET col2 = col2 + 10 where col1 = 1;
+COMMIT;
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+1	110
+2	100
+SET DEBUG_SYNC = 'now SIGNAL s2';
+# connection con1
+# reap COMMIT for con1
+# connection default
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

@@ -1,0 +1,56 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t1 ( a int ) engine = ndb;
+begin;
+insert into t1 values(1);
+alter table t1 rename t2;
+commit;
+drop table t2;
+set global ndb_dbg_check_shares=1;
+set global ndb_dbg_check_shares=1;
+create table t1 ( a int primary key) engine = ndb;
+begin;
+insert into t1 values(1);
+alter table t1 algorithm=inplace, add column b int column_format dynamic;
+commit;
+drop table t1;
+set global ndb_dbg_check_shares=1;
+set global ndb_dbg_check_shares=1;
+create table t1 ( a int primary key) engine = ndb;
+begin;
+insert into t1 values(1);
+alter table t1 algorithm=copy, add column b int column_format dynamic;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+drop table t1;
+set global ndb_dbg_check_shares=1;
+set global ndb_dbg_check_shares=1;
+create table t1 ( a int primary key, b int) engine = ndb;
+begin;
+insert into t1 values(1, 1);
+create index ind_b on t1(b) algorithm=inplace;
+commit;
+drop table t1;
+set global ndb_dbg_check_shares=1;
+set global ndb_dbg_check_shares=1;
+create table t1 ( a int primary key, b int, index ind_b (b)) engine = ndb;
+begin;
+insert into t1 values(1, 1);
+drop index ind_b on t1;
+commit;
+drop table t1;
+set global ndb_dbg_check_shares=1;
+set global ndb_dbg_check_shares=1;
+create database testdb;
+create table testdb.t1 (a int) engine = ndb;
+begin;
+insert into testdb.t1 values(1);
+alter database testdb charset = latin1;
+commit;
+drop database testdb;
+set global ndb_dbg_check_shares=1;
+set global ndb_dbg_check_shares=1;
+include/rpl_end.inc

@@ -1,0 +1,294 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[Setup XPlugin user on connection 'server1']
+[Setup XPlugin user on connection 'server2']
+
+## Protocol GR notices enabled - verify delivery of the notices
+##########################################################################
+
+###
+### Sets up the group with two servers: server1 and server2
+###
+connecting...
+active session is now 'verify_1'
+connecting...
+active session is now 'verify_2'
+[connection verify_1]
+[Enabling GR notifications]
+[connection verify_2]
+[Enabling GR notifications]
+connecting...
+active session is now 'server_1'
+connecting...
+active session is now 'server_2'
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+
+### Scenario 1: SERVER BOOTSTRAPS GROUP
+### Expected:
+### - Myself: 1 VIEW CHANGED, 2 STATE CHANGED
+### - Others: N/A
+##########################################################################
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 1
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[ASSERT view_change on 'verify_1' connection]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_2' connection]
+
+### Scenario 2: MEMBER JOINS, but blocks recovering
+### Expected:
+### - Myself: 1 VIEW CHANGED, 1 STATE CHANGED
+### - Others: 1 VIEW CHANGED, 1 STATE CHANGED
+##########################################################################
+[connection server_1]
+RUN STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
+[connection server_2]
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'RECOVERING']
+[ASSERT view_change on 'verify_1' connection]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT view_change on 'verify_2' connection]
+[ASSERT state_change on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+
+### Scenario 3: MEMBER RECOVERS JOINS
+### Expected:
+### - Myself: 1 STATE CHANGED
+### - Others: 1 STATE CHANGED
+##########################################################################
+[connection server_1]
+RUN START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
+[connection server_2]
+[waiting for member_state to be equal 'ONLINE']
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT state_change on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+
+### Scenario 4: SERVER LEAVES(ERROR), SERVER LEAVES(OFFLINE)
+### Expected:
+### - Myself (leaving): 1 VIEW CHANGED, 1 STATE CHANGED
+### - Others: 1 VIEW CHANGED
+##########################################################################
+[connection server_2]
+RUN SET SESSION sql_log_bin=0
+RUN CREATE TABLE test.tab1 (a INT PRIMARY KEY)
+RUN SET SESSION sql_log_bin=1
+[connection server_1]
+RUN CREATE TABLE test.tab1 (a INT PRIMARY KEY)
+[connection server_2]
+[waiting for member_state to be equal 'ERROR']
+[waiting for '1' members]
+[ASSERT view_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT state_change on 'verify_2' connection]
+[ASSERT view_change on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+[connection server_2]
+RUN STOP GROUP_REPLICATION
+RUN SET GLOBAL read_only= FALSE
+[waiting for member_state to be equal 'OFFLINE']
+[ASSERT state_change on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+
+### Cleanup: in xtest deallocation of GR and drop of data
+##########################################################################
+[connection server_1]
+RUN STOP GROUP_REPLICATION
+RUN SET GLOBAL read_only= FALSE
+RUN DROP TABLE test.tab1
+RUN RESET MASTER
+[connection server_2]
+RUN DROP TABLE test.tab1
+RUN RESET MASTER
+
+### Postcheck: Assert session status variables
+### Expected:
+### - Myself 9 global-notices (7 from the tests scenarios + 2 from cleanup)
+### - Other 6 global-notices (6 from the tests scenarios)
+##########################################################################
+[connection verify_1]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 9]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 9]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_warning_sent';
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_other_sent';
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
+[connection verify_2]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 6]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 6]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_warning_sent';
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_other_sent';
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
+closing session verify_2
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## X Protocol GR notices disabled - verify that X Plugin doesn't send the notices
+##########################################################################
+
+###
+### Sets up the group with two servers: server1 and server2
+###
+connecting...
+active session is now 'verify_1'
+connecting...
+active session is now 'verify_2'
+connecting...
+active session is now 'server_1'
+connecting...
+active session is now 'server_2'
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+
+### Scenario 1: SERVER BOOTSTRAPS GROUP
+### Expected:
+### - Myself: 1 VIEW CHANGED, 2 STATE CHANGED
+### - Others: N/A
+##########################################################################
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 1
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_2' connection]
+
+### Scenario 2: MEMBER JOINS, but blocks recovering
+### Expected:
+### - Myself: 1 VIEW CHANGED, 1 STATE CHANGED
+### - Others: 1 VIEW CHANGED, 1 STATE CHANGED
+##########################################################################
+[connection server_1]
+RUN STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
+[connection server_2]
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'RECOVERING']
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+
+### Scenario 3: MEMBER RECOVERS JOINS
+### Expected:
+### - Myself: 1 STATE CHANGED
+### - Others: 1 STATE CHANGED
+##########################################################################
+[connection server_1]
+RUN START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
+[connection server_2]
+[waiting for member_state to be equal 'ONLINE']
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+
+### Scenario 4: SERVER LEAVES(ERROR), SERVER LEAVES(OFFLINE)
+### Expected:
+### - Myself (leaving): 1 VIEW CHANGED, 1 STATE CHANGED
+### - Others: 1 VIEW CHANGED
+##########################################################################
+[connection server_2]
+RUN SET SESSION sql_log_bin=0
+RUN CREATE TABLE test.tab1 (a INT PRIMARY KEY)
+RUN SET SESSION sql_log_bin=1
+[connection server_1]
+RUN CREATE TABLE test.tab1 (a INT PRIMARY KEY)
+[connection server_2]
+[waiting for member_state to be equal 'ERROR']
+[waiting for '1' members]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+[connection server_2]
+RUN STOP GROUP_REPLICATION
+RUN SET GLOBAL read_only= FALSE
+[waiting for member_state to be equal 'OFFLINE']
+[ASSERT no notices on 'verify_2' connection]
+[ASSERT no notices on 'verify_2' connection]
+
+### Cleanup: in xtest deallocation of GR and drop of data
+##########################################################################
+[connection server_1]
+RUN STOP GROUP_REPLICATION
+RUN SET GLOBAL read_only= FALSE
+RUN DROP TABLE test.tab1
+RUN RESET MASTER
+[connection server_2]
+RUN DROP TABLE test.tab1
+RUN RESET MASTER
+
+### Postcheck: Assert session status variables
+### Expected:
+### - Myself 9 global-notices (7 from the tests scenarios + 2 from cleanup)
+### - Other 6 global-notices (6 from the tests scenarios)
+##########################################################################
+[connection verify_1]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_warning_sent';
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_other_sent';
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+[connection verify_2]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_warning_sent';
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+RUN SHOW STATUS LIKE 'Mysqlx_notice_other_sent';
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+closing session verify_2
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+## Assert global status variables responsible for monitoring of global notices
+## Expected:
+## - Global Mysqlx_notified_by_group_replication must be two times higher than
+##   the session Mysqlx_notice_global_sent (test was executed two times).
+##########################################################################
+[connection server1]
+include/assert.inc [Verify if the number of send global notices matches Mysqlx_notice_global_sent.]
+include/assert.inc [Verify if the number of send global notices matches Mysqlx_notified_by_group_replication.]
+[connection server2]
+include/assert.inc [Verify if the number of send global notices matches Mysqlx_notice_global_sent.]
+include/assert.inc [Verify if the number of send global notices matches Mysqlx_notified_by_group_replication.]
+include/group_replication_end.inc

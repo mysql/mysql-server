@@ -1,0 +1,72 @@
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 (
+a bigint unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+select count(*) from t2;
+count(*)
+10000
+delete from t2 limit 1;
+select count(*) from t2;
+count(*)
+9999
+delete from t2 limit 100;
+select count(*) from t2;
+count(*)
+9899
+delete from t2 limit 1000;
+select count(*) from t2;
+count(*)
+8899
+update t2 set c=12345678 limit 100;
+select count(*) from t2 where c=12345678;
+count(*)
+100
+select count(*) from t2 where c=12345678 limit 1000;
+count(*)
+100
+select * from t2 limit 0;
+a	b	c
+drop table t2;
+CREATE TABLE `t2` (
+`views` int(11) NOT NULL default '0',
+`clicks` int(11) NOT NULL default '0',
+`day` date NOT NULL,
+`hour` tinyint(4) NOT NULL default '0',
+`bannerid` smallint(6) NOT NULL default '0',
+`zoneid` smallint(6) NOT NULL default '0',
+`source` varchar(50) NOT NULL default '',
+PRIMARY KEY  (`day`,`hour`,`bannerid`,`zoneid`,`source`),
+KEY `bannerid_day` (`bannerid`,`day`),
+KEY `zoneid` (`zoneid`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t2` VALUES
+(  1,0,'2004-09-17', 5,100,100,''),
+(  1,0,'2004-09-18', 7,100,100,''),
+( 17,0,'2004-09-27',20,132,100,''),
+(  4,0,'2004-09-16',23,132,100,''),
+( 86,0,'2004-09-18', 7,196,196,''),
+( 11,0,'2004-09-16',16,132,100,''),
+(140,0,'2004-09-18', 0,100,164,''),
+(  2,0,'2004-09-17', 7,132,100,''),
+(846,0,'2004-09-27',11,132,164,''),
+(  1,0,'2004-09-18', 8,132,100,''),
+( 22,0,'2004-09-27', 9,164,132,''),
+(711,0,'2004-09-27', 9,100,164,''),
+( 11,0,'2004-09-18', 0,196,132,''),
+( 41,0,'2004-09-27',15,196,132,''),
+( 57,0,'2004-09-18', 2,164,196,'');
+SELECT DATE_FORMAT(day, '%Y%m%d') as date, DATE_FORMAT(day, '%d-%m-%Y')
+as date_formatted FROM t2 GROUP BY day ORDER BY day DESC;
+date	date_formatted
+20040927	27-09-2004
+20040918	18-09-2004
+20040917	17-09-2004
+20040916	16-09-2004
+SELECT DATE_FORMAT(day, '%Y%m%d') as date, DATE_FORMAT(day, '%d-%m-%Y')
+as date_formatted FROM t2 GROUP BY day ORDER BY day DESC LIMIT 2;
+date	date_formatted
+20040927	27-09-2004
+20040918	18-09-2004
+drop table t2;

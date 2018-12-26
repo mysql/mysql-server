@@ -1,0 +1,78 @@
+######### mysql-test\t\table_open_cache_instances_basic.test ##################
+#                                                                             #
+# Variable Name: table_open_cache_instances                                   #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: Integer                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-04-25                                                   #
+# Author : Mikael Ronstrom                                                    #
+#                                                                             #
+#                                                                             #
+#                                                                             #
+# Description:                                                                #
+# Test case for static system variable table_open_cache_instances,            #
+# Checks the behavior of this variable in the following ways:                 #
+#  * Value Check                                                              #
+#  * Scope Check                                                              #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+
+--echo ####################################################################
+--echo #   Displaying default value                                       #
+--echo ####################################################################
+SELECT @@GLOBAL.table_open_cache_instances;
+
+
+--echo ####################################################################
+--echo # Check that value cannot be set (this variable is settable only   #
+--echo # at start-up).                                                    #
+--echo ####################################################################
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.table_open_cache_instances=1;
+
+SELECT @@GLOBAL.table_open_cache_instances;
+
+
+--echo #################################################################
+--echo # Check if the value in GLOBAL Table matches value in variable  #
+--echo #################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.table_open_cache_instances = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='table_open_cache_instances';
+--enable_warnings
+
+SELECT @@GLOBAL.table_open_cache_instances;
+
+--disable_warnings
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='table_open_cache_instances';
+--enable_warnings
+
+
+--echo ######################################################################
+--echo #  Check if accessing variable with and without GLOBAL point to same #
+--echo #  variable                                                          #
+--echo ######################################################################
+SELECT @@table_open_cache_instances = @@GLOBAL.table_open_cache_instances;
+
+
+--echo ######################################################################
+--echo #  Check if variable has only the GLOBAL scope                       #
+--echo ######################################################################
+
+SELECT @@table_open_cache_instances;
+
+SELECT @@GLOBAL.table_open_cache_instances;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@local.table_open_cache_instances;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.table_open_cache_instances;

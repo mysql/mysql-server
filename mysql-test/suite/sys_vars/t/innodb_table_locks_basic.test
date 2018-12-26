@@ -1,0 +1,236 @@
+################# mysql-test\t\innodb_table_locks_basic.test ##################
+#                                                                             #
+# Variable Name: innodb_table_locks                                           #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: 1                                                            #
+# Range: 0,1                                                                  #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-20                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable innodb_table_locks       #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF innodb_table_locks TESTS                 #
+######################################################################## 
+
+
+################################################################################ 
+#   Saving initial value of innodb_table_locks in a temporary variable         #
+################################################################################ 
+
+
+SET @session_start_value = @@session.innodb_table_locks;
+SELECT @session_start_value;
+
+
+SET @global_start_value = @@global.innodb_table_locks;
+SELECT @global_start_value;
+
+
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+######################################################################## 
+#           Display the DEFAULT value of innodb_table_locks            #
+######################################################################## 
+
+SET @@session.innodb_table_locks = 0;
+SET @@session.innodb_table_locks = DEFAULT;
+SELECT @@session.innodb_table_locks;
+
+SET @@global.innodb_table_locks = 0;
+SET @@global.innodb_table_locks = DEFAULT;
+SELECT @@global.innodb_table_locks;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+###############################################################################
+#   Check if innodb_table_locks can be accessed with and without @@ sign      #
+###############################################################################
+
+SET innodb_table_locks = 1;
+SELECT @@innodb_table_locks;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.innodb_table_locks;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_table_locks;
+
+--Error ER_UNKNOWN_TABLE
+SELECT global.innodb_table_locks;
+#using another syntax for accessing system variables
+SET session innodb_table_locks = 0;
+SELECT @@session.innodb_table_locks;
+
+SET global innodb_table_locks = 0;
+SELECT @@global.innodb_table_locks;
+
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+##########################################################################
+#      change the value of innodb_table_locks to a valid value           #
+##########################################################################
+# for session
+SET @@session.innodb_table_locks = 0;
+SELECT @@session.innodb_table_locks;
+SET @@session.innodb_table_locks = 1;
+SELECT @@session.innodb_table_locks;
+
+# for global
+SET @@global.innodb_table_locks = 0;
+SELECT @@global.innodb_table_locks;
+SET @@global.innodb_table_locks = 1;
+SELECT @@global.innodb_table_locks;
+
+
+--echo '#--------------------FN_DYNVARS_046_04-------------------------#'
+########################################################################### 
+#       Change the value of innodb_table_locks to invalid value           #
+########################################################################### 
+
+# for session
+
+SET @@session.innodb_table_locks = -6;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.innodb_table_locks = 1.6;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.innodb_table_locks = "T";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.innodb_table_locks = "Y";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.innodb_table_locks = TRÜE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.innodb_table_locks = ÕN;
+
+--error ER_PARSE_ERROR
+SET @@session.innodb_table_locks = OF;
+SELECT @@session.innodb_table_locks;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.innodb_table_locks = ÓFF;
+# for global
+
+
+SET @@global.innodb_table_locks = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_table_locks = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_table_locks = "T";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_table_locks = "Y";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_table_locks = TRÜE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_table_locks = QN;
+
+--error ER_PARSE_ERROR
+SET @@global.innodb_table_locks = OF;
+SELECT @@global.innodb_table_locks;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+#SET @@global.innodb_table_locks = ÓFF;
+
+
+--echo '#-------------------FN_DYNVARS_046_05----------------------------#'
+########################################################################### 
+#       Test if changing global variable effects session and vice versa   #
+########################################################################### 
+
+SET @@global.innodb_table_locks = 0;
+SET @@session.innodb_table_locks = 1;
+SELECT @@global.innodb_table_locks AS res_is_0;
+
+SET @@global.innodb_table_locks = 0;
+SELECT @@session.innodb_table_locks AS res_is_1;
+
+--echo '#----------------------FN_DYNVARS_046_06------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT IF(@@global.innodb_table_locks, "ON", "OFF") =
+ VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_table_locks';
+--enable_warnings
+SELECT @@global.innodb_table_locks;
+--disable_warnings
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+ WHERE VARIABLE_NAME='innodb_table_locks';
+--enable_warnings
+
+--echo '#----------------------FN_DYNVARS_046_07------------------------#'
+######################################################################### 
+#     Check if the value in SESSION Table matches value in variable     #
+#########################################################################
+
+--disable_warnings
+SELECT IF(@@session.innodb_table_locks, "ON", "OFF") =
+ VARIABLE_VALUE FROM performance_schema.session_variables
+  WHERE VARIABLE_NAME='innodb_table_locks';
+--enable_warnings
+SELECT @@session.innodb_table_locks;
+--disable_warnings
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+ WHERE VARIABLE_NAME='innodb_table_locks';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_046_08-------------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+################################################################### 
+
+SET @@session.innodb_table_locks = OFF;
+SELECT @@session.innodb_table_locks;
+SET @@session.innodb_table_locks = ON;
+SELECT @@session.innodb_table_locks;
+
+SET @@global.innodb_table_locks = OFF;
+SELECT @@global.innodb_table_locks;
+SET @@global.innodb_table_locks = ON;
+SELECT @@global.innodb_table_locks;
+
+--echo '#---------------------FN_DYNVARS_046_09----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@session.innodb_table_locks = TRUE;
+SELECT @@session.innodb_table_locks;
+SET @@session.innodb_table_locks = FALSE;
+SELECT @@session.innodb_table_locks;
+
+SET @@global.innodb_table_locks = TRUE;
+SELECT @@global.innodb_table_locks;
+SET @@global.innodb_table_locks = FALSE;
+SELECT @@global.innodb_table_locks;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@session.innodb_table_locks = @session_start_value;
+SELECT @@session.innodb_table_locks;
+
+SET @@global.innodb_table_locks = @global_start_value;
+SELECT @@global.innodb_table_locks;
+
+###############################################################
+#                    END OF innodb_table_locks TESTS          #
+############################################################### 

@@ -1,0 +1,174 @@
+drop table if exists t1, t2;
+create table t1 (a integer, b integer,c1 CHAR(10));
+insert into t1 (a) values (1),(2);
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(1,2,"test");
+select count(*) from t1;
+count(*)
+1
+delete from t1;
+select * from t1;
+a	b	c1
+drop table t1;
+select count(*) from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create temporary table t1 (n int);
+insert into t1 values (1),(2),(3);
+truncate table t1;
+select * from t1;
+n
+drop table t1;
+truncate non_existing_table;
+ERROR 42S02: Table 'test.non_existing_table' doesn't exist
+create table t1 (a integer auto_increment primary key);
+insert into t1 (a) values (NULL),(NULL);
+truncate table t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+a
+1
+2
+delete from t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+a
+3
+4
+drop table t1;
+create temporary table t1 (a integer auto_increment primary key);
+insert into t1 (a) values (NULL),(NULL);
+truncate table t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+a
+1
+2
+delete from t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+a
+3
+4
+drop table t1;
+create table t1 (s1 int);
+insert into t1 (s1) values (1), (2), (3), (4), (5);
+create view v1 as select * from t1;
+truncate table v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+drop view v1;
+drop table t1;
+#
+# Bug#20667 - Truncate table fails for a write locked table
+#
+CREATE TABLE t1 (c1 INT);
+LOCK TABLE t1 WRITE;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+c1
+1
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+c1
+UNLOCK TABLES;
+LOCK TABLE t1 READ;
+TRUNCATE TABLE t1;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+CREATE TABLE t2 (c1 INT);
+LOCK TABLE t2 WRITE;
+TRUNCATE TABLE t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+UNLOCK TABLES;
+CREATE VIEW v1 AS SELECT t1.c1 FROM t1,t2 WHERE t1.c1 = t2.c1;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (3), (4);
+SELECT * FROM v1;
+c1
+1
+3
+TRUNCATE v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+SELECT * FROM v1;
+c1
+1
+3
+LOCK TABLE t1 WRITE;
+SELECT * FROM v1;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+TRUNCATE v1;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+SELECT * FROM v1;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+UNLOCK TABLES;
+LOCK TABLE t1 WRITE, t2 WRITE;
+SELECT * FROM v1;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+TRUNCATE v1;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+SELECT * FROM v1;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+UNLOCK TABLES;
+LOCK TABLE v1 WRITE;
+SELECT * FROM v1;
+c1
+1
+3
+TRUNCATE v1;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+SELECT * FROM v1;
+c1
+1
+3
+UNLOCK TABLES;
+LOCK TABLE t1 WRITE, t2 WRITE, v1 WRITE;
+SELECT * FROM v1;
+c1
+1
+3
+TRUNCATE v1;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+SELECT * FROM v1;
+c1
+1
+3
+UNLOCK TABLES;
+DROP VIEW v1;
+DROP TABLE t1, t2;
+CREATE PROCEDURE p1() SET @a = 5;
+TRUNCATE p1;
+ERROR 42S02: Table 'test.p1' doesn't exist
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SET @a = 5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP PROCEDURE p1;
+#
+# Bug#46452 Crash in MDL, HANDLER OPEN + TRUNCATE TABLE
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 AS SELECT 1 AS f1;
+HANDLER t1 OPEN;
+# Here comes the crash.
+TRUNCATE t1;
+# Currently TRUNCATE, just like other DDL, implicitly closes
+# open HANDLER table.
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+DROP TABLE t1;
+# End of 6.0 tests
+#
+# Bug#25571453: ASSERTION `MDL_CHECKER::IS_READ_LOCKED(M_THD, *OBJECT)'
+#               FAILED
+#
+CREATE TABLE t1(a INT);
+CREATE SCHEMA s1;
+CREATE VIEW s1.v1 AS SELECT * FROM t1;
+LOCK TABLE s1.v1 WRITE;
+TRUNCATE TABLE t1;
+UNLOCK TABLES;
+DROP VIEW s1.v1;
+DROP TABLE t1;
+DROP SCHEMA s1;

@@ -1,0 +1,2 @@
+--source include/have_case_insensitive_file_system.inc
+--source ../include/v_schema_auto_increment_columns.inc

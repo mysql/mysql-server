@@ -1,0 +1,164 @@
+#######################################################################################
+# Desc : In a group, do majority crash which includes primary member.
+#        Test the setup.
+# WL9426 : MySQL NG: Single Primary Mode in Group Replication
+# Test :
+# 0. This test requires 3 servers.
+# 1. Bootstrap GR on server1 (PRIMARY). Start GR on server2 and server3.
+# 2. Crash PRIMARY (server1) and one SECONDARY (server3) members. The group
+#    should be blocked due to majority loss.
+# 3. Unblock the group on server2.
+# 4. Test that server2 (earlier SECONDARY) is unblocked and promoted as PRIMARY.
+# 5. Add some data on server2.
+# 6. Bring back crashed members to the group.
+# 7. Wait for data to recover in the group.
+# 8. Clean up.
+#######################################################################################
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+# Start group replication on all the servers
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+# save this, since it will be used to recover the server later on
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+# save this, since it will be used to recover the server later on
+--let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server3= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--echo # Crash the two servers(1 primary + 1 secondary) out of 3 to cause a majority loss
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Make sure server1 has been given the role of primary
+--let $server1_uuid= `SELECT @@server_uuid`
+--let $group_replication_expected_uuid= $server1_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# We do kill the servers, using shutdown_server 0, and then MTR will
+# follow the expect file and restart the sever
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+# reset the group_replication_id var
+--let $group_replication_member_id= $member2_uuid
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $group_seeds_server1 GROUP_SEEDS_SERVER1
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
+--replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1
+--eval SET @@global.group_replication_local_address="$local_address_server1"
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--eval SET @@global.group_replication_enforce_update_everywhere_checks=OFF
+--eval SET @@global.group_replication_single_primary_mode=ON
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--replace_result $group_seeds_server3 GROUP_SEEDS_SERVER3
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
+--replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
+--eval SET @@global.group_replication_local_address="$local_address_server3"
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--eval SET @@global.group_replication_enforce_update_everywhere_checks=OFF
+--eval SET @@global.group_replication_single_primary_mode=ON
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Make sure server 1 and server 3 are in UNREACHABLE state
+--echo # Wait for the member state for server1 to be unreachable
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member1_uuid
+--source include/gr_wait_for_member_state.inc
+
+--echo # Wait for the member state for server3 to be unreachable
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member3_uuid
+--source include/gr_wait_for_member_state.inc
+
+# Unblock the group which is caused by majority loss using
+# group_replication_force_members variable
+--echo # Connect to primary and unblock the group.
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDR
+--eval SET GLOBAL group_replication_force_members= "$local_address_server2"
+
+# Check for the new primary member after the group is unblocked
+--let $server2_uuid= `SELECT @@server_uuid`
+--let $group_replication_expected_uuid= $server2_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+CREATE TABLE test.t1 ( a int primary key);
+INSERT INTO test.t1 VALUES (1);
+
+# Start group replication again in server 1 and server 3
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--let $group_replication_expected_uuid= $server2_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+# Connect to primary and cleanup
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+DROP TABLE test.t1;
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+set session sql_log_bin=1;
+
+--source include/group_replication_end.inc
+

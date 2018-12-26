@@ -1,0 +1,47 @@
+# ==== Purpose ====
+#
+# Verify that slave gives an error message if master updates a table
+# that slave does not have.
+#
+# ==== Method ====
+#
+# Create a table on master, wait till it's on slave, remove it from
+# slave.  Then update the table on master.
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+
+source include/master-slave.inc;
+
+--echo ==== Setup table on master but not on slave ====
+--echo [on master]
+CREATE TABLE t1 (a INT);
+
+--echo [on slave]
+--source include/sync_slave_sql_with_master.inc
+DROP TABLE t1;
+
+--echo ==== Modify table on master ====
+--echo [on master]
+connection master;
+INSERT INTO t1 VALUES (1);
+
+--echo ==== Verify error on slave ====
+--echo [on slave]
+connection slave;
+# slave should have stopped because can't find table t1
+# 1146 = ER_NO_SUCH_TABLE
+call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t1. doesn.t exist., Error_code: MY-001146");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+--let $slave_sql_errno= 1146
+--source include/wait_for_slave_sql_error.inc
+
+--echo ==== Clean up ====
+source include/stop_slave_io.inc;
+RESET SLAVE;
+
+--echo [on master]
+connection master;
+DROP TABLE t1;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

@@ -1,0 +1,32 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/rpl_stop_server.inc [server_number=1]
+include/rpl_start_server.inc [server_number=1]
+include/assert.inc [All transactions are assumed as applied on master]
+[connection slave]
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=1064]
+include/assert.inc [Only 1st transaction is applied on slave]
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:2';
+BEGIN;
+COMMIT;
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:3';
+BEGIN;
+COMMIT;
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:4';
+BEGIN;
+COMMIT;
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:6';
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+include/start_slave_sql.inc
+include/sync_slave_sql_with_io.inc
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+include/rpl_end.inc

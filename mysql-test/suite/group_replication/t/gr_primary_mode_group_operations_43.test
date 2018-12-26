@@ -1,0 +1,86 @@
+###############################################################################
+#
+# Any local failure in a configuration change that prevents its progress
+# shall make the server leave the group (if configured to)
+# as its configuration may have deviated from the group.
+#
+# Test:
+#   0. This test requires three servers in single primary mode
+#   1. Server1 start, bootstrap the group and create table test.t1
+#   2. Start server2 and server3
+#   3. Stop the applier sql thread in on server2
+#   4. Change to multi primary mode
+#   5. server2 shall fail and leave the group
+#   6. Confirm server2 is on ERROR state
+#   7. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Server1 start, bootstrap the group and create table test.t1
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 2. Start server2 and server3
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Error while executing a group configuration operation: This operation ended in error as it was not possible to wait for the execution of the plugin queued transactions. The member will now leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+set session sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 3. Stop the applier sql thread in on server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_stop_applier_sql_thread.inc
+
+--echo
+--echo # 4. Change to multi primary mode
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 5. server2 shall fail and leave the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 6. Confirm server2 is on ERROR state
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 7. Cleanup
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication_end.inc

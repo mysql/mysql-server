@@ -1,0 +1,61 @@
+# Tests for PERFORMANCE_SCHEMA table io
+
+--source ../include/table_io_setup_helper.inc
+
+# Remove "deleted" records from mysql.* that may come from previous tests,
+# to avoid displaying spurious fetch.
+# There are two possible server reactions which are both ok.
+# Table  Op      Msg_type        Msg_text
+# mysql.db       optimize        status  OK
+# or
+# mysql.db       optimize        status  Table is already up to date
+# Therefore we suppress the query_log here.
+--echo # We are forced to suppress here the server response.
+--disable_result_log
+optimize table mysql.host;
+optimize table mysql.user;
+optimize table mysql.db;
+optimize table mysql.proxies_priv;
+optimize table mysql.tables_priv;
+optimize table mysql.procs_priv;
+optimize table mysql.servers;
+
+# Execute 'flush privileges' one time before recording so that
+# fetch from dictionary tables does not pollute the result.
+flush privileges;
+
+# Execute show statements to make sure the corresponding
+# dd::Table objects are acquired and present in the dictionary
+# cache. This is necessary to avoid nondeterminism due to
+# the caching behavior.
+
+show create table test.marker;
+show global status;
+show global variables;
+
+--enable_result_log
+
+# Start recording events
+update performance_schema.setup_consumers set enabled='YES';
+update performance_schema.setup_objects set enabled='YES'
+  where object_type='TABLE' and object_schema= 'mysql';
+
+# Code to test
+
+flush privileges;
+# This will cause table io in mysql system security tables
+insert into test.marker set a = 1;
+# This will not, the ACL cache is already loaded
+insert into test.marker set a = 1;
+insert into test.marker set a = 1;
+show global variables like "performance_schema%table%";
+show global status like "performance_schema%table%";
+# Stop recording events + pull results
+let $schema_to_dump= "test", "mysql";
+--source ../include/table_io_result_helper.inc
+
+# Cleanup
+--source ../include/table_io_cleanup_helper.inc
+
+update performance_schema.setup_objects set enabled='NO'
+  where object_type='TABLE' and object_schema= 'mysql';

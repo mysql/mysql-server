@@ -1,0 +1,2 @@
+--force-restart
+--loose-performance_schema_users_size=0

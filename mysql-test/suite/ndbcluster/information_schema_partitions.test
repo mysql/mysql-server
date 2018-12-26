@@ -1,0 +1,151 @@
+--source include/have_ndb.inc
+
+# Test covers the different NDB specific partitioning schemes
+# (specified as a part of NDB_TABLE option) and checks if
+# the partition information from I_S is as expected
+#
+# Note: The actual partitioning of data is not checked in
+# this test. The focus is more on creation of the partitions
+# and checking that I_S (DD) and NDB Dictionary
+# match in terms of their parition metadata.
+
+# FOR_RP_BY_LDM
+
+CREATE TABLE t1_rp_by_ldm
+  (a bigint, b bigint, c bigint, d bigint,
+   PRIMARY KEY (a,b,c,d))
+  ENGINE = NDB
+  COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+--echo
+--echo Expected number of partitions with "FOR_RP_BY_LDM" = 8
+--echo
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_rp_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+
+DROP TABLE t1_rp_by_ldm;
+
+# FOR_RP_BY_NODE
+
+CREATE TABLE t1_rp_by_node
+  (a bigint, b bigint, c bigint, d bigint,
+   PRIMARY KEY (a,b,c,d))
+  ENGINE = NDB
+  COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
+
+--echo
+--echo Expected number of partitions with "FOR_RP_BY_NODE"= 2
+--echo
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_rp_by_node'
+ORDER BY PARTITION_ORDINAL_POSITION;
+
+DROP TABLE t1_rp_by_node;
+
+# FOR_RA_BY_NODE
+
+CREATE TABLE t1_ra_by_node
+  (a bigint, b bigint, c bigint, d bigint,
+   PRIMARY KEY (a,b,c,d))
+  ENGINE = NDB
+  COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
+
+--echo
+--echo Expected number of partitions with "FOR_RA_BY_NODE"= 1
+--echo
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_node'
+ORDER BY PARTITION_ORDINAL_POSITION;
+
+DROP TABLE t1_ra_by_node;
+
+# FOR_RA_BY_LDM_X_3
+
+CREATE TABLE t1_ra_by_ldm
+  (a bigint, b bigint, c bigint, d bigint,
+   PRIMARY KEY (a,b,c,d))
+  ENGINE = NDB
+  COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM_X_3";
+
+--echo
+--echo Expected number of partitions with "FOR_RA_BY_LDM_X_3" = 12
+--echo
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+
+# Test ALTER TABLE using the RA_BY_LDM variants
+
+# FOR_RA_BY_LDM_X_2
+
+ALTER TABLE t1_ra_by_ldm
+  COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM_X_2";
+
+--echo
+--echo Expected number of partitions with "FOR_RA_BY_LDM_X_2" = 8
+--echo
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+
+# FOR_RA_BY_LDM
+
+ALTER TABLE t1_ra_by_ldm
+  COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+
+--echo
+--echo Expected number of partitions with "FOR_RA_BY_LDM" = 4
+--echo
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+
+# FOR_RA_BY_LDM_X_4
+
+ALTER TABLE t1_ra_by_ldm
+  COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM_X_4";
+
+--echo
+--echo Expected number of partitions with "FOR_RA_BY_LDM_X_4" = 16
+--echo
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+
+DROP TABLE t1_ra_by_ldm;
+
+# FULLY_REPLICATED
+
+CREATE TABLE t1_fully_replicated (
+  a char(10) NOT NULL PRIMARY KEY,
+  b int NOT NULL,
+  UNIQUE(a,b),
+  KEY(b, a))
+  ENGINE = NDB
+  COMMENT = 'NDB_TABLE=FULLY_REPLICATED=1';
+
+--echo
+--echo Expected number of partitions with "FULLY_REPLICATED" = 8
+--echo
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_fully_replicated'
+ORDER BY PARTITION_ORDINAL_POSITION;
+
+DROP TABLE t1_fully_replicated;

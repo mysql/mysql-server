@@ -1,0 +1,102 @@
+# PURPOSE. Test that blackhole works with replication in all three
+# modes: STATEMENT, MIXED, and ROW.
+#
+# METHOD. We start by creating a table on the master and then change
+# the engine to use blackhole on the slave.
+#
+# After insert/update/delete of one or more rows, the test the
+# proceeds to check that replication is running after replicating an
+# change, that the blackhole engine does not contain anything (which
+# is just a check that the correct engine is used), and that something
+# is written to the binary log.
+#
+# Whe check INSERT, UPDATE, and DELETE statement for tables with no
+# key (forcing a range search on the slave), primary keys (using a
+# primary key lookup), and index/key with multiple matches (forcing an
+# index search).
+
+--source include/not_group_replication_plugin.inc
+source include/have_blackhole.inc;
+source include/master-slave.inc;
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+# We start with no primary key
+CREATE TABLE t1 (a INT, b INT, c INT);
+CREATE TABLE t2 (a INT, b INT, c INT);
+
+--source include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=BLACKHOLE;
+
+connection master;
+INSERT INTO t2 VALUES (1,9,1), (2,9,2), (3,9,3), (4,9,4);
+--source include/sync_slave_sql_with_master.inc
+
+# Test insert, no primary key
+let $statement = INSERT INTO t1 VALUES (1,1,1),(2,1,2),(3,1,3),(4,1,4);
+source extra/rpl_tests/rpl_blackhole.test;
+
+# Test update, no primary key
+let $statement = UPDATE t1 SET c = 2*c WHERE a % 2 = 0 AND b = 1;
+source extra/rpl_tests/rpl_blackhole.test;
+
+# Test delete, no primary key
+let $statement = DELETE FROM t1 WHERE a % 2 = 0 AND b = 1;
+source extra/rpl_tests/rpl_blackhole.test;
+
+# Test INSERT-SELECT into Blackhole, no primary key
+let $statement = INSERT INTO t1 SELECT * FROM t2;
+source extra/rpl_tests/rpl_blackhole.test;
+
+# 
+# The MASTER has MyISAM as the engine for both tables. The SLAVE has Blackhole
+# on t1 (transactional engine) and MyISAM on t2 (non-transactional engine). 
+#
+# In MIXED mode, the command "INSERT INTO t2 SELECT * FROM t1" is logged as
+# statement on the master. On the slave, it is tagged as unsafe because the
+# statement mixes both transactional and non-transactional engines and as such
+# its changes are logged as rows. However, due to the nature of the blackhole
+# engine, no rows are returned and thus any chain replication would make the
+# next master on the chain diverge.
+#
+# Fo this reason, we have disabled the statement.
+#
+# Test INSERT-SELECT from Blackhole, no primary key
+# let $statement = INSERT INTO t2 SELECT * FROM t1;
+# source extra/rpl_tests/rpl_blackhole.test;
+#
+
+connection master;
+ALTER TABLE t1 ADD PRIMARY KEY pk_t1 (a,b);
+
+# Test insert, primary key
+let $statement = INSERT INTO t1 VALUES (1,2,1),(2,2,2),(3,2,3),(4,2,4);
+source extra/rpl_tests/rpl_blackhole.test;
+
+# Test update, primary key
+let $statement = UPDATE t1 SET c = 2*c WHERE a % 2 = 0 AND b = 2;
+source extra/rpl_tests/rpl_blackhole.test;
+
+# Test delete, primary key
+let $statement = DELETE FROM t1 WHERE a % 2 = 0 AND b = 2;
+source extra/rpl_tests/rpl_blackhole.test;
+
+connection master;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD KEY key_t1 (a);
+
+# Test insert, key
+let $statement = INSERT INTO t1 VALUES (1,3,1),(2,3,2),(3,3,3),(4,3,4);
+source extra/rpl_tests/rpl_blackhole.test;
+
+# Test update, key
+let $statement = UPDATE t1 SET c = 2*c WHERE a % 2 = 0 AND b = 3;
+source extra/rpl_tests/rpl_blackhole.test;
+
+# Test delete, key
+let $statement = DELETE FROM t1 WHERE a % 2 = 0 AND b = 3;
+source extra/rpl_tests/rpl_blackhole.test;
+
+
+connection master;
+DROP TABLE t1,t2;
+--source include/rpl_end.inc

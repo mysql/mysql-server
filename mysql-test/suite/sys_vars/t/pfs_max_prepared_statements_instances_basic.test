@@ -1,0 +1,63 @@
+
+#
+# Display default value
+#
+
+select @@global.performance_schema_max_prepared_statements_instances;
+
+
+#
+# Only global
+#
+
+select @@global.performance_schema_max_prepared_statements_instances;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.performance_schema_max_prepared_statements_instances;
+
+show global variables like 'performance_schema_max_prepared_statements_instances';
+
+show session variables like 'performance_schema_max_prepared_statements_instances';
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_max_prepared_statements_instances';
+
+select * from performance_schema.session_variables
+  where variable_name='performance_schema_max_prepared_statements_instances';
+--enable_warnings
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global performance_schema_max_prepared_statements_instances=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session performance_schema_max_prepared_statements_instances=1;
+
+#
+# Check if the value in GLOBAL Table matches value in variable
+#
+
+--disable_warnings
+SELECT @@GLOBAL.performance_schema_max_prepared_statements_instances = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='performance_schema_max_prepared_statements_instances';
+--enable_warnings
+
+select @@global.performance_schema_max_prepared_statements_instances;
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_max_prepared_statements_instances';
+--enable_warnings
+
+#
+# Check if accessing variable with and without GLOBAL point to same variable
+#
+
+SELECT @@performance_schema_max_prepared_statements_instances = @@GLOBAL.performance_schema_max_prepared_statements_instances;
+
+

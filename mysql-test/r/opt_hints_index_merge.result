@@ -1,0 +1,530 @@
+CREATE TABLE t1 (f1 INT, f2 INT, f3 CHAR(1), f4 CHAR(1), f5 CHAR(1), f6 CHAR(1), f7 CHAR(1),
+PRIMARY KEY (f5, f1), KEY (f2), KEY (f3), KEY (f4), KEY(f7) );
+INSERT INTO t1 VALUES (1, 1, 'a', 'h', 'i', '', ''), (2, 3, 'a', 'h', 'i', '', ''),
+(3, 2, 'b', '', 'j', '', ''), (4, 2, 'b', '', 'j', '', '');
+INSERT INTO t1 VALUES (5, 1, 'a', 'h', 'i', '', ''), (6, 3, 'a', 'h', 'i', '', ''),
+(7, 2, 'b', '', 'j', '', ''), (8, 2, 'b', '', 'j', '', '');
+INSERT INTO t1 SELECT f1 + 8, f2, f3, f4, f5, f6, f7 FROM t1;
+INSERT INTO t1 SELECT f1 + 16, f2, f3, f4, f5, f6, f7 FROM t1;
+INSERT INTO t1 VALUES (33, 3, 'c', 'g', '', '', ''), (34, 4, 'c', 'g', '', '', ''),
+(35, 5, 'd', 'f', '', '', ''), (36, 6, 'd', 'f', '', '', '');
+INSERT INTO t1 SELECT f1 + 36, f2, f3, f4, f5, f6, f7 FROM t1;
+INSERT INTO t1 SELECT f1 + 72, f2, f3, f4, f5, f6, f7 FROM t1;
+INSERT INTO t1 SELECT f1 + 144, f2, f3, f4, f5, f6, f7 FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f4	f2,f4	5,5	NULL	56	100.00	Using intersect(f2,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE f4 = 'h' AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f3,f4	f3,f4	5,5	NULL	56	100.00	Using intersect(f3,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT * FROM t1 WHERE f2 BETWEEN 5 AND 6 OR f3 = 'c' OR f4 = 'f';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	48	100.00	Using sort_union(f2,f3,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f'))
+EXPLAIN SELECT * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	32	100.00	Using sort_union(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	40	100.00	Using union(f2,f3,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Warning	3126	Hint INDEX_MERGE(`t1`  `f2`, `f3`, `f4`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) INDEX_MERGE(t1) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Warning	3126	Hint INDEX_MERGE(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) NO_INDEX_MERGE(t1) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Warning	3126	Hint NO_INDEX_MERGE(`t1` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1) INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	128	19.75	Using where
+Warnings:
+Warning	3126	Hint INDEX_MERGE(`t1`  `f2`, `f3`, `f4`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f4) INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	128	19.75	Using where
+Warnings:
+Warning	3126	Hint INDEX_MERGE(`t1`  `f2`, `f3`, `f4`) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f2`, `f4`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t5) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Warning	3128	Unresolved name `t5`@`select#1` for INDEX_MERGE hint
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f5) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Warning	3128	Unresolved name `t1`@`select#1` `f5` for INDEX_MERGE hint
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f6, f5, primary) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Warning	3128	Unresolved name `t1`@`select#1` `f6` for INDEX_MERGE hint
+Warning	3128	Unresolved name `t1`@`select#1` `f5` for INDEX_MERGE hint
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t2 f9, f10) */ COUNT(*) FROM t1 WHERE f4 = '' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Warning	3128	Unresolved name `t2`@`select#1` for INDEX_MERGE hint
+Warning	3128	Unresolved name `t2`@`select#1` `f9` for INDEX_MERGE hint
+Warning	3128	Unresolved name `t2`@`select#1` `f10` for INDEX_MERGE hint
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = ''))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f9, f10) */ COUNT(*) FROM t1 WHERE f4 = '' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Warning	3128	Unresolved name `t1`@`select#1` `f9` for INDEX_MERGE hint
+Warning	3128	Unresolved name `t1`@`select#1` `f10` for INDEX_MERGE hint
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = ''))
+SET optimizer_switch='index_merge_intersection=off';
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f4, f2) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f4	f2,f4	5,5	NULL	56	100.00	Using intersect(f2,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f4`, `f2`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4, f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f4`, `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f4, f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f3,f4	5,5	NULL	56	44.44	Using intersect(f3,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f4`, `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4, f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f3 = 'b' AND f5 = 'i';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f3,f4	f3,f4	9,9	NULL	1	100.00	Using intersect(f3,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f4`, `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f5` = 'i') and (`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 PRIMARY, f4, f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f3 = 'b' AND f5 = 'i';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f3,f4	f3,f4	9,9	NULL	1	100.00	Using intersect(f3,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `PRIMARY`, `f4`, `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f5` = 'i') and (`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT count(*) FROM t1 WHERE f2 = 3 AND f5 > '' AND f3 = 'c';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,f2,f3	f3	9	NULL	1	16.67	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'c') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f3, PRIMARY) */ count(*) FROM t1 WHERE f2 = 3 AND f5 > '' AND f3 = 'c';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f3	f3,PRIMARY	9,4	NULL	1	16.67	Using intersect(f3,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f3`, `PRIMARY`) */ count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'c') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, PRIMARY) */ count(*) FROM t1 WHERE f2 = 3 AND f5 > '' AND f3 = 'c';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f3	f2,PRIMARY	9,4	NULL	56	25.00	Using intersect(f2,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `PRIMARY`) */ count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'c') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4, f5) */ f3 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	128	19.75	Using where
+Warnings:
+Warning	3128	Unresolved name `t1`@`select#1` `f5` for INDEX_MERGE hint
+Note	1003	/* select#1 */ select `test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE f4 = 'd' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f4,f3	5,5	NULL	1	44.44	Using intersect(f4,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'd'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4, f7) */ COUNT(*) FROM t1 WHERE f4 = '' AND f2 = 2 AND f3 = 'b' AND f7 = '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4,f7	f2,f3,f4,f7	5,5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4,f7); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`, `f7`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f7` = '') and (`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = ''))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE f4 = 'd' AND f2 = 2 AND f3 = 'b' AND f7 = '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4,f7	f4,f3	5,5	NULL	1	44.44	Using intersect(f4,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f7` = '') and (`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'd'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE f4 = '' AND f2 = 2 AND f3 = 'b' AND f7 = '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4,f7	f2,f3	5,5	NULL	56	44.44	Using intersect(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f7` = '') and (`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = ''))
+SET optimizer_switch='index_merge=off';
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	128	19.75	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+SET optimizer_switch='index_merge=on';
+SET optimizer_switch='index_merge_intersection=on';
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f4) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f4	f2	5	const	128	44.44	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f4`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	128	19.75	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f4	f2,f4	5,5	NULL	56	100.00	Using intersect(f2,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f4) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	128	19.75	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f4`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT count(*) FROM t1 WHERE f2 = 3 AND f5 > '' AND f3 = 'c';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f3	f3,PRIMARY	9,4	NULL	1	16.67	Using intersect(f3,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'c') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 PRIMARY) */ count(*) FROM t1 WHERE f2 = 3 AND f5 > '' AND f3 = 'c';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,f2,f3	f3	9	NULL	1	16.67	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `PRIMARY`) */ count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'c') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2) */ count(*) FROM t1 WHERE f2 = 3 AND f5 > '' AND f3 = 'c';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f3	f3,PRIMARY	9,4	NULL	1	16.67	Using intersect(f3,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f2`) */ count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'c') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ count(*) FROM t1 WHERE f2 = 3 AND f5 > '' AND f3 = 'c';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,f2,f3	f2	9	NULL	64	25.00	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'c') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE f4 = 'x' AND f2 = 5 AND f3 = 'n';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4	f3	5	const	1	5.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'n') and (`test`.`t1`.`f2` = 5) and (`test`.`t1`.`f4` = 'x'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE f4 = 'x' AND f2 = 5 AND f3 = 'n';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f3,f4	5,5	NULL	1	5.00	Using intersect(f3,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'n') and (`test`.`t1`.`f2` = 5) and (`test`.`t1`.`f4` = 'x'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f4, f2) */ COUNT(*) FROM t1 WHERE f4 = 'x' AND f2 = 5 AND f3 = 'n';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f4,f2	5,5	NULL	1	5.00	Using intersect(f4,f2); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f4`, `f2`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'n') and (`test`.`t1`.`f2` = 5) and (`test`.`t1`.`f4` = 'x'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f3, f2) */ COUNT(*) FROM t1 WHERE f4 = 'x' AND f2 = 5 AND f3 = 'n';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f3,f2	5,5	NULL	1	5.00	Using intersect(f3,f2); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f3`, `f2`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'n') and (`test`.`t1`.`f2` = 5) and (`test`.`t1`.`f4` = 'x'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f4, f3) */ COUNT(*) FROM t1 WHERE f4 = 'x' AND f2 = 5 AND f3 = 'n';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f3,f4	5,5	NULL	1	5.00	Using intersect(f3,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f4`, `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'n') and (`test`.`t1`.`f2` = 5) and (`test`.`t1`.`f4` = 'x'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f4	f4	5	const	128	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f4`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f4` = 'h') and (`test`.`t1`.`f2` > 2))
+SET optimizer_switch='index_merge_union=off,index_merge=off';
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	40	100.00	Using union(f2,f3,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	53.12	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c') AND (f1 = 4 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	24	32.50	Using union(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f1` = 4) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 PRIMARY, f4) */ f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c') AND (f5 = 'i' OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f3,f4	PRIMARY,f4	4,5	NULL	144	37.50	Using union(PRIMARY,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `PRIMARY`, `f4`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f5` = 'i') or (`test`.`t1`.`f4` = 'f')))
+SET optimizer_switch='index_merge_union=on,index_merge=on';
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f3, f4) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	53.12	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f'))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c') AND (f1 = 4 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	12.19	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f1` = 4) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f4) */ f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c') AND (f1 = 4 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	24	32.50	Using union(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f4`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f1` = 4) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT * FROM t1 WHERE f2 = 400 AND (f3 = 'x' OR f4 = 'n');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	1	43.75	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where ((`test`.`t1`.`f2` = 400) and ((`test`.`t1`.`f3` = 'x') or (`test`.`t1`.`f4` = 'n')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f3, f4) */ * FROM t1 WHERE f2 = 400 AND (f3 = 'x' OR f4 = 'n');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f3,f4	5,5	NULL	2	2.50	Using union(f3,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where ((`test`.`t1`.`f2` = 400) and ((`test`.`t1`.`f3` = 'x') or (`test`.`t1`.`f4` = 'n')))
+SET optimizer_switch='index_merge_sort_union=off,index_merge=off';
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f4	5,5	NULL	32	100.00	Using sort_union(f2,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	32	100.00	Using sort_union(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f3) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	11.11	Using where
+Warnings:
+Warning	3614	Invalid number of arguments for hint INDEX_MERGE(`t1`  `f3`)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4) */ * FROM t1
+WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f') AND f3 = 'n';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f4	5,5	NULL	32	0.35	Using sort_union(f2,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where ((`test`.`t1`.`f3` = 'n') and (`test`.`t1`.`f2` between 5 and 6) and ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f4` = 'f')))
+SET optimizer_switch='index_merge_sort_union=on,index_merge=on';
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f4) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f2`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f3) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f4) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	32	100.00	Using sort_union(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ * FROM t1 WHERE (f2 BETWEEN 5 AND 6 OR f3 = 'c') AND (f2 BETWEEN 5 AND 6 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f4	5,5	NULL	32	100.00	Using sort_union(f2,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 5 and 6) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT * FROM t1 WHERE (f2 BETWEEN 1 AND 200 OR f3 = 'c') AND (f2 BETWEEN 1 AND 200 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE (f2 BETWEEN 1 AND 200 OR f3 = 'c') AND (f2 BETWEEN 1 AND 200 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	288	100.00	Using sort_union(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4) */ * FROM t1 WHERE (f2 BETWEEN 1 AND 200 OR f3 = 'c') AND (f2 BETWEEN 1 AND 200 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f4	5,5	NULL	288	100.00	Using sort_union(f2,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` where (((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c' OR f4 = 'f') AND (f2 BETWEEN 1 AND 200 OR f3 = 'c');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3,f4	5,5,5	NULL	40	100.00	Using union(f2,f3,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f')) and ((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f3` = 'c')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c' OR f4 = 'f') AND (f2 BETWEEN 1 AND 200 OR f3 = 'c');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	288	100.00	Using sort_union(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f')) and ((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f3` = 'c')))
+SET optimizer_switch=default;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4,f7	f2,f7	5,5	NULL	129	15.62	Using union(f2,f7); Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h')) or ((`test`.`t1`.`f6` = 'e') and (`test`.`t1`.`f7` = 'd')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4,f7	f2,f7	5,5	NULL	129	15.62	Using union(f2,f7); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ count(0) AS `COUNT(*)` from `test`.`t1` where (((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h')) or ((`test`.`t1`.`f6` = 'e') and (`test`.`t1`.`f7` = 'd')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2,f3,f7) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4,f7	f2,f3,f7	5,5,5	NULL	57	32.50	Using union(intersect(f2,f3),f7); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f7`) */ count(0) AS `COUNT(*)` from `test`.`t1` where (((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h')) or ((`test`.`t1`.`f6` = 'e') and (`test`.`t1`.`f7` = 'd')))
+EXPLAIN SELECT f3 FROM t1 WHERE f4 = 'f' AND f2 = 3 AND f5 > '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f4	f4,PRIMARY	9,4	NULL	1	16.67	Using intersect(f4,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f4` = 'f') and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ f3 FROM t1 WHERE f4 = 'f' AND f2 = 3 AND f5 > '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f4	f4,PRIMARY	9,4	NULL	1	16.67	Using intersect(f4,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f4` = 'f') and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT f3 FROM t1 WHERE f2 = 3 AND f4 = 'g' AND f5 = '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f4	f2,f4	9,9	NULL	1	100.00	Using intersect(f2,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f5` = '') and (`test`.`t1`.`f4` = 'g') and (`test`.`t1`.`f2` = 3))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ f3 FROM t1 WHERE f2 = 3 AND f4 = 'g' AND f5 = '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f4	f2,f4	9,9	NULL	1	100.00	Using intersect(f2,f4); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f5` = '') and (`test`.`t1`.`f4` = 'g') and (`test`.`t1`.`f2` = 3))
+EXPLAIN SELECT f3 FROM t1 WHERE f2 = 3 AND f4 = '' AND f5 > '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,f2,f4	f2	9	NULL	64	25.00	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f4` = '') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ f3 FROM t1 WHERE f2 = 3 AND f4 = '' AND f5 > '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f4	f2,PRIMARY	9,4	NULL	56	25.00	Using intersect(f2,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f4` = '') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
+EXPLAIN SELECT f3 FROM t1 WHERE (f2 = 3 AND f4 = '' AND f5 > '') OR (f7 = 'd' AND f6 = 'e');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f4,f7	f2,f7	9,5	NULL	65	32.50	Using union(f2,f7); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f3` AS `f3` from `test`.`t1` where (((`test`.`t1`.`f4` = '') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > '')) or ((`test`.`t1`.`f6` = 'e') and (`test`.`t1`.`f7` = 'd')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ f3 FROM t1 WHERE (f2 = 3 AND f4 = '' AND f5 > '') OR (f7 = 'd' AND f6 = 'e');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f4,f7	f2,f7	9,5	NULL	65	32.50	Using union(f2,f7); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`f3` AS `f3` from `test`.`t1` where (((`test`.`t1`.`f4` = '') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > '')) or ((`test`.`t1`.`f6` = 'e') and (`test`.`t1`.`f7` = 'd')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, PRIMARY, f7) */ f3 FROM t1 WHERE (f2 = 3 AND f4 = '' AND f5 > '') OR (f7 = 'd' AND f6 = 'e');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f4,f7	f2,PRIMARY,f7	9,4,5	NULL	57	32.50	Using union(intersect(f2,PRIMARY),f7); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `PRIMARY`, `f7`) */ `test`.`t1`.`f3` AS `f3` from `test`.`t1` where (((`test`.`t1`.`f4` = '') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > '')) or ((`test`.`t1`.`f6` = 'e') and (`test`.`t1`.`f7` = 'd')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ f2 FROM t1 WHERE f2 = 2 AND f4 = 'g' AND f5 = '';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f4	f2,f4	9,9	NULL	1	100.00	Using intersect(f2,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f5` = '') and (`test`.`t1`.`f4` = 'g') and (`test`.`t1`.`f2` = 2))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f3, f4) */ * FROM t1 IGNORE INDEX (f3) WHERE f2 = 400 AND (f3 = 'x' OR f4 = 'n');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f4	f2	5	const	1	43.75	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` IGNORE INDEX (`f3`) where ((`test`.`t1`.`f2` = 400) and ((`test`.`t1`.`f3` = 'x') or (`test`.`t1`.`f4` = 'n')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f3, f4) */ * FROM t1 FORCE INDEX (f3) WHERE f2 = 400 AND (f3 = 'x' OR f4 = 'n');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f3	NULL	NULL	NULL	288	7.29	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` FORCE INDEX (`f3`) where ((`test`.`t1`.`f2` = 400) and ((`test`.`t1`.`f3` = 'x') or (`test`.`t1`.`f4` = 'n')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4) */ * FROM t1 IGNORE INDEX (f4)
+WHERE (f2 BETWEEN 1 AND 200 OR f3 = 'c') AND (f2 BETWEEN 1 AND 200 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f2,f3	NULL	NULL	NULL	288	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` IGNORE INDEX (`f4`) where (((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4) */ * FROM t1 FORCE INDEX (f4)
+WHERE (f2 BETWEEN 1 AND 200 OR f3 = 'c') AND (f2 BETWEEN 1 AND 200 OR f4 = 'f');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	f4	NULL	NULL	NULL	288	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6`,`test`.`t1`.`f7` AS `f7` from `test`.`t1` FORCE INDEX (`f4`) where (((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f2` between 1 and 200) or (`test`.`t1`.`f4` = 'f')))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 IGNORE INDEX (f2, f3) WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f4	f4	5	const	128	4.17	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` IGNORE INDEX (`f3`) IGNORE INDEX (`f2`) where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 FORCE INDEX (f2, f3) WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3	f2,f3	5,5	NULL	56	25.00	Using intersect(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` FORCE INDEX (`f3`) FORCE INDEX (`f2`) where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 USE INDEX (f2, f3) WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3	f2,f3	5,5	NULL	56	25.00	Using intersect(f2,f3); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` USE INDEX (`f3`) USE INDEX (`f2`) where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+ALTER TABLE t1 ADD KEY idx(f3, f4);
+# Original query
+EXPLAIN SELECT f2 FROM t1 WHERE f2 = 2 AND f3 = 'b' AND f4 = 'h';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	f2,f3,f4,idx	idx	10	const,const	1	44.44	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f4` = 'h') and (`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2))
+# Index merge intersection(f2, f3, f4) should be used.
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 WHERE f2 = 2 AND f3 = 'b' AND f4 = 'h';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4,idx	f2,f3,f4	5,5,5	NULL	25	100.00	Using intersect(f2,f3,f4); Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f4` = 'h') and (`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2))
+SET optimizer_switch= default;
+DROP TABLE t1;
+#
+# Bug#24788119 GET_BEST_DISJUNCT_QUICK() - MYSQLD GOT SIGNAL 11
+#
+CREATE TABLE t1(f1 INT NOT NULL, f2 INT, f3 INT, PRIMARY KEY(f1), KEY(f2), KEY(f3));
+EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ f1 FROM t1 WHERE f1 < 2 AND (f3 = 3 or f2 = 3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f3	f3,f2	5,5	NULL	1	100.00	Using union(f3,f2); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f1` < 2) and ((`test`.`t1`.`f3` = 3) or (`test`.`t1`.`f2` = 3)))
+DROP TABLE t1;
+#
+# Bug#24834724 QUICK_ROR_INTERSECT_SELECT::GET_NEXT() - MYSQLD GOT SIGNAL 11
+#
+CREATE TABLE t1 (
+f1 VARCHAR(10) DEFAULT NULL,
+f2 INT(11) NOT NULL,
+f3 INT(11) DEFAULT NULL,
+PRIMARY KEY (f2),
+KEY f1 (f1),
+KEY f3 (f3)
+);
+INSERT INTO t1 VALUES ('b',1,NULL), ('h',5,NULL);
+SELECT /*+ INDEX_MERGE(t1 f3, primary) */ f2 FROM t1
+WHERE f1 = 'o' AND f2 = f3 AND f3 <= 4;
+f2
+DROP TABLE t1;

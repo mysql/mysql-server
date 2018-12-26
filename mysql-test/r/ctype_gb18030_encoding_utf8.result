@@ -1,0 +1,1032 @@
+SET NAMES utf8mb4;
+SET CHARACTER_SET_DATABASE = utf8mb4;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE DATABASE `中文`;
+CREATE DATABASE `数据库`;
+SELECT schema_name, HEX(schema_name)
+FROM information_schema.schemata
+WHERE schema_name NOT IN ('mtr', 'sys')
+ORDER BY schema_name;
+SCHEMA_NAME	HEX(schema_name)
+information_schema	696E666F726D6174696F6E5F736368656D61
+mysql	6D7973716C
+performance_schema	706572666F726D616E63655F736368656D61
+test	74657374
+中文	E4B8ADE69687
+数据库	E695B0E68DAEE5BA93
+USE `数据库`;
+USE `中文`;
+DROP DATABASE `数据库`;
+DROP DATABASE `中文`;
+USE test;
+'Test for CREATE TABLE'
+CREATE TABLE `表格` (`字段一` CHAR(1)) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE `模式` (`列列列` CHAR(1)) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE `隞嗷㐁` (`列㐄㐅` CHAR(1)) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE IF NOT EXISTS `表格`(`字段一` CHAR(1)) DEFAULT CHARSET = utf8mb4;
+Warnings:
+Note	1050	Table '表格' already exists
+CREATE TABLE IF NOT EXISTS `模式` (`列列列` CHAR(1)) DEFAULT CHARSET = utf8mb4;
+Warnings:
+Note	1050	Table '模式' already exists
+CREATE TABLE IF NOT EXISTS `隞嗷㐁` (`列㐄㐅` CHAR(1)) DEFAULT CHARSET = utf8mb4;
+Warnings:
+Note	1050	Table '隞嗷㐁' already exists
+CREATE TABLE IF NOT EXISTS `㐅㐅㐅` (`㐄㐄㐄` CHAR(1)) DEFAULT CHARSET = utf8mb4;
+CREATE TEMPORARY TABLE `㐇㐈㐉` (`㐐㐐㐐` CHAR(1)) DEFAULT CHARSET = utf8mb4;
+DESC `表格`;
+Field	Type	Null	Key	Default	Extra
+字段一	char(1)	YES		NULL	
+DESC `模式`;
+Field	Type	Null	Key	Default	Extra
+列列列	char(1)	YES		NULL	
+DESC `隞嗷㐁`;
+Field	Type	Null	Key	Default	Extra
+列㐄㐅	char(1)	YES		NULL	
+DESC `㐅㐅㐅`;
+Field	Type	Null	Key	Default	Extra
+㐄㐄㐄	char(1)	YES		NULL	
+DESC `㐇㐈㐉`;
+Field	Type	Null	Key	Default	Extra
+㐐㐐㐐	char(1)	YES		NULL	NULL
+SHOW CREATE TABLE `表格`;
+Table	Create Table
+表格	CREATE TABLE `表格` (
+  `字段一` char(1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE `模式`;
+Table	Create Table
+模式	CREATE TABLE `模式` (
+  `列列列` char(1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE `隞嗷㐁`;
+Table	Create Table
+隞嗷㐁	CREATE TABLE `隞嗷㐁` (
+  `列㐄㐅` char(1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE `㐅㐅㐅`;
+Table	Create Table
+㐅㐅㐅	CREATE TABLE `㐅㐅㐅` (
+  `㐄㐄㐄` char(1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE `㐇㐈㐉`;
+Table	Create Table
+㐇㐈㐉	CREATE TEMPORARY TABLE `㐇㐈㐉` (
+  `㐐㐐㐐` char(1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE `表格`, `模式`, `隞嗷㐁`, `㐅㐅㐅`, `㐇㐈㐉`;
+'Test for ALTER TABLE'
+CREATE TABLE `表格` (`字段一` CHAR(5)) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE `隞嗷㐁` (`㐂㐃㐄` CHAR(5)) DEFAULT CHARSET = utf8mb4;
+INSERT INTO `表格` VALUES ('一二三四五'), ('六七八九十'), ('㐅㐆㐇㐈㐉');
+INSERT INTO `隞嗷㐁` VALUES ('焊䏷菡釬'), ('漢汉漢汉漢'), ('㐃㐄㐇㐈㐀');
+ALTER TABLE `表格` ADD `新字段一` CHAR(1) FIRST;
+ALTER TABLE `表格` ADD `新字段二` CHAR(1) AFTER `字段一`;
+ALTER TABLE `表格` ADD `新字段三` CHAR(1);
+ALTER TABLE `表格` ADD INDEX (`新字段二`);
+ALTER TABLE `表格` ADD PRIMARY KEY (`字段一`);
+ALTER TABLE `表格` ADD UNIQUE (`新字段三`);
+ALTER TABLE `表格` CHANGE `新字段二` `䑃䑃一` CHAR(1);
+ALTER TABLE `表格` MODIFY `新字段三` CHAR(6);
+SELECT * FROM `表格`;
+新字段一	字段一	䑃䑃一	新字段三
+NULL	一二三四五	NULL	NULL
+NULL	六七八九十	NULL	NULL
+NULL	㐅㐆㐇㐈㐉	NULL	NULL
+DESC `表格`;
+Field	Type	Null	Key	Default	Extra
+新字段一	char(1)	YES		NULL	
+字段一	char(5)	NO	PRI	NULL	
+䑃䑃一	char(1)	YES	MUL	NULL	
+新字段三	char(6)	YES	UNI	NULL	
+SHOW CREATE TABLE `表格`;
+Table	Create Table
+表格	CREATE TABLE `表格` (
+  `新字段一` char(1) DEFAULT NULL,
+  `字段一` char(5) NOT NULL,
+  `䑃䑃一` char(1) DEFAULT NULL,
+  `新字段三` char(6) DEFAULT NULL,
+  PRIMARY KEY (`字段一`),
+  UNIQUE KEY `新字段三` (`新字段三`),
+  KEY `新字段二` (`䑃䑃一`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE `表格` DROP INDEX `新字段二`;
+ALTER TABLE `表格` DROP PRIMARY KEY;
+ALTER TABLE `表格` DROP INDEX `新字段三`;
+ALTER TABLE `表格` DROP `䑃䑃一`;
+ALTER TABLE `表格` DROP `新字段一`;
+ALTER TABLE `表格` DROP `新字段三`;
+SELECT * FROM `表格`;
+字段一
+一二三四五
+六七八九十
+㐅㐆㐇㐈㐉
+DESC `表格`;
+Field	Type	Null	Key	Default	Extra
+字段一	char(5)	NO		NULL	
+SHOW CREATE TABLE `表格`;
+Table	Create Table
+表格	CREATE TABLE `表格` (
+  `字段一` char(5) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE `表格`, `隞嗷㐁`;
+'Test for INSERT/UPDATE/DELETE'
+CREATE TABLE `表一` (`字段一` char(5)) DEFAULT CHARSET = utf8mb4;
+INSERT INTO `表一` VALUES ('繓𠻟作𤈼阼');
+SELECT INSERT(`字段一`, 1, 1, '㐊') FROM `表一`;
+INSERT(`字段一`, 1, 1, '㐊')
+㐊𠻟作𤈼阼
+SELECT INSERT(`字段一`, 1, 2, '㐊') FROM `表一`;
+INSERT(`字段一`, 1, 2, '㐊')
+㐊作𤈼阼
+SELECT INSERT(`字段一`, 1, 3, '㐊') FROM `表一`;
+INSERT(`字段一`, 1, 3, '㐊')
+㐊𤈼阼
+SELECT INSERT(`字段一`, 1, 4, '㐊') FROM `表一`;
+INSERT(`字段一`, 1, 4, '㐊')
+㐊阼
+SELECT INSERT(`字段一`, 1, 5, '㐊') FROM `表一`;
+INSERT(`字段一`, 1, 5, '㐊')
+㐊
+SELECT INSERT(`字段一`, 4, 1, '𠻠') FROM `表一`;
+INSERT(`字段一`, 4, 1, '?')
+繓𠻟作𠻠阼
+SELECT INSERT(`字段一`, 4, 2, '𠻠') FROM `表一`;
+INSERT(`字段一`, 4, 2, '?')
+繓𠻟作𠻠
+SELECT INSERT(`字段一`, 5, 1, '𠻠') FROM `表一`;
+INSERT(`字段一`, 5, 1, '?')
+繓𠻟作𤈼𠻠
+SELECT INSERT(`字段一`, 1, 1, ' ') FROM `表一`;
+INSERT(`字段一`, 1, 1, ' ')
+ 𠻟作𤈼阼
+SELECT INSERT(`字段一`, 1, 2, '  ') FROM `表一`;
+INSERT(`字段一`, 1, 2, '  ')
+  作𤈼阼
+SELECT INSERT(`字段一`, 1, 3, '   ') FROM `表一`;
+INSERT(`字段一`, 1, 3, '   ')
+   𤈼阼
+SELECT INSERT(`字段一`, 1, 4, '    ') FROM `表一`;
+INSERT(`字段一`, 1, 4, '    ')
+    阼
+SELECT INSERT(`字段一`, 1, 5, '     ') FROM `表一`;
+INSERT(`字段一`, 1, 5, '     ')
+     
+SELECT INSERT(`字段一`, 4, 1, ' ') FROM `表一`;
+INSERT(`字段一`, 4, 1, ' ')
+繓𠻟作 阼
+SELECT INSERT(`字段一`, 4, 2, '  ') FROM `表一`;
+INSERT(`字段一`, 4, 2, '  ')
+繓𠻟作  
+SELECT INSERT(`字段一`, 5, 1, ' ') FROM `表一`;
+INSERT(`字段一`, 5, 1, ' ')
+繓𠻟作𤈼 
+SELECT INSERT(`字段一`, 1, 1, '岝') FROM `表一`;
+INSERT(`字段一`, 1, 1, '岝')
+岝𠻟作𤈼阼
+SELECT INSERT(`字段一`, 1, 2, '岝岝') FROM `表一`;
+INSERT(`字段一`, 1, 2, '岝岝')
+岝岝作𤈼阼
+SELECT INSERT(`字段一`, 1, 3, '岝岝岝') FROM `表一`;
+INSERT(`字段一`, 1, 3, '岝岝岝')
+岝岝岝𤈼阼
+SELECT INSERT(`字段一`, 1, 4, '岝岝岝岝') FROM `表一`;
+INSERT(`字段一`, 1, 4, '岝岝岝岝')
+岝岝岝岝阼
+SELECT INSERT(`字段一`, 1, 5, '岝岝岝岝岝') FROM `表一`;
+INSERT(`字段一`, 1, 5, '岝岝岝岝岝')
+岝岝岝岝岝
+SELECT INSERT(`字段一`, 4, 1, '𠀂') FROM `表一`;
+INSERT(`字段一`, 4, 1, '?')
+繓𠻟作𠀂阼
+SELECT INSERT(`字段一`, 4, 2, '𠀂𠀂') FROM `表一`;
+INSERT(`字段一`, 4, 2, '??')
+繓𠻟作𠀂𠀂
+SELECT INSERT(`字段一`, 5, 1, '𠀂') FROM `表一`;
+INSERT(`字段一`, 5, 1, '?')
+繓𠻟作𤈼𠀂
+UPDATE `表一` SET `字段一` = ('坐阼座岝𠀂');
+SELECT * FROM `表一`;
+字段一
+坐阼座岝𠀂
+DELETE FROM `表一` WHERE `字段一` = '繓𠻟作𤈼阼';
+SELECT * FROM `表一`;
+字段一
+坐阼座岝𠀂
+DELETE FROM `表一`;
+SELECT * FROM `表一`;
+字段一
+'Test for CHAR, VARCHAR, TEXT'
+CREATE TABLE `表二` (c CHAR(5), v VARCHAR(10), t TEXT) DEFAULT CHARSET = utf8mb4;
+INSERT INTO `表二` VALUES ('定长𤈼𠻜字', '变长𠀂𨡃𤈼字符串字段', '文本大对象𠻞𠻟𠻠字段');
+SELECT * FROM `表二`;
+c	v	t
+定长𤈼𠻜字	变长𠀂𨡃𤈼字符串字段	文本大对象𠻞𠻟𠻠字段
+TRUNCATE `表二`;
+DROP TABLE `表一`, `表二`;
+'Test for ENUM'
+CREATE TABLE `表二` (e ENUM('口', '日', '目', '田', '晶'), INDEX(e)) DEFAULT CHARSET = utf8mb4;
+INSERT INTO `表二` VALUES('田'), ('日'), ('目'), ('晶'), ('口');
+SELECT * FROM `表二`;
+e
+口
+日
+目
+田
+晶
+ALTER TABLE `表二` ADD c CHAR(1) NOT NULL FIRST;
+SHOW CREATE TABLE `表二`;
+Table	Create Table
+表二	CREATE TABLE `表二` (
+  `c` char(1) NOT NULL,
+  `e` enum('口','日','目','田','晶') DEFAULT NULL,
+  KEY `e` (`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DESC `表二`;
+Field	Type	Null	Key	Default	Extra
+c	char(1)	NO		NULL	
+e	enum('口','日','目','田','晶')	YES	MUL	NULL	
+DROP TABLE `表二`;
+'Test for WHERE/LIKE'
+CREATE TABLE `表一` (c1 CHAR(20), INDEX(c1)) DEFAULT CHARSET = utf8mb4;
+INSERT INTO `表一` VALUES ('・・・・・・・・・・・・・・・・・・・・');
+INSERT INTO `表一` VALUES ('・・・・・・・・・・・・・・・ºª©®™');
+INSERT INTO `表一` VALUES ('¤№・・・・・・・・・・・・・・・・・・');
+INSERT INTO `表一` VALUES ('・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・');
+INSERT INTO `表一` VALUES ('・άέήίϊΐόςύϋΰώ・・・・・・・');
+INSERT INTO `表一` VALUES ('・・・・・・・・・・・・・・ЂЃЄЅІЇ');
+INSERT INTO `表一` VALUES ('ЈЉЊЋЌЎЏ・・・・・・・・・・・・・');
+INSERT INTO `表一` VALUES (' !"#$%&\'()*+,-./');
+INSERT INTO `表一` VALUES ('0123456789:;<=>?');
+INSERT INTO `表一` VALUES ('@ABCDEFGHIJKLMNO');
+INSERT INTO `表一` VALUES ('PQRSTUVWXYZ[\\]^_');
+INSERT INTO `表一` VALUES ('abcdefghijklmno');
+INSERT INTO `表一` VALUES ('pqrstuvwxyz{|}~');
+INSERT INTO `表一` VALUES ('・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË');
+INSERT INTO `表一` VALUES ('ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ');
+INSERT INTO `表一` VALUES ('ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ');
+INSERT INTO `表一` VALUES ('ŚŜŠŞŤŢÚÙÜÛŬǓŰŪŲŮŨǗǛǙ');
+INSERT INTO `表一` VALUES ('ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・');
+INSERT INTO `表一` VALUES ('・áàäâăǎāąåãćĉčçċďéèë');
+INSERT INTO `表一` VALUES ('êěėēęǵĝğ・ġĥíìïîǐ・īįĩ');
+INSERT INTO `表一` VALUES ('ĵķĺľļńňņñóòöôǒőōõŕřŗ');
+INSERT INTO `表一` VALUES ('śŝšşťţúùüûŭǔűūųůũǘǜǚ');
+INSERT INTO `表一` VALUES ('ǖŵýÿŷźžż・・・・・・・・・・・・');
+INSERT INTO `表一` VALUES ('・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑');
+INSERT INTO `表一` VALUES ('乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠');
+INSERT INTO `表一` VALUES ('仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众');
+INSERT INTO `表一` VALUES ('伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘');
+INSERT INTO `表一` VALUES ('佟佣佪佬佮佱佷佸佹佺佽佾侁侂侄・・・・・');
+INSERT INTO `表一` VALUES ('・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪');
+INSERT INTO `表一` VALUES ('鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖');
+INSERT INTO `表一` VALUES ('齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒');
+INSERT INTO `表一` VALUES ('龔龖龗龞龡龢龣龥・・・・・・・・・・・・');
+INSERT INTO `表一` VALUES ('龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠');
+SELECT * FROM `表一`;
+c1
+ !"#$%&'()*+,-./
+・・・・・・・・・・・・・・・・・・・・
+・・・・・・・・・・・・・・・ºª©®™
+・・・・・・・・・・・・・・ЂЃЄЅІЇ
+・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・
+・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË
+・áàäâăǎāąåãćĉčçċďéèë
+・άέήίϊΐόςύϋΰώ・・・・・・・
+・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑
+・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪
+@ABCDEFGHIJKLMNO
+¤№・・・・・・・・・・・・・・・・・・
+0123456789:;<=>?
+abcdefghijklmno
+ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ
+êěėēęǵĝğ・ġĥíìïîǐ・īįĩ
+ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ
+ĵķĺľļńňņñóòöôǒőōõŕřŗ
+PQRSTUVWXYZ[\]^_
+pqrstuvwxyz{|}~
+ŚŜŠŞŤŢÚÙÜÛŬǓŰŪŲŮŨǗǛǙ
+śŝšşťţúùüûŭǔűūųůũǘǜǚ
+ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・
+ǖŵýÿŷźžż・・・・・・・・・・・・
+ЈЉЊЋЌЎЏ・・・・・・・・・・・・・
+乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠
+仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众
+伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘
+佟佣佪佬佮佱佷佸佹佺佽佾侁侂侄・・・・・
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒
+龔龖龗龞龡龢龣龥・・・・・・・・・・・・
+龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠
+SELECT * FROM `表一` WHERE c1 LIKE ' %';
+c1
+ !"#$%&'()*+,-./
+SELECT * FROM `表一` WHERE c1 LIKE '% %';
+c1
+ !"#$%&'()*+,-./
+SELECT * FROM `表一` WHERE c1 LIKE '% ';
+c1
+SELECT * FROM `表一` WHERE c1 LIKE '仡%';
+c1
+仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众
+SELECT * FROM `表一` WHERE c1 LIKE '%乹乿%';
+c1
+乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠
+SELECT * FROM `表一` WHERE c1 LIKE '%佘';
+c1
+伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘
+SELECT * FROM `表一` WHERE c1 LIKE '鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+c1
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `表一` WHERE c1 LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+c1
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `表一` WHERE c1 LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖';
+c1
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `表一` WHERE c1 = 'ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ';
+c1
+ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ
+ĵķĺľļńňņñóòöôǒőōõŕřŗ
+SELECT * FROM `表一` WHERE c1 = '乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠';
+c1
+乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠
+SELECT * FROM `表一` WHERE c1 = '齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒';
+c1
+齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒
+SELECT * FROM `表一` WHERE c1 = '龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠';
+c1
+龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠
+'Test for CONVERT'
+SELECT c1, CONVERT(c1 USING gb18030) FROM `表一`;
+c1	CONVERT(c1 USING gb18030)
+ !"#$%&'()*+,-./	 !"#$%&'()*+,-./
+・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
+・・・・・・・・・・・・・・・ºª©®™	・・・・・・・・・・・・・・・ºª©®™
+・・・・・・・・・・・・・・ЂЃЄЅІЇ	・・・・・・・・・・・・・・ЂЃЄЅІЇ
+・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・	・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・
+・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË	・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË
+・áàäâăǎāąåãćĉčçċďéèë	・áàäâăǎāąåãćĉčçċďéèë
+・άέήίϊΐόςύϋΰώ・・・・・・・	・άέήίϊΐόςύϋΰώ・・・・・・・
+・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑	・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑
+・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪	・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪
+@ABCDEFGHIJKLMNO	@ABCDEFGHIJKLMNO
+¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・
+0123456789:;<=>?	0123456789:;<=>?
+abcdefghijklmno	abcdefghijklmno
+ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ	ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ
+êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	êěėēęǵĝğ・ġĥíìïîǐ・īįĩ
+ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ	ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ
+ĵķĺľļńňņñóòöôǒőōõŕřŗ	ĵķĺľļńňņñóòöôǒőōõŕřŗ
+PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
+pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
+ŚŜŠŞŤŢÚÙÜÛŬǓŰŪŲŮŨǗǛǙ	ŚŜŠŞŤŢÚÙÜÛŬǓŰŪŲŮŨǗǛǙ
+śŝšşťţúùüûŭǔűūųůũǘǜǚ	śŝšşťţúùüûŭǔűūųůũǘǜǚ
+ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・	ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・
+ǖŵýÿŷźžż・・・・・・・・・・・・	ǖŵýÿŷźžż・・・・・・・・・・・・
+ЈЉЊЋЌЎЏ・・・・・・・・・・・・・	ЈЉЊЋЌЎЏ・・・・・・・・・・・・・
+乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠	乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠
+仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众	仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众
+伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘	伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘
+佟佣佪佬佮佱佷佸佹佺佽佾侁侂侄・・・・・	佟佣佪佬佮佱佷佸佹佺佽佾侁侂侄・・・・・
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖	鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒	齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒
+龔龖龗龞龡龢龣龥・・・・・・・・・・・・	龔龖龗龞龡龢龣龥・・・・・・・・・・・・
+龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠	龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠
+SELECT c1, CONVERT(c1 USING utf8mb4), CONVERT(CONVERT(c1 USING utf8mb4) USING gb18030) FROM `表一`;
+c1	CONVERT(c1 USING utf8mb4)	CONVERT(CONVERT(c1 USING utf8mb4) USING gb18030)
+ !"#$%&'()*+,-./	 !"#$%&'()*+,-./	 !"#$%&'()*+,-./
+・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
+・・・・・・・・・・・・・・・ºª©®™	・・・・・・・・・・・・・・・ºª©®™	・・・・・・・・・・・・・・・ºª©®™
+・・・・・・・・・・・・・・ЂЃЄЅІЇ	・・・・・・・・・・・・・・ЂЃЄЅІЇ	・・・・・・・・・・・・・・ЂЃЄЅІЇ
+・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・	・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・	・・・・・ΆΈΉΊΪ・Ό・ΎΫ・Ώ・・・
+・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË	・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË	・ÁÀÄÂĂǍĀĄÅÃĆĈČÇĊĎÉÈË
+・áàäâăǎāąåãćĉčçċďéèë	・áàäâăǎāąåãćĉčçċďéèë	・áàäâăǎāąåãćĉčçċďéèë
+・άέήίϊΐόςύϋΰώ・・・・・・・	・άέήίϊΐόςύϋΰώ・・・・・・・	・άέήίϊΐόςύϋΰώ・・・・・・・
+・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑	・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑	・丂丄丅丌丒丟丣两丨丫丮丯丰丵乀乁乄乇乑
+・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪	・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪	・黸黿鼂鼃鼉鼏鼐鼑鼒鼔鼖鼗鼙鼚鼛鼟鼢鼦鼪
+@ABCDEFGHIJKLMNO	@ABCDEFGHIJKLMNO	@ABCDEFGHIJKLMNO
+¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・
+0123456789:;<=>?	0123456789:;<=>?	0123456789:;<=>?
+abcdefghijklmno	abcdefghijklmno	abcdefghijklmno
+ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ	ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ	ÊĚĖĒĘ・ĜĞĢĠĤÍÌÏÎǏİĪĮĨ
+êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	êěėēęǵĝğ・ġĥíìïîǐ・īįĩ	êěėēęǵĝğ・ġĥíìïîǐ・īįĩ
+ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ	ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ	ĴĶĹĽĻŃŇŅÑÓÒÖÔǑŐŌÕŔŘŖ
+ĵķĺľļńňņñóòöôǒőōõŕřŗ	ĵķĺľļńňņñóòöôǒőōõŕřŗ	ĵķĺľļńňņñóòöôǒőōõŕřŗ
+PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
+pqrstuvwxyz{|}~	pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
+ŚŜŠŞŤŢÚÙÜÛŬǓŰŪŲŮŨǗǛǙ	ŚŜŠŞŤŢÚÙÜÛŬǓŰŪŲŮŨǗǛǙ	ŚŜŠŞŤŢÚÙÜÛŬǓŰŪŲŮŨǗǛǙ
+śŝšşťţúùüûŭǔűūųůũǘǜǚ	śŝšşťţúùüûŭǔűūųůũǘǜǚ	śŝšşťţúùüûŭǔűūųůũǘǜǚ
+ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・	ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・	ǕŴÝŸŶŹŽŻ・・・・・・・・・・・・
+ǖŵýÿŷźžż・・・・・・・・・・・・	ǖŵýÿŷźžż・・・・・・・・・・・・	ǖŵýÿŷźžż・・・・・・・・・・・・
+ЈЉЊЋЌЎЏ・・・・・・・・・・・・・	ЈЉЊЋЌЎЏ・・・・・・・・・・・・・	ЈЉЊЋЌЎЏ・・・・・・・・・・・・・
+乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠	乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠	乚乜乣乨乩乴乵乹乿亍亖亗亝亯亹仃仐仚仛仠
+仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众	仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众	仡仢仨仯仱仳仵份仾仿伀伂伃伈伋伌伒伕伖众
+伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘	伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘	伙伮伱你伳伵伷伹伻伾佀佂佈佉佋佌佒佔佖佘
+佟佣佪佬佮佱佷佸佹佺佽佾侁侂侄・・・・・	佟佣佪佬佮佱佷佸佹佺佽佾侁侂侄・・・・・	佟佣佪佬佮佱佷佸佹佺佽佾侁侂侄・・・・・
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖	鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖	鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒	齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒	齗齘齚齝齞齨齩齭齮齯齰齱齳齵齺齽龏龐龑龒
+龔龖龗龞龡龢龣龥・・・・・・・・・・・・	龔龖龗龞龡龢龣龥・・・・・・・・・・・・	龔龖龗龞龡龢龣龥・・・・・・・・・・・・
+龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠	龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠	龔龖龗龞龡龢龣龥𠀀𠀂𨡃𤈼𠻜𠻝𠻞𠻟𠻠𠻟𠻠
+DROP TABLE `表一`;
+'Test for sub-query'
+CREATE TABLE t1a (c CHAR(1) PRIMARY KEY) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE t1b (c CHAR(1) PRIMARY KEY) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE t2a (c CHAR(1) PRIMARY KEY) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE t2b (c CHAR(1) PRIMARY KEY) DEFAULT CHARSET = utf8mb4;
+INSERT INTO t1a VALUES ('双'), ('字'), ('𤈼'), ('䑃');
+INSERT INTO t1b VALUES ('双');
+INSERT INTO t2a VALUES ('𠻠'), ('齳'), ('䑂');
+INSERT INTO t2b VALUES ('𠻠');
+SELECT c FROM t1a WHERE c IN (SELECT c FROM t1b);
+c
+双
+SELECT c FROM t1a WHERE EXISTS (SELECT c FROM t1b WHERE t1a.c = t1b.c);
+c
+双
+SELECT c FROM t1a WHERE NOT EXISTS (SELECT c FROM t1b WHERE t1a.c = t1b.c);
+c
+字
+䑃
+𤈼
+SELECT c FROM t2a WHERE c IN (SELECT c FROM t2b);
+c
+𠻠
+SELECT c FROM t2a WHERE EXISTS (SELECT c FROM t2b WHERE t2a.c = t2b.c);
+c
+𠻠
+SELECT c FROM t2a WHERE NOT EXISTS (SELECT c FROM t2b WHERE t2a.c = t2b.c);
+c
+齳
+䑂
+'Test for JOIN'
+SELECT * FROM t1a JOIN t1b;
+c	c
+双	双
+字	双
+䑃	双
+𤈼	双
+SELECT * FROM t1a INNER JOIN t1b;
+c	c
+双	双
+字	双
+䑃	双
+𤈼	双
+SELECT * FROM t1a JOIN t1b USING (c);
+c
+双
+SELECT * FROM t1a INNER JOIN t1b USING (c);
+c
+双
+SELECT * FROM t1a CROSS JOIN t1b;
+c	c
+双	双
+字	双
+䑃	双
+𤈼	双
+SELECT * FROM t1a LEFT JOIN t1b USING (c);
+c
+双
+字
+䑃
+𤈼
+SELECT * FROM t1a LEFT JOIN t1b ON (t1a.c = t1b.c);
+c	c
+双	双
+字	NULL
+䑃	NULL
+𤈼	NULL
+SELECT * FROM t1b RIGHT JOIN t1a USING (c);
+c
+双
+字
+䑃
+𤈼
+SELECT * FROM t1b RIGHT JOIN t1a ON (t1a.c = t1b.c);
+c	c
+双	双
+NULL	字
+NULL	䑃
+NULL	𤈼
+SELECT * FROM t2a JOIN t2b;
+c	c
+齳	𠻠
+䑂	𠻠
+𠻠	𠻠
+SELECT * FROM t2a INNER JOIN t2b;
+c	c
+齳	𠻠
+䑂	𠻠
+𠻠	𠻠
+SELECT * FROM t2a JOIN t2b USING (c);
+c
+𠻠
+SELECT * FROM t2a INNER JOIN t2b USING (c);
+c
+𠻠
+SELECT * FROM t2a CROSS JOIN t2b;
+c	c
+齳	𠻠
+䑂	𠻠
+𠻠	𠻠
+SELECT * FROM t2a LEFT JOIN t2b USING (c);
+c
+齳
+䑂
+𠻠
+SELECT * FROM t2a LEFT JOIN t2b ON (t2a.c = t2b.c);
+c	c
+齳	NULL
+䑂	NULL
+𠻠	𠻠
+SELECT * FROM t2b RIGHT JOIN t2a USING (c);
+c
+齳
+䑂
+𠻠
+SELECT * FROM t2b RIGHT JOIN t2a ON (t2a.c = t2b.c);
+c	c
+NULL	齳
+NULL	䑂
+𠻠	𠻠
+DROP TABLE t1a, t1b, t2a, t2b;
+'Test for string functions'
+CREATE TABLE `表一` (c1 CHAR(20), INDEX(c1)) DEFAULT CHARSET = utf8mb4;
+INSERT INTO `表一` VALUES ('12345678900987654321'), ('一二三四五伍肆叁贰壹'), ('六七八'), ('九十'), ('百'), ('𠻜𠻝𠻞𠻟');
+INSERT INTO `表一` VALUES ('䑃'), ('一䑃二三四'), ('𠀂𨡃');
+SELECT c1, LENGTH(c1) FROM `表一`;
+c1	LENGTH(c1)
+12345678900987654321	20
+一二三四五伍肆叁贰壹	30
+一䑃二三四	15
+九十	6
+六七八	9
+百	3
+䑃	3
+𠀂𨡃	8
+𠻜𠻝𠻞𠻟	16
+SELECT c1, LPAD(c1, 20, '中') FROM `表一`;
+c1	LPAD(c1, 20, '中')
+12345678900987654321	12345678900987654321
+一二三四五伍肆叁贰壹	中中中中中中中中中中一二三四五伍肆叁贰壹
+一䑃二三四	中中中中中中中中中中中中中中中一䑃二三四
+九十	中中中中中中中中中中中中中中中中中中九十
+六七八	中中中中中中中中中中中中中中中中中六七八
+百	中中中中中中中中中中中中中中中中中中中百
+䑃	中中中中中中中中中中中中中中中中中中中䑃
+𠀂𨡃	中中中中中中中中中中中中中中中中中中𠀂𨡃
+𠻜𠻝𠻞𠻟	中中中中中中中中中中中中中中中中𠻜𠻝𠻞𠻟
+SELECT c1, RPAD(c1, 20, '𤈼') FROM `表一`;
+c1	RPAD(c1, 20, '?')
+12345678900987654321	12345678900987654321
+一二三四五伍肆叁贰壹	一二三四五伍肆叁贰壹𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+一䑃二三四	一䑃二三四𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+九十	九十𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+六七八	六七八𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+百	百𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+䑃	䑃𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+𠀂𨡃	𠀂𨡃𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+𠻜𠻝𠻞𠻟	𠻜𠻝𠻞𠻟𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼𤈼
+TRUNCATE `表一`;
+INSERT INTO `表一` VALUES ('一䑃二𤈼三𠻠四');
+SELECT INSTR(c1, '一') FROM `表一`;
+INSTR(c1, '一')
+1
+SELECT INSTR(c1, '二') FROM `表一`;
+INSTR(c1, '二')
+3
+SELECT INSTR(c1, '三') FROM `表一`;
+INSTR(c1, '三')
+5
+SELECT INSTR(c1, '四') FROM `表一`;
+INSTR(c1, '四')
+7
+SELECT INSTR(c1, '𤈼') FROM `表一`;
+INSTR(c1, '?')
+4
+SELECT INSTR(c1, '𠻠') FROM `表一`;
+INSTR(c1, '?')
+6
+SELECT INSTR(c1, '䑃') FROM `表一`;
+INSTR(c1, '䑃')
+2
+SELECT c1, LEFT(c1, 0) FROM `表一`;
+c1	LEFT(c1, 0)
+一䑃二𤈼三𠻠四	
+SELECT c1, LEFT(c1, 1) FROM `表一`;
+c1	LEFT(c1, 1)
+一䑃二𤈼三𠻠四	一
+SELECT c1, LEFT(c1, 2) FROM `表一`;
+c1	LEFT(c1, 2)
+一䑃二𤈼三𠻠四	一䑃
+SELECT c1, LEFT(c1, 3) FROM `表一`;
+c1	LEFT(c1, 3)
+一䑃二𤈼三𠻠四	一䑃二
+SELECT c1, LEFT(c1, 4) FROM `表一`;
+c1	LEFT(c1, 4)
+一䑃二𤈼三𠻠四	一䑃二𤈼
+SELECT c1, LEFT(c1, 5) FROM `表一`;
+c1	LEFT(c1, 5)
+一䑃二𤈼三𠻠四	一䑃二𤈼三
+SELECT c1, LEFT(c1, 6) FROM `表一`;
+c1	LEFT(c1, 6)
+一䑃二𤈼三𠻠四	一䑃二𤈼三𠻠
+SELECT c1, LEFT(c1, 7) FROM `表一`;
+c1	LEFT(c1, 7)
+一䑃二𤈼三𠻠四	一䑃二𤈼三𠻠四
+SELECT c1, RIGHT(c1, 0) FROM `表一`;
+c1	RIGHT(c1, 0)
+一䑃二𤈼三𠻠四	
+SELECT c1, RIGHT(c1, 1) FROM `表一`;
+c1	RIGHT(c1, 1)
+一䑃二𤈼三𠻠四	四
+SELECT c1, RIGHT(c1, 2) FROM `表一`;
+c1	RIGHT(c1, 2)
+一䑃二𤈼三𠻠四	𠻠四
+SELECT c1, RIGHT(c1, 3) FROM `表一`;
+c1	RIGHT(c1, 3)
+一䑃二𤈼三𠻠四	三𠻠四
+SELECT c1, RIGHT(c1, 4) FROM `表一`;
+c1	RIGHT(c1, 4)
+一䑃二𤈼三𠻠四	𤈼三𠻠四
+SELECT c1, RIGHT(c1, 5) FROM `表一`;
+c1	RIGHT(c1, 5)
+一䑃二𤈼三𠻠四	二𤈼三𠻠四
+SELECT c1, RIGHT(c1, 6) FROM `表一`;
+c1	RIGHT(c1, 6)
+一䑃二𤈼三𠻠四	䑃二𤈼三𠻠四
+SELECT c1, RIGHT(c1, 7) FROM `表一`;
+c1	RIGHT(c1, 7)
+一䑃二𤈼三𠻠四	一䑃二𤈼三𠻠四
+SELECT REPLACE(c1, '一', '一一') FROM `表一`;
+REPLACE(c1, '一', '一一')
+一一䑃二𤈼三𠻠四
+SELECT REPLACE(c1, '四', '四四') FROM `表一`;
+REPLACE(c1, '四', '四四')
+一䑃二𤈼三𠻠四四
+SELECT REPLACE(c1, '𠻠', '𠻠𠻠') FROM `表一`;
+REPLACE(c1, '?', '??')
+一䑃二𤈼三𠻠𠻠四
+SELECT REPLACE(c1, '𤈼', '𤈼𤈼') FROM `表一`;
+REPLACE(c1, '?', '??')
+一䑃二𤈼𤈼三𠻠四
+TRUNCATE `表一`;
+INSERT INTO `表一` VALUES ('一䑃二𤈼三𠻟');
+INSERT INTO `表一` VALUES ('一䑃二𤈼三𠻟𠻞');
+INSERT INTO `表一` VALUES ('一䑃二𤈼三𠻟𠻞𠻞');
+INSERT INTO `表一` VALUES ('一䑃二𤈼三𠻟𠻞𠻞𠻞');
+INSERT INTO `表一` VALUES ('𠻞一䑃二𤈼三𠻟');
+INSERT INTO `表一` VALUES ('𠻞𠻞一䑃二𤈼三𠻟');
+INSERT INTO `表一` VALUES ('𠻞𠻞𠻞一䑃二𤈼三𠻟');
+INSERT INTO `表一` VALUES ('   一䑃二𤈼三𠻟   ');
+SELECT c1, TRIM(TRAILING '𠻞' FROM c1) FROM `表一`;
+c1	TRIM(TRAILING '?' FROM c1)
+   一䑃二𤈼三𠻟	   一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟𠻞	一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟𠻞𠻞	一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟𠻞𠻞𠻞	一䑃二𤈼三𠻟
+𠻞一䑃二𤈼三𠻟	𠻞一䑃二𤈼三𠻟
+𠻞𠻞一䑃二𤈼三𠻟	𠻞𠻞一䑃二𤈼三𠻟
+𠻞𠻞𠻞一䑃二𤈼三𠻟	𠻞𠻞𠻞一䑃二𤈼三𠻟
+SELECT c1, TRIM(LEADING '𠻞' FROM c1) FROM `表一`;
+c1	TRIM(LEADING '?' FROM c1)
+   一䑃二𤈼三𠻟	   一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟𠻞	一䑃二𤈼三𠻟𠻞
+一䑃二𤈼三𠻟𠻞𠻞	一䑃二𤈼三𠻟𠻞𠻞
+一䑃二𤈼三𠻟𠻞𠻞𠻞	一䑃二𤈼三𠻟𠻞𠻞𠻞
+𠻞一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+𠻞𠻞一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+𠻞𠻞𠻞一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+SELECT c1, TRIM(BOTH '𠻞' FROM c1) FROM `表一`;
+c1	TRIM(BOTH '?' FROM c1)
+   一䑃二𤈼三𠻟	   一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟𠻞	一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟𠻞𠻞	一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟𠻞𠻞𠻞	一䑃二𤈼三𠻟
+𠻞一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+𠻞𠻞一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+𠻞𠻞𠻞一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+SELECT c1, TRIM(c1) FROM `表一`;
+c1	TRIM(c1)
+   一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟	一䑃二𤈼三𠻟
+一䑃二𤈼三𠻟𠻞	一䑃二𤈼三𠻟𠻞
+一䑃二𤈼三𠻟𠻞𠻞	一䑃二𤈼三𠻟𠻞𠻞
+一䑃二𤈼三𠻟𠻞𠻞𠻞	一䑃二𤈼三𠻟𠻞𠻞𠻞
+𠻞一䑃二𤈼三𠻟	𠻞一䑃二𤈼三𠻟
+𠻞𠻞一䑃二𤈼三𠻟	𠻞𠻞一䑃二𤈼三𠻟
+𠻞𠻞𠻞一䑃二𤈼三𠻟	𠻞𠻞𠻞一䑃二𤈼三𠻟
+SELECT REVERSE(c1) FROM `表一`;
+REVERSE(c1)
+𠻟三𤈼二䑃一   
+𠻟三𤈼二䑃一
+𠻞𠻟三𤈼二䑃一
+𠻞𠻞𠻟三𤈼二䑃一
+𠻞𠻞𠻞𠻟三𤈼二䑃一
+𠻟三𤈼二䑃一𠻞
+𠻟三𤈼二䑃一𠻞𠻞
+𠻟三𤈼二䑃一𠻞𠻞𠻞
+TRUNCATE `表一`;
+DROP TABLE `表一`;
+'Test for 'GROUP BY''
+CREATE TABLE t1 (c VARCHAR(10)) DEFAULT CHARSET = utf8mb4;
+INSERT INTO t1 VALUES ('嬽仛砻'), ('櫶'), ('怑橷'), ('獣厘濸氻'), ('嚏'), ('𠻠'), ('怑橷');
+SELECT c, COUNT(c) FROM t1 GROUP BY c;
+c	COUNT(c)
+嬽仛砻	1
+櫶	1
+怑橷	2
+獣厘濸氻	1
+嚏	1
+𠻠	1
+DROP TABLE t1;
+'Test for PS'
+CREATE TABLE t1 (c1 CHAR(3)) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE t2 (c1 CHAR(3)) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE t3 (`䑃` CHAR(1), `㐐` CHAR(1), `段` CHAR(1)) DEFAULT CHARSET = utf8mb4;
+CREATE TABLE t4 (c1 CHAR(3)) DEFAULT CHARSET = utf8mb4;
+INSERT INTO t1 VALUES ('xxx');
+INSERT INTO t2 VALUES ('𠻜㐉列');
+INSERT INTO t3 VALUES ('x', 'x', 'x'), ('x', 'x', 'x'), ('y', 'y', 'y'), ('y', 'y', 'y'), ('z', 'z', 'z'), ('z', 'z', 'z');
+INSERT INTO t4 VALUES ('𠻜'), ('㐉'), ('列');
+PREPARE stmt1 FROM 'SELECT ? FROM t3';
+PREPARE stmt2 FROM 'SELECT * FROM t3 ORDER BY ?';
+PREPARE stmt3 FROM 'SELECT COUNT(*) FROM t3 GROUP BY ?';
+PREPARE stmt4 FROM 'SELECT CHAR_LENGTH(?)';
+PREPARE stmt5 FROM 'SELECT CHARSET(?)';
+PREPARE stmt6 FROM 'SELECT INSERT(c1,1,1,?) FROM t1';
+PREPARE stmt7 FROM 'SELECT INSTR(c1,?) FROM t2';
+PREPARE stmt8 FROM 'SELECT LOCATE(?,c1) FROM t2';
+PREPARE stmt9 FROM 'SELECT LPAD(c1,9,?) FROM t1';
+PREPARE stmt10 FROM 'SELECT REPLACE(c1,?,\'x\') FROM t2';
+PREPARE stmt11 FROM 'SELECT REPLACE(c1,\'x\',?) FROM t1';
+PREPARE stmt12 FROM 'SELECT RPAD(c1,9,?) FROM t1';
+PREPARE stmt13 FROM 'UPDATE t4 SET c1=\'x\' WHERE c1=?';
+PREPARE stmt14 FROM 'UPDATE t4 SET c1=? WHERE c1=\'x\'';
+SET @arg = '𠻜';
+EXECUTE stmt1 USING @arg;
+?
+𠻜
+𠻜
+𠻜
+𠻜
+𠻜
+𠻜
+EXECUTE stmt2 USING @arg;
+䑃	㐐	段
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+utf8mb4
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+𠻜xx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+1
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+1
+EXECUTE stmt9 USING @arg;
+LPAD(c1,9,?)
+𠻜𠻜𠻜𠻜𠻜𠻜xxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+x㐉列
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+𠻜𠻜𠻜
+EXECUTE stmt12 USING @arg;
+RPAD(c1,9,?)
+xxx𠻜𠻜𠻜𠻜𠻜𠻜
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+x
+㐉
+列
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+𠻜
+㐉
+列
+SET @arg = '㐉';
+EXECUTE stmt1 USING @arg;
+?
+㐉
+㐉
+㐉
+㐉
+㐉
+㐉
+EXECUTE stmt2 USING @arg;
+䑃	㐐	段
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+utf8mb4
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+㐉xx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+2
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+2
+EXECUTE stmt9 USING @arg;
+LPAD(c1,9,?)
+㐉㐉㐉㐉㐉㐉xxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+𠻜x列
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+㐉㐉㐉
+EXECUTE stmt12 USING @arg;
+RPAD(c1,9,?)
+xxx㐉㐉㐉㐉㐉㐉
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+𠻜
+x
+列
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+𠻜
+㐉
+列
+SET @arg = '列';
+EXECUTE stmt1 USING @arg;
+?
+列
+列
+列
+列
+列
+列
+EXECUTE stmt2 USING @arg;
+䑃	㐐	段
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+utf8mb4
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+列xx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+3
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+3
+EXECUTE stmt9 USING @arg;
+LPAD(c1,9,?)
+列列列列列列xxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+𠻜㐉x
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+列列列
+EXECUTE stmt12 USING @arg;
+RPAD(c1,9,?)
+xxx列列列列列列
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+𠻜
+㐉
+x
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+𠻜
+㐉
+列
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+DEALLOCATE PREPARE stmt4;
+DEALLOCATE PREPARE stmt5;
+DEALLOCATE PREPARE stmt6;
+DEALLOCATE PREPARE stmt7;
+DEALLOCATE PREPARE stmt8;
+DEALLOCATE PREPARE stmt9;
+DEALLOCATE PREPARE stmt10;
+DEALLOCATE PREPARE stmt11;
+DEALLOCATE PREPARE stmt12;
+DEALLOCATE PREPARE stmt13;
+DEALLOCATE PREPARE stmt14;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+'Test for INTO OUTFILE/INFILE'
+CREATE TABLE `表格一` (id INT PRIMARY KEY, c CHAR(5), b BINARY(50), v VARBINARY(100)) DEFAULT CHARSET = utf8mb4;
+INSERT INTO `表格一` VALUES(1, 'ab䶩匼串', '123345', '字符䶩匼串'), (2, '僜𠀀𠀂刓', '乗俓僜刓5C', '㐄㐅㐈㐉㐁'), (3, '𨡃𤈼𠻜', '𠀀𠀂𨡃𤈼𠻜', '𠻝𠻞𠻟𠻠');
+SELECT * FROM `表格一`;
+id	c	b	v
+1	ab䶩匼串	123345                                      	字符䶩匼串
+2	僜𠀀𠀂刓	乗俓僜刓5C                                    	㐄㐅㐈㐉㐁
+3	𨡃𤈼𠻜	𠀀𠀂𨡃𤈼𠻜                              	𠻝𠻞𠻟𠻠
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt' FROM `表格一`;;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt');;
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt')
+1	ab䶩匼串	123345\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	字符䶩匼串
+2	僜𠀀𠀂刓	乗俓僜刓5C\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	㐄㐅㐈㐉㐁
+3	𨡃𤈼𠻜	𠀀𠀂𨡃𤈼𠻜\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	𠻝𠻞𠻟𠻠
+
+CREATE TABLE `表格二` LIKE `表格一`;;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt' INTO TABLE `表格二` CHARACTER SET utf8mb4;;
+SELECT COUNT(*) AS `Expect 3` FROM `表格一`, `表格二` WHERE `表格一`.id = `表格二`.id;;
+Expect 3
+3
+SELECT COUNT(*) AS `Expect 0` FROM `表格一`, `表格二` WHERE `表格一`.id = `表格二`.id AND (`表格一`.c <> `表格二`.c OR `表格一`.b <> `表格二`.b OR `表格一`.v <> `表格二`.v);;
+Expect 0
+0
+DROP TABLE `表格二`;
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt' FIELDS TERMINATED BY '5C' ENCLOSED BY '"' FROM `表格一`;;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt');;
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt')
+"1"5C"ab䶩匼串"5C"123345\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"5C"字符䶩匼串"
+"2"5C"僜𠀀𠀂刓"5C"乗俓僜刓5C\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"5C"㐄㐅㐈㐉㐁"
+"3"5C"𨡃𤈼𠻜"5C"𠀀𠀂𨡃𤈼𠻜\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"5C"𠻝𠻞𠻟𠻠"
+
+CREATE TABLE `表格二` LIKE `表格一`;;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt' INTO TABLE `表格二` CHARACTER SET utf8mb4 FIELDS TERMINATED BY '5C' ENCLOSED BY '"';;
+SELECT COUNT(*) AS `Expect 3` FROM `表格一`, `表格二` WHERE `表格一`.id = `表格二`.id;;
+Expect 3
+3
+SELECT COUNT(*) AS `Expect 0` FROM `表格一`, `表格二` WHERE `表格一`.id = `表格二`.id AND (`表格一`.c <> `表格二`.c OR `表格一`.b <> `表格二`.b OR `表格一`.v <> `表格二`.v);;
+Expect 0
+0
+DROP TABLE `表格二`;
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt' FIELDS TERMINATED BY '5C' ENCLOSED BY '0' LINES TERMINATED BY '1' FROM `表格一`;;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt');;
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt')
+0\105C0ab䶩匼串05C0\123345\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\005C0字符䶩匼串010205C0僜𠀀𠀂刓05C0乗俓僜刓5C\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\005C0㐄㐅㐈㐉㐁010305C0𨡃𤈼𠻜05C0𠀀𠀂𨡃𤈼𠻜\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\005C0𠻝𠻞𠻟𠻠01
+CREATE TABLE `表格二` LIKE `表格一`;;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt' INTO TABLE `表格二` CHARACTER SET utf8mb4 FIELDS TERMINATED BY '5C' ENCLOSED BY '0' LINES TERMINATED BY '1';;
+SELECT COUNT(*) AS `Expect 3` FROM `表格一`, `表格二` WHERE `表格一`.id = `表格二`.id;;
+Expect 3
+3
+SELECT COUNT(*) AS `Expect 0` FROM `表格一`, `表格二` WHERE `表格一`.id = `表格二`.id AND (`表格一`.c <> `表格二`.c OR `表格一`.b <> `表格二`.b OR `表格一`.v <> `表格二`.v);;
+Expect 0
+0
+DROP TABLE `表格二`;
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt' FIELDS TERMINATED BY 'd' FROM `表格一`;;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt');;
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt')
+1dab䶩匼串d123345\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0d字符䶩匼串
+2d僜𠀀𠀂刓d乗俓僜刓5C\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0d㐄㐅㐈㐉㐁
+3d𨡃𤈼𠻜d𠀀𠀂𨡃𤈼𠻜\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0d𠻝𠻞𠻟𠻠
+
+CREATE TABLE `表格二` LIKE `表格一`;;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/gb18030_encoding.txt' INTO TABLE `表格二` CHARACTER SET utf8mb4 FIELDS TERMINATED BY 'd';;
+SELECT COUNT(*) AS `Expect 3` FROM `表格一`, `表格二` WHERE `表格一`.id = `表格二`.id;;
+Expect 3
+3
+SELECT COUNT(*) AS `Expect 0` FROM `表格一`, `表格二` WHERE `表格一`.id = `表格二`.id AND (`表格一`.c <> `表格二`.c OR `表格一`.b <> `表格二`.b OR `表格一`.v <> `表格二`.v);;
+Expect 0
+0
+DROP TABLE `表格二`, `表格一`;

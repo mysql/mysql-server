@@ -1,0 +1,52 @@
+SET @start_global_value = @@global.optimizer_trace_features;
+SELECT @start_global_value;
+@start_global_value
+greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+select @@global.optimizer_trace_features;
+@@global.optimizer_trace_features
+greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+select @@session.optimizer_trace_features;
+@@session.optimizer_trace_features
+greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+show global variables like 'optimizer_trace_features';
+Variable_name	Value
+optimizer_trace_features	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+show session variables like 'optimizer_trace_features';
+Variable_name	Value
+optimizer_trace_features	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+select * from performance_schema.global_variables where variable_name='optimizer_trace_features';
+VARIABLE_NAME	VARIABLE_VALUE
+optimizer_trace_features	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+select * from performance_schema.session_variables where variable_name='optimizer_trace_features';
+VARIABLE_NAME	VARIABLE_VALUE
+optimizer_trace_features	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+set global optimizer_trace_features=2;
+select @@global.optimizer_trace_features;
+@@global.optimizer_trace_features
+greedy_search=off,range_optimizer=on,dynamic_range=off,repeated_subselect=off
+set session optimizer_trace_features=2;
+select @@session.optimizer_trace_features;
+@@session.optimizer_trace_features
+greedy_search=off,range_optimizer=on,dynamic_range=off,repeated_subselect=off
+set global optimizer_trace_features=0;
+select @@global.optimizer_trace_features;
+@@global.optimizer_trace_features
+greedy_search=off,range_optimizer=off,dynamic_range=off,repeated_subselect=off
+set session optimizer_trace_features=0;
+select @@session.optimizer_trace_features;
+@@session.optimizer_trace_features
+greedy_search=off,range_optimizer=off,dynamic_range=off,repeated_subselect=off
+set session optimizer_trace_features=default;
+select @@session.optimizer_trace_features;
+@@session.optimizer_trace_features
+greedy_search=off,range_optimizer=off,dynamic_range=off,repeated_subselect=off
+set global optimizer_trace_features=1.1;
+ERROR 42000: Incorrect argument type to variable 'optimizer_trace_features'
+set global optimizer_trace_features=1e1;
+ERROR 42000: Incorrect argument type to variable 'optimizer_trace_features'
+set session optimizer_trace_features="foobar";
+ERROR 42000: Variable 'optimizer_trace_features' can't be set to the value of 'foobar'
+SET @@global.optimizer_trace_features = @start_global_value;
+SELECT @@global.optimizer_trace_features;
+@@global.optimizer_trace_features
+greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on

@@ -1,0 +1,1273 @@
+CREATE TABLE records_in_range_test (
+c1 VARCHAR(16),
+c2 VARCHAR(512),
+PRIMARY KEY (c1)
+) ENGINE=INNODB;
+INSERT INTO records_in_range_test VALUES
+('ccc', REPEAT('v', 512)),
+('kkk01', REPEAT('v', 512)),
+('kkk02', REPEAT('v', 512)),
+('kkk03', REPEAT('v', 512)),
+('kkk04', REPEAT('v', 512)),
+('kkk05', REPEAT('v', 512)),
+('kkk06', REPEAT('v', 512)),
+('kkk07', REPEAT('v', 512)),
+('kkk08', REPEAT('v', 512)),
+('mmm', REPEAT('v', 512)),
+('nnn', REPEAT('v', 512)),
+('uuu01', REPEAT('v', 512)),
+('uuu02', REPEAT('v', 512)),
+('uuu03', REPEAT('v', 512)),
+('uuu04', REPEAT('v', 512)),
+('uuu05', REPEAT('v', 512)),
+('uuu06', REPEAT('v', 512)),
+('uuu07', REPEAT('v', 512)),
+('uuu08', REPEAT('v', 512)),
+('xxx', REPEAT('v', 512));
+ANALYZE TABLE records_in_range_test;
+Table	Op	Msg_type	Msg_text
+test.records_in_range_test	analyze	status	OK
+SELECT index_name, stat_name, stat_value
+FROM mysql.innodb_index_stats
+WHERE
+table_name='records_in_range_test' AND stat_name = 'n_leaf_pages';
+index_name	stat_name	stat_value
+PRIMARY	n_leaf_pages	1or2or4
+SELECT index_name, stat_name, stat_value
+FROM mysql.innodb_index_stats
+WHERE
+table_name='records_in_range_test' AND stat_name = 'size';
+index_name	stat_name	stat_value
+PRIMARY	size	1or3or5
+SET SESSION DEBUG='+d,print_btr_estimate_n_rows_in_range_return_value';
+
+In all SELECTs below the number of the records in the range returned
+by COUNT(*) must be the same as the number returned by
+btr_estimate_n_rows_in_range() which can be seen inside the artificial
+warning
+
+Test left-unbounded, right-open intervals
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'aaa';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'ccc';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'eee';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'mmm';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'nnn';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'qqq';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'xxx';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'zzz';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+
+Test left-unbounded, right-closed intervals
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'aaa';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'ccc';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'eee';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'mmm';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'nnn';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'qqq';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'xxx';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'zzz';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+
+Test left-open, right-unbounded intervals
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+
+Test left-closed, right-unbounded intervals
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+
+Test left-open, right-open intervals
+In some cases here the optimizer is smart enough not to call
+ha_innobase::records_in_range() at all, so we get no warning containing
+the value returned from btr_estimate_n_rows_in_range()
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'bbb';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'ccc';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'eee';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'mmm';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'nnn';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'qqq';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'xxx';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'zzz';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'eee';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'mmm';
+COUNT(*)
+8
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 8
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'nnn';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'qqq';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'xxx';
+COUNT(*)
+18
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 18
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'zzz';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'mmm';
+COUNT(*)
+8
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 8
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'nnn';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'qqq';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'xxx';
+COUNT(*)
+18
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 18
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'zzz';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'nnn';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'qqq';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'xxx';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'zzz';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'qqq';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'xxx';
+COUNT(*)
+8
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 8
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'zzz';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'xxx';
+COUNT(*)
+8
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 8
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'zzz';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'xxx';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'zzz';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'xxx';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'zzz';
+COUNT(*)
+0
+
+Test left-closed, right-open intervals
+In some cases here the optimizer is smart enough not to call
+ha_innobase::records_in_range() at all, so we get no warning containing
+the value returned from btr_estimate_n_rows_in_range()
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'bbb';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'ccc';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'eee';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'mmm';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'nnn';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'qqq';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'xxx';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'zzz';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'eee';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'mmm';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'nnn';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'qqq';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'xxx';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'zzz';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'mmm';
+COUNT(*)
+8
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 8
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'nnn';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'qqq';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'xxx';
+COUNT(*)
+18
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 18
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'zzz';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'nnn';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'qqq';
+COUNT(*)
+2
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 2
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'xxx';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'zzz';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'qqq';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'xxx';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'zzz';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'xxx';
+COUNT(*)
+8
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 8
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'zzz';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'xxx';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'zzz';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'xxx';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'zzz';
+COUNT(*)
+0
+
+Test left-open, right-closed intervals
+In some cases here the optimizer is smart enough not to call
+ha_innobase::records_in_range() at all, so we get no warning containing
+the value returned from btr_estimate_n_rows_in_range()
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'bbb';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'ccc';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'eee';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'mmm';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'nnn';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'qqq';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'xxx';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'zzz';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'eee';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'mmm';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'nnn';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'qqq';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'xxx';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'zzz';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'mmm';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'nnn';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'qqq';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'xxx';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'zzz';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'nnn';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'qqq';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'xxx';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'zzz';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'qqq';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'xxx';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'zzz';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'xxx';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'zzz';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'xxx';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'zzz';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'xxx';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'zzz';
+COUNT(*)
+0
+
+Test left-closed, right-closed intervals
+In some cases here the optimizer is smart enough not to call
+ha_innobase::records_in_range() at all, so we get no warning containing
+the value returned from btr_estimate_n_rows_in_range()
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'bbb';
+COUNT(*)
+0
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'ccc';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'eee';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'mmm';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'nnn';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'qqq';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'xxx';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'zzz';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'ccc';
+COUNT(*)
+1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'eee';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'mmm';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'nnn';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'qqq';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'xxx';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'zzz';
+COUNT(*)
+20
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 20
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'mmm';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'nnn';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'qqq';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'xxx';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'zzz';
+COUNT(*)
+19
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 19
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'mmm';
+COUNT(*)
+1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'nnn';
+COUNT(*)
+2
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 2
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'qqq';
+COUNT(*)
+2
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 2
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'xxx';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'zzz';
+COUNT(*)
+11
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 11
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'nnn';
+COUNT(*)
+1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'qqq';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'xxx';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'zzz';
+COUNT(*)
+10
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 10
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'xxx';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'zzz';
+COUNT(*)
+9
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 9
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'xxx';
+COUNT(*)
+1
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'zzz';
+COUNT(*)
+1
+Warnings:
+Warning	1230	btr_estimate_n_rows_in_range(): 1
+
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'bbb';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'ccc';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'eee';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'mmm';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'nnn';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'qqq';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'xxx';
+COUNT(*)
+0
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'zzz';
+COUNT(*)
+0
+SET SESSION DEBUG='-d,print_btr_estimate_n_rows_in_range_return_value';
+DROP TABLE records_in_range_test;

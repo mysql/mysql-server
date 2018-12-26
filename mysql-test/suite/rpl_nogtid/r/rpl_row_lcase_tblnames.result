@@ -1,0 +1,51 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+******** [ MASTER ] ********
+CREATE DATABASE BUG_37656;
+use BUG_37656;
+show databases like 'BUG_37656';
+Database (BUG_37656)
+BUG_37656
+******** [ SLAVE ] ********
+show databases like 'bug_37656';
+Database (bug_37656)
+bug_37656
+******** [ MASTER ] ********
+CREATE TABLE T1 (a int);
+CREATE TABLE T2 (b int) ENGINE=InnoDB;
+CREATE TABLE T3 (txt TEXT);
+show tables;
+Tables_in_BUG_37656
+T1
+T2
+T3
+******** [ SLAVE ] ********
+use bug_37656;
+show tables;
+Tables_in_bug_37656
+t2
+t3
+CREATE TABLE t1 (a INT);
+******** [ MASTER ] ********
+use BUG_37656;
+INSERT INTO T1 VALUES (1);
+INSERT INTO T2 VALUES (1);
+use test;
+INSERT INTO BUG_37656.T1 VALUES (2);
+INSERT INTO BUG_37656.T2 VALUES (2);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE BUG_37656.T3;
+******** [ SLAVE ] ********
+include/diff_tables.inc [master:BUG_37656.T2, slave:bug_37656.t2]
+include/diff_tables.inc [master:BUG_37656.T3, slave:bug_37656.t3]
+******** [ MASTER ] ********
+DROP DATABASE BUG_37656;
+include/rpl_reset.inc
+CREATE DATABASE B50653;
+USE B50653;
+CREATE PROCEDURE b50653_proc() BEGIN SELECT 1; END;
+DROP PROCEDURE b50653_proc;
+DROP DATABASE B50653;
+include/rpl_end.inc

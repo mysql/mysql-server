@@ -1,0 +1,152 @@
+#### Binary log ENABLED ####
+==== Don't set any option ====
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err 
+include/assert_grep.inc [There shall be no deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 60*60*24*30]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set one option to zero ====
+---- days=0 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err  --expire_logs_days=0
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 0]
+---- seconds=0 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err  --binlog-expire-logs-seconds=0
+include/assert_grep.inc [There shall be no deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set one option to non-zero ====
+---- days=14 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err  --expire_logs_days=14
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 14]
+---- seconds=3600 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err  --binlog-expire-logs-seconds=3600
+include/assert_grep.inc [There shall be no deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 3600]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set both options to zero ====
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err  --expire_logs_days=0 --binlog-expire-logs-seconds=0
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set both options: one to zero and one to non-zero ====
+---- seconds=0 days=14 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err  --expire_logs_days=14 --binlog-expire-logs-seconds=0
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 14]
+---- seconds=14 days=0 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err  --expire_logs_days=0 --binlog-expire-logs-seconds=14
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 14]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set both options to non-zero ====
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err  --expire_logs_days=14 --binlog-expire-logs-seconds=14
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be a combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 14]
+include/assert.inc [expire_logs_days shall be 0]
+#### Binary log DISABLED ####
+==== Don't set any option ====
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err --skip-log-bin
+include/assert_grep.inc [There shall be no deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 60*60*24*30]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set one option to zero ====
+---- days=0 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err --skip-log-bin --expire_logs_days=0
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be a binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 0]
+---- seconds=0 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err --skip-log-bin --binlog-expire-logs-seconds=0
+include/assert_grep.inc [There shall be no deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be a binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set one option to non-zero ====
+---- days=14 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err --skip-log-bin --expire_logs_days=14
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be no binlog_off+seconds warning]
+include/assert_grep.inc [There shall be a binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 14]
+---- seconds=3600 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err --skip-log-bin --binlog-expire-logs-seconds=3600
+include/assert_grep.inc [There shall be no deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be a binlog_off+seconds warning]
+include/assert_grep.inc [There shall be no binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 3600]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set both options to zero ====
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err --skip-log-bin --expire_logs_days=0 --binlog-expire-logs-seconds=0
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be a binlog_off+seconds warning]
+include/assert_grep.inc [There shall be a binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set both options: one to zero and one to non-zero ====
+---- seconds=0 days=14 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err --skip-log-bin --expire_logs_days=14 --binlog-expire-logs-seconds=0
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be a binlog_off+seconds warning]
+include/assert_grep.inc [There shall be a binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 0]
+include/assert.inc [expire_logs_days shall be 14]
+---- seconds=14 days=0 ----
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err --skip-log-bin --expire_logs_days=0 --binlog-expire-logs-seconds=14
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be no combination warning]
+include/assert_grep.inc [There shall be a binlog_off+seconds warning]
+include/assert_grep.inc [There shall be a binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 14]
+include/assert.inc [expire_logs_days shall be 0]
+==== Set both options to non-zero ====
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err --skip-log-bin --expire_logs_days=14 --binlog-expire-logs-seconds=14
+include/assert_grep.inc [There shall be a deprecation warning]
+include/assert_grep.inc [There shall be a combination warning]
+include/assert_grep.inc [There shall be a binlog_off+seconds warning]
+include/assert_grep.inc [There shall be a binlog_off+days warning]
+include/assert.inc [binlog_expire_logs_seconds shall be 14]
+include/assert.inc [expire_logs_days shall be 0]

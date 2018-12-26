@@ -1,0 +1,25 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+# Expect classes
+show global variables like "performance_schema_max_rwlock_classes";
+
+select count(*) > 0 from performance_schema.setup_instruments
+  where name like "wait/synch/rwlock/%";
+
+# Expect no class lost
+show global status like "performance_schema_rwlock_classes_lost";
+
+# Expect no instances
+show global variables like "performance_schema_max_rwlock_instances";
+
+select count(*) from performance_schema.rwlock_instances;
+
+# Expect instances lost
+--disable_warnings
+select variable_value > 0 from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_RWLOCK_INSTANCES_LOST';
+--enable_warnings
+
+

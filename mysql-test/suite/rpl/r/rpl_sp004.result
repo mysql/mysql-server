@@ -1,0 +1,97 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t2;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t3;
+CREATE PROCEDURE test.p1()
+BEGIN
+CREATE TABLE IF NOT EXISTS test.t1(a INT,PRIMARY KEY(a));
+CREATE TABLE IF NOT EXISTS test.t2(a INT,PRIMARY KEY(a));
+INSERT INTO test.t1 VALUES (4),(2),(1),(3);
+UPDATE test.t1 SET a=a+4 WHERE a=4;
+INSERT INTO test.t2 (a) SELECT t1.a FROM test.t1;
+UPDATE test.t1 SET a=a+4 WHERE a=8;
+CREATE TABLE IF NOT EXISTS test.t3(n MEDIUMINT NOT NULL AUTO_INCREMENT, f FLOAT, d DATETIME, PRIMARY KEY(n));
+END|
+CREATE PROCEDURE test.p2()
+BEGIN
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+INSERT INTO test.t3 VALUES(NULL,11111111.233333,NOW());
+END|
+CALL test.p1();
+SELECT * FROM test.t1 ORDER BY a;
+a
+1
+2
+3
+12
+SELECT * FROM test.t2 ORDER BY a;
+a
+1
+2
+3
+8
+include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t1 ORDER BY a;
+a
+1
+2
+3
+12
+SELECT * FROM test.t2 ORDER BY a;
+a
+1
+2
+3
+8
+CALL test.p2();
+USE test;
+SHOW TABLES;
+Tables_in_test
+t3
+include/sync_slave_sql_with_master.inc
+USE test;
+SHOW TABLES;
+Tables_in_test
+t3
+CALL test.p1();
+Warnings:
+Note	1050	Table 't3' already exists
+SELECT * FROM test.t1 ORDER BY a;
+a
+1
+2
+3
+12
+SELECT * FROM test.t2 ORDER BY a;
+a
+1
+2
+3
+8
+include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t1 ORDER BY a;
+a
+1
+2
+3
+12
+SELECT * FROM test.t2 ORDER BY a;
+a
+1
+2
+3
+8
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+DROP TABLE IF EXISTS test.t3;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

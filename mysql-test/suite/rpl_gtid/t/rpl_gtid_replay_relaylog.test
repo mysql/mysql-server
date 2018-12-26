@@ -1,0 +1,80 @@
+############################################################################
+# Bug #17650326  MYSQLBINLOG PRINTS INVALID SQL FROM RELAY LOGS WHEN GTID IS
+# ENABLED
+# Problem: Replaying a relaylog which ends with GTID_LOG_EVENT causes error
+# "ERROR 1790 (HY000) @@SESSION.GTID_NEXT cannot be changed by a client that
+# owns a GTID. The client owns <UUID:GNO>. Ownership is released on COMMIT
+# or ROLLBACK."
+#
+# Steps to reproduce:
+#  1) Stop IO thread after reading gtid_log_event (relaylog 1 contains
+#      GTID_LOG_EVENT at the end)
+#  2) Restart IO thread which rotates relaylog file (relaylog 2)
+#  3) Replay relaylog1's 'mysqlbinlog' output against 'mysql' client tool,
+#     it should not cause any problems.
+#  4) Replay (relaylog1 + relaylog2)'s 'mysqlbinlog' output against
+#     'mysql' client tool, it should not cause any problems.
+#
+############################################################################
+--source include/have_debug.inc
+# This test is not need against MTS setup
+--source include/not_mts_slave_parallel_workers.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+# Initial setup
+CREATE TABLE t1(i INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+--let MYSQLD_DATADIR=`select @@datadir`
+SET @save_debug=@@global.debug;
+
+# Step 1: Stop I/O thread after reading GTID_LOG_EVENT
+# This will leave the relaylog in incomplete state(i.e., it ends
+# with GTID_LOG_EVENT)
+SET GLOBAL DEBUG='d,stop_io_after_reading_gtid_log_event';
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (2);
+
+--source include/rpl_connection_slave.inc
+--source include/wait_for_slave_io_to_stop.inc
+--let $relay_file1 = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 )
+
+--let $auto_pos = query_get_value( SHOW SLAVE STATUS, Auto_Position, 1 )
+--let $assert_text= Slave MASTER_AUTO_POSITION should be enabled for this test
+--let $assert_cond= $auto_pos= 1
+--source include/assert.inc
+
+# Step 2: Restart I/O thread and execute the pending INSERT(2)
+SET GLOBAL DEBUG= @save_debug;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $relay_file2 = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 )
+
+# Step 3: Replay the incomplete Relaylog's mysqlbinlog output against mysql and see that
+# there are no issues.
+DROP TABLE t1;
+RESET MASTER;
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$relay_file1 | $MYSQL -uroot -S$SLAVE_MYSOCK -P$SLAVE_MYPORT
+
+--let $assert_text= Check that there is one tuple in the table
+--let $assert_cond= [SELECT COUNT(*) AS Val FROM t1 where i=1, Val, 1] = 1
+--source include/assert.inc
+
+# Step 4: Concat two relay logs and then replay mysqlbinlog ouput against mysql and see
+# that there are no issues.
+DROP TABLE t1;
+RESET MASTER;
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$relay_file1 $MYSQLD_DATADIR/$relay_file2 | $MYSQL -uroot -S$SLAVE_MYSOCK -P$SLAVE_MYPORT
+
+--let $assert_text= Check that there are two tuples in the table
+--let $assert_cond= [SELECT COUNT(*) AS Val FROM t1 where i=1 or i=2, Val, 1] = 2
+--source include/assert.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

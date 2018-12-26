@@ -1,0 +1,23 @@
+SELECT * FROM performance_schema.setup_consumers ORDER BY name;
+NAME	ENABLED
+events_stages_current	NO
+events_stages_history	YES
+events_stages_history_long	NO
+events_statements_current	YES
+events_statements_history	NO
+events_statements_history_long	YES
+events_transactions_current	YES
+events_transactions_history	NO
+events_transactions_history_long	YES
+events_waits_current	NO
+events_waits_history	YES
+events_waits_history_long	NO
+global_instrumentation	YES
+statements_digest	YES
+thread_instrumentation	YES
+SELECT @@performance_schema_consumer_events_stages_current;
+ERROR HY000: Unknown system variable 'performance_schema_consumer_events_stages_current'
+SET @@performance_schema_consumer_events_stages_current=0;
+ERROR HY000: Unknown system variable 'performance_schema_consumer_events_stages_current'
+SHOW GLOBAL VARIABLES LIKE "performance_schema_consumer%";
+Variable_name	Value

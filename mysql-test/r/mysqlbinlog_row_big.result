@@ -1,0 +1,102 @@
+#
+# Preparatory cleanup.
+#
+DROP TABLE IF EXISTS t1;
+#
+# We need a fixed timestamp to avoid varying results.
+#
+SET timestamp=1000000000;
+#
+# We need big packets.
+#
+# Capture initial value to reset at the end of the test
+# Now adjust max_allowed_packet
+SET @@global.max_allowed_packet= 1024*1024*1024;
+max_allowed_packet is a global variable.
+In order for the preceding change in max_allowed_packets' value
+to be seen and used, we must start a new connection.
+The change does not take effect with the current one.
+For simplicity, we just disconnect / reconnect connection default here.
+Disconnecting default connection...
+Reconnecting default connection...
+default connection established, continuing with the test
+#
+# Delete all existing binary logs.
+#
+RESET MASTER;
+#
+# Create a test table.
+#
+CREATE TABLE t1 (
+c1 LONGTEXT
+) ENGINE=MyISAM DEFAULT CHARSET latin1;
+#
+# Show how many rows are affected by each statement.
+#
+#
+# Insert some big rows.
+#
+64MB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 4194304));
+affected rows: 1
+32MB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 2097152));
+affected rows: 1
+4MB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 262144));
+affected rows: 1
+512KB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 32768));
+affected rows: 1
+#
+# Show what we have in the table.
+# Do not display the column value itself, just its length.
+#
+SELECT LENGTH(c1) FROM t1;
+LENGTH(c1)	67108864
+LENGTH(c1)	33554432
+LENGTH(c1)	4194304
+LENGTH(c1)	524288
+affected rows: 4
+#
+# Grow the rows by updating.
+#
+UPDATE t1 SET c1 = CONCAT(c1, c1);
+affected rows: 4
+info: Rows matched: 4  Changed: 4  Warnings: 0
+#
+# Show what we have in the table.
+# Do not display the column value itself, just its length.
+#
+SELECT LENGTH(c1) FROM t1;
+LENGTH(c1)	134217728
+LENGTH(c1)	1048576
+LENGTH(c1)	67108864
+LENGTH(c1)	8388608
+affected rows: 4
+#
+# Delete the rows.
+#
+DELETE FROM t1 WHERE c1 >= 'ManyMegaByteBlck';
+affected rows: 4
+#
+# Hide how many rows are affected by each statement.
+#
+#
+# Flush all log buffers to the log file.
+#
+FLUSH LOGS;
+#
+# Call mysqlbinlog to display the log file contents.
+# NOTE: The output of mysqlbinlog is redirected to
+#       $MYSQLTEST_VARDIR/tmp/mysqlbinlog_big_1.out
+#       If you want to examine it, disable remove_file
+#       at the bottom of the test script.
+#
+#
+# Cleanup.
+#
+# reset variable value to pass testcase checks
+SET @@global.max_allowed_packet = 67108864;
+DROP TABLE t1;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_big_1.out

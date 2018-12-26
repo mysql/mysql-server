@@ -1,0 +1,59 @@
+# Tests for PERFORMANCE_SCHEMA
+# Test how columns privileges can be used on performance schema tables,
+# for very fine control.
+
+show grants;
+
+create user 'pfs_user_5'@localhost;
+grant usage on *.* to 'pfs_user_5'@localhost with GRANT OPTION;
+
+# Test per column privileges on performance_schema
+
+grant SELECT(thread_id, event_id) on performance_schema.events_waits_current
+  to 'pfs_user_5'@localhost;
+
+grant UPDATE(enabled) on performance_schema.setup_instruments
+  to 'pfs_user_5'@localhost;
+
+flush privileges;
+
+connect (con1, localhost, pfs_user_5, , );
+
+# Commented because the result is not consistent (uppercase/lowercase)
+# show grants;
+
+# For statements that works, we do not look at the output
+--disable_result_log
+
+select thread_id from performance_schema.events_waits_current;
+
+select thread_id, event_id from performance_schema.events_waits_current;
+
+update performance_schema.setup_instruments set enabled='YES';
+
+--enable_result_log
+
+# For statements that are denied, check the error number and error text.
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+select event_name from performance_schema.events_waits_current;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+select thread_id, event_id, event_name
+  from performance_schema.events_waits_current;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+update performance_schema.setup_instruments set name='illegal';
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+update performance_schema.setup_instruments set timed='NO';
+
+# Cleanup
+
+--connection default
+--disconnect con1
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'pfs_user_5'@localhost;
+DROP USER 'pfs_user_5'@localhost;
+flush privileges;
+UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+

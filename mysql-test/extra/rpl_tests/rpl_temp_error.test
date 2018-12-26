@@ -1,0 +1,28 @@
+# An auxiliary file for causing temporary error on slave SQL thread.
+
+--echo # [ on slave ]
+connection slave;
+BEGIN;
+--echo # It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+
+connection master;
+--echo # [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+eval $statement;
+eval UPDATE t1 SET c2='$statement' WHERE c1= 1;
+COMMIT;
+save_master_pos;
+
+connection slave;
+--echo # [ on slave ]
+let $slave_sql_errno= 1205;
+source include/wait_for_slave_sql_error.inc;
+
+ROLLBACK;
+
+START SLAVE SQL_THREAD;
+source include/wait_for_slave_sql_to_start.inc;
+
+sync_with_master;

@@ -1,0 +1,3 @@
+--performance_schema=ON
+--performance-schema-instrument='%/mysqlx/%=COUNTED'
+--performance_schema_events_waits_history_long_size=600000

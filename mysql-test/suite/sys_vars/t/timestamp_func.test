@@ -1,0 +1,50 @@
+############################################################################
+#                                                                          #
+# Variable Name: timestamp                                                 #
+# Scope: GLOBAL                                                            #
+# Access Type: Dynamic                                                     #
+# Data Type: INTEGER                                                       #
+#                                                                          #
+#                                                                          #
+# Creation Date: 2008-02-25                                                #
+# Author:  Sharique Abdullah                                               #
+#                                                                          #
+# Modified: HHunger 2008-08-28 Reimplemented the test completely.          #
+#                                                                          #
+# Description: Test Cases of Dynamic System Variable "timestamp"           #
+#              that checks behavior of this variable in the following ways #
+#              * Functionality based on different values                   #
+#                                                                          #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html        #
+#                                                                          #
+############################################################################
+
+# Change timestamp which must have an effect on now(), but not on sysdate().
+# Use Unix epoch timestamp
+# All comparisons must deliver true(1)
+# Exception: --sysdate-is-now switches off this behaviour and must not be set.
+
+--echo ** Connecting con1 using root **
+connect (con1,localhost,root,,);
+SELECT date(now()) = date(sysdate());
+SET @@session.timestamp = 1100000000;
+SELECT date(now()) != date(sysdate());
+
+# Assure that setting of the variable has no effect on other session.
+--echo ** Connecting con0 using root **
+connect (con0,localhost,root,,);
+SELECT @@session.timestamp != 1100000000;
+SET @@session.timestamp = 1000000000;
+SELECT date(now()) != date(sysdate());
+
+--echo ** Connection con1 **
+connection con1;
+SELECT @@session.timestamp != 1000000000;
+SELECT @@session.timestamp = 1100000000;
+
+--echo ** Connection default **
+connection default;
+--echo Disconnecting Connections con0, con1
+disconnect con0;
+disconnect con1;
+

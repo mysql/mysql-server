@@ -1,0 +1,42 @@
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 1M
+ENGINE NDB;
+ALTER TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile2.dat'
+  INITIAL_SIZE = 4M;
+SELECT file_name, file_type FROM information_schema.files
+WHERE engine='ndbcluster' AND file_type = 'UNDO LOG';
+FILE_NAME	FILE_TYPE
+./lg1_undofile.dat	UNDO LOG
+SELECT file_name, file_type FROM information_schema.files
+WHERE engine='ndbcluster' AND file_type = 'DATAFILE';
+FILE_NAME	FILE_TYPE
+./ts1_datafile.dat	DATAFILE
+./ts1_datafile2.dat	DATAFILE
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat';
+ERROR HY000: Tablespace 'ts1' does not have a file named 'ts1_datafile2.dat'
+DROP TABLESPACE ts1;
+CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQLTEST_VARDIR/tmp/t1.dat' USE LOGFILE GROUP lg1 INITIAL_SIZE 1M ENGINE NDB;
+ERROR HY000: Failed to create DATAFILE
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 1M
+ENGINE NDB;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE=NDB;

@@ -1,0 +1,206 @@
+# Make sure that connection_control plugin can be loaded
+--source ../inc/have_connection_control_plugin.inc
+--source ../inc/have_test_plugin.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #-----------------------------------------------------------------------
+--echo # Setup
+--echo # Install connection_control plugin
+--source ../inc/install_connection_control_plugin.inc
+--echo # Do proxy setup
+--source ../inc/setup_proxy_accounts.inc
+
+# Official builds include separate debug enabled plugins to be used by
+# the debug enabled server. But the non-debug *client* should not use them.
+
+let PLUGIN_AUTH_OPT=`SELECT TRIM(TRAILING '/debug' FROM '$PLUGIN_AUTH_OPT')`;
+let CONNECTION_CONTROL_PLUGIN_OPT=`SELECT TRIM(TRAILING '/debug' FROM '$CONNECTION_CONTROL_PLUGIN_OPT')`;
+
+# Suppress error messages from test_plugin_server
+CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for proxied'");
+
+# Save original values of connection_control variables
+SET @saved_connections_threshold = @@global.connection_control_failed_connections_threshold;
+SET @saved_max_delay = @@global.connection_control_max_connection_delay;
+SET @saved_min_delay= @@global.connection_control_min_connection_delay;
+
+# Set a small values for connection_control variables
+SET @@global.connection_control_failed_connections_threshold = 3;
+SET @@global.connection_control_max_connection_delay = 4000;
+SET @@global.connection_control_min_connection_delay = 2000;
+
+# We will use client side authentication plugin for this test.
+let $USE_AUTH_PLUGIN= 1;
+let $CLIENT_AUTH_PLUGIN= $PLUGIN_AUTH_OPT;
+
+--echo #-----------------------------------------------------------------------
+
+--echo # Case 1 : Testss for valid user accounts
+
+--echo # Make enough failed attempts to trigger delays
+
+disable_result_log;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u2,efgh,,,,);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u3,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u2,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u3,efgh,,,,);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u2,,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u1,haha,,,,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con_u1, localhost, u3,efgh,,,,);
+
+enable_result_log;
+
+--echo # Following attempts will experience delay in server respose
+
+# Trying with invalid passwords
+
+--source ../inc/set_before_marker.inc
+let $USER=u1;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=1;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 2;
+--source ../inc/set_after_marker.inc
+
+--source ../inc/set_before_marker.inc
+let $USER=u2;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=2;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 2;
+--source ../inc/set_after_marker.inc
+
+--source ../inc/set_before_marker.inc
+let $USER=u3;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=3;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 2;
+--source ../inc/set_after_marker.inc
+
+# Trying with valid passwords
+# Even though u1@localhost, u2@localhost and u3@localhost are
+# proxying same user - proxied@localhost, we will not use
+# proxied@localohst for recording failed attempts information.
+# Rather, we will rely on proxying users' data.
+# So each of the following should get delay of 2 seconds
+# or more.
+
+--source ../inc/set_before_marker.inc
+let $USER=u3;
+let $PASSWORD=proxied;
+let $SUCCESS=1;
+let $DELAY_STATS=4;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 2;
+--source ../inc/set_after_marker.inc
+
+--source ../inc/set_before_marker.inc
+let $USER=u2;
+let $PASSWORD=proxied;
+let $SUCCESS=1;
+let $DELAY_STATS=5;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 2;
+--source ../inc/set_after_marker.inc
+
+--source ../inc/set_before_marker.inc
+let $USER=u1;
+let $PASSWORD=proxied;
+let $SUCCESS=1;
+let $DELAY_STATS=6;
+--source ../inc/check_connection_delay.inc
+
+let $SERVER_RESPONSE_TIME= 2;
+--source ../inc/set_after_marker.inc
+
+
+--echo # Following attempts will not experience any delay in server respose
+
+let $USER=u1;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=6;
+--source ../inc/check_connection_delay.inc
+
+let $USER=u2;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=6;
+--source ../inc/check_connection_delay.inc
+
+let $USER=u3;
+let $PASSWORD=hoho;
+let $SUCCESS=0;
+let $DELAY_STATS=6;
+--source ../inc/check_connection_delay.inc
+
+let $USER=u1;
+let $PASSWORD=proxied;
+let $SUCCESS=1;
+let $DELAY_STATS=6;
+--source ../inc/check_connection_delay.inc
+
+let $USER=u2;
+let $PASSWORD=proxied;
+let $SUCCESS=1;
+let $DELAY_STATS=6;
+--source ../inc/check_connection_delay.inc
+
+let $USER=u3;
+let $PASSWORD=proxied;
+let $SUCCESS=1;
+let $DELAY_STATS=6;
+--source ../inc/check_connection_delay.inc
+
+--echo #-----------------------------------------------------------------------
+--echo # Cleanup
+
+connection default;
+
+# Restore original values of conenction_control variables
+SET @@global.connection_control_failed_connections_threshold = @saved_connections_threshold;
+SET @@global.connection_control_max_connection_delay = @saved_max_delay;
+SET @@global.connection_control_min_connection_delay = @saved_min_delay;
+
+--echo # Remove user accounts
+--source ../inc/cleanup_proxy_accounts.inc
+--echo # Uninstall connection_control plugin
+--source ../inc/uninstall_connection_control_plugin.inc
+
+# Wait till all disconnects are completed.
+--source include/wait_until_count_sessions.inc
+--echo #-----------------------------------------------------------------------

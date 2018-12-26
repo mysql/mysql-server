@@ -1,0 +1,1 @@
+--default-authentication-plugin=caching_sha2_password

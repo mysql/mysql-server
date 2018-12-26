@@ -1,0 +1,42 @@
+
+#
+# exists as a session only
+#
+# 2010-01-20 OBN - Added check for variable value matching I_S tables
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.last_insert_id;
+select @@session.last_insert_id;
+show global variables like 'last_insert_id';
+show session variables like 'last_insert_id';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='last_insert_id';
+select * from performance_schema.session_variables where variable_name='last_insert_id';
+--enable_warnings
+
+#
+# show that it's writable
+#
+--error ER_LOCAL_VARIABLE
+set global last_insert_id=99;
+set session last_insert_id=42;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.last_insert_id;
+select @@session.last_insert_id;
+show global variables like 'last_insert_id';
+show session variables like 'last_insert_id';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='last_insert_id';
+select * from performance_schema.session_variables where variable_name='last_insert_id';
+--enable_warnings
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set session last_insert_id=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session last_insert_id=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session last_insert_id="foo";
+

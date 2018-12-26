@@ -1,0 +1,482 @@
+#
+# A series of tests to show the correct tablespace behavior when the
+# partition engine uses InnoDB.
+#
+--let $old_default_storage_engine = @@default_storage_engine;
+SET default_storage_engine=InnoDB;
+
+--echo #
+--echo # TABLESPACE related tests for the partition engine and InnoDB.
+--echo #
+
+# Set up some variables
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+LET $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data';
+LET $data_directory2 = DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data2';
+LET $index_directory = INDEX DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data';
+
+# These values can change during the test
+LET $innodb_file_per_table_orig=`select @@global.innodb_file_per_table`;
+LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
+
+--echo # The partition engine can send DATA DIRECTORY to InnoDB.
+--echo # In strict mode, it is an error if innodb_file_per_table = OFF
+--echo # or INDEX DIRECTORY is used.
+SET SESSION innodb_strict_mode = ON;
+SET GLOBAL innodb_file_per_table = OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA
+eval CREATE TABLE t1 (a int KEY, b text) ENGINE = InnoDB PARTITION BY HASH (a)
+     (PARTITION p0 engine=InnoDB $data_directory $index_directory,
+      PARTITION p1 engine=InnoDB $data_directory $index_directory);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW WARNINGS;
+
+--echo # Try again with innodb_file_per_table = ON and no INDEX DIRECTORY.
+SET GLOBAL innodb_file_per_table = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (a int KEY, b text) ENGINE = InnoDB PARTITION BY HASH (a)
+     (PARTITION p0 engine=InnoDB $data_directory,
+      PARTITION p1 engine=InnoDB $data_directory2);
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo # Verifying .ibd files
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
+
+--echo # Verifying that there are no MyISAM files
+--error 1
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.myd
+--error 1
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.myi
+--error 1
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.myd
+--error 1
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.myi
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#P#p0.myd
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#P#p0.myi
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#P#p1.myd
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#P#p1.myi
+# The ibd tablespaces should not be directly under the DATA DIRECTORY
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#P#p0.ibd
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#P#p1.ibd
+
+--echo # Test TRUNCATE TABLE with partitioned InnoDB tables
+INSERT INTO t1 VALUES (1, "red");
+INSERT INTO t1 VALUES (2, "green");
+INSERT INTO t1 VALUES (3, "blue");
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+--echo # Verifying .ibd files
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
+
+--echo # Test RENAME TABLE with partitioned InnoDB tables
+RENAME TABLE t1 TO t11;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t11;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+--echo # Verifying .ibd files
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t11#P#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t11#P#p1.ibd
+
+DROP TABLE t11;
+
+--echo # Test the previous DDL as a prepared statement.
+SET GLOBAL innodb_file_per_table = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval PREPARE stmt1 FROM "CREATE TABLE t1 (a int KEY, b text)
+     ENGINE = InnoDB PARTITION BY HASH (a)
+     (PARTITION p0 engine=InnoDB $data_directory,
+      PARTITION p1 engine=InnoDB $data_directory2)";
+EXECUTE stmt1;
+SHOW WARNINGS;
+DEALLOCATE PREPARE stmt1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+DROP TABLE t1;
+
+
+--echo # Test DATA DIRECTORY with Sub-partitions.
+SET GLOBAL innodb_file_per_table = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (id INT, purchased DATE) engine=InnoDB
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0 $data_directory,
+            SUBPARTITION s1 $data_directory2
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2 $data_directory,
+            SUBPARTITION s3 $data_directory2
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4 $data_directory,
+            SUBPARTITION s5 $data_directory2
+        )
+    );
+SHOW WARNINGS;
+INSERT INTO t1 VALUES(1,'1980-05-31');
+INSERT INTO t1 VALUES(2,'2090-05-31');
+INSERT INTO t1 VALUES(3,'2012-05-31');
+INSERT INTO t1 VALUES(4,'1970-05-31');
+INSERT INTO t1 VALUES(5,'1985-05-31');
+INSERT INTO t1 VALUES(6,'2006-05-31');
+SELECT * FROM t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo # Verifying .ibd files
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1#SP#s3.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p2#SP#s4.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p2#SP#s5.ibd
+DROP TABLE t1;
+
+--echo # Same as above except with ROW_FORMAT=Dyamic.
+SET GLOBAL innodb_file_per_table = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (id INT, purchased DATE)
+    engine = innodb row_format = dynamic
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0 $data_directory,
+            SUBPARTITION s1 $data_directory2
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2 $data_directory,
+            SUBPARTITION s3 $data_directory2
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4 $data_directory,
+            SUBPARTITION s5 $data_directory2
+        )
+    );
+SHOW WARNINGS;
+INSERT INTO t1 VALUES(1,'1980-05-31');
+INSERT INTO t1 VALUES(2,'2090-05-31');
+INSERT INTO t1 VALUES(3,'2012-05-31');
+INSERT INTO t1 VALUES(4,'1970-05-31');
+INSERT INTO t1 VALUES(5,'1985-05-31');
+INSERT INTO t1 VALUES(6,'2006-05-31');
+SELECT * FROM t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo # Verifying .ibd files
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1#SP#s3.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p2#SP#s4.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p2#SP#s5.ibd
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data/test
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data2/test
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data2
+--rmdir $MYSQL_TMP_DIR/alternate_dir
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (a INT)
+ENGINE = InnoDB
+DATA DIRECTORY = '$MYSQL_TMP_DIR/alternate_dir/data_table'
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (10)
+ (SUBPARTITION sp0,
+  SUBPARTITION sp1 DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data_subpart',
+  SUBPARTITION sp2),
+ PARTITION p1 VALUES LESS THAN (20)
+ DATA DIRECTORY = '$MYSQL_TMP_DIR/alternate_dir/data_part'
+ (SUBPARTITION sp3,
+  SUBPARTITION sp4 DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data_subpart',
+  SUBPARTITION sp5),
+ PARTITION p2 VALUES LESS THAN (30)
+ (SUBPARTITION sp6,
+  SUBPARTITION sp7 DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data_subpart',
+  SUBPARTITION sp8));
+--echo # Verifying .ibd files
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p0#SP#sp0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p0#SP#sp2.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p2#SP#sp6.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p2#SP#sp8.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#P#p1#SP#sp3.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#P#p1#SP#sp5.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_subpart/test/t1#P#p0#SP#sp1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_subpart/test/t1#P#p1#SP#sp4.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data_subpart/test/t1#P#p2#SP#sp7.ibd
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Test of table where the engine returns the DATA DIR.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1
+(a int not null,
+ primary key (a))
+ENGINE=InnoDB
+PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY '$MYSQL_TMP_DIR/alternate_dir/data_part',
+ PARTITION p1);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+# --echo # Test TABLESPACE (and restart)
+# CREATE TABLESPACE `ts_part1` ADD DATAFILE 'ts_part1.ibd';
+# CREATE TABLESPACE `ts part2` ADD DATAFILE 'ts_part2.ibd';
+# CREATE TABLESPACE `ts_part3` ADD DATAFILE 'ts_part3.ibd';
+# CREATE TABLESPACE `ts_part4` ADD DATAFILE 'ts_part4.ibd';
+#
+# let $long_tablespace_name=ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!;
+#
+# --error ER_TOO_LONG_IDENT
+# eval CREATE TABLE t2 (a int) ENGINE = InnoDB TABLESPACE `$long_tablespace_name`;
+# --error ER_TOO_LONG_IDENT
+# eval CREATE TABLE t2 (a int) ENGINE = InnoDB
+# PARTITION BY RANGE (a)
+# (PARTITION p1 VALUES LESS THAN (10)
+# TABLESPACE `$long_tablespace_name`
+# );
+#
+# CREATE TABLE t2
+# (a int not null auto_increment primary key,
+#  b varchar(128))
+# ENGINE = InnoDB
+# TABLESPACE ts_part1
+# PARTITION BY RANGE (a)
+# SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+# (PARTITION p0 VALUES LESS THAN (0) TABLESPACE `ts part2`
+#  (SUBPARTITION sp0 TABLESPACE ts_part3,
+#   SUBPARTITION sp1,
+#   SUBPARTITION sp2 TABLESPACE ts_part4),
+#  PARTITION p1 VALUES LESS THAN (100)
+#  (SUBPARTITION sp3,
+#   SUBPARTITION sp4 TABLESPACE innodb_file_per_table,
+#   SUBPARTITION sp5),
+#  PARTITION p2 VALUES LESS THAN (200)
+#  (SUBPARTITION sp6 TABLESPACE innodb_system,
+#   SUBPARTITION sp7,
+#   SUBPARTITION sp8),
+#  PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
+#  (SUBPARTITION sp9 TABLESPACE ts_part4,
+#   SUBPARTITION sp10,
+#   SUBPARTITION sp11));
+# SHOW CREATE TABLE t2;
+#
+# call mtr.add_suppression("Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
+# --error ER_TOO_LONG_IDENT
+# eval ALTER TABLE t2 ADD PARTITION
+# (PARTITION p4 VALUES LESS THAN (400)
+#  TABLESPACE `$long_tablespace_name`);
+#
+# --echo # Same but without table level tablespace defined
+# CREATE TABLE t3
+# (a int not null auto_increment primary key,
+#  b varchar(128))
+# ENGINE = InnoDB
+# PARTITION BY RANGE (a)
+# SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+# (PARTITION p0 VALUES LESS THAN (0) TABLESPACE `ts part2`
+#  (SUBPARTITION sp0 TABLESPACE ts_part3,
+#   SUBPARTITION sp1,
+#   SUBPARTITION sp2 TABLESPACE ts_part4),
+#  PARTITION p1 VALUES LESS THAN (100)
+#  (SUBPARTITION sp3,
+#   SUBPARTITION sp4 TABLESPACE innodb_file_per_table,
+#   SUBPARTITION sp5),
+#  PARTITION p2 VALUES LESS THAN (200)
+#  (SUBPARTITION sp6 TABLESPACE innodb_system,
+#   SUBPARTITION sp7,
+#   SUBPARTITION sp8),
+#  PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
+#  (SUBPARTITION sp9 TABLESPACE ts_part4,
+#   SUBPARTITION sp10,
+#   SUBPARTITION sp11));
+# SHOW CREATE TABLE t3;
+
+SET @@global.innodb_file_per_table = ON;
+CREATE TABLE t_file_per_table_on
+(a int not null auto_increment primary key,
+ b varchar(128))
+ENGINE = InnoDB;
+SET @@global.innodb_file_per_table = OFF;
+CREATE TABLE t_file_per_table_off
+(a int not null auto_increment primary key,
+ b varchar(128))
+ENGINE = InnoDB;
+SHOW CREATE TABLE t_file_per_table_on;
+SHOW CREATE TABLE t_file_per_table_off;
+SET @@global.innodb_file_per_table = ON;
+SHOW CREATE TABLE t_file_per_table_on;
+SHOW CREATE TABLE t_file_per_table_off;
+
+
+--echo # Restart to get DATA DIRECTORY read from the engine (InnoDB dictionary)
+--source include/restart_mysqld.inc
+
+ALTER TABLE t1 COALESCE PARTITION 1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+# SHOW CREATE TABLE t2;
+# SHOW CREATE TABLE t3;
+SET @old_sql_quote_show_create=@@sql_quote_show_create;
+SET @@sql_quote_show_create=0;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+# SHOW CREATE TABLE t2;
+# SHOW CREATE TABLE t3;
+SET @@sql_quote_show_create=@old_sql_quote_show_create;
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+let $INNODB_PAGE_SIZE=`SELECT @@innodb_page_size`;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+DROP TABLE t1;
+
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+# DROP TABLE t1,t2,t3;
+# DROP TABLESPACE ts_part1;
+# DROP TABLESPACE `ts part2`;
+# DROP TABLESPACE ts_part3;
+# DROP TABLESPACE ts_part4;
+
+SET @@global.innodb_file_per_table = ON;
+SHOW CREATE TABLE t_file_per_table_on;
+SHOW CREATE TABLE t_file_per_table_off;
+SET @@global.innodb_file_per_table = OFF;
+SHOW CREATE TABLE t_file_per_table_on;
+SHOW CREATE TABLE t_file_per_table_off;
+DROP TABLE t_file_per_table_on;
+DROP TABLE t_file_per_table_off;
+
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data_table/test
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data_table
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data_part/test
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data_part
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data_subpart/test
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data_subpart
+--rmdir $MYSQL_TMP_DIR/alternate_dir
+
+--disable_query_log
+EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
+EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
+EVAL SET @@default_storage_engine=$old_default_storage_engine;
+--enable_query_log
+
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+# #
+# # Bug#25512556: GETTING TABLESPACE NAMES FROM FREED MEMORY
+# #
+# CREATE TABLE t0 (col1 INT, col2 INT, col3 INT) ENGINE = InnoDB
+#   TABLESPACE innodb_system PARTITION BY RANGE(col1 * 2)
+#   ( PARTITION p2 VALUES LESS THAN MAXVALUE );
+#
+# ALTER TABLE t0 OPTIMIZE PARTITION ALL;
+# DROP TABLE t0;
+#
+# --echo #
+# --echo # Test case for bug#25524498.
+# --echo #
+#
+# CREATE TABLESPACE gt1 ADD DATAFILE '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+# CREATE TABLE t1 (col1 INT, col2 INT, col3 INT) ENGINE = InnoDB TABLESPACE gt1;
+# ALTER TABLE t1 ADD COLUMN col5 VARCHAR(500) , ADD COLUMN col6 TEXT;
+# ALTER TABLE t1 ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 3;
+# ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+# --error ER_DUP_FIELDNAME
+# ALTER TABLE t1 ADD COLUMN col5 VARCHAR(500) , ADD COLUMN col6 TEXT;
+# ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+# DROP TABLE t1;
+# DROP TABLESPACE gt1;
+#
+# --echo #
+# --echo # Test case for bug#25533133.
+# --echo #
+#
+# CREATE TABLESPACE gt1 ADD DATAFILE '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+# CREATE TABLE t1 (col1 INT) ENGINE = InnoDB TABLESPACE gt1;
+# ALTER TABLE t1 ENGINE = InnoDB PARTITION BY RANGE(col1 * 2)
+#   ( PARTITION p3 VALUES LESS THAN MAXVALUE );
+# ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+# TRUNCATE TABLE t1;
+# ALTER TABLE t1 ENGINE = InnoDB TABLESPACE gt1;
+#
+# DROP TABLE t1;
+# DROP TABLESPACE gt1;
+#
+# --echo #
+# --echo # Test case for bug#25616303.
+# --echo #
+#
+# CREATE TABLESPACE  gt1 ADD DATAFILE  '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+# CREATE TABLE t1 (col1 INT, col5 VARCHAR(500)) ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 4;
+# ALTER TABLE t1 ALGORITHM COPY , TABLESPACE innodb_system;
+# --error ER_DUP_FIELDNAME
+# ALTER TABLE t1 ADD COLUMN col5 VARCHAR(500);
+# ALTER TABLE t1 ALGORITHM COPY , TABLESPACE  gt1;
+#
+# DROP TABLE t1;
+# DROP TABLESPACE gt1;
+#
+# --echo #
+# --echo # Bug#25695284: PARTITION INFO AFTER FAILING ALTER INCORRECTLY
+# --echo #               REFLECTED IN SUBSEQUENT ALTER
+# --echo #
+#
+# CREATE TABLESPACE gt1 ADD DATAFILE 'gt1.ibd' ENGINE = InnoDB;
+# CREATE TABLESPACE gt2 ADD DATAFILE 'gt2.ibd' ENGINE = InnoDB;
+#
+# CREATE TABLE t1 (str VARCHAR(10)) TABLESPACE gt2;
+#
+# ALTER TABLE t1 ALGORITHM COPY PARTITION BY KEY(str) PARTITIONS 4;
+# --error ER_DUP_FIELDNAME
+# ALTER TABLE t1 ALGORITHM COPY, ADD COLUMN str VARCHAR(10);
+#
+# # Without the patch, this fails with an aseert in InnoDB.
+# ALTER TABLE t1 ALGORITHM COPY, TABLESPACE gt1;
+
+# DROP TABLE t1;
+# DROP TABLESPACE gt1;
+# DROP TABLESPACE gt2;

@@ -1,0 +1,75 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # -----------------------------------------------------------------------
+
+--echo # Begin : Tests for DROP USER
+
+CREATE USER userX, userY, userZ;
+
+DROP USER userZ;
+
+--source include/save_binlog_position.inc
+
+SELECT user from mysql.user WHERE user LIKE 'user%';
+
+--echo # Case 1 : Try removing a non-existing user
+--error ER_CANNOT_USER
+DROP USER userX, userY, userZ;
+
+--echo # Must show userX and userY
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+--let $invert= 1
+--let $event= !Q(DROP USER.*userX.*userY.*userZ)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Case 2 : DROP USER after deleting entry from mysql.user tables
+DELETE FROM mysql.user WHERE user LIKE 'userY';
+
+--source include/save_binlog_position.inc
+
+--echo # Must succeed
+DROP USER userX, userY;
+
+--echo # Must not show any entries
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+--let $event= !Q(DROP USER.*userX.*userY.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # End : Tests for DROP USER
+
+--echo # -----------------------------------------------------------------------
+
+--echo # Begin : Tests for DROP USER IF EXISTS
+
+CREATE USER userX, userY, userZ;
+DROP USER userZ;
+
+--source include/save_binlog_position.inc
+
+--echo # Case 1 : DROP USER IF EXISTS for non-existing user
+DROP USER IF EXISTS userX, userY, userZ;
+
+--echo # Must not show any entries
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+--echo #check binlog : Must show DROP USER IF EXISTS as it is
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 2 : DROP USER IF EXISTS should be logged in binlog
+--echo #          even if non of the users were present.
+DROP USER IF EXISTS userX, userY, userZ;
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # End : Test for DROP USER IF EXISTS
+
+--echo # -----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

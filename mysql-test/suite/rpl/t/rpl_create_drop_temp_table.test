@@ -1,0 +1,74 @@
+###############################################################################
+# Bug#18364070  BACKPORT BUG#18236612 TO MYSQL-5.6
+# Problem & Analysis : When Slave SQL thread detects that Master was restarted
+#  with the help of information sent by Master through 'FormatDescription'
+#  event, slave SQL drops all the opened temporary tables in order to have
+#  proper cleanup. While slave SQL thread is dropping the temporary tables, it
+#  is not decrementing Slave_open_temp_tables count.
+#  Fix: Decrement Slave_open_temp_tables count in this case.
+# Steps to test:
+#  1) Create a temporary table
+#  2) Sync it with slave
+#  3) Stop slave io thread
+#  4) Kill Master which generates Format Description event
+#  5) Restart Master again
+#  6) Start slave io thread
+#  7) Wait till SQL thread applies all events
+#     (which includes newly generated Format Description event)
+#  8) Now verify that Slave_open_temp_tables has '0' value
+
+# This same test steps with gtid enabled mode, works to test the following
+# bug as well.
+# Bug#18069107 SLAVE CRASHES WITH GTIDS,TEMP TABLE, STOP IO_THREAD, START SLAVE
+# Problem & Analysis : When Slave SQL thread detects that Master was restarted
+#  with the help of information sent by Master through 'FormatDescription'
+#  event, slave SQL drops all the opened temporary tables in order to have
+#  proper cleanup. When Gtid mode is on and while slave SQL thread is
+#  generating DROP TEMPORARY statement for all these temporary tables,
+#  server is hitting an assert DEBUG_ASSERT(gtid.spec_type != UNDEF_GROUP)
+###############################################################################
+
+# Statement mode is enough (row based temporary
+# tables are not replicated)
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+# 1. Create a temporary table
+CREATE TEMPORARY TABLE temp (i INT);
+
+# 2. Sync it with slave
+--sync_slave_with_master
+
+# 3. Stop slave io thread
+--source include/stop_slave_io.inc
+
+# 4. Kill Master so that it does not go through THD::cleanup logic. Hence it does
+# not generate "drop temporary" query for 'temp' table.
+--let $rpl_server_number= 1
+--let $rpl_force_stop=1
+--source include/rpl_stop_server.inc
+
+# 5. Restart Master (generates Format Description event which tells slave to
+# drop all temporary tables)
+--source include/rpl_start_server.inc
+
+# 6. Start slave io_thread
+--connection slave
+--source include/start_slave_io.inc
+--connection master
+--source include/sync_slave_io_with_master.inc
+
+# 7. Wait for slave thread to apply all events (including the newly generated
+# FormatDescription event which tells slave SQL thread to drop all temporary
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= = 'Slave has read all relay log; waiting for more updates';
+--source include/wait_show_condition.inc
+
+# 8.Now if we verify slave_open_temp_tables, it should be '0'
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables should be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_end.inc

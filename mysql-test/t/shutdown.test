@@ -1,0 +1,53 @@
+# shutdown SQL command test cases.
+
+
+let $BDIR= `select @@basedir`;
+let $DDIR= `select @@datadir`;
+
+--echo # shutdown the server from mtr.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # restart the server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # start the sql client and run shutdown sql command.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec $MYSQL -e "shutdown;" 2>&1
+--source include/wait_until_disconnected.inc
+
+--echo # restart the server
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Run shutdown sql command and some other SQL command.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 1
+--exec $MYSQL -e "shutdown; select user from mysql.user;"
+--source include/wait_until_disconnected.inc
+
+--echo # restart the server
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # start mysqladmin with shutdown option.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root shutdown 2>&1
+--source include/wait_until_disconnected.inc
+
+--echo # start the mysql server with init file and shutdown command.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 1
+--exec $MYSQLD_CMD --no-defaults --innodb_dedicated_server=OFF --datadir=$DDIR --init-file=shutdown.sql >$MYSQLTEST_VARDIR/log/mysqld_out_err.log 2>&1
+--source include/wait_until_disconnected.inc
+
+--echo # restart server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+

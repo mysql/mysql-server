@@ -1,0 +1,81 @@
+--source include/have_ndb.inc
+#
+# Tests of table partotioned across a large number
+# of fragments. Intended to test possible issues
+# with large signal fanout, breaking the '1::4 rule'
+#
+
+
+create table parent(a int primary key, b int) engine=ndb;
+create table child(a int, b int, primary key(a,b)) engine=ndb;
+
+alter table parent partition by key(a) partitions 128;
+alter table child  partition by key(a,b) partitions 128;
+
+insert into parent values (1,1), (2,2), (3,3), (4,4);
+insert into parent select a+4, b+4 from parent;
+insert into parent select a+8, b+8 from parent;
+insert into parent select a+16, b+16 from parent;
+insert into parent select a+32, b+32 from parent;
+insert into parent select a+64, b+64 from parent;
+insert into parent select a+128, b+128 from parent;
+
+insert into child select * from parent;
+analyze table parent, child;
+
+let $query =
+ select straight_join count(*) from parent
+ join child as c1 on c1.a = parent.b
+ join child as c2 on c2.a = parent.b
+ join child as c3 on c3.a = parent.b
+ join child as c4 on c4.a = parent.b
+ join child as c5 on c5.a = parent.b
+ join child as c6 on c6.a = parent.b
+ join child as c7 on c7.a = parent.b
+ join child as c8 on c8.a = parent.b
+ join child as c9 on c9.a = parent.b
+ join child as c10 on c10.a = parent.b
+ join child as c11 on c11.a = parent.b
+ join child as c12 on c12.a = parent.b
+ join child as c13 on c13.a = parent.b
+ join child as c14 on c14.a = parent.b
+ join child as c15 on c15.a = parent.b
+ join child as c16 on c16.a = parent.b
+ where parent.b < 2
+;
+
+set ndb_join_pushdown = false;
+--replace_column 10 # 11 #
+eval explain $query;
+eval $query;
+
+set ndb_join_pushdown = true;
+--replace_column 10 # 11 #
+eval explain $query;
+eval $query;
+
+drop table parent, child;
+
+CREATE TABLE partitioned ( server_id int(11) NOT NULL, t12counter int(11) NOT NULL, pt12counter int(10) unsigned NOT NULL, updatetime timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (server_id) USING HASH ) ENGINE=ndb DEFAULT CHARSET=latin1 PARTITION BY KEY (server_id) PARTITIONS 56;
+
+insert into partitioned values (1,0,0,NULL);
+
+## Partition ID for row 1 = 52 (big-endian) or 19 (little-endian)
+--replace_regex /p52/pX/ /p19/pX/
+select partition_name,table_rows from information_schema.PARTITIONS where  table_name='partitioned' and table_rows>0;
+
+## Partition ID for row 1 = 52 (big-endian) or 19 (little-endian)
+--replace_regex /p52/pX/ /p19/pX/
+explain select * from partitioned where server_id=1;
+
+insert into partitioned values (2,0,0,NULL);
+
+## Partition ID for row 2 = 30 (big-endian) or 1 (little-endian)
+--replace_regex /p30/pY/ /p1/pY/
+select partition_name,table_rows from information_schema.PARTITIONS where  table_name='partitioned' and table_rows>0 order by partition_name limit 1;
+
+## Partition ID for row 2 = 30 (big-endian) or 1 (little-endian)
+--replace_regex /p30/pY/ /p1/pY/
+explain select * from partitioned where server_id=2;
+
+drop table partitioned;

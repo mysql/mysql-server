@@ -1,0 +1,687 @@
+CREATE TABLE t1(
+col1_idx INT DEFAULT NULL,
+col2_idx INT DEFAULT NULL,
+col3 INT DEFAULT NULL,
+col4 INT NOT NULL,
+vc VARCHAR(20),
+vc_ft VARCHAR(20),
+KEY(col1_idx),
+KEY(col2_idx),
+FULLTEXT(vc_ft)
+) ENGINE=myisam;
+CREATE TABLE t2(
+col1_idx INT DEFAULT NULL,
+col2_idx INT DEFAULT NULL,
+col3 INT DEFAULT NULL,
+KEY(col1_idx),
+KEY(col2_idx)
+) ENGINE=myisam;
+insert into t1 values (1,1,1,1,'america', 'america'),(2,2,2,2,'england','england');
+insert into t1 select col1_idx+2, col2_idx+2, col3+2, col4+2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2, col2_idx+2*2, col3+2*2, col4+2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2*2, col2_idx+2*2*2, col3+2*2*2, col4+2*2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2*2*2, col2_idx+2*2*2*2, col3+2*2*2*2, col4+2*2*2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2*2*2*2, col2_idx+2*2*2*2*2, col3+2*2*2*2*2, col4+2*2*2*2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2*2*2*2*2, col2_idx+2*2*2*2*2*2, col3+2*2*2*2*2*2, col4+2*2*2*2*2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx, col2_idx, col3, col4, 'america', 'america' from t1;
+insert into t1 select col1_idx, col2_idx, col3, col4, 'england america', 'england america' from t1;
+insert ignore into t1 select col1_idx, col2_idx, col3, col4, 'germany england america', 'germany england america' from t1;
+insert into t1 select col1_idx, col2_idx, col3, col4, 'norway sweden', 'norway sweden' from t1 limit 5;
+insert into t2 select col1_idx,col2_idx,col3 from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+
+### Test that optimizer_condition_fanout_filter works ###
+set optimizer_switch='condition_fanout_filter=off';
+
+EXPLAIN SELECT * FROM t1 WHERE col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE col1_idx>1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.42	Using where
+EXPLAIN SELECT * FROM t1 JOIN t2 WHERE t1.col1_idx=t2.col1_idx;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	t1	NULL	ref	col1_idx	col1_idx	5	test.t2.col1_idx	8	100.00	NULL
+set optimizer_switch='condition_fanout_filter=on';
+
+EXPLAIN SELECT * FROM t1 WHERE col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+#########################################################
+
+# Testing non-indexed Operators
+
+# Simple operands
+EXPLAIN SELECT * FROM t1 WHERE t1.col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<=>5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3>5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3>=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+
+# NOT <simple operands>
+EXPLAIN SELECT * FROM t1 WHERE t1.col3!=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	90.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE NOT t1.col3<=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+
+# BETWEEN
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 BETWEEN 5 AND 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+
+# NOT BETWEEN
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 NOT BETWEEN 5 AND 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+
+# <column> IN
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (5, 6);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	20.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (5, 6, 7, 8);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	40.00	Using where
+# Dependent subquery in IN list. No filtering in t1 
+EXPLAIN SELECT * FROM t1 
+WHERE t1.col3 IN (1, (SELECT col3 FROM t2 where col3=t1.col4 LIMIT 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+
+# <column> NOT IN
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 NOT IN (5, 6);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	80.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 NOT IN (5, 6, 7, 8);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	60.00	Using where
+
+# <row_value> IN
+EXPLAIN SELECT * FROM t1 WHERE (t1.col3, t1.col4) IN ((5,5),(6,6),(7,7));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	3.00	Using where
+EXPLAIN 
+SELECT * FROM t1 WHERE (t1.col3, t1.col4) IN ((5,5),(6,6),(7,7),(8,8),(9,9),(10,10));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	6.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE (t1.col3, 1) IN ((5,5),(6,6),(7,7));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	30.00	Using where
+
+# <row_value> NOT IN
+EXPLAIN SELECT * FROM t1 WHERE (t1.col3, t1.col4) NOT IN ((5,5),(6,6),(7,7));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	97.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE (t1.col3, 1) NOT IN ((5,5),(6,6),(7,7));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	70.00	Using where
+
+# NULL
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 = NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3>NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3>=NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<=NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE NULL>t1.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE NULL>=t1.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE NULL<t1.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE NULL<=t1.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+
+# NOT NULL
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	90.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 != NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	90.00	Using where
+
+# NULL (not nullable column)
+EXPLAIN SELECT * FROM t1 WHERE t1.col4 IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+EXPLAIN SELECT * FROM t1 WHERE t1.col4 = NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col4>NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col4>=NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col4<NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col4<=NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE NULL>t1.col4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE NULL>=t1.col4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE NULL<t1.col4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE NULL<=t1.col4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+
+# NOT NULL (not nullable column)
+EXPLAIN SELECT * FROM t1 WHERE t1.col4 IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	90.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col4 != NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	90.00	Using where
+
+# LIKE
+EXPLAIN SELECT * FROM t1 WHERE t1.vc LIKE 'america';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.vc LIKE '%america';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.vc LIKE 'amer%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.vc NOT LIKE 'america';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.vc NOT LIKE '%america';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.vc NOT LIKE 'amer%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+
+# FULLTEXT
+EXPLAIN SELECT * FROM t1 WHERE MATCH(t1.vc) AGAINST ('+norway' IN BOOLEAN MODE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+EXPLAIN SELECT * FROM t1 WHERE MATCH(t1.vc_ft) AGAINST ('+norway');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	vc_ft	vc_ft	0	const	1	100.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE MATCH(t1.vc_ft) AGAINST ('norway');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	vc_ft	vc_ft	0	const	1	100.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE NOT MATCH(t1.vc) AGAINST ('+norway' IN BOOLEAN MODE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+EXPLAIN SELECT * FROM t1 WHERE NOT MATCH(t1.vc_ft) AGAINST ('+norway');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+EXPLAIN SELECT * FROM t1 WHERE NOT MATCH(t1.vc_ft) AGAINST ('norway');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+
+# Functions
+EXPLAIN SELECT * FROM t1 WHERE length(t1.vc) > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE length(t1.vc) = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE length(t1.vc) IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+EXPLAIN SELECT * FROM t1 WHERE length(t1.vc) IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+
+# AND/OR/XOR
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col4<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 OR col4<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	55.55	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 AND col4<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 XOR col4<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	44.44	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 XOR col4<5 XOR col1_idx>3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	48.15	Using where
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 XOR (col4<5 AND col4>1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	37.03	Using where
+# Done OP non-indexed tests
+
+### START SUBQUERY LOOP ###
+
+#  table scan in subq, no filter
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.col3	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+
+# table scan in subq, filter from range access
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col1_idx>2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.col3	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	98.35	Using where
+
+# table scan subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.col3	1	100.00	Using where
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+
+# range in subquery, no filter
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+2	SUBQUERY	t2	NULL	range	col1_idx	col1_idx	5	NULL	1012	100.00	Using index condition
+
+# table scan subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+
+# range in subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2 and col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+2	SUBQUERY	t2	NULL	range	col1_idx	col1_idx	5	NULL	1012	10.00	Using index condition; Using where
+
+# EXISTS - outer reference
+# dynamic range subq, filter SEL(>)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT 1 FROM t2 where col1_idx>t1.col3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	33.33	Range checked for each record (index map: 0x1)
+
+#
+EXPLAIN SELECT * FROM t1 WHERE col3 =   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 <=> (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 >   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 >=  (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 <   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 <=  (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 between (SELECT 1 FROM t2) and 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx =   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <=> (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx >   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.42	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx >=  (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	1	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <=  (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx between (SELECT 1 FROM t2 LIMIT 1) and 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	12	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+
+set optimizer_switch='semijoin=off';
+
+
+#  table scan in subq, no filter
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+
+# table scan in subq, filter from range access
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col1_idx>2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	98.35	Using where
+
+# table scan subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+
+# range in subquery, no filter
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+2	SUBQUERY	t2	NULL	range	col1_idx	col1_idx	5	NULL	1012	100.00	Using index condition
+
+# table scan subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+
+# range in subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2 and col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+2	SUBQUERY	t2	NULL	range	col1_idx	col1_idx	5	NULL	1012	10.00	Using index condition; Using where
+
+# EXISTS - outer reference
+# dynamic range subq, filter SEL(>)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT 1 FROM t2 where col1_idx>t1.col3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	33.33	Range checked for each record (index map: 0x1)
+
+#
+EXPLAIN SELECT * FROM t1 WHERE col3 =   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 <=> (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 >   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 >=  (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 <   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 <=  (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col3 between (SELECT 1 FROM t2) and 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx =   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <=> (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx >   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.42	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx >=  (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	1	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <=  (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+EXPLAIN SELECT * FROM t1 WHERE col1_idx between (SELECT 1 FROM t2 LIMIT 1) and 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	12	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+
+set optimizer_switch='semijoin=off';
+
+set optimizer_switch=default;
+################
+
+EXPLAIN 
+SELECT * 
+FROM t1 AS t1a JOIN t1 AS t1b ON t1a.col1_idx=t1b.col1_idx 
+WHERE t1b.col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1b	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	10.00	Using where
+1	SIMPLE	t1a	NULL	ref	col1_idx	col1_idx	5	test.t1b.col1_idx	8	100.00	NULL
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx=t2.col1_idx
+WHERE t2.col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	10.00	Using where
+1	SIMPLE	t1	NULL	ref	col1_idx	col1_idx	5	test.t2.col1_idx	8	100.00	NULL
+
+EXPLAIN 
+SELECT *
+FROM t1 JOIN t2 ON t1.col1_idx=t2.col1_idx
+WHERE t1.col3=t2.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	t1	NULL	ref	col1_idx	col1_idx	5	test.t2.col1_idx	8	10.00	Using where
+
+EXPLAIN 
+SELECT *
+FROM t1 JOIN t2 ON t1.col1_idx=t2.col1_idx
+WHERE t1.col2_idx=1 AND t2.col2_idx=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	col1_idx,col2_idx	col2_idx	5	const	6	100.00	Using where
+1	SIMPLE	t2	NULL	ref	col1_idx,col2_idx	col1_idx	5	test.t1.col1_idx	8	0.78	Using where
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx=t2.col1_idx
+WHERE t1.col2_idx>1 AND t2.col2_idx>1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx,col2_idx	NULL	NULL	NULL	1029	99.22	Using where
+1	SIMPLE	t1	NULL	ref	col1_idx,col2_idx	col1_idx	5	test.t2.col1_idx	8	99.42	Using where
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx>t2.col1_idx
+WHERE t1.col2_idx>1 AND t2.col2_idx>1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx,col2_idx	NULL	NULL	NULL	1029	99.22	Using where
+1	SIMPLE	t1	NULL	ALL	col1_idx,col2_idx	NULL	NULL	NULL	1029	33.14	Using where; Using join buffer (Block Nested Loop)
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx>t2.col1_idx
+WHERE t1.col1_idx>1 AND t2.col1_idx>1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.22	Using where
+1	SIMPLE	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.42	Using where; Using join buffer (Block Nested Loop)
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx>t2.col1_idx
+WHERE t1.col1_idx!=1 AND t2.col1_idx>4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	96.79	Using where
+1	SIMPLE	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.51	Using where; Using join buffer (Block Nested Loop)
+
+EXPLAIN 
+SELECT * FROM t1 JOIN t2 ON t1.col1_idx>t2.col1_idx;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	33.33	Range checked for each record (index map: 0x1)
+
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx > 500 AND col2_idx > 500;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx,col2_idx	col1_idx	5	NULL	5	1.00	Using index condition; Using where
+
+EXPLAIN SELECT * FROM t1 WHERE col1_idx > 120 AND col2_idx > 120;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx,col2_idx	col1_idx	5	NULL	128	12.44	Using index condition; Using where
+
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx IN (120,121,122) AND col2_idx IN (120,121,122);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx,col2_idx	col1_idx	5	NULL	13	1.26	Using index condition; Using where
+# TODO: after wl7019
+# EXPLAIN 
+# SELECT * FROM t1 WHERE col1_idx IN (120,121,122);
+# EXPLAIN 
+# SELECT * FROM t1 WHERE (col1_idx,c) IN ((120,1),(121,2),(122,3));
+
+range on col1_idx and filtering estimate from the range optimizer on col2_idx
+-> no filtering effect for filter_single_col_small
+-> very small filtering effect for filter_single_col_big
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx IN (120,121,122) AND col2_idx NOT IN (120,121,122);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx,col2_idx	col1_idx	5	NULL	13	98.93	Using index condition; Using where
+
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx IN (120,121,122) AND col3 IN (120,121,122);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx	col1_idx	5	NULL	13	30.00	Using index condition; Using where
+
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx IN (120,121,122) AND col3 NOT IN (120,121,122);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx	col1_idx	5	NULL	13	70.00	Using index condition; Using where
+
+EXPLAIN 
+SELECT * FROM t1 JOIN t2 ON t1.col3=t2.col1_idx WHERE t2.col1_idx>20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	t2	NULL	ref	col1_idx	col1_idx	5	test.t1.col3	8	100.00	NULL
+
+EXPLAIN 
+SELECT * FROM t1 JOIN t2 ON t1.col3=t2.col1_idx WHERE t2.col1_idx=20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	col1_idx	col1_idx	5	const	8	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where; Using join buffer (Block Nested Loop)
+DROP TABLE t1,t2;
+#
+# Bug#18446462: ASSERT `ROWS >= 0.0' AT
+#               COST_MODEL_SERVER::ROW_EVALUATE_COST IN 
+#               OPT_COSTMODEL.H
+#
+create table t10 (pk int primary key, i int);
+insert into t10 values (1,1);
+insert into t10 select pk+1, i from t10;
+insert into t10 select pk+2, i from t10;
+insert into t10 select pk+4, i from t10;
+insert into t10 select pk+8, i from t10 limit 2;
+create table t19 (pk int primary key, i int);
+insert into t19 values (1,1);
+insert into t19 select pk+1, i from t19;
+insert into t19 select pk+2, i from t19;
+insert into t19 select pk+4, i from t19;
+insert into t19 select pk+8, i from t19;
+insert into t19 select pk+16, i from t19 limit 3;
+create table t25 (pk int primary key, i int);
+insert into t25 values (1,1);
+insert into t25 select pk+1, i from t25;
+insert into t25 select pk+2, i from t25;
+insert into t25 select pk+4, i from t25;
+insert into t25 select pk+8, i from t25;
+insert into t25 select pk+16, i from t25 limit 9;
+set @optimizer_switch_saved=@@optimizer_switch;
+set optimizer_switch='derived_merge=off';
+EXPLAIN SELECT * FROM (
+SELECT t10_1.*
+FROM t10 AS t10_1,
+t10 AS t10_2,
+t10 AS t10_3,
+t10 AS t10_4,
+t10 AS t10_5,
+t10 AS t10_6,
+t25 AS t25_1, 
+t25 AS t25_2,
+t19
+) AS d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	11875000000	100.00	NULL
+2	DERIVED	t10_1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+2	DERIVED	t10_2	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
+2	DERIVED	t10_3	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
+2	DERIVED	t10_4	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
+2	DERIVED	t10_5	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
+2	DERIVED	t10_6	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
+2	DERIVED	t19	NULL	index	NULL	PRIMARY	4	NULL	19	100.00	Using index; Using join buffer (Block Nested Loop)
+2	DERIVED	t25_1	NULL	index	NULL	PRIMARY	4	NULL	25	100.00	Using index; Using join buffer (Block Nested Loop)
+2	DERIVED	t25_2	NULL	index	NULL	PRIMARY	4	NULL	25	100.00	Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `d`.`pk` AS `pk`,`d`.`i` AS `i` from (/* select#2 */ select `test`.`t10_1`.`pk` AS `pk`,`test`.`t10_1`.`i` AS `i` from `test`.`t10` `t10_1` join `test`.`t10` `t10_2` join `test`.`t10` `t10_3` join `test`.`t10` `t10_4` join `test`.`t10` `t10_5` join `test`.`t10` `t10_6` join `test`.`t25` `t25_1` join `test`.`t25` `t25_2` join `test`.`t19`) `d`
+set optimizer_switch=@optimizer_switch_saved;
+DROP TABLE t10;
+DROP TABLE t19;
+DROP TABLE t25;

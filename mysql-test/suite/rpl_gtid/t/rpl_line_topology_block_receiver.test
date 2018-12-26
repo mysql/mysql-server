@@ -1,0 +1,95 @@
+# ==== Purpose ====
+# This test case verifies that receiver threads GTID sets do not rely on
+# global SID anymore. Because of this, it is possible to have a receiver thread
+# receiving GTIDs (and adding them to its retrieved GTID set) and having other
+# servers replicating from it.
+#
+# The test uses debug instrumentation to pause the receiver thread while
+# adding the received gtid to received_transaction_set, verifies that other
+# servers can connect to it and replicate without problems.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#8599: Reduce contention in IO and SQL threads
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $rpl_gtid_utils=1
+--let $rpl_skip_start_slave=1
+--let $rpl_topology=1->2,2->3
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $master1_uuid=`SELECT @@global.server_uuid`
+# Create one table, populate it, then drop it
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/start_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# Add debug instrumentation to hold the receiver thread
+# while writing to the relay log.
+--let $debug_point=updating_received_transaction_set
+--source include/add_debug_point.inc
+
+# Execute transaction on server1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES(2);
+
+# Wait until the receiver reached the debug point on server2
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC="now WAIT_FOR reached_updating_received_transaction_set";
+
+# Insert on master2 and execution of SELECT @@GLOBAL.GTID_EXECUTED is successful
+SET GTID_NEXT='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t1 VALUES(3);
+SET GTID_NEXT= AUTOMATIC;
+
+--let $wait_condition= SELECT COUNT(*) = 2 FROM t1
+--source include/wait_condition_or_abort.inc
+
+--let $assert_text= Insert on master2/slave1 is successful
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$master1_uuid:1-2,aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1")
+--source include/assert.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--source include/start_slave.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--echo sync server_3 with server_2
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $debug_point=updating_received_transaction_set
+--source include/remove_debug_point.inc
+
+# Let the receiver of server2 continue
+SET DEBUG_SYNC="now SIGNAL continue_updating_received_transaction_set";
+
+--echo sync server_3 with server_2
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $use_gtids= 1
+--source include/rpl_end.inc

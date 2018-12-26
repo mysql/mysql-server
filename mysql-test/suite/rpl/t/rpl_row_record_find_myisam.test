@@ -1,0 +1,27 @@
+--source include/not_group_replication_plugin.inc
+source include/have_binlog_format_row.inc;
+source include/master-slave.inc;
+
+#
+# BUG#40045: Replication failure on RBR + no PK + UPDATE + integer key + char
+# with no key
+#
+connection master;
+CREATE TABLE t1 ( i1 int, c1 char(1), key ( i1 ));
+INSERT IGNORE INTO t1 VALUES (1, 'a');
+UPDATE t1 SET c1 = 'b' WHERE i1 = 1;
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# BUG#40007: Replication failure with RBR + no PK + 2 indexed fields 
+#
+connection master;
+CREATE TABLE table1_myisam ( `bit_key` bit, `int_key` int, key (`bit_key` ), key (`int_key` ));
+disable_warnings;
+INSERT IGNORE INTO table1_myisam VALUES ('1', '-2146992385');
+enable_warnings;
+UPDATE `table1_myisam` SET `bit_key` = 0 WHERE `bit_key` = 1;
+DROP TABLE table1_myisam;
+
+--source include/rpl_end.inc

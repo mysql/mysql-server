@@ -1,0 +1,26 @@
+################################################################################
+# Purpose:                                                                     #
+#  Tests around number of partitions                                           #
+#        MyISAM branch                                                         #
+#------------------------------------------------------------------------------#
+# Original Author: Horst Hunger                                                #
+# Original Date: 2012-08-30                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+# General not engine specific settings and requirements
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+call mtr.add_suppression("A long semaphore wait");
+call mtr.add_suppression("Could not increase number of max_open_files");
+
+##### Storage engine to be tested
+let $engine= 'InnoDB';
+
+##### Number of files the storage engine will need to create partitions.
+let $mysql_needed_max_files=8192;
+
+--source suite/max_parts/inc/partition_max_parts_key.inc

@@ -1,0 +1,22 @@
+--source include/windows.inc
+
+select @@innodb_flush_method;
+select @@innodb_use_native_aio;
+let $restart_parameters=restart: --innodb-flush-method=1;
+--source include/restart_mysqld.inc
+select @@innodb_flush_method;
+select @@innodb_use_native_aio;
+
+create table t(a serial) engine=innodb;
+
+let $restart_parameters=restart: --innodb-flush-method=1 --innodb-use-native-aio=0;
+--source include/restart_mysqld.inc
+select @@innodb_flush_method;
+select @@innodb_use_native_aio;
+
+insert into t values(0);
+
+let $restart_parameters=restart;
+--source include/restart_mysqld.inc
+
+drop table t;

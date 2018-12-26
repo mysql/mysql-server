@@ -1,0 +1,83 @@
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+SET @@time_zone='+00:00';
+SET @@timestamp=25810.123456;
+
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+CREATE TABLE t1
+(
+ ts0 TIMESTAMP(0),
+ ts1 TIMESTAMP(1),
+ ts2 TIMESTAMP(2),
+ ts3 TIMESTAMP(3),
+ ts4 TIMESTAMP(4),
+ ts5 TIMESTAMP(5),
+ ts6 TIMESTAMP(6)
+);
+
+SET sql_mode = default;
+
+SET @ts='2001-01-01 10:10:10.123456';
+INSERT INTO t1 VALUES (@ts, @ts, @ts, @ts, @ts, @ts, @ts);
+INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
+INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
+--query_vertical SELECT * FROM t1
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+--query_vertical SELECT * FROM t1
+connection master;
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+
+connection master;
+CREATE TABLE t1
+(
+ dt0 DATETIME(0),
+ dt1 DATETIME(1),
+ dt2 DATETIME(2),
+ dt3 DATETIME(3),
+ dt4 DATETIME(4),
+ dt5 DATETIME(5),
+ dt6 DATETIME(6)
+);
+SET @ts='2001-01-01 10:10:10.123456';
+INSERT INTO t1 VALUES (@ts, @ts, @ts, @ts, @ts, @ts, @ts);
+INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
+INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
+--query_vertical SELECT * FROM t1
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+--query_vertical SELECT * FROM t1
+connection master;
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+
+connection master;
+CREATE TABLE t1
+(
+ t0 TIME(0),
+ t1 TIME(1),
+ t2 TIME(2),
+ t3 TIME(3),
+ t4 TIME(4),
+ t5 TIME(5),
+ t6 TIME(6)
+);
+SET @t='10:10:10.123456';
+INSERT INTO t1 VALUES (@t, @t, @t, @t, @t, @t, @t);
+INSERT INTO t1 VALUES (CURTIME(), CURTIME(), CURTIME(), CURTIME(), CURTIME(), CURTIME(), CURTIME());
+INSERT INTO t1 VALUES (CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6));
+--query_vertical SELECT * FROM t1
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+--query_vertical SELECT * FROM t1
+connection master;
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+connection master;
+--source include/rpl_end.inc

@@ -1,0 +1,19 @@
+# -----------------------------------------------------------------------
+# Tests for the performance schema statement Digests.
+# -----------------------------------------------------------------------
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+USE performance_schema;
+truncate table events_statements_history_long;
+
+# -----------------------------------------------------------------------
+# Test to show how the digest behaves with low value of max_digest_length
+# -----------------------------------------------------------------------
+SELECT 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1;
+
+--echo ####################################
+--echo # QUERYING PS STATEMENT DIGEST
+--echo ####################################
+SELECT event_name, digest, digest_text, sql_text FROM events_statements_history_long;

@@ -1,0 +1,222 @@
+############## mysql-test\t\low_priority_updates_basic.test ###################
+#                                                                             #
+# Variable Name: low_priority_updates                                         #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: FALSE                                                        #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-11                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable low_priority_updates     #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html#option_mysqld_low-priority-updates            #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+####################################################################
+#           START OF low_priority_updates TESTS                    #
+####################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.low_priority_updates;
+SELECT @start_global_value;
+SET @start_session_value = @@session.low_priority_updates;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_069_01-------------------------#'
+####################################################################
+#     Display the DEFAULT value of low_priority_updates            #
+####################################################################
+
+SET @@global.low_priority_updates = ON;
+SET @@global.low_priority_updates = DEFAULT;
+SELECT @@global.low_priority_updates;
+
+SET @@session.low_priority_updates = ON;
+SET @@session.low_priority_updates = DEFAULT;
+SELECT @@session.low_priority_updates;
+
+
+--echo '#--------------------FN_DYNVARS_069_02-------------------------#'
+########################################################################
+#     Check the DEFAULT value of low_priority_updates              #
+########################################################################
+
+SET @@global.low_priority_updates = DEFAULT;
+SELECT @@global.low_priority_updates = 'FALSE';
+
+SET @@session.low_priority_updates = DEFAULT;
+SELECT @@session.low_priority_updates = 'FALSE';
+
+
+--echo '#--------------------FN_DYNVARS_069_03-------------------------#'
+##############################################################################
+# Change the value of low_priority_updates to a valid value for GLOBAL Scope #
+##############################################################################
+
+SET @@global.low_priority_updates = ON;
+SELECT @@global.low_priority_updates;
+SET @@global.low_priority_updates = OFF;
+SELECT @@global.low_priority_updates;
+SET @@global.low_priority_updates = 0;
+SELECT @@global.low_priority_updates;
+SET @@global.low_priority_updates = 1;
+SELECT @@global.low_priority_updates;
+SET @@global.low_priority_updates = TRUE;
+SELECT @@global.low_priority_updates;
+SET @@global.low_priority_updates = FALSE;
+SELECT @@global.low_priority_updates;
+
+
+
+--echo '#--------------------FN_DYNVARS_069_04-------------------------#'
+###############################################################################
+# Change the value of low_priority_updates to a valid value for SESSION Scope #
+###############################################################################
+ 
+SET @@session.low_priority_updates = ON;
+SELECT @@session.low_priority_updates;
+SET @@session.low_priority_updates = OFF;
+SELECT @@session.low_priority_updates;
+SET @@session.low_priority_updates = 0;
+SELECT @@session.low_priority_updates;
+SET @@session.low_priority_updates = 1;
+SELECT @@session.low_priority_updates;
+SET @@session.low_priority_updates = TRUE;
+SELECT @@session.low_priority_updates;
+SET @@session.low_priority_updates = FALSE;
+SELECT @@session.low_priority_updates;
+
+
+--echo '#------------------FN_DYNVARS_069_05-----------------------#'
+################################################################
+# Change the value of low_priority_updates to an invalid value #
+################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.low_priority_updates = 'ONN';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.low_priority_updates = "OFFF";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.low_priority_updates = TTRUE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.low_priority_updates = FELSE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.low_priority_updates = -1024;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.low_priority_updates = 65536;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.low_priority_updates = 65530.34;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.low_priority_updates = test;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.low_priority_updates = ONN;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.low_priority_updates = ONF;
+--error ER_PARSE_ERROR
+SET @@session.low_priority_updates = OF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.low_priority_updates = 'OFN';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.low_priority_updates = -2;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.low_priority_updates = 65530.34;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.low_priority_updates = 65550;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.low_priority_updates = test;
+
+
+--echo '#------------------FN_DYNVARS_069_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+
+--disable_warnings
+SELECT IF(@@global.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='low_priority_updates';
+--enable_warnings
+
+--echo '#------------------FN_DYNVARS_069_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT IF(@@session.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='low_priority_updates';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_069_08----------------------#'
+###############################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable #
+###############################################################################
+
+SET @@low_priority_updates = FALSE;
+SET @@global.low_priority_updates = TRUE;
+SELECT @@low_priority_updates = @@global.low_priority_updates;
+
+
+--echo '#---------------------FN_DYNVARS_069_09----------------------#'
+########################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE  #
+#    points to same session variable                                   #
+########################################################################
+
+SET @@low_priority_updates = ON;
+SELECT @@low_priority_updates = @@local.low_priority_updates;
+SELECT @@local.low_priority_updates = @@session.low_priority_updates;
+
+
+--echo '#---------------------FN_DYNVARS_069_10----------------------#'
+###############################################################################
+#   Check if low_priority_updates can be accessed with and without @@ sign    #
+###############################################################################
+
+SET low_priority_updates = 1;
+SELECT @@low_priority_updates;
+--Error ER_UNKNOWN_TABLE
+SELECT local.low_priority_updates;
+--Error ER_UNKNOWN_TABLE
+SELECT session.low_priority_updates;
+--Error ER_BAD_FIELD_ERROR
+SELECT low_priority_updates = @@session.low_priority_updates;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.low_priority_updates = @start_global_value;
+SELECT @@global.low_priority_updates;
+SET @@session.low_priority_updates = @start_session_value;
+SELECT @@session.low_priority_updates;
+
+
+#########################################################
+#                 END OF low_priority_updates TESTS     #
+#########################################################
+

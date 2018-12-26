@@ -1,0 +1,1061 @@
+CREATE PROCEDURE populate_t1(load_even INT)
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+IF i%2 = 0 AND load_even = 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+IF i%2 != 0 AND load_even != 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+SELECT @@innodb_fill_factor;
+@@innodb_fill_factor
+100
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5000
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+/* Check table. */
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+/*Insert/Update/Delete. */
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b3000';
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b4000';
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a4001';
+class	id	title
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+9992
+/* Add column. */
+ALTER TABLE t1 ADD COLUMN content TEXT;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title	content
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title	content
+/* Drop column. */
+ALTER TABLE t1 DROP COLUMN content;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+ALTER TABLE t1 ADD INDEX `idx` (a,b(5));
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+10000
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+1
+UPDATE t1 SET b = REPEAT(CONCAT('b',4975),2000) WHERE a=4975 AND b like 'a4975%';
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+1
+DELETE FROM t1 WHERE a=4975 AND b like 'b4975%';
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+DROP TABLE t1;
+DROP PROCEDURE populate_t1;
+CREATE PROCEDURE populate_t1(load_even INT)
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+IF i%2 = 0 AND load_even = 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+IF i%2 != 0 AND load_even != 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+SELECT @@innodb_fill_factor;
+@@innodb_fill_factor
+100
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5000
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+/* Check table. */
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+/*Insert/Update/Delete. */
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b3000';
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b4000';
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a4001';
+class	id	title
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+9992
+/* Add column. */
+ALTER TABLE t1 ADD COLUMN content TEXT;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title	content
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title	content
+/* Drop column. */
+ALTER TABLE t1 DROP COLUMN content;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+ALTER TABLE t1 ADD INDEX `idx` (a,b(5));
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+10000
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+1
+UPDATE t1 SET b = REPEAT(CONCAT('b',4975),2000) WHERE a=4975 AND b like 'a4975%';
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+1
+DELETE FROM t1 WHERE a=4975 AND b like 'b4975%';
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+DROP TABLE t1;
+DROP PROCEDURE populate_t1;
+CREATE PROCEDURE populate_t1(load_even INT)
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+IF i%2 = 0 AND load_even = 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+IF i%2 != 0 AND load_even != 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+SELECT @@innodb_fill_factor;
+@@innodb_fill_factor
+100
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5000
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+/* Check table. */
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+/*Insert/Update/Delete. */
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b3000';
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b4000';
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a4001';
+class	id	title
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+9992
+/* Add column. */
+ALTER TABLE t1 ADD COLUMN content TEXT;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title	content
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title	content
+/* Drop column. */
+ALTER TABLE t1 DROP COLUMN content;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+ALTER TABLE t1 ADD INDEX `idx` (a,b(5));
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+10000
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+1
+UPDATE t1 SET b = REPEAT(CONCAT('b',4975),2000) WHERE a=4975 AND b like 'a4975%';
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+1
+DELETE FROM t1 WHERE a=4975 AND b like 'b4975%';
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+DROP TABLE t1;
+DROP PROCEDURE populate_t1;
+CREATE PROCEDURE populate_t1(load_even INT)
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+IF i%2 = 0 AND load_even = 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+IF i%2 != 0 AND load_even != 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+SELECT @@innodb_fill_factor;
+@@innodb_fill_factor
+100
+SET GLOBAL innodb_file_per_table=1;
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5000
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+/* Check table. */
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+/*Insert/Update/Delete. */
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b3000';
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b4000';
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a4001';
+class	id	title
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+9992
+/* Add column. */
+ALTER TABLE t1 ADD COLUMN content TEXT;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title	content
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title	content
+/* Drop column. */
+ALTER TABLE t1 DROP COLUMN content;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b BLOB,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+ALTER TABLE t1 ADD INDEX `idx` (a,b(5));
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+10000
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+1
+UPDATE t1 SET b = REPEAT(CONCAT('b',4975),2000) WHERE a=4975 AND b like 'a4975%';
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+1
+DELETE FROM t1 WHERE a=4975 AND b like 'b4975%';
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=default;
+DROP PROCEDURE populate_t1;
+SET GLOBAL innodb_fill_factor=10;
+CREATE PROCEDURE populate_t1(load_even INT)
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+IF i%2 = 0 AND load_even = 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+IF i%2 != 0 AND load_even != 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+SELECT @@innodb_fill_factor;
+@@innodb_fill_factor
+10
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5000
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+/* Check table. */
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+/*Insert/Update/Delete. */
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b3000';
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b4000';
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a4001';
+class	id	title
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+9992
+/* Add column. */
+ALTER TABLE t1 ADD COLUMN content TEXT;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title	content
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title	content
+/* Drop column. */
+ALTER TABLE t1 DROP COLUMN content;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+ALTER TABLE t1 ADD INDEX `idx` (a,b(5));
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+10000
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+1
+UPDATE t1 SET b = REPEAT(CONCAT('b',4975),2000) WHERE a=4975 AND b like 'a4975%';
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+1
+DELETE FROM t1 WHERE a=4975 AND b like 'b4975%';
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+DROP TABLE t1;
+DROP PROCEDURE populate_t1;
+SET GLOBAL innodb_fill_factor=50;
+CREATE PROCEDURE populate_t1(load_even INT)
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+IF i%2 = 0 AND load_even = 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+IF i%2 != 0 AND load_even != 1 THEN
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+END IF;
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
+SELECT @@innodb_fill_factor;
+@@innodb_fill_factor
+50
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5000
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+/* Check table. */
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+/*Insert/Update/Delete. */
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b3000';
+class	id	title
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
+class	id	title
+SELECT * FROM t1 WHERE title = 'b4000';
+class	id	title
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a4001';
+class	id	title
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+9992
+/* Add column. */
+ALTER TABLE t1 ADD COLUMN content TEXT;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title	content
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title	content
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title	content
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title	content
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title	content
+/* Drop column. */
+ALTER TABLE t1 DROP COLUMN content;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
+class	id	title
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
+class	id	title
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
+class	id	title
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
+class	id	title
+SELECT * FROM t1 WHERE title = 'a10010';
+class	id	title
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+ALTER TABLE t1 ADD INDEX `idx` (a,b(5));
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+10000
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+1
+UPDATE t1 SET b = REPEAT(CONCAT('b',4975),2000) WHERE a=4975 AND b like 'a4975%';
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+b=REPEAT(CONCAT('a',4975),2000)
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+1
+DELETE FROM t1 WHERE a=4975 AND b like 'b4975%';
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+b=REPEAT(CONCAT('b',4975),2000)
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+CHAR_LENGTH(b)
+DROP TABLE t1;
+DROP PROCEDURE populate_t1;
+SET GLOBAL innodb_fill_factor=default;

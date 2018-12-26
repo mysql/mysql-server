@@ -1,0 +1,143 @@
+################# mysql-test\t\innodb_commit_concurrency_basic.test ###########
+#                                                                             #
+# Variable Name: innodb_commit_concurrency                                    #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: Numeric                                                          #
+# Default Value: 0                                                            #
+# Range: 0-1000                                                               #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+#Description:Test Cases of Dynamic System Variable innodb_commit_concurrency  #
+#             that checks the behavior of this variable in the following ways #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF innodb_commit_concurrency TESTS          #
+######################################################################## 
+
+
+##############################################################################
+#   Saving initial value of innodb_commit_concurrency in a temporary variable#
+##############################################################################
+
+SET @global_start_value = @@global.innodb_commit_concurrency;
+SELECT @global_start_value;
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+######################################################################## 
+#           Display the DEFAULT value of innodb_commit_concurrency     #
+######################################################################## 
+
+SET @@global.innodb_commit_concurrency = 0;
+SET @@global.innodb_commit_concurrency = DEFAULT;
+SELECT @@global.innodb_commit_concurrency;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+################################################################################
+#   Check if innodb_commit_concurrency can be accessed with and without @@ sign#
+################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET innodb_commit_concurrency = 1;
+SELECT @@innodb_commit_concurrency;
+
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_commit_concurrency;
+
+SET global innodb_commit_concurrency = 0;
+
+SELECT @@global.innodb_commit_concurrency;
+
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+########################################################################## 
+#      change the value of innodb_commit_concurrency to a valid value    #
+########################################################################## 
+
+
+SET @@global.innodb_commit_concurrency = 0;
+SELECT @@global.innodb_commit_concurrency;
+
+--echo '#--------------------FN_DYNVARS_046_04-------------------------#'
+########################################################################### 
+#    Change the value of innodb_commit_concurrency to invalid value       #
+########################################################################### 
+
+#
+# InnoDB doesn't allow innodb_commit_concurrency to change from
+# zero to non-zero or vice versa
+#
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_commit_concurrency = 1;
+SELECT @@global.innodb_commit_concurrency;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_commit_concurrency = -1;
+SELECT @@global.innodb_commit_concurrency;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_commit_concurrency = "T";
+SELECT @@global.innodb_commit_concurrency;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_commit_concurrency = "Y";
+SELECT @@global.innodb_commit_concurrency;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_commit_concurrency = 1.1;
+SELECT @@global.innodb_commit_concurrency;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_commit_concurrency = 1001;
+SELECT @@global.innodb_commit_concurrency;
+
+
+
+--echo '#----------------------FN_DYNVARS_046_05------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT @@global.innodb_commit_concurrency =
+ VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_commit_concurrency';
+SELECT @@global.innodb_commit_concurrency;
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+ WHERE VARIABLE_NAME='innodb_commit_concurrency';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_046_06-------------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+################################################################### 
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_commit_concurrency = OFF;
+SELECT @@global.innodb_commit_concurrency;
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_commit_concurrency = ON;
+SELECT @@global.innodb_commit_concurrency;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+
+SET @@global.innodb_commit_concurrency = @global_start_value;
+SELECT @@global.innodb_commit_concurrency;
+
+###############################################################
+#         END OF innodb_commit_concurrency TESTS              #
+############################################################### 

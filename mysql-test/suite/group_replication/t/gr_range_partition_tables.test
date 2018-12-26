@@ -1,0 +1,110 @@
+################################################################################
+# The aim of this test is to verify that Group Replication does not affect
+# partitioning of tables.
+#
+# 0. Start 3 servers with Group Replication
+# 1. Create a table with range partition.
+# 2. Perform few DMLs on the table and check it is replicated properly on other servers.
+# 3. Clean-up
+################################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--echo ## Range Partitioning ##
+CREATE TABLE t1 (id int PRIMARY KEY, vc VARCHAR(255),
+                 t DATE)
+                 CHARSET=utf8mb4
+                 PARTITION BY RANGE (id)
+                (PARTITION p1 VALUES LESS THAN (5),
+                 PARTITION p2 VALUES LESS THAN (10),
+                 PARTITION p3 VALUES LESS THAN (15),
+                 PARTITION p4 VALUES LESS THAN MAXVALUE);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SHOW CREATE TABLE t1;
+
+# Insert some values into table
+# This record should belong to partition p1
+INSERT INTO t1 VALUES (01, 'test partioning of tables', '2013-03-01');
+
+# This record should belong to partition p3
+INSERT INTO t1 VALUES (10, 'test partioning of tables', '2012-12-10');
+
+# This record should belong to partition p3
+INSERT INTO t1 VALUES (12, 'test partioning of tables', '2011-11-13');
+
+# This record should belong to partition p4
+INSERT INTO t1 VALUES (100, 'test partioning of tables', '2011-10-13');
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SHOW CREATE TABLE t1;
+
+# Validate Record counts
+# Assert that partition p1 has 1 row.
+--let $assert_text= 'Check that partition p1 on table t1 has 1 row'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 PARTITION (p1), count, 1]= 1
+--source include/assert.inc
+
+# Assert that partition p2 has 0 rows.
+--let $assert_text= 'Check that partition p2 on table t1 has 0 rows'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 PARTITION (p2), count, 1]= 0
+--source include/assert.inc
+
+# Assert that partition p3 has 2 rows.
+--let $assert_text= 'Check that partition p3 on table t1 has 2 rows'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 PARTITION (p3), count, 1]= 2
+--source include/assert.inc
+
+# Assert that partition p4 has 1 row.
+--let $assert_text= 'Check that partition p4 on table t1 has 1 row'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 PARTITION (p4), count, 1]= 1
+--source include/assert.inc
+
+# Perform few DMLs
+DELETE FROM t1 WHERE id=12;
+
+# This Record should be inserted in partition p2
+INSERT INTO t1 values (7, 'test partioning of tables', '2016-08-15');
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SHOW CREATE TABLE t1;
+
+# Assert that partition p1 has 1 row.
+--let $assert_text= 'Check that partition p1 on table t1 has 1 row'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 PARTITION (p1), count, 1]= 1
+--source include/assert.inc
+
+# Assert that partition p2 has 1 row.
+--let $assert_text= 'Check that partition p2 on table t1 has 1 row'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 PARTITION (p2), count, 1]= 1
+--source include/assert.inc
+
+# Assert that partition p3 has 1 row.
+--let $assert_text= 'Check that partition p3 on table t1 has 1 row'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 PARTITION (p3), count, 1]= 1
+--source include/assert.inc
+
+# Assert that partition p4 has 1 row.
+--let $assert_text= 'Check that partition p4 on table t1 has 1 row'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 PARTITION (p4), count, 1]= 1
+--source include/assert.inc
+
+# Clean-up
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--source include/group_replication_end.inc

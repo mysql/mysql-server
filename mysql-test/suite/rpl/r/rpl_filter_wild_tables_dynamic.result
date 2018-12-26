@@ -1,0 +1,48 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('test.a%');
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('test.b%');
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=();
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=();
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('test.a%');
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('test.b%');
+include/start_slave.inc
+CREATE TABLE a1 (a INT);
+CREATE TABLE b1 (a INT);
+CREATE TABLE c1 (a INT);
+INSERT INTO a1 VALUES (1);
+INSERT INTO b1 VALUES (2);
+INSERT INTO c1 VALUES (3);
+include/sync_slave_sql_with_master.inc
+[on slave]
+SHOW TABLES LIKE '%1';
+Tables_in_test (%1)
+a1
+[on slave]
+Replicate_Wild_Do_Table = 'test.a%'
+Replicate_Wild_Ignore_Table = 'test.b%'
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('testa%');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('testb%');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('db1.t1%', 'testa%');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db2.t2%', 'testb%');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+include/start_slave.inc
+Replicate_Wild_Do_Table = 'test.a%'
+Replicate_Wild_Ignore_Table = 'test.b%'
+[on master]
+DROP TABLE IF EXISTS a1,b1,c1;
+include/rpl_end.inc
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=();
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=();

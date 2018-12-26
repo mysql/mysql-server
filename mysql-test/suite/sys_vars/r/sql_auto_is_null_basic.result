@@ -1,0 +1,32 @@
+'#---------------------BS_STVARS_044_01----------------------#'
+SELECT @@session.sql_auto_is_null;
+@@session.sql_auto_is_null
+0
+'#---------------------BS_STVARS_044_02----------------------#'
+SET @@session.sql_auto_is_null=1;
+SELECT @@session.sql_auto_is_null;
+@@session.sql_auto_is_null
+1
+'#---------------------BS_STVARS_044_03----------------------#'
+SELECT IF(@@session.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_auto_is_null';
+IF(@@session.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE
+1
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_auto_is_null';
+VARIABLE_VALUE
+ON
+'#---------------------BS_STVARS_044_05----------------------#'
+SELECT @@sql_auto_is_null;
+@@sql_auto_is_null
+1
+SELECT @@local.sql_auto_is_null;
+@@local.sql_auto_is_null
+1
+SELECT @@session.sql_auto_is_null;
+@@session.sql_auto_is_null
+1
+SELECT @@global.sql_auto_is_null;
+@@global.sql_auto_is_null
+0

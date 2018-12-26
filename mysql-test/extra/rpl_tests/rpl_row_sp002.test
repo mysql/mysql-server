@@ -1,0 +1,208 @@
+#############################################################################
+# This test is being created to test out the non deterministic items with   #
+# row based replication.                                                    #
+#############################################################################
+# Test: Contains two stored procedures test one that insert data into tables#
+#        and use the LAST_INSERTED_ID() on tables with FOREIGN KEY(a)       #
+#        REFERENCES ON DELETE CASCADE. This test also has a delete sp that  #
+#        should cause a delete cascade.                                     #
+#       The second test has a sp that will either insert rows or delete from#
+#        the table depending on the CASE outcome. The test uses this SP in a#
+#        transaction first rolling back and then commiting,                 #
+#############################################################################
+
+
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+# Begin test section 1
+
+eval CREATE TABLE test.t1 (a INT AUTO_INCREMENT KEY, t CHAR(6)) ENGINE=$engine_type;
+eval CREATE TABLE test.t2 (a INT AUTO_INCREMENT KEY, f INT, FOREIGN KEY(a) REFERENCES test.t1(a) ON DELETE CASCADE) ENGINE=$engine_type;
+
+delimiter |;
+create procedure test.p1(IN i CHAR(6))
+begin
+ INSERT INTO test.t1 (t) VALUES (i);
+ INSERT INTO test.t2 VALUES (NULL,LAST_INSERT_ID());
+end|
+create procedure test.p2(IN i INT)
+begin
+ DELETE FROM test.t1 where a < i;
+end|
+delimiter ;|
+
+let $message=< -- test 1 call p1 -- >;
+--source include/show_msg.inc
+SET FOREIGN_KEY_CHECKS=1;
+call test.p1('texas');
+call test.p1('Live');
+call test.p1('next');
+call test.p1('to');
+call test.p1('OK');
+call test.p1('MySQL');
+
+let $message=< -- test 1 select master after p1 -- >;
+--source include/show_msg.inc
+
+SELECT * FROM test.t1;
+SELECT * FROM test.t2;
+
+let $message=< -- test 1 select slave after p1 -- >;
+--source include/show_msg.inc
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t1;
+SELECT * FROM test.t2;
+
+let $message=< -- test 1 call p2 & select master -- >;
+--source include/show_msg.inc
+connection master;
+call test.p2(4);
+SELECT * FROM test.t1;
+SELECT * FROM test.t2;
+
+let $message=< -- test 1 select slave after p2 -- >;
+--source include/show_msg.inc
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t1;
+SELECT * FROM test.t2;
+
+connection master;
+#show binlog events;
+let $message=< -- End test 1 Begin test 2 -- >;
+--source include/show_msg.inc
+# End test 1 Begin test 2
+
+--disable_warnings
+SET FOREIGN_KEY_CHECKS=0;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+--enable_warnings
+# End of cleanup
+
+eval CREATE TABLE test.t1 (a INT, t CHAR(6), PRIMARY KEY(a)) ENGINE=$engine_type;
+eval CREATE TABLE test.t2 (a INT, f INT, FOREIGN KEY(a) REFERENCES test.t1(a) ON UPDATE CASCADE, PRIMARY KEY(a)) ENGINE=$engine_type;
+
+delimiter |;
+CREATE PROCEDURE  test.p1(IN nm INT, IN ch CHAR(6))
+BEGIN
+ INSERT INTO test.t1 (a,t) VALUES (nm, ch);
+ INSERT INTO test.t2 VALUES (nm, LAST_INSERT_ID());
+END|
+CREATE PROCEDURE test.p2(IN i INT)
+BEGIN
+ UPDATE test.t1 SET a = i*10 WHERE a = i;
+END|
+delimiter ;|
+SET FOREIGN_KEY_CHECKS=1;
+CALL test.p1(1,'texas');
+CALL test.p1(2,'Live');
+CALL test.p1(3,'next');
+CALL test.p1(4,'to');
+CALL test.p1(5,'OK');
+CALL test.p1(6,'MySQL');
+
+let $message=< -- test 2 select Master after p1 -- >;
+--source include/show_msg.inc
+SELECT * FROM test.t1;
+SELECT * FROM test.t2;
+
+let $message=< -- test 2 select Slave after p1 -- >;
+--source include/show_msg.inc
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t1;
+SELECT * FROM test.t2;
+
+let $message=< -- test 2 call p2 & select Master -- >;
+--source include/show_msg.inc
+connection master;
+CALL test.p2(2);
+CALL test.p2(4);
+CALL test.p2(6);
+SELECT * FROM test.t1;
+SELECT * FROM test.t2;
+
+let $message=< -- test 1 select Slave after p2 -- >;
+--source include/show_msg.inc
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t1;
+SELECT * FROM test.t2;
+
+connection master;
+#show binlog events;
+let $message=< -- End test 2 Begin test 3 -- >;
+--source include/show_msg.inc
+# End test 2 begin test 3
+
+eval CREATE TABLE test.t3 (a INT AUTO_INCREMENT KEY, t CHAR(6))ENGINE=$engine_type;
+
+delimiter |;
+CREATE PROCEDURE test.p3(IN n INT)
+begin
+CASE n
+WHEN 2 THEN
+ DELETE from test.t3; 
+ELSE
+ INSERT INTO test.t3 VALUES (NULL,'NONE');
+END CASE;
+end|
+delimiter ;|
+
+SET AUTOCOMMIT=0;
+START TRANSACTION;
+
+-- disable_query_log
+-- disable_result_log
+let $n=50;
+while ($n)
+{
+  eval call test.p3($n);
+  dec $n;
+}
+-- enable_result_log
+-- enable_query_log
+
+ROLLBACK;
+select * from test.t3;
+--source include/sync_slave_sql_with_master.inc
+select * from test.t3;
+
+connection master;
+START TRANSACTION;
+
+-- disable_query_log
+-- disable_result_log
+let $n=50;
+while ($n)
+{
+  eval call test.p3($n);
+  dec $n;
+}
+-- enable_result_log
+-- enable_query_log
+
+COMMIT;
+select * from test.t3;
+--source include/sync_slave_sql_with_master.inc
+select * from test.t3;
+
+connection master;
+#show binlog events from 1627;
+
+
+# First lets cleanup
+SET AUTOCOMMIT=1;
+SET FOREIGN_KEY_CHECKS=0;
+DROP PROCEDURE test.p3;
+DROP PROCEDURE test.p1;
+DROP PROCEDURE test.p2;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE test.t3;
+
+# End of 5.0 test case
+--source include/rpl_end.inc

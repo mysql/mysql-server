@@ -1,0 +1,411 @@
+# Create a table with three columns:
+# 1) Normal POINT column without SRID specification
+# 2) Normal POINT column with SRID 0
+# 3) Normal POINT column with SRID 4326
+CREATE TABLE t1 (no_srid POINT DEFAULT NULL,
+srid_0 POINT SRID 0 DEFAULT NULL,
+srid_4326 POINT SRID 4326 DEFAULT NULL);
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
+def	test	t1	no_srid	NULL	NULL	point
+def	test	t1	srid_0		0	point
+def	test	t1	srid_4326	WGS 84	4326	point
+# Insert some data with correct SRID into these columns
+INSERT INTO t1 (no_srid, srid_0, srid_4326)
+VALUES (ST_GeomFromText('POINT(0 0)', 0),
+ST_GeomFromText('POINT(0 0)', 0),
+ST_GeomFromText('POINT(0 0)', 4326));
+INSERT INTO t1 (no_srid, srid_0, srid_4326)
+VALUES (ST_GeomFromText('POINT(1 1)', 4326),
+ST_GeomFromText('POINT(1 1)', 0),
+ST_GeomFromText('POINT(1 1)', 4326));
+# Insert data with wrong SRID, which should fail.
+INSERT INTO t1 (srid_0) VALUES (ST_GeomFromText('POINT(1 1)', 4326));
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'srid_0'. The SRID of the geometry is 4326, but the SRID of the column is 0. Consider changing the SRID of the geometry or the SRID property of the column.
+INSERT INTO t1 (srid_4326) VALUES (ST_GeomFromText('POINT(1 1)', 0));
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'srid_4326'. The SRID of the geometry is 0, but the SRID of the column is 4326. Consider changing the SRID of the geometry or the SRID property of the column.
+INSERT INTO t1 (srid_4326) VALUES (POINT(0, 0));
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'srid_4326'. The SRID of the geometry is 0, but the SRID of the column is 4326. Consider changing the SRID of the geometry or the SRID property of the column.
+# Try to alter the SRID of the columns, which should fail for all columns
+# now since they already contain data.
+ALTER TABLE t1 CHANGE COLUMN no_srid no_srid POINT SRID 0 DEFAULT NULL;
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'no_srid'. The SRID of the geometry is 4326, but the SRID of the column is 0. Consider changing the SRID of the geometry or the SRID property of the column.
+ALTER TABLE t1 CHANGE COLUMN srid_0 srid_0 POINT SRID 4326 DEFAULT NULL;
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'srid_0'. The SRID of the geometry is 0, but the SRID of the column is 4326. Consider changing the SRID of the geometry or the SRID property of the column.
+ALTER TABLE t1 CHANGE COLUMN srid_4326 srid_4326 POINT SRID 0 DEFAULT NULL;
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'srid_4326'. The SRID of the geometry is 4326, but the SRID of the column is 0. Consider changing the SRID of the geometry or the SRID property of the column.
+# Removing the SRID specification from a column should work just fine.
+ALTER TABLE t1 CHANGE COLUMN srid_0 no_srid_2 POINT DEFAULT NULL;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
+def	test	t1	no_srid	NULL	NULL	point
+def	test	t1	no_srid_2	NULL	NULL	point
+def	test	t1	srid_4326	WGS 84	4326	point
+# Setting the SRID to a non-existing SRID should not work.
+ALTER TABLE t1 CHANGE COLUMN srid_4326 srid_1 POINT SRID 1 DEFAULT NULL;
+ERROR SR001: There's no spatial reference system with SRID 1.
+DROP TABLE t1;
+# Creating a geometry column with a non-existing SRID should not work
+CREATE TABLE t1 (col1 POINT SRID 1);
+ERROR SR001: There's no spatial reference system with SRID 1.
+# Try to create a table without the SRID property, insert data with
+# different SRIDs and then add the SRID property (which should not work).
+CREATE TABLE t1 (col1 POINT);
+INSERT INTO t1 VALUES (ST_GeomFromText('POINT(1 1)', 4326)),
+(ST_GeomFromText('POINT(2 2)', 0)),
+(ST_GeomFromText('POINT(3 3)', 4326)),
+(ST_GeomFromText('POINT(4 4)', 0)),
+(ST_GeomFromText('POINT(5 5)', 4326)),
+(ST_GeomFromText('POINT(6 6)', 0));
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT SRID 4326;
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'col1'. The SRID of the geometry is 0, but the SRID of the column is 4326. Consider changing the SRID of the geometry or the SRID property of the column.
+DELETE FROM t1 WHERE ST_SRID(col1) = 0;
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT SRID 4326;
+DROP TABLE t1;
+# The SRID property on a generated column should work
+CREATE TABLE t1 (col1 POINT SRID 4326,
+col2 POINT AS (ST_SRID(col1, 0)) SRID 0);
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
+def	test	t1	col1	WGS 84	4326	point
+def	test	t1	col2		0	point
+INSERT INTO t1 (col1) VALUES (ST_GeomFromText('POINT(1 1)', 4326));
+DROP TABLE t1;
+# However, if the SRID property on the generated column doesn't match
+# the SRID of the data, it should fail.
+CREATE TABLE t1 (col1 POINT SRID 4326,
+col2 POINT AS (ST_SRID(col1, 0)) SRID 2000);
+INSERT INTO t1 (col1) VALUES (ST_GeomFromText('POINT(1 1)', 4326));
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'col2'. The SRID of the geometry is 0, but the SRID of the column is 2000. Consider changing the SRID of the geometry or the SRID property of the column.
+DROP TABLE t1;
+# Creating a column with SRID property on a MyISAM table should only
+# be supported if the SRID represents a cartesian coordinate system.
+CREATE TABLE t1 (col1 POINT SRID 0) ENGINE = MyISAM;
+CREATE TABLE t2 (col1 POINT SRID 2000) ENGINE = MyISAM;
+CREATE TABLE t3 (col1 POINT SRID 4326) ENGINE = MyISAM;
+ERROR 42000: The storage engine for the table doesn't support geographic spatial reference systems
+DROP TABLE t1, t2;
+# It should not be possible to use the SRID property with any other types
+# than geometric types.
+CREATE TABLE t1 (col1 DOUBLE SRID 0);
+ERROR HY000: Incorrect usage of SRID and non-geometry column
+CREATE TABLE t1 (col1 BLOB SRID 0);
+ERROR HY000: Incorrect usage of SRID and non-geometry column
+CREATE TABLE t1 (col1 VARCHAR(255) SRID 0);
+ERROR HY000: Incorrect usage of SRID and non-geometry column
+# Check that any indexes on SRID-less columns are ignored by the
+# optimizer
+CREATE TABLE t1 (col1 POINT NOT NULL, SPATIAL INDEX (col1));
+Warnings:
+Warning	3674	The spatial index on column 'col1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+INSERT INTO t1 VALUES (POINT(0, 0)), (POINT(0.5, 0.5)), (POINT(1, 1));
+# Update table statistics to make the EXPLAIN stable
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# The following query plan should NOT use the index on "col1", since
+# the column does not have the SRID property defined.
+EXPLAIN SELECT ST_AsText(col1) FROM t1
+WHERE MBRContains(col1, ST_GeomFromText("POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))"));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`col1`) AS `ST_AsText(col1)` from `test`.`t1` where mbrcontains(`test`.`t1`.`col1`,<cache>(st_geomfromtext('POLYGON((0 0, 0 0.5, 0.5 0.5, 0.5 0, 0 0))')))
+DROP TABLE t1;
+# Check that we print error message for misuse of SRID with non-geometric
+# data type instead of "SRID not found"
+CREATE TABLE t1 (a INTEGER SRID 1);
+ERROR HY000: Incorrect usage of SRID and non-geometry column
+CREATE TABLE t1 (a INTEGER);
+ALTER TABLE t1 MODIFY COLUMN a INTEGER SRID 1;
+ERROR HY000: Incorrect usage of SRID and non-geometry column
+DROP TABLE t1;
+#
+# Bug#26594499 WL#8592:ALTER TABLE ADD SPATIAL INDEX RETURNS CANNOT GET
+#              GEOMETRY OBJECT ERROR
+#
+CREATE TABLE t1 (
+g1 geometry NOT NULL,
+g3 geometry SRID 2000 NOT NULL,
+g4 geometry SRID 4326 NOT NULL
+);
+INSERT INTO t1 VALUES (ST_GeomFromText('POINT(0 0)'),
+ST_GeomFromText('POINT(0 0)', 2000), ST_GeomFromText('POINT(0 0)', 4326));
+ALTER TABLE t1 add spatial index idx1(g4);
+ALTER TABLE t1 add spatial index idx3(g3);
+DROP TABLE t1;
+CREATE TABLE t1 (col1 POINT SRID 4294967296);
+ERROR 22003: SRID value is out of range in 'SRID'
+#
+# Check that adding, modifying and removing spatial indexes works well
+# with SRID columns
+#
+CREATE TABLE t1 (col_no_srid POINT NOT NULL,
+col_srid_0 POINT SRID 0 NOT NULL,
+col_srid_4326 POINT SRID 4326 NOT NULL);
+INSERT INTO t1 VALUES (
+ST_GeomFromText("POINT(0 0)", 0),
+ST_GeomFromText("POINT(0 0)", 0),
+ST_GeomFromText("POINT(0 0)", 4326));
+INSERT INTO t1 VALUES (
+ST_GeomFromText("POINT(1 1)", 4326),
+ST_GeomFromText("POINT(1 1)", 0),
+ST_GeomFromText("POINT(1 1)", 4326));
+ALTER TABLE t1 ADD SPATIAL INDEX idx1 (col_no_srid);
+Warnings:
+Warning	3674	The spatial index on column 'col_no_srid' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+ALTER TABLE t1 ADD SPATIAL INDEX idx2 (col_srid_0);
+ALTER TABLE t1 ADD SPATIAL INDEX idx3 (col_srid_4326);
+ALTER TABLE t1 DROP INDEX idx2;
+ALTER TABLE t1 DROP INDEX idx3;
+ALTER TABLE t1 DROP INDEX idx1;
+CREATE SPATIAL INDEX idx1 ON t1 (col_srid_4326);
+CREATE SPATIAL INDEX idx2 ON t1 (col_no_srid);
+Warnings:
+Warning	3674	The spatial index on column 'col_no_srid' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+CREATE SPATIAL INDEX idx3 ON t1 (col_srid_0);
+DROP INDEX idx1 ON t1;
+DROP INDEX idx2 ON t1;
+DROP INDEX idx3 ON t1;
+DROP TABLE t1;
+CREATE TABLE t1 (col_no_srid POINT NOT NULL,
+col_srid_0 POINT SRID 0 NOT NULL,
+col_srid_4326 POINT SRID 4326 NOT NULL,
+SPATIAL INDEX idx1 (col_no_srid),
+SPATIAL INDEX idx2 (col_srid_0),
+SPATIAL INDEX idx3 (col_srid_4326));
+Warnings:
+Warning	3674	The spatial index on column 'col_no_srid' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+INSERT INTO t1 VALUES (
+ST_GeomFromText("POINT(0 0)", 0),
+ST_GeomFromText("POINT(0 0)", 0),
+ST_GeomFromText("POINT(0 0)", 4326));
+INSERT INTO t1 VALUES (
+ST_GeomFromText("POINT(1 1)", 4326),
+ST_GeomFromText("POINT(1 1)", 0),
+ST_GeomFromText("POINT(1 1)", 4326));
+DROP INDEX idx3 ON t1;
+DROP INDEX idx2 ON t1;
+DROP INDEX idx1 ON t1;
+DROP TABLE t1;
+#
+# Altering the SRID specification should not be allowed if there is a
+# spatial index on the column.
+#
+CREATE TABLE t1 (col1 POINT NOT NULL SRID 4326,
+SPATIAL INDEX idx1 (col1));
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT NOT NULL SRID 0;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT NOT NULL;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT NOT NULL SRID 0, ALGORITHM=INPLACE;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT NOT NULL, ALGORITHM=INPLACE;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT NOT NULL SRID 0, ALGORITHM=COPY;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT NOT NULL, ALGORITHM=COPY;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT NOT NULL SRID 0, ALGORITHM=DEFAULT;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT NOT NULL, ALGORITHM=DEFAULT;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+ALTER TABLE t1 CHANGE COLUMN col1 col2 POINT NOT NULL SRID 0;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+ALTER TABLE t1 CHANGE COLUMN col1 col2 POINT NOT NULL;
+ERROR HY000: The SRID specification on the column 'col1' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+DROP TABLE t1;
+# Test SRID specification in combination with generated columns and
+# spatial indexes.
+CREATE TABLE t1 (
+col_no_srid POINT NOT NULL,
+col_srid_0 POINT NOT NULL SRID 0,
+col_srid_4326 POINT NOT NULL SRID 4326);
+INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_4326) VALUES (
+ST_GeomFromText('POINT(0 0)'),
+ST_GeomFromText('POINT(0 0)', 0),
+ST_GeomFromText('POINT(0 0)', 4326));
+INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_4326) VALUES (
+ST_GeomFromText('POINT(0 0)', 4326),
+ST_GeomFromText('POINT(0 0)', 0),
+ST_GeomFromText('POINT(0 0)', 4326));
+# This should not be allowed since the column contains data with a
+# different SRID
+ALTER TABLE t1 CHANGE COLUMN col_srid_4326 col_srid_2000 POINT NOT NULL SRID 2000;
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'col_srid_2000'. The SRID of the geometry is 4326, but the SRID of the column is 2000. Consider changing the SRID of the geometry or the SRID property of the column.
+DELETE FROM t1;
+# Now it should be allowed since there is no data in the table,
+ALTER TABLE t1 CHANGE COLUMN col_srid_4326 col_srid_2000 POINT NOT NULL SRID 2000;
+INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
+ST_GeomFromText('POINT(0 0)'),
+ST_GeomFromText('POINT(0 0)', 0),
+ST_GeomFromText('POINT(0 0)', 2000));
+INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
+ST_GeomFromText('POINT(0 0)', 4326),
+ST_GeomFromText('POINT(0 0)', 0),
+ST_GeomFromText('POINT(0 0)', 2000));
+# Add an index on "col_srid_2000"
+CREATE SPATIAL INDEX idx_2000 ON t1 (col_srid_2000);
+INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
+ST_GeomFromText('POINT(0 0)', 4326),
+ST_GeomFromText('POINT(0 0)', 0),
+ST_GeomFromText('POINT(0 0)', 2000));
+# Add an generated column that is based on the indexed column
+# (col_srid_2000).
+ALTER TABLE t1 ADD COLUMN (col_srid_4326_generated POINT AS
+(ST_SRID(col_srid_2000, 4326)) SRID 4326);
+SELECT
+ST_AsText(col_no_srid),
+ST_AsText(col_srid_0),
+ST_AsText(col_srid_2000),
+ST_AsText(col_srid_4326_generated),
+ST_SRID(col_no_srid),
+ST_SRID(col_srid_0),
+ST_SRID(col_srid_2000),
+ST_SRID(col_srid_4326_generated)
+FROM t1;
+ST_AsText(col_no_srid)	ST_AsText(col_srid_0)	ST_AsText(col_srid_2000)	ST_AsText(col_srid_4326_generated)	ST_SRID(col_no_srid)	ST_SRID(col_srid_0)	ST_SRID(col_srid_2000)	ST_SRID(col_srid_4326_generated)
+POINT(0 0)	POINT(0 0)	POINT(0 0)	POINT(0 0)	0	0	2000	4326
+POINT(0 0)	POINT(0 0)	POINT(0 0)	POINT(0 0)	4326	0	2000	4326
+POINT(0 0)	POINT(0 0)	POINT(0 0)	POINT(0 0)	4326	0	2000	4326
+# Add a spatial index on the generated column
+CREATE INDEX idx_4326_generated ON t1 (col_srid_4326_generated);
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
+INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
+ST_GeomFromText('POINT(1 1)', 4326),
+ST_GeomFromText('POINT(1 1)', 0),
+ST_GeomFromText('POINT(1 1)', 2000));
+# This should give an error since there is an index on the column.
+ALTER TABLE t1 CHANGE COLUMN col_srid_2000 col_srid_2000 POINT NOT NULL SRID 4326;
+ERROR HY000: The SRID specification on the column 'col_srid_2000' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+# Remove the index from col_srid_2000
+DROP INDEX idx_2000 ON t1;
+# This should not be allowed since the column contains data with a
+# different SRID
+ALTER TABLE t1 CHANGE COLUMN col_srid_2000 col_srid_2000 POINT NOT NULL SRID 4326;
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'col_srid_2000'. The SRID of the geometry is 2000, but the SRID of the column is 4326. Consider changing the SRID of the geometry or the SRID property of the column.
+DELETE FROM t1;
+# Now it should be allowed since there is no data in the table,
+ALTER TABLE t1 CHANGE COLUMN col_srid_2000 col_srid_2000 POINT NOT NULL SRID 4326;
+# Wrong SRID for col_srid_2000, so should not work
+INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
+ST_GeomFromText('POINT(1 1)'),
+ST_GeomFromText('POINT(1 1)', 0),
+ST_GeomFromText('POINT(1 1)', 2000));
+ERROR HY000: The SRID of the geometry does not match the SRID of the column 'col_srid_2000'. The SRID of the geometry is 2000, but the SRID of the column is 4326. Consider changing the SRID of the geometry or the SRID property of the column.
+INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
+ST_GeomFromText('POINT(1 1)'),
+ST_GeomFromText('POINT(1 1)', 0),
+ST_GeomFromText('POINT(1 1)', 4326));
+ALTER TABLE t1 CHANGE COLUMN col_srid_2000 col_srid_2000 POINT NOT NULL;
+# This should work just fine, since we have removed the SRID specification
+# for col_srid_2000
+INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
+ST_GeomFromText('POINT(1 1)'),
+ST_GeomFromText('POINT(1 1)', 0),
+ST_GeomFromText('POINT(1 1)', 2000));
+SELECT
+ST_AsText(col_no_srid),
+ST_AsText(col_srid_0),
+ST_AsText(col_srid_2000),
+ST_AsText(col_srid_4326_generated),
+ST_SRID(col_no_srid),
+ST_SRID(col_srid_0),
+ST_SRID(col_srid_2000),
+ST_SRID(col_srid_4326_generated)
+FROM t1;
+ST_AsText(col_no_srid)	ST_AsText(col_srid_0)	ST_AsText(col_srid_2000)	ST_AsText(col_srid_4326_generated)	ST_SRID(col_no_srid)	ST_SRID(col_srid_0)	ST_SRID(col_srid_2000)	ST_SRID(col_srid_4326_generated)
+POINT(1 1)	POINT(1 1)	POINT(1 1)	POINT(1 1)	0	0	4326	4326
+POINT(1 1)	POINT(1 1)	POINT(1 1)	POINT(1 1)	0	0	2000	4326
+CREATE SPATIAL INDEX idx_0 ON t1 (col_srid_0);
+# Check that all columns have the correct SRID specification.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_no_srid` point NOT NULL,
+  `col_srid_0` point NOT NULL /*!80003 SRID 0 */,
+  `col_srid_2000` point NOT NULL,
+  `col_srid_4326_generated` point GENERATED ALWAYS AS (st_srid(`col_srid_2000`,4326)) VIRTUAL /*!80003 SRID 4326 */,
+  SPATIAL KEY `idx_0` (`col_srid_0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP COLUMN col_srid_4326_generated;
+DROP TABLE t1;
+#
+# Bug#26594499  WL#8592: CANNOT GET GEOMETRY OBJECT ERROR
+#
+CREATE TABLE t1 (
+g1 geometry NOT NULL,
+g3 geometry SRID 2000 NOT NULL,
+g4 geometry SRID 4326 NOT NULL
+);
+INSERT INTO t1 VALUES (ST_GeomFromText('POINT(0 0)'),
+ST_GeomFromText('POINT(0 0)', 2000), ST_GeomFromText('POINT(0 0)', 4326));
+ALTER TABLE t1 add spatial index idx1(g4);
+ALTER TABLE t1 add spatial index idx3(g3);
+DROP TABLE t1;
+#
+# Bug#27015964 USELESS SPATIAL INDEX CAN BE CREATED WITHOUT WARNING
+#
+# Creating a table with a spatial index on a SRID-less column should
+# raise a warning.
+CREATE TABLE t1 (
+g1 POINT NOT NULL
+, g2 POINT NOT NULL
+, g3 POINT NOT NULL SRID 0
+, SPATIAL INDEX idx1 (g1)
+, SPATIAL INDEX idx2 (g2)
+, SPATIAL INDEX idx3 (g3));
+Warnings:
+Warning	3674	The spatial index on column 'g1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	3674	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+DROP INDEX idx1 ON t1;
+DROP INDEX idx2 ON t1;
+DROP INDEX idx3 ON t1;
+# Verify that we get the same warning when using CREATE INDEX syntax.
+CREATE SPATIAL INDEX idx1 ON t1 (g1);
+Warnings:
+Warning	3674	The spatial index on column 'g1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+CREATE SPATIAL INDEX idx2 ON t1 (g2);
+Warnings:
+Warning	3674	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+CREATE SPATIAL INDEX idx3 ON t1 (g3);
+DROP INDEX idx1 ON t1;
+DROP INDEX idx2 ON t1;
+DROP INDEX idx3 ON t1;
+# Verify that we get the same warning when using ALTER TABLE syntax.
+ALTER TABLE t1 ADD SPATIAL INDEX idx1 (g1);
+Warnings:
+Warning	3674	The spatial index on column 'g1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+ALTER TABLE t1 ADD SPATIAL INDEX idx2 (g2);
+Warnings:
+Warning	3674	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+ALTER TABLE t1 ADD SPATIAL INDEX idx3 (g3);
+DROP TABLE t1;
+#
+# Bug#27220467 SERVER HANGS WHILE CREATING A NEW SRS WHICH IS USED IN
+#              ANOTHER CLIENT
+#
+# Try to create a point column using a SRID that doesn't exist
+CREATE TABLE t1 (col1 POINT SRID 4326, col2 POINT SRID 1000000000);
+ERROR SR001: There's no spatial reference system with SRID 1000000000.
+# Verify that any lock that was taken for SRIDs is released
+SELECT COUNT(*) AS should_be_zero FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'SRID';
+should_be_zero
+0
+# Force the error to happen after all the columns are contextualized.
+CREATE TABLE t1 (col1 POINT SRID 4326) ENGINE = "foo";
+ERROR 42000: Unknown storage engine 'foo'
+SELECT COUNT(*) AS should_be_zero FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'SRID';
+should_be_zero
+0
+# Verify the same behavior for ALTER TABLE as well.
+CREATE TABLE t1 (col1 INT);
+ALTER TABLE t1 ADD COLUMN col2 POINT SRID 1000000000;
+ERROR SR001: There's no spatial reference system with SRID 1000000000.
+SELECT COUNT(*) AS should_be_zero FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'SRID';
+should_be_zero
+0
+DROP TABLE t1;

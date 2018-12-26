@@ -1,0 +1,43 @@
+run-test/README
+
+This document describes how atrt works and how to use it.
+
+atrt is a test program driver.
+atrt supports fully distributed test and utilizes ndb_cpcd.
+
+=================================
+atrt has the following main loop:
+
+/**
+  * Pseudo code for atrt
+  */
+  read config file (default d.txt)
+  contact each ndb_cpcd 
+  start each ndb_mgmd
+  connect to each ndb_mgmd
+  for each read(test case)
+  do
+    if previous test failed (or is first test)
+      stop each ndbd
+      start each ndbd
+      wait for ndbd to get started
+     
+    start each mysqld
+     
+    start each test prg
+
+    wait while all is running and max time not elapsed
+
+    stop each mysqld
+
+    stop each test prg
+
+    gather result
+
+  done
+/**
+ * End of pseudo code
+ */     
+
+=================================
+

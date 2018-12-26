@@ -1,0 +1,1 @@
+--max-binlog-size=4k --expire-logs-days=1

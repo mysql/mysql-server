@@ -1,0 +1,118 @@
+SET @orig = @@global.windowing_use_high_precision;
+SELECT @orig;
+@orig
+1
+SET GLOBAL windowing_use_high_precision = FALSE;
+SELECT @@global.windowing_use_high_precision;
+@@global.windowing_use_high_precision
+0
+SET GLOBAL windowing_use_high_precision = TRUE;
+SELECT @@global.windowing_use_high_precision;
+@@global.windowing_use_high_precision
+1
+SET GLOBAL windowing_use_high_precision = 12.34;
+Got one of the listed errors
+SET GLOBAL windowing_use_high_precision = "foobar";
+Got one of the listed errors
+SET GLOBAL windowing_use_high_precision = 5;
+Got one of the listed errors
+CREATE TABLE td(d DOUBLE);
+INSERT INTO td VALUES (1.7976931348623157E+307);
+INSERT INTO td VALUES (1);
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+d	SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING)
+1.7976931348623158e307	1.7976931348623158e307
+1	1
+EXPLAIN FORMAT=JSON
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.45"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true
+          },
+          "functions": [
+            "sum"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "td",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 2,
+        "rows_produced_per_join": 2,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.20",
+          "prefix_cost": "0.45",
+          "data_read_per_join": "32"
+        },
+        "used_columns": [
+          "d"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`td`.`d` AS `d`,sum(`test`.`td`.`d`) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING)  AS `SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING)` from `test`.`td`
+allow unsafe optimization: result changes
+SET SESSION windowing_use_high_precision=FALSE;
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+d	SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING)
+1.7976931348623158e307	1.7976931348623158e307
+1	0
+EXPLAIN FORMAT=JSON
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.45"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "td",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 2,
+        "rows_produced_per_join": 2,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.20",
+          "prefix_cost": "0.45",
+          "data_read_per_join": "32"
+        },
+        "used_columns": [
+          "d"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`td`.`d` AS `d`,sum(`test`.`td`.`d`) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING)  AS `SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING)` from `test`.`td`
+SET SESSION windowing_use_high_precision=TRUE;
+DROP TABLE td;

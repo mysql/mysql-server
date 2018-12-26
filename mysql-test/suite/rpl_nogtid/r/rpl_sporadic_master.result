@@ -1,0 +1,29 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t2(n int);
+create table t1(n int not null auto_increment primary key);
+insert into t1 values (NULL),(NULL);
+truncate table t1;
+insert into t1 values (4),(NULL);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/start_slave.inc
+insert into t1 values (NULL),(NULL);
+flush logs;
+truncate table t1;
+insert into t1 values (10),(NULL),(NULL),(NULL),(NULL),(NULL);
+include/sync_slave_sql_with_master.inc
+select * from t1 ORDER BY n;
+n
+10
+11
+12
+13
+14
+15
+drop table t1,t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

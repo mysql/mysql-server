@@ -1,0 +1,3 @@
+CREATE TABLE t (__temptable_embedded_unit_tests CHAR(120) CHARACTER SET latin1 NOT NULL);
+SELECT DISTINCT * FROM t;
+DROP TABLE t;

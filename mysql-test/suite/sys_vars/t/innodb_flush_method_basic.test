@@ -1,0 +1,105 @@
+
+
+################## mysql-test\t\innodb_flush_method_basic.test ################
+#                                                                             #
+# Variable Name: innodb_flush_method                                          #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: enumeration                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                  #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable innodb_flush_method       #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+
+--echo '#---------------------BS_STVARS_029_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_029_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_flush_method=1;
+--echo Expected error 'Read only variable'
+
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_029_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.innodb_flush_method = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_flush_method';
+--enable_warnings
+--echo 1 Expected
+
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='innodb_flush_method';
+--enable_warnings
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_029_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_flush_method = @@GLOBAL.innodb_flush_method;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_029_05----------------------#'
+################################################################################
+#   Check if innodb_flush_method can be accessed with and without @@ sign      #
+################################################################################
+
+SELECT COUNT(@@innodb_flush_method);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_flush_method);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_flush_method);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_flush_method);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_flush_method = @@SESSION.innodb_flush_method;
+--echo Expected error 'Readonly variable'
+
+

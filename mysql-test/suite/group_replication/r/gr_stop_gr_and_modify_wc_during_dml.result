@@ -1,0 +1,70 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+###############################################################################
+# 2. Increase write_concurrency via M1
+SELECT group_replication_set_write_concurrency(15);
+group_replication_set_write_concurrency(15)
+UDF is asynchronous, check log or call group_replication_get_write_concurrency().
+################################################################################
+# 3. Start a insert operation on M1 which inserts 500 records using "send call"
+CREATE TABLE test.t1 (a int primary key);
+include/rpl_sync.inc
+USE test;
+CREATE PROCEDURE insert_into_t1()
+BEGIN
+declare x INT;
+set x=1;
+while x<500 do
+insert into t1 values (x);
+set x=x+1;
+end  while;
+end$$
+
+----call procedure----
+call insert_into_t1();
+
+################################################################################
+# 4. While inserts are happening on M1:
+# 4a. Decrease write_concurrency via M2 once at least 50 records are replicated
+[connection server2]
+SELECT group_replication_set_write_concurrency(42);
+group_replication_set_write_concurrency(42)
+UDF is asynchronous, check log or call group_replication_get_write_concurrency().
+# 4b. Modify write_concurrency and stop group replication on M3
+[connection server3]
+SELECT group_replication_set_write_concurrency(23);
+group_replication_set_write_concurrency(23)
+UDF is asynchronous, check log or call group_replication_get_write_concurrency().
+include/stop_group_replication.inc
+###############################################################################
+# 5. Modify write_concurrency via M2
+[connection server2]
+SELECT group_replication_set_write_concurrency(10);
+group_replication_set_write_concurrency(10)
+UDF is asynchronous, check log or call group_replication_get_write_concurrency().
+###############################################################################
+# 6. Check the number of servers online and status of servers
+[connection server1]
+
+[connection server2]
+###############################################################################
+# 7. Start group replication again on M3
+
+[connection server3]
+include/start_group_replication.inc
+###############################################################################
+# 8. Validate servers' state
+include/assert.inc ['server3 is supposed to have 499 records in test.t1']
+[connection server2]
+include/assert.inc ['server2 is supposed to have 499 records in test.t1']
+[connection server1]
+include/assert.inc ['server1 is supposed to have 499 records in test.t1']
+###############################################################################
+# 9. Cleanup
+DROP TABLE test.t1;
+DROP PROCEDURE insert_into_t1;
+include/group_replication_end.inc

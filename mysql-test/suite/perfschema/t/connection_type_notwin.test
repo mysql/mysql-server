@@ -1,0 +1,96 @@
+
+--source include/not_windows.inc
+--source include/have_debug.inc
+
+--echo "Default connection"
+
+--vertical_results
+select NAME, PROCESSLIST_USER, PROCESSLIST_HOST, CONNECTION_TYPE
+  from performance_schema.threads
+  where PROCESSLIST_ID = connection_id();
+
+create user 'root'@'santa.claus.ipv4.example.com';
+grant select on *.* to 'root'@'santa.claus.ipv4.example.com';
+create user 'rootssl'@'santa.claus.ipv4.example.com'
+  require SSL;
+grant select on *.* to 'rootssl'@'santa.claus.ipv4.example.com';
+
+set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+
+# Setup
+# make sure we start with a clean slate. log_tables.test says this is OK.
+TRUNCATE TABLE mysql.general_log;
+
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+
+--replace_result $MYSQLTEST_VARDIR ...
+eval SET GLOBAL general_log_file = '$MYSQLTEST_VARDIR/log/rewrite_general_con.log';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+
+connect(con1, localhost, root,,);
+
+--echo "Connection con1"
+
+select NAME, PROCESSLIST_USER, PROCESSLIST_HOST, CONNECTION_TYPE
+  from performance_schema.threads
+  where PROCESSLIST_ID = connection_id();
+
+--disconnect con1
+
+connect(con2, "127.0.0.1", root,,test,$MASTER_MYPORT,);
+
+--echo "Connection con2"
+
+select NAME, PROCESSLIST_USER, PROCESSLIST_HOST, CONNECTION_TYPE
+  from performance_schema.threads
+  where PROCESSLIST_ID = connection_id();
+
+--disconnect con2
+
+connect(con3, "127.0.0.1", rootssl,,test,$MASTER_MYPORT,,SSL);
+
+--echo "Connection con3"
+
+select NAME, PROCESSLIST_USER, PROCESSLIST_HOST, CONNECTION_TYPE
+  from performance_schema.threads
+  where PROCESSLIST_ID = connection_id();
+
+--disconnect con3
+
+--connection default
+
+SET GLOBAL general_log=       'OFF';
+
+# show general-logging to file is correct
+CREATE TABLE test_log (argument TEXT);
+--replace_result $MYSQLTEST_VARDIR ...
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/rewrite_general_con.log'
+     INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
+
+select user_host, command_type, argument from mysql.general_log
+  where command_type = "Connect";
+
+select substring(argument, locate("Connect", argument)) from test_log
+  where argument like "%Connect%on test%";
+
+
+DROP TABLE test_log;
+
+--remove_file $MYSQLTEST_VARDIR/log/rewrite_general_con.log
+
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+
+--horizontal_results
+
+set global debug= default;
+revoke select on *.* from 'root'@'santa.claus.ipv4.example.com';
+drop user 'root'@'santa.claus.ipv4.example.com';
+revoke select on *.* from 'rootssl'@'santa.claus.ipv4.example.com';
+drop user 'rootssl'@'santa.claus.ipv4.example.com';
+
+

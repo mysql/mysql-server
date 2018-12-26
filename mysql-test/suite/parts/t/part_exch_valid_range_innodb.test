@@ -1,0 +1,11 @@
+# Author: Horst Hunger
+# Created: 2010-07-13
+
+--source include/no_valgrind_without_big.inc
+
+let $engine_table= InnoDB;
+let $engine_part= InnoDB;
+let $engine_subpart= InnoDB;
+
+--source suite/parts/inc/part_exch_valid_range.inc
+

@@ -1,0 +1,920 @@
+#
+# WL#8161 Locking service for read/write named locks
+#
+CREATE FUNCTION service_get_read_locks  RETURNS INT SONAME "LOCKING_SERVICE_LIB";
+CREATE FUNCTION service_get_write_locks RETURNS INT SONAME "LOCKING_SERVICE_LIB";
+CREATE FUNCTION service_release_locks   RETURNS INT SONAME "LOCKING_SERVICE_LIB";
+#
+# 1: Test that calling the functions works, number of arguments,
+#    invalid argument type, invalid content (empty string)
+#
+SELECT service_get_read_locks();
+ERROR HY000: Can't initialize function 'service_get_read_locks'; Requires at least three arguments: (namespace,lock(...),timeout).
+SELECT service_get_read_locks('negative');
+ERROR HY000: Can't initialize function 'service_get_read_locks'; Requires at least three arguments: (namespace,lock(...),timeout).
+SELECT service_get_read_locks('negative', 'lock1');
+ERROR HY000: Can't initialize function 'service_get_read_locks'; Requires at least three arguments: (namespace,lock(...),timeout).
+SELECT service_get_read_locks(         1, 'lock1', 'lock2', 0);
+ERROR HY000: Can't initialize function 'service_get_read_locks'; Wrong argument type - expected string.
+SELECT service_get_read_locks(        '', 'lock1', 'lock2', 0);
+ERROR 42000: Incorrect locking service lock name ''.
+SELECT service_get_read_locks('negative',       1, 'lock2', 0);
+ERROR HY000: Can't initialize function 'service_get_read_locks'; Wrong argument type - expected string.
+SELECT service_get_write_locks();
+ERROR HY000: Can't initialize function 'service_get_write_locks'; Requires at least three arguments: (namespace,lock(...),timeout).
+SELECT service_get_write_locks('negative');
+ERROR HY000: Can't initialize function 'service_get_write_locks'; Requires at least three arguments: (namespace,lock(...),timeout).
+SELECT service_get_write_locks('negative', 'lock1');
+ERROR HY000: Can't initialize function 'service_get_write_locks'; Requires at least three arguments: (namespace,lock(...),timeout).
+SELECT service_get_write_locks(         1, 'lock1', 'lock2', 0);
+ERROR HY000: Can't initialize function 'service_get_write_locks'; Wrong argument type - expected string.
+SELECT service_get_write_locks(        '', 'lock1', 'lock2', 0);
+ERROR 42000: Incorrect locking service lock name ''.
+SELECT service_get_write_locks('negative',       1, 'lock2', 0);
+ERROR HY000: Can't initialize function 'service_get_write_locks'; Wrong argument type - expected string.
+SELECT service_get_write_locks('negative',      '', 'lock2', 0);
+ERROR 42000: Incorrect locking service lock name ''.
+SELECT service_get_write_locks('negative', 'lock1',       1, 0);
+ERROR HY000: Can't initialize function 'service_get_write_locks'; Wrong argument type - expected string.
+SELECT service_get_write_locks('negative', 'lock1',      '', 0);
+ERROR 42000: Incorrect locking service lock name ''.
+SELECT service_get_write_locks('negative', 'lock1', 'lock2', 'hello');
+ERROR HY000: Can't initialize function 'service_get_write_locks'; Wrong argument type - expected integer.
+SELECT service_release_locks();
+ERROR HY000: Can't initialize function 'service_release_locks'; Requires one argument: (lock_namespace).
+SELECT service_release_locks('negative', 'hello');
+ERROR HY000: Can't initialize function 'service_release_locks'; Requires one argument: (lock_namespace).
+SELECT service_release_locks(         1);
+ERROR HY000: Can't initialize function 'service_release_locks'; Wrong argument type - expected string.
+SELECT service_release_locks(        '');
+ERROR 42000: Incorrect locking service lock name ''.
+
+# 2: Check simple positive cases and that service locks taken are roughly
+#    correct represented in performance_schema.metadata_locks
+#
+UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
+TRUNCATE TABLE performance_schema.events_waits_current;
+TRUNCATE TABLE performance_schema.events_waits_history_long;
+UPDATE performance_schema.setup_instruments SET enabled = 'YES';
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+SELECT service_get_read_locks('pfs_check', 'lock1', 'lock2', 0);
+service_get_read_locks('pfs_check', 'lock1', 'lock2', 0)
+1
+SELECT service_get_write_locks('pfs_check', 'lock3', 'lock4', 0);
+service_get_write_locks('pfs_check', 'lock3', 'lock4', 0)
+1
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION,
+LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+LOCKING SERVICE	pfs_check	lock1	SHARED	EXPLICIT	GRANTED
+LOCKING SERVICE	pfs_check	lock2	SHARED	EXPLICIT	GRANTED
+LOCKING SERVICE	pfs_check	lock3	EXCLUSIVE	EXPLICIT	GRANTED
+LOCKING SERVICE	pfs_check	lock4	EXCLUSIVE	EXPLICIT	GRANTED
+SELECT service_release_locks('pfs_check');
+service_release_locks('pfs_check')
+1
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+SELECT COUNT(*) = 0 AS expect_1
+FROM performance_schema.events_waits_history_long
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#
+# 3: Test taking and releasing of locks in two namespaces
+SELECT service_get_write_locks("namespace1", "lock1", 60);
+service_get_write_locks("namespace1", "lock1", 60)
+1
+SELECT service_get_write_locks("namespace2", "lock1", "lock2", 60);
+service_get_write_locks("namespace2", "lock1", "lock2", 60)
+1
+SELECT service_release_locks("namespace1");
+service_release_locks("namespace1")
+1
+SELECT service_release_locks("namespace2");
+service_release_locks("namespace2")
+1
+#
+# 4: Test that another connection can be blocked and
+#    impact on certain tables in performance_schema
+# 4.0: Baseline checks
+#      Per performance_schema content no service locks in the moment
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#      Per performance_schema no current wait for getting a service lock
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#      Per performance_schema no historic wait for getting a service lock
+#      because TRUNCATE of events_waits_history_long
+SELECT COUNT(*) = 0 AS expect_1
+FROM performance_schema.events_waits_history_long
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+# 4.1: Test that another connection gets blocked.
+SELECT service_get_write_locks("namespace1", "lock1", "lock2", 60);
+service_get_write_locks("namespace1", "lock1", "lock2", 60)
+1
+connect con1,localhost,root;
+SELECT service_get_write_locks("namespace1", "lock1", 1);
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT service_get_write_locks("namespace1", "lock2", 1);
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT service_get_read_locks("namespace1", "lock1", 1);
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT service_get_write_locks("namespace1", "lock1", 0);
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT service_get_write_locks("namespace1", "lock2", 0);
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT service_get_read_locks("namespace1", "lock1", 0);
+ERROR HY000: Service lock wait timeout exceeded.
+# 4.2: The content of performance_schema.events_waits_history_long
+#      should show that we have waited three times including correct
+#      service lock namespace and lock name.
+SELECT OBJECT_SCHEMA, OBJECT_NAME, OBJECT_TYPE, OPERATION
+FROM performance_schema.events_waits_history_long
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OPERATION
+namespace1	lock1	LOCKING SERVICE	metadata lock
+namespace1	lock1	LOCKING SERVICE	metadata lock
+namespace1	lock2	LOCKING SERVICE	metadata lock
+#      Per performance_schema there is no current wait for getting a
+#      service lock because our attempt already timed out.
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+# 4.3: Show the impact of waiting for getting a service lock on
+#      content of the processlist and performance_schema
+SELECT service_get_write_locks("namespace1", "lock1", 60);
+connection default;
+#      One waiting session in information_schema.processlist
+SELECT COUNT(*) = 1 AS expect_1 FROM information_schema.processlist
+WHERE state = 'Waiting for locking service lock';
+expect_1
+1
+#      Per performance_schema one current wait for getting a service lock
+SELECT OBJECT_SCHEMA, OBJECT_NAME, OBJECT_TYPE, OPERATION
+FROM performance_schema.events_waits_current
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OPERATION
+namespace1	lock1	LOCKING SERVICE	metadata lock
+#      Per performance_schema six waits in history
+SELECT COUNT(*) = 3 AS expect_1
+FROM performance_schema.events_waits_history_long
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+# 4.4: Show the impact of releasing and getting a service lock on
+#      content of the processlist and performance_schema
+SELECT service_release_locks("namespace1");
+service_release_locks("namespace1")
+1
+connection con1;
+service_get_write_locks("namespace1", "lock1", 60)
+1
+#      No waiting session in information_schema.processlist
+SELECT COUNT(*) = 0 AS expect_1 FROM information_schema.processlist
+WHERE state = 'Waiting for locking service lock';
+expect_1
+1
+#      Per performance_schema no current wait for getting a service lock
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#      Per performance_schema now seven waits in history
+SELECT COUNT(*) = 4 AS expect_1
+FROM performance_schema.events_waits_history_long
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+SELECT service_release_locks("namespace1");
+service_release_locks("namespace1")
+1
+#
+# 5: Test atomic acquire.
+connection default;
+SELECT service_get_write_locks('holder_name_space',
+'first', 'middle', 'last', 1);
+service_get_write_locks('holder_name_space',
+'first', 'middle', 'last', 1)
+1
+connection con1;
+SELECT service_get_write_locks('holder_name_space',
+'first', 'l2_1', 'l3_1', 0);
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT service_get_write_locks('holder_name_space',
+'l1_2', 'middle', 'l3_2', 0);
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT service_get_write_locks('holder_name_space',
+'l1_3', 'l2_3', 'last', 0);
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT object_schema, object_name, lock_type, lock_status
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+object_schema	object_name	lock_type	lock_status
+holder_name_space	first	EXCLUSIVE	GRANTED
+holder_name_space	last	EXCLUSIVE	GRANTED
+holder_name_space	middle	EXCLUSIVE	GRANTED
+disconnect con1;
+connection default;
+SELECT service_release_locks("holder_name_space");
+service_release_locks("holder_name_space")
+1
+#
+# 6: Mixed tests
+#    They are partial logical duplicates of the corresponding unit test.
+connection default;
+connect holder, localhost, root;
+connection holder;
+connect requestor, localhost, root;
+connection requestor;
+#
+# 6.1: Check maximum supported name_space length.
+connection holder;
+SELECT service_get_write_locks(RPAD('holder_name_space_', 64, 'a'),
+'l1', 'l2', 'l3', 0) AS col1;
+col1
+1
+SELECT service_release_locks(RPAD('holder_name_space_', 64, 'a')) AS col1;
+col1
+1
+SELECT service_get_write_locks(RPAD('holder_name_space_', 65, 'a'),
+'l1', 'l2', 'l3', 0) AS col1;
+ERROR 42000: Incorrect locking service lock name 'holder_name_space_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.
+#
+# 6.2: Check maximum supported lock name length at several positions
+SELECT service_get_write_locks('holder_name_space',
+RPAD('l1_', 64, 'a'), RPAD('l2_', 64, 'a'), RPAD('l3_', 64, 'a'), 0) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+SELECT service_get_write_locks('holder_name_space',
+RPAD('l1_', 65, 'a'), 'l2_1', 'l3_1', 0) AS col1;
+ERROR 42000: Incorrect locking service lock name 'l1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.
+SELECT service_get_write_locks('holder_name_space',
+'l1_2', RPAD('l2_', 65, 'a'), 'l3_2', 0) AS col1;
+ERROR 42000: Incorrect locking service lock name 'l2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.
+SELECT service_get_write_locks('holder_name_space',
+'l1_3', 'l2_3', RPAD('l3_', 65, 'a'), 0) AS col1;
+ERROR 42000: Incorrect locking service lock name 'l3_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.
+#
+# 6.3: Check that none of the failing (ER_LOCKING_SERVICE_WRONG_NAME)
+#      statements above requesting several locks got any lock at all.
+connection requestor;
+SELECT service_get_write_locks('holder_name_space',
+'l1_1', 'l2_1', 'l3_1',
+'l1_2', 'l2_2', 'l3_2',
+'l1_3', 'l2_3', 'l3_3', 1) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# Reveal that there are no locks left over.
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#
+# 6.4: Check that comparison of locks works correct.
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+ERROR HY000: Service lock wait timeout exceeded.
+# 6.4.1: Variation of lock namespace in get_write_lock.
+SELECT service_get_write_locks('holder_name_space ', 'lock', 0) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_space ') AS col1;
+col1
+1
+SELECT service_get_write_locks(' holder_name_space', 'lock', 0) AS col1;
+col1
+1
+SELECT service_release_locks(' holder_name_space') AS col1;
+col1
+1
+SELECT service_get_write_locks('holder_name_spac', 'lock', 0) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_spac') AS col1;
+col1
+1
+SELECT service_get_write_locks('older_name_space', 'lock', 0) AS col1;
+col1
+1
+SELECT service_release_locks('older_name_space') AS col1;
+col1
+1
+# 6.4.2: Variation of lock name in get_write_lock.
+SELECT service_get_write_locks('holder_name_space', 'lock ', 0) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+SELECT service_get_write_locks('holder_name_space', ' lock', 0) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+SELECT service_get_write_locks('holder_name_space', 'loc', 0) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+SELECT service_get_write_locks('holder_name_space', 'ock', 0) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# 6.4.3: Variation of lock namespace in release_locks
+connection holder;
+SELECT service_release_locks('holder_name_space ') AS col1;
+col1
+1
+connection requestor;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+ERROR HY000: Service lock wait timeout exceeded.
+connection holder;
+SELECT service_release_locks(' holder_name_space') AS col1;
+col1
+1
+connection requestor;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+ERROR HY000: Service lock wait timeout exceeded.
+connection holder;
+SELECT service_release_locks('holder_name_spac') AS col1;
+col1
+1
+connection requestor;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+ERROR HY000: Service lock wait timeout exceeded.
+connection holder;
+SELECT service_release_locks('older_name_spac') AS col1;
+col1
+1
+connection requestor;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+ERROR HY000: Service lock wait timeout exceeded.
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# Reveal that there are no locks left over.
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#
+# 6.5: How get values assigned to timeout interpreted.
+# 6.5.1: timeout = 0 -- No waiting
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+ERROR HY000: Service lock wait timeout exceeded.
+# 6.5.2: timeout = -1 -- Wait endless similar to user locks
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'lock', -1) AS col1;
+connection default;
+# Check that "requestor" waits longer than one second.
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# 6.5.3: timeout = 1.0E-5 -- Value does not get accepted.
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+SELECT service_get_write_locks('holder_name_space', 'lock', 1.0E-5) AS col1;
+ERROR HY000: Can't initialize function 'service_get_write_locks'; Wrong argument type - expected integer.
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# Reveal that there are no locks left over.
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#
+# 6.6: Check that the same locks can be requested several times.
+connection holder;
+# 6.6.1: Two times in same UDF call.
+SELECT service_get_write_locks('holder_name_space', 'l1', 'l1', 0) AS col1;
+col1
+1
+# We have two entries for the same lock.
+# Reveal that there are two locks.
+SELECT COUNT(*) = 2 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+# 6.6.2: Two times per two UDF calls in same statement.
+SELECT service_get_write_locks('holder_name_space', 'l2', 0) AS col1,
+service_get_write_locks('holder_name_space', 'l2', 0);
+col1	service_get_write_locks('holder_name_space', 'l2', 0)
+1	1
+# 6.6.3: Two times per one UDF call per statement.
+SELECT service_get_write_locks('holder_name_space', 'l3', 0) AS col1;
+col1
+1
+SELECT service_get_write_locks('holder_name_space', 'l3', 0) AS col1;
+col1
+1
+# Reveal that there are six locks.
+SELECT COUNT(*) = 6 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# Reveal that there are no locks left over.
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#
+# 6.7: Taking several locks in one statement is supported and "holder"
+#      will do that now. Reveal that all are blocked.
+connection holder;
+SELECT service_get_write_locks('holder_name_space',
+'first', 'middle', 'last', 0) AS col1;
+col1
+1
+connection requestor;
+SELECT service_get_write_locks('holder_name_space',
+'first', 'l2_1', 'l3_1', 0) AS col1;
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT service_get_write_locks('holder_name_space',
+'l1_2', 'middle', 'l3_2', 0) AS col1;
+ERROR HY000: Service lock wait timeout exceeded.
+SELECT service_get_write_locks('holder_name_space',
+'l1_3', 'l2_3', 'last', 0) AS col1;
+ERROR HY000: Service lock wait timeout exceeded.
+#
+# 6.8: Check that none of the failing (ER_LOCKING_SERVICE_TIMEOUT)
+#      statements above requesting several locks got any lock at all.
+connection holder;
+SELECT service_get_write_locks('holder_name_space',
+'l1_1', 'l2_1', 'l3_1',
+'l1_2', 'l2_2', 'l3_2',
+'l1_3', 'l2_3', 'l3_3', 0) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# Reveal that there are no locks left over.
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#
+# 6.9: Reveal that a
+#      - more or less smooth loss of the connection frees the special lock
+#      - ROLLBACK of some transaction during that a special lock was taken
+#        does not free that special lock
+#      held by that connection.
+# 6.9.1: ROLLBACK of "holder".
+connection holder;
+SET SESSION AUTOCOMMIT = OFF;
+COMMIT;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'lock', 10) AS col1;
+connection holder;
+# Check that "requestor" waits.
+ROLLBACK;
+SET @aux = 1;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# 6.9.2: Disconnect of "holder" in mysqltest.
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'lock', 10) AS col1;
+connection holder;
+# Check that "requestor" waits.
+disconnect holder;
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# 6.9.3: COMMMIT WORK RELEASE of "holder".
+connect holder, localhost, root;
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'lock', 10) AS col1;
+connection holder;
+# Check that "requestor" waits.
+COMMIT WORK RELEASE;
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+disconnect holder;
+# 6.9.4: KILL <session of "holder"> issued by "holder"
+connect holder, localhost, root;
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'lock', 10) AS col1;
+connection holder;
+# Check that "requestor" waits.
+SET @aux = <holder_id>;
+KILL @aux;
+ERROR 70100: Query execution was interrupted
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+disconnect holder;
+# 6.9.5: KILL <session of "holder"> issued by "default"
+connect holder, localhost, root;
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'lock', 10) AS col1;
+connection default;
+# Check that "requestor" waits.
+KILL <holder_id>;
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+disconnect holder;
+#
+# 6.10: Are all locks in the same space == We take them "read" or "write"
+#       or is there a space for "read" lock and one for "write" locks.
+#       The first is valid.
+#       Can we upgrade (read->write, yes) or downgrade (write-> read, no)
+#       such locks.
+# 6.10.1: holder:    get_read_lock
+#                    get_write_lock
+#         requestor: get_read_lock -- will wait
+connect holder, localhost, root;
+connection holder;
+SELECT service_get_read_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_read_locks('holder_name_space', 'lock', 10) AS col1;
+connection default;
+# Check that "requestor" waits.
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# 6.10.2: holder:    get_write_lock
+#                    get_read_lock
+#         requestor: get_read_lock -- will wait
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+SELECT service_get_read_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_read_locks('holder_name_space', 'lock', 10) AS col1;
+connection default;
+# Check that "requestor" waits.
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+#
+# 6.11: Interleaved stuff
+# 6.11.1: It does not count who got the first "read" lock when trying to
+#         to get a "write" lock later.
+#         requestor: get_read_lock
+#         holder:    get_read_lock
+#         requestor: get_write_lock -- will wait
+connection requestor;
+SELECT service_get_read_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection holder;
+SELECT service_get_read_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'lock', 10) AS col1;
+connection default;
+# Check that "requestor" waits.
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# 6.11.2: It does not count who got the last "read" lock when trying to
+#         to get a "write" lock later.
+#         holder:    get_read_lock
+#         requestor: get_read_lock
+#         requestor: get_write_lock -- will wait
+connection holder;
+SELECT service_get_read_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+SELECT service_get_read_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'lock', 10) AS col1;
+connection default;
+# Check that "requestor" waits.
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+# 6.11.3: There seems to be no lock free (micro) phase during upgrading.
+#         holder:    get_read_lock
+#         requestor: get_write_lock -- will wait
+#         holder:    get_write_lock
+#         requestor:                -- will stay waiting
+connection holder;
+SELECT service_get_read_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'lock', 10) AS col1;
+connection default;
+# Check that "requestor" waits.
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'lock', 10) AS col1;
+col1
+1
+SET @aux = 1;
+connection default;
+# Check that "requestor" waits.
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+#
+# 6.12: A session is able to free own locks but not locks held by
+#       by other sessions.
+#       holder:    get_read_lock l1
+#       default:   get_read_lock l1, l2
+#       requestor: get_write_lock l1 -- will wait
+#       default:   free locks (l1, l2)
+#       requestor:                   -- will stay waiting
+connection holder;
+SELECT service_get_read_locks('holder_name_space', 'l1', 0) AS col1;
+col1
+1
+connection default;
+SELECT service_get_read_locks('holder_name_space', 'l1', 'l2', 0) AS col1;
+col1
+1
+connection requestor;
+Send the statement and reap the result later.
+SELECT service_get_write_locks('holder_name_space', 'l1', 10) AS col1;
+connection default;
+# Check that "requestor" waits.
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+SET @aux = 1;
+# Check that "requestor" waits.
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+Reap the result of the statement sent earlier.
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+#
+# 6.13: The statement running the UDF fails because of reason outside UDF.
+#       No lock is taken.
+connection holder;
+CREATE TEMPORARY TABLE t1 AS SELECT 1 AS col1;
+CREATE TEMPORARY TABLE t1
+AS SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+ERROR 42S01: Table 't1' already exists
+connection requestor;
+SELECT service_get_write_locks('holder_name_space', 'lock', 0) AS col1;
+col1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection holder;
+DROP TEMPORARY TABLE t1;
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+#
+# 6.14: The UDF's are atomic per call and not per statement where they
+#       are invoked. Locks are taken as long as it works and they will
+#       be not freed if the statement finally fails.
+connection holder;
+SELECT service_get_write_locks('holder_name_space', 'l2', 0) AS col1;
+col1
+1
+connection default;
+SELECT COUNT(*) = 1 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+connection requestor;
+SELECT service_get_write_locks('holder_name_space', 'l1', 0) AS col1,
+service_get_write_locks('holder_name_space', 'l2', 0);
+ERROR HY000: Service lock wait timeout exceeded.
+connection default;
+SELECT COUNT(*) = 2 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+connection requestor;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+#
+# 6.15: The statement invoking a failing UDF call needs to fail too.
+#       The specific is here that we run the UDF for several rows.
+#       The statement should have zero impact on data (InnoDB assumed).
+connection holder;
+CREATE TABLE t1 (col1 VARCHAR(10));
+INSERT INTO t1 VALUES ('l1'), ('l2'), ('l3');
+SELECT service_get_write_locks('holder_name_space', 'l2', 0);
+service_get_write_locks('holder_name_space', 'l2', 0)
+1
+# 6.15.1: CREATE TEMPORARY TABLE ... AS SELECT ... UDF ... FROM ...
+connection requestor;
+CREATE TEMPORARY TABLE t2 ENGINE = InnoDB AS
+SELECT service_get_write_locks('holder_name_space', col1, 0) AS col1 FROM t1
+ORDER BY col1;
+ERROR HY000: Service lock wait timeout exceeded.
+DROP TEMPORARY TABLE t2;
+ERROR 42S02: Unknown table 'test.t2'
+# There are two locks left over.
+# One taken by holder and one by requestor though his statement failed.
+# The latter is caused by some UDF limitation.
+SELECT COUNT(*) = 2 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection requestor;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+connection holder;
+SELECT service_release_locks('holder_name_space') AS col1;
+col1
+1
+DROP TABLE t1;
+# Reveal that there are no locks left over.
+SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'LOCKING SERVICE';
+expect_1
+1
+connection default;
+disconnect holder;
+disconnect requestor;
+# Check that "requestor" and "holder" are gone.
+#
+# Bug#21286221: DEBUG SERVER CRASHES ON RESET SLAVE WITH
+#               LOCKED VERSION TOKEN
+#
+SELECT service_get_write_locks('holder_name_space', 'lock', 0);
+service_get_write_locks('holder_name_space', 'lock', 0)
+1
+FLUSH TABLES;
+SELECT service_release_locks('holder_name_space');
+service_release_locks('holder_name_space')
+1
+DROP FUNCTION service_get_read_locks;
+DROP FUNCTION service_get_write_locks;
+DROP FUNCTION service_release_locks;

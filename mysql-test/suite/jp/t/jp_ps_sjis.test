@@ -1,0 +1,346 @@
+
+--character_set sjis
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+--enable_warnings
+
+#
+# Test Prepares Statement with Japanese character in sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+### Test InnoDB ###
+CREATE TABLE t1(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = InnoDB;
+CREATE TABLE t2(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = InnoDB;
+CREATE TABLE t3(
+ `ｱ`  char(1),
+ `あ` char(1),
+ `表` char(1)
+)DEFAULT CHARSET = sjis ENGINE = InnoDB;
+CREATE TABLE t4(c1 char(1)) DEFAULT CHARSET = sjis ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES ('xxx');
+INSERT INTO t2 VALUES ('ｱあ表');
+INSERT INTO t3 VALUES ('x','x','x'),('x','x','x'),('y','y','y'),('y','y','y'),('z','z','z'),('z','z','z');
+INSERT INTO t4 VALUES ('ｱ'),('あ'),('表');
+
+# Japanese parameter for column name
+# the parameter for stmt is not interpreted as column name
+PREPARE stmt1 FROM 'SELECT ? FROM t3';
+PREPARE stmt2 FROM 'SELECT * FROM t3 ORDER BY ?';
+PREPARE stmt3 FROM 'SELECT COUNT(*) FROM t3 GROUP BY ?';
+# Japanese parameter for function argument
+PREPARE stmt4 FROM 'SELECT CHAR_LENGTH(?)';
+PREPARE stmt5 FROM 'SELECT CHARSET(?)';
+PREPARE stmt6 FROM 'SELECT INSERT(c1,1,1,?) FROM t1';
+PREPARE stmt7 FROM 'SELECT INSTR(c1,?) FROM t2';
+PREPARE stmt8 FROM 'SELECT LOCATE(?,c1) FROM t2';
+PREPARE stmt9 FROM 'SELECT LPAD(c1,10,?) FROM t1';
+PREPARE stmt10 FROM 'SELECT REPLACE(c1,?,\'x\') FROM t2';
+PREPARE stmt11 FROM 'SELECT REPLACE(c1,\'x\',?) FROM t1';
+PREPARE stmt12 FROM 'SELECT RPAD(c1,10,?) FROM t1';
+# Japanese parameter for UPDATE
+PREPARE stmt13 FROM 'UPDATE t4 SET c1=\'x\' WHERE c1=?';
+PREPARE stmt14 FROM 'UPDATE t4 SET c1=? WHERE c1=\'x\'';
+
+## Test jisx0201 ##
+SET @arg = 'ｱ';
+EXECUTE stmt1 USING @arg;
+EXECUTE stmt2 USING @arg;
+EXECUTE stmt3 USING @arg;
+EXECUTE stmt4 USING @arg;
+EXECUTE stmt5 USING @arg;
+EXECUTE stmt6 USING @arg;
+EXECUTE stmt7 USING @arg;
+EXECUTE stmt8 USING @arg;
+EXECUTE stmt9 USING @arg;
+EXECUTE stmt10 USING @arg;
+EXECUTE stmt11 USING @arg;
+EXECUTE stmt12 USING @arg;
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+
+## Test jisx0208 ##
+SET @arg = 'あ';
+EXECUTE stmt1 USING @arg;
+EXECUTE stmt2 USING @arg;
+EXECUTE stmt3 USING @arg;
+EXECUTE stmt4 USING @arg;
+EXECUTE stmt5 USING @arg;
+EXECUTE stmt6 USING @arg;
+EXECUTE stmt7 USING @arg;
+EXECUTE stmt8 USING @arg;
+EXECUTE stmt9 USING @arg;
+EXECUTE stmt10 USING @arg;
+EXECUTE stmt11 USING @arg;
+EXECUTE stmt12 USING @arg;
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+
+# Test jisx0212 ##
+SET @arg = '表';
+EXECUTE stmt1 USING @arg;
+EXECUTE stmt2 USING @arg;
+EXECUTE stmt3 USING @arg;
+EXECUTE stmt4 USING @arg;
+EXECUTE stmt5 USING @arg;
+EXECUTE stmt6 USING @arg;
+EXECUTE stmt7 USING @arg;
+EXECUTE stmt8 USING @arg;
+EXECUTE stmt9 USING @arg;
+EXECUTE stmt10 USING @arg;
+EXECUTE stmt11 USING @arg;
+EXECUTE stmt12 USING @arg;
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+DEALLOCATE PREPARE stmt4;
+DEALLOCATE PREPARE stmt5;
+DEALLOCATE PREPARE stmt6;
+DEALLOCATE PREPARE stmt7;
+DEALLOCATE PREPARE stmt8;
+DEALLOCATE PREPARE stmt9;
+DEALLOCATE PREPARE stmt10;
+DEALLOCATE PREPARE stmt11;
+DEALLOCATE PREPARE stmt12;
+DEALLOCATE PREPARE stmt13;
+DEALLOCATE PREPARE stmt14;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+
+### Test MyISAM ###
+CREATE TABLE t1(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = MyISAM;
+CREATE TABLE t2(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = MyISAM;
+CREATE TABLE t3(
+ `ｱ` char(1),
+ `あ` char(1),
+ `表` char(1)
+)DEFAULT CHARSET = sjis ENGINE = MyISAM;
+CREATE TABLE t4(c1 char(1)) DEFAULT CHARSET = sjis ENGINE = MyISAM;
+
+INSERT INTO t1 VALUES ('xxx');
+INSERT INTO t2 VALUES ('ｱあ表');
+INSERT INTO t3 VALUES ('x','x','x'),('x','x','x'),('y','y','y'),('y','y','y'),('z','z','z'),('z','z','z');
+INSERT INTO t4 VALUES ('ｱ'),('あ'),('表' );
+
+# Japanese parameter for column name
+PREPARE stmt1 FROM 'SELECT ? FROM t3';
+PREPARE stmt2 FROM 'SELECT * FROM t3 ORDER BY ?';
+PREPARE stmt3 FROM 'SELECT COUNT(*) FROM t3 GROUP BY ?';
+# Japanese parameter for function argument
+PREPARE stmt4 FROM 'SELECT CHAR_LENGTH(?)';
+PREPARE stmt5 FROM 'SELECT CHARSET(?)';
+PREPARE stmt6 FROM 'SELECT INSERT(c1,1,1,?) FROM t1';
+PREPARE stmt7 FROM 'SELECT INSTR(c1,?) FROM t2';
+PREPARE stmt8 FROM 'SELECT LOCATE(?,c1) FROM t2';
+PREPARE stmt9 FROM 'SELECT LPAD(c1,10,?) FROM t1';
+PREPARE stmt10 FROM 'SELECT REPLACE(c1,?,\'x\') FROM t2';
+PREPARE stmt11 FROM 'SELECT REPLACE(c1,\'x\',?) FROM t1';
+PREPARE stmt12 FROM 'SELECT RPAD(c1,10,?) FROM t1';
+# Japanese parameter for UPDATE
+PREPARE stmt13 FROM 'UPDATE t4 SET c1=\'x\' WHERE c1=?';
+PREPARE stmt14 FROM 'UPDATE t4 SET c1=? WHERE c1=\'x\'';
+
+## Test jisx0201 ##
+SET @arg = 'ｱ';
+EXECUTE stmt1 USING @arg;
+EXECUTE stmt2 USING @arg;
+EXECUTE stmt3 USING @arg;
+EXECUTE stmt4 USING @arg;
+EXECUTE stmt5 USING @arg;
+EXECUTE stmt6 USING @arg;
+EXECUTE stmt7 USING @arg;
+EXECUTE stmt8 USING @arg;
+EXECUTE stmt9 USING @arg;
+EXECUTE stmt10 USING @arg;
+EXECUTE stmt11 USING @arg;
+EXECUTE stmt12 USING @arg;
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+
+## Test jisx0208 ##
+SET @arg = 'あ';
+EXECUTE stmt1 USING @arg;
+EXECUTE stmt2 USING @arg;
+EXECUTE stmt3 USING @arg;
+EXECUTE stmt4 USING @arg;
+EXECUTE stmt5 USING @arg;
+EXECUTE stmt6 USING @arg;
+EXECUTE stmt7 USING @arg;
+EXECUTE stmt8 USING @arg;
+EXECUTE stmt9 USING @arg;
+EXECUTE stmt10 USING @arg;
+EXECUTE stmt11 USING @arg;
+EXECUTE stmt12 USING @arg;
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+
+## Test jisx0212 ##
+SET @arg = '表';
+EXECUTE stmt1 USING @arg;
+EXECUTE stmt2 USING @arg;
+EXECUTE stmt3 USING @arg;
+EXECUTE stmt4 USING @arg;
+EXECUTE stmt5 USING @arg;
+EXECUTE stmt6 USING @arg;
+EXECUTE stmt7 USING @arg;
+EXECUTE stmt8 USING @arg;
+EXECUTE stmt9 USING @arg;
+EXECUTE stmt10 USING @arg;
+EXECUTE stmt11 USING @arg;
+EXECUTE stmt12 USING @arg;
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+DEALLOCATE PREPARE stmt4;
+DEALLOCATE PREPARE stmt5;
+DEALLOCATE PREPARE stmt6;
+DEALLOCATE PREPARE stmt7;
+DEALLOCATE PREPARE stmt8;
+DEALLOCATE PREPARE stmt9;
+DEALLOCATE PREPARE stmt10;
+DEALLOCATE PREPARE stmt11;
+DEALLOCATE PREPARE stmt12;
+DEALLOCATE PREPARE stmt13;
+DEALLOCATE PREPARE stmt14;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+
+### Test MEMORY ###
+CREATE TABLE t1(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = MEMORY;
+CREATE TABLE t2(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = MEMORY;
+CREATE TABLE t3(
+ `ｱ` char(1),
+ `あ` char(1),
+ `表` char(1)
+)DEFAULT CHARSET = sjis ENGINE = MEMORY;
+CREATE TABLE t4(c1 char(1)) DEFAULT CHARSET = sjis ENGINE =MEMORY;
+
+INSERT INTO t1 VALUES ('xxx');
+INSERT INTO t2 VALUES ('ｱあ表');
+INSERT INTO t3 VALUES ('x','x','x'),('x','x','x'),('y','y','y'),('y','y','y'),('z','z','z'),('z','z','z');
+INSERT INTO t4 VALUES ('ｱ'),('あ'),('表' );
+
+# Japanese parameter for column name
+PREPARE stmt1 FROM 'SELECT ? FROM t3';
+PREPARE stmt2 FROM 'SELECT * FROM t3 ORDER BY ?';
+PREPARE stmt3 FROM 'SELECT COUNT(*) FROM t3 GROUP BY ?';
+# Japanese parameter for function argument
+PREPARE stmt4 FROM 'SELECT CHAR_LENGTH(?)';
+PREPARE stmt5 FROM 'SELECT CHARSET(?)';
+PREPARE stmt6 FROM 'SELECT INSERT(c1,1,1,?) FROM t1';
+PREPARE stmt7 FROM 'SELECT INSTR(c1,?) FROM t2';
+PREPARE stmt8 FROM 'SELECT LOCATE(?,c1) FROM t2';
+PREPARE stmt9 FROM 'SELECT LPAD(c1,10,?) FROM t1';
+PREPARE stmt10 FROM 'SELECT REPLACE(c1,?,\'x\') FROM t2';
+PREPARE stmt11 FROM 'SELECT REPLACE(c1,\'x\',?) FROM t1';
+PREPARE stmt12 FROM 'SELECT RPAD(c1,10,?) FROM t1';
+# Japanese parameter for UPDATE
+PREPARE stmt13 FROM 'UPDATE t4 SET c1=\'x\' WHERE c1=?';
+PREPARE stmt14 FROM 'UPDATE t4 SET c1=? WHERE c1=\'x\'';
+
+## Test jisx0201 ##
+SET @arg = 'ｱ';
+EXECUTE stmt1 USING @arg;
+EXECUTE stmt2 USING @arg;
+EXECUTE stmt3 USING @arg;
+EXECUTE stmt4 USING @arg;
+EXECUTE stmt5 USING @arg;
+EXECUTE stmt6 USING @arg;
+EXECUTE stmt7 USING @arg;
+EXECUTE stmt8 USING @arg;
+EXECUTE stmt9 USING @arg;
+EXECUTE stmt10 USING @arg;
+EXECUTE stmt11 USING @arg;
+EXECUTE stmt12 USING @arg;
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+
+## Test jisx0208 ##
+SET @arg = 'あ';
+EXECUTE stmt1 USING @arg;
+EXECUTE stmt2 USING @arg;
+EXECUTE stmt3 USING @arg;
+EXECUTE stmt4 USING @arg;
+EXECUTE stmt5 USING @arg;
+EXECUTE stmt6 USING @arg;
+EXECUTE stmt7 USING @arg;
+EXECUTE stmt8 USING @arg;
+EXECUTE stmt9 USING @arg;
+EXECUTE stmt10 USING @arg;
+EXECUTE stmt11 USING @arg;
+EXECUTE stmt12 USING @arg;
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+
+## Test jisx0212 ##
+SET @arg = '表';
+EXECUTE stmt1 USING @arg;
+EXECUTE stmt2 USING @arg;
+EXECUTE stmt3 USING @arg;
+EXECUTE stmt4 USING @arg;
+EXECUTE stmt5 USING @arg;
+EXECUTE stmt6 USING @arg;
+EXECUTE stmt7 USING @arg;
+EXECUTE stmt8 USING @arg;
+EXECUTE stmt9 USING @arg;
+EXECUTE stmt10 USING @arg;
+EXECUTE stmt11 USING @arg;
+EXECUTE stmt12 USING @arg;
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+DEALLOCATE PREPARE stmt4;
+DEALLOCATE PREPARE stmt5;
+DEALLOCATE PREPARE stmt6;
+DEALLOCATE PREPARE stmt7;
+DEALLOCATE PREPARE stmt8;
+DEALLOCATE PREPARE stmt9;
+DEALLOCATE PREPARE stmt10;
+DEALLOCATE PREPARE stmt11;
+DEALLOCATE PREPARE stmt12;
+DEALLOCATE PREPARE stmt13;
+DEALLOCATE PREPARE stmt14;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;

@@ -1,0 +1,306 @@
+
+#
+# Test of init_connect variable
+#
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--source include/add_anonymous_users.inc
+
+connect (con0,localhost,root,,);
+connection con0;
+select hex(@a);
+connect (con1,localhost,user_1,,);
+connection con1;
+select hex(@a);
+connection con0;
+set global init_connect="set @a=2;set @b=3";
+connect (con2,localhost,user_1,,);
+connection con2;
+select @a, @b;
+connection con0;
+set GLOBAL init_connect=DEFAULT;
+connect (con3,localhost,user_1,,);
+connection con3;
+select @a;
+connection con0;
+set global init_connect="drop table if exists t1; create table t1(a char(10));\
+insert into t1 values ('\0');insert into t1 values('abc')";
+connect (con4,localhost,user_1,,);
+connection con4;
+select hex(a) from t1;
+connection con0;
+set GLOBAL init_connect="adsfsdfsdfs";
+connect (con5,localhost,user_1,,);
+connection con5;
+# BUG#11755281/47032: ERROR 2006 / ERROR 2013 INSTEAD OF PROPER ERROR MESSAGE
+# We now throw a proper error message here:
+--replace_regex /connection .* to/connection to/
+--error ER_NEW_ABORTING_CONNECTION
+select @a;
+# We got disconnected after receiving the above error message; any further
+# requests should fail with a notice that no one's listening to us.
+# --error CR_SERVER_GONE_ERROR,CR_SERVER_LOST
+--error 2013,2006
+select @a;
+connection con0;
+drop table t1;
+
+disconnect con1;
+disconnect con2;
+disconnect con3;
+disconnect con4;
+disconnect con5;
+
+--source include/delete_anonymous_users.inc
+
+--echo End of 4.1 tests
+#
+# Test 5.* features
+#
+
+create table t1 (x int);
+insert into t1 values (3), (5), (7);
+create table t2 (y int);
+
+create user mysqltest1@localhost;
+grant all privileges on test.* to mysqltest1@localhost;
+#
+# Create a simple procedure
+#
+set global init_connect="create procedure p1() select * from t1";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+call p1();
+drop procedure p1;
+
+connection con0;
+disconnect con1;
+#
+# Create a multi-result set procedure
+#
+set global init_connect="create procedure p1(x int)\
+begin\
+  select count(*) from t1;\
+  select * from t1;\
+  set @x = x;
+end";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+call p1(42);
+select @x;
+
+connection con0;
+disconnect con1;
+#
+# Just call it - this will not generate any output
+#
+set global init_connect="call p1(4711)";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select @x;
+
+connection con0;
+disconnect con1;
+#
+# Drop the procedure
+#
+set global init_connect="drop procedure if exists p1";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+--error ER_SP_DOES_NOT_EXIST
+call p1();
+
+connection con0;
+disconnect con1;
+#
+# Execution of a more complex procedure
+#
+delimiter |;
+create procedure p1(out sum int)
+begin
+  declare n int default 0;
+  declare c cursor for select * from t1;
+  declare exit handler for not found
+    begin
+      close c;
+      set sum = n;
+    end;
+
+  open c;
+  loop
+    begin
+      declare x int;
+
+      fetch c into x;
+      if x > 3 then
+        set n = n + x;
+      end if;
+    end;
+  end loop;
+end|
+delimiter ;|
+# Call the procedure with a cursor
+set global init_connect="call p1(@sum)";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select @sum;
+
+connection con0;
+disconnect con1;
+drop procedure p1;
+#
+# Test Dynamic SQL
+#
+delimiter |;
+create procedure p1(tbl char(10), v int)
+begin
+  set @s = concat('insert into ', tbl, ' values (?)');
+  set @v = v;
+  prepare stmt1 from @s;
+  execute stmt1 using @v;
+  deallocate prepare stmt1;
+end|
+delimiter ;|
+# Call the procedure with prepared statements
+set global init_connect="call p1('t1', 11)";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select * from t1;
+
+connection con0;
+disconnect con1;
+drop procedure p1;
+#
+# Stored functions
+#
+delimiter |;
+create function f1() returns int
+begin
+  declare n int;
+
+  select count(*) into n from t1;
+  return n;
+end|
+delimiter ;|
+# Invoke a function
+set global init_connect="set @x = f1()";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select @x;
+
+connection con0;
+disconnect con1;
+#
+# Create a view
+#
+set global init_connect="create view v1 as select f1()";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select * from v1;
+
+connection con0;
+disconnect con1;
+#
+# Drop the view
+#
+set global init_connect="drop view v1";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+--error ER_NO_SUCH_TABLE
+select * from v1;
+
+connection con0;
+disconnect con1;
+drop function f1;
+
+# We can't test "create trigger", since this requires super privileges
+# in 5.0, but with super privileges, init_connect is not executed.
+# (However, this can be tested in 5.1)
+#
+#set global init_connect="create trigger trg1\
+#  after insert on t2\
+#  for each row\
+#  insert into t1 values (new.y)";
+#connect (con1,localhost,mysqltest1,,);
+#connection con1;
+#insert into t2 values (2), (4);
+#select * from t1;
+#
+#connection con0;
+#disconnect con1;
+
+create trigger trg1
+  after insert on t2
+  for each row
+  insert into t1 values (new.y);
+
+# Invoke trigger
+set global init_connect="insert into t2 values (13), (17), (19)";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select * from t1;
+
+connection default;
+disconnect con0;
+disconnect con1;
+
+drop trigger trg1;
+
+revoke all privileges, grant option from mysqltest1@localhost;
+drop user mysqltest1@localhost;
+drop table t1, t2;
+
+--echo ###
+--echo ### Bug#25968185: INIT_CONNECT PREVENTS CONNECTIONS IF PASSWORD EXPIRED
+--echo ###
+
+call mtr.add_suppression("\\[Warning\\] \\[.*\\] init_connect variable is ignored for user:.* host: localhost due to expired password.");
+
+CREATE USER user1@localhost PASSWORD EXPIRE;
+CREATE USER ''@localhost;
+UPDATE mysql.user SET password_expired='Y' WHERE user='' AND host='localhost';
+SELECT user, password_expired FROM mysql.user WHERE user='' AND host='localhost';
+FLUSH PRIVILEGES;
+
+SET GLOBAL init_connect="set @a=2;";
+
+#SCENARRIO 1:- Normal user with expired password.
+connect (con1,localhost,user1,,);
+connection con1;
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=\[Warning\] \[.*\] init_connect variable is ignored for user: user1 host: localhost due to expired password.;
+--source include/search_pattern.inc
+
+--error ER_MUST_CHANGE_PASSWORD
+SELECT @a;
+SET PASSWORD = 'abc';
+SELECT @a;
+
+connection default;
+disconnect con1;
+
+#SCENARRIO 2:- Anonymous user with expired password.
+connect (con2,localhost,anonymous,,);
+connection con2;
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=\[Warning\] \[.*\] init_connect variable is ignored for user:  host: localhost due to expired password.;
+--source include/search_pattern.inc
+
+--error ER_MUST_CHANGE_PASSWORD
+SELECT @a;
+
+connection default;
+disconnect con2;
+
+DROP USER user1@localhost;
+DROP USER ''@localhost;
+
+# Set init connect back to the value provided in init_connect-master.opt
+# doesn't matter as server will be restarted
+set global init_connect="set @a='a\\0c'";
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

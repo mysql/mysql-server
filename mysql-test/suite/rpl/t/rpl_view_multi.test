@@ -1,0 +1,147 @@
+#
+# This file contains test cases for bugs which involve views, several
+# concurren connections and manifest themselves as wrong binary log
+# sequence which results in broken replication. In principle we are
+# mostly interested in SBR here but this test will also work with RBR.
+#
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Bug #25144 "replication / binlog with view breaks".
+--echo # Statements that used views didn't ensure that view were not modified
+--echo # during their execution. Indeed this led to incorrect binary log with
+--echo # statement based logging and as result to broken replication.
+--echo #
+#
+# Suppress "unsafe" warnings. 
+#
+disable_query_log;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
+
+--disable_warnings
+drop tables if exists t1, t2;
+drop view if exists v1;
+--enable_warnings
+--echo # Syncing slave with master and switching to connection 'slave'
+--source include/sync_slave_sql_with_master.inc
+
+connect (master2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+--echo # Switching to connection 'master'
+connection master;
+create table t1 (i int);
+create table t2 (i int);
+create view v1 as select * from t1;
+
+--echo # First we try to concurrently execute statement that uses view
+--echo # and statement that drops it. We use "user" locks as means to
+--echo # suspend execution of first statement once it opens our view.
+select get_lock("lock_bg25144", 1);
+
+--echo # Switching to connection 'master1'
+connection master1;
+--send insert into v1 values (get_lock("lock_bg25144", 100))
+
+--echo # Switching to connection 'master2'
+connection master2;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and info like "insert into v1 %lock_bg25144%";
+--source include/wait_condition_or_abort.inc
+--send drop view v1
+
+--echo # Switching to connection 'master'
+connection master;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and info = "drop view v1";
+--source include/wait_condition_or_abort.inc
+
+select release_lock("lock_bg25144");
+
+--echo # Switching to connection 'master1'
+connection master1;
+--disable_warnings
+--reap
+--enable_warnings
+select release_lock("lock_bg25144");
+
+--echo # Switching to connection 'master2'
+connection master2;
+--reap
+
+--echo # Switching to connection 'master'
+connection master;
+--echo # Check that insertion through view did happen.
+select * from t1;
+--echo # Syncing slave with master and switching to connection 'slave'
+--source include/sync_slave_sql_with_master.inc
+--echo # Check that slave was able to replicate this sequence
+--echo # which means that we got correct binlog order.
+select * from t1;
+
+--echo # Switching to connection 'master'
+connection master;
+--echo # Now we will repeat the test by trying concurrently execute
+--echo # statement that uses a view and statement that alters it.
+create view v1 as select * from t1;
+
+select get_lock("lock_bg25144", 1);
+
+--echo # Switching to connection 'master1'
+connection master1;
+--send insert into v1 values (get_lock("lock_bg25144", 100))
+
+--echo # Switching to connection 'master2'
+connection master2;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and info like "insert into v1 %lock_bg25144%";
+--source include/wait_condition_or_abort.inc
+--send alter view v1 as select * from t2
+
+--echo # Switching to connection 'master'
+connection master;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+  info = "alter view v1 as select * from t2";
+--source include/wait_condition_or_abort.inc
+
+select release_lock("lock_bg25144");
+
+--echo # Switching to connection 'master1'
+connection master1;
+--disable_warnings
+--reap
+--enable_warnings
+select release_lock("lock_bg25144");
+
+--echo # Switching to connection 'master2'
+connection master2;
+--reap
+
+--echo # Switching to connection 'master'
+connection master;
+
+--echo # Second insertion should go to t1 as well.
+select * from t1;
+select * from t2;
+
+--echo # Syncing slave with master and switching to connection 'slave'
+--source include/sync_slave_sql_with_master.inc
+--echo # Now let us check that statements were logged in proper order
+--echo # So we have same result on slave.
+select * from t1;
+select * from t2;
+
+--echo # Switching to connection 'master'
+connection master;
+drop table t1, t2;
+drop view v1;
+--echo # Syncing slave with master and switching to connection 'slave'
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

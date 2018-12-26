@@ -1,0 +1,154 @@
+############## mysql-test\t\binlog_expire_logs_seconds_basic.test ################
+#                                                                                #
+# Variable Name: binlog_expire_logs_seconds                                      #
+# Scope: GLOBAL                                                                  #
+# Access Type: Dynamic                                                           #
+# Data Type: numeric                                                             #
+# Default Value:0                                                                #
+# Range:  0- (2^32 -1)                                                           #
+#                                                                                #
+#                                                                                #
+# Creation Date: 2017-11-28                                                      #
+# Author: Neha kumari                                                            #
+#                                                                                #
+# Description: Test Cases of Dynamic System Variable                             #
+#              binlog_expire_logs_seconds that checks the behavior of this       #
+#              variable in the following ways                                    #
+#              * Default Value                                                   #
+#              * Valid & Invalid values                                          #
+#              * Scope & Access method                                           #
+#              * Data Integrity                                                  #
+#                                                                                #
+# Reference: https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#
+#                                                                                #
+##################################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#               START OF binlog_expire_logs_seconds TESTS              #
+########################################################################
+
+SET @start_value = @@global.expire_logs_days;
+SELECT @start_value;
+
+# Set expire_logs_days to 0 in order to test binlog_expire_logs_seconds
+# or we will get error while setting binlog_expire_logs_seconds
+SET @@global.expire_logs_days = 0;
+
+SET @start_value_sec = @@global.binlog_expire_logs_seconds;
+SELECT @start_value_sec;
+########################################################################
+#      Display the DEFAULT value of binlog_expire_logs_seconds         #
+########################################################################
+
+SET @@global.binlog_expire_logs_seconds = 8734635;
+SET @@global.binlog_expire_logs_seconds = DEFAULT;
+SELECT @@global.binlog_expire_logs_seconds;
+
+###############################################
+#     Verify default value of variable        #
+###############################################
+
+SET @@global.binlog_expire_logs_seconds = @start_value_sec;
+SELECT @@global.binlog_expire_logs_seconds = 2592000;
+
+##################################################################################
+#        Change the value of binlog_expire_logs_seconds to a valid value         #
+##################################################################################
+
+SET @@global.binlog_expire_logs_seconds = 0;
+SELECT @@global.binlog_expire_logs_seconds;
+SET @@global.binlog_expire_logs_seconds = 99;
+SELECT @@global.binlog_expire_logs_seconds;
+SET @@global.binlog_expire_logs_seconds = 10;
+SELECT @@global.binlog_expire_logs_seconds;
+SET @@global.binlog_expire_logs_seconds = 21;
+SELECT @@global.binlog_expire_logs_seconds;
+
+#####################################################################################
+#         Change the value of binlog_expire_logs_seconds to invalid value           #
+#####################################################################################
+
+SET @@global.binlog_expire_logs_seconds = -1;
+SELECT @@global.binlog_expire_logs_seconds;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.binlog_expire_logs_seconds = 10000.01;
+SELECT @@global.binlog_expire_logs_seconds;
+SET @@global.binlog_expire_logs_seconds = -1024;
+SELECT @@global.binlog_expire_logs_seconds;
+SET @@global.binlog_expire_logs_seconds = 42949672950;
+SELECT @@global.binlog_expire_logs_seconds;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.binlog_expire_logs_seconds = ON;
+SELECT @@global.binlog_expire_logs_seconds;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.binlog_expire_logs_seconds = 'test';
+SELECT @@global.binlog_expire_logs_seconds;
+
+#####################################################################################
+#       Test if accessing session binlog_expire_logs_seconds gives error            #
+#####################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.binlog_expire_logs_seconds = 0;
+SELECT @@binlog_expire_logs_seconds;
+
+##############################################################################
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+--disable_warnings
+SELECT @@global.binlog_expire_logs_seconds = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='binlog_expire_logs_seconds';
+
+SELECT @@binlog_expire_logs_seconds = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='binlog_expire_logs_seconds';
+--enable_warnings
+
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@global.binlog_expire_logs_seconds = TRUE;
+SELECT @@global.binlog_expire_logs_seconds;
+SET @@global.binlog_expire_logs_seconds = FALSE;
+SELECT @@global.binlog_expire_logs_seconds;
+
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@global.binlog_expire_logs_seconds = 1;
+SELECT @@binlog_expire_logs_seconds = @@global.binlog_expire_logs_seconds;
+
+####################################################################################
+#   Check if binlog_expire_logs_seconds can be accessed with and without @@ sign   #
+####################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET binlog_expire_logs_seconds = 1;
+SELECT @@binlog_expire_logs_seconds;
+--Error ER_PARSE_ERROR
+SET local.binlog_expire_logs_seconds = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.binlog_expire_logs_seconds;
+--Error ER_PARSE_ERROR
+SET global.binlog_expire_logs_seconds = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT global.binlog_expire_logs_seconds;
+--Error ER_BAD_FIELD_ERROR
+SELECT binlog_expire_logs_seconds = @@session.binlog_expire_logs_seconds;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.binlog_expire_logs_seconds = @start_value_sec;
+SELECT @@global.binlog_expire_logs_seconds;
+
+SET @@global.expire_logs_days = @start_value;
+SELECT @@global.expire_logs_days;

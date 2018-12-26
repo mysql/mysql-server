@@ -1,0 +1,15 @@
+--echo #
+--echo # Checks the basic functionality of the plugin.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+--echo # checks that the plugin is well installed
+SELECT PLUGIN_NAME, PLUGIN_TYPE
+FROM information_schema.plugins
+WHERE plugin_name = 'Rewriter';
+
+--source suite/query_rewrite_plugins/include/basic.inc
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

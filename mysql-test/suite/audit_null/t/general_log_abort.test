@@ -1,0 +1,29 @@
+--source include/have_null_audit_plugin.inc
+--source include/no_protocol.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
+
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+SELECT 1;
+
+--echo #######################################
+--echo ## ABORT GENERAL LOG WITH MY_MESSAGE ##
+--echo #######################################
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+SELECT 1;
+
+UNINSTALL PLUGIN null_audit;

@@ -1,0 +1,977 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/stop_slave.inc
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @@global.slave_parallel_workers= 4;
+include/start_slave.inc
+include/diff_tables.inc [master:d32.t8, slave:d32.t8]
+include/diff_tables.inc [master:d32.t7, slave:d32.t7]
+include/diff_tables.inc [master:d32.t6, slave:d32.t6]
+include/diff_tables.inc [master:d32.t5, slave:d32.t5]
+include/diff_tables.inc [master:d32.t4, slave:d32.t4]
+include/diff_tables.inc [master:d32.t3, slave:d32.t3]
+include/diff_tables.inc [master:d32.t2, slave:d32.t2]
+include/diff_tables.inc [master:d32.t1, slave:d32.t1]
+include/diff_tables.inc [master:d31.t8, slave:d31.t8]
+include/diff_tables.inc [master:d31.t7, slave:d31.t7]
+include/diff_tables.inc [master:d31.t6, slave:d31.t6]
+include/diff_tables.inc [master:d31.t5, slave:d31.t5]
+include/diff_tables.inc [master:d31.t4, slave:d31.t4]
+include/diff_tables.inc [master:d31.t3, slave:d31.t3]
+include/diff_tables.inc [master:d31.t2, slave:d31.t2]
+include/diff_tables.inc [master:d31.t1, slave:d31.t1]
+include/diff_tables.inc [master:d30.t8, slave:d30.t8]
+include/diff_tables.inc [master:d30.t7, slave:d30.t7]
+include/diff_tables.inc [master:d30.t6, slave:d30.t6]
+include/diff_tables.inc [master:d30.t5, slave:d30.t5]
+include/diff_tables.inc [master:d30.t4, slave:d30.t4]
+include/diff_tables.inc [master:d30.t3, slave:d30.t3]
+include/diff_tables.inc [master:d30.t2, slave:d30.t2]
+include/diff_tables.inc [master:d30.t1, slave:d30.t1]
+include/diff_tables.inc [master:d29.t8, slave:d29.t8]
+include/diff_tables.inc [master:d29.t7, slave:d29.t7]
+include/diff_tables.inc [master:d29.t6, slave:d29.t6]
+include/diff_tables.inc [master:d29.t5, slave:d29.t5]
+include/diff_tables.inc [master:d29.t4, slave:d29.t4]
+include/diff_tables.inc [master:d29.t3, slave:d29.t3]
+include/diff_tables.inc [master:d29.t2, slave:d29.t2]
+include/diff_tables.inc [master:d29.t1, slave:d29.t1]
+include/diff_tables.inc [master:d28.t8, slave:d28.t8]
+include/diff_tables.inc [master:d28.t7, slave:d28.t7]
+include/diff_tables.inc [master:d28.t6, slave:d28.t6]
+include/diff_tables.inc [master:d28.t5, slave:d28.t5]
+include/diff_tables.inc [master:d28.t4, slave:d28.t4]
+include/diff_tables.inc [master:d28.t3, slave:d28.t3]
+include/diff_tables.inc [master:d28.t2, slave:d28.t2]
+include/diff_tables.inc [master:d28.t1, slave:d28.t1]
+include/diff_tables.inc [master:d27.t8, slave:d27.t8]
+include/diff_tables.inc [master:d27.t7, slave:d27.t7]
+include/diff_tables.inc [master:d27.t6, slave:d27.t6]
+include/diff_tables.inc [master:d27.t5, slave:d27.t5]
+include/diff_tables.inc [master:d27.t4, slave:d27.t4]
+include/diff_tables.inc [master:d27.t3, slave:d27.t3]
+include/diff_tables.inc [master:d27.t2, slave:d27.t2]
+include/diff_tables.inc [master:d27.t1, slave:d27.t1]
+include/diff_tables.inc [master:d26.t8, slave:d26.t8]
+include/diff_tables.inc [master:d26.t7, slave:d26.t7]
+include/diff_tables.inc [master:d26.t6, slave:d26.t6]
+include/diff_tables.inc [master:d26.t5, slave:d26.t5]
+include/diff_tables.inc [master:d26.t4, slave:d26.t4]
+include/diff_tables.inc [master:d26.t3, slave:d26.t3]
+include/diff_tables.inc [master:d26.t2, slave:d26.t2]
+include/diff_tables.inc [master:d26.t1, slave:d26.t1]
+include/diff_tables.inc [master:d25.t8, slave:d25.t8]
+include/diff_tables.inc [master:d25.t7, slave:d25.t7]
+include/diff_tables.inc [master:d25.t6, slave:d25.t6]
+include/diff_tables.inc [master:d25.t5, slave:d25.t5]
+include/diff_tables.inc [master:d25.t4, slave:d25.t4]
+include/diff_tables.inc [master:d25.t3, slave:d25.t3]
+include/diff_tables.inc [master:d25.t2, slave:d25.t2]
+include/diff_tables.inc [master:d25.t1, slave:d25.t1]
+include/diff_tables.inc [master:d24.t8, slave:d24.t8]
+include/diff_tables.inc [master:d24.t7, slave:d24.t7]
+include/diff_tables.inc [master:d24.t6, slave:d24.t6]
+include/diff_tables.inc [master:d24.t5, slave:d24.t5]
+include/diff_tables.inc [master:d24.t4, slave:d24.t4]
+include/diff_tables.inc [master:d24.t3, slave:d24.t3]
+include/diff_tables.inc [master:d24.t2, slave:d24.t2]
+include/diff_tables.inc [master:d24.t1, slave:d24.t1]
+include/diff_tables.inc [master:d23.t8, slave:d23.t8]
+include/diff_tables.inc [master:d23.t7, slave:d23.t7]
+include/diff_tables.inc [master:d23.t6, slave:d23.t6]
+include/diff_tables.inc [master:d23.t5, slave:d23.t5]
+include/diff_tables.inc [master:d23.t4, slave:d23.t4]
+include/diff_tables.inc [master:d23.t3, slave:d23.t3]
+include/diff_tables.inc [master:d23.t2, slave:d23.t2]
+include/diff_tables.inc [master:d23.t1, slave:d23.t1]
+include/diff_tables.inc [master:d22.t8, slave:d22.t8]
+include/diff_tables.inc [master:d22.t7, slave:d22.t7]
+include/diff_tables.inc [master:d22.t6, slave:d22.t6]
+include/diff_tables.inc [master:d22.t5, slave:d22.t5]
+include/diff_tables.inc [master:d22.t4, slave:d22.t4]
+include/diff_tables.inc [master:d22.t3, slave:d22.t3]
+include/diff_tables.inc [master:d22.t2, slave:d22.t2]
+include/diff_tables.inc [master:d22.t1, slave:d22.t1]
+include/diff_tables.inc [master:d21.t8, slave:d21.t8]
+include/diff_tables.inc [master:d21.t7, slave:d21.t7]
+include/diff_tables.inc [master:d21.t6, slave:d21.t6]
+include/diff_tables.inc [master:d21.t5, slave:d21.t5]
+include/diff_tables.inc [master:d21.t4, slave:d21.t4]
+include/diff_tables.inc [master:d21.t3, slave:d21.t3]
+include/diff_tables.inc [master:d21.t2, slave:d21.t2]
+include/diff_tables.inc [master:d21.t1, slave:d21.t1]
+include/diff_tables.inc [master:d20.t8, slave:d20.t8]
+include/diff_tables.inc [master:d20.t7, slave:d20.t7]
+include/diff_tables.inc [master:d20.t6, slave:d20.t6]
+include/diff_tables.inc [master:d20.t5, slave:d20.t5]
+include/diff_tables.inc [master:d20.t4, slave:d20.t4]
+include/diff_tables.inc [master:d20.t3, slave:d20.t3]
+include/diff_tables.inc [master:d20.t2, slave:d20.t2]
+include/diff_tables.inc [master:d20.t1, slave:d20.t1]
+include/diff_tables.inc [master:d19.t8, slave:d19.t8]
+include/diff_tables.inc [master:d19.t7, slave:d19.t7]
+include/diff_tables.inc [master:d19.t6, slave:d19.t6]
+include/diff_tables.inc [master:d19.t5, slave:d19.t5]
+include/diff_tables.inc [master:d19.t4, slave:d19.t4]
+include/diff_tables.inc [master:d19.t3, slave:d19.t3]
+include/diff_tables.inc [master:d19.t2, slave:d19.t2]
+include/diff_tables.inc [master:d19.t1, slave:d19.t1]
+include/diff_tables.inc [master:d18.t8, slave:d18.t8]
+include/diff_tables.inc [master:d18.t7, slave:d18.t7]
+include/diff_tables.inc [master:d18.t6, slave:d18.t6]
+include/diff_tables.inc [master:d18.t5, slave:d18.t5]
+include/diff_tables.inc [master:d18.t4, slave:d18.t4]
+include/diff_tables.inc [master:d18.t3, slave:d18.t3]
+include/diff_tables.inc [master:d18.t2, slave:d18.t2]
+include/diff_tables.inc [master:d18.t1, slave:d18.t1]
+include/diff_tables.inc [master:d17.t8, slave:d17.t8]
+include/diff_tables.inc [master:d17.t7, slave:d17.t7]
+include/diff_tables.inc [master:d17.t6, slave:d17.t6]
+include/diff_tables.inc [master:d17.t5, slave:d17.t5]
+include/diff_tables.inc [master:d17.t4, slave:d17.t4]
+include/diff_tables.inc [master:d17.t3, slave:d17.t3]
+include/diff_tables.inc [master:d17.t2, slave:d17.t2]
+include/diff_tables.inc [master:d17.t1, slave:d17.t1]
+include/diff_tables.inc [master:d16.t8, slave:d16.t8]
+include/diff_tables.inc [master:d16.t7, slave:d16.t7]
+include/diff_tables.inc [master:d16.t6, slave:d16.t6]
+include/diff_tables.inc [master:d16.t5, slave:d16.t5]
+include/diff_tables.inc [master:d16.t4, slave:d16.t4]
+include/diff_tables.inc [master:d16.t3, slave:d16.t3]
+include/diff_tables.inc [master:d16.t2, slave:d16.t2]
+include/diff_tables.inc [master:d16.t1, slave:d16.t1]
+include/diff_tables.inc [master:d15.t8, slave:d15.t8]
+include/diff_tables.inc [master:d15.t7, slave:d15.t7]
+include/diff_tables.inc [master:d15.t6, slave:d15.t6]
+include/diff_tables.inc [master:d15.t5, slave:d15.t5]
+include/diff_tables.inc [master:d15.t4, slave:d15.t4]
+include/diff_tables.inc [master:d15.t3, slave:d15.t3]
+include/diff_tables.inc [master:d15.t2, slave:d15.t2]
+include/diff_tables.inc [master:d15.t1, slave:d15.t1]
+include/diff_tables.inc [master:d14.t8, slave:d14.t8]
+include/diff_tables.inc [master:d14.t7, slave:d14.t7]
+include/diff_tables.inc [master:d14.t6, slave:d14.t6]
+include/diff_tables.inc [master:d14.t5, slave:d14.t5]
+include/diff_tables.inc [master:d14.t4, slave:d14.t4]
+include/diff_tables.inc [master:d14.t3, slave:d14.t3]
+include/diff_tables.inc [master:d14.t2, slave:d14.t2]
+include/diff_tables.inc [master:d14.t1, slave:d14.t1]
+include/diff_tables.inc [master:d13.t8, slave:d13.t8]
+include/diff_tables.inc [master:d13.t7, slave:d13.t7]
+include/diff_tables.inc [master:d13.t6, slave:d13.t6]
+include/diff_tables.inc [master:d13.t5, slave:d13.t5]
+include/diff_tables.inc [master:d13.t4, slave:d13.t4]
+include/diff_tables.inc [master:d13.t3, slave:d13.t3]
+include/diff_tables.inc [master:d13.t2, slave:d13.t2]
+include/diff_tables.inc [master:d13.t1, slave:d13.t1]
+include/diff_tables.inc [master:d12.t8, slave:d12.t8]
+include/diff_tables.inc [master:d12.t7, slave:d12.t7]
+include/diff_tables.inc [master:d12.t6, slave:d12.t6]
+include/diff_tables.inc [master:d12.t5, slave:d12.t5]
+include/diff_tables.inc [master:d12.t4, slave:d12.t4]
+include/diff_tables.inc [master:d12.t3, slave:d12.t3]
+include/diff_tables.inc [master:d12.t2, slave:d12.t2]
+include/diff_tables.inc [master:d12.t1, slave:d12.t1]
+include/diff_tables.inc [master:d11.t8, slave:d11.t8]
+include/diff_tables.inc [master:d11.t7, slave:d11.t7]
+include/diff_tables.inc [master:d11.t6, slave:d11.t6]
+include/diff_tables.inc [master:d11.t5, slave:d11.t5]
+include/diff_tables.inc [master:d11.t4, slave:d11.t4]
+include/diff_tables.inc [master:d11.t3, slave:d11.t3]
+include/diff_tables.inc [master:d11.t2, slave:d11.t2]
+include/diff_tables.inc [master:d11.t1, slave:d11.t1]
+include/diff_tables.inc [master:d10.t8, slave:d10.t8]
+include/diff_tables.inc [master:d10.t7, slave:d10.t7]
+include/diff_tables.inc [master:d10.t6, slave:d10.t6]
+include/diff_tables.inc [master:d10.t5, slave:d10.t5]
+include/diff_tables.inc [master:d10.t4, slave:d10.t4]
+include/diff_tables.inc [master:d10.t3, slave:d10.t3]
+include/diff_tables.inc [master:d10.t2, slave:d10.t2]
+include/diff_tables.inc [master:d10.t1, slave:d10.t1]
+include/diff_tables.inc [master:d9.t8, slave:d9.t8]
+include/diff_tables.inc [master:d9.t7, slave:d9.t7]
+include/diff_tables.inc [master:d9.t6, slave:d9.t6]
+include/diff_tables.inc [master:d9.t5, slave:d9.t5]
+include/diff_tables.inc [master:d9.t4, slave:d9.t4]
+include/diff_tables.inc [master:d9.t3, slave:d9.t3]
+include/diff_tables.inc [master:d9.t2, slave:d9.t2]
+include/diff_tables.inc [master:d9.t1, slave:d9.t1]
+include/diff_tables.inc [master:d8.t8, slave:d8.t8]
+include/diff_tables.inc [master:d8.t7, slave:d8.t7]
+include/diff_tables.inc [master:d8.t6, slave:d8.t6]
+include/diff_tables.inc [master:d8.t5, slave:d8.t5]
+include/diff_tables.inc [master:d8.t4, slave:d8.t4]
+include/diff_tables.inc [master:d8.t3, slave:d8.t3]
+include/diff_tables.inc [master:d8.t2, slave:d8.t2]
+include/diff_tables.inc [master:d8.t1, slave:d8.t1]
+include/diff_tables.inc [master:d7.t8, slave:d7.t8]
+include/diff_tables.inc [master:d7.t7, slave:d7.t7]
+include/diff_tables.inc [master:d7.t6, slave:d7.t6]
+include/diff_tables.inc [master:d7.t5, slave:d7.t5]
+include/diff_tables.inc [master:d7.t4, slave:d7.t4]
+include/diff_tables.inc [master:d7.t3, slave:d7.t3]
+include/diff_tables.inc [master:d7.t2, slave:d7.t2]
+include/diff_tables.inc [master:d7.t1, slave:d7.t1]
+include/diff_tables.inc [master:d6.t8, slave:d6.t8]
+include/diff_tables.inc [master:d6.t7, slave:d6.t7]
+include/diff_tables.inc [master:d6.t6, slave:d6.t6]
+include/diff_tables.inc [master:d6.t5, slave:d6.t5]
+include/diff_tables.inc [master:d6.t4, slave:d6.t4]
+include/diff_tables.inc [master:d6.t3, slave:d6.t3]
+include/diff_tables.inc [master:d6.t2, slave:d6.t2]
+include/diff_tables.inc [master:d6.t1, slave:d6.t1]
+include/diff_tables.inc [master:d5.t8, slave:d5.t8]
+include/diff_tables.inc [master:d5.t7, slave:d5.t7]
+include/diff_tables.inc [master:d5.t6, slave:d5.t6]
+include/diff_tables.inc [master:d5.t5, slave:d5.t5]
+include/diff_tables.inc [master:d5.t4, slave:d5.t4]
+include/diff_tables.inc [master:d5.t3, slave:d5.t3]
+include/diff_tables.inc [master:d5.t2, slave:d5.t2]
+include/diff_tables.inc [master:d5.t1, slave:d5.t1]
+include/diff_tables.inc [master:d4.t8, slave:d4.t8]
+include/diff_tables.inc [master:d4.t7, slave:d4.t7]
+include/diff_tables.inc [master:d4.t6, slave:d4.t6]
+include/diff_tables.inc [master:d4.t5, slave:d4.t5]
+include/diff_tables.inc [master:d4.t4, slave:d4.t4]
+include/diff_tables.inc [master:d4.t3, slave:d4.t3]
+include/diff_tables.inc [master:d4.t2, slave:d4.t2]
+include/diff_tables.inc [master:d4.t1, slave:d4.t1]
+include/diff_tables.inc [master:d3.t8, slave:d3.t8]
+include/diff_tables.inc [master:d3.t7, slave:d3.t7]
+include/diff_tables.inc [master:d3.t6, slave:d3.t6]
+include/diff_tables.inc [master:d3.t5, slave:d3.t5]
+include/diff_tables.inc [master:d3.t4, slave:d3.t4]
+include/diff_tables.inc [master:d3.t3, slave:d3.t3]
+include/diff_tables.inc [master:d3.t2, slave:d3.t2]
+include/diff_tables.inc [master:d3.t1, slave:d3.t1]
+include/diff_tables.inc [master:d2.t8, slave:d2.t8]
+include/diff_tables.inc [master:d2.t7, slave:d2.t7]
+include/diff_tables.inc [master:d2.t6, slave:d2.t6]
+include/diff_tables.inc [master:d2.t5, slave:d2.t5]
+include/diff_tables.inc [master:d2.t4, slave:d2.t4]
+include/diff_tables.inc [master:d2.t3, slave:d2.t3]
+include/diff_tables.inc [master:d2.t2, slave:d2.t2]
+include/diff_tables.inc [master:d2.t1, slave:d2.t1]
+include/diff_tables.inc [master:d1.t8, slave:d1.t8]
+include/diff_tables.inc [master:d1.t7, slave:d1.t7]
+include/diff_tables.inc [master:d1.t6, slave:d1.t6]
+include/diff_tables.inc [master:d1.t5, slave:d1.t5]
+include/diff_tables.inc [master:d1.t4, slave:d1.t4]
+include/diff_tables.inc [master:d1.t3, slave:d1.t3]
+include/diff_tables.inc [master:d1.t2, slave:d1.t2]
+include/diff_tables.inc [master:d1.t1, slave:d1.t1]
+"database d32:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d31:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t4.MYD
+t4.MYI
+t4_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d30:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d29:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d28:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d27:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d26:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d25:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d24:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d23:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d22:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d21:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d20:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d19:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d18:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d17:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d16:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d15:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d14:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d13:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d12:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d11:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d10:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d9:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d8:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d7:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d6:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d5:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d4:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d3:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d2:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+"database d1:"
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+t2.MYD
+t2.MYI
+t2_XXX.sdi
+t3.MYD
+t3.MYI
+t3_XXX.sdi
+t4.MYD
+t4.MYI
+t4_XXX.sdi
+t5.MYD
+t5.MYI
+t5_XXX.sdi
+t6.MYD
+t6.MYI
+t6_XXX.sdi
+t7.MYD
+t7.MYI
+t7_XXX.sdi
+t8.MYD
+t8.MYI
+t8_XXX.sdi
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+include/rpl_end.inc

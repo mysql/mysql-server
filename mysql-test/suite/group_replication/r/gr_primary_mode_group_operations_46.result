@@ -1,0 +1,50 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Test starts in Single primary mode with server1 as primary
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1(a int primary key);
+[connection server2]
+
+# 2. Set weight on server2 to be the next elected primary and join to
+#    the group
+SET @@GLOBAL.group_replication_member_weight= 90;
+include/start_group_replication.inc
+
+# 3. Add server3 to group
+[connection server3]
+include/start_group_replication.inc
+
+# 4. Lock table on the new primary (server 2)
+[connection server_2]
+LOCK TABLE t1 READ;
+
+# 5. Execute a transaction that will stuck
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+# 6. Stop server1
+include/stop_group_replication.inc
+
+# 7. Server2 will wait for buffered transactions on read only mode
+[connection server2]
+
+# 8. Unlock table on server2
+[connection server_2]
+UNLOCK TABLES;
+
+# 9. Server2 will apply buffered transactions and disable read only mode
+
+# 10. Assert server2 is primary server
+include/gr_assert_primary_member.inc
+
+# 11. Cleanup
+[connection server1]
+include/start_group_replication.inc
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+DROP TABLE t1;
+include/group_replication_end.inc

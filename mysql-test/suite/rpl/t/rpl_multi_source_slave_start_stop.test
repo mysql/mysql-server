@@ -1,0 +1,104 @@
+#
+# WL#1697: Multisource replication
+#
+# The aim of this test :
+# 1. To check if io threads and sql threads of all channels
+#     are started with START SLAVE IO_THREAD and START SLAVE SQL_THREAD
+#     respecively.
+# 2. To check that individually the start of io_thread and sql_thread
+#    are independent i.e if sql_threads of all channels are running
+#    and if a START SLAVE IO_THREAD is issued, io_threads of all
+#    channels must be running.
+# 3. Test that per channel start and stop slave commands work
+#     -a) START SLAVE IO_THREAD FOR CHANNEL
+#     -b) START SLAVE SQL_THREAD FOR CHANNEL
+#     -c) STOP SLAVE IO_THREAD FOR CHANNEL
+#     -d) STOP SLAVE SQL_THREAD FOR CHANNEL
+
+#Skip on group replication runs
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_mixed.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
+--echo #
+--echo # Set up masters server_1 and server_3 with server_2 being a slave.
+--echo #.
+--let $rpl_topology= 1->2,3->2
+--let $rpl_multi_source= 1
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
+
+#
+# On slave
+#
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--echo #
+--echo # 1) Execute START SLAVE IO_THREAD; io_threads of all channels shall start
+--echo #
+START SLAVE IO_THREAD;
+
+# check till IO_thread returned Yes
+--let $rpl_source_file= include/wait_for_slave_io_to_start.inc
+--source include/rpl_for_each_connection.inc
+
+--echo #
+--echo # 2) Execute START SLAVE SQL_THREAD; sql_threads of all channels shall start
+--echo #
+START SLAVE SQL_THREAD;
+
+# check till SQL_thread returned Yes
+--let $rpl_source_file= include/wait_for_slave_sql_to_start.inc
+--source include/rpl_for_each_connection.inc
+
+--echo #
+--echo #  Do stop slave IO_thread.  SQL threads must still be running
+--echo #
+STOP SLAVE IO_THREAD;
+
+--let $rpl_source_file= include/wait_for_slave_io_to_stop.inc
+--source include/rpl_for_each_connection.inc
+
+--echo #
+--echo #  Do  start slave.  IO threads should be up independently.
+--echo #
+START SLAVE;
+
+--let $rpl_source_file= include/wait_for_slave_io_to_start.inc
+--source include/rpl_for_each_connection.inc
+
+--echo #
+--echo #  Do STOP SLAVE. All slave threads for all channnels must be down.
+--echo #
+STOP SLAVE;
+
+--let $rpl_source_file= include/wait_for_slave_to_stop.inc
+--source include/rpl_for_each_connection.inc
+
+--echo #
+--echo # 3) Check start and stop FOR CHANNEL, the inc files wait till
+--echo #    the threads are run. No Notes shall be emitted also.
+--echo #
+
+--echo # 3.a) Test START SLAVE IO_THREAD FOR CHANNEL
+--let $rpl_channel_name= 'channel_1'
+--source include/start_slave_io.inc
+
+--echo # 3.b) Test START SLAVE SQL_THREAD FOR CHANNEL
+--let $rpl_channel_name= 'channel_1'
+--source include/start_slave_sql.inc
+
+--echo # 3.c) Test STOP SLAVE IO_THREAD FOR CHANNEL
+--let $rpl_channel_name= 'channel_1'
+--source include/stop_slave_io.inc
+
+--echo # 3.d) Test STOP SLAVE SQL_THREAD FOR CHANNEL
+--let $rpl_channel_name= 'channel_1'
+--source include/stop_slave_sql.inc
+
+
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

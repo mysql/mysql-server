@@ -1,0 +1,17 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+# Bigger (imaginary) Redo space
+Diskless=1
+NoOfFragmentLogFiles = 64
+FragmentLogFileSize = 48M
+MinFreePct = 0
+
+# Artificially small SendBufferMemory (to hit error)
+SendBufferMemory = 512K
+# Larger LongMessageBuffer (to avoid hitting this)
+LongMessageBuffer = 16M
+
+[mysqld]
+# Allow dealing with bigger blobs
+max-allowed-packet=104857600

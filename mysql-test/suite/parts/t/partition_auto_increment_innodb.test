@@ -1,0 +1,34 @@
+################################################################################
+# t/partition_auto_increment_innodb.test                                       #
+#                                                                              #
+# Purpose:                                                                     #
+#  Tests around auto increment column                                          #
+#        InnoDB branch                                                         #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: MattiasJ                                                    #
+# Original Date: 2008-02-12                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+let $engine= 'InnoDB';
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/parts/inc/partition_auto_increment.inc
+
+#------------------------------------------------------------------------------#
+# Test export/import of tablespace with partitioned table for InnoDB
+--source suite/parts/inc/partition_auto_increment_import.inc

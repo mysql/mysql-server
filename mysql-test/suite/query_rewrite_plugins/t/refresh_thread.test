@@ -1,0 +1,68 @@
+--echo #
+--echo # Tests of the dedicated thread for refreshing the rules table.
+--echo #
+
+SET sql_mode = 'PIPES_AS_CONCAT';
+
+--source include/have_debug_sync.inc
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+--echo #
+--echo # We will now test shutting down the server while refreshing rules. We
+--echo # then restart the server and make sure it recovered.
+--echo #
+
+--echo # We will shut down the server while a session is waiting for a debug
+--echo # sync signal. All debug sync points are released during shutdown,
+--echo # so the plugin will proceed to try and read from a handler with a server
+--echo # that has gone away. This will lead to a storage engine error.
+CALL mtr.add_suppression( "Got error from storage engine while refreshing " ||
+                          "rewrite rules." );
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
+
+SET GLOBAL debug= '+d,dbug.block_do_refresh';
+
+--connect (con1,localhost,root,,test,,)
+
+--echo # Two root connections are supposed to show here
+SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
+
+--echo # We have to do this in order to avoid deadlock on the memory table's
+--echo # mutex.
+SET @@global.rewriter_enabled = OFF;
+
+--send CALL query_rewrite.flush_rewrite_rules()
+
+--connection default
+
+--echo # We don't care if we time out here, as long as we manage to restart the
+--echo # server.
+--disable_warnings
+SET debug_sync = 'now WAIT_FOR parked';
+--enable_warnings
+
+--echo # Two root connections are supposed to show here
+SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
+
+--echo #
+--echo # Restart the server
+--echo #
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT 'Rewrite';
+
+--echo # One root connection is supposed to show here, as the rewrite thread is now gone
+SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
+
+SET @@global.rewriter_enabled = DEFAULT;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

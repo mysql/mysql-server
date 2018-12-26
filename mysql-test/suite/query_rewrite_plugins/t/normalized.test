@@ -1,0 +1,29 @@
+#
+# Tests that check the normal form of pattern.
+# Requires optional column NORMALIZED_PATTERN in rules table.
+#
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
+
+--echo #
+--echo # Bug#21619780: TABLE HINTS ARE LOST IN NORMALIZED PRINT OF STATEMENTS
+--echo # BEFORE RESOLVE
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ('SELECT /*+ NO_MRR(t1 idx1) */ * FROM test.t1',
+        'SELECT /*+ MRR(t1) */ * FROM test.t1');
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT normalized_pattern FROM query_rewrite.rewrite_rules;
+
+DELETE FROM query_rewrite.rewrite_rules;
+
+DROP TABLE t1;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+
+

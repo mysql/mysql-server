@@ -1,0 +1,30 @@
+use test;
+SET @threadid = sys.ps_thread_id(NULL);
+CREATE TABLE t1 (id INT PRIMARY KEY, val int);
+INSERT INTO test.t1 VALUES (1, 9);
+SET @digest.insert = (SELECT DIGEST FROM performance_schema.events_statements_history WHERE THREAD_ID = @threadid AND SQL_TEXT LIKE 'INSERT INTO test.t1 VALUES (1, 9)');
+SELECT * FROM t1;
+id	val
+1	9
+SET @digest.select = (SELECT DIGEST FROM performance_schema.events_statements_history WHERE THREAD_ID = @threadid AND SQL_TEXT LIKE 'SELECT * FROM t1');
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `val` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET @digest.show = (SELECT DIGEST FROM performance_schema.events_statements_history WHERE THREAD_ID = @threadid AND SQL_TEXT LIKE 'SHOW CREATE TABLE test.t1');
+CREATE SCHEMA test_sys;
+use test_sys;
+CALL sys.ps_trace_statement_digest(@digest.insert, 0.5, 0.1, FALSE, FALSE);
+CALL sys.ps_trace_statement_digest(@digest.select, 0.5, 0.1, FALSE, FALSE);
+CALL sys.ps_trace_statement_digest(@digest.show  , 0.5, 0.1, FALSE, FALSE);
+CALL sys.ps_trace_statement_digest(@digest.insert, 0.5, 0.1, TRUE , FALSE);
+use test;
+DROP SCHEMA test_sys;
+DROP TABLE t1;
+SET @threadid      = NULL,
+@digest.insert = NULL,
+@digest.select = NULL,
+@digest.show   = NULL;

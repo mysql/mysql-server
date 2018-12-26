@@ -1,0 +1,200 @@
+############## mysql-test\t\default_week_format_basic.test #####################
+#                                                                              #
+# Variable Name: default_week_format                                           #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 0                                                             #
+# Range: 0 - 7                                                                 #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "default_week_format"     #
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                          .                     #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#  server-system-variables.html#option_mysqld_auto-increment-increment         #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+###################################################################
+#           START OF default_week_format TESTS                    #
+###################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.default_week_format;
+SELECT @start_global_value;
+SET @start_session_value = @@session.default_week_format;
+SELECT @start_session_value;
+
+--echo '#--------------------FN_DYNVARS_022_01-------------------------#'
+###################################################################
+#     Display the DEFAULT value of default_week_format            #
+###################################################################
+
+SET @@global.default_week_format = 100;
+SET @@global.default_week_format = DEFAULT;
+SELECT @@global.default_week_format;
+
+SET @@session.default_week_format = 200;
+SET @@session.default_week_format = DEFAULT;
+SELECT @@session.default_week_format;
+
+--echo '#--------------------FN_DYNVARS_022_02-------------------------#'
+###################################################################
+#     Check the DEFAULT value of default_week_format              #
+###################################################################
+
+SET @@global.default_week_format = @start_global_value;
+SELECT @@global.default_week_format = 0;
+
+SET @@session.default_week_format = @start_global_value;
+SELECT @@session.default_week_format = 0;
+
+--echo '#--------------------FN_DYNVARS_022_03-------------------------#'
+#############################################################################
+# Change the value of default_week_format to a valid value for GLOBAL Scope #
+#############################################################################
+
+SET @@global.default_week_format = 1;
+SELECT @@global.default_week_format;
+SET @@global.default_week_format = 0;
+SELECT @@global.default_week_format;
+SET @@global.default_week_format = 7;
+SELECT @@global.default_week_format;
+
+
+--echo '#--------------------FN_DYNVARS_022_04-------------------------#'
+##############################################################################
+# Change the value of default_week_format to a valid value for SESSION Scope #
+##############################################################################
+
+SET @@session.default_week_format = 1;
+SELECT @@session.default_week_format;
+SET @@session.default_week_format = 0;
+SELECT @@session.default_week_format;
+SET @@session.default_week_format = 7;
+SELECT @@session.default_week_format;
+
+
+--echo '#------------------FN_DYNVARS_022_05-----------------------#'
+###############################################################
+# Change the value of default_week_format to an invalid value #
+###############################################################
+
+SET @@global.default_week_format = 8;
+SELECT @@global.default_week_format;
+SET @@global.default_week_format = -1024;
+SELECT @@global.default_week_format;
+SET @@global.default_week_format = 65536;
+SELECT @@global.default_week_format;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.default_week_format = 65530.30;
+SELECT @@global.default_week_format;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.default_week_format = OFF;
+SELECT @@global.default_week_format;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.default_week_format = ON;
+SELECT @@session.default_week_format;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.default_week_format = 65530.30;
+SELECT @@session.default_week_format;
+SET @@session.default_week_format = 10;
+SELECT @@session.default_week_format;
+SET @@session.default_week_format = -2;
+SELECT @@session.default_week_format;
+SET @@session.default_week_format = 65550;
+SELECT @@session.default_week_format;
+
+--echo '#------------------FN_DYNVARS_022_06-----------------------#'
+###############################################################################
+#   Check if the value in GLOBAL & SESSION Tables matches value in variable   #
+###############################################################################
+
+--disable_warnings
+SELECT @@global.default_week_format = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='default_week_format';
+
+SELECT @@session.default_week_format = VARIABLE_VALUE 
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='default_week_format';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_022_07-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.default_week_format = TRUE;
+SELECT @@global.default_week_format;
+SET @@global.default_week_format = FALSE;
+SELECT @@global.default_week_format;
+
+
+--echo '#---------------------FN_DYNVARS_001_08----------------------#'
+#################################################################################### 
+#  Check if accessing variable with and without GLOBAL point to same variable      #
+#################################################################################### 
+
+SET @@global.default_week_format = 0;
+SELECT @@default_week_format = @@global.default_week_format;
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@default_week_format = 1;
+SELECT @@default_week_format = @@local.default_week_format;
+SELECT @@local.default_week_format = @@session.default_week_format;
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+###################################################################################  
+#   Check if default_week_format can be accessed with and without @@ sign    #
+###################################################################################
+
+SET default_week_format = 1;
+SELECT @@default_week_format;
+--Error ER_PARSE_ERROR
+SET local.default_week_format = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.default_week_format;
+--Error ER_PARSE_ERROR
+SET session.default_week_format = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT session.default_week_format;
+--Error ER_BAD_FIELD_ERROR
+SELECT default_week_format = @@session.default_week_format;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.default_week_format = @start_global_value;
+SELECT @@global.default_week_format;
+SET @@session.default_week_format = @start_session_value;
+SELECT @@session.default_week_format;
+
+
+#############################################################
+#                 END OF default_week_format TESTS     #
+#############################################################
+

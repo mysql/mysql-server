@@ -1,0 +1,570 @@
+# test a - all data types, csv default format
+create table t1a ( 
+a bigint unsigned not null ,
+b bigint ,
+c int unsigned ,
+d int ,
+e mediumint unsigned ,
+f mediumint ,
+g smallint unsigned ,
+h smallint ,
+i tinyint unsigned ,
+j tinyint ,
+k double ,
+l float ,
+primary key (a) 
+) engine ndb;
+create table t2a ( 
+a char (10) not null ,
+b char (255) ,
+c varchar (10) ,
+d varchar (1000) ,
+primary key (a) 
+) engine ndb;
+create table t3a ( 
+a binary (10) not null ,
+b binary (255) ,
+c varbinary (10) ,
+d varbinary (1000) ,
+primary key (a) 
+) engine ndb;
+create table t4a ( 
+a decimal (10, 0) ,
+b decimal (20, 0) ,
+c decimal (10, 5) ,
+d decimal (20, 5) ,
+e decimal (10, 10) ,
+f decimal (20, 10) ,
+g int not null ,
+primary key (g) 
+) engine ndb;
+create table t5a ( 
+a bit (1) ,
+b bit (8) ,
+c bit (16) ,
+d bit (32) ,
+e bit (64) ,
+f int not null ,
+primary key (f) 
+) engine ndb;
+create table t6a ( 
+a year ,
+b date ,
+c time (6) ,
+d datetime (3) ,
+e timestamp (6) not null ,
+f int not null ,
+primary key (f) 
+) engine ndb;
+create table t7a ( 
+a text (10) ,
+b text (255) ,
+c text (65536) ,
+d int not null ,
+e blob (10) ,
+f blob (256) ,
+g blob (65535) ,
+primary key (d) 
+) engine ndb;
+select count(*) from t1a;
+count(*)
+1000
+select count(*) from t2a;
+count(*)
+1000
+select count(*) from t3a;
+count(*)
+1000
+select count(*) from t4a;
+count(*)
+1000
+select count(*) from t5a;
+count(*)
+1000
+select count(*) from t6a;
+count(*)
+1000
+select count(*) from t7a;
+count(*)
+20
+create table t1aver ( 
+a bigint unsigned not null ,
+b bigint ,
+c int unsigned ,
+d int ,
+e mediumint unsigned ,
+f mediumint ,
+g smallint unsigned ,
+h smallint ,
+i tinyint unsigned ,
+j tinyint ,
+k double ,
+l float ,
+primary key (a) 
+) engine ndb;
+create table t2aver ( 
+a char (10) not null ,
+b char (255) ,
+c varchar (10) ,
+d varchar (1000) ,
+primary key (a) 
+) engine ndb;
+create table t3aver ( 
+a binary (10) not null ,
+b binary (255) ,
+c varbinary (10) ,
+d varbinary (1000) ,
+primary key (a) 
+) engine ndb;
+create table t4aver ( 
+a decimal (10, 0) ,
+b decimal (20, 0) ,
+c decimal (10, 5) ,
+d decimal (20, 5) ,
+e decimal (10, 10) ,
+f decimal (20, 10) ,
+g int not null ,
+primary key (g) 
+) engine ndb;
+create table t5aver ( 
+a bit (1) ,
+b bit (8) ,
+c bit (16) ,
+d bit (32) ,
+e bit (64) ,
+f int not null ,
+primary key (f) 
+) engine ndb;
+create table t6aver ( 
+a year ,
+b date ,
+c time (6) ,
+d datetime (3) ,
+e timestamp (6) not null ,
+f int not null ,
+primary key (f) 
+) engine ndb;
+create table t7aver ( 
+a text (10) ,
+b text (255) ,
+c text (65536) ,
+d int not null ,
+e blob (10) ,
+f blob (256) ,
+g blob (65535) ,
+primary key (d) 
+) engine ndb;
+select count(*) from t1aver;
+count(*)
+1000
+select count(*) from t2aver;
+count(*)
+1000
+select count(*) from t3aver;
+count(*)
+1000
+select count(*) from t4aver;
+count(*)
+1000
+select count(*) from t5aver;
+count(*)
+1000
+select count(*) from t6aver;
+count(*)
+1000
+select count(*) from t7aver;
+count(*)
+20
+select count(*) from t1a x, t1aver y
+where x.a = y.a and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) and
+(x.e = y.e or (x.e is null and y.e is null)) and
+(x.f = y.f or (x.f is null and y.f is null)) and
+(x.g = y.g or (x.g is null and y.g is null)) and
+(x.h = y.h or (x.h is null and y.h is null)) and
+(x.i = y.i or (x.i is null and y.i is null)) and
+(x.j = y.j or (x.j is null and y.j is null)) and
+(x.k = y.k or (x.k is null and y.k is null)) and
+(x.l = y.l or (x.l is null and y.l is null)) ;
+count(*)
+1000
+select count(*) from t2a x, t2aver y
+where x.a = y.a and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) ;
+count(*)
+1000
+select count(*) from t3a x, t3aver y
+where x.a = y.a and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) ;
+count(*)
+1000
+select count(*) from t4a x, t4aver y
+where (x.a = y.a or (x.a is null and y.a is null)) and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) and
+(x.e = y.e or (x.e is null and y.e is null)) and
+(x.f = y.f or (x.f is null and y.f is null)) and
+x.g = y.g ;
+count(*)
+1000
+select count(*) from t5a x, t5aver y
+where (x.a = y.a or (x.a is null and y.a is null)) and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) and
+(x.e = y.e or (x.e is null and y.e is null)) and
+x.f = y.f ;
+count(*)
+1000
+select count(*) from t6a x, t6aver y
+where (x.a = y.a or (x.a is null and y.a is null)) and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) and
+x.e = y.e and
+x.f = y.f ;
+count(*)
+1000
+select count(*) from t7a x, t7aver y
+where (x.a = y.a or (x.a is null and y.a is null)) and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+x.d = y.d and
+(x.e = y.e or (x.e is null and y.e is null)) and
+(x.f = y.f or (x.f is null and y.f is null)) and
+(x.g = y.g or (x.g is null and y.g is null)) ;
+count(*)
+20
+drop table t1aver;
+drop table t2aver;
+drop table t3aver;
+drop table t4aver;
+drop table t5aver;
+drop table t6aver;
+drop table t7aver;
+drop table t1a;
+drop table t2a;
+drop table t3a;
+drop table t4a;
+drop table t5a;
+drop table t6a;
+drop table t7a;
+# test b - all data types, csv complex format
+create table t1b ( 
+a bigint unsigned not null ,
+b bigint ,
+c int unsigned ,
+d int ,
+e mediumint unsigned ,
+f mediumint ,
+g smallint unsigned ,
+h smallint ,
+i tinyint unsigned ,
+j tinyint ,
+k double ,
+l float ,
+primary key (a) 
+) engine ndb;
+create table t2b ( 
+a char (10) not null ,
+b char (255) ,
+c varchar (10) ,
+d varchar (1000) ,
+primary key (a) 
+) engine ndb;
+create table t3b ( 
+a binary (10) not null ,
+b binary (255) ,
+c varbinary (10) ,
+d varbinary (1000) ,
+primary key (a) 
+) engine ndb;
+create table t4b ( 
+a decimal (10, 0) ,
+b decimal (20, 0) ,
+c decimal (10, 5) ,
+d decimal (20, 5) ,
+e decimal (10, 10) ,
+f decimal (20, 10) ,
+g int not null ,
+primary key (g) 
+) engine ndb;
+create table t5b ( 
+a bit (1) ,
+b bit (8) ,
+c bit (16) ,
+d bit (32) ,
+e bit (64) ,
+f int not null ,
+primary key (f) 
+) engine ndb;
+create table t6b ( 
+a year ,
+b date ,
+c time (6) ,
+d datetime (3) ,
+e timestamp (6) not null ,
+f int not null ,
+primary key (f) 
+) engine ndb;
+create table t7b ( 
+a text (10) ,
+b text (255) ,
+c text (65536) ,
+d int not null ,
+e blob (10) ,
+f blob (256) ,
+g blob (65535) ,
+primary key (d) 
+) engine ndb;
+select count(*) from t1b;
+count(*)
+1000
+select count(*) from t2b;
+count(*)
+1000
+select count(*) from t3b;
+count(*)
+1000
+select count(*) from t4b;
+count(*)
+1000
+select count(*) from t5b;
+count(*)
+1000
+select count(*) from t6b;
+count(*)
+1000
+select count(*) from t7b;
+count(*)
+20
+create table t1bver ( 
+a bigint unsigned not null ,
+b bigint ,
+c int unsigned ,
+d int ,
+e mediumint unsigned ,
+f mediumint ,
+g smallint unsigned ,
+h smallint ,
+i tinyint unsigned ,
+j tinyint ,
+k double ,
+l float ,
+primary key (a) 
+) engine ndb;
+create table t2bver ( 
+a char (10) not null ,
+b char (255) ,
+c varchar (10) ,
+d varchar (1000) ,
+primary key (a) 
+) engine ndb;
+create table t3bver ( 
+a binary (10) not null ,
+b binary (255) ,
+c varbinary (10) ,
+d varbinary (1000) ,
+primary key (a) 
+) engine ndb;
+create table t4bver ( 
+a decimal (10, 0) ,
+b decimal (20, 0) ,
+c decimal (10, 5) ,
+d decimal (20, 5) ,
+e decimal (10, 10) ,
+f decimal (20, 10) ,
+g int not null ,
+primary key (g) 
+) engine ndb;
+create table t5bver ( 
+a bit (1) ,
+b bit (8) ,
+c bit (16) ,
+d bit (32) ,
+e bit (64) ,
+f int not null ,
+primary key (f) 
+) engine ndb;
+create table t6bver ( 
+a year ,
+b date ,
+c time (6) ,
+d datetime (3) ,
+e timestamp (6) not null ,
+f int not null ,
+primary key (f) 
+) engine ndb;
+create table t7bver ( 
+a text (10) ,
+b text (255) ,
+c text (65536) ,
+d int not null ,
+e blob (10) ,
+f blob (256) ,
+g blob (65535) ,
+primary key (d) 
+) engine ndb;
+select count(*) from t1bver;
+count(*)
+1000
+select count(*) from t2bver;
+count(*)
+1000
+select count(*) from t3bver;
+count(*)
+1000
+select count(*) from t4bver;
+count(*)
+1000
+select count(*) from t5bver;
+count(*)
+1000
+select count(*) from t6bver;
+count(*)
+1000
+select count(*) from t7bver;
+count(*)
+20
+select count(*) from t1b x, t1bver y
+where x.a = y.a and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) and
+(x.e = y.e or (x.e is null and y.e is null)) and
+(x.f = y.f or (x.f is null and y.f is null)) and
+(x.g = y.g or (x.g is null and y.g is null)) and
+(x.h = y.h or (x.h is null and y.h is null)) and
+(x.i = y.i or (x.i is null and y.i is null)) and
+(x.j = y.j or (x.j is null and y.j is null)) and
+(x.k = y.k or (x.k is null and y.k is null)) and
+(x.l = y.l or (x.l is null and y.l is null)) ;
+count(*)
+1000
+select count(*) from t2b x, t2bver y
+where x.a = y.a and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) ;
+count(*)
+1000
+select count(*) from t3b x, t3bver y
+where x.a = y.a and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) ;
+count(*)
+1000
+select count(*) from t4b x, t4bver y
+where (x.a = y.a or (x.a is null and y.a is null)) and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) and
+(x.e = y.e or (x.e is null and y.e is null)) and
+(x.f = y.f or (x.f is null and y.f is null)) and
+x.g = y.g ;
+count(*)
+1000
+select count(*) from t5b x, t5bver y
+where (x.a = y.a or (x.a is null and y.a is null)) and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) and
+(x.e = y.e or (x.e is null and y.e is null)) and
+x.f = y.f ;
+count(*)
+1000
+select count(*) from t6b x, t6bver y
+where (x.a = y.a or (x.a is null and y.a is null)) and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+(x.d = y.d or (x.d is null and y.d is null)) and
+x.e = y.e and
+x.f = y.f ;
+count(*)
+1000
+select count(*) from t7b x, t7bver y
+where (x.a = y.a or (x.a is null and y.a is null)) and
+(x.b = y.b or (x.b is null and y.b is null)) and
+(x.c = y.c or (x.c is null and y.c is null)) and
+x.d = y.d and
+(x.e = y.e or (x.e is null and y.e is null)) and
+(x.f = y.f or (x.f is null and y.f is null)) and
+(x.g = y.g or (x.g is null and y.g is null)) ;
+count(*)
+20
+drop table t1bver;
+drop table t2bver;
+drop table t3bver;
+drop table t4bver;
+drop table t5bver;
+drop table t6bver;
+drop table t7bver;
+drop table t1b;
+drop table t2b;
+drop table t3b;
+drop table t4b;
+drop table t5b;
+drop table t6b;
+drop table t7b;
+# test c - success, with rejected rows
+create table t8c ( 
+a int unsigned not null ,
+b smallint not null ,
+c float not null ,
+d char (10) not null ,
+primary key (a) 
+) engine ndb;
+select count(*) from t8c;
+count(*)
+900
+create table t8cver ( 
+a int unsigned not null ,
+b smallint not null ,
+c float not null ,
+d char (10) not null ,
+primary key (a) 
+) engine ndb;
+select count(*) from t8cver;
+count(*)
+900
+select count(*) from t8c x, t8cver y
+where x.a = y.a ;
+count(*)
+900
+drop table t8cver;
+drop table t8c;
+# test d - success, with rejected rows and resume
+create table t8d ( 
+a int unsigned not null ,
+b smallint not null ,
+c float not null ,
+d char (10) not null ,
+primary key (a) 
+) engine ndb;
+select count(*) from t8d;
+count(*)
+990
+create table t8dver ( 
+a int unsigned not null ,
+b smallint not null ,
+c float not null ,
+d char (10) not null ,
+primary key (a) 
+) engine ndb;
+select count(*) from t8dver;
+count(*)
+990
+select count(*) from t8d x, t8dver y
+where x.a = y.a ;
+count(*)
+990
+drop table t8dver;
+drop table t8d;

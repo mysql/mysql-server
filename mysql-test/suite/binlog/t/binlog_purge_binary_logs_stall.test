@@ -1,0 +1,40 @@
+# ==== Purpose ====
+#
+# This test will purge old binary log files in the server and
+# will verify how many events the server will read from the
+# remaining binary log file.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#23054591 PURGE BINARY LOGS TO IS READING THE WHOLE BINLOG FILE AND
+#              CAUSING MYSQL TO STALL
+#
+
+# This test case is binary log format agnostic
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+# Create a new binary log file
+FLUSH BINARY LOGS;
+
+# Add some events to the new binary log file
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+
+# Get the current binlog file name
+--let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+
+# Purge older binary log files
+--replace_result '$binlog_file' BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$binlog_file'
+
+# File to GREP
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/binlog_purge_stall.err
+# Show entries only after the last occurrence of the following pattern
+--let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] .* mysqld: ready for connections
+# Assert that there is an expected [Note] log line about reading binary log events
+--let $assert_count= 1
+--let $assert_select=.* \[Note\] \[[^]]*\] \[[^]]*\] Read 2 events from binary log file .*$binlog_file
+--let $assert_text= Only two events were read from the binary log file (binlog_gtid_simple_recovery=TRUE).
+--source include/assert_grep.inc

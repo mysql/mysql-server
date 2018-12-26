@@ -1,0 +1,31 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+## 1.  Verify lower_case_table_names cannot be set while server is
+##     running and start GR on server-1.
+
+[connection server1]
+SET GLOBAL lower_case_table_names= 1;
+ERROR HY000: Variable 'lower_case_table_names' is a read only variable
+include/start_and_bootstrap_group_replication.inc
+
+## 2.  Store variables of server-2 for restart.
+
+[connection server2]
+
+## 3A. Test GR start with command when lower_case_table_names matches.
+
+include/start_group_replication.inc
+include/assert.inc ['Assert server-1 and server-2 are ONLINE']
+
+## 3B. Test GR start on boot when lower_case_table_names matches.
+
+# restart:--group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=1
+include/rpl_reconnect.inc
+
+## 4.  Cleanup.
+
+include/group_replication_end.inc

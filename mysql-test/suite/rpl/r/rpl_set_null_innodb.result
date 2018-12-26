@@ -1,0 +1,31 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/rpl_reset.inc
+CREATE TABLE t1 (c1 BIT, c2 INT) Engine=InnoDB;
+INSERT INTO `t1` VALUES ( 1, 1 );
+UPDATE t1 SET c1=NULL where c2=1;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+DELETE FROM t1 WHERE c2=1 LIMIT 1;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_reset.inc
+CREATE TABLE t1 (c1 CHAR) Engine=InnoDB;
+INSERT INTO t1 ( c1 ) VALUES ( 'w' ) ;
+SELECT * FROM t1;
+c1
+w
+UPDATE t1 SET c1=NULL WHERE c1='w';
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+DELETE FROM t1 LIMIT 2;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

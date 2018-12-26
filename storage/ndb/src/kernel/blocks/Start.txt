@@ -1,0 +1,97 @@
+
+--- Start phase 1 - Qmgr -------------------------------------------
+
+1) Set timer 1 - TimeToWaitAlive
+
+2) Send CM_REGREQ to all connected(and connecting) nodes
+
+3) Wait until -
+a) The precident answers CM_REGCONF
+b) All nodes has answered and I'm the candidate -> election won
+c) 30s has passed and I'm the candidate -> election won
+d) TimeToWaitAlive has passed -> Failure to start
+
+When receiving CM_REGCONF
+4) Send CM_NODEINFOREQ to all connected(and connecting) nodes 
+   reported in CM_REGCONF
+
+5) Wait until -
+a) All CM_NODEINFO_CONF has arrived
+b) TimeToWaitAlive has passed -> Failure to start
+
+6) Send CM_ACKADD to president
+
+7) Wait until - 
+a) Receive CM_ADD(CommitNew) from president -> I'm in the qmgr cluster
+b) TimeToWaitAlive has passed -> Failure to start
+
+NOTE:
+30s is hardcoded in 3c.
+TimeToWaitAlive should be atleast X sec greater than 30s. i.e. 30+X sec
+to support "partial starts"
+
+NOTE:
+In 3b, a more correct number (instead of all) would be
+N-NG+1 where N is #nodes and NG is #node groups = (N/R where R is # replicas)
+But Qmgr has no notion about node groups or replicas
+
+--- Start phase X - Qmgr -------------------------------------------
+
+President - When accepting a CM_REGREQ
+1) Send CM_REGCONF to starting node
+2) Send CM_ADD(Prepare) to all started nodes + starting node
+3) Send CM_ADD(AddCommit) to all started nodes
+4) Send CM_ADD(CommitNew) to starting node
+
+Cluster participant -
+1) Wait for both CM_NODEINFOREQ from starting and CM_ADD(Prepare) from pres.
+2) Send CM_ACKADD(Prepare)
+3) Wait for CM_ADD(AddCommit) from president
+4) Send CM_ACKADD(AddCommit) 
+ 
+--- Start phase 2 - NdbCntr ----------------------------------------
+
+- Use same TimeToWaitAliveTimer
+
+1) Check sysfile (DIH_RESTART_REQ)
+2) Read nodes (from Qmgr) P = qmgr president
+
+3) Send CNTR_MASTER_REQ to cntr(P)
+   including info in DIH_RESTART_REF/CONF
+
+4) Wait until -
+b) Receiving CNTR_START_CONF -> continue
+b) Receiving CNTR_START_REF -> P = node specified in REF, goto 3
+c) TimeToWaitAlive has passed -> Failure to start
+
+4) Run ndb-startphase 1
+
+--
+Initial start/System restart NdbCntr (on qmgr president node)
+
+1) Wait until -
+a) Receiving CNTR_START_REQ with GCI > than own GCI
+   send CNTR_START_REF to all waiting nodes
+b) Receiving all CNTR_START_REQ (for all defined nodes)
+c) TimeToWait has passed and partition win
+d) TimeToWait has passed and partitioning 
+   and configuration "start with partition" = true
+
+2) Send CNTR_START_CONF to all nodes "with filesystem"
+
+3) Wait until -
+   Receiving CNTR_START_REP for all starting nodes
+
+4) Start waiting nodes (if any)
+
+NOTE:
+1c) Partition win = 1 node in each node group and 1 full node group
+1d) Pattitioning = at least 1 node in each node group
+-- 
+Running NdbCntr
+
+When receiving CNTR_MASTER_REQ
+1) If I'm not master send CNTR_MASTER_REF (including master node id)
+2) If I'm master
+   Coordinate parallell node restarts
+   send CNTR_MASTER_CONF (node restart)

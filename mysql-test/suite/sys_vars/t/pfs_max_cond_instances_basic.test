@@ -1,0 +1,32 @@
+
+#
+# Only global
+#
+
+select @@global.performance_schema_max_cond_instances;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.performance_schema_max_cond_instances;
+
+show global variables like 'performance_schema_max_cond_instances';
+
+show session variables like 'performance_schema_max_cond_instances';
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_max_cond_instances';
+
+select * from performance_schema.session_variables
+  where variable_name='performance_schema_max_cond_instances';
+--enable_warnings
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global performance_schema_max_cond_instances=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session performance_schema_max_cond_instances=1;
+

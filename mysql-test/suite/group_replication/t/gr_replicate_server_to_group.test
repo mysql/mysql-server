@@ -1,0 +1,179 @@
+################################################################################
+# WL#6833: GCS Replication: Read-set free Certification
+#          Module (DBSM Snapshot Isolation)
+#
+# Scenario 2: Replicate from a server into a group
+#
+# Verify Group Replication behavior when we establish a
+# asynchronous replication connection from a server to a group.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap start a group on M1. Start GR on M2.
+# 2. Setup a asynchronous replication connection from M3 into group(M1)
+#    i.e. M3 -> M1.
+# 3. Execute some transactions on M3.
+# 4. Wait until transactions executed on M3 are applied on group.
+# 5. Execute a transaction on the group(M1).
+# 6. Validate data on M3.
+# 8. Validate data on M1. GTID_EXECUTED on M1 must have GTID_EXECUTED from M3.
+# 9. Validate data on M2. GTID_EXECUTED on M2 must have GTID_EXECUTED from M3.
+# 10. Clean data.
+# 11. Stop asynchronous replication connection from M3 into group(M1).
+# 12. Stop Group Replication on M1 and M2.
+################################################################################
+
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9420000
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  1. Setup Group Replication on server 1 and 2.
+--connection server1
+--source include/start_and_bootstrap_group_replication.inc
+
+--connection server2
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+
+--echo
+--echo ############################################################
+--echo #  2. Setup a asynchronous replication connection from server 3
+--echo #     into group (server 1)
+--connection server1
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_3, MASTER_AUTO_POSITION=1
+--source include/start_slave.inc
+
+
+--echo
+--echo ############################################################
+--echo #  3. Execute some transactions on server 3.
+--connection server3
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1=2 WHERE c1=0;
+
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT= 'AUTOMATIC';
+
+
+--echo
+--echo ############################################################
+--echo #  4. Wait until transactions executed on server 3 are applied
+--echo #     on group.
+--connection server3
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+--connection server3
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+
+--echo
+--echo ############################################################
+--echo #  5. Execute a transaction on the group.
+--connection server1
+INSERT INTO t1 VALUES (6);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo #  6. Validate data on server 3.
+--connection server3
+--let $server3_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is a value 2 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is no value 6 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 6, count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  7. GTID_EXECUTED on server 1 must contain GTID_EXECUTED
+--echo #     from server 3.
+--echo #     Validate data on server 1.
+--connection server1
+--let $assert_text= GTID_EXECUTED must contain server 3 GTID_EXECUTED
+--let $assert_cond= [SELECT GTID_SUBSET("$server3_gtid_executed", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is a value 2 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is a value 6 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 6, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  8. GTID_EXECUTED on server 2 must contain GTID_EXECUTED
+--echo #     from server 3.
+--echo #     Validate data on server 2.
+--connection server2
+--let $assert_text= GTID_EXECUTED must contain server 3 GTID_EXECUTED
+--let $assert_cond= [SELECT GTID_SUBSET("$server3_gtid_executed", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is a value 2 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is a value 6 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 6, count, 1] = 1
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo #  9. Clean data.
+--connection server3
+DROP TABLE t1;
+
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+--connection server3
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+
+--echo
+--echo ############################################################
+--echo # 10. Stop asynchronous replication connection from server 3
+--echo #     into group (server 1)
+--connection server1
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "";
+
+--echo
+--echo ############################################################
+--echo # 11. Stop Group Replication on server 1 and 2.
+--connection server1
+--source include/stop_group_replication.inc
+
+--connection server2
+--source include/stop_group_replication.inc
+
+--source include/group_replication_end.inc

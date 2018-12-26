@@ -1,0 +1,101 @@
+--source include/not_crashrep.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #16963396 INNODB: USE OF LARGE EXTERNALLY-STORED FIELDS MAKES
+--echo # CRASH RECOVERY LOSE DATA
+--echo #
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - UPDATE Operation - Crash Test
+--echo # Update that moves non-updated column to blob
+--echo #
+
+create table t2 (f1 bigint primary key, f2 longblob, f3 longblob,
+  index(f2(10), f3(10))) engine=innodb;
+
+insert into t2 values (1, repeat('%', 1000), repeat('+', 30));
+select f1, length(f2), length(f3) from t2;
+
+--echo # Connection con1:
+connect (con1,localhost,root,,);
+
+set debug_sync='ib_mv_nonupdated_column_offpage SIGNAL s1 WAIT_FOR go_update';
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+begin;
+--send
+update t2 set f3 = repeat('[', 1000);
+
+--echo # Connection default:
+connection default;
+set debug_sync='now WAIT_FOR s1';
+set debug_sync='now SIGNAL go_update';
+
+--echo # Connection con1:
+connection con1;
+--echo # reap: update t2 set f3 = repeat('[', 3000);
+--reap
+
+--echo # Connection default:
+connection default;
+
+--source include/kill_and_restart_mysqld.inc
+
+select f1, length(f2), length(f3) from t2;
+select f1, right(f2, 40), right(f3, 40) from t2;
+check table t2;
+
+# ..........................................................................
+
+--echo #
+--echo # Compressed Table - Update Operation
+--echo # update that moves a non-updated column to BLOB
+--echo #
+
+connection default;
+
+set global innodb_compression_level = 0;
+
+create table t3 (f1 bigint primary key, f2 longblob, f3 longblob,
+  index(f2(10), f3(10))) engine=innodb row_format=compressed;
+
+insert into t3 values (1, repeat('%', 1000), repeat('+', 30));
+select f1, length(f2), length(f3) from t3;
+
+--echo # Connection con2:
+connect (con2,localhost,root,,);
+set debug_sync='ib_mv_nonupdated_column_offpage SIGNAL s1 WAIT_FOR go_upd';
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+begin;
+--send
+update t3 set f3 = repeat(']', 1000) where f1 = 1;
+
+--echo # Connection default:
+connection default;
+set debug_sync='now WAIT_FOR s1';
+set debug_sync='now SIGNAL go_upd';
+
+--echo # Connection con2:
+connection con2;
+--echo # reap: update t3 set f3 = repeat(']', 1000) where f1 = 1;
+--reap
+
+--echo # Connection default:
+connection default;
+
+--source include/kill_and_restart_mysqld.inc
+
+select f1, length(f2), length(f3) from t3;
+select f1, right(f2, 30), right(f3, 20) from t3;
+check table t3;
+
+# ..........................................................................
+
+# Clean up.
+DROP TABLE t2, t3;

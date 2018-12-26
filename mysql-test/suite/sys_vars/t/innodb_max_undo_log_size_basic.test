@@ -1,0 +1,98 @@
+
+
+############### mysql-test\t\innodb_max_undo_log_size_basic.test ###############
+#                                                                             #
+# Variable Name: innodb_max_undo_log_size                                     #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-27-05                                                   #
+# Author : Krunal Bauskar                                                     #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable innodb_max_undo_log_size  #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+
+--echo '#---------------------BS_STVARS_035_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_035_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+SET @@GLOBAL.innodb_max_undo_log_size=1073741824;
+
+SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
+--echo 1 Expected
+
+SET @@GLOBAL.innodb_max_undo_log_size=18446744073709551615;
+SELECT @@GLOBAL.innodb_max_undo_log_size;
+--echo 18446744073709551615 Expected
+
+SET @@GLOBAL.innodb_max_undo_log_size=1073741824;
+
+--echo '#---------------------BS_STVARS_035_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.innodb_max_undo_log_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_max_undo_log_size';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_max_undo_log_size';
+--echo 1 Expected
+--enable_warnings
+
+
+--echo '#---------------------BS_STVARS_035_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_max_undo_log_size = @@GLOBAL.innodb_max_undo_log_size;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_035_05----------------------#'
+################################################################################
+# Check if innodb_max_undo_log_size can be accessed with and without @@ sign   #
+################################################################################
+
+SELECT COUNT(@@innodb_max_undo_log_size);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_max_undo_log_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_max_undo_log_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
+--echo 1 Expected
+

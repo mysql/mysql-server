@@ -1,0 +1,61 @@
+# ==== Purpose ====
+#
+# Execute a 'CREATE...SELECT' query, stop at several given sync points.
+# kill the 'CREATE...SELECT' query from other connection. Then check if
+# 'CREATE TABLE' event was logged.
+#
+# ==== Usage ====
+#
+# [--let $engine= MyISAM | --let $engine= InnoDB]
+# --source extra/binlog_tests/binlog_row_kill_create_select.test
+#
+# ==== References ====
+#
+# Bug#20742519  KILL `CREATE TABLE ..SELECT` MAY LEAD TO REPLICATION BROKEN
+
+
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--eval CREATE TABLE t1 (c1 INT) ENGINE = $engine
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+RESET MASTER;
+
+# Test case1
+--connect(con1,localhost,root)
+--connection con1
+--let $statement_connection= con1
+--let $statement= CREATE TABLE t2 ENGINE = $engine SELECT c1 FROM t1
+--let $sync_point= create_select_before_write_create_event
+--let $auxiliary_connection= default
+--source include/kill_at_sync_point.inc
+--disconnect con1
+
+# Test case2
+--connect(con2,localhost,root)
+--connection con2
+--let $statement_connection= con2
+--let $statement= CREATE TABLE t3 ENGINE = $engine SELECT c1 FROM t1
+--let $sync_point= create_select_after_write_create_event
+--let $auxiliary_connection= default
+--source include/kill_at_sync_point.inc
+--disconnect con2
+
+# Test case3
+--connect(con3,localhost,root)
+--connection con3
+--let $statement_connection= con3
+--let $statement= CREATE TABLE t4 ENGINE = $engine SELECT c1 FROM t1
+--let $sync_point= create_select_after_write_rows_event
+--let $auxiliary_connection= default
+--source include/kill_at_sync_point.inc
+--disconnect con3
+
+--connection default
+--echo # Verify that 'CREATE TABLE t2', 'CREATE TABLE t3' and
+--echo # 'CREATE TABLE t4' events were not logged.
+--source include/show_binlog_events.inc
+
+DROP TABLE t1;

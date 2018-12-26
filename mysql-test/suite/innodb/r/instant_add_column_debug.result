@@ -1,0 +1,123 @@
+##############################################
+# Test instant ADD COLUMN for REDUNDANT format
+##############################################
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c INT) ROW_FORMAT=REDUNDANT;;
+INSERT INTO t1 VALUES(1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 6, 6);
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10;
+SELECT * FROM t1;
+a	b	c	d
+1	1	1	10
+2	2	2	10
+3	3	3	10
+6	6	6	10
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
+ALTER TABLE t1 DROP COLUMN c;;
+SET DEBUG_SYNC = 'now WAIT_FOR altered';
+INSERT INTO t1(a, b, c) VALUES(7, 7, 7);
+UPDATE t1 SET a = 10 WHERE a = 1;
+DELETE FROM t1 WHERE a = 2;
+UPDATE t1 SET c = 10 WHERE a = 3;
+UPDATE t1 SET d = 20 WHERE a = 5;
+UPDATE t1 SET a = 8, d = 20 WHERE a = 6;
+SET DEBUG_SYNC = 'now SIGNAL dmls_done';
+SET DEBUG_SYNC = 'RESET';
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT '10',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+SELECT * FROM t1;
+a	b	d
+3	3	10
+7	7	10
+8	6	20
+10	1	10
+DROP TABLE t1;
+############################################
+# Test instant ADD COLUMN for DYNAMIC format
+############################################
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c INT) ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES(1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 6, 6);
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10;
+SELECT * FROM t1;
+a	b	c	d
+1	1	1	10
+2	2	2	10
+3	3	3	10
+6	6	6	10
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
+ALTER TABLE t1 DROP COLUMN c;;
+SET DEBUG_SYNC = 'now WAIT_FOR altered';
+INSERT INTO t1(a, b, c) VALUES(7, 7, 7);
+UPDATE t1 SET a = 10 WHERE a = 1;
+DELETE FROM t1 WHERE a = 2;
+UPDATE t1 SET c = 10 WHERE a = 3;
+UPDATE t1 SET d = 20 WHERE a = 5;
+UPDATE t1 SET a = 8, d = 20 WHERE a = 6;
+SET DEBUG_SYNC = 'now SIGNAL dmls_done';
+SET DEBUG_SYNC = 'RESET';
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT '10',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SELECT * FROM t1;
+a	b	d
+3	3	10
+7	7	10
+8	6	20
+10	1	10
+DROP TABLE t1;
+############################################
+# Test instant ADD COLUMN for COMPACT format
+############################################
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c INT) ROW_FORMAT=COMPACT;;
+INSERT INTO t1 VALUES(1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 6, 6);
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 10;
+SELECT * FROM t1;
+a	b	c	d
+1	1	1	10
+2	2	2	10
+3	3	3	10
+6	6	6	10
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
+ALTER TABLE t1 DROP COLUMN c;;
+SET DEBUG_SYNC = 'now WAIT_FOR altered';
+INSERT INTO t1(a, b, c) VALUES(7, 7, 7);
+UPDATE t1 SET a = 10 WHERE a = 1;
+DELETE FROM t1 WHERE a = 2;
+UPDATE t1 SET c = 10 WHERE a = 3;
+UPDATE t1 SET d = 20 WHERE a = 5;
+UPDATE t1 SET a = 8, d = 20 WHERE a = 6;
+SET DEBUG_SYNC = 'now SIGNAL dmls_done';
+SET DEBUG_SYNC = 'RESET';
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT '10',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+SELECT * FROM t1;
+a	b	d
+3	3	10
+7	7	10
+8	6	20
+10	1	10
+DROP TABLE t1;

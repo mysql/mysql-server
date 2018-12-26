@@ -1,0 +1,181 @@
+#
+# WL#9636: Rename tx_{isolation,isolation} variables to transaction_*
+#
+#############################################################
+#                 Save initial value                        #
+#############################################################
+SET @start_global_value = @@global.transaction_read_only;
+SELECT @start_global_value;
+@start_global_value
+0
+SET @start_session_value = @@session.transaction_read_only;
+SELECT @start_session_value;
+@start_session_value
+0
+########################################################################
+#     Display the DEFAULT value of transaction_read_only               #
+########################################################################
+SET @@global.transaction_read_only = ON;
+SET @@global.transaction_read_only = DEFAULT;
+SELECT @@global.transaction_read_only;
+@@global.transaction_read_only
+0
+SET @@session.transaction_read_only = ON;
+SET @@session.transaction_read_only = DEFAULT;
+SELECT @@session.transaction_read_only;
+@@session.transaction_read_only
+0
+##############################################################################
+# Change the value of transaction_read_only to a valid value for GLOBAL Scope#
+##############################################################################
+SET @@global.transaction_read_only = ON;
+SELECT @@global.transaction_read_only;
+@@global.transaction_read_only
+1
+SET @@global.transaction_read_only = OFF;
+SELECT @@global.transaction_read_only;
+@@global.transaction_read_only
+0
+SET @@global.transaction_read_only = 0;
+SELECT @@global.transaction_read_only;
+@@global.transaction_read_only
+0
+SET @@global.transaction_read_only = 1;
+SELECT @@global.transaction_read_only;
+@@global.transaction_read_only
+1
+SET @@global.transaction_read_only = TRUE;
+SELECT @@global.transaction_read_only;
+@@global.transaction_read_only
+1
+SET @@global.transaction_read_only = FALSE;
+SELECT @@global.transaction_read_only;
+@@global.transaction_read_only
+0
+###############################################################################
+# Change the value of transaction_read_only to a valid value for SESSION Scope#
+###############################################################################
+SET @@session.transaction_read_only = ON;
+SELECT @@session.transaction_read_only;
+@@session.transaction_read_only
+1
+SET @@session.transaction_read_only = OFF;
+SELECT @@session.transaction_read_only;
+@@session.transaction_read_only
+0
+SET @@session.transaction_read_only = 0;
+SELECT @@session.transaction_read_only;
+@@session.transaction_read_only
+0
+SET @@session.transaction_read_only = 1;
+SELECT @@session.transaction_read_only;
+@@session.transaction_read_only
+1
+SET @@session.transaction_read_only = TRUE;
+SELECT @@session.transaction_read_only;
+@@session.transaction_read_only
+1
+SET @@session.transaction_read_only = FALSE;
+SELECT @@session.transaction_read_only;
+@@session.transaction_read_only
+0
+################################################################
+# Change the value of transaction_read_only to an invalid value#
+################################################################
+SET @@global.transaction_read_only = 'ONN';
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'ONN'
+SET @@global.transaction_read_only = "OFFF";
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'OFFF'
+SET @@global.transaction_read_only = TTRUE;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'TTRUE'
+SET @@global.transaction_read_only = FELSE;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'FELSE'
+SET @@global.transaction_read_only = -1024;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of '-1024'
+SET @@global.transaction_read_only = 65536;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of '65536'
+SET @@global.transaction_read_only = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'transaction_read_only'
+SET @@global.transaction_read_only = test;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'test'
+SET @@session.transaction_read_only = ONN;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'ONN'
+SET @@session.transaction_read_only = ONF;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'ONF'
+SET @@session.transaction_read_only = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@session.transaction_read_only = 'OFN';
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'OFN'
+SET @@session.transaction_read_only = -2;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of '-2'
+SET @@session.transaction_read_only = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'transaction_read_only'
+SET @@session.transaction_read_only = 65550;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of '65550'
+SET @@session.transaction_read_only = test;
+ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'test'
+SELECT @@session.transaction_read_only;
+@@session.transaction_read_only
+0
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+SELECT IF(@@global.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='transaction_read_only';
+IF(@@global.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
+1
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+SELECT IF(@@session.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='transaction_read_only';
+IF(@@session.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
+1
+###############################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable #
+###############################################################################
+SET @@transaction_read_only = OFF;
+SET @@global.transaction_read_only = ON;
+SELECT @@transaction_read_only = @@global.transaction_read_only;
+@@transaction_read_only = @@global.transaction_read_only
+0
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+#    to same session variable                                                #
+##############################################################################
+SET @@transaction_read_only = ON;
+SELECT @@transaction_read_only = @@local.transaction_read_only;
+@@transaction_read_only = @@local.transaction_read_only
+1
+SELECT @@local.transaction_read_only = @@session.transaction_read_only;
+@@local.transaction_read_only = @@session.transaction_read_only
+1
+###############################################################################
+#   Check if transaction_read_only can be accessed with and without @@ sign   #
+###############################################################################
+# @@session is synonym for SESSION
+SET @@session.transaction_read_only= 0;
+# Without modifier, SET changes session variable
+SET transaction_read_only = 1;
+SELECT @@transaction_read_only;
+@@transaction_read_only
+1
+# name1.name2 refers to database_name.table_name
+SELECT session.transaction_read_only;
+ERROR 42S02: Unknown table 'session' in field list
+####################################
+#     Restore initial value        #
+####################################
+SET @@global.transaction_read_only = @start_global_value;
+SELECT @@global.transaction_read_only;
+@@global.transaction_read_only
+0
+SET @@session.transaction_read_only = @start_session_value;
+SELECT @@session.transaction_read_only;
+@@session.transaction_read_only
+0
+#########################################################
+#                 END OF transaction_read_only TESTS    #
+#########################################################

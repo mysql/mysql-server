@@ -1,0 +1,45 @@
+
+
+SET @start_global_value = @@global.innodb_tmpdir;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@session.innodb_tmpdir;
+
+show global variables like 'innodb_tmpdir';
+show session variables like 'innodb_tmpdir';
+
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_tmpdir';
+select * from performance_schema.session_variables where variable_name='innodb_tmpdir';
+--enable_warnings
+#
+# Show that it is writable
+#
+
+set global innodb_tmpdir=@@global.tmpdir;
+set session innodb_tmpdir=@@global.tmpdir;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_tmpdir=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_tmpdir=1e1;
+
+#
+# path len more than 512
+#
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_tmpdir=repeat('a',1000);
+show warnings;
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_tmpdir = @start_global_value;
+SELECT @@global.innodb_tmpdir;

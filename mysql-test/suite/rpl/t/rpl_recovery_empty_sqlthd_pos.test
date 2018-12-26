@@ -1,0 +1,67 @@
+###############################################################################
+# Bug#19021091: RELAY_LOG_RECOVERY KO WHEN CHANGE MASTER WITHOUT FILE AND
+# SQL_THREAD NOT STARTED
+#
+# Problem:
+# ========
+# If, on an empty database:
+# - CHANGE MASTER TO without a MASTER_FILE and MASTER_POS is used,
+# - the IO_THREAD is started WITHOUT starting the SQL_THREAD,
+# - MySQL crashed,
+# - MySQL is restarted with relay_log_recovery = 1.
+#
+# Crash recovery will not work as expected:
+# - The IO_THREAD position will NOT be initialized to the SQL_THREAD position,
+# - SQL_THREAD position will NOT be initialized to the new relay log.
+#
+# It looks like, when the SQL_THREAD does not have a Relay_Master_Log_File,
+# relay_log_recovery does not work.
+#
+# Test:
+# =====
+# Use master and slave info repositories to be tables and set
+# relay-log-recovery=1. Stop the slave, execute a CREATE DATABASE statement on
+# the master. Execute a CHANGE MASTER statement on slave without a MASTER_FILE
+# and MASTER_POS. Start IO thread alone. Crash the slave and restart it. When
+# slave is restarted with bug, sql thread will not be able to start. It will fail
+# with an error saying the database already exists. Post fix sql thread will
+# read positions from the first rotate event that is received from the master.
+# Sql thread will start without any error.
+###############################################################################
+--source include/not_group_replication_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
+--source include/force_restart.inc
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression("Recovery from master pos .*");
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE DATABASE test_jfg;
+
+--source include/rpl_connection_slave.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+--eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$MASTER_MYPORT,master_user='root'
+START SLAVE IO_THREAD;
+source include/wait_for_slave_io_to_start.inc;
+
+--source include/rpl_connection_master.inc
+source include/sync_slave_io_with_master.inc;
+
+# Restart the slave server
+--let $rpl_server_number= 2
+--let $rpl_force_stop= 1
+--let $rpl_server_parameters=--skip_slave_start=FALSE --relay-log-recovery=1
+--source include/rpl_restart_server.inc
+
+# With bug sql thread will not be able to start it will fail with error 1007
+# Slave: Can't create database 'test_jfg'; database exists Error_code: 1007
+source include/wait_for_slave_sql_to_start.inc;
+
+--source include/rpl_connection_master.inc
+DROP DATABASE test_jfg;
+--source include/rpl_end.inc

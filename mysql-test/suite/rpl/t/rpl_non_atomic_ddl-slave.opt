@@ -1,0 +1,1 @@
+--relay_log_info_repository=TABLE --sync-relay-log-info=1

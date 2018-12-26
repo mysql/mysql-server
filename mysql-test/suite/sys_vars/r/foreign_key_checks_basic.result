@@ -1,0 +1,99 @@
+SET @session_start_value = @@session.foreign_key_checks;
+SELECT @session_start_value;
+@session_start_value
+1
+'#--------------------FN_DYNVARS_032_01------------------------#'
+SET @@session.foreign_key_checks = 1;
+SET @@session.foreign_key_checks = DEFAULT;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+0
+'#---------------------FN_DYNVARS_032_02-------------------------#'
+SET foreign_key_checks = 1;
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+SELECT session.foreign_key_checks;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT local.foreign_key_checks;
+ERROR 42S02: Unknown table 'local' in field list
+SET session foreign_key_checks = 0;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+0
+'#--------------------FN_DYNVARS_032_03------------------------#'
+SET @@session.foreign_key_checks = 0;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+0
+SET @@session.foreign_key_checks = 1;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+1
+'#--------------------FN_DYNVARS_032_04-------------------------#'
+SET @@session.foreign_key_checks = -1;
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of '-1'
+SET @@session.foreign_key_checks = 2;
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of '2'
+SET @@session.foreign_key_checks = "T";
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'T'
+SET @@session.foreign_key_checks = "Y";
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'Y'
+SET @@session.foreign_key_checks = TRÜE;
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'TRÜE'
+SET @@session.foreign_key_checks = ÕN;
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'ÕN'
+SET @@session.foreign_key_checks = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@session.foreign_key_checks = ÓFF;
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'ÓFF'
+SET @@session.foreign_key_checks = '¹';
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of '¹'
+SET @@session.foreign_key_checks = NO;
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'NO'
+'#-------------------FN_DYNVARS_032_05----------------------------#'
+SET @@global.foreign_key_checks = 0;
+SELECT @@global.foreign_key_checks;
+@@global.foreign_key_checks
+0
+SET @@global.foreign_key_checks = 1;
+'#----------------------FN_DYNVARS_032_06------------------------#'
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='foreign_key_checks';
+count(VARIABLE_VALUE)
+1
+'#----------------------FN_DYNVARS_032_07------------------------#'
+SELECT IF(@@session.foreign_key_checks, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='foreign_key_checks';
+IF(@@session.foreign_key_checks, "ON", "OFF") = VARIABLE_VALUE
+1
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+1
+SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='foreign_key_checks';
+VARIABLE_VALUE
+ON
+'#---------------------FN_DYNVARS_032_08-------------------------#'
+SET @@session.foreign_key_checks = OFF;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+0
+SET @@session.foreign_key_checks = ON;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+1
+'#---------------------FN_DYNVARS_032_09----------------------#'
+SET @@session.foreign_key_checks = TRUE;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+1
+SET @@session.foreign_key_checks = FALSE;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+0
+SET @@session.foreign_key_checks = @session_start_value;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+1

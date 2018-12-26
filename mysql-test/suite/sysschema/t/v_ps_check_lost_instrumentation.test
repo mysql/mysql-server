@@ -1,0 +1,12 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.ps_check_lost_instrumentation view
+
+# Ensure structure changes don't slip in
+DESC sys.ps_check_lost_instrumentation;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.ps_check_lost_instrumentation;
+--enable_result_log
+

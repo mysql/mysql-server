@@ -1,0 +1,1037 @@
+# Starting server with keyring plugin  
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+DROP DATABASE IF EXISTS tde_db;
+DROP TABLE IF EXISTS tde_db. t_encrypt;
+CREATE DATABASE tde_db;
+USE tde_db;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+CREATE PROCEDURE tde_db.init_setup()
+begin
+/*  Create encrypt table with encryption */
+CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON , 
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)    
+) ENCRYPTION="Y"  ENGINE = InnoDB;
+/*  Create NON encrypt table with encryption */
+CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENGINE = InnoDB;
+/*  insert into encrypt table */
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT '/*  select tde_db.t_encrypt */';
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
+/*  insert into non encrypt table */
+INSERT INTO tde_db.t_non_encrypt(c2,c3,c4,c7) SELECT c2,c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT '/*  select tde_db.t_non_encrypt */';
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+CREATE TABLE tde_db.t_encrypt_2(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENCRYPTION="Y" ENGINE = InnoDB;
+CREATE TABLE tde_db.t_non_encrypt_2(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENGINE = InnoDB;
+/*  insert into encrypt table 2 */
+INSERT INTO tde_db.t_encrypt_2(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT '/*  select tde_db.t_encrypt_2 */';
+SELECT COUNT(*) FROM tde_db.t_encrypt_2; 
+SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt_2 LIMIT 10;
+/* insert into NON encrypt table 2 */
+INSERT INTO tde_db.t_non_encrypt_2(c2,c3,c4,c7) SELECT c2,c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT '/*  select tde_db.t_non_encrypt_2 */';
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2; 
+SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt_2 LIMIT 10;
+end|
+#-----------------------------------------------------------------------
+# init tables
+call tde_db.init_setup();
+/*  select tde_db.t_encrypt */
+/*  select tde_db.t_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt */
+/*  select tde_db.t_non_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_encrypt_2 */
+/*  select tde_db.t_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt_2 */
+/*  select tde_db.t_non_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+# plugin already installed error 
+INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+ERROR HY000: Function 'keyring_file' already exists
+SELECT @@global.keyring_file_data;
+@@global.keyring_file_data
+MYSQL_TMP_DIR/mysecret_keyring
+# Uninstall is possible when server started with --early-plugin-load
+UNINSTALL PLUGIN keyring_file;
+# variable not accessible after uninstall
+SELECT @@global.keyring_file_data;
+ERROR HY000: Unknown system variable 'keyring_file_data'
+# Select non encrypt table : Pass 
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+64
+# Select encrypt table : No Error (after uninstall plugin -master key is cached)
+SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt_2 LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+COUNT(*)
+64
+# Error on "ALTER INSTANCE ..." after UNINSTALL PLUGIN
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+# new encrypt table creation is blocked after uninstall
+CREATE TABLE tde_db.t_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+# new non encrypt table 
+CREATE TABLE tde_db.t_non_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENGINE = InnoDB;
+DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 ;
+DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_3;
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
+#-----------------------------------------------------------------------
+# Test 1 : Restart with same keyring option , all tables accesible
+# restart with --early-plugin-load 
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
+keyring_file	1.0	ACTIVE
+# init tables
+call tde_db.init_setup();
+/*  select tde_db.t_encrypt */
+/*  select tde_db.t_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt */
+/*  select tde_db.t_non_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_encrypt_2 */
+/*  select tde_db.t_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt_2 */
+/*  select tde_db.t_non_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+# restart with same --early-plugin-load and keyring_file_data option
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt_2 LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt_2 LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+# insert into old encrypt tables
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+COUNT(*)
+64
+INSERT INTO tde_db.t_encrypt_2(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+COUNT(*)
+128
+# insert into old non encrypt tables
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+64
+INSERT INTO tde_db.t_non_encrypt_2(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+128
+# update into old encrypt tables
+UPDATE tde_db.t_encrypt_2 SET c2 = 1000 WHERE c2 = 1;
+SELECT COUNT(*) FROM tde_db.t_encrypt_2 WHERE c2 = 1000 ;
+COUNT(*)
+1
+# update into old non encrypt tables
+UPDATE tde_db.t_non_encrypt_2 SET c2 = 1000 WHERE c2 = 1;
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2 WHERE c2 = 1000 ;
+COUNT(*)
+1
+# delete into old encrypt tables
+DELETE FROM tde_db.t_encrypt_2 WHERE c2 = 1000 ;
+SELECT COUNT(*) FROM tde_db.t_encrypt_2 WHERE c2 = 1000 ;
+COUNT(*)
+0
+# delete into old non encrypt tables
+DELETE FROM tde_db.t_non_encrypt_2 WHERE c2 = 1000 ;
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2 WHERE c2 = 1000 ;
+COUNT(*)
+0
+# new table
+CREATE TABLE tde_db.t_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENCRYPTION="Y" ENGINE = InnoDB;
+CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENGINE = InnoDB;
+INSERT INTO tde_db.t_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_non_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT COUNT(*) FROM tde_db.t_encrypt_4;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt_4 LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt_4 LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+COUNT(*)
+127
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+127
+SELECT COUNT(*) FROM tde_db.t_encrypt_4;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
+COUNT(*)
+64
+DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 , tde_db.t_encrypt_4;
+DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_4;
+#-----------------------------------------------------------------------
+# Test 2 : Restart without keyring option - old encrypt table not 
+# accessible but rest are.
+# restart with --early-plugin-load to load initial data
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
+keyring_file	1.0	ACTIVE
+# init tables
+call tde_db.init_setup();
+/*  select tde_db.t_encrypt */
+/*  select tde_db.t_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt */
+/*  select tde_db.t_non_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_encrypt_2 */
+/*  select tde_db.t_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt_2 */
+/*  select tde_db.t_non_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+# restart without --early-plugin-load and keyring_file_data
+# restart: 
+# encrypt table not accessible
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+# NON encrypt table are accessible
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+64
+# encrypt table not possible
+CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+# non encrypt table possible
+CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENGINE = InnoDB;
+INSERT INTO tde_db.t_non_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_non_encrypt;
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
+COUNT(*)
+64
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+# encrypt table not accessible 
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2;
+DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 ,tde_db.t_non_encrypt_4;
+DROP DATABASE tde_db;
+# Initial setup
+# Starting server with keyring plugin 
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+DROP DATABASE IF EXISTS tde_db;
+CREATE DATABASE tde_db;
+USE tde_db;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+CREATE PROCEDURE tde_db.init_setup()
+begin
+/*  Create encrypt table with encryption */
+CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON , 
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)    
+) ENCRYPTION="Y"  ENGINE = InnoDB;
+/*  Create NON encrypt table with encryption */
+CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENGINE = InnoDB;
+/*  insert into encrypt table */
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT '/*  select tde_db.t_encrypt */';
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
+/*  insert into non encrypt table */
+INSERT INTO tde_db.t_non_encrypt(c2,c3,c4,c7) SELECT c2,c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT '/*  select tde_db.t_non_encrypt */';
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+CREATE TABLE tde_db.t_encrypt_2(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENCRYPTION="Y" ENGINE = InnoDB;
+CREATE TABLE tde_db.t_non_encrypt_2(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENGINE = InnoDB;
+/*  insert into encrypt table 2 */
+INSERT INTO tde_db.t_encrypt_2(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT '/*  select tde_db.t_encrypt_2 */';
+SELECT COUNT(*) FROM tde_db.t_encrypt_2; 
+SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt_2 LIMIT 10;
+/* insert into NON encrypt table 2 */
+INSERT INTO tde_db.t_non_encrypt_2(c2,c3,c4,c7) SELECT c2,c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT '/*  select tde_db.t_non_encrypt_2 */';
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2; 
+SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt_2 LIMIT 10;
+end|
+# Test 3 : Restart without keyring option but load plugin using command
+# Access all tables
+#-----------------------------------------------------------------------
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
+keyring_file	1.0	ACTIVE
+SELECT @@global.keyring_file_data;
+@@global.keyring_file_data
+MYSQL_TMP_DIR/mysecret_keyring
+# init tables
+call tde_db.init_setup();
+/*  select tde_db.t_encrypt */
+/*  select tde_db.t_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt */
+/*  select tde_db.t_non_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_encrypt_2 */
+/*  select tde_db.t_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt_2 */
+/*  select tde_db.t_non_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+# restart without --early-plugin-load and keyring_file_data
+# AND explicitly install plugin to access old table
+# restart: 
+# Install keyring plugin
+INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+# Set keyring_file_data as old file so as to access old tables
+SET @@global.keyring_file_data='MYSQL_TMP_DIR/mysecret_keyring';
+SELECT @@global.keyring_file_data;
+@@global.keyring_file_data
+MYSQL_TMP_DIR/mysecret_keyring
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt_2 LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt_2 LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+# insert into old encrypt tables
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+COUNT(*)
+64
+INSERT INTO tde_db.t_encrypt_2(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+COUNT(*)
+128
+# insert into old non encrypt tables
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+64
+INSERT INTO tde_db.t_non_encrypt_2(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+128
+# update into old encrypt tables
+UPDATE tde_db.t_encrypt_2 SET c2 = 1000 WHERE c2 = 1;
+SELECT COUNT(*) FROM tde_db.t_encrypt_2 WHERE c2 = 1000 ;
+COUNT(*)
+1
+# update into old non encrypt tables
+UPDATE tde_db.t_non_encrypt_2 SET c2 = 1000 WHERE c2 = 1;
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2 WHERE c2 = 1000 ;
+COUNT(*)
+1
+# delete into old encrypt tables
+DELETE FROM tde_db.t_encrypt_2 WHERE c2 = 1000 ;
+SELECT COUNT(*) FROM tde_db.t_encrypt_2 WHERE c2 = 1000 ;
+COUNT(*)
+0
+# delete into old non encrypt tables
+DELETE FROM tde_db.t_non_encrypt_2 WHERE c2 = 1000 ;
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2 WHERE c2 = 1000 ;
+COUNT(*)
+0
+# new table
+CREATE TABLE tde_db.t_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENCRYPTION="Y" ENGINE = InnoDB;
+CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENGINE = InnoDB;
+INSERT INTO tde_db.t_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+INSERT INTO tde_db.t_non_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
+SELECT COUNT(*) FROM tde_db.t_encrypt_4;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt_4 LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
+COUNT(*)
+64
+SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt_4 LIMIT 10;
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+COUNT(*)
+127
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+127
+SELECT COUNT(*) FROM tde_db.t_encrypt_4;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
+COUNT(*)
+64
+DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 , tde_db.t_encrypt_4;
+DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_4;
+UNINSTALL PLUGIN keyring_file;
+CREATE TABLE tde_db.t_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+#-----------------------------------------------------------------------
+# Test 4 : Restart with new keyring_data_file
+# Old encrypt table not accessible , non encrypt tables accessible
+# And creation of new encrypt,non encrypt table is also posible
+# restart with --early-plugin-load to load initial data
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
+keyring_file	1.0	ACTIVE
+# init tables
+call tde_db.init_setup();
+/*  select tde_db.t_encrypt */
+/*  select tde_db.t_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt */
+/*  select tde_db.t_non_encrypt */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_encrypt_2 */
+/*  select tde_db.t_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+5	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+10	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+/*  select tde_db.t_non_encrypt_2 */
+/*  select tde_db.t_non_encrypt_2 */
+COUNT(*)
+64
+c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
+1	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+2	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+3	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+4	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+6	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+7	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+8	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+9	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
+# restart with with different keyring_file_data file
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring_new --plugin-dir=KEYRING_PLUGIN_PATH
+# encrypt table not accessible
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+# NON encrypt table are accessible
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+64
+# new encrypt table is possible
+CREATE TABLE tde_db.t_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENCRYPTION="Y" ENGINE = InnoDB;
+# non encrypt table possible
+CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c3 CHAR(255) Default 'No text',
+c4 JSON ,
+c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+c7 POINT NOT NULL SRID 0,
+spatial INDEX idx2 (c7)
+)  ENGINE = InnoDB;
+INSERT INTO tde_db.t_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_non_encrypt;
+SELECT COUNT(*) FROM tde_db.t_encrypt_4;
+COUNT(*)
+64
+INSERT INTO tde_db.t_non_encrypt_4(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_non_encrypt;
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
+COUNT(*)
+64
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+# old encrypt table not accessible 
+SELECT COUNT(*) FROM tde_db.t_encrypt;
+Got one of the listed errors
+SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+Got one of the listed errors
+# NON encrypt old table are accessible
+SELECT COUNT(*) FROM tde_db.t_non_encrypt;
+COUNT(*)
+64
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+COUNT(*)
+64
+# new encrypt table accessible 
+SELECT COUNT(*) FROM tde_db.t_encrypt_4;
+COUNT(*)
+64
+# new NON encrypt table accessible 
+SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
+COUNT(*)
+64
+DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 ,tde_db.t_encrypt_4;
+DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 ,tde_db.t_non_encrypt_4;
+DROP DATABASE tde_db;
+# Starting server without keyring
+# restart: 
+SET GLOBAL innodb_file_per_table=1;

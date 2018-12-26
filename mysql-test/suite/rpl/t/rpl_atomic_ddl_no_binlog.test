@@ -1,0 +1,13 @@
+# ==== Purpose ====
+# The same as the sourced rpl_atomic_ddl:
+# prove successful slave service recovery after simulated failures
+# at handling recoverable DDL queries.
+# This time the slave turns binlog off so its post-crash recovery...
+#
+# Find more comments in the sourced file.
+
+--let $commit_message=Crash right before the query gets committed
+--let $crash_commit="+d,slave_crash_after_commit"
+--let $rollback_message=Crash right after the query has been committed
+--let $crash_rollback="+d,slave_crash_before_commit"
+--source rpl_atomic_ddl.test

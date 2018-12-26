@@ -1,0 +1,97 @@
+#
+# WL#9236: Add a new variable binlog_expire_logs_seconds
+#
+# ==== Purpose ====
+# The test case test the following:
+#
+# 1. If binlog_expire_logs_seconds == 0 and expire_logs_days == 0, no purge happens.
+#
+# 2. In all the below listed cases it puges the binary logs older than the timeout
+#    and keeps the binary logs newer than the timeout.
+#
+#    2.1. binlog_expire_logs_seconds > 0 and expire_logs_days > 0
+#    2.2. binlog_expire_logs_seconds > 0 and expire_logs_days == 0
+#    2.3. binlog_expire_logs_seconds == 0 and expire_logs_days > 0
+#
+# Additional tests for the boundaries of expire_logs_days already
+# exist on the sys_vars.expire_logs_days_basic test case.
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+CALL mtr.add_suppression("The option expire_logs_days cannot be used together*");
+--source include/have_binlog_format_row.inc
+--source include/not_windows.inc
+
+--let $saved_expire_logs_days= `SELECT @@GLOBAL.expire_logs_days`
+--let $saved_binlog_expire_logs_seconds= `SELECT @@GLOBAL.binlog_expire_logs_seconds`
+# Set the datadir
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+--echo ####
+--echo #### 1. When binlog_expire_logs_seconds == 0 and expire_logs_days == 0
+--echo ####    no purge should happen
+
+SET GLOBAL binlog_expire_logs_seconds= 0;
+SET GLOBAL expire_logs_days= 0;
+
+# This will test the expire period for three scenarios, described in the .inc file.
+--source suite/binlog/include/binlog_expire_logs_seconds.inc
+
+--echo ####
+--echo #### 2.1: binlog_expire_logs_seconds > 0 and expire_logs_days == 0
+--echo ####
+ 
+# Here we will test both with smaller values and larger values
+
+--echo Testing with smaller values of binlog_expire_logs_seconds
+
+SET GLOBAL binlog_expire_logs_seconds= 30;
+SET GLOBAL expire_logs_days= 0;
+
+--let $expire_logs_seconds= `SELECT @@global.binlog_expire_logs_seconds + @@global.expire_logs_days * 24 * 60 * 60`
+
+--let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+
+--sleep $expire_logs_seconds
+
+--let $second_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+
+# The sleep is in two parts to ensure a time gap between first_binlog_file
+# and second_binlog_file, by doing that we can check that one is purged and
+# another isn't.
+# sleep for n seconds here, n < $expire_logs_seconds
+--sleep 3
+FLUSH LOGS;
+
+--error 1
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+
+--file_exists $MYSQLD_DATADIR/$second_binlog_file
+
+RESET MASTER;
+--echo Testing with greater values of binlog_expire_logs_seconds
+
+SET GLOBAL binlog_expire_logs_seconds= 3600;
+SET GLOBAL expire_logs_days= 0;
+# This will test the expire period for three scenarios, described in the .inc file.
+
+--source suite/binlog/include/binlog_expire_logs_seconds.inc
+
+--echo ####
+--echo #### 2.3: binlog_expire_logs_seconds == 0 and expire_logs_days > 0
+--echo ####
+
+SET GLOBAL binlog_expire_logs_seconds= 0;
+SET GLOBAL expire_logs_days= 1;
+
+# This will test the expire period for three scenarios, described in the .inc file.
+--source suite/binlog/include/binlog_expire_logs_seconds.inc
+
+
+# reset the variables
+--eval SET GLOBAL binlog_expire_logs_seconds= $saved_binlog_expire_logs_seconds
+--eval SET GLOBAL expire_logs_days= $saved_expire_logs_days
+
+

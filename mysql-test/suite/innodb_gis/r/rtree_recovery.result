@@ -1,0 +1,61 @@
+# restart
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+create procedure insert_t1(IN total int)
+begin
+declare i int default 1;
+while (i <= total) DO
+insert into t1 values (i, Point(i, i));
+set i = i + 1;
+end while;
+end|
+create procedure update_t1(IN total int)
+begin
+declare i int default 1;
+while (i <= total) DO
+update t1 set c2 = Point(i + 10000, i + 10000) where c2 = Point(i, i);
+set i = i + 1;
+end while;
+end|
+CALL insert_t1(367);
+COMMIT;
+# Kill and restart
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1 (c1 int, c2 point not null SRID 0, spatial index (c2))engine=innodb;
+CALL insert_t1(367);
+CALL update_t1(367);
+SET @poly1 = ST_GeomFromText('POLYGON((10000 10000, 10000 10350, 10350 10350, 10350 10000, 10000 10000))');
+delete from t1 where ST_Contains(@poly1, c2);
+COMMIT;
+# Kill and restart
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select count(*) from t1;
+count(*)
+18
+select c1, ST_astext(c2) from t1;
+c1	ST_astext(c2)
+350	POINT(10350 10350)
+351	POINT(10351 10351)
+352	POINT(10352 10352)
+353	POINT(10353 10353)
+354	POINT(10354 10354)
+355	POINT(10355 10355)
+356	POINT(10356 10356)
+357	POINT(10357 10357)
+358	POINT(10358 10358)
+359	POINT(10359 10359)
+360	POINT(10360 10360)
+361	POINT(10361 10361)
+362	POINT(10362 10362)
+363	POINT(10363 10363)
+364	POINT(10364 10364)
+365	POINT(10365 10365)
+366	POINT(10366 10366)
+367	POINT(10367 10367)
+drop procedure insert_t1;
+drop procedure update_t1;
+drop table t1;

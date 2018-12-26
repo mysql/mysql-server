@@ -1,0 +1,137 @@
+# ==== Purpose ====
+#
+# Test verifies that when slave side type conversion fails in row based
+# replication, more informative error message is displayed. It also verifies
+# that in the case of blob fields appropriate type name is displayed in error
+# message.
+#
+# ==== Implementation ====
+#
+# Steps:
+# Test case1:
+#          1. Create a table on master with VARCHAR filed and charset
+#          'utf8mb3'.
+#          2. Create a table on slave with VARCHAR field and charset
+#          'utf8mb4'.
+#          3. Insert a tuple on master.
+#          4. Verify that slave provides more informative error message with
+#          respect to difference in charsets.
+# Test case2: Repeat same steps as above for CHAR field
+# Test case3:
+#          1. Create a table on master with LONGBLOB field.
+#          2. Create a table on slave with TINYBLOB field.
+#          3. Insert a tuple on master.
+#          4. Verify that error message displayed on slave clearly states type
+#          conversion failure from 'longblob' to 'tinyblob'.
+#          5. Also verify that error message doesn't show additional details
+#          of charset when not required.
+#
+# ==== References ====
+#
+# Bug#25135304: RBR: WRONG FIELD LENGTH IN ERROR MESSAGE
+#
+
+--source include/have_binlog_format_row.inc
+# Inorder to grep a specific error pattern in error log a fresh error log
+# needs to be generated.
+--source include/force_restart.inc
+--source include/master-slave.inc
+
+--echo ####################################################################
+--echo # Test Case1: Improved error message with charset information
+--echo ####################################################################
+--source include/rpl_connection_master.inc
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 VARCHAR(1) CHARACTER SET 'utf8mb3');
+SET SQL_LOG_BIN=1;
+
+--source include/rpl_connection_slave.inc
+CREATE TABLE t1 (c1 VARCHAR(1) CHARACTER SET 'utf8mb4');
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES ('a');
+
+--source include/rpl_connection_slave.inc
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED);
+--source include/wait_for_slave_sql_error.inc
+
+# Error msg before: Column 0 of table 'test.t1' cannot be converted from type 'varchar(3)' to type 'varchar(1)'
+# Error msg after : Column 0 of table 'test.t1' cannot be converted from type 'varchar(3(bytes))' to type 'varchar(4(bytes) utf8mb4)'
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/ s/Worker .* end_log_pos [0-9]*; //
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/slave.err
+--let $grep_pattern=\'varchar\(3\(bytes\)\)\' to type \'varchar\(4\(bytes\) utf8mb4\)\'
+--source include/grep_pattern.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_connection_slave.inc
+DROP TABLE t1;
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+
+--echo ####################################################################
+--echo # Test Case2: Improved error message with charset information for CHAR
+--echo # type
+--echo ####################################################################
+--source include/rpl_connection_master.inc
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 CHAR(1) CHARACTER SET 'utf8mb3');
+SET SQL_LOG_BIN=1;
+
+--source include/rpl_connection_slave.inc
+CREATE TABLE t1 (c1 CHAR(1) CHARACTER SET 'utf8mb4');
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES ('a');
+
+--source include/rpl_connection_slave.inc
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED);
+--source include/wait_for_slave_sql_error.inc
+
+# Error msg before: Column 0 of table 'test.t1' cannot be converted from type  'char(0)' to type 'char(1)'
+# Error msg after : Column 0 of table 'test.t1' cannot be converted from type  'char(3(bytes))' to type 'char(4(bytes) utf8mb4)'
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/ s/Worker .* end_log_pos [0-9]*; //
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/slave.err
+--let $grep_pattern=\'char\(3\(bytes\)\)\' to type \'char\(4\(bytes\) utf8mb4\)\'
+--source include/grep_pattern.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_connection_slave.inc
+DROP TABLE t1;
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+
+--echo ####################################################################
+--echo # Test Case3: For BLOB type fileds, when type conversion failed on
+--echo # slave, the errormessage had incorrect type names.
+--echo ####################################################################
+--source include/rpl_connection_master.inc
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 LONGBLOB);
+SET SQL_LOG_BIN=1;
+
+--source include/rpl_connection_slave.inc
+CREATE TABLE t1 (c1 TINYBLOB);
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES ('a');
+
+--source include/rpl_connection_slave.inc
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED);
+--source include/wait_for_slave_sql_error.inc
+
+# Error msg before: Column 0 of table 'test.t1' cannot be converted from type 'tinyblob' to type 'tinyblob'
+# Error msg after : Column 0 of table 'test.t1' cannot be converted from type 'longblob' to type 'tinyblob'
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/ s/Worker .* end_log_pos [0-9]*; //
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/slave.err
+--let $grep_pattern=\'longblob\' to type \'tinyblob\'
+--source include/grep_pattern.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_connection_slave.inc
+DROP TABLE t1;
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+--source include/rpl_end.inc

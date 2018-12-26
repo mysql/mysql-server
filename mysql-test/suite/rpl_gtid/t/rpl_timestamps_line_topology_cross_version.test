@@ -1,0 +1,169 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the immediate_commit_timestamp (ICT) and the
+# original_commit_timestamp (OCT) are generated and replicated correctly in two
+# cross-version scenarios, in which one server in the begining or middle of the
+# chain has no support for these timestamps.
+#
+# ==== Implementation ====
+#
+# Considering the following replication chain, we test two scenarios:
+#   A: server_1 (MySQL5.7-) -> server_2 (MySQL5.8) -> server_3 (MySQL5.8)
+#   B: server_1 (MySQL5.8) -> server_2 (MySQL5.7-) -> server_3 (MySQL5.8)
+# In each scenario we generate a transaction and make the following assertions
+# regarding ICT and OCT:
+# Scenario A: 1- OCT is zero in both 5.8 servers because 5.7 did not generate
+#                that information.
+#             2- ICT exists in both 5.8 servers
+# Scenario B: 1- OCT and ICT are the same in server_1.
+#             2- ICT exists in server_3.
+#             3- OCT does not exist in server_3 because server_2 has no support
+#                for this information.
+#
+#
+# ==== References ====
+#
+# WL#7319  Infrastructure for correct replication lag monitoring
+
+
+# Legend:
+#   OCT: original_commit_timestamp
+#   ICT: immediate_commit_timestamp
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+# Establish the line topology.
+--let $rpl_topology=1->2, 2->3
+--source include/rpl_init.inc
+
+--echo # A. First server in the replication chain is not 5.8
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $debug_point= do_not_write_rpl_timestamps
+--source include/add_debug_point.inc
+
+--echo # A1. Execute a transaction and sync it on all the servers.
+
+CREATE TABLE t1 (a INT);
+
+--source include/rpl_sync.inc
+
+--echo # A2. Collect both timestamps (original/immediate) from servers 2 and 3.
+
+# Switch to server_1, to collect the corrresponding GTID.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid= $server_uuid:1
+
+# Switch to server_2, save both OCT and ICT.
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--source include/get_original_commit_timestamp.inc
+--let $server_2_OCT= $original_commit_timestamp
+
+--source include/get_immediate_commit_timestamp.inc
+--let $server_2_ICT= $immediate_commit_timestamp
+
+# Switch to server_3, save both OCT and ICT.
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--source include/get_original_commit_timestamp.inc
+--let $server_3_OCT= $original_commit_timestamp
+
+--source include/get_immediate_commit_timestamp.inc
+--let $server_3_ICT= $immediate_commit_timestamp
+
+--echo # A3. Verify that the timestamps are correct.
+
+--let $assert_text= Assert that the OCT is zero in server_2.
+--let $assert_cond= $server_2_OCT = 0
+--source include/assert.inc
+
+--let $assert_text= Assert that the OCT is zero in server_3.
+--let $assert_cond= $server_3_OCT = 0
+--source include/assert.inc
+
+--let $assert_text= Assert that ICT exists in server_2.
+--let $assert_cond= $server_2_ICT > 0
+--source include/assert.inc
+
+--let $assert_text= Assert that ICT exists in server_3.
+--let $assert_cond= $server_3_ICT > 0
+--source include/assert.inc
+
+--echo # A4. Cleanup
+# Switch to server_1, to remove debug_point
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/remove_debug_point.inc
+
+--echo # B. Server in the middle of the replication chain is not 5.8
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $debug_point= do_not_write_rpl_timestamps
+--source include/add_debug_point.inc
+
+--echo # B1. Execute a transaction and sync it on all the servers.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source include/rpl_sync.inc
+
+--echo # B2. Collect both timestamps (original/immediate) from servers 1 and 3.
+
+# Switch to server_1, save both OCT and ICT.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid= $server_uuid:2
+
+--source include/get_original_commit_timestamp.inc
+--let $server_1_OCT= $original_commit_timestamp
+
+--source include/get_immediate_commit_timestamp.inc
+--let $server_1_ICT= $immediate_commit_timestamp
+
+# Switch to server_3, save both OCT and ICT.
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--source include/get_original_commit_timestamp.inc
+--let $server_3_OCT= $original_commit_timestamp
+
+--source include/get_immediate_commit_timestamp.inc
+--let $server_3_ICT= $immediate_commit_timestamp
+
+--echo # B3. Verify that the timestamps are correct.
+
+--let $assert_text= Assert that OCT is same as ICT on server_1 (originating server).
+--let $assert_cond= $server_1_OCT = $server_1_ICT
+--source include/assert.inc
+
+--let $assert_text= Assert that ICT exists in server_3.
+--let $assert_cond= $server_3_ICT > 0
+--source include/assert.inc
+
+--let $assert_text= Assert that the OCT is zero in server 3.
+--let $assert_cond= $server_3_OCT = 0
+--source include/assert.inc
+
+--echo # B4. Cleanup
+# Switch to server_2, to remove debug_point
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/remove_debug_point.inc
+
+--source include/rpl_end.inc

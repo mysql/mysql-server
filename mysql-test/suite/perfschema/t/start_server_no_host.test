@@ -1,0 +1,15 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+# Expect no records
+show global variables like "performance_schema_hosts_size";
+
+select count(*) from performance_schema.hosts;
+
+# We lost all the data
+--disable_warnings
+select variable_value > 0 from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_HOSTS_LOST';
+--enable_warnings
+

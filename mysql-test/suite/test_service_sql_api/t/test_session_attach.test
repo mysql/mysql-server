@@ -1,0 +1,29 @@
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SESSION_ATTACH TEST_SESSION_ATTACH
+eval INSTALL PLUGIN test_session_attach SONAME '$TEST_SESSION_ATTACH';
+
+--replace_result $TEST_SESSION_ATTACH TEST_SESSION_ATTACH
+eval CREATE FUNCTION execute_test RETURNS INTEGER
+  SONAME '$TEST_SESSION_ATTACH';
+
+--echo ##########################################
+--echo # Execute test case
+--echo ##########################################
+select execute_test();
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+DROP FUNCTION execute_test;
+UNINSTALL PLUGIN test_session_attach;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+cat_file $MYSQLD_DATADIR/test_session_attach.log;
+remove_file $MYSQLD_DATADIR/test_session_attach.log;

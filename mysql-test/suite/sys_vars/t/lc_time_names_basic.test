@@ -1,0 +1,726 @@
+###################### mysql-test\t\lc_time_names_basic.test ##################
+#                                                                             #
+# Variable Name: lc_time_names                                                #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value: en_ZA                                                        #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable lc_time_names            #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+###################################################
+##       START OF lc_time_names TESTS            ##
+###################################################
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @global_start_value = @@global.lc_time_names;
+SELECT @global_start_value;
+# Save initial session value
+SET @session_start_value = @@lc_time_names;
+SELECT @session_start_value;
+# now save using local access 
+SET @session_start_value = @@local.lc_time_names;
+SELECT @session_start_value;
+# save using default access (session)
+SET @session_start_value = @@session.lc_time_names;
+SELECT @session_start_value;
+
+
+--echo '#--------------------FN_DYNVARS_060_01------------------#'
+###############################################################################
+#       Test Variable access and assignment with and withoud @@               #
+###############################################################################
+
+# select without @@
+--error ER_BAD_FIELD_ERROR
+SELECT lc_time_names;
+# assign value without @@
+SET lc_time_names=ar_AE;
+SELECT @@session.lc_time_names;
+# assign global variable without @@
+--Error ER_PARSE_ERROR
+SET global.lc_time_names=ar_AE;
+# using another syntax for accessing session variable
+SET session lc_time_names=ar_AE;
+# accessing variable with scope the wrong way
+--Error ER_BAD_FIELD_ERROR
+SELECT session lc_time_names;
+# using another syntax for accessing dynamic variable
+SET global lc_time_names=ar_AE;
+--Error ER_BAD_FIELD_ERROR
+SELECT global lc_time_names;
+
+
+--echo '#--------------------FN_DYNVARS_060_02-------------------------#'
+###############################################################################
+#     Check the DEFAULT value of lc_time_names for session and global         #
+###############################################################################
+
+SET @@lc_time_names = en_ZA;
+SET @@lc_time_names = DEFAULT;
+SELECT @@lc_time_names AS DEFAULT_VALUE;
+
+SET @@global.lc_time_names = en_ZA;
+SET @@global.lc_time_names = DEFAULT;
+SELECT @@global.lc_time_names;
+
+--echo '#--------------------FN_DYNVARS_060_03-------------------------#'
+##########################################################################
+#     see if setting global value changes session value and vice versa   #
+##########################################################################
+
+SET @@session.lc_time_names = en_IN;
+SELECT @@session.lc_time_names;
+SET @@global.lc_time_names = en_NZ;
+SELECT @@global.lc_time_names;
+SELECT @@session.lc_time_names AS res_is_en_IN;
+
+SET @@session.lc_time_names = en_AU;
+SELECT @@session.lc_time_names;
+SELECT @@global.lc_time_names AS res_is_en_NZ;
+# composite check
+SELECT @@global.lc_time_names=@@session.lc_time_names AS res_is_false;
+
+
+--echo '#--------------------FN_DYNVARS_060_04-------------------------#'
+###########################################################################
+#     Check if accessing variable with and without session point to session
+#     variable     
+###########################################################################
+
+SELECT @@lc_time_names = @@session.lc_time_names AS res;
+SELECT @@lc_time_names = @@local.lc_time_names AS res;
+
+--echo '#--------------------FN_DYNVARS_060_05-------------------------#'
+###########################################################################
+#     Check if combining character set works                              #
+###########################################################################
+--Error ER_BAD_FIELD_ERROR
+SET @@lc_time_names = en_US | en_GB ;
+
+--echo '#--------------------FN_DYNVARS_060_06-------------------------#'
+###########################################################################
+#     Change the value of lc_time_names to a valid value for session      #
+###########################################################################
+SET @@session.lc_time_names=ar_AE;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_BH;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_DZ;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_EG;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_IN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_IQ;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_JO;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_KW;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_LB;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_LY;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_MA;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_OM;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_QA;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_SA;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_SD;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_SY;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_TN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ar_YE;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=be_BY;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=bg_BG;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ca_ES;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=cs_CZ;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=da_DK;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=de_AT;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=de_BE;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=de_CH;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=de_DE;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=de_LU;
+SELECT @@session.lc_time_names;
+
+--error ER_UNKNOWN_LOCALE
+SET @@session.lc_time_names=EE;
+--echo 'Bug: The locale for Estonian - Estonia is not supported. It is present';
+--echo 'in manual';
+--echo 'See http://dev.mysql.com/doc/refman/5.1/en/locale-support.html'
+
+SET @@session.lc_time_names=en_AU;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=en_CA;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=en_GB;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=en_IN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=en_NZ;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=en_PH;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=en_US;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=en_ZA;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=en_ZW;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_AR;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_BO;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_CL;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_CO;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_CR;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_DO;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_EC;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_ES;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_GT;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_HN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_MX;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_NI;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_PA;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_PE;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_PR;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_PY;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_SV;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_US;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_UY;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=es_VE;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=eu_ES;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=fi_FI;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=fo_FO;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=fr_BE;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=fr_CA;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=fr_CH;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=fr_FR;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=fr_LU;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=gl_ES;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=gu_IN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=he_IL;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=hi_IN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=hr_HR;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=hu_HU;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=id_ID;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=is_IS;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=it_CH;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=it_IT;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ja_JP;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ko_KR;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=lt_LT;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=lv_LV;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=mk_MK;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=mn_MN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ms_MY;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=nb_NO;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=nl_BE;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=nl_NL;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=no_NO;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=pl_PL;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=pt_BR;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=pt_PT;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ro_RO;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ru_RU;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ru_UA;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=sk_SK;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=sl_SI;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=sq_AL;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=sr_YU;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=sv_FI;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=sr_RS;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=sv_SE;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ta_IN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=te_IN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=th_TH;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=tr_TR;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=uk_UA;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=ur_PK;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=vi_VN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=zh_CN;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=zh_HK;
+SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=zh_TW;
+SELECT @@session.lc_time_names;
+
+
+--echo '#--------------------FN_DYNVARS_060_07-------------------------#'
+##########################################################################
+#     Change the value of lc_time_names to a valid value for global      #
+##########################################################################
+SET @@global.lc_time_names=ar_AE;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_BH;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_DZ;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_EG;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_IN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_IQ;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_JO;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_KW;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_LB;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_LY;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_MA;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_OM;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_QA;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_SA;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_SD;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_SY;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_TN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ar_YE;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=be_BY;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=bg_BG;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ca_ES;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=cs_CZ;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=da_DK;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=de_AT;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=de_BE;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=de_CH;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=de_DE;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=de_LU;
+SELECT @@global.lc_time_names;
+
+--error ER_UNKNOWN_LOCALE
+SET @@global.lc_time_names=EE;
+--echo 'Bug: The locale for Estonian - Estonia is not supported. It is';
+--echo 'present in manual';
+--echo 'See http://dev.mysql.com/doc/refman/5.1/en/locale-support.html';
+
+
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=en_AU;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=en_CA;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=en_GB;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=en_IN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=en_NZ;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=en_PH;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=en_US;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=en_ZA;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=en_ZW;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_AR;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_BO;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_CL;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_CO;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_CR;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_DO;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_EC;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_ES;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_GT;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_HN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_MX;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_NI;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_PA;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_PE;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_PR;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_PY;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_SV;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_US;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_UY;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=es_VE;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=eu_ES;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=fi_FI;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=fo_FO;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=fr_BE;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=fr_CA;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=fr_CH;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=fr_FR;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=fr_LU;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=gl_ES;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=gu_IN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=he_IL;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=hi_IN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=hr_HR;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=hu_HU;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=id_ID;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=is_IS;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=it_CH;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=it_IT;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ja_JP;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ko_KR;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=lt_LT;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=lv_LV;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=mk_MK;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=mn_MN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ms_MY;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=nb_NO;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=nl_BE;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=nl_NL;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=no_NO;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=pl_PL;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=pt_BR;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=pt_PT;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ro_RO;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ru_RU;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ru_UA;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=sk_SK;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=sl_SI;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=sq_AL;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=sr_YU;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=sv_FI;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=sr_RS;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=sv_SE;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ta_IN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=te_IN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=th_TH;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=tr_TR;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=uk_UA;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=ur_PK;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=vi_VN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=zh_CN;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=zh_HK;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=zh_TW;
+SELECT @@global.lc_time_names;
+
+
+--echo '#--------------------FN_DYNVARS_060_08-------------------------#'
+##########################################################################
+#     Change the value of lc_time_names to a valid value with uppercase,
+#     lowercase and mixedcase     
+##########################################################################
+
+SET @@lc_time_names = ur_pk;
+SELECT @@lc_time_names;
+SET @@lc_time_names = UR_PK;
+SELECT @@lc_time_names;
+SET @@lc_time_names = uR_pK;
+SELECT @@lc_time_names;
+
+
+--echo '#--------------------FN_DYNVARS_060_09-------------------------#'
+##############################################################
+#     Check if 0,1,2,3, ... values can be used on variable   #
+##############################################################
+
+SET @@lc_time_names = 0;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 1;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 2;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 3;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 10;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 50;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 100;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 101;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 107;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 108;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 109;
+SELECT @@lc_time_names;
+SET @@lc_time_names = 110;
+SELECT @@lc_time_names;
+--Error ER_UNKNOWN_LOCALE
+SET @@lc_time_names = 111;
+
+--echo '#--------------------FN_DYNVARS_060_10-------------------------#'
+#############################################################################
+#     Change the value of lc_time_names to an invalid value for session     #
+#############################################################################
+
+--Error ER_UNKNOWN_LOCALE
+SET @@lc_time_names = en_EN;
+--Error ER_UNKNOWN_LOCALE
+SET @@lc_time_names = US_en;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@lc_time_names = 1.1;
+--Error ER_UNKNOWN_LOCALE
+SET @@lc_time_names = -1;
+--Error ER_UNKNOWN_LOCALE
+SET @@lc_time_names = 'en US';
+--Error ER_UNKNOWN_LOCALE
+SET @@lc_time_names = 'enUS';
+
+SET @@lc_time_names = true;
+SELECT @@lc_time_names AS res_with_true;
+SET @@lc_time_names = false;
+SELECT @@lc_time_names AS res_with_false;
+
+--Error ER_UNKNOWN_LOCALE
+SET @@lc_time_names = ON;
+
+
+--echo '#--------------------FN_DYNVARS_060_11-------------------------#'
+############################################################################
+#     Change the value of lc_time_names to an invalid value for global     #
+############################################################################
+
+--Error ER_UNKNOWN_LOCALE
+SET @@global.lc_time_names = en_EN;
+--Error ER_UNKNOWN_LOCALE
+SET @@global.lc_time_names = US_en;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.lc_time_names = 1.1;
+--Error ER_UNKNOWN_LOCALE
+SET @@global.lc_time_names = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.lc_time_names = NULL;
+--Error ER_UNKNOWN_LOCALE
+SET @@global.lc_time_names = 'enUS';
+
+SET @@global.lc_time_names = true;
+SELECT @@global.lc_time_names;
+SET @@global.lc_time_names = false;
+SELECT @@global.lc_time_names;
+
+--Error ER_UNKNOWN_LOCALE
+SET @@global.lc_time_names = ON;
+
+--echo '#--------------------FN_DYNVARS_060_12-------------------------#'
+##############################################################################
+#     Check if the value in GLOBAL Table matches value in variable           #
+##############################################################################
+--disable_warnings
+SELECT @@global.lc_time_names = (SELECT VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='lc_time_names') AS res;
+--enable_warnings
+SET @@global.lc_time_names = 1;
+SELECT @@global.lc_time_names;
+--disable_warnings
+SELECT @@global.lc_time_names = (SELECT VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='lc_time_names') AS res;
+--enable_warnings
+
+--echo '#--------------------FN_DYNVARS_060_13-------------------------#'
+##############################################################################
+#     Check if the value in SESSION Table matches value in variable          #
+##############################################################################
+--disable_warnings
+SELECT @@lc_time_names = (SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='lc_time_names') AS res;
+SELECT @@local.lc_time_names = (SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='lc_time_names') AS res;
+SELECT @@session.lc_time_names = (SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='lc_time_names') AS res;
+--enable_warnings
+
+####################################
+#     Restore initial value        #
+####################################
+SET @@global.lc_time_names = @global_start_value;
+SELECT @@global.lc_time_names;
+SET @@session.lc_time_names = @session_start_value;
+SELECT @@session.lc_time_names;
+
+#############################################################
+#                 END OF lc_time_names TESTS                #
+#############################################################

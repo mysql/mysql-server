@@ -1,0 +1,128 @@
+#Server variable option 'lower_case_table_names' sets '0' as default value
+#in case sensitive filesystem. Using 'lower_case_table_names=0' in case of
+#insensitive filsystem is not allowed.
+-- source include/have_case_sensitive_file_system.inc
+--character_set sjis
+--disable_warnings
+drop table if exists `ÇsÇP`;
+drop table if exists `ÇsÇQ`;
+drop table if exists `ÇsÇR`;
+drop table if exists `ÇsÇS`;
+drop table if exists `ÇsÇT`;
+drop table if exists `ÇsÇU`;
+drop table if exists `ÇsÇV`;
+drop table if exists `ÇsÇW`;
+drop table if exists `ÇsÇX`;
+drop table if exists t1;
+--enable_warnings
+
+#
+# Test ENUM values with Japanese characters in sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+CREATE TABLE `ÇsÇP` (`ÇbÇP` ENUM('±','≤','≥'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇQ` (`ÇbÇP` ENUM('Ç†','Ç¢','Ç§'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇR` (`ÇbÇP` ENUM('É\','è\','ï\'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇS` (`ÇbÇP` ENUM('±','≤','≥'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇT` (`ÇbÇP` ENUM('Ç†','Ç¢','Ç§'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇU` (`ÇbÇP` ENUM('É\','è\','ï\'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` ENUM('±','≤','≥'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` ENUM('Ç†','Ç¢','Ç§'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` ENUM('É\','è\','ï\'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+
+INSERT INTO `ÇsÇP` VALUES ('±'),('≤'),('≥');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†'),('Ç¢'),('Ç§');
+INSERT INTO `ÇsÇR` VALUES ('É\'),('è\'),('ï\');
+INSERT INTO `ÇsÇS` VALUES ('±'),('≤'),('≥');
+INSERT INTO `ÇsÇT` VALUES ('Ç†'),('Ç¢'),('Ç§');
+INSERT INTO `ÇsÇU` VALUES ('É\'),('è\'),('ï\');
+INSERT INTO `ÇsÇV` VALUES ('±'),('≤'),('≥');
+INSERT INTO `ÇsÇW` VALUES ('Ç†'),('Ç¢'),('Ç§');
+INSERT INTO `ÇsÇX` VALUES ('É\'),('è\'),('ï\');
+
+SELECT * FROM `ÇsÇP`;
+SELECT * FROM `ÇsÇQ`;
+SELECT * FROM `ÇsÇR`;
+SELECT * FROM `ÇsÇS`;
+SELECT * FROM `ÇsÇT`;
+SELECT * FROM `ÇsÇU`;
+SELECT * FROM `ÇsÇV`;
+SELECT * FROM `ÇsÇW`;
+SELECT * FROM `ÇsÇX`;
+
+SHOW CREATE TABLE `ÇsÇP`;
+SHOW CREATE TABLE `ÇsÇQ`;
+SHOW CREATE TABLE `ÇsÇR`;
+SHOW CREATE TABLE `ÇsÇS`;
+SHOW CREATE TABLE `ÇsÇT`;
+SHOW CREATE TABLE `ÇsÇU`;
+SHOW CREATE TABLE `ÇsÇV`;
+SHOW CREATE TABLE `ÇsÇW`;
+SHOW CREATE TABLE `ÇsÇX`;
+
+DESC `ÇsÇP`;
+DESC `ÇsÇQ`;
+DESC `ÇsÇR`;
+DESC `ÇsÇS`;
+DESC `ÇsÇT`;
+DESC `ÇsÇU`;
+DESC `ÇsÇV`;
+DESC `ÇsÇW`;
+DESC `ÇsÇX`;
+
+#
+# Test problem with enum values after the colum with  NOT NULL restriction
+#
+
+ALTER TABLE `ÇsÇP` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇQ` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇR` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇS` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇT` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇU` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇV` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇW` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `ÇsÇX` ADD `ÇbÇQ` CHAR(1) NOT NULL FIRST;
+
+SHOW CREATE TABLE `ÇsÇP`;
+SHOW CREATE TABLE `ÇsÇQ`;
+SHOW CREATE TABLE `ÇsÇR`;
+SHOW CREATE TABLE `ÇsÇS`;
+SHOW CREATE TABLE `ÇsÇT`;
+SHOW CREATE TABLE `ÇsÇU`;
+SHOW CREATE TABLE `ÇsÇV`;
+SHOW CREATE TABLE `ÇsÇW`;
+SHOW CREATE TABLE `ÇsÇX`;
+
+#
+# Test to distinguish 0x9353 and 0x9373
+# Bug#6206 ENUMs are not case sensitive even if declared BINARY
+#
+
+CREATE TABLE t1(c1 enum('ìS','ìs')) default character set = sjis;
+INSERT INTO t1 VALUES('ìS'),('ìs');
+SELECT * FROM t1 WHERE c1 LIKE 'ìS';
+DROP TABLE t1;
+
+DESC `ÇsÇP`;
+DESC `ÇsÇQ`;
+DESC `ÇsÇR`;
+DESC `ÇsÇS`;
+DESC `ÇsÇT`;
+DESC `ÇsÇU`;
+DESC `ÇsÇV`;
+DESC `ÇsÇW`;
+DESC `ÇsÇX`;
+
+DROP TABLE `ÇsÇP`;
+DROP TABLE `ÇsÇQ`;
+DROP TABLE `ÇsÇR`;
+DROP TABLE `ÇsÇS`;
+DROP TABLE `ÇsÇT`;
+DROP TABLE `ÇsÇU`;
+DROP TABLE `ÇsÇV`;
+DROP TABLE `ÇsÇW`;
+DROP TABLE `ÇsÇX`;

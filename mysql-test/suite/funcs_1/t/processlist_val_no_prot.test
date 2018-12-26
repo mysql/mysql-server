@@ -1,0 +1,23 @@
+############# suite/funcs_1/t/processlist_val_no_prot.test #############
+#                                                                      #
+# Testing of values within INFORMATION_SCHEMA.PROCESSLIST              #
+#                                                                      #
+# The prepared statement variant of this test is                       #
+# suite/funcs_1/t/b_processlist_val_ps.test.                           #
+#                                                                      #
+# There is important documentation within                              #
+#       suite/funcs_1/datadict/processlist_val.inc                     #
+#                                                                      #
+# Creation:                                                            #
+# 2007-08-09 mleich Implement this test as part of                     #
+#                   WL#3982 Test information_schema.processlist        #
+#                                                                      #
+########################################################################
+
+
+# The file with expected results fits only to a run without
+# ps-protocol/sp-protocol/cursor-protocol/view-protocol.
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+--source suite/funcs_1/datadict/processlist_val.inc

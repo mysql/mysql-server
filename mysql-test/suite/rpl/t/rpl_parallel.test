@@ -1,0 +1,37 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+#
+# WL#5569 MTS
+#
+# The test checks correctness of replication and can be used for 
+# benchmarking and comparision with results of its sequential
+# counterpart rpl_sequential.test.
+# Both tests leave mysqld.2/data/test/delta.out file
+# that contains a row with two columns.
+#  1. the duration (in seconds) of execution on the master
+#  2. the duration of execution on the slave
+#  The 2nd column of the rpl_parallel can be compared with the 2nd of rpl_sequential.test.
+#
+#  The duration recorded in the file accounts the SQL thread/workers work.
+#  That is benchmarking on the slave side is effectively started with
+#  `start slave sql_thread'.
+# Example of usage.
+# To gather a collection of figures:
+#  mysql-test$ export slave;
+#  mysql-test$ slave=parallel; for n in `seq 1 10`; 
+#  do ./mtr  --vardir=/dev/shm/var1 --mtr-build-thread=765 rpl_$slave 
+#             --mysqld=--binlog-format=statement; 
+#     find /dev/shm/var1 -name delta.out -exec cat {} \; | cat >> delta.$slave.log; 
+#  done
+#
+# mysql-test$ slave=sequential; ...
+#
+# In the end there will be mysql-test/delta.{parallel,sequential}.log files.
+#
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+connection master;
+source extra/rpl_tests/rpl_parallel_load.test;
+
+--source include/rpl_end.inc

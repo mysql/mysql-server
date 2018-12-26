@@ -1,0 +1,134 @@
+# Case 1: Test select and insert(row in both disk and cache)
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+FULLTEXT(title)
+) ENGINE = InnoDB;
+INSERT INTO t1(title) VALUES('mysql');
+INSERT INTO t1(title) VALUES('database');
+SET SESSION debug="+d,fts_instrument_sync_debug";
+SET DEBUG_SYNC= 'fts_write_node SIGNAL written WAIT_FOR selected';
+INSERT INTO t1(title) VALUES('mysql database');
+SET DEBUG_SYNC= 'now WAIT_FOR written';
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+database	2	3	2	2	0
+database	2	3	2	3	6
+mysql	1	3	2	1	0
+mysql	1	3	2	3	0
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+SET GLOBAL innodb_ft_aux_table=default;
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+FTS_DOC_ID	title
+1	mysql
+2	database
+SET DEBUG_SYNC= 'now SIGNAL selected';
+/* connection con1 */ INSERT INTO t1(title) VALUES('mysql database');
+SET SESSION debug="-d,fts_instrument_sync_debug";
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+database	2	3	2	2	0
+database	2	3	2	3	6
+mysql	1	3	2	1	0
+mysql	1	3	2	3	0
+SET GLOBAL innodb_ft_aux_table=default;
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+FTS_DOC_ID	title
+3	mysql database
+1	mysql
+2	database
+DROP TABLE t1;
+# Case 2: Test insert and insert(sync)
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+FULLTEXT(title)
+) ENGINE = InnoDB;
+INSERT INTO t1(title) VALUES('mysql');
+INSERT INTO t1(title) VALUES('database');
+SET SESSION debug="+d,fts_instrument_sync_debug";
+SET DEBUG_SYNC= 'fts_write_node SIGNAL written WAIT_FOR inserted';
+INSERT INTO t1(title) VALUES('mysql database');
+SET DEBUG_SYNC= 'now WAIT_FOR written';
+INSERT INTO t1(title) VALUES('mysql database');
+SET DEBUG_SYNC= 'now SIGNAL inserted';
+/* connection con1 */ INSERT INTO t1(title) VALUES('mysql database');
+SET SESSION debug="-d,fts_instrument_sync_debug";
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+database	2	3	2	2	0
+database	2	3	2	3	6
+database	4	4	1	4	6
+mysql	1	4	3	1	0
+mysql	1	4	3	3	0
+mysql	1	4	3	4	0
+SET GLOBAL innodb_ft_aux_table=default;
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+FTS_DOC_ID	title
+3	mysql database
+4	mysql database
+1	mysql
+2	database
+DROP TABLE t1;
+# Case 3: Test insert crash recovery
+CREATE TABLE t1 (
+id    INT,
+title VARCHAR(200),
+FULLTEXT(title)
+) ENGINE = InnoDB;
+INSERT INTO t1(id, title) VALUES(1, 'database');
+SET SESSION debug="+d,fts_instrument_sync_debug,fts_write_node_crash";
+INSERT INTO t1(id, title) VALUES(2, 'mysql');
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+After restart
+SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
+id	title
+1	database
+SET SESSION debug="+d,fts_instrument_sync_debug";
+INSERT INTO t1(id, title) VALUES(3, 'mysql');
+SET SESSION debug="-d,fts_instrument_sync_debug";
+SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
+id	title
+1	database
+3	mysql
+DROP TABLE t1;
+# Case 4: Test sync commit & rollback in background
+CREATE TABLE t1(
+id INT AUTO_INCREMENT,
+title VARCHAR(100),
+FULLTEXT(title),
+PRIMARY KEY(id)) ENGINE=InnoDB;
+SET SESSION debug="+d,fts_instrument_sync";
+INSERT INTO t1(title) VALUES('mysql');
+SET SESSION debug="-d,fts_instrument_sync";
+# restart
+SET GLOBAL debug="+d,fts_instrument_sync,fts_instrument_sync_interrupted";
+INSERT INTO t1(title) VALUES('database');
+SET GLOBAL debug="-d,fts_instrument_sync,fts_instrument_sync_interrupted";
+SET SESSION debug="+d,fts_instrument_sync_debug";
+INSERT INTO t1(title) VALUES('good');
+SET SESSION debug="-d,fts_instrument_sync_debug";
+SET GLOBAL innodb_ft_aux_table="test/t1";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+database	4	4	1	4	0
+good	5	5	1	5	0
+mysql	2	2	1	2	0
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+SET GLOBAL innodb_ft_aux_table=default;
+SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database good');
+id	title
+1	mysql
+2	database
+3	good
+DROP TABLE t1;

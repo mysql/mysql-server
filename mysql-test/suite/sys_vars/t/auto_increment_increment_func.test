@@ -1,0 +1,197 @@
+############## mysql-test\t\auto_increment_increment_func.test ################
+#                                                                              #
+# Variable Name: auto_increment_increment                                      #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 1                                                             #
+# Range: 1 - 65536                                                             #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "auto_increment_increment"#
+#              that checks functionality of this variable                      #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#  server-system-variables.html#option_mysqld_auto-increment-increment         #
+#                                                                              #
+################################################################################
+--source include/force_myisam_default.inc
+# save vars
+SET @global_auto_increment_increment = @@global.auto_increment_increment;
+SET @session_auto_increment_increment = @@session.auto_increment_increment;
+SET @global_auto_increment_offset = @@global.auto_increment_offset;
+SET @session_auto_increment_offset = @@session.auto_increment_offset;
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+
+--echo '#--------------------FN_DYNVARS_001_01-------------------------#'
+##########################################################
+#    Setting initial value of auto_increment_increment   # 
+##########################################################
+
+--echo ## Setting initial value of auto_increment_increment to 5 ##
+SET @@auto_increment_increment = 5;
+
+
+--echo '#--------------------FN_DYNVARS_001_02-------------------------#'
+###########################################################################
+# Inserting first value in table to check auto_increment_increment initial
+# behavior 
+###########################################################################
+
+--echo ## Inserting first record in table to check behavior of the variable ##
+INSERT into t1(name) values('Record_1');	
+SELECT * from t1;
+
+--echo ## Changing value of variable to 10 ##
+SET @@global.auto_increment_increment = 10;
+
+--echo ## Inserting record and verifying value of column id ##
+INSERT into t1(name) values('Record_2');	
+SELECT * from t1;
+
+
+--echo ## Test behavior of variable after assigning some larger value to it ##
+SELECT @@auto_increment_increment;
+SET @@auto_increment_increment = 100;
+INSERT into t1(name) values('Record_5');	
+SELECT * from t1;
+
+
+--echo '#--------------------FN_DYNVARS_001_03-------------------------#'
+##########################################################
+#    Test behavior of variable on new connection # 01    #
+##########################################################
+
+--echo ## Creating new connection test_con1 ##
+CONNECT (test_con1,localhost,root,,);
+CONNECTION test_con1;
+
+--echo ## Value of session & global vairable here should be 10 ##
+SELECT @@global.auto_increment_increment = 10;
+SELECT @@session.auto_increment_increment = 10;
+
+--echo ## Setting global value of variable and inserting data in table ##
+SET @@global.auto_increment_increment = 20;
+SELECT @@global.auto_increment_increment;
+INSERT into t1(name) values('Record_6');
+SELECT * from t1;
+
+--echo ## Setting session value of variable and inserting data in table ##
+SET @@session.auto_increment_increment = 2;
+SELECT @@session.auto_increment_increment;
+INSERT into t1(name) values('Record_8');
+INSERT into t1(name) values('Record_9');
+SELECT * from t1;
+
+
+--echo '#--------------------FN_DYNVARS_001_04-------------------------#'
+##########################################################
+#    Test behavior of variable on new connection # 02    #
+##########################################################
+
+--echo ## Creating another new connection test_con2 ##
+CONNECT (test_con2,localhost,root,,);
+connection test_con2;
+
+--echo ## Verifying initial values of variable in global & session scope ##
+--echo ## global & session initial value should be 20 ##
+SELECT @@global.auto_increment_increment = 20;
+SELECT @@session.auto_increment_increment = 20;
+
+--echo ## Setting value of session variable to 5 and verifying its behavior ##
+SET @@session.auto_increment_increment = 5;
+INSERT into t1(name) values('Record_10');
+SELECT * from t1;
+
+SET @@session.auto_increment_increment = 1;
+SELECT @@auto_increment_increment;
+SELECT @@global.auto_increment_increment;
+
+
+--echo '#--------------------FN_DYNVARS_001_05-------------------------#'
+#####################################################################
+#    Verify variable's value of connection # 01 after processing on 
+#    connection # 02 
+#####################################################################
+
+--echo ## Switching to test_con1 ##
+connection test_con1;
+
+--echo ## Verifying values of global & session value of variable ##
+--echo ## global value should be 20 ##
+SELECT @@global.auto_increment_increment = 20;
+
+--echo ## session value should be 2 ##
+SELECT @@session.auto_increment_increment = 2;
+
+INSERT into t1(name) values('Record_11');
+INSERT into t1(name) values('Record_12');
+SELECT * from t1;
+
+
+--echo '#--------------------FN_DYNVARS_001_06-------------------------#'
+###############################################################################
+#    Altering table field to different datatypes and checking their behavior  #
+###############################################################################
+
+--echo ## Changing column's datatype to SmallInt and verifying variable's behavior ##
+ALTER table t1 MODIFY id SMALLINT NOT NULL auto_increment;
+INSERT into t1(name) values('Record_13');
+INSERT into t1(name) values('Record_14');
+SELECT * from t1;
+
+--echo ## Changing column's datatype to BigInt and verifying variable's behavior ##
+ALTER table t1 MODIFY id BIGINT NOT NULL auto_increment;
+INSERT into t1(name) values('Record_15');
+INSERT into t1(name) values('Record_16');
+SELECT * from t1;
+
+--echo '#--------------------FN_DYNVARS_001_07-------------------------#'
+###############################################################################
+#    Check behavior of variable after assigning invalid value                 #
+###############################################################################
+
+--echo ## Verifying behavior of variable with negative value ##
+SET @@auto_increment_increment = -10;
+INSERT into t1(name) values('Record_17');	
+INSERT into t1(name) values('Record_18');	
+SELECT * from t1;
+
+############################################################
+#    Disconnecting all connection & dropping table         #
+############################################################
+
+--echo ## Disconnecting test_con2 ##
+DISCONNECT test_con2;
+
+--echo ## Dropping table t1 ##
+DROP table if exists t1;
+
+--echo ## Disconnecting test_con1 ##
+DISCONNECT test_con1;
+
+--echo ## switching to default connection ##
+connection default;
+
+# restore vars
+SET @@global.auto_increment_increment = @global_auto_increment_increment;
+SET @@session.auto_increment_increment = @session_auto_increment_increment;
+SET @@global.auto_increment_offset = @global_auto_increment_offset;
+SET @@session.auto_increment_offset = @session_auto_increment_offset;

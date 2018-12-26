@@ -1,0 +1,32 @@
+
+#
+# Only global
+#
+
+select @@global.max_digest_length;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.max_digest_length;
+
+show global variables like 'max_digest_length';
+
+show session variables like 'max_digest_length';
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='max_digest_length';
+
+select * from performance_schema.session_variables
+  where variable_name='max_digest_length';
+--enable_warnings
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global max_digest_length=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session max_digest_length=1;
+

@@ -1,0 +1,74 @@
+################################################################################
+## This test proves that group replication does start on server when its
+## lower_case_table_names does match with the group.
+##
+## Test:
+## 0.  This test requires 2 members.
+## 1.  Verify lower_case_table_names cannot be set while server is
+##     running and start GR on server-1.
+## 2.  Store variables of server-2 for restart.
+## 3.  Test GR start on server when lower_case_table_names matches.
+## 3A. Test GR start with command when lower_case_table_names matches.
+## 3B. Test GR start on boot when lower_case_table_names matches.
+## 4.  Cleanup.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+--source include/force_restart.inc
+
+--let $allow_rpl_inited=1
+
+--echo
+--echo ## 1.  Verify lower_case_table_names cannot be set while server is
+--echo ##     running and start GR on server-1.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+## Verify lower_case_table_names cannot be set while server is running.
+## This make sures we do not need to test variable changes while GR is running.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL lower_case_table_names= 1;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ## 2.  Store variables of server-2 for restart.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--echo
+--echo ## 3A. Test GR start with command when lower_case_table_names matches.
+--echo
+--source include/start_group_replication.inc
+
+--let $assert_text= 'Assert server-1 and server-2 are ONLINE'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
+--source include/assert.inc
+
+--echo
+--echo ## 3B. Test GR start on boot when lower_case_table_names matches.
+--echo
+--let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=1
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+#Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--echo
+--echo ## 4.  Cleanup.
+--echo
+
+--source include/group_replication_end.inc

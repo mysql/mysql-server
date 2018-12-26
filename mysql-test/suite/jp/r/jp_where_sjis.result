@@ -1,0 +1,97 @@
+drop table if exists `‚s‚P`;
+drop table if exists `‚s‚Q`;
+drop table if exists `‚s‚R`;
+drop table if exists `‚s‚S`;
+drop table if exists `‚s‚T`;
+drop table if exists `‚s‚U`;
+drop table if exists `‚s‚V`;
+drop table if exists `‚s‚W`;
+drop table if exists `‚s‚X`;
+SET NAMES sjis;
+SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `‚s‚P` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Q` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚R` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚S` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚T` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚U` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚V` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚W` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚X` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚S`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚T`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
+SELECT * FROM `‚s‚P` WHERE `‚b‚P` = '°±²³´µ¶·¸¹º»¼½¾¿';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚Q` WHERE `‚b‚P` = 'E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚R` WHERE `‚b‚P` = 'ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\';
+‚b‚P
+ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+SELECT * FROM `‚s‚S` WHERE `‚b‚P` = '°±²³´µ¶·¸¹º»¼½¾¿';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚T` WHERE `‚b‚P` = 'E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚U` WHERE `‚b‚P` = 'ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\';
+‚b‚P
+ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+SELECT * FROM `‚s‚V` WHERE `‚b‚P` = '°±²³´µ¶·¸¹º»¼½¾¿';
+‚b‚P
+°±²³´µ¶·¸¹º»¼½¾¿
+SELECT * FROM `‚s‚W` WHERE `‚b‚P` = 'E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±';
+‚b‚P
+E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
+SELECT * FROM `‚s‚X` WHERE `‚b‚P` = 'ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\';
+‚b‚P
+ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t1(c1 char(1)) default charset = sjis engine=innodb;
+CREATE TABLE t2(c1 char(1)) default charset = sjis engine=myisam;
+CREATE TABLE t3(c1 char(1)) default charset = sjis engine=MEMORY;
+INSERT INTO t1 VALUES('“S'),('“s');
+INSERT INTO t2 VALUES('“S'),('“s');
+INSERT INTO t3 VALUES('“S'),('“s');
+SELECT * FROM t1 WHERE c1 = '“S';
+c1
+“S
+SELECT * FROM t2 WHERE c1 = '“S';
+c1
+“S
+SELECT * FROM t3 WHERE c1 = '“S';
+c1
+“S
+SELECT * FROM t1 WHERE c1 = '“s';
+c1
+“s
+SELECT * FROM t2 WHERE c1 = '“s';
+c1
+“s
+SELECT * FROM t3 WHERE c1 = '“s';
+c1
+“s
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE `‚s‚P`;
+DROP TABLE `‚s‚Q`;
+DROP TABLE `‚s‚R`;
+DROP TABLE `‚s‚S`;
+DROP TABLE `‚s‚T`;
+DROP TABLE `‚s‚U`;
+DROP TABLE `‚s‚V`;
+DROP TABLE `‚s‚W`;
+DROP TABLE `‚s‚X`;

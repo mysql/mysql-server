@@ -1,0 +1,62 @@
+#
+# Test of boolean operations with NULL
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+SELECT IF(NULL AND 1, 1, 2), IF(1 AND NULL, 1, 2);
+SELECT NULL AND 1, 1 AND NULL, 0 AND NULL, NULL and 0;
+
+create table t1 (a int);
+insert into t1 values (0),(1),(NULL);
+SELECT * FROM t1 WHERE IF(a AND 1, 0, 1);
+SELECT * FROM t1 WHERE IF(1 AND a, 0, 1);
+SELECT * FROM t1 where NOT(a AND 1);
+SELECT * FROM t1 where NOT(1 AND a);
+SELECT * FROM t1 where (a AND 1)=0;
+SELECT * FROM t1 where (1 AND a)=0;
+SELECT * FROM t1 where (1 AND a)=1;
+SELECT * FROM t1 where (1 AND a) IS NULL;
+
+# WL#638 - Behaviour of NOT does not follow SQL specification
+set sql_mode='high_not_precedence';
+select * from t1 where not a between 2 and 3;
+set sql_mode=default;
+select * from t1 where not a between 2 and 3;
+
+# SQL boolean tests
+select a, a is false, a is true, a is unknown from t1;
+select a, a is not false, a is not true, a is not unknown from t1;
+
+# Verify that NULL optimisation works in AND clause:
+SET @a=0, @b=0;
+SELECT * FROM t1 WHERE NULL AND (@a:=@a+1);
+SELECT * FROM t1 WHERE NOT(a>=0 AND NULL AND (@b:=@b+1));
+SELECT * FROM t1 WHERE a=2 OR (NULL AND (@a:=@a+1));
+SELECT * FROM t1 WHERE NOT(a=2 OR (NULL AND (@b:=@b+1)));
+DROP TABLE t1;
+
+
+# Test boolean operators in select part
+# NULLs are represented as N for readability
+# Read nA as !A, AB as A && B, AoB as A || B
+# Result table makes ANSI happy
+
+create table t1 (a int, b int);
+insert into t1 values(null, null), (0, null), (1, null), (null, 0), (null, 1), (0, 0), (0, 1), (1, 0), (1, 1);
+
+# Below test is valid untill we have True/False implemented as 1/0
+# To comply to all rules it must show that:  n(AB) = nAonB,  n(AoB) = nAnB 
+
+select ifnull(A, 'N') as A, ifnull(B, 'N') as B, ifnull(not A, 'N') as nA, ifnull(not B, 'N') as nB, ifnull(A and B, 'N') as AB, ifnull(not (A and B), 'N') as `n(AB)`, ifnull((not A or not B), 'N') as nAonB, ifnull(A or B, 'N') as AoB, ifnull(not(A or B), 'N') as `n(AoB)`, ifnull(not A and not B, 'N') as nAnB from t1;
+
+# This should work with any internal representation of True/False
+# Result must be same as above
+
+select ifnull(A=1, 'N') as A, ifnull(B=1, 'N') as B, ifnull(not (A=1), 'N') as nA, ifnull(not (B=1), 'N') as nB, ifnull((A=1) and (B=1), 'N') as AB, ifnull(not ((A=1) and (B=1)), 'N') as `n(AB)`, ifnull((not (A=1) or not (B=1)), 'N') as nAonB, ifnull((A=1) or (B=1), 'N') as AoB, ifnull(not((A=1) or (B=1)), 'N') as `n(AoB)`, ifnull(not (A=1) and not (B=1), 'N') as nAnB from t1;
+
+drop table t1;
+
+# End of 4.1 tests

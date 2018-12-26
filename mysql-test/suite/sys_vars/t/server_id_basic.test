@@ -1,0 +1,191 @@
+############## mysql-test\t\server_id_basic.test ################
+#                                                                              #
+# Variable Name: server_id                                                     #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 1                                                             #
+# Range: 1 - 65536                                                             #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-07                                                    #
+# Author:  Rizwan Maredia                                                      #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable server_id  #
+#              that checks the behavior of this variable in the following ways #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#  server-system-variables.html                                                #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+###################################################################
+#           START OF server_id TESTS              #
+###################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+let $save_general_log= `SELECT @@global.general_log`;
+SET @@global.general_log= 0;
+SET @start_global_value = @@global.server_id;
+SELECT @start_global_value;
+
+--echo '#--------------------FN_DYNVARS_144_01-------------------------#'
+###################################################################
+#     Display the DEFAULT value of server_id      #
+###################################################################
+
+SET @@global.server_id = 500000;
+SET @@global.server_id = DEFAULT;
+SELECT @@global.server_id;
+
+--echo '#--------------------FN_DYNVARS_144_02-------------------------#'
+###################################################################
+#     Check the DEFAULT value of server_id         #
+###################################################################
+
+SET @@global.server_id = DEFAULT;
+SELECT @@global.server_id = 1;
+
+--echo '#--------------------FN_DYNVARS_144_03-------------------------#'
+##################################################################################
+# Change the value of server_id to a valid value for GLOBAL Scope #
+##################################################################################
+
+SET @@global.server_id = 0;
+SELECT @@global.server_id;
+SET @@global.server_id = 1;
+SELECT @@global.server_id;
+SET @@global.server_id = 15;
+SELECT @@global.server_id;
+SET @@global.server_id = 1024;
+SELECT @@global.server_id;
+SET @@global.server_id = 123456789;
+SELECT @@global.server_id;
+SET @@global.server_id = 2147483648;
+SELECT @@global.server_id;
+SET @@global.server_id = 2147483648*2-1;
+SELECT @@global.server_id;
+
+
+--echo '#--------------------FN_DYNVARS_144_04-------------------------#'
+#################################################################################
+#           Check if variable can be access with session scope                  #
+#################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@server_id = 2;
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.server_id = 3;
+
+--Error ER_GLOBAL_VARIABLE
+SET @@local.server_id = 4;
+
+
+
+--echo '#------------------FN_DYNVARS_144_05-----------------------#'
+####################################################################
+# Change the value of server_id to an invalid value #
+####################################################################
+
+SET @@global.server_id = -1;
+SELECT @@global.server_id;
+
+SET @@global.server_id = -2147483648;
+SELECT @@global.server_id;
+
+SET @@global.server_id = 2147483649*2;
+SELECT @@global.server_id;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.server_id = 65530.34;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.server_id = '125';
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.server_id = 7483649.56;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.server_id = 1G;
+
+--echo '#------------------FN_DYNVARS_144_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+SET @@global.server_id = 3000;
+--disable_warnings
+SELECT @@global.server_id = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='server_id';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_144_07-----------------------#'
+###########################################################################
+#  Check if the value is present in performance_schema.session_variables  #
+###########################################################################
+
+--disable_warnings
+SELECT count(VARIABLE_VALUE) 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='server_id';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_144_08-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.server_id = TRUE;
+SELECT @@global.server_id;
+SET @@global.server_id = FALSE;
+SELECT @@global.server_id;
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+#################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable   #
+################################################################################# 
+
+
+SET @@global.server_id = 512;
+SELECT @@server_id = @@global.server_id;
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+##################################################################################
+#   Check if server_id can be accessed without @@ sign and scope #
+##################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET server_id = 2048;
+--Error ER_BAD_FIELD_ERROR
+SELECT server_id;
+
+SELECT @@server_id;
+
+#verifying another another syntax for setting value
+SET global server_id = 99;
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.server_id = @start_global_value;
+SELECT @@global.server_id;
+
+eval SET @@global.general_log= $save_general_log;
+########################################################
+#              END OF server_id TESTS  #
+########################################################
+

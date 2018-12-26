@@ -1,0 +1,27 @@
+
+#
+#  2010-01-27 OBN - Added (this variable is also covered in innodb_file_io_threads_basic.test)
+#
+
+
+#
+# show the global and session values;
+#
+select @@global.innodb_read_io_threads;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_read_io_threads;
+show global variables like 'innodb_read_io_threads';
+show session variables like 'innodb_read_io_threads';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_read_io_threads';
+select * from performance_schema.session_variables where variable_name='innodb_read_io_threads';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_read_io_threads=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_read_io_threads=1;
+

@@ -1,0 +1,8 @@
+# ==== Purpose ====
+#
+# The test is binlog-OFF specialization of the included
+# 'binlog_next_gtid_xa.inc' to check execution of XA transactions
+# identified with explicit GTID_NEXT values.
+
+--let $rpl_skip_log_bin=1
+--source extra/binlog_tests/binlog_gtid_next_xa.inc

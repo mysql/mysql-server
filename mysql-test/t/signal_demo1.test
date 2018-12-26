@@ -1,0 +1,331 @@
+
+#
+# Demonstrate how SIGNAL can be used to enforce integrity constraints.
+#
+
+# Naming:
+# - PO: Purchase Order
+# - AB: Address Book
+# - IN: Inventory
+
+# Simplified schema:
+#
+# Relation 1:
+# PO_ORDER (PK: po_id) 1:1 <---> 0:N (FK: po_id) PO_ORDER_LINE
+#
+# Relation 2:
+# IN_INVENTORY (PK: item_id) 1:1 <---> 0:N (FK: item_id) PO_ORDER_LINE
+#
+# Relation 3:
+#                               +--> 0:1 (PK: person_id) AB_PHYSICAL_PERSON
+# PO_ORDER (FK: cust_id) 1:1 <--|
+#                               +--> 0:1 (PK: company_id) AB_MORAL_PERSON
+# This is an 'arc' relationship :)
+#
+
+
+--disable_warnings
+drop database if exists demo;
+--enable_warnings
+
+create database demo;
+
+use demo;
+
+create table ab_physical_person (
+  person_id integer,
+  first_name VARCHAR(50),
+  middle_initial CHAR,
+  last_name VARCHAR(50),
+  primary key (person_id));
+
+create table ab_moral_person (
+  company_id integer,
+  name VARCHAR(100),
+  primary key (company_id));
+
+create table in_inventory (
+  item_id integer,
+  descr VARCHAR(50),
+  stock integer,
+  primary key (item_id));
+
+create table po_order (
+  po_id integer auto_increment,
+  cust_type char, /* arc relationship, see cust_id */
+  cust_id integer, /* FK to ab_physical_person *OR* ab_moral_person */
+  primary key (po_id));
+
+create table po_order_line (
+  po_id integer, /* FK to po_order.po_id */
+  line_no integer,
+  item_id integer, /* FK to in_inventory.item_id */
+  qty integer);
+
+delimiter $$;
+
+--echo #
+--echo # Schema integrity enforcement
+--echo #
+
+create procedure check_pk_person(in person_type char, in id integer)
+begin
+  declare x integer;
+  declare msg varchar(128);
+
+  /*
+    Test integrity constraints for an 'arc' relationship.
+    Based on 'person_type', 'id' points to either a
+    physical person, or a moral person.
+  */
+  case person_type
+    when 'P' then
+    begin
+      select count(person_id) from ab_physical_person
+        where ab_physical_person.person_id = id
+        into x;
+
+      if (x != 1)
+      then
+        set msg= concat('No such physical person, PK:', id);
+        SIGNAL SQLSTATE '45000' SET
+          MESSAGE_TEXT = msg,
+          MYSQL_ERRNO = 10000;
+      end if;
+    end;
+    
+    when 'M' then
+    begin
+      select count(company_id) from ab_moral_person
+        where ab_moral_person.company_id = id
+        into x;
+
+      if (x != 1)
+      then
+        set msg= concat('No such moral person, PK:', id);
+        SIGNAL SQLSTATE '45000' SET
+          MESSAGE_TEXT = msg,
+          MYSQL_ERRNO = 10000;
+      end if;
+    end;
+
+    else
+    begin
+      set msg= concat('No such person type:', person_type);
+      SIGNAL SQLSTATE '45000' SET
+        MESSAGE_TEXT = msg,
+        MYSQL_ERRNO = 50000;
+    end;
+  end case;
+end
+$$
+
+create procedure check_pk_inventory(in id integer)
+begin
+  declare x integer;
+  declare msg varchar(128);
+
+  select count(item_id) from in_inventory
+    where in_inventory.item_id = id
+    into x;
+
+  if (x != 1)
+  then
+    set msg= concat('Failed integrity constraint, table in_inventory, PK:',
+                    id);
+    SIGNAL SQLSTATE '45000' SET
+      MESSAGE_TEXT = msg,
+      MYSQL_ERRNO = 10000;
+  end if;
+end
+$$
+
+create procedure check_pk_order(in id integer)
+begin
+  declare x integer;
+  declare msg varchar(128);
+
+  select count(po_id) from po_order
+    where po_order.po_id = id
+    into x;
+
+  if (x != 1)
+  then
+    set msg= concat('Failed integrity constraint, table po_order, PK:', id);
+    SIGNAL SQLSTATE '45000' SET
+      MESSAGE_TEXT = msg,
+      MYSQL_ERRNO = 10000;
+  end if;
+end
+$$
+
+create trigger po_order_bi before insert on po_order
+for each row
+begin
+  call check_pk_person(NEW.cust_type, NEW.cust_id);
+end
+$$
+
+create trigger po_order_bu before update on po_order
+for each row
+begin
+  call check_pk_person(NEW.cust_type, NEW.cust_id);
+end
+$$
+
+create trigger po_order_line_bi before insert on po_order_line
+for each row
+begin
+  call check_pk_order(NEW.po_id);
+  call check_pk_inventory(NEW.item_id);
+end
+$$
+
+create trigger po_order_line_bu before update on po_order_line
+for each row
+begin
+  call check_pk_order(NEW.po_id);
+  call check_pk_inventory(NEW.item_id);
+end
+$$
+
+--echo #
+--echo # Application helpers
+--echo #
+
+create procedure po_create_order(
+  in p_cust_type char,
+  in p_cust_id integer,
+  out id integer)
+begin
+  insert into po_order set cust_type = p_cust_type, cust_id = p_cust_id;
+  set id = last_insert_id();
+end
+$$
+
+create procedure po_add_order_line(
+  in po integer,
+  in line integer,
+  in item integer,
+  in q integer)
+begin
+  insert into po_order_line set
+    po_id = po, line_no = line, item_id = item, qty = q;
+end
+$$
+
+delimiter ;$$
+
+--echo #
+--echo # Create sample data
+--echo #
+
+insert into ab_physical_person values
+  ( 1, "John", "A", "Doe"),
+  ( 2, "Marry", "B", "Smith")
+;
+
+insert into ab_moral_person values
+  ( 3, "ACME real estate, INC"),
+  ( 4, "Local school")
+;
+
+insert into in_inventory values
+  ( 100, "Table, dinner", 5),
+  ( 101, "Chair", 20),
+  ( 200, "Table, coffee", 3),
+  ( 300, "School table", 25),
+  ( 301, "School chairs", 50)
+;
+
+select * from ab_physical_person order by person_id;
+select * from ab_moral_person order by company_id;
+select * from in_inventory order by item_id;
+
+--echo #
+--echo # Entering an order
+--echo #
+
+set @my_po = 0;
+
+/* John Doe wants 1 table and 4 chairs */
+call po_create_order("P", 1, @my_po);
+
+call po_add_order_line (@my_po, 1, 100, 1);
+call po_add_order_line (@my_po, 2, 101, 4);
+
+/* Marry Smith wants a coffee table */
+  call po_create_order("P", 2, @my_po);
+
+  call po_add_order_line (@my_po, 1, 200, 1);
+
+  --echo #
+  --echo # Entering bad data in an order
+  --echo #
+
+# There is no item 999 in in_inventory
+  --error 10000
+  call po_add_order_line (@my_po, 1, 999, 1);
+
+  --echo #
+  --echo # Entering bad data in an unknown order
+  --echo #
+
+# There is no order 99 in po_order
+  --error 10000
+  call po_add_order_line (99, 1, 100, 1);
+
+  --echo #
+  --echo # Entering an order for an unknown company
+  --echo #
+
+# There is no moral person of id 7
+  --error 10000
+call po_create_order("M", 7, @my_po);
+
+--echo #
+--echo # Entering an order for an unknown person type
+--echo #
+
+# There is no person of type X
+--error 50000
+call po_create_order("X", 1, @my_po);
+
+/* The local school wants 10 class tables and 20 chairs */
+call po_create_order("M", 4, @my_po);
+
+call po_add_order_line (@my_po, 1, 300, 10);
+call po_add_order_line (@my_po, 2, 301, 20);
+
+# Raw data
+select * from po_order;
+select * from po_order_line;
+
+# Creative reporting ...
+
+select po_id as "PO#",
+  ( case cust_type
+  when "P" then concat (pp.first_name,
+                   " ",
+                   pp.middle_initial,
+                   " ",
+                   pp.last_name)
+  when "M" then mp.name
+  end ) as "Sold to"
+  from po_order po
+  left join ab_physical_person pp on po.cust_id = pp.person_id
+  left join ab_moral_person mp on po.cust_id = company_id
+;
+
+select po_id as "PO#",
+  ol.line_no as "Line",
+  ol.item_id as "Item",
+  inv.descr as "Description",
+  ol.qty as "Quantity"
+  from po_order_line ol, in_inventory inv
+  where inv.item_id = ol.item_id
+  order by ol.item_id, ol.line_no;
+
+drop database demo;
+
+

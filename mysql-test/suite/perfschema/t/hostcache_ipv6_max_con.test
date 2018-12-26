@@ -1,0 +1,224 @@
+
+#
+# Tests for the performance_schema host_cache.
+#
+# Simulate failures from per user quotas:
+# - reported in COUNT_MAX_USER_CONNECTION_ERRORS
+# - reported in COUNT_MAX_USER_CONNECTION_PER_HOUR_ERRORS
+# Simulate failures from server quotas:
+# - reported in COUNT_MAX_CONNECTION_ERRORS
+
+--source include/have_debug.inc
+--source include/have_ipv6.inc
+
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+--source ../include/hostcache_set_state.inc
+
+select @@global.max_connections into @saved_max_connections;
+
+create user 'quota'@'santa.claus.ipv6.example.com' with max_connections_per_hour 3;
+grant select on test.* to 'quota'@'santa.claus.ipv6.example.com';
+grant usage on *.* to 'quota'@'santa.claus.ipv6.example.com';
+
+connect (con1,"::1",root,,test,$MASTER_MYPORT,);
+select "Con1 is alive";
+select current_user();
+disconnect con1;
+
+--connection default
+set global debug= "+d,vio_peer_addr_fake_ipv6,getnameinfo_fake_ipv6,getaddrinfo_fake_good_ipv6";
+
+connect (con2a,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con2a is alive";
+select current_user();
+disconnect con2a;
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+connect (con2b,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con2b is alive";
+select current_user();
+disconnect con2b;
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+connect (con2c,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con2c is alive";
+select current_user();
+disconnect con2c;
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_USER_LIMIT_REACHED
+connect (con2d,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_USER_LIMIT_REACHED
+connect (con2e,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+# Wait for all disconnects
+--source ../include/wait_for_pfs_thread_count.inc
+
+alter user 'quota'@'santa.claus.ipv6.example.com'
+  with max_connections_per_hour 0;
+alter user 'quota'@'santa.claus.ipv6.example.com'
+  with max_user_connections 3;
+flush user_resources;
+
+connect (con3a,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con7 is alive";
+select current_user();
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+connect (con3b,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con3b is alive";
+select current_user();
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+connect (con3c,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con3c is alive";
+select current_user();
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_USER_LIMIT_REACHED
+connect (con3d,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_USER_LIMIT_REACHED
+connect (con3e,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+disconnect con3a;
+disconnect con3b;
+disconnect con3c;
+
+# Wait for all disconnects
+--source ../include/wait_for_pfs_thread_count.inc
+
+alter user 'quota'@'santa.claus.ipv6.example.com'
+  with max_user_connections 0;
+flush user_resources;
+
+set global max_user_connections = 3;
+
+connect (con4a,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con4a is alive";
+select current_user();
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+connect (con4b,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con4b is alive";
+select current_user();
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+connect (con4c,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con4c is alive";
+select current_user();
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_TOO_MANY_USER_CONNECTIONS
+connect (con4d,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_TOO_MANY_USER_CONNECTIONS
+connect (con4e,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+disconnect con4a;
+disconnect con4b;
+disconnect con4c;
+
+# Wait for all disconnects
+--source ../include/wait_for_pfs_thread_count.inc
+
+set global max_user_connections = 0;
+set global max_connections = 3;
+flush user_resources;
+
+connect (con5a,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con4a is alive";
+select current_user();
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+connect (con5b,"::1",quota,,test,$MASTER_MYPORT,);
+select "Con5b is alive";
+select current_user();
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+# About ER_CON_COUNT_ERROR,
+# See comments in hostcache_ipv4_max_con.test
+
+--disable_query_log
+--error ER_CON_COUNT_ERROR, 9999
+connect (con5c,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_CON_COUNT_ERROR, 9999
+connect (con5d,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+disconnect con5a;
+disconnect con5b;
+
+# Wait for all disconnects
+--source ../include/wait_for_pfs_thread_count.inc
+
+set global max_connections = @saved_max_connections;
+
+# revoke all privileges on test.* from 'quota'@'santa.claus.ipv6.example.com';
+drop user 'quota'@'santa.claus.ipv6.example.com';
+
+set global debug= default;
+

@@ -1,0 +1,32 @@
+########### suite/json/t/json_group_concat_innodb.test               #
+# Tests group_concat json function using the innodb storage engine   #
+#                                                                    #
+# This test copies some tests originally in json.test                #
+######################################################################
+# Set the session storage engine
+set default_storage_engine=innodb;
+
+--source suite/json/inc/json_group_concat.inc
+
+create table t(j json, c varchar(20)) charset utf8mb4;
+show create table t;
+insert into t values (cast('[1,2,3]' as json), '[a,b,c]');
+insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
+insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
+
+select group_concat(j), group_concat(distinct j), group_concat(c) from t;
+select group_concat(j order by j), group_concat(distinct j order by j), group_concat(c order by c) from t;
+insert into t values (NULL, NULL);
+
+select group_concat(j), group_concat(distinct j), group_concat(c) from t;
+
+--echo #
+--echo # Bug#22992666 NULL VALUE IN JSON COLUMN CORRUPTS GROUP_CONCAT
+--echo #              WITH ORDER BY CLAUSE
+--echo #
+SELECT GROUP_CONCAT(j ORDER BY j) AS c1,
+       GROUP_CONCAT(DISTINCT j ORDER BY j) AS c2,
+       GROUP_CONCAT(c ORDER BY c) AS c3
+FROM t;
+
+drop table t;

@@ -1,0 +1,25 @@
+#### suite/funcs_1/t/innodb_views.test
+
+--source include/no_valgrind_without_big.inc
+
+# InnoDB tables should be used
+#
+# 1. Check if InnoDB is available
+# 2. Set $engine_type
+let $engine_type= innodb;
+
+# Create some objects needed in many testcases
+USE test;
+--source suite/funcs_1/include/innodb_tb2.inc
+--disable_warnings
+DROP DATABASE IF EXISTS test1;
+--enable_warnings
+CREATE DATABASE test1;
+USE test1;
+--source suite/funcs_1/include/innodb_tb2.inc
+USE test;
+
+--source suite/funcs_1/views/views_master.inc
+DROP DATABASE test1;
+DROP TABLE test.tb2;
+

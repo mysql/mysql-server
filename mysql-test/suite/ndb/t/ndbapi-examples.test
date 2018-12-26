@@ -1,0 +1,75 @@
+-- source include/have_ndb.inc
+-- source include/have_ndbapi_examples.inc
+
+# Connect using socket to the MySQL Server which mysqltest currently
+# is connected to
+let MASTER_MYSOCK=`select @@socket`;
+
+# Setup path for log file
+let NDB_EXAMPLES_OUTPUT=$MYSQLTEST_VARDIR/log/ndbapi_examples.log;
+
+--echo Running ndb_ndbapi_simple
+--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_simple $MASTER_MYSOCK "$NDB_CONNECTSTRING" > $NDB_EXAMPLES_OUTPUT
+
+--echo Running ndb_ndbapi_simple_index
+--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_simple_index $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+--echo Running ndb_ndbapi_scan
+--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_scan $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+--echo Running ndb_ndbapi_retries
+--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_retries $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+--echo Running ndb_ndbapi_async
+--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_async $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+--echo Running ndb_ndbapi_async1
+--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_async1 $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+# Drop database created by test programs
+drop database ndb_examples;
+
+create table t0(c0 int, c1 int, c2 char(4), c3 char(4), c4 text,
+                primary key(c0, c2)) engine ndb charset latin1;
+#--echo Running ndb_ndbapi_event
+#--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_event "$NDB_CONNECTSTRING" 1 >> $NDB_EXAMPLES_OUTPUT
+insert into t0 values (1, 2, 'a', 'b', null);
+insert into t0 values (3, 4, 'c', 'd', null);
+update t0 set c3 = 'e' where c0 = 1 and c2 = 'a'; # use pk
+update t0 set c3 = 'f'; # use scan
+update t0 set c3 = 'F'; # use scan update to 'same'
+update t0 set c2 = 'g' where c0 = 1; # update pk part
+update t0 set c2 = 'G' where c0 = 1; # update pk part to 'same'
+update t0 set c0 = 5, c2 = 'H' where c0 = 3; # update full PK
+delete from t0;
+drop table t0;
+
+--echo Running mgmapi_logevent
+--exec $NDB_EXAMPLES_DIR/ndb_mgmapi_logevent "$NDB_CONNECTSTRING" 1 >> $NDB_EXAMPLES_OUTPUT
+
+--echo Running ndb_ndbapi_array_simple
+create table api_array_simple(
+  ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,
+  ATTR2 CHAR(20) NOT NULL,
+  ATTR3 VARCHAR(20) NOT NULL,
+  ATTR4 VARCHAR(500) NOT NULL,
+  ATTR5 BINARY(20),
+  ATTR6 VARBINARY(20),
+  ATTR7 VARBINARY(500)
+) engine ndb charset latin1;
+--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_array_simple "$NDB_CONNECTSTRING" test
+drop table api_array_simple;
+
+--echo Running ndb_ndbapi_array_using_adapter
+CREATE TABLE api_array_using_adapter(
+  ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,
+  ATTR2 CHAR(20) NOT NULL,
+  ATTR3 VARCHAR(20) NOT NULL,
+  ATTR4 VARCHAR(500) NOT NULL,
+  ATTR5 BINARY(20) NOT NULL,
+  ATTR6 VARBINARY(20) NOT NULL,
+  ATTR7 VARBINARY(500)
+) engine ndb charset latin1;
+--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_array_using_adapter "$NDB_CONNECTSTRING" test
+drop table api_array_using_adapter;
+

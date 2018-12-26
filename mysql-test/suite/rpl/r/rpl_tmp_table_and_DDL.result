@@ -1,0 +1,209 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TEMPORARY TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT) ENGINE= MyISAM;
+INSERT INTO t1 VALUES (1);
+CREATE EVENT e1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+INSERT INTO t1 VALUES (1);
+ALTER EVENT e1 ON SCHEDULE EVERY 20 HOUR DO SELECT 1;
+INSERT INTO t1 VALUES (1);
+DROP EVENT IF EXISTS e1;
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1() SELECT 1;
+INSERT INTO t1 VALUES (1);
+ALTER PROCEDURE p1 SQL SECURITY INVOKER;
+INSERT INTO t1 VALUES (1);
+CREATE FUNCTION f1() RETURNS INT RETURN 123;
+INSERT INTO t1 VALUES (1);
+ALTER FUNCTION f1 SQL SECURITY INVOKER;
+INSERT INTO t1 VALUES (1);
+CREATE DATABASE mysqltest1;
+INSERT INTO t1 VALUES (1);
+DROP DATABASE mysqltest1;
+INSERT INTO t1 VALUES (1);
+CREATE USER test_1@localhost;
+INSERT INTO t1 VALUES (1);
+GRANT SELECT ON t2 TO test_1@localhost;
+INSERT INTO t1 VALUES (1);
+GRANT ALL ON f1 TO test_1@localhost;
+INSERT INTO t1 VALUES (1);
+GRANT ALL ON p1 TO test_1@localhost;
+INSERT INTO t1 VALUES (1);
+GRANT USAGE ON *.* TO test_1@localhost;
+INSERT INTO t1 VALUES (1);
+REVOKE ALL PRIVILEGES ON f1 FROM test_1@localhost;
+INSERT INTO t1 VALUES (1);
+REVOKE ALL PRIVILEGES ON p1 FROM test_1@localhost;
+INSERT INTO t1 VALUES (1);
+REVOKE ALL PRIVILEGES ON t2 FROM test_1@localhost;
+INSERT INTO t1 VALUES (1);
+REVOKE USAGE ON *.* FROM test_1@localhost;
+INSERT INTO t1 VALUES (1);
+RENAME USER test_1@localhost TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+DROP USER test_2@localhost;
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p2()
+BEGIN
+# CREATE USER when a temporary table is open. 
+CREATE TEMPORARY TABLE t3 (a INT);
+CREATE USER test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# GRANT select on table to user when a temporary table is open.
+GRANT SELECT ON t2 TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# GRANT all on function to user  when a temporary table is open.
+GRANT ALL ON f1 TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# GRANT all on procedure to user when a temporary table is open.
+GRANT ALL ON p1 TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# GRANT usage on *.* to user  when a temporary table is open.
+GRANT USAGE ON *.* TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# REVOKE ALL PRIVILEGES on function to user when a temporary table is open.
+REVOKE ALL PRIVILEGES ON f1 FROM test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# REVOKE ALL PRIVILEGES on procedure to user when a temporary table is open.
+REVOKE ALL PRIVILEGES ON p1 FROM test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# REVOKE ALL PRIVILEGES on table to user when a temporary table is open.
+REVOKE ALL PRIVILEGES ON t2 FROM test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# REVOKE usage on *.* from user when a temporary table is open.
+REVOKE USAGE ON *.* FROM test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# RENAME USER when a temporary table is open.
+RENAME USER test_2@localhost TO test_3@localhost;
+INSERT INTO t1 VALUES (1);
+# DROP USER when a temporary table is open.
+DROP USER test_3@localhost;
+INSERT INTO t1 VALUES (1);
+DROP TEMPORARY TABLE t3;
+END |
+DROP PROCEDURE p1;
+INSERT INTO t1 VALUES (1);
+DROP PROCEDURE p2;
+INSERT INTO t1 VALUES (1);
+DROP FUNCTION f1;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t2;
+INSERT INTO t1 VALUES (1);
+DROP TEMPORARY TABLE t1;
+include/sync_slave_sql_with_master.inc
+CREATE TABLE t1 (a CHAR(30));
+CREATE TEMPORARY TABLE t2 (b CHAR(60));
+LOCK TABLE t1 WRITE;
+CREATE FUNCTION f1 () RETURNS TINYINT RETURN 13;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("CREATE FUNCTION f1 with table locked");
+UNLOCK TABLE;
+CREATE FUNCTION f2 () RETURNS TINYINT RETURN 13;
+LOCK TABLE t1 WRITE;
+ALTER FUNCTION f2 SQL SECURITY INVOKER;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("ALTER FUNCTION f2 with table locked");
+LOCK TABLE t1 WRITE;
+DROP FUNCTION f2;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("DROP FUNCTION f2 with table locked");
+CREATE PROCEDURE p1() SELECT 1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("CREATE PROCEDURE p1 with table locked");
+UNLOCK TABLE;
+CREATE PROCEDURE p2() SELECT 1;
+LOCK TABLE t1 WRITE;
+ALTER PROCEDURE p2 SQL SECURITY INVOKER;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("ALTER PROCEDURE P2 with table locked");
+DROP PROCEDURE p2;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("DROP PROCEDURE p2 with table locked");
+CREATE EVENT e1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("CREATE EVENT e1 with table locked");
+UNLOCK TABLE;
+CREATE EVENT e2 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+LOCK TABLE t1 WRITE;
+ALTER EVENT e2 ON SCHEDULE EVERY 20 HOUR DO SELECT 1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("ALTER EVENT e2 with table locked");
+DROP EVENT e2;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("DROP EVENT e2 with table locked");
+CREATE DATABASE mysqltest1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("CREATE DATABASE mysqltest1 with table locked");
+UNLOCK TABLE;
+CREATE DATABASE mysqltest2;
+LOCK TABLE t1 WRITE;
+DROP DATABASE mysqltest2;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t2 VALUES ("DROP DATABASE mysqltest2 with table locked");
+UNLOCK TABLE;
+DROP DATABASE mysqltest2;
+LOCK TABLE t1 WRITE;
+CREATE USER test_1@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("CREATE USER test_1@localhost with table locked");
+UNLOCK TABLE;
+CREATE USER test_2@localhost;
+LOCK TABLE t1 WRITE;
+GRANT SELECT ON t1 TO test_2@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("GRANT select on table to user with table locked");
+GRANT ALL ON f2 TO test_2@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("GRANT ALL ON f2 TO test_2 with table locked");
+GRANT ALL ON p2 TO test_2@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("GRANT ALL ON p2 TO test_2 with table locked");
+GRANT USAGE ON *.* TO test_2@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("GRANT USAGE ON *.* TO test_2 with table locked");
+REVOKE ALL PRIVILEGES ON f2 FROM test_2@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("REVOKE ALL PRIVILEGES on function to user with table locked");
+REVOKE ALL PRIVILEGES ON p2 FROM test_2@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("REVOKE ALL PRIVILEGES on procedure to user with table locked");
+REVOKE ALL PRIVILEGES ON t1 FROM test_2@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("REVOKE ALL PRIVILEGES on table to user with table locked");
+REVOKE USAGE ON *.* FROM test_2@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("REVOKE USAGE ON *.* TO test_2 with table locked");
+RENAME USER test_2@localhost TO test_3@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("RENAME USER test_2 TO test_3 with table locked");
+UNLOCK TABLE;
+RENAME USER test_2@localhost TO test_3@localhost;
+LOCK TABLE t1 WRITE;
+DROP USER test_3@localhost;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES ("DROP USER test_3@localhost with table locked");
+UNLOCK TABLE;
+CREATE DATABASE db;
+CREATE TABLE db.t1 LIKE t2;
+CREATE TABLE t3 LIKE t2;
+DROP TABLE t3;
+DROP DATABASE db;
+DROP USER test_3@localhost;
+DROP FUNCTION f2;
+DROP PROCEDURE p2;
+DROP EVENT e2;
+DROP TABLE t1, t2;
+CREATE TEMPORARY TABLE temp_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_t2 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t1 LIKE temp_t1;
+CREATE TABLE t2 LIKE temp_t2;
+include/assert.inc ["t1 on master and temp_t1 have the same storage engine"]
+include/assert.inc ["t2 on master and temp_t2 have the same storage engine"]
+include/assert.inc ["t1 on slave and temp_t1 have the same storage engine"]
+include/assert.inc ["t2 on slave and temp_t2 have the same storage engine"]
+DROP TEMPORARY TABLE temp_t1, temp_t2;
+DROP TABLE t1, t2;
+include/rpl_end.inc

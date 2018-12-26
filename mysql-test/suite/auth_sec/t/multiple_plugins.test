@@ -1,0 +1,13 @@
+--source include/have_ssl.inc
+
+--echo # Check with caching_sha2_password as --default-authentication-plugin
+let $server_default_authentication_plugin=caching_sha2_password;
+--source ../include/multiple_plugins.inc
+
+--echo # Check with mysql_native_password as --default-authentication-plugin
+let $server_default_authentication_plugin=mysql_native_password;
+--source ../include/multiple_plugins.inc
+
+--echo # Check with sha256_password as --default-authentication-plugin
+let $server_default_authentication_plugin=sha256_password;
+--source ../include/multiple_plugins.inc

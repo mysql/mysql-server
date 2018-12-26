@@ -1,0 +1,96 @@
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: test_event
+args: -n Multi T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug42422 -l 1 T1
+max-time: 360
+
+cmd: testFK
+args: -n Basic55 T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug57522 T1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n Bug16766493 D1
+max-time: 360
+
+cmd: testNodeRestart
+args: -n TestLCPFSErr --records=100000 T1
+max-time: 360
+
+cmd: testNodeRestart
+args: -n LCPScanFragWatchdogIsolation T1
+max-time: 540
+
+cmd: testScan
+args: -n TupScanRead100 -l 100 T1 D1 D2
+max-time: 720
+
+cmd: testSystemRestart
+args: -n SR_DD_3_LCP D1
+max-time: 720
+
+cmd: testSystemRestart
+args: -n SR_DD_2_LCP D1
+max-time: 900
+
+cmd: test_event
+args: -r 5000 -n Bug30780 T1
+max-time: 1260
+
+cmd: testDict
+args: -n FK_SRNR2 T1
+max-time: 1800
+
+cmd: testDict
+args: -n FK_SRNR1 T1
+max-time: 1980
+
+cmd: testScan
+args: -n ScanReadError5021 T1 D1 D2
+max-time: 1800
+
+cmd: testNodeRestart
+args: -n MNF -l 15 T1
+max-time: 2340
+
+cmd: testNodeRestart
+args: -n MixedPkRead T6 T13
+max-time: 2160
+
+cmd: testNodeRestart
+args: -n GCP -l 1 T1
+max-time: 3960
+
+cmd: testOIBasic
+args: -case abcdefz
+max-time: 4860
+

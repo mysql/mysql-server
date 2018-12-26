@@ -1,0 +1,120 @@
+#
+# Test of rewrites of insert statements.
+#
+use test;
+CREATE TABLE t1 ( a INT, b INT , c INT, PRIMARY KEY(a));
+CREATE TABLE t2 ( c INT, d INT );
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (4, 5);
+INSERT INTO t2 VALUES (10, 20);
+# Query rewrite plugin was installed.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'INSERT INTO test.t1 ( a, b ) VALUES ( ?, ? )
+          ON DUPLICATE KEY UPDATE c = ?, a = ?',
+'INSERT INTO test.t1 ( b, a ) VALUES ( ?, ? )
+          ON DUPLICATE KEY UPDATE c = ?, a = 25' ),
+( 'INSERT INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (?, ?)',
+'INSERT INTO test.t1 ( a, b ) VALUES ( ?, ? )' ),
+( 'REPLACE INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (?, ?)',
+'REPLACE INTO test.t1 ( a, b ) VALUES ( ?, ? )' ),
+('INSERT INTO test.t1 ( a, b ) SELECT c + 2222, 2 FROM test.t2',
+'INSERT /*+ QB_NAME(hi) */ INTO test.t1 ( a, b )
+          SELECT c + 2222, 2 FROM test.t2'),
+('INSERT INTO test.t1(a, c) VALUES(?, ?), (?, ?)',
+'INSERT INTO test.t1(a, b) VALUES(?, ?), (?, ?)'),
+('REPLACE INTO test.t1(a, c) VALUES(?, ?)',
+'REPLACE INTO test.t1(a, c) VALUES(?, 2)'),
+('INSERT INTO test.t1 ( a, b ) SELECT ?, ? FROM test.t2',
+'INSERT INTO test.t1 ( a, c ) SELECT ?, ? FROM test.t2');
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+id	pattern	pattern_database	replacement	enabled	message
+1	INSERT INTO test.t1 ( a, b ) VALUES ( ?, ? )
+          ON DUPLICATE KEY UPDATE c = ?, a = ?	NULL	INSERT INTO test.t1 ( b, a ) VALUES ( ?, ? )
+          ON DUPLICATE KEY UPDATE c = ?, a = 25	YES	NULL
+2	INSERT INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (?, ?)	NULL	INSERT INTO test.t1 ( a, b ) VALUES ( ?, ? )	YES	NULL
+3	REPLACE INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (?, ?)	NULL	REPLACE INTO test.t1 ( a, b ) VALUES ( ?, ? )	YES	NULL
+4	INSERT INTO test.t1 ( a, b ) SELECT c + 2222, 2 FROM test.t2	NULL	INSERT /*+ QB_NAME(hi) */ INTO test.t1 ( a, b )
+          SELECT c + 2222, 2 FROM test.t2	YES	NULL
+5	INSERT INTO test.t1(a, c) VALUES(?, ?), (?, ?)	NULL	INSERT INTO test.t1(a, b) VALUES(?, ?), (?, ?)	YES	NULL
+6	REPLACE INTO test.t1(a, c) VALUES(?, ?)	NULL	REPLACE INTO test.t1(a, c) VALUES(?, 2)	YES	NULL
+7	INSERT INTO test.t1 ( a, b ) SELECT ?, ? FROM test.t2	NULL	INSERT INTO test.t1 ( a, c ) SELECT ?, ? FROM test.t2	YES	NULL
+INSERT INTO test.t1 ( a, b ) VALUES ( 2, 1 )
+ON DUPLICATE KEY UPDATE c = 5, a = 5;
+Warnings:
+Note	1105	Query 'INSERT INTO test.t1 ( a, b ) VALUES ( 2, 1 )
+ON DUPLICATE KEY UPDATE c = 5, a = 5' rewritten to 'INSERT INTO test.t1 ( b, a ) VALUES ( 2, 1 )
+          ON DUPLICATE KEY UPDATE c = 5, a = 25' by a query rewrite plugin
+SELECT * FROM t1;
+a	b	c
+3	4	NULL
+4	5	NULL
+25	2	5
+INSERT INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (11, 31);
+Warnings:
+Note	1105	Query 'INSERT INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (11, 31)' rewritten to 'INSERT INTO test.t1 ( a, b ) VALUES ( 11, 31 )' by a query rewrite plugin
+SELECT * FROM t1;
+a	b	c
+3	4	NULL
+4	5	NULL
+11	31	NULL
+25	2	5
+INSERT INTO test.t1( a, b ) SELECT c + 2222, 2 FROM test.t2;
+Warnings:
+Note	1105	Query 'INSERT INTO test.t1( a, b ) SELECT c + 2222, 2 FROM test.t2' rewritten to 'INSERT /*+ QB_NAME(hi) */ INTO test.t1 ( a, b )
+          SELECT c + 2222, 2 FROM test.t2' by a query rewrite plugin
+SELECT * FROM t1;
+a	b	c
+3	4	NULL
+4	5	NULL
+11	31	NULL
+25	2	5
+2232	2	NULL
+REPLACE INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (100, 300);
+Warnings:
+Note	1105	Query 'REPLACE INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (100, 300)' rewritten to 'REPLACE INTO test.t1 ( a, b ) VALUES ( 100, 300 )' by a query rewrite plugin
+SELECT * FROM t1;
+a	b	c
+3	4	NULL
+4	5	NULL
+11	31	NULL
+25	2	5
+100	300	NULL
+2232	2	NULL
+INSERT INTO test.t1(a, c) VALUES(1001, 200), (1000, 2000);
+Warnings:
+Note	1105	Query 'INSERT INTO test.t1(a, c) VALUES(1001, 200), (1000, 2000)' rewritten to 'INSERT INTO test.t1(a, b) VALUES(1001, 200), (1000, 2000)' by a query rewrite plugin
+REPLACE INTO test.t1(a, c) VALUES(1002, 200);
+Warnings:
+Note	1105	Query 'REPLACE INTO test.t1(a, c) VALUES(1002, 200)' rewritten to 'REPLACE INTO test.t1(a, c) VALUES(1002, 2)' by a query rewrite plugin
+SELECT * FROM t1;
+a	b	c
+3	4	NULL
+4	5	NULL
+11	31	NULL
+25	2	5
+100	300	NULL
+1000	2000	NULL
+1001	200	NULL
+1002	NULL	2
+2232	2	NULL
+INSERT INTO test.t1 ( a, b ) SELECT 22, 3 FROM test.t2;
+Warnings:
+Note	1105	Query 'INSERT INTO test.t1 ( a, b ) SELECT 22, 3 FROM test.t2' rewritten to 'INSERT INTO test.t1 ( a, c ) SELECT 22, 3 FROM test.t2' by a query rewrite plugin
+INSERT INTO test.t1 ( a, b ) SELECT c, d FROM test.t2;
+SELECT * FROM t1;
+a	b	c
+3	4	NULL
+4	5	NULL
+10	20	NULL
+11	31	NULL
+22	NULL	3
+25	2	5
+100	300	NULL
+1000	2000	NULL
+1001	200	NULL
+1002	NULL	2
+2232	2	NULL
+DROP TABLE t1, t2;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

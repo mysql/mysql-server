@@ -1,0 +1,18 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc
+Master_Host = '127.0.0.1' (expected '127.0.0.1')
+CHANGE MASTER TO MASTER_HOST="";
+ERROR HY000: Incorrect arguments to MASTER_HOST
+Master_Host = '127.0.0.1' (expected '127.0.0.1')
+CHANGE MASTER TO MASTER_HOST="foo";
+Master_Host = 'foo' (expected 'foo')
+CHANGE MASTER TO MASTER_HOST="127.0.0.1";
+Master_Host = '127.0.0.1' (expected '127.0.0.1')
+START SLAVE;
+include/wait_for_slave_to_start.inc
+include/rpl_end.inc

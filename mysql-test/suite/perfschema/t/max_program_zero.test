@@ -1,0 +1,45 @@
+#-------------------------------------------------------------
+# Tests for PERFORMANCE_SCHEMA stored programs instrumentation  
+#-------------------------------------------------------------
+
+#
+#  Test case to show the behaviour of stored program instrumentation 
+#  when values of the system variables performance_schema_max_program_instances & 
+#  performance_schema_max_statement_stack are zero. 
+#  PS table will return empty set 
+#  
+
+--source ../include/start_server_common.inc
+
+# Values of variables server variables
+show global variables like "performance_schema_max_program_instances";
+show global variables like "performance_schema_max_statement_stack";
+
+--echo ##################### 
+--echo # Setup
+--echo ##################### 
+--source suite/perfschema/include/program_nested_setup.inc 
+
+# Truncate summary table
+TRUNCATE performance_schema.events_statements_summary_by_program;
+
+--echo #####################
+--echo # Executing Queries
+--echo ##################### 
+--source suite/perfschema/include/program_nested_execution.inc 
+
+--echo ###########################################
+--echo # Quering PS statement summary table      #
+--echo ########################################### 
+
+SELECT OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA
+       FROM performance_schema.events_statements_summary_by_program;
+
+SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_program; 
+
+--echo ##################### 
+--echo # Cleanup
+--echo ##################### 
+--source suite/perfschema/include/program_nested_cleanup.inc 
+
+

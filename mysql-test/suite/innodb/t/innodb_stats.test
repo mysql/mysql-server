@@ -1,0 +1,60 @@
+#
+# Test the persistent stats feature
+#
+
+
+-- disable_warnings
+-- disable_query_log
+
+DROP TABLE IF EXISTS test_innodb_stats;
+
+CREATE TABLE test_innodb_stats (
+	a INT,
+	KEY a_key (a)
+) ENGINE=INNODB STATS_PERSISTENT=1;
+
+-- enable_warnings
+-- enable_query_log
+
+# test empty table
+-- let $insert = SELECT 'dummy INSERT, the table should be empty'
+-- source suite/innodb/include/innodb_stats.inc
+
+# test table with 1 row
+-- let $insert = INSERT INTO test_innodb_stats (a) VALUES (1)
+-- source suite/innodb/include/innodb_stats.inc
+
+# test table with 2 eq rows
+-- let $insert = INSERT INTO test_innodb_stats (a) VALUES (1), (1)
+-- source suite/innodb/include/innodb_stats.inc
+
+# test table with 3 eq rows
+-- let $insert = INSERT INTO test_innodb_stats (a) VALUES (1), (1), (1)
+-- source suite/innodb/include/innodb_stats.inc
+
+# test table with 10 eq rows
+-- let $insert = INSERT INTO test_innodb_stats (a) VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1)
+-- source suite/innodb/include/innodb_stats.inc
+
+# test table with 2 diff rows
+-- let $insert = INSERT INTO test_innodb_stats (a) VALUES (1), (2)
+-- source suite/innodb/include/innodb_stats.inc
+
+# test table with 2 diff rows, 3 rows in total
+-- let $insert = INSERT INTO test_innodb_stats (a) VALUES (1), (1), (2)
+-- source suite/innodb/include/innodb_stats.inc
+
+# test table with 3 diff rows
+-- let $insert = INSERT INTO test_innodb_stats (a) VALUES (1), (2), (3)
+-- source suite/innodb/include/innodb_stats.inc
+
+# test table with 3 diff rows, 5 rows in total
+-- let $insert = INSERT INTO test_innodb_stats (a) VALUES (1), (1), (2), (3), (3)
+-- source suite/innodb/include/innodb_stats.inc
+
+# test table with 5 diff rows, 10 rows in total
+-- let $insert = INSERT INTO test_innodb_stats (a) VALUES (1), (2), (3), (4), (5), (1), (2), (3), (4), (5)
+-- source suite/innodb/include/innodb_stats.inc
+
+-- disable_query_log
+DROP TABLE test_innodb_stats;

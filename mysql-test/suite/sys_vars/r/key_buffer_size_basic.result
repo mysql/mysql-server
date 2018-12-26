@@ -1,0 +1,85 @@
+SET @start_value = @@global.key_buffer_size;
+'#--------------------FN_DYNVARS_055_01------------------------#'
+SET @@global.key_buffer_size = DEFAULT;
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+8388608
+'#---------------------FN_DYNVARS_055_02-------------------------#'
+SET @@global.key_buffer_size = @start_value;
+SELECT @@global.key_buffer_size = @start_value;
+@@global.key_buffer_size = @start_value
+1
+'#--------------------FN_DYNVARS_055_03------------------------#'
+SET @@global.key_buffer_size = 4096;
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+4096
+SET @@global.key_buffer_size = 65535;
+Warnings:
+Warning	1292	Truncated incorrect key_buffer_size value: '65535'
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+61440
+'#--------------------FN_DYNVARS_055_04-------------------------#'
+SET @@global.key_buffer_size = -1;
+ERROR HY000: Cannot drop default keycache
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+61440
+SET @@global.key_buffer_size = 4;
+ERROR HY000: Cannot drop default keycache
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+61440
+SET @@global.key_buffer_size = -1024;
+ERROR HY000: Cannot drop default keycache
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+61440
+SET @@global.key_buffer_size = 10000.01;
+ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
+SET @@global.key_buffer_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
+SET @@global.key_buffer_size = " ";
+ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
+SET @@global.key_buffer_size = ON;
+ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
+SET @@global.key_buffer_size = 'test';
+ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
+'#-------------------FN_DYNVARS_055_05----------------------------#'
+SET @@session.key_buffer_size = 0;
+ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable and should be set with SET GLOBAL
+'#----------------------FN_DYNVARS_055_06------------------------#'
+SELECT @@global.key_buffer_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='key_buffer_size';
+@@global.key_buffer_size = VARIABLE_VALUE
+1
+SELECT @@key_buffer_size = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='key_buffer_size';
+@@key_buffer_size = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_055_07----------------------#'
+SET @@global.key_buffer_size = TRUE;
+ERROR HY000: Cannot drop default keycache
+SET @@global.key_buffer_size = FALSE;
+ERROR HY000: Cannot drop default keycache
+'#---------------------FN_DYNVARS_055_08----------------------#'
+SELECT @@key_buffer_size = @@global.key_buffer_size;
+@@key_buffer_size = @@global.key_buffer_size
+1
+'#---------------------FN_DYNVARS_055_9----------------------#'
+SET key_buffer_size = 8 ;
+ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable and should be set with SET GLOBAL
+SET local.key_buffer_size = 10;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.key_buffer_size = 10' at line 1
+SELECT local.key_buffer_size;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.key_buffer_size = 10;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.key_buffer_size = 10' at line 1
+SELECT global.key_buffer_size;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT key_buffer_size = @@session.key_buffer_size;
+ERROR 42S22: Unknown column 'key_buffer_size' in 'field list'
+SET @@global.key_buffer_size = @start_value;

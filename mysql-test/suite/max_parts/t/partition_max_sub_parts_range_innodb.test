@@ -1,0 +1,30 @@
+################################################################################
+# Purpose:                                                                     #
+#  Tests around number of partitions                                           #
+#------------------------------------------------------------------------------#
+# Original Author: Horst Hunger                                                #
+# Original Date: 2012-08-30                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+# General not engine specific settings and requirements
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+call mtr.add_suppression("A long semaphore wait");
+call mtr.add_suppression("Could not increase number of max_open_files");
+
+##### Storage engine to be tested
+let $engine= 'InnoDB';
+
+#SET @save_innodb_file_per_table= @@global.innodb_file_per_table;
+#SET @@global.innodb_file_per_table= OFF;
+
+##### Number of files the storage engine will need to create partitions.
+let $mysql_needed_max_files=8192;
+
+--source suite/max_parts/inc/partition_max_sub_parts_range.inc
+
+#SET @@global.innodb_file_per_table= @save_innodb_file_per_table;

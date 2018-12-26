@@ -1,0 +1,69 @@
+#
+# Basic test for histogram_generation_max_mem_size
+#
+
+--source include/load_sysvars.inc
+
+--echo # Display the DEFAULT value of histogram_generation_max_mem_size
+
+SET @@session.histogram_generation_max_mem_size = DEFAULT;
+SELECT @@session.histogram_generation_max_mem_size;
+
+--echo # Change the value of histogram_generation_max_mem_size to a valid
+--echo # value for (20 megabytes)
+
+SET @@session.histogram_generation_max_mem_size = 20000000;
+SELECT @@session.histogram_generation_max_mem_size;
+
+
+--echo # Change the value of histogram_generation_max_mem_size to a value
+--echo # outside of the valid range.
+
+SET @@session.histogram_generation_max_mem_size = 0;
+SELECT @@session.histogram_generation_max_mem_size;
+
+--echo # Change the value of histogram_generation_max_mem_size to an invalid value
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.histogram_generation_max_mem_size= 'NOT_CHAR_TYPE';
+
+SET @@session.histogram_generation_max_mem_size = -10;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.histogram_generation_max_mem_size = 0.5;
+
+--echo # Check if the value in session Table matches value in variable
+
+--disable_warnings
+SET @@session.histogram_generation_max_mem_size = DEFAULT;
+SELECT * FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='histogram_generation_max_mem_size';
+--enable_warnings
+
+--echo # Check if TRUE and FALSE values can be used on variable
+
+SET @@session.histogram_generation_max_mem_size = TRUE;
+SELECT @@session.histogram_generation_max_mem_size;
+
+SET @@session.histogram_generation_max_mem_size = FALSE;
+SELECT @@session.histogram_generation_max_mem_size;
+
+--echo # Restore initial value
+
+SET @@session.histogram_generation_max_mem_size = DEFAULT;
+SELECT @@session.histogram_generation_max_mem_size;
+
+--echo # Create a user with non-root privileges, and verifty that the variable
+--echo # cannot be modified.
+CREATE USER non_root@localhost IDENTIFIED BY '';
+connect (user1,localhost,non_root,,test,,);
+connection user1;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.histogram_generation_max_mem_size = 450000000;
+
+connection default;
+disconnect user1;
+DROP USER non_root@localhost;
+
+--echo # END OF histogram_generation_max_mem_size TESTS

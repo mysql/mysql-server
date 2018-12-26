@@ -1,0 +1,186 @@
+################################################################################
+# Test to see the behavior of the BLOB FIELDS in Group Replication
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Pre test clean up section.
+# 2. With both the members ONLINE. Start test section:
+#  a) Create table t1.
+#  b) Insert data in table t1.
+#  c) Data validation on M1.
+#  d) Data validation on M2.
+#  e) Update data in table t1.
+#  f) Data validation on M1.
+#  g) Data validation on M2.
+#  h) Create table t2.
+#  i) Setup values for t2.
+#  j) Insert data in table t2.
+#  k) Data validation on M1.
+#  l) Data validation on M2.
+#  m) Update data in table t2.
+#  n) Data validation on M1.
+#  o) Data validation on M2.
+# 3. Post test clean up section.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--source include/not_ndb_default.inc
+--source include/group_replication.inc
+# Pre test clean up section
+--connection server1
+--disable_warnings
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+--enable_warnings
+
+# Start test section
+--echo *****  Table Create Section ****
+--echo
+--disable_warnings
+--eval CREATE TABLE test.t1 (c1 int not null auto_increment, data LONGBLOB, PRIMARY KEY(c1))ENGINE=innodb
+--enable_warnings
+
+--echo
+--echo **** Data Insert Section test.t1 *****
+--echo
+INSERT INTO test.t1 VALUES (NULL, NULL);
+INSERT INTO test.t1 VALUES (NULL, repeat('a',1*1024));
+INSERT INTO test.t1 VALUES (NULL, repeat('b',16*1024));
+--echo
+
+--echo **** Data Insert Validation Member 1 Section test.t1 ****
+--echo
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 8;
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 15;
+--source include/rpl_sync.inc
+
+--echo
+--echo **** Data Insert Validation Member 2 Section test.t1 ****
+--echo
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 8;
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 15;
+--connection server1
+--echo
+
+--echo **** Data Update Section test.t1 ****
+--echo
+UPDATE test.t1 set data=repeat('a',18*1024) where c1 = 1;
+UPDATE t1 set data=repeat('c',17*1024) where c1 = 8;
+--echo
+
+--echo **** Data Update Validation Member 1 Section test.t1 ****
+--echo
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 8;
+--source include/rpl_sync.inc
+--echo
+--echo **** Data Update Validation Member 2 Section test.t1 ****
+--echo
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
+SELECT LENGTH(data) FROM test.t1 WHERE c1 = 8;
+--connection server1
+
+--echo
+--echo **** End Test Section test.t1 ****
+--echo
+
+--echo **** Create Table test.t2 ****
+--echo
+--disable_warnings
+--eval CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY, c2 TEXT, c3 INT, c4 LONGBLOB, KEY(c3))ENGINE=innodb
+--enable_warnings
+--echo
+
+--echo *** Setup Values For test.t2 ***
+# x0 size 256 (current inline size)
+set @x0 = '01234567012345670123456701234567';
+set @x0 = concat(@x0,@x0,@x0,@x0,@x0,@x0,@x0,@x0);
+
+# b1 length 2000+256 (blob part aligned)
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@x0);
+
+# d1 length 3000
+set @d1 = 'dd1';
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+
+# b2 length 20000
+set @b2 = 'b2';
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+
+# d2 length 30000
+set @d2 = 'dd2';
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+--echo
+
+--echo **** Data Insert Section test.t2 *****
+--echo
+INSERT INTO test.t2 VALUES(1,@b1,111,@d1);
+INSERT INTO test.t2 VALUES(2,@b2,222,@d2);
+--echo
+
+--echo **** Data Insert Validation Member 1 Section test.t2 ****
+--echo
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=1;
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=2;
+--source include/rpl_sync.inc
+
+--echo
+--echo **** Data Insert Validation Member 2 Section test.t2 ****
+--echo
+
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=1;
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=2;
+--connection server1
+--echo
+
+--echo **** Data Update Section test.t2 ****
+--echo
+UPDATE test.t2 SET c2=@b2, c4=@d2 WHERE c1=1;
+UPDATE test.t2 SET c2=@b1, c4=@d1 WHERE c1=2;
+--echo
+
+--echo **** Data Update Validation Member 1 Section test.t2 ****
+--echo
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=1;
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=2;
+--source include/rpl_sync.inc
+
+--echo
+--echo **** Data Update Validation Member 2 Section test.t2 ****
+--echo
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=1;
+SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
+FROM test.t2 WHERE c1=2;
+--connection server1
+--echo
+
+# Post test clean up section
+
+--let $diff_tables= server1:t1, server2:t1
+--source include/diff_tables.inc
+
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+
+--source include/rpl_sync.inc
+--source include/group_replication_end.inc

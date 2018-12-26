@@ -1,0 +1,89 @@
+SELECT sys.ps_thread_trx_info(234623462376);
+sys.ps_thread_trx_info(234623462376)
+NULL
+SELECT JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)));
+JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)))
+1
+CREATE DATABASE trx;
+CREATE TABLE trx.info (id INT PRIMARY KEY, info VARCHAR(20));
+# Warm-up data-dictionary cache.
+USE trx;
+START TRANSACTION;
+INSERT INTO info VALUES (1, 'foo');
+COMMIT;
+START TRANSACTION;
+INSERT INTO info VALUES (2, 'bar');
+COMMIT;
+SET @json_doc := sys.ps_thread_trx_info(@ps_thread_id);
+SELECT JSON_VALID(@json_doc);
+JSON_VALID(@json_doc)
+1
+SELECT JSON_LENGTH(@json_doc);
+JSON_LENGTH(@json_doc)
+2
+SELECT JSON_KEYS(JSON_EXTRACT(@json_doc, '$[0]'));
+JSON_KEYS(JSON_EXTRACT(@json_doc, '$[0]'))
+["gtid", "mode", "time", "state", "isolation", "autocommitted", "statements_executed"]
+SELECT JSON_CONTAINS_PATH(@json_doc, 'one',          '$[0].time');
+JSON_CONTAINS_PATH(@json_doc, 'one',          '$[0].time')
+1
+SELECT JSON_CONTAINS(@json_doc, '"COMMITTED"',       '$[0].state');
+JSON_CONTAINS(@json_doc, '"COMMITTED"',       '$[0].state')
+1
+SELECT JSON_CONTAINS(@json_doc, '"READ WRITE"',      '$[0].mode');
+JSON_CONTAINS(@json_doc, '"READ WRITE"',      '$[0].mode')
+1
+SELECT JSON_CONTAINS(@json_doc, '"NO"',              '$[0].autocommitted');
+JSON_CONTAINS(@json_doc, '"NO"',              '$[0].autocommitted')
+1
+SELECT JSON_EXTRACT(@json_doc, '$[0].gtid');
+JSON_EXTRACT(@json_doc, '$[0].gtid')
+"GTID"
+SELECT JSON_CONTAINS(@json_doc, '"REPEATABLE READ"', '$[0].isolation');
+JSON_CONTAINS(@json_doc, '"REPEATABLE READ"', '$[0].isolation')
+1
+SELECT JSON_KEYS(JSON_EXTRACT(@json_doc, '$[0].statements_executed[0]'));
+JSON_KEYS(JSON_EXTRACT(@json_doc, '$[0].statements_executed[0]'))
+["time", "schema", "sql_text", "rows_sent", "sort_rows", "tmp_tables", "rows_affected", "rows_examined", "tmp_disk_tables", "sort_merge_passes"]
+SELECT JSON_CONTAINS_PATH(@json_doc, 'one',                               '$[0].statements_executed[0].time');
+JSON_CONTAINS_PATH(@json_doc, 'one',                               '$[0].statements_executed[0].time')
+1
+SELECT JSON_CONTAINS(@json_doc, '"INSERT INTO info VALUES (1, \'foo\')"', '$[0].statements_executed[0].sql_text');
+JSON_CONTAINS(@json_doc, '"INSERT INTO info VALUES (1, \'foo\')"', '$[0].statements_executed[0].sql_text')
+1
+SELECT JSON_CONTAINS(@json_doc, '"trx"',                                  '$[0].statements_executed[0].schema');
+JSON_CONTAINS(@json_doc, '"trx"',                                  '$[0].statements_executed[0].schema')
+1
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].rows_examined');
+JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].rows_examined')
+1
+SELECT JSON_CONTAINS(@json_doc, '1',                                      '$[0].statements_executed[0].rows_affected');
+JSON_CONTAINS(@json_doc, '1',                                      '$[0].statements_executed[0].rows_affected')
+1
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].rows_sent');
+JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].rows_sent')
+1
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].tmp_tables');
+JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].tmp_tables')
+1
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].tmp_disk_tables');
+JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].tmp_disk_tables')
+1
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].sort_rows');
+JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].sort_rows')
+1
+SELECT JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].sort_merge_passes');
+JSON_CONTAINS(@json_doc, '0',                                      '$[0].statements_executed[0].sort_merge_passes')
+1
+SELECT JSON_CONTAINS(@json_doc, '"COMMIT"', '$[0].statements_executed[1].sql_text');
+JSON_CONTAINS(@json_doc, '"COMMIT"', '$[0].statements_executed[1].sql_text')
+1
+SET @sys.ps_thread_trx_info.max_length = 100;
+SELECT sys.ps_thread_trx_info(@ps_thread_id);
+sys.ps_thread_trx_info(@ps_thread_id)
+{ "error": "Trx info truncated: Row 1X was cut by GROUP_CONCAT()" }
+SET @sys.ps_thread_trx_info.max_length = NULL;
+SELECT JSON_VALID(sys.ps_thread_trx_info(@ps_thread_id));
+JSON_VALID(sys.ps_thread_trx_info(@ps_thread_id))
+1
+DROP DATABASE trx;

@@ -1,0 +1,99 @@
+
+How to Install, Configure, and Run the CRUND Benchmark
+======================================================
+
+The benchmark consists of generic Java and C++ Driver and multiple "*Load"
+classes, which implement the benchmark's operations against different APIs,
+such as ndbapi, clusterj, JDBC, JPA and other.
+
+Some Load classes have external software dependencies, whose paths need to
+be configured in a global configuration file: ./env.properties
+
+Gnu 'make' and 'ant' are used as build tools for the Java, C++ sources
+(alas, no use of autoconf or cmake; edit Makefile.defaults if needed).
+
+0) Required: [g]make, ant, JDK, C/C++ compiler
+
+1) Copy and edit the CRUND configuration files:
+
+        $ cp ./config_samples/* .
+
+    Edit the global configuration file for paths to software dependencies:
+        ./env.properties
+
+    Check the other files for cluster setup and benchmark run parameters:
+        *.properties, *.cnf, *.ini
+
+2) Build the local 'helpers' component:
+
+        $ cd ./helpers
+        $ make dep      # build C++ dependencies once
+        $ make opt      # build optimized C++ binaries, Java classes
+
+    See ./helpers/README.txt
+
+3) Build CRUND benchmark:
+
+        $ make dep      # build C++ dependencies once
+        $ make dbg      # build debug C++ binaries, Java classes
+        $ make opt      # build optimized C++ binaries, Java classes
+        $ ant build     # build just Java classes
+
+    List available make, ant targets:
+        $ make help
+        $ ant help
+
+3) Start the NDB Cluster and load benchmark schema:
+
+        ./src/crund_schema.sql
+
+    See convenience scripts for startup, shutdown, mysql etc in:
+        ./scripts
+
+4) Run CRUND:
+
+    Configure the benchmark's dataset size and number of iterations in
+        ./crundRun.properties
+
+    Edit connection and load-specific settings:
+        ./crundNdb.properties
+        ./crundClusterj.properties
+        ./crundMysql.properties
+        ./crundOpenjpa.properties
+        ...
+
+    Run the generic C++ or Java driver (uses 'loads' in crundRun.properties):
+        $ make run.crund
+        $ ant run.crund.opt
+
+    or run specific C++ or Java loads:
+        $ make run.ndbapi
+        $ ant run.ndbjtie
+        $ ant run.clusterj
+        $ ant run.mysql
+        ...
+
+    or directly run binaries/classes with properties file options, e.g.:
+        ... -p crundRun.properties -p crundMysql.properties
+
+    See convenience script to run benchmark and collect OS load statistics:
+        ./scripts/bench_crund.sh
+
+5) Process the result files:
+
+    CRUND writes all measured time, memory metrics as tab-separated values
+    into a log file:
+        ./log_<dtate>_<time>.txt
+
+    See convenience script to further aggregate data (computing averages,
+    relative standard deviations) of multiple runs into a single .csv file:
+        ./scripts/process.h
+
+    The log_xxx.csv file can be imported into a spreadsheet application for
+    charting or loaded into mysql for further result processing:
+        mysql> load data infile 'log_xxx.cvs' into table 'results' \
+               fields terminated by ',' ignore 1 lines;
+
+    See table views in crund schema sorting benchmark results by parameters
+    'xmode' (indy/each/bulk) and 'nrows' (data set: 10^2, 10^3, 10^4 rows):
+        crunddb: results_rtime_xmode, results_rtime_nrows

@@ -1,0 +1,52 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+SET @save.innodb_lock_wait_timeout=@@GLOBAL.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout=1;
+SET @save.slave_transaction_retries= @@global.slave_transaction_retries;
+SET @@global.slave_transaction_retries= 0;
+SET @save.max_relay_log_size= @@global.max_relay_log_size;
+SET @@global.max_relay_log_size=4096;
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+include/assert.inc [the max size of relay log must be 4096]
+CREATE DATABASE db4;
+CREATE TABLE db4.t (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=innodb;
+CREATE DATABASE db3;
+CREATE TABLE db3.t (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=innodb;
+CREATE DATABASE db2;
+CREATE TABLE db2.t (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=innodb;
+CREATE DATABASE db1;
+CREATE TABLE db1.t (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=innodb;
+CREATE TABLE t1m (a INT) ENGINE=myisam;
+include/sync_slave_sql_with_master.inc
+LOCK TABLES t1m WRITE;
+include/wait_for_slave_sql_error.inc [errno=1205]
+include/wait_for_slave_sql_to_stop.inc
+include/start_slave_sql.inc
+include/wait_for_slave_sql_error.inc [errno=1205]
+include/wait_for_slave_sql_to_stop.inc
+include/start_slave_sql.inc
+include/wait_for_slave_sql_error.inc [errno=1205]
+include/rpl_restart_server.inc [server_number=2]
+include/wait_for_slave_sql_to_stop.inc
+include/start_slave_sql.inc
+include/wait_for_slave_sql_error.inc [errno=1205]
+include/rpl_restart_server.inc [server_number=2]
+include/wait_for_slave_sql_to_stop.inc
+include/start_slave_sql.inc
+UNLOCK TABLES;
+include/sync_slave_sql_with_master.inc
+DROP TABLE t1m;
+DROP DATABASE db4;
+DROP DATABASE db3;
+DROP DATABASE db2;
+DROP DATABASE db1;
+include/sync_slave_sql_with_master.inc
+SET @@global.innodb_lock_wait_timeout=@save.innodb_lock_wait_timeout;
+SET @@global.slave_transaction_retries= @save.slave_transaction_retries;
+SET @@global.max_relay_log_size= @save.max_relay_log_size;
+include/rpl_end.inc

@@ -1,0 +1,68 @@
+show create table t55;
+Table	Create Table
+t55	CREATE TABLE `t55` (
+  `colint` int(11) DEFAULT NULL,
+  `col1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (colint) SUBPARTITION BY HASH (abs(col1)) SUBPARTITIONS 5 (PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = MyISAM, PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = MyISAM, PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = MyISAM, PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = MyISAM, PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = MyISAM, PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = MyISAM) */
+27	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp0.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp0.MYI
+18	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp1.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp1.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp2.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp2.MYI
+18	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp3.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp3.MYI
+18	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp4.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p0#SP#p0sp4.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp0.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp0.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp1.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp1.MYI
+18	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp2.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp2.MYI
+18	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp3.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp3.MYI
+36	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp4.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p1#SP#p1sp4.MYI
+36	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp0.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp0.MYI
+0	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp1.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp1.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp2.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp2.MYI
+18	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp3.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp3.MYI
+27	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp4.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p2#SP#p2sp4.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp0.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp0.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp1.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp1.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp2.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp2.MYI
+18	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp3.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp3.MYI
+45	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp4.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p3#SP#p3sp4.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp0.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp0.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp1.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp1.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp2.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp2.MYI
+0	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp3.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp3.MYI
+0	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp4.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p4#SP#p4sp4.MYI
+0	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp0.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp0.MYI
+0	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp1.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp1.MYI
+0	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp2.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp2.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp3.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp3.MYI
+9	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp4.MYD
+1024	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55#P#p5#SP#p5sp4.MYI
+8594	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55.frm
+408	MYSQL_TEST_DIR/var/mysqld.1/data/test/t55.par

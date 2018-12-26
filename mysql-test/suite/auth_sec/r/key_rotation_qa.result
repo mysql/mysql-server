@@ -1,0 +1,139 @@
+ALTER INSTANCE ROTATE MYISAM MASTER KEY;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MYISAM MASTER KEY' at line 1
+ALTER INSTANCE ROTATE INNODB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ALTER INSTANCE STORE INNDB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STORE INNDB' at line 1
+ALTER INSTANCE ROTATE INNODB SLAVE KEY;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SLAVE KEY' at line 1
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+
+INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+ERROR HY000: Function 'keyring_file' already exists
+
+SHOW GLOBAL variables LIKE 'early-plugin-load';
+Variable_name	Value
+SET @@global.early-plugin-load="keyring_file=keyring_file.so";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-plugin-load="keyring_file=keyring_file.so"' at line 1
+
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+PLUGIN_NAME	keyring_file
+PLUGIN_VERSION	1.0
+PLUGIN_STATUS	ACTIVE
+
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+SELECT * FROM t1;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+CREATE TABLE t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t2 SELECT * FROM t1;
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+3
+# Remove keyring file
+
+# Check for keyring file.
+keyring_tmp
+
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+3
+CREATE TABLE t3(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t3 VALUES(2, "ccccc");
+# Check for keyring file.
+keyring_tmp
+
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+# Check for keyring file.
+keyring_tmp
+
+SELECT * FROM t1;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+UNINSTALL PLUGIN keyring_file;
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+# Try to access encrypted table.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+SELECT * FROM t2;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+CREATE TABLE t10(c1 INT, c2 char(20)) ENGINE = InnoDB;
+# restart: --early-plugin-load=keyring_file=keyring_file.so --keyring_file_data=MYSQL_TMP_DIR/keyring/keyring
+SELECT * FROM t1;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+SELECT * FROM t3;
+c1	c2
+2	ccccc
+# restart: --early-plugin-load=keyring_file=keyring_file.so --keyring_file_data=MYSQL_TMP_DIR/keyring/keyring_new
+SELECT * FROM t1;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+CREATE TABLE t12(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t12 VALUES(2, "ccccchfc");
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT * FROM t12;
+c1	c2
+2	ccccchfc
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+PLUGIN_NAME	keyring_file
+PLUGIN_VERSION	1.0
+PLUGIN_STATUS	ACTIVE
+SELECT * FROM t2;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+CREATE TABLE t11(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+SELECT * FROM t2;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+UNINSTALL PLUGIN keyring_file;
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+SELECT * FROM t11;
+c1	c2
+SELECT COUNT(*) FROM t1;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+CREATE TABLE t4(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+CREATE TABLE t5(c1 INT, c2 char(20)) ENGINE = InnoDB;
+INSERT INTO t5 VALUES(100, "without_enc");
+keyring
+DROP TABLE t11;
+INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+SET @@global.keyring_file_data='MYSQL_TMP_DIR/keyring/keyring';
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+PLUGIN_NAME	keyring_file
+PLUGIN_VERSION	1.0
+PLUGIN_STATUS	ACTIVE
+CREATE TABLE t6(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+SELECT * FROM t3;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+
+SELECT * FROM t5;
+c1	c2
+100	without_enc
+DROP TABLE t1,t2,t3,t5,t12,t10;
+#End:

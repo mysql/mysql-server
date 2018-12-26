@@ -1,0 +1,16 @@
+#********************************************************
+# Bug 16266012 - GEOMETRY : SERVER CRASHES IN
+# COLLECTION_INIT_FROM_OPRESULT
+#********************************************************
+
+--source include/have_debug.inc
+--echo # Invalid geometry in input
+SELECT ST_WITHIN( ST_LINESTRINGFROMTEXT('  LINESTRING( 5 9 , 3 4 , 4 1 , 4
+4 , 4 9 ) ') , ST_SYMDIFFERENCE( ST_UNION( ST_ENVELOPE( ST_POLYGONFROMTEXT('
+POLYGON( ( 3 2 , 0 6 , 2 3 , 8 0 , 4 6 , 7 2 , 3 2 ) ) ') ) ,
+ST_MULTIPOLYGONFROMTEXT('
+MULTIPOLYGON( ( ( 0 0 , 7 1 , 6 8 , 0 0 ) ) , ( ( 9 9 , 4 0 , 4 7 , 9 9) ) )
+') ) , ST_SYMDIFFERENCE( ST_POLYGONFROMTEXT('  POLYGON( ( 9 9 , 6 5 , 2 3 , 9 9
+) ) ') , ST_MULTIPOLYGONFROMTEXT('  MULTIPOLYGON( ( ( 2 2 , 5 2 , 5 2 , 2 6 , 2
+2 ) ) , ( ( 7 7 , 3 7 , 2 9 , 7 1 , 7 7 ) ) ) ') ) ) );
+

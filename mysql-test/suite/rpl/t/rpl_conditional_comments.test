@@ -1,0 +1,86 @@
+###############################################################################
+# After the patch for BUG#49124:
+#  - Use ' ' instead of '!' in the conditional comments which are not applied on
+#  master. So they become common comments and will not be applied on slave.
+#
+#  - Example: 
+#  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /*!99999 ,(3)*/ 
+#  will be binlogged as 
+#  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /* 99999 ,(3)*/'.
+###############################################################################
+source include/master-slave.inc;
+source include/have_binlog_format_statement.inc;
+
+--let $mask_binlog_commit_events= 1
+CREATE TABLE t1(c1 INT);
+source include/show_binlog_events.inc;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+--echo
+--echo # Case 1:
+--echo # ------------------------------------------------------------------
+--echo # In a statement, some CCs are applied while others are not. The CCs
+--echo # which are not applied on master will be binlogged as common comments.
+
+/*!99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /*!99999 ,(11)*/;
+
+source include/show_binlog_events.inc;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
+
+--echo
+--echo # Case 2:
+--echo # -----------------------------------------------------------------
+--echo # Verify whether it can be binlogged correctly when executing prepared
+--echo # statement.
+--connection master
+PREPARE stmt FROM 'INSERT INTO /*!99999 blabla*/ t1 VALUES(60) /*!99999 ,(61)*/';
+EXECUTE stmt;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+EXECUTE stmt;
+
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
+
+--connection master
+--echo
+SET @value=62;
+PREPARE stmt FROM 'INSERT INTO /*!99999 blabla */ t1 VALUES(?) /*!99999 ,(63)*/';
+EXECUTE stmt USING @value;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+EXECUTE stmt USING @value;
+
+source include/show_binlog_events.inc;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
+
+--echo
+--echo # Case 3:
+--echo # -----------------------------------------------------------------
+--echo # Verify it can restore the '!', if the it is an uncomplete conditional
+--echo # comments
+--connection master
+--error 1064
+SELECT c1 FROM /*!99999 t1 WHEREN;
+
+
+--echo #
+--echo # Bug#53373 Comments are not properly removed from the
+--echo #           pre-processed query buffer.
+--echo #
+CREATE/*!*/EVENT e1 ON SCHEDULE EVERY 10 DAY DO/*!*/SELECT 'abc';
+source include/show_binlog_events.inc;
+
+--let $mask_binlog_commit_events= 0
+
+DROP TABLE t1;
+DROP EVENT e1;
+--source include/rpl_end.inc

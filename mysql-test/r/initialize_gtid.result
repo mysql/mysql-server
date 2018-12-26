@@ -1,0 +1,12 @@
+USE mysql;
+# Create bootstrap file
+# Shut server down
+# Server is down
+# Run the server with:
+#   --initialize-insecure
+#   --explicit_defaults_for_timestamp --gtid-mode=on --enforce-gtid-consistency=on --log-bin=mysql-bin --server-id=1
+# Restart the server against DDIR
+# Connect as root
+include/assert.inc [GTID_EXECUTED should have only the 5 GTIDs from the init-file]
+# Clean up
+# Restarting the server after cleaning it up

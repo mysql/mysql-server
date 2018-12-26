@@ -1,0 +1,39 @@
+
+#
+# exists as a session only
+#
+#
+# 2010-01-20 OBN - Added check for I_S value after variable value change
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.rand_seed2;
+select @@session.rand_seed2;
+show global variables like 'rand_seed2';
+show session variables like 'rand_seed2';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rand_seed2';
+select * from performance_schema.session_variables where variable_name='rand_seed2';
+--enable_warnings
+
+#
+# show that it's writable (note value can be set but not read - returned value is zero)
+#
+set session rand_seed2=1;
+select @@session.rand_seed2;
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rand_seed2';
+select * from performance_schema.session_variables where variable_name='rand_seed2';
+--enable_warnings
+--error ER_LOCAL_VARIABLE
+set global rand_seed2=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set session rand_seed2=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session rand_seed2=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session rand_seed2="foo";
+

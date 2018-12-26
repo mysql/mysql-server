@@ -1,0 +1,3 @@
+$RPL_OBS_EXAMPLE_OPT
+--plugin-load=replication_observers_example_plugin.dll
+--log_error=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_server_startup.err

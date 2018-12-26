@@ -1,0 +1,121 @@
+--echo #
+--echo # This tests the use of large blobs in InnoDB.
+--echo #
+
+--source include/have_nodebug.inc
+--source include/big_test.inc
+
+--disable_query_log
+# These values can change during the test
+let $innodb_file_per_table_orig = `SELECT @@innodb_file_per_table`;
+
+# Create a 20MB blob that does not compress easily.
+# 1000 Random characters is enough to keep compression low.
+set @alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+set @r=abs(rand()*52) + 1;
+set @blob=substr(@alphabet,@r,1);
+let $1=1000;
+while ($1 > 1)
+{
+  set @r=abs(rand()*52) + 1;
+  set @letter=substr(@alphabet,@r,1);
+  set @blob=concat(@blob,@letter);
+  dec $1;
+}
+# The loop above is extremely slow compared to repeat().
+set @longblob=repeat(@blob,200000);
+--enable_query_log
+
+call mtr.add_suppression("Warning: a long semaphore wait");
+
+SET GLOBAL innodb_file_per_table = OFF;
+
+--echo #
+--echo # System tablespace, Row Format = Redundant
+--echo #
+CREATE TABLE t1 (
+	c1 INT DEFAULT NULL,
+	c2 LONGBLOB NOT NULL,
+	KEY k2 (c2(250), c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES (1, '');
+UPDATE t1 SET c2=@longblob;
+DROP TABLE t1;
+
+--echo #
+--echo # System tablespace, Row Format = Compact
+--echo #
+CREATE TABLE t1 (
+	c1 INT DEFAULT NULL,
+	c2 LONGBLOB NOT NULL,
+	KEY k2 (c2(250), c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES (1, '');
+UPDATE t1 SET c2=@longblob;
+DROP TABLE t1;
+
+SET GLOBAL innodb_file_per_table = ON;
+
+--echo #
+--echo # Separate tablespace, Row Format = Redundant
+--echo #
+CREATE TABLE t1 (
+	c1 INT DEFAULT NULL,
+	c2 LONGBLOB NOT NULL,
+	KEY k2 (c2(250), c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES (1, '');
+UPDATE t1 SET c2=@longblob;
+DROP TABLE t1;
+
+--echo #
+--echo # Separate tablespace, Row Format = Compact
+--echo #
+CREATE TABLE t1 (
+	c1 INT DEFAULT NULL,
+	c2 LONGBLOB NOT NULL,
+	KEY k2 (c2(250), c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES (1, '');
+UPDATE t1 SET c2=@longblob;
+DROP TABLE t1;
+
+--echo #
+--echo # Separate tablespace, Row Format = Compressed, Key Block Size = 2k
+--echo #
+CREATE TABLE t1 (
+	c1 INT DEFAULT NULL,
+	c2 LONGBLOB NOT NULL,
+	KEY k2 (c2(250), c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=2;
+INSERT INTO t1 VALUES (1, '');
+UPDATE t1 SET c2=@longblob;
+DROP TABLE t1;
+
+--echo #
+--echo # Separate tablespace, Row Format = Compressed, Key Block Size = 1k
+--echo #
+CREATE TABLE t1 (
+	c1 INT DEFAULT NULL,
+	c2 LONGBLOB NOT NULL,
+	KEY k2 (c2(250), c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=1;
+INSERT INTO t1 VALUES (1, '');
+UPDATE t1 SET c2=@longblob;
+DROP TABLE t1;
+
+--echo #
+--echo # Separate tablespace, Row Format = Dynamic
+--echo #
+CREATE TABLE t1 (
+	c1 INT DEFAULT NULL,
+	c2 LONGBLOB NOT NULL,
+	KEY k2 (c2(250), c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES (1, '');
+UPDATE t1 SET c2=@longblob;
+DROP TABLE t1;
+
+--disable_query_log
+EVAL SET GLOBAL innodb_file_per_table = $innodb_file_per_table_orig;
+--enable_query_log

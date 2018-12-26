@@ -1,0 +1,32 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.socket_instances limit 1;
+
+select * from performance_schema.socket_instances
+  where ip='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.socket_instances
+  set ip='FOO', event_name='BAR', port=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.socket_instances
+  set ip='FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.socket_instances
+  where event_name like "wait/%";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.socket_instances;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.socket_instances READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.socket_instances WRITE;
+UNLOCK TABLES;
+

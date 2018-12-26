@@ -1,0 +1,59 @@
+# test handler operation with partitioned table
+CREATE TABLE t1 (
+col_1_int int,
+col_2_int int,
+PRIMARY KEY(col_2_int),
+KEY idx1 (col_1_int, col_2_int))
+ENGINE = InnoDB
+PARTITION BY KEY() partitions 4;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_1_int` int(11) DEFAULT NULL,
+  `col_2_int` int(11) NOT NULL,
+  PRIMARY KEY (`col_2_int`),
+  KEY `idx1` (`col_1_int`,`col_2_int`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 4 */
+# test handler read forward
+# insert values in all partitions - 1st set
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+# insert values in all partitions - 2nd set
+INSERT INTO t1 VALUES (8, 5), (7, 6), (6, 7), (5, 8);
+HANDLER t1 OPEN;
+# read 2nd set of values in forward direction using handler
+HANDLER t1 READ idx1 > (4, 4) LIMIT 10;
+col_1_int	col_2_int
+5	8
+6	7
+7	6
+8	5
+# replace 1st set of values to make them bigger in idx1 order
+REPLACE INTO t1 VALUES (9, 1), (10, 2), (11, 3), (12, 4);
+# try handler next- expect no rows
+HANDLER t1 READ idx1 next;
+col_1_int	col_2_int
+HANDLER t1 CLOSE;
+# delete all rows
+DELETE FROM t1;
+# test handler read backward
+# insert values in all partitions - 1st set
+INSERT INTO t1 VALUES (8, 5), (7, 6), (6, 7), (5, 8);
+# insert values in all partitions - 2nd set
+INSERT INTO t1 VALUES (9, 9), (10, 10), (11, 11), (12, 12);
+HANDLER t1 OPEN;
+# read 1st set of values in backward direction using handler
+HANDLER t1 READ idx1 < (9, 9) LIMIT 10;
+col_1_int	col_2_int
+8	5
+7	6
+6	7
+5	8
+# replace 2nd set of values to make them smaller in idx1 order
+REPLACE INTO t1 VALUES ( 1,  9), ( 2,  10), ( 3,  11), ( 4,  12);
+# try handler previous- expect no rows
+HANDLER t1 READ idx1 prev;
+col_1_int	col_2_int
+HANDLER t1 CLOSE;
+DROP TABLE t1;

@@ -1,0 +1,107 @@
+set default_storage_engine=innodb;
+# ----------------------------------------------------------------------
+# Test of aggregate function GROUP_CONCAT
+# ----------------------------------------------------------------------
+create table t2(j json);
+insert into t2 values (json_array(ST_GeomFromText('LineString(0 0, 1 1, 2 2)')));
+select group_concat(j order by j) from t2;
+group_concat(j order by j)
+[{"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}]
+drop table t2;
+create table t (c varchar(20)) charset utf8mb4;
+insert into t values ('\\');
+select char_length(c) from t;
+char_length(c)
+1
+insert into t values (X'0C');
+select sum(char_length(c)) from t;
+sum(char_length(c))
+2
+insert into t values ('"');
+select sum(char_length(c)) from t;
+sum(char_length(c))
+3
+insert into t values ('\a');
+select sum(char_length(c)) from t;
+sum(char_length(c))
+4
+insert into t values ('\b');
+select sum(char_length(c)) from t;
+sum(char_length(c))
+5
+insert into t values ('\t');
+select sum(char_length(c)) from t;
+sum(char_length(c))
+6
+insert into t values ('\n');
+select sum(char_length(c)) from t;
+sum(char_length(c))
+7
+insert into t values ('\r');
+select sum(char_length(c)) from t;
+sum(char_length(c))
+8
+insert into t values (X'10');
+select sum(char_length(c)) from t;
+sum(char_length(c))
+9
+# '\b' and X'10' order equal in the default collation, so order on
+# hex(c) as a tie-breaker to get stable results.
+select group_concat(c order by c, hex(c)) from t;
+group_concat(c order by c, hex(c))
+,,	,
+,,,",\,a
+select char_length(group_concat(c)) from t;
+char_length(group_concat(c))
+17
+select json_quote(group_concat(c order by c, hex(c))) from t;
+json_quote(group_concat(c order by c, hex(c)))
+"\b,\u0010,\t,\n,\f,\r,\",\\,a"
+select char_length(json_quote(group_concat(c))) from t;
+char_length(json_quote(group_concat(c)))
+31
+select convert(group_concat(c) using utf8mb4) =
+json_unquote(group_concat(c)) as should_be_equal from t;
+should_be_equal
+1
+delete from t;
+alter table t add column (j json);
+insert into t values (NULL, NULL);
+select json_quote(c), json_quote(j) from t;
+json_quote(c)	json_quote(j)
+NULL	NULL
+select json_unquote(c), json_unquote(j) from t;
+json_unquote(c)	json_unquote(j)
+NULL	NULL
+drop table t;
+create table t(j json, c varchar(20)) charset utf8mb4;
+show create table t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `j` json DEFAULT NULL,
+  `c` varchar(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t values (cast('[1,2,3]' as json), '[a,b,c]');
+insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
+insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
+select group_concat(j), group_concat(distinct j), group_concat(c) from t;
+group_concat(j)	group_concat(distinct j)	group_concat(c)
+[1, 2, 3],7,2,7,2	[1, 2, 3],2,7	[a,b,c],7,2,7,2
+select group_concat(j order by j), group_concat(distinct j order by j), group_concat(c order by c) from t;
+group_concat(j order by j)	group_concat(distinct j order by j)	group_concat(c order by c)
+[1, 2, 3],2,2,7,7	[1, 2, 3],2,7	[a,b,c],2,2,7,7
+insert into t values (NULL, NULL);
+select group_concat(j), group_concat(distinct j), group_concat(c) from t;
+group_concat(j)	group_concat(distinct j)	group_concat(c)
+[1, 2, 3],7,2,7,2	[1, 2, 3],2,7	[a,b,c],7,2,7,2
+#
+# Bug#22992666 NULL VALUE IN JSON COLUMN CORRUPTS GROUP_CONCAT
+#              WITH ORDER BY CLAUSE
+#
+SELECT GROUP_CONCAT(j ORDER BY j) AS c1,
+GROUP_CONCAT(DISTINCT j ORDER BY j) AS c2,
+GROUP_CONCAT(c ORDER BY c) AS c3
+FROM t;
+c1	c2	c3
+[1, 2, 3],2,2,7,7	[1, 2, 3],2,7	[a,b,c],2,2,7,7
+drop table t;

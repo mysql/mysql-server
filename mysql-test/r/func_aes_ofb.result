@@ -1,0 +1,132 @@
+# Tests of the AES ofb block mode
+#### ofb
+SET @IVA=REPEAT('a', 16);
+SET @IVB=REPEAT('b', 16);
+SET @KEY1=REPEAT('c', 16);
+SET @KEY2=REPEAT('d', 16);
+#### 128-ofb
+SET SESSION block_encryption_mode="aes-128-ofb";
+# must throw an error without an IV
+SELECT AES_ENCRYPT('a', @KEY1);
+ERROR 42000: Incorrect parameter count in the call to native function 'aes_encrypt'
+block mode dependent. Must be non-0 and non-null
+SELECT LENGTH(AES_ENCRYPT('a', @KEY1, @IVA));
+LENGTH(AES_ENCRYPT('a', @KEY1, @IVA))
+1
+block mode dependent
+SELECT TO_BASE64(AES_ENCRYPT('a', @KEY1, @IVA));
+TO_BASE64(AES_ENCRYPT('a', @KEY1, @IVA))
+Pw==
+# must be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a', @KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a', @KEY1, @IVA), @KEY1, @IVA)
+1
+# must not be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB)
+0
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA)
+0
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA)
+0
+#### 192-ofb
+SET SESSION block_encryption_mode="aes-192-ofb";
+# must throw an error without an IV
+SELECT AES_ENCRYPT('a', @KEY1);
+ERROR 42000: Incorrect parameter count in the call to native function 'aes_encrypt'
+# must be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVA)
+1
+# must not be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB)
+0
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA)
+0
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA)
+0
+#### 256-ofb
+SET SESSION block_encryption_mode="aes-256-ofb";
+# must throw an error without an IV
+SELECT AES_ENCRYPT('a', @KEY1);
+ERROR 42000: Incorrect parameter count in the call to native function 'aes_encrypt'
+# must be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVA)
+1
+# must not be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB)
+0
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA)
+0
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA)
+0
+SET SESSION block_encryption_mode=DEFAULT;
+#### 128, 192 and 256 bit ofb
+CREATE TABLE aes_ofb(a VARBINARY(128), b128 VARBINARY(144),
+b192 VARBINARY(144), b256 BINARY(144));
+INSERT INTO aes_ofb (a) VALUES (REPEAT('a', 128));
+INSERT INTO aes_ofb (a) VALUES (REPEAT(0x00313233, 32));
+SET SESSION block_encryption_mode="aes-128-ofb";
+UPDATE aes_ofb SET b128 = AES_ENCRYPT(a, @KEY1, @IVA);
+SET SESSION block_encryption_mode="aes-192-ofb";
+UPDATE aes_ofb SET b192 = AES_ENCRYPT(a, @KEY1, @IVA);
+SET SESSION block_encryption_mode="aes-256-ofb";
+UPDATE aes_ofb SET b256 = AES_ENCRYPT(a, @KEY1, @IVA);
+# must return 0
+SELECT COUNT(*) FROM aes_ofb WHERE b128 = b192 OR B192 = b256 OR b128=b256;
+COUNT(*)
+0
+SET SESSION block_encryption_mode="aes-256-ofb";
+# must return 2
+SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b256, @KEY1, @IVA);
+COUNT(*)
+0
+# must return 0
+SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b256, 'b', @IVA);
+COUNT(*)
+0
+# must return 0
+SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b256, @KEY1, @IVB);
+COUNT(*)
+0
+SET SESSION block_encryption_mode="aes-192-ofb";
+# must return 2
+SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b192, @KEY1, @IVA);
+COUNT(*)
+2
+# must return 0
+SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b192, @KEY2, @IVA);
+COUNT(*)
+0
+# must return 0
+SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b256, @KEY1, @IVB);
+COUNT(*)
+0
+SET SESSION block_encryption_mode="aes-128-ofb";
+# must return 2
+SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b128, @KEY1, @IVA);
+COUNT(*)
+2
+# must return 0
+SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b128, @KEY2, @IVA);
+COUNT(*)
+0
+# must return 0
+SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b256, @KEY2, @IVB);
+COUNT(*)
+0
+SET SESSION block_encryption_mode=DEFAULT;
+DROP TABLE aes_ofb;
+SET SESSION block_encryption_mode=default;
+#
+# End of 5.7 tests
+#

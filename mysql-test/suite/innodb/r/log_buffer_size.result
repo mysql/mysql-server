@@ -1,0 +1,61 @@
+'#-----------------------------------------------------------#'
+'Test what happens when the innodb_log_buffer_size is changed'
+' in runtime (both decreased and increased).'
+INSERT INTO t VALUES (1000, 'a');
+SET GLOBAL innodb_log_buffer_size = 1024*1024;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+1048576
+INSERT INTO t VALUES (2000, 'b');
+SET GLOBAL innodb_log_buffer_size = 256*1024;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+262144
+INSERT INTO t VALUES (3000, 'c');
+SET GLOBAL innodb_log_buffer_size = 2048*1024;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+2097152
+INSERT INTO t VALUES (4000, 'd');
+SET @conn_counter = 9;
+CALL insert_rows();
+SET @conn_counter = 8;
+CALL insert_rows();
+SET @conn_counter = 7;
+CALL insert_rows();
+SET @conn_counter = 6;
+CALL insert_rows();
+SET @conn_counter = 5;
+CALL insert_rows();
+SET @conn_counter = 4;
+CALL insert_rows();
+SET @conn_counter = 3;
+CALL insert_rows();
+SET @conn_counter = 2;
+CALL insert_rows();
+SET @conn_counter = 1;
+CALL insert_rows();
+SET GLOBAL innodb_log_buffer_size = 256*1024;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+262144
+SET GLOBAL innodb_log_buffer_size = 256*1024 + 1024;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+263168
+SET GLOBAL innodb_log_buffer_size = 4096*1024;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+4194304
+SET GLOBAL innodb_log_buffer_size = 256*1024 + 1024;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+263168
+SET GLOBAL innodb_log_buffer_size = 256*1024;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+262144
+SET @@GLOBAL.innodb_log_buffer_size=16777216;
+SELECT @@innodb_log_buffer_size;
+@@innodb_log_buffer_size
+16777216

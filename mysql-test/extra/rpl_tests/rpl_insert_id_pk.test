@@ -1,0 +1,83 @@
+###########################################################
+# See if queries that use both auto_increment and LAST_INSERT_ID()
+# are replicated well
+############################################################
+# REQUIREMENT
+# Auto increment should work for a table with auto_increment column
+# and primary key.
+##############################################################
+
+# We also check how the foreign_key_check variable is replicated
+
+-- source include/master-slave.inc
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
+#should work for both SBR and RBR
+
+create table t1(a int auto_increment, primary key(a));
+create table t2(b int auto_increment, c int, primary key(b));
+insert into t1 values (1),(2),(3);
+insert into t1 values (null);
+insert into t2 values (null,last_insert_id());
+--source include/sync_slave_sql_with_master.inc
+select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+connection master;
+#check if multi-line inserts,
+#which set last_insert_id to the first id inserted,
+#are replicated the same way
+drop table t1;
+drop table t2;
+--disable_warnings
+eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
+eval create table t2(b int auto_increment, c int, key(b), foreign key(b) references t1(a)) engine=$engine_type;
+--enable_warnings
+SET FOREIGN_KEY_CHECKS=0;
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+insert into t2 values (null,last_insert_id());
+SET FOREIGN_KEY_CHECKS=1;
+--source include/sync_slave_sql_with_master.inc
+select * from t1;
+select * from t2;
+connection master;
+
+# check if INSERT SELECT in auto_increment is well replicated (bug #490)
+
+drop table t2;
+drop table t1;
+create table t1(a int auto_increment, primary key(a));
+create table t2(b int auto_increment, c int, primary key(b));
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+--disable_warnings ONCE
+insert into t2 (c) select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+--source include/sync_slave_sql_with_master.inc
+select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+connection master;
+drop table t1;
+drop table t2;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Bug#8412: Error codes reported in binary log for CHARACTER SET,
+#           FOREIGN_KEY_CHECKS
+#
+connection master;
+SET TIMESTAMP=1000000000;
+CREATE TABLE t1 ( a INT UNIQUE );
+SET FOREIGN_KEY_CHECKS=0;
+# Duplicate Key Errors codes
+--error 1022, ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1),(1);
+--source include/sync_slave_sql_with_master.inc
+connection master;
+drop table t1;
+
+# End of 4.1 tests
+
+--source include/rpl_end.inc

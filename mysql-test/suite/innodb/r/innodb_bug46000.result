@@ -1,0 +1,18 @@
+create table bug46000(`id` int,key `GEN_CLUST_INDEX`(`id`))engine=innodb;
+ERROR 42000: Incorrect index name 'GEN_CLUST_INDEX'
+create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb;
+ERROR 42000: Incorrect index name 'GEN_CLUST_INDEX'
+show warnings;
+Level	Code	Message
+Warning	1280	Cannot Create Index with name 'GEN_CLUST_INDEX'. The name is reserved for the system default primary index.
+Error	1280	Incorrect index name 'GEN_CLUST_INDEX'
+Error	1030	Got error 124 - 'Wrong index given to function' from storage engine
+create table bug46000(id int) engine=innodb;
+create index GEN_CLUST_INDEX on bug46000(id);
+ERROR 42000: Incorrect index name 'GEN_CLUST_INDEX'
+show warnings;
+Level	Code	Message
+Warning	1280	Cannot Create Index with name 'GEN_CLUST_INDEX'. The name is reserved for the system default primary index.
+Error	1280	Incorrect index name 'GEN_CLUST_INDEX'
+create index idx on bug46000(id);
+drop table bug46000;

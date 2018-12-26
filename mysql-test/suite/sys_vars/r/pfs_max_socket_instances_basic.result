@@ -1,0 +1,23 @@
+select @@global.performance_schema_max_socket_instances;
+@@global.performance_schema_max_socket_instances
+123
+select @@session.performance_schema_max_socket_instances;
+ERROR HY000: Variable 'performance_schema_max_socket_instances' is a GLOBAL variable
+show global variables like 'performance_schema_max_socket_instances';
+Variable_name	Value
+performance_schema_max_socket_instances	123
+show session variables like 'performance_schema_max_socket_instances';
+Variable_name	Value
+performance_schema_max_socket_instances	123
+select * from performance_schema.global_variables
+where variable_name='performance_schema_max_socket_instances';
+VARIABLE_NAME	VARIABLE_VALUE
+performance_schema_max_socket_instances	123
+select * from performance_schema.session_variables
+where variable_name='performance_schema_max_socket_instances';
+VARIABLE_NAME	VARIABLE_VALUE
+performance_schema_max_socket_instances	123
+set global performance_schema_max_socket_instances=1;
+ERROR HY000: Variable 'performance_schema_max_socket_instances' is a read only variable
+set session performance_schema_max_socket_instances=1;
+ERROR HY000: Variable 'performance_schema_max_socket_instances' is a read only variable

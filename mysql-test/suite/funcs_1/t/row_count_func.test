@@ -1,0 +1,120 @@
+--echo
+--echo # -- 
+--echo # -- Test case for Bug#21818.
+--echo # -- 
+--echo
+
+# The bug testcase is MyISAM specific.
+--source include/have_myisam.inc
+let $engine= MyISAM;
+--source include/force_myisam_default.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+eval CREATE TABLE t1(a INT) ENGINE = $engine;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo
+--echo # -- Check 1.
+
+--enable_info
+--echo SELECT * FROM t1 INTO OUTFILE "MYSQL_TMP_DIR/bug21818.txt";
+--disable_query_log # to avoid $MYSQL_TMP_DIR in query log
+--eval SELECT * FROM t1 INTO OUTFILE "$MYSQL_TMP_DIR/bug21818.txt"
+--enable_query_log
+--disable_info
+
+--echo
+SELECT ROW_COUNT();
+
+--echo
+--echo # -- Check 2.
+
+--enable_info
+SELECT a FROM t1 LIMIT 1 INTO @a;
+--disable_info
+
+--echo
+SELECT ROW_COUNT();
+
+--echo
+--echo # -- Check 3.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+--enable_warnings
+
+--enable_info
+CREATE DATABASE mysqltest1;
+--disable_info
+
+--echo
+SELECT ROW_COUNT();
+
+DROP DATABASE mysqltest1;
+
+--echo
+--echo # -- Check 4.
+
+DELETE FROM t1;
+
+--enable_info
+--echo LOAD DATA INFILE 'MYSQL_TMP_DIR/bug21818.txt' INTO TABLE t1(a);
+--disable_query_log # to avoid $MYSQL_TMP_DIR in query log
+--eval LOAD DATA INFILE '$MYSQL_TMP_DIR/bug21818.txt' INTO TABLE t1(a)
+--enable_query_log
+--disable_info
+
+--echo
+SELECT ROW_COUNT();
+
+--remove_file $MYSQL_TMP_DIR/bug21818.txt
+
+--echo
+--echo # -- Check 5.
+
+--enable_info
+ALTER TABLE t1 ADD COLUMN b VARCHAR(255);
+--disable_info
+
+--echo
+SELECT ROW_COUNT();
+
+--echo
+DROP TABLE t1;
+
+--echo
+--echo # -- Check 6.
+
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+eval CREATE TABLE t1(a INT) ENGINE = $engine;
+eval CREATE TABLE t2(a INT) ENGINE = $engine;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (ROW_COUNT());
+
+SELECT * FROM t2;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo
+--echo # -- Check 7 (check that SQL errors reset row_count to -1).
+
+eval CREATE TABLE t1(a INT) ENGINE = $engine;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+--error ER_SP_DOES_NOT_EXIST
+SELECT f1();
+
+SELECT ROW_COUNT();
+
+DROP TABLE t1;
+
+--echo
+--echo # -- End of test case for Bug#21818.

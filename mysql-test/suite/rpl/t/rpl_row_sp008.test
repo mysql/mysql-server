@@ -1,0 +1,56 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/15/2005                                                #
+# Update: 08/29/2005 Remove sleep                                           #
+#############################################################################
+# TEST: Use SQL_CALC_FOUND_ROWS and insert results into a table inside a sp #
+#############################################################################
+
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE IF EXISTS test.t2;
+--enable_warnings
+# End of cleanup
+
+
+
+# Begin test section 1
+CREATE TABLE test.t1 (a INT,PRIMARY KEY(a));
+CREATE TABLE test.t2 (a INT,PRIMARY KEY(a));
+INSERT INTO test.t1 VALUES(1),(2);
+
+delimiter |;
+CREATE PROCEDURE test.p1()
+BEGIN
+ SELECT SQL_CALC_FOUND_ROWS * FROM test.t1 LIMIT 1;
+ INSERT INTO test.t2 VALUES(FOUND_ROWS());
+END|
+delimiter ;|
+
+let $message=< ---- Master selects-- >;
+--source include/show_msg.inc
+CALL test.p1();
+SELECT * FROM test.t2;
+
+let $message=< ---- Slave selects-- >;
+--source include/show_msg.inc
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM test.t2;
+
+# Cleanup
+
+connection master;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+--source include/sync_slave_sql_with_master.inc
+
+# End of 5.0 test case
+--source include/rpl_end.inc

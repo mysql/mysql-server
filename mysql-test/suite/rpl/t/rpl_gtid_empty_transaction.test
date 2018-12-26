@@ -1,0 +1,354 @@
+# ==== Purpose ====
+#
+# Verifies that empty transactions are generated when they are
+# supposed to. There are three cases:
+#
+#  1. Transaction is filtered out on slave
+#
+#  2. Transaction does not have any effect, gets logged and assigned a
+#     GTID on master because master uses binlog_format=statement, but
+#     does not get logged on slave because slave uses binlog_format='row'.
+#
+#  3. Transaction is explicitly made empty on master by setting
+#     gtid_next and executing a COMMIT.
+#
+# Moreover, verify that no empty transaction is generated for rolled
+# back transactions.
+#
+# ==== Implementation ====
+#
+# For case 1, we use a filter (specified in the .cnf file) to filter
+# out table t_ignore, and verify that empty transaction is generated
+# on slave.  Do this both for (1A) base tables and for (1B) temporary
+# tables.
+#
+# For case 2, we use binlog_format=statement on master and
+# binlog_format='row' on the first slave.  We test two cases of
+# transactions that are not logged in row format: (2A) temporary table
+# DDL and DML and (2B) an UPDATE statement that matches no row.  We
+# use a second slave where the effect of the statement would be seen,
+# if it was not logged as an empty statement.  In case (2A) we check
+# that slave_open_temp_tables is still 0 on the second slave. In case
+# (2B) we do an UPDATE on master that matches no rows on master, but
+# that would match a row on the second slave.
+#
+# For case 3, we just execute an explicit empty transaction
+# inside/outside stored procedure on master and verify that it gets
+# assigned a GTID and gets replicated to the slaves.
+#
+# To verify nothing is logged for rollback transactions, we execute a
+# DDL statement that generates an error, a DML statement that
+# generates an error, and an explicit ROLLBACK transaction, and verify
+# that nothing got logged for the three statements.
+#
+# ==== References ====
+#
+# WL#3584 - Global Transaction Identifiers (GTIDs)
+# - The base worklog implementing empty transactions.
+# BUG#18145032 - NO EMPTY TRANSACTION IS CREATED FOR A FILTERED CREATE TEMPORARY TABLE WITH GTIDS
+# - Addressing the special cases for CREATE/ALTER/DROP TEMPORARY.
+# BUG#18095502 - RESTART OF SLAVE INSTANCE FAIL IN GTID REPLICATION IF WE USE REPLICATE-IGNORE-DB
+# - Addressing database filters in the applier thread.
+# BUG#19774317 GTID_NEXT WITH EMPTY TRANSACTIONS DOES NOT WORK INSIDE STORED PROCEDURES
+# - Addressing gtid_next with empty transaction inside stored procedure.
+
+--let $rpl_topology= 1->2->3
+--let $rpl_gtid_utils= 1
+--source include/rpl_init.inc
+--source include/rpl_default_connections.inc
+--source include/have_binlog_format_mixed.inc
+
+--source include/rpl_reset.inc
+
+--echo ==== Case 1A: Transaction filtered out ====
+
+--source include/gtid_step_reset.inc
+
+CREATE TABLE t_ignore(id INT);
+INSERT INTO t_ignore VALUES (1);
+DROP TABLE t_ignore;
+
+CREATE TABLE t_ignore_wild(id INT);
+INSERT INTO t_ignore_wild VALUES (1);
+DROP TABLE t_ignore_wild;
+
+# Verify that 6 GTIDs were generated.
+--let $gtid_step_count= 6
+--source include/gtid_step_assert.inc
+
+# Verify that the GTIDs make it to every slave
+--source include/rpl_sync.inc
+
+--echo ==== Case 1B: CREATE/ALTER/DROP TEMPORARY filtered out ====
+
+CREATE TEMPORARY TABLE t_ignore(a INT);
+ALTER TABLE t_ignore ADD COLUMN b INT;
+INSERT INTO t_ignore VALUES (1, 2);
+DROP TEMPORARY TABLE t_ignore;
+
+CREATE TEMPORARY TABLE t_ignore_wild(a INT);
+ALTER TABLE t_ignore_wild ADD COLUMN b INT;
+INSERT INTO t_ignore_wild VALUES (1, 2);
+DROP TEMPORARY TABLE t_ignore_wild;
+
+# Verify that 0 GTIDs were generated.
+--let $gtid_step_count= 0
+--source include/gtid_step_assert.inc
+
+# Verify that the GTIDs make it to every slave.
+--source include/rpl_sync.inc
+
+--echo ==== Case 1C: database filters on slave applier ====
+
+--source include/gtid_step_reset.inc
+
+# These two will be ignored on first slave.
+CREATE DATABASE db_ignore;
+USE db_ignore;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+USE test;
+
+# Verify 2 GTIDs were generated
+--let $gtid_step_count= 3
+--source include/gtid_step_assert.inc
+
+--source include/rpl_sync.inc
+
+--let $assert_text= db_ignore should not be created on slave
+--let $assert_cond= "[slave:SHOW DATABASES LIKE "db_ignore"]" = ""
+--source include/assert.inc
+
+--let $assert_text= db_ignore should not be created on second slave
+--let $assert_cond= "[server_3:SHOW DATABASES LIKE "db_ignore"]" = ""
+--source include/assert.inc
+
+DROP DATABASE db_ignore;
+--source include/rpl_sync.inc
+
+--echo ==== Case 1D: database filters on slave binary log ====
+
+--source include/gtid_step_reset.inc
+
+# These two will be ignored on first slave.
+CREATE DATABASE db_binlog_ignore;
+USE db_binlog_ignore;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+USE test;
+
+# Verify 2 GTIDs were generated
+--let $gtid_step_count= 3
+--source include/gtid_step_assert.inc
+
+--source include/rpl_sync.inc
+
+--let $assert_text= db_binlog_ignore should not be created on slave
+--let $assert_cond= "[slave:SHOW DATABASES LIKE "db_binlog_ignore"]" = "db_binlog_ignore"
+--source include/assert.inc
+
+--let $assert_text= db_binlog_ignore should not be created on second slave
+--let $assert_cond= "[server_3:SHOW DATABASES LIKE "db_binlog_ignore"]" = ""
+--source include/assert.inc
+
+DROP DATABASE db_binlog_ignore;
+--source include/rpl_sync.inc
+
+--echo ==== Case 2A: temp table transaction not logged in row format ====
+
+--echo ---- Initialize ----
+
+--connection slave
+SET @save.binlog_format= @@global.binlog_format;
+# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+# which will be caused by the following include/end_replace_combination.inc
+--source include/stop_slave_sql.inc
+SET @@global.binlog_format= 'row';
+source include/start_slave_sql.inc;
+
+--echo ---- Test ----
+
+--source include/gtid_step_reset.inc
+
+
+# - Master will log these statements and assign them GTIDs, since
+#   master uses binlog_format=statement.
+#
+# - First slave will not log any change since it uses row format, but
+#   it should log empty transactions with GTIDs.
+#
+# - Second slave should also not log any change, since it receives an
+#   empty transaction from the first slave.  Thus
+#   Slave_open_temp_tables should remain 0 on the second slave.
+CREATE TEMPORARY TABLE t2 (a INT);
+ALTER TABLE t2 ADD COLUMN b INT;
+INSERT INTO t2 VALUES (1, 2);
+
+# assert exactly 0 GTIDs were generated
+--let $gtid_step_count= 0
+--source include/gtid_step_assert.inc
+
+# Verify that the GTID gets replicated everywhere.
+--let $use_gtids= 1
+--source include/rpl_sync.inc
+
+# Verify temp tables on first slave but not on second slave
+--let $assert_text= First slave should not have created any temp table
+--let $assert_cond= [slave:SHOW GLOBAL STATUS LIKE 'Slave_open_temp_tables'] = 1
+
+--let $assert_text= Second slave should not have created any temp table
+--let $assert_cond= [server_3:SHOW GLOBAL STATUS LIKE 'Slave_open_temp_tables'] = 0
+
+--echo ---- Clean up ----
+
+DROP TEMPORARY TABLE t2;
+--source include/rpl_sync.inc
+
+--connection slave
+# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+# which will be caused by the following include/end_replace_combination.inc
+--source include/stop_slave_sql.inc
+SET @@global.binlog_format= @save.binlog_format;
+--connection master
+
+--echo ==== Case 2B: transaction with no effect not logged in row format ====
+
+--echo ---- Initialize ----
+
+--connection slave
+SET @save.binlog_format= @@global.binlog_format;
+SET @@global.binlog_format= 'row';
+source include/start_slave_sql.inc;
+
+--connection master
+SET @@session.binlog_format= statement;
+CREATE TABLE t1(id INT) ENGINE = InnoDB;
+--source include/rpl_sync.inc
+--connection server_3
+INSERT INTO t1 VALUES (0);
+--connection master
+
+--echo ---- Test ----
+
+# - Master will log this and assign it a GTID despite it has no
+#   effect, since master uses binlog_format=statement.
+#
+# - First slave will not log any change since it uses row format, but
+#   it should log an empty transaction with a GTID.
+#
+# - Second slave should also not log any change, since it receives an
+#   empty transaction from the first slave.  It should also not update
+#   the table despite the original SQL statement would match a row on
+#   the second slave, since it only receives the empty transaction
+#   from the first slave.
+UPDATE t1 SET id= 1 WHERE id = 0;
+
+# Verify that the GTID gets replicated everywhere.
+--let $use_gtids= 1
+--source include/rpl_sync.inc
+
+--let $assert_text= Second slave should not have done any update
+--let $assert_cond= [server_3:SELECT * FROM t1] = 0
+
+-- echo ---- Clean up ----
+
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--connection slave
+# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+# which will be caused by the following include/end_replace_combination.inc
+--source include/stop_slave_sql.inc
+SET @@global.binlog_format= @save.binlog_format;
+--source include/start_slave_sql.inc
+--connection master
+
+--echo ==== Case 3: explicit empty transaction on master ====
+
+SET @@SESSION.binlog_format= 'row';
+--source include/gtid_step_reset.inc
+eval SET @@SESSION.GTID_NEXT = '$uuida:1';
+COMMIT;
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+
+# Verify exactly one GTID was generated
+--let $gtid_step_count= 1
+--let $gtid_step_only_count= 1
+--source include/gtid_step_assert.inc
+
+# ==== Purpose ====
+#
+# Verify that committing an empty transaction with specified gtid works fine
+# inside stored procedure when binlog is enabled.
+#
+# ==== References ====
+#
+# BUG#19774317 GTID_NEXT WITH EMPTY TRANSACTIONS DOES NOT WORK INSIDE STORED PROCEDURES
+# mysql-test/t/no_binlog_gtid_empty_transaction.test
+
+CREATE TABLE t1 (a INT);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+  START TRANSACTION;
+  COMMIT;
+  SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+  START TRANSACTION;
+  COMMIT;
+END|
+
+delimiter ;|
+
+# Verify exactly two GTIDs were generated
+--let $gtid_step_count= 2
+--let $gtid_step_only_count= 1
+--source include/gtid_step_assert.inc
+
+CALL p1();
+
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+# Verify exactly four GTIDs were generated
+--let $gtid_step_count= 2
+--let $gtid_step_only_count= 1
+--source include/gtid_step_assert.inc
+--let $gtid_step_only_count= 0
+
+DROP TABLE t1;
+
+# Verify the GTID makes it to every slave.
+--source include/rpl_sync.inc
+
+--echo ==== Case 4: Nothing logged for ROLLBACK transactions ====
+
+# Test that ROLLBACK does not generate any GTID
+
+--echo ---- Initialize ----
+
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+
+--echo ---- Test ----
+
+--source include/gtid_step_reset.inc
+
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t2;
+
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1 VALUES (1, 1);
+
+BEGIN;
+INSERT INTO t1 VALUES (2);
+ROLLBACK;
+
+--let $gtid_step_count= 0
+--source include/gtid_step_assert.inc
+
+--echo ---- Clean Up ----
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+--source include/rpl_end.inc

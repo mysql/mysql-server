@@ -1,0 +1,156 @@
+##################### mysql-test\t\delay_key_write_func.test  #################
+#                                                                             #
+# Variable Name: delay_key_write                                              #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: enumeration                                                      #
+# Default Value: ON                                                           #
+# Valid Values: ON, OFF & ALL                                                 #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable delay_key_write          #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+--source include/force_myisam_default.inc
+
+--echo '#--------------------FN_DYNVARS_023_01-------------------------#'
+#######################################################################
+# Check if setting delay_key_write is changed in every new connection #
+#######################################################################
+
+SET @start_value= @@global.delay_key_write;
+
+SET @@global.delay_key_write = ON;
+SELECT @@global.delay_key_write;
+
+--echo 'connect (user1,localhost,root,,,,)'
+connect (user1,localhost,root,,,,);
+--echo 'connection user1'
+connection user1;
+SELECT @@global.delay_key_write AS res_is_ON;
+SET @@global.delay_key_write = ALL;
+disconnect user1;
+
+--echo 'connect (user1,localhost,root,,,,)'
+connect (user1,localhost,root,,,,);
+--echo 'connection user1'
+connection user1;
+SELECT @@global.delay_key_write AS res_is_ALL;
+
+--echo '#--------------------FN_DYNVARS_023_02-------------------------#'
+######################################################
+# Begin the functionality Testing of delay_key_write #
+######################################################
+
+# create procedure to add rows
+--disable_query_log
+DELIMITER //;
+CREATE PROCEDURE sp_addRecords (IN var1 INT,IN var2 INT)
+BEGIN
+   WHILE (var1 < var2) DO
+      INSERT INTO t1 VALUES(var1,REPEAT('MYSQL',10),100000.0/var1);
+      SET var1=var1+1;
+   END WHILE;
+END//
+DELIMITER ;//
+--enable_query_log
+
+#==============================================================================
+--echo '---check when delay_key_write is OFF---'
+#==============================================================================
+
+
+SET @@global.delay_key_write = OFF;
+
+
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+# create a table with delay_key_write enabled
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b VARCHAR(512),
+c DOUBLE
+) DELAY_KEY_WRITE = 1;
+--enable_query_log
+
+
+FLUSH STATUS;
+
+CALL sp_addRecords(1,10);
+
+SHOW STATUS LIKE 'Key_reads';
+SHOW STATUS LIKE 'Key_writes';
+SHOW STATUS LIKE 'Key_write_requests';
+SELECT COUNT(*) FROM t1;
+
+#==============================================================================
+--echo '----check when delay_key_write is ON---'
+#==============================================================================
+
+SET @@global.delay_key_write = ON;
+
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+# create a table with delay_key_write enabled
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b VARCHAR(512),
+c DOUBLE
+) DELAY_KEY_WRITE = 1;
+--enable_query_log
+
+FLUSH STATUS;
+CALL sp_addRecords(1,10);
+
+SHOW STATUS LIKE 'Key_reads';
+SHOW STATUS LIKE 'Key_writes';
+SHOW STATUS LIKE 'Key_write_requests';
+SELECT COUNT(*) FROM t1;
+
+#==============================================================================
+--echo '----check when delay_key_write is ALL---'
+#==============================================================================
+SET @@global.delay_key_write = ALL;
+
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+# create a table with delay_key_write disabled
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b VARCHAR(512),
+c DOUBLE
+) DELAY_KEY_WRITE = 0;
+--enable_query_log
+
+FLUSH STATUS;
+CALL sp_addRecords(1,10);
+
+SHOW STATUS LIKE 'Key_reads';
+SHOW STATUS LIKE 'Key_writes';
+SHOW STATUS LIKE 'Key_write_requests';
+SELECT COUNT(*) FROM t1;
+
+DROP PROCEDURE sp_addRecords;
+DROP TABLE t1;
+disconnect user1;
+
+connection default;
+SET @@global.delay_key_write= @start_value;
+
+####################################################
+# End of functionality testing for delay_key_write #
+####################################################
+

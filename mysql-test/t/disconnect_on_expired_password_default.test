@@ -1,0 +1,52 @@
+
+## WL6587 Test --disconnect-on-expired-passwords=default (on)
+
+SHOW VARIABLES LIKE 'disconnect_on_expired_password';
+
+--echo ## Test mysql client in non-interactrive mode
+
+CREATE USER 'bernt';
+ALTER USER 'bernt' IDENTIFIED BY 'secret';
+ALTER USER 'bernt' PASSWORD EXPIRE;
+
+--echo # Attempt to login should fail
+--error 1
+--exec $MYSQL -ubernt -psecret -e "EXIT" 2>&1
+
+DROP USER 'bernt';
+
+--echo ## Test mysqltest
+
+CREATE USER 'bernt';
+ALTER USER 'bernt' IDENTIFIED BY 'secret';
+ALTER USER 'bernt' PASSWORD EXPIRE;
+
+--echo # Login with mysqltest should work
+connect(con2,localhost,bernt,secret,,);
+--echo # But doing something should fail
+--error 1820
+SELECT 1;
+--echo # Setting password should work
+--disable_ps_protocol
+ALTER USER 'bernt' IDENTIFIED BY 'secret';
+--enable_ps_protocol
+disconnect con2;
+connection default;
+
+DROP USER 'bernt';
+
+--echo ## Test mysqladmin
+
+CREATE USER 'bernt';
+ALTER USER 'bernt' IDENTIFIED BY 'secret';
+GRANT ALL ON *.* TO 'bernt' WITH GRANT OPTION;
+ALTER USER 'bernt' PASSWORD EXPIRE;
+
+--echo # Doing something should not connect
+--replace_result $MYSQLADMIN MYSQLADMIN
+--error 1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT --user=bernt --password=secret reload 2>&1
+--echo # Setting password should succeed
+--exec $MYSQLADMIN --no-defaults --user=bernt --password=secret -S $MASTER_MYSOCK -P $MASTER_MYPORT password newsecret --ssl-mode=REQUIRED 2>&1
+
+DROP USER 'bernt';

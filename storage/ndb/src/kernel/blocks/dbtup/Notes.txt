@@ -1,0 +1,198 @@
+Operations, tuples, versions
+============================
+
+Operation types.
+
+INSERT		insert new original tuple, or insert after delete
+UPDATE		update
+DELETE		delete
+
+Following need not be considered here.
+
+READ		does not change tuples or versions
+WRITE		turns into INSERT or UPDATE in LQH
+
+We use more specific names in some cases:
+
+first/INSERT	initial insert of new tuple
+delete/INSERT	INSERT preceded by DELETE
+DELETE/last	DELETE as last operation
+DELETE/insert	DELETE followed by INSERT
+
+Tuple + op 	Can be followed by
+--------------	------------------
+does not exist	first/INSERT
+tuple exists	UPDATE DELETE
+INSERT		UPDATE DELETE
+UPDATE		UPDATE DELETE
+DELETE		delete/INSERT
+
+Operations on same tuple are kept in doubly linked list until
+commit or abort.  The links at both ends are RNIL i.e. the list
+is not circular.  The links are:
+
+nextActiveOp	the operation BEFORE this one, in event order
+prevActiveOp	the operation AFTER this one, in event order
+
+Operations are done on the "original tuple" i.e. the tuple is
+modified in place.  If an operation is about to write over data
+in original tuple, it first copies the tuple to a "copy tuple".
+
+Operation	Copy tuple
+---------	----------
+first/INSERT	no
+delete/INSERT	yes (this is in effect an update)
+UPDATE		yes
+DELETE		no
+
+The operation points to the tuples via:
+
+realPageId	page i-value of original tuple
+pageOffset	word offset of original tuple on the page
+realPageIdC	page i-value of copy tuple or RNIL is no copy exists
+pageOffsetC	word offset of copy tuple on the page
+
+The original tuple and the copy tuple (if any) point back to
+the operation via word 0.  In copy tuple this pointer is never
+changed.  In original tuple however it always points to the LATEST
+existing operation i.e. the one with prevActiveOp == RNIL.
+Thus word 0 of original tuple is changed on 2 occasions:
+
+- when a new operation is added to the list
+- when commit or abort removes the latest operation
+
+Note that commit/abort of operations occurs in random order.
+The list is adjusted accordingly.
+
+Versions
+--------
+
+Tuple version is stored in tuple word 1.  A new original tuple
+gets version 0.  The version is incremented by each new operation
+which makes a copy tuple.  Version number wraps around at 15 bits.
+
+When a copy tuple is made, the version in original tuple is copied
+to copy tuple as part of tuple data.  This takes place before
+the version in original tuple is updated.
+
+Each operation record contains tuple version called tupVersion.
+
+- at insert of new original tuple, tupVersion is set to 0
+
+- if tuple already exists, the FIRST operation (in event order)
+  reads tupVersion from tuple word 1.  If the operation is
+  not DELETE, the version is incremented
+
+- subsequent operation reads tupVersion from the operation
+  BEFORE it (nextActiveOp).  If this subsequent operation is
+  not DELETE, the version is incremented
+
+When the operation writes the tuple it sets word 1 to tupVersion.
+In detail, per operation type, where INSERT is divided into
+insert of new original tuple and insert after delete:
+
+Operation	Copy	Increment	Set version in original
+---------	----	---------	-----------------------
+first/INSERT	no	no		yes, to 0
+delete/INSERT	yes	yes		yes
+UPDATE		yes	yes		yes
+DELETE		no	no		no
+
+Thus an existing version is incremented if and only if
+a copy tuple is made.
+
+Ordered index maintenance
+-------------------------
+
+Each index entry has logical tuple address and tuple version.
+Index entries are added during prepare phase (when each operation
+is executed) and removed during commit or abort phase.
+
+Access to correct tuple version (original or copy) is required
+in TUX which reads index key values 1) to check that at least one
+is not null 2) to do tree search 3) to set min/max prefixes.
+See "Read attributes" below.
+
+An additional complication is that commit/abort of operations
+arrives in random order.  So we cannot check for, for example,
+DELETE/insert by looking at prevActiveOp.
+
+Phase	Op		Action	Version in
+-----	--		------	----------
+prepare	INSERT		add	op and original
+prepare	UPDATE		add	op and original
+prepare	DELETE		none	-
+
+commit	first/INSERT	none	-
+commit	delete/INSERT	remove	copy tuple	1)
+commit	UPDATE		remove	copy tuple	1)
+commit	DELETE/last	remove	op and original
+commit	DELETE/insert	none	-
+
+abort	INSERT		remove	op
+abort	UPDATE		remove	op
+abort	DELETE		none	-
+
+1) alternatively, store prevTupVersion in operation record.
+
+Abort from ordered index error
+------------------------------
+
+Obviously, index update failure causes operation failure.
+The operation is then aborted later by TC.
+
+The problem here is with multiple indexes.  Some may have been
+updated successfully before the one that failed.  Therefore
+the trigger code aborts the successful ones already in
+the prepare phase.
+
+In other words, multiple indexes are treated as one.
+
+Abort from any cause
+--------------------
+
+[ hairy stuff ]
+
+Read attributes, query status
+-----------------------------
+
+TUP_READ_ATTRS signal (or equivalent direct call) reads attribute
+values.  Input is logical address of original tuple and tuple
+version.  The steps are:
+
+- Translate logical address to physical address of original tuple.
+
+- If version of original tuple in word 1 is right, stop.
+
+- Otherwise word 0 points to LATEST not yet deleted operation.
+  Walk through operation list via nextActiveOp.
+
+- If an operation on the list has realPageIdC == RNIL, skip it.
+
+- Otherwise find copy tuple via realPageIdC, pageOffsetC.
+  If the version of the copy tuple in word 1 is right, stop.
+
+- Call readAttributes() on the tuple found (original or copy).
+
+In short, the version must exist in some not yet deleted tuple,
+either in original or in some copy.
+
+Note that this must work during all phases since index code
+needs to read index key attributes from correct tuple version in
+each add/remove operation.
+
+TUP_QUERY_TH signal (or equivalent direct call) does same search
+for tuple version.  It is called from index scan and returns info
+used to decide if the scan can see the tuple.
+
+This signal may also be called during any phase since commit/abort
+of all operations is not done in one time-slice.
+
+Problems
+--------
+
+Current abort code can destroy a tuple version too early.  This
+happens in test case "ticuur" (insert-commit-update-update-rollback),
+if abort of first update arrives before abort of second update.
+
+vim: set textwidth=68:

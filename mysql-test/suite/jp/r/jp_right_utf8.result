@@ -1,0 +1,493 @@
+drop table if exists `Ｔ１`;
+drop table if exists `Ｔ２`;
+drop table if exists `Ｔ３`;
+drop table if exists `Ｔ４`;
+drop table if exists `Ｔ５`;
+drop table if exists `Ｔ６`;
+drop table if exists `Ｔ７`;
+drop table if exists `Ｔ８`;
+drop table if exists `Ｔ９`;
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SET character_set_database = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `Ｔ１` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ２` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ３` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ４` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ５` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ６` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ７` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ８` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `Ｔ９` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO `Ｔ１` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ２` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ３` VALUES ('龔龖龗龞龡'),('龔龖龗龞'),('龔龖龗'),('龔龖'),('龔'),('');
+INSERT INTO `Ｔ４` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ５` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ６` VALUES ('龔龖龗龞龡'),('龔龖龗龞'),('龔龖龗'),('龔龖'),('龔'),('');
+INSERT INTO `Ｔ７` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ８` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ９` VALUES ('龔龖龗龞龡'),('龔龖龗龞'),('龔龖龗'),('龔龖'),('龔'),('');
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,0) FROM `Ｔ１`;
+Ｃ１	RIGHT(`Ｃ１`,0)
+	
+ｱ	
+ｱｲ	
+ｱｲｳ	
+ｱｲｳｴ	
+ｱｲｳｴｵ	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,1) FROM `Ｔ１`;
+Ｃ１	RIGHT(`Ｃ１`,1)
+	
+ｱ	ｱ
+ｱｲ	ｲ
+ｱｲｳ	ｳ
+ｱｲｳｴ	ｴ
+ｱｲｳｴｵ	ｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,2) FROM `Ｔ１`;
+Ｃ１	RIGHT(`Ｃ１`,2)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｲｳ
+ｱｲｳｴ	ｳｴ
+ｱｲｳｴｵ	ｴｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,3) FROM `Ｔ１`;
+Ｃ１	RIGHT(`Ｃ１`,3)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｲｳｴ
+ｱｲｳｴｵ	ｳｴｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,4) FROM `Ｔ１`;
+Ｃ１	RIGHT(`Ｃ１`,4)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳｴｵ	ｲｳｴｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,5) FROM `Ｔ１`;
+Ｃ１	RIGHT(`Ｃ１`,5)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳｴｵ	ｱｲｳｴｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,0) FROM `Ｔ２`;
+Ｃ１	RIGHT(`Ｃ１`,0)
+	
+あ	
+あい	
+あいう	
+あいうえ	
+あいうえお	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,1) FROM `Ｔ２`;
+Ｃ１	RIGHT(`Ｃ１`,1)
+	
+あ	あ
+あい	い
+あいう	う
+あいうえ	え
+あいうえお	お
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,2) FROM `Ｔ２`;
+Ｃ１	RIGHT(`Ｃ１`,2)
+	
+あ	あ
+あい	あい
+あいう	いう
+あいうえ	うえ
+あいうえお	えお
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,3) FROM `Ｔ２`;
+Ｃ１	RIGHT(`Ｃ１`,3)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	いうえ
+あいうえお	うえお
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,4) FROM `Ｔ２`;
+Ｃ１	RIGHT(`Ｃ１`,4)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいうえ
+あいうえお	いうえお
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,5) FROM `Ｔ２`;
+Ｃ１	RIGHT(`Ｃ１`,5)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいうえ
+あいうえお	あいうえお
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,0) FROM `Ｔ３`;
+Ｃ１	RIGHT(`Ｃ１`,0)
+	
+龔	
+龔龖	
+龔龖龗	
+龔龖龗龞	
+龔龖龗龞龡	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,1) FROM `Ｔ３`;
+Ｃ１	RIGHT(`Ｃ１`,1)
+	
+龔	龔
+龔龖	龖
+龔龖龗	龗
+龔龖龗龞	龞
+龔龖龗龞龡	龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,2) FROM `Ｔ３`;
+Ｃ１	RIGHT(`Ｃ１`,2)
+	
+龔	龔
+龔龖	龔龖
+龔龖龗	龖龗
+龔龖龗龞	龗龞
+龔龖龗龞龡	龞龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,3) FROM `Ｔ３`;
+Ｃ１	RIGHT(`Ｃ１`,3)
+	
+龔	龔
+龔龖	龔龖
+龔龖龗	龔龖龗
+龔龖龗龞	龖龗龞
+龔龖龗龞龡	龗龞龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,4) FROM `Ｔ３`;
+Ｃ１	RIGHT(`Ｃ１`,4)
+	
+龔	龔
+龔龖	龔龖
+龔龖龗	龔龖龗
+龔龖龗龞	龔龖龗龞
+龔龖龗龞龡	龖龗龞龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,5) FROM `Ｔ３`;
+Ｃ１	RIGHT(`Ｃ１`,5)
+	
+龔	龔
+龔龖	龔龖
+龔龖龗	龔龖龗
+龔龖龗龞	龔龖龗龞
+龔龖龗龞龡	龔龖龗龞龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,0) FROM `Ｔ４`;
+Ｃ１	RIGHT(`Ｃ１`,0)
+	
+ｱ	
+ｱｲ	
+ｱｲｳ	
+ｱｲｳｴ	
+ｱｲｳｴｵ	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,1) FROM `Ｔ４`;
+Ｃ１	RIGHT(`Ｃ１`,1)
+	
+ｱ	ｱ
+ｱｲ	ｲ
+ｱｲｳ	ｳ
+ｱｲｳｴ	ｴ
+ｱｲｳｴｵ	ｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,2) FROM `Ｔ４`;
+Ｃ１	RIGHT(`Ｃ１`,2)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｲｳ
+ｱｲｳｴ	ｳｴ
+ｱｲｳｴｵ	ｴｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,3) FROM `Ｔ４`;
+Ｃ１	RIGHT(`Ｃ１`,3)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｲｳｴ
+ｱｲｳｴｵ	ｳｴｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,4) FROM `Ｔ４`;
+Ｃ１	RIGHT(`Ｃ１`,4)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳｴｵ	ｲｳｴｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,5) FROM `Ｔ４`;
+Ｃ１	RIGHT(`Ｃ１`,5)
+	
+ｱ	ｱ
+ｱｲ	ｱｲ
+ｱｲｳ	ｱｲｳ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳｴｵ	ｱｲｳｴｵ
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,0) FROM `Ｔ５`;
+Ｃ１	RIGHT(`Ｃ１`,0)
+	
+あ	
+あい	
+あいう	
+あいうえ	
+あいうえお	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,1) FROM `Ｔ５`;
+Ｃ１	RIGHT(`Ｃ１`,1)
+	
+あ	あ
+あい	い
+あいう	う
+あいうえ	え
+あいうえお	お
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,2) FROM `Ｔ５`;
+Ｃ１	RIGHT(`Ｃ１`,2)
+	
+あ	あ
+あい	あい
+あいう	いう
+あいうえ	うえ
+あいうえお	えお
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,3) FROM `Ｔ５`;
+Ｃ１	RIGHT(`Ｃ１`,3)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	いうえ
+あいうえお	うえお
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,4) FROM `Ｔ５`;
+Ｃ１	RIGHT(`Ｃ１`,4)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいうえ
+あいうえお	いうえお
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,5) FROM `Ｔ５`;
+Ｃ１	RIGHT(`Ｃ１`,5)
+	
+あ	あ
+あい	あい
+あいう	あいう
+あいうえ	あいうえ
+あいうえお	あいうえお
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,0) FROM `Ｔ６`;
+Ｃ１	RIGHT(`Ｃ１`,0)
+	
+龔	
+龔龖	
+龔龖龗	
+龔龖龗龞	
+龔龖龗龞龡	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,1) FROM `Ｔ６`;
+Ｃ１	RIGHT(`Ｃ１`,1)
+	
+龔	龔
+龔龖	龖
+龔龖龗	龗
+龔龖龗龞	龞
+龔龖龗龞龡	龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,2) FROM `Ｔ６`;
+Ｃ１	RIGHT(`Ｃ１`,2)
+	
+龔	龔
+龔龖	龔龖
+龔龖龗	龖龗
+龔龖龗龞	龗龞
+龔龖龗龞龡	龞龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,3) FROM `Ｔ６`;
+Ｃ１	RIGHT(`Ｃ１`,3)
+	
+龔	龔
+龔龖	龔龖
+龔龖龗	龔龖龗
+龔龖龗龞	龖龗龞
+龔龖龗龞龡	龗龞龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,4) FROM `Ｔ６`;
+Ｃ１	RIGHT(`Ｃ１`,4)
+	
+龔	龔
+龔龖	龔龖
+龔龖龗	龔龖龗
+龔龖龗龞	龔龖龗龞
+龔龖龗龞龡	龖龗龞龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,5) FROM `Ｔ６`;
+Ｃ１	RIGHT(`Ｃ１`,5)
+	
+龔	龔
+龔龖	龔龖
+龔龖龗	龔龖龗
+龔龖龗龞	龔龖龗龞
+龔龖龗龞龡	龔龖龗龞龡
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,0) FROM `Ｔ７`;
+Ｃ１	RIGHT(`Ｃ１`,0)
+ｱｲｳｴｵ	
+ｱｲｳｴ	
+ｱｲｳ	
+ｱｲ	
+ｱ	
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,1) FROM `Ｔ７`;
+Ｃ１	RIGHT(`Ｃ１`,1)
+ｱｲｳｴｵ	ｵ
+ｱｲｳｴ	ｴ
+ｱｲｳ	ｳ
+ｱｲ	ｲ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,2) FROM `Ｔ７`;
+Ｃ１	RIGHT(`Ｃ１`,2)
+ｱｲｳｴｵ	ｴｵ
+ｱｲｳｴ	ｳｴ
+ｱｲｳ	ｲｳ
+ｱｲ	ｱｲ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,3) FROM `Ｔ７`;
+Ｃ１	RIGHT(`Ｃ１`,3)
+ｱｲｳｴｵ	ｳｴｵ
+ｱｲｳｴ	ｲｳｴ
+ｱｲｳ	ｱｲｳ
+ｱｲ	ｱｲ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,4) FROM `Ｔ７`;
+Ｃ１	RIGHT(`Ｃ１`,4)
+ｱｲｳｴｵ	ｲｳｴｵ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳ	ｱｲｳ
+ｱｲ	ｱｲ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,5) FROM `Ｔ７`;
+Ｃ１	RIGHT(`Ｃ１`,5)
+ｱｲｳｴｵ	ｱｲｳｴｵ
+ｱｲｳｴ	ｱｲｳｴ
+ｱｲｳ	ｱｲｳ
+ｱｲ	ｱｲ
+ｱ	ｱ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,0) FROM `Ｔ８`;
+Ｃ１	RIGHT(`Ｃ１`,0)
+あいうえお	
+あいうえ	
+あいう	
+あい	
+あ	
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,1) FROM `Ｔ８`;
+Ｃ１	RIGHT(`Ｃ１`,1)
+あいうえお	お
+あいうえ	え
+あいう	う
+あい	い
+あ	あ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,2) FROM `Ｔ８`;
+Ｃ１	RIGHT(`Ｃ１`,2)
+あいうえお	えお
+あいうえ	うえ
+あいう	いう
+あい	あい
+あ	あ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,3) FROM `Ｔ８`;
+Ｃ１	RIGHT(`Ｃ１`,3)
+あいうえお	うえお
+あいうえ	いうえ
+あいう	あいう
+あい	あい
+あ	あ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,4) FROM `Ｔ８`;
+Ｃ１	RIGHT(`Ｃ１`,4)
+あいうえお	いうえお
+あいうえ	あいうえ
+あいう	あいう
+あい	あい
+あ	あ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,5) FROM `Ｔ８`;
+Ｃ１	RIGHT(`Ｃ１`,5)
+あいうえお	あいうえお
+あいうえ	あいうえ
+あいう	あいう
+あい	あい
+あ	あ
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,0) FROM `Ｔ９`;
+Ｃ１	RIGHT(`Ｃ１`,0)
+龔龖龗龞龡	
+龔龖龗龞	
+龔龖龗	
+龔龖	
+龔	
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,1) FROM `Ｔ９`;
+Ｃ１	RIGHT(`Ｃ１`,1)
+龔龖龗龞龡	龡
+龔龖龗龞	龞
+龔龖龗	龗
+龔龖	龖
+龔	龔
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,2) FROM `Ｔ９`;
+Ｃ１	RIGHT(`Ｃ１`,2)
+龔龖龗龞龡	龞龡
+龔龖龗龞	龗龞
+龔龖龗	龖龗
+龔龖	龔龖
+龔	龔
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,3) FROM `Ｔ９`;
+Ｃ１	RIGHT(`Ｃ１`,3)
+龔龖龗龞龡	龗龞龡
+龔龖龗龞	龖龗龞
+龔龖龗	龔龖龗
+龔龖	龔龖
+龔	龔
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,4) FROM `Ｔ９`;
+Ｃ１	RIGHT(`Ｃ１`,4)
+龔龖龗龞龡	龖龗龞龡
+龔龖龗龞	龔龖龗龞
+龔龖龗	龔龖龗
+龔龖	龔龖
+龔	龔
+	
+SELECT `Ｃ１`, RIGHT(`Ｃ１`,5) FROM `Ｔ９`;
+Ｃ１	RIGHT(`Ｃ１`,5)
+龔龖龗龞龡	龔龖龗龞龡
+龔龖龗龞	龔龖龗龞
+龔龖龗	龔龖龗
+龔龖	龔龖
+龔	龔
+	
+DROP TABLE `Ｔ１`;
+DROP TABLE `Ｔ２`;
+DROP TABLE `Ｔ３`;
+DROP TABLE `Ｔ４`;
+DROP TABLE `Ｔ５`;
+DROP TABLE `Ｔ６`;
+DROP TABLE `Ｔ７`;
+DROP TABLE `Ｔ８`;
+DROP TABLE `Ｔ９`;

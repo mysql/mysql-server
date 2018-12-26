@@ -1,0 +1,272 @@
+include/save_binlog_position.inc
+# ----------------------------------------------------------------------
+# Begin : Tests for REVOKE on global, db and proxy privileges
+CREATE USER userX, userY, userA;
+CREATE DATABASE db1;
+GRANT SUPER ON *.* TO userX, userA;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+GRANT SELECT ON db1.* TO userX, userA;
+GRANT PROXY ON userY TO userX, userA;
+include/save_binlog_position.inc
+# Initial set of grants for userX
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT SUPER ON *.* TO `userX`@`%`
+GRANT SELECT ON `db1`.* TO `userX`@`%`
+GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+# Case 1 : Revoke from non-existing user
+REVOKE SUPER ON *.* FROM useX, userZ;
+ERROR 42000: There is no such grant defined for user 'useX' on host '%'
+REVOKE SELECT ON db1.* FROM userX, userZ;
+ERROR 42000: There is no such grant defined for user 'userZ' on host '%'
+REVOKE PROXY ON userY FROM userX, userZ;
+ERROR 42000: There is no such grant defined for user 'userZ' on host '%'
+# userX's grants must not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT SUPER ON *.* TO `userX`@`%`
+GRANT SELECT ON `db1`.* TO `userX`@`%`
+GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE SUPER ON.*FROM.*userX.*userZ.*)
+include/assert_binlog_events.inc
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE SELCT ON.*db1.*FROM.*userX.*userZ.*)
+include/assert_binlog_events.inc
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE PROXY ON .*userY.*FROM.*userX.*userZ.*)
+include/assert_binlog_events.inc
+# Case 2 : Revoke non-existing grants
+REVOKE SELECT ON db1.* FROM userY;
+ERROR 42000: There is no such grant defined for user 'userY' on host '%'
+REVOKE PROXY ON userX FROM userY;
+ERROR 42000: There is no such grant defined for user 'userY' on host '%'
+# userX's grants must not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT SUPER ON *.* TO `userX`@`%`
+GRANT SELECT ON `db1`.* TO `userX`@`%`
+GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE SELECT ON .*db1.*FROM.*userY.*)
+include/assert_binlog_events.inc
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE PROXY ON .*userX.*FROM.*userY.*)
+include/assert_binlog_events.inc
+# Case 3 : Valid revoke
+REVOKE SUPER ON *.* FROM userX, userA;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# This event sequence pattern MUST be present in binlog: !Q(REVOKE SUPER ON *.* FROM.*userX.*userA.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+REVOKE SELECT ON db1.* FROM userX, userA;
+# This event sequence pattern MUST be present in binlog: !Q(REVOKE SELECT ON .*db1.*FROM.*userX.*userA.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+REVOKE PROXY ON userY FROM userX, userA;
+# This event sequence pattern MUST be present in binlog: !Q(REVOKE PROXY ON.*userY.*FROM.*userX.*userA.*)
+include/assert_binlog_events.inc
+# userX's grants must have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+DROP USER userX, userY, userA;
+DROP DATABASE db1;
+# End : Tests for REVOKE on global, db and proxy privileges
+# ----------------------------------------------------------------------
+# Begin : Tests for REVOKE on table and column privileges
+CREATE USER userX, userY, userA;
+CREATE DATABASE db1;
+CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
+GRANT SELECT ON db1.table1 TO userX, userA;
+GRANT INSERT(c1, c2) ON db1.table1 TO userX, userA;
+include/save_binlog_position.inc
+# Initial set of grants for userX
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT, INSERT (`c1`, `c2`) ON `db1`.`table1` TO `userX`@`%`
+# Case 1 : Revoke from non-existing user
+REVOKE SELECT ON db1.table1 FROM userX, userZ;
+ERROR 42000: There is no such grant defined for user 'userZ' on host '%' on table 'table1'
+REVOKE INSERT(c1, c2) ON db1.table1 FROM userX, userZ;
+ERROR 42000: There is no such grant defined for user 'userZ' on host '%' on table 'table1'
+# userX's grants must not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT, INSERT (`c1`, `c2`) ON `db1`.`table1` TO `userX`@`%`
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE SELECT ON.*db1.*table1.*FROM.*userX.*userZ)
+include/assert_binlog_events.inc
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE INSERT(.*c1.*c2.*) ON .*db1.*table1.*FROM.*userX.*userZ.*)
+include/assert_binlog_events.inc
+# Case 2 : Revoke non-existing grants
+REVOKE SELECT ON db1.table1 FROM userX, userY;
+ERROR 42000: There is no such grant defined for user 'userY' on host '%' on table 'table1'
+REVOKE INSERT(c1, c2) ON db1.table1 FROM userX, userY;
+ERROR 42000: There is no such grant defined for user 'userY' on host '%' on table 'table1'
+# userX's grants must not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT SELECT, INSERT (`c1`, `c2`) ON `db1`.`table1` TO `userX`@`%`
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE SELECT ON.*db1.*table1.*FROM.*userX.*userY.*)
+include/assert_binlog_events.inc
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE INSERT(.*c1.*c2.*) ON .*db1.*table1.* FROM.*userX.*userY.*)
+include/assert_binlog_events.inc
+# Case 3 : Valid revoke
+REVOKE SELECT ON db1.table1 FROM userX, userA;
+# This event sequence pattern MUST be present in binlog: !Q(REVOKE SELECT ON.*db1.*table1.*FROM.*userX.*userA.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+REVOKE INSERT(c1, c2) ON db1.table1 FROM userX, userA;
+# This event sequence pattern MUST be present in binlog: !Q(REVOKE INSERT(.*c1.*c2.*) ON.*db1.*table1.*FROM.*userX.*userA.*)
+include/assert_binlog_events.inc
+# userX's grants must have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+DROP USER userX, userY, userA;
+DROP TABLE db1.table1;
+DROP DATABASE db1;
+include/save_binlog_position.inc
+# End : Tests for REVOKE on table and column privileges
+# ----------------------------------------------------------------------
+# Begin : Tests for REVOKE on procedure privileges
+CREATE USER userX, userY, userA;
+CREATE DATABASE db1;
+CREATE PROCEDURE db1.proc1()
+BEGIN
+SELECT 1234;
+END ||
+GRANT EXECUTE ON PROCEDURE db1.proc1 to userX, userA;
+include/save_binlog_position.inc
+# Initial set of grants for userX
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userX`@`%`
+Case 1 : Revoke from non-existing user
+REVOKE EXECUTE ON PROCEDURE db1.proc1 FROM userX, userZ;
+ERROR 42000: There is no such grant defined for user 'userZ' on host '%' on routine 'proc1'
+# userX's grants must not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userX`@`%`
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE EXECUTE ON PROCEDURE.*db1.*proc1.*FROM.*userX.*userZ.*)
+include/assert_binlog_events.inc
+Case 2 : Revoke non-existing grants
+REVOKE EXECUTE ON PROCEDURE db1.proc1 FROM userX, userY;
+ERROR 42000: There is no such grant defined for user 'userY' on host '%' on routine 'proc1'
+# userX's grants must not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userX`@`%`
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE EXECUTE ON PROCEDURE.*db1.*proc1.*FROM.*userX.*userY.*)
+include/assert_binlog_events.inc
+Case 3 : Valid revoke
+REVOKE EXECUTE ON PROCEDURE db1.proc1 FROM userX, userA;
+# userX's grants must have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(REVOKE EXECUTE ON PROCEDURE.*db1.*proc1.*FROM.*userX.*userA.*)
+include/assert_binlog_events.inc
+DROP USER userX, userY, userA;
+DROP PROCEDURE db1.proc1;
+DROP DATABASE db1;
+include/save_binlog_position.inc
+# End : Tests for REVOKE on procedures privileges
+# ----------------------------------------------------------------------
+# Begin : Tests for REVOKE on roles
+CREATE USER userX, userY, userA;
+CREATE ROLE roleA, roleB;
+GRANT roleA, roleB TO userX, userA;
+include/save_binlog_position.inc
+# Initial set of grants for userX
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT `roleA`@`%`,`roleB`@`%` TO `userX`@`%`
+# Case 1 : Revoke from non-existing user
+REVOKE roleA, roleB FROM userX, userZ;
+ERROR HY000: Unknown authorization ID `userZ`@`%`
+# userX's grants must not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT `roleA`@`%`,`roleB`@`%` TO `userX`@`%`
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE.*roleA.*,.*roleB.*FROM.*userX.*,.*userZ.*)
+include/assert_binlog_events.inc
+# Case 2 : Valid revoke
+REVOKE roleA, roleB FROM userX, userA;
+# userX's grants must have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(REVOKE.*roleA.*,.*roleB.*FROM.*userX.*,.*userA.*)
+include/assert_binlog_events.inc
+DROP USER userX, userY, userA;
+DROP ROLE roleA, roleB;
+include/save_binlog_position.inc
+# End : Tests for REVOKE on roles
+# ----------------------------------------------------------------------
+# Begin : Tests for REVOKE ALL
+CREATE USER userX, userY, userA;
+CREATE ROLE roleA, roleB;
+CREATE DATABASE db1;
+CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
+CREATE PROCEDURE db1.proc1()
+BEGIN
+SELECT 1234;
+END ||
+GRANT SUPER ON *.* TO userX, userA;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+GRANT SELECT ON db1.* TO userX, userA;
+GRANT PROXY ON userY TO userX, userA;
+GRANT SELECT ON db1.table1 TO userX, userA;
+GRANT INSERT(c1, c2) ON db1.table1 TO userX, userA;
+GRANT EXECUTE ON PROCEDURE db1.proc1 to userX, userA;
+GRANT roleA, roleB TO userX, userA;
+include/save_binlog_position.inc
+# Initial set of grants for userX
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT SUPER ON *.* TO `userX`@`%`
+GRANT SELECT ON `db1`.* TO `userX`@`%`
+GRANT SELECT, INSERT (`c1`, `c2`) ON `db1`.`table1` TO `userX`@`%`
+GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userX`@`%`
+GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+GRANT `roleA`@`%`,`roleB`@`%` TO `userX`@`%`
+# Case 1 : Revoke from non-existing user
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM userX, userZ;
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+# userX's grants must not have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT SUPER ON *.* TO `userX`@`%`
+GRANT SELECT ON `db1`.* TO `userX`@`%`
+GRANT SELECT, INSERT (`c1`, `c2`) ON `db1`.`table1` TO `userX`@`%`
+GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userX`@`%`
+GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+GRANT `roleA`@`%`,`roleB`@`%` TO `userX`@`%`
+# This event sequence pattern MUST NOT be present in binlog: !Q(REVOKE ALL PRIVILEGES, GRANT OPTION FROM.*userX.*,.*userZ.*)
+include/assert_binlog_events.inc
+# Case 2 : Valid revoke
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM userX, userA;
+# userX's grants must have changed
+SHOW GRANTS FOR userX;
+Grants for userX@%
+GRANT USAGE ON *.* TO `userX`@`%`
+GRANT PROXY ON 'userY'@'%' TO 'userX'@'%'
+GRANT `roleA`@`%`,`roleB`@`%` TO `userX`@`%`
+# This event sequence pattern MUST be present in binlog: !Q(REVOKE ALL PRIVILEGES, GRANT OPTION FROM.*userX.*,.*userA.*)
+include/assert_binlog_events.inc
+DROP USER userX, userY, userA;
+DROP ROLE roleA, roleB;
+DROP TABLE db1.table1;
+DROP PROCEDURE db1.proc1;
+DROP DATABASE db1;
+include/save_binlog_position.inc
+# End : Tests for REVOKE ALL
+# ----------------------------------------------------------------------

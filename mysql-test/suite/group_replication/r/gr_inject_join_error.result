@@ -1,0 +1,15 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("Error. Leaving a group without being on one.");
+SET SESSION sql_log_bin= 1;
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_inject_gcs_join_error';
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET @@GLOBAL.DEBUG= @debug_saved;
+include/group_replication_end.inc

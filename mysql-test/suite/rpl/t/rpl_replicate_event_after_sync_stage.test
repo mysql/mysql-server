@@ -1,0 +1,67 @@
+################################################################################
+# BUG#17632285 SLAVE CAN'T CONTINUE REPLICATION AFTER MASTER'S CRASH RECOVERY
+#
+# Verify that events can not be replicated before they are synced to disk, if
+# sync_binlog is set to 1, otherwise they can be replicated before they are
+# synced to disk.
+################################################################################
+--source include/not_group_replication_plugin.inc
+--source include/have_debug_sync.inc
+# Testing it in one mode is enough
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Case 1: The events cannot be replicated before they are synced to disk
+--echo #         when sync_binlog is 1.
+--echo #
+--source include/rpl_connection_master.inc
+SET @save_sync_binlog = @@GLOBAL.sync_binlog;
+SET GLOBAL sync_binlog = 1;
+
+# Block the session before its events are synced to disk
+SET DEBUG_SYNC = 'before_sync_binlog_file WAIT_FOR continue';
+
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+send CREATE TABLE t1(c1 INT);
+
+# Wait enough time. So the events were replicated if they could be replicated
+--source include/rpl_connection_slave.inc
+--sleep 3
+--let $assert_text= "CREATE TABLE t1 is not be replicated"
+--let $assert_cond= [SHOW SLAVE STATUS, Read_Master_Log_Pos, 1] = $master_pos
+--source include/assert.inc
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+SET DEBUG_SYNC = "now SIGNAL continue";
+
+--source include/rpl_connection_master.inc
+--reap
+
+--sync_slave_with_master
+--source include/rpl_connection_master.inc
+
+--echo #
+--echo # Case 2: The events are able to be replicated before they are synced to
+--echo #         disk when sync_binlog is 1.
+--echo #
+
+SET GLOBAL sync_binlog = 0;
+send DROP TABLE t1;
+
+--connection default
+--let $wait_binlog_event= DROP
+--source include/wait_for_binlog_event.inc
+
+--sync_slave_with_master
+
+--connection default
+SET DEBUG_SYNC = "now SIGNAL continue";
+
+--source include/rpl_connection_master.inc
+--reap
+
+SET DEBUG_SYNC = 'RESET';
+SET GLOBAL sync_binlog = @save_sync_binlog;
+--source include/rpl_end.inc

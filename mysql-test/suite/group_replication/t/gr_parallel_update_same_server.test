@@ -1,0 +1,105 @@
+################################################################################
+# This test will update in parallel, in the same member, N transactions
+# with N different clients.
+#
+# The success of this test is determined by its termination. Any failure
+# in the parallelism of a transaction shall make some transactions be
+# rollback.
+#
+# Test:
+# 0. The test requires one server.
+# 1. With member ONLINE, create 20 clients connections. Create initial data.
+# 2. Update the same row on server 1 in parallel by all clients.
+# 3. Assert that the row has the expected value, the total number of updates.
+# 4. Disconnect clients connections.
+# 5. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--let $clients= 20
+--let $updates= 100
+
+
+--echo
+--echo ################################################################
+--echo # 1. Create clients connections.
+--let $clients_counter= $clients
+while($clients_counter > 0)
+{
+  --connect(server1_$clients_counter, localhost,root,,,$MASTER_MYPORT)
+  --dec $clients_counter
+}
+
+
+--echo
+--echo ################################################################
+--echo # 2. Create initial data.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 (c1,c2) VALUES (0,0);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ################################################################
+--echo # 3. Update the same row on server 1 in parallel by all clients.
+--disable_query_log
+--let $updates_counter= $updates
+while($updates_counter > 0)
+{
+  --let $clients_counter= $clients
+  while($clients_counter > 0)
+  {
+    --connection server1_$clients_counter
+    --send UPDATE t1 SET c2=c2+1 WHERE c1=0
+    --dec $clients_counter
+  }
+
+  --let $clients_counter= $clients
+  while($clients_counter > 0)
+  {
+    --connection server1_$clients_counter
+    --reap
+    --dec $clients_counter
+  }
+
+  --dec $updates_counter
+}
+--enable_query_log
+
+
+--echo
+--echo ################################################################
+--echo # 4. Assert that the row has the expected value, the total
+--echo #    number of updates.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= Table t1 must have 1 entry
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--source include/assert.inc
+
+--let $_total_updates= `SELECT $clients * $updates`
+--let $assert_text= Table t1 entry must have total number of updates as c2 value
+--let $assert_cond= [SELECT c2 FROM t1 WHERE c1=0] = $_total_updates
+--source include/assert.inc
+
+
+--echo
+--echo ################################################################
+--echo # 5. Disconnect clients connections.
+--let $clients_counter= $clients
+while($clients_counter > 0)
+{
+  --disconnect server1_$clients_counter
+  --dec $clients_counter
+}
+
+
+--echo
+--echo ################################################################
+--echo # 6. Clean up,
+DROP TABLE t1;
+--source include/group_replication_end.inc

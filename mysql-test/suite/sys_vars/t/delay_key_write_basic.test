@@ -1,0 +1,170 @@
+##################### mysql-test\t\delay_key_write_basic.test #################
+#                                                                             #
+# Variable Name: delay_key_write                                              #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: enumeration                                                      #
+# Default Value: ON                                                           #
+# Valid Values: ON, OFF & ALL                                                 #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable delay_key_write          #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF delay_key_write TESTS                    #
+######################################################################## 
+
+
+######################################################################## 
+#     Saving initial value of delay_key_write in a temporary variable  #
+######################################################################## 
+
+SET @start_value = @@global.delay_key_write;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_023_01------------------------#'
+######################################################################## 
+#                    Display the DEFAULT value of delay_key_write      #
+######################################################################## 
+
+SET @@global.delay_key_write = OFF;
+SET @@global.delay_key_write = DEFAULT;
+SELECT @@global.delay_key_write;
+
+
+--echo '#---------------------FN_DYNVARS_023_02-------------------------#'
+############################################### 
+#      Check if NULL is accepeted             #
+############################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.delay_key_write = NULL;
+
+
+--echo '#--------------------FN_DYNVARS_023_03------------------------#'
+######################################################################## 
+#              Change the value of delay_key_write to a valid value    #
+######################################################################## 
+
+SET @@global.delay_key_write = ON;
+SELECT @@global.delay_key_write;
+
+SET @@global.delay_key_write = OFF;
+SELECT @@global.delay_key_write;
+
+SET @@global.delay_key_write = ALL;
+SELECT @@global.delay_key_write;
+
+
+--echo '#--------------------FN_DYNVARS_023_04-------------------------#'
+########################################################################### 
+#               Change the value of delay_key_write to invalid value      #
+########################################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.delay_key_write = 3;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.delay_key_write = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.delay_key_write = TRU;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.delay_key_write = ERROR;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.delay_key_write = FALSE0;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.delay_key_write = ONN;
+--error ER_PARSE_ERROR
+SET @@global.delay_key_write = OF;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.delay_key_write = ' ';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.delay_key_write = "";
+
+
+--echo '#-------------------FN_DYNVARS_023_05----------------------------#'
+########################################################################### 
+#              Test if accessing session delay_key_write gives error      #
+########################################################################### 
+
+--Error ER_GLOBAL_VARIABLE
+SET @@delay_key_write = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.delay_key_write;
+
+
+--echo '#----------------------FN_DYNVARS_023_06------------------------#'
+########################################################################
+#     Check if the value in GLOBAL Table matches value in variable     #
+########################################################################
+
+--disable_warnings
+SELECT @@delay_key_write = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='delay_key_write';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_023_07-------------------------#'
+################################################################### 
+#        Check if numbers can be used on variable                 #
+################################################################### 
+
+SET @@global.delay_key_write = 0;
+SELECT @@global.delay_key_write;
+
+SET @@global.delay_key_write = 1;
+SELECT @@global.delay_key_write;
+
+SET @@global.delay_key_write = 2;
+SELECT @@global.delay_key_write;
+
+
+
+--echo '#---------------------FN_DYNVARS_023_08----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.delay_key_write = TRUE;
+SELECT @@global.delay_key_write;
+SET @@global.delay_key_write = FALSE;
+SELECT @@global.delay_key_write;
+
+--echo '#---------------------FN_DYNVARS_023_09----------------------#'
+#####################################################################  
+# Check if delay_key_write can be accessed with and without @@ sign #
+#####################################################################
+--Error ER_GLOBAL_VARIABLE
+SET delay_key_write = ON;
+SELECT @@delay_key_write;
+
+SET GLOBAL delay_key_write = OFF;
+SELECT @@global.delay_key_write;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.delay_key_write = @start_value;
+SELECT @@global.delay_key_write;
+
+######################################################################## 
+#                    END OF delay_key_write TESTS                      #
+######################################################################## 

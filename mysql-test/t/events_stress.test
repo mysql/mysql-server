@@ -1,0 +1,141 @@
+--source include/big_test.inc
+
+CREATE DATABASE IF NOT EXISTS events_test;
+#
+# DROP DATABASE test start (bug #16406)
+#
+CREATE DATABASE events_conn1_test2;
+# BUG#20676: MySQL in debug mode has a limit of 100 waiters
+# (in mysys/thr_lock.c), so use three different tables to insert into.
+CREATE TABLE events_test.fill_it1(test_name varchar(20), occur datetime);
+CREATE TABLE events_test.fill_it2(test_name varchar(20), occur datetime);
+CREATE TABLE events_test.fill_it3(test_name varchar(20), occur datetime);
+CREATE USER event_user2@localhost;
+CREATE DATABASE events_conn2_db;
+GRANT ALL ON *.* TO event_user2@localhost;
+CREATE USER event_user3@localhost;
+CREATE DATABASE events_conn3_db;
+GRANT ALL ON *.* TO event_user3@localhost;
+connect (conn2,localhost,event_user2,,events_conn2_db);
+--echo "In the second connection we create some events which won't be dropped till the end"
+--disable_query_log
+let $1= 50;
+while ($1)
+{
+  eval CREATE EVENT conn2_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it1 VALUES("conn2_ev$1", NOW());
+  dec $1;
+}
+--enable_query_log
+connect (conn3,localhost,event_user3,,events_conn3_db);
+--echo "In the second connection we create some events which won't be dropped till the end"
+--disable_query_log
+let $1= 50;
+while ($1)
+{
+  eval CREATE EVENT conn3_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it1 VALUES("conn3_ev$1", NOW());
+  dec $1;
+}
+--enable_query_log
+connection default;
+USE events_conn1_test2;
+CREATE EVENT ev_drop1 ON SCHEDULE EVERY 10 MINUTE DISABLE DO SELECT 1;
+CREATE EVENT ev_drop2 ON SCHEDULE EVERY 10 MINUTE DISABLE DO SELECT 1;
+CREATE EVENT ev_drop3 ON SCHEDULE EVERY 10 MINUTE DISABLE DO SELECT 1;
+USE events_test;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
+DROP DATABASE events_conn1_test2;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
+
+--echo "Now testing stability - dropping db -> events while they are running"
+CREATE DATABASE events_conn1_test2;
+USE events_conn1_test2;
+--disable_query_log
+let $1= 50;
+while ($1)
+{
+  eval CREATE EVENT conn1_round1_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it2 VALUES("conn1_round1_ev$1", NOW());
+  dec $1;
+}
+--enable_query_log
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
+SET GLOBAL event_scheduler=on;
+--sleep 2.5
+DROP DATABASE events_conn1_test2;
+
+SET GLOBAL event_scheduler=off;
+--source include/no_running_event_scheduler.inc
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
+CREATE DATABASE events_conn1_test3;
+USE events_conn1_test3;
+--disable_query_log
+let $1= 50;
+while ($1)
+{
+  eval CREATE EVENT conn1_round2_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it2 VALUES("conn1_round2_ev$1", NOW());
+  dec $1;
+}
+--enable_query_log
+SET GLOBAL event_scheduler=on;
+--source include/running_event_scheduler.inc
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test3';
+CREATE DATABASE events_conn1_test4;
+USE events_conn1_test4;
+--disable_query_log
+let $1= 50;
+while ($1)
+{
+  eval CREATE EVENT conn1_round3_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it3 VALUES("conn1_round3_ev$1", NOW());
+  dec $1;
+}
+--enable_query_log
+
+CREATE DATABASE events_conn1_test2;
+USE events_conn1_test2;
+--disable_query_log
+let $1= 50;
+while ($1)
+{
+  eval CREATE EVENT ev_round4_drop$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it3 VALUES("conn1_round4_ev$1", NOW());
+  dec $1;
+}
+--enable_query_log
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
+--sleep 2.5
+connection conn2;
+--send
+DROP DATABASE events_conn2_db;
+connection conn3;
+--send
+DROP DATABASE events_conn3_db;
+connection default;
+# --send
+DROP DATABASE events_conn1_test2;
+DROP DATABASE events_conn1_test3;
+SET GLOBAL event_scheduler=off;
+--source include/no_running_event_scheduler.inc
+DROP DATABASE events_conn1_test4;
+SET GLOBAL event_scheduler=on;
+--source include/running_event_scheduler.inc
+connection conn2;
+reap;
+disconnect conn2;
+connection conn3;
+reap;
+disconnect conn3;
+connection default;
+USE events_test;
+DROP TABLE fill_it1;
+DROP TABLE fill_it2;
+DROP TABLE fill_it3;
+--disable_query_log
+DROP USER event_user2@localhost;
+DROP USER event_user3@localhost;
+--enable_query_log
+#
+# DROP DATABASE test end (bug #16406)
+#
+
+DROP DATABASE events_test;

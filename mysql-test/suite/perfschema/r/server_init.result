@@ -1,0 +1,141 @@
+use performance_schema;
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/mysys/THR_LOCK_malloc";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/mysys/THR_LOCK_open";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/mysys/THR_LOCK_myisam";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/mysys/THR_LOCK_heap";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/mysys/THR_LOCK_net";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/mysys/THR_LOCK_charset";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_open";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_thd_list";
+count(name)
+8
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_log_throttle_qni";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_status";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_uuid_generator";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_crypt";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_slave_list";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_manager";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_global_system_variables";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_user_conn";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_prepared_stmt_count";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_connection_count";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_server_started";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_event_queue";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_item_func_sleep";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_audit_mask";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_transaction_cache";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_plugin";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/tz_LOCK";
+count(name)
+1
+select count(name) from rwlock_instances
+where name like "wait/synch/rwlock/sql/LOCK_sys_init_connect";
+count(name)
+1
+select count(name) from rwlock_instances
+where name like "wait/synch/rwlock/sql/LOCK_sys_init_slave";
+count(name)
+1
+select count(name) from rwlock_instances
+where name like "wait/synch/rwlock/sql/LOCK_system_variables_hash";
+count(name)
+1
+select count(name) from cond_instances
+where name like "wait/synch/cond/sql/COND_server_started";
+count(name)
+1
+select count(name) from cond_instances
+where name like "wait/synch/cond/sql/COND_refresh";
+count(name)
+0
+select count(name) from cond_instances
+where name like "wait/synch/cond/sql/COND_thread_count";
+count(name)
+0
+select count(name) from cond_instances
+where name like "wait/synch/cond/sql/COND_manager";
+count(name)
+1
+select count(name) from cond_instances
+where name like "wait/synch/cond/sql/COND_thread_cache";
+count(name)
+1
+select count(name) from cond_instances
+where name like "wait/synch/cond/sql/COND_flush_thread_cache";
+count(name)
+1
+select count(name) from cond_instances
+where name like "wait/synch/cond/sql/COND_queue_state";
+count(name)
+1

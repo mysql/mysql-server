@@ -1,0 +1,500 @@
+--source include/have_innodb_max_16k.inc
+
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
+let $file_name_checking = SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
+WHERE t.space = df.space
+AND t.space_type = 'Single'
+AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
+AND df.path NOT LIKE '._mysql_%'
+ORDER BY t.space;
+
+CREATE TABLE tr (
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(50),
+purchased DATE,
+KEY(id));
+
+INSERT INTO tr VALUES
+(1, 'desk organiser', '2003-10-15'),
+(2, 'CD player', '1993-11-05'),
+(3, 'TV set', '1996-03-10'),
+(4, 'bookcase', '1982-01-10'),
+(5, 'exercise bike', '2004-05-09'),
+(6, 'sofa', '1987-06-05');
+
+###############################
+--echo # Test for ADD PARTITION
+###############################
+
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(50),
+purchased DATE,
+KEY(id))
+PARTITION BY RANGE( YEAR(purchased) ) (
+PARTITION p0 VALUES LESS THAN (1990),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (2000),
+PARTITION p3 VALUES LESS THAN (2005)
+);
+
+--disable_warnings
+INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
+
+SHOW CREATE TABLE t1;
+
+DELETE FROM t1 WHERE id = 6;
+
+SELECT MAX(id) AS `Expect 5` FROM t1;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION (PARTITION p4 VALUES LESS THAN (2010), PARTITION p5 VALUES LESS THAN (2015));
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES (0, 'popcorn maker', '2010-11-22');
+
+SELECT MAX(id) AS `Expect 7` FROM t1;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION (PARTITION p6 VALUES LESS THAN (2018), PARTITION p7 VALUES LESS THAN (2020));
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES
+(0, 'aquarium', '2019-08-04'),
+(0, 'study desk', '2016-06-18');
+
+SELECT MAX(id) AS `Expect 9` FROM t1;
+
+DROP TABLE t1;
+
+###############################################################
+--echo # Test for DROP PARTITION, along with some ADD PARTITION
+###############################################################
+
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(50),
+purchased DATE,
+KEY(id))
+PARTITION BY RANGE( YEAR(purchased) ) (
+PARTITION p0 VALUES LESS THAN (1990),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (2000),
+PARTITION p3 VALUES LESS THAN (2005)
+);
+
+--disable_warnings
+INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
+
+SHOW CREATE TABLE t1;
+
+SELECT id FROM t1 PARTITION(p0);
+SELECT id FROM t1 PARTITION(p1);
+SELECT id FROM t1 PARTITION(p2);
+SELECT id FROM t1 PARTITION(p3);
+
+--echo # This doesn't delete the row containing max(id) in the table
+ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p2;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES (0, 'aquarium', '2001-07-02');
+
+SELECT MAX(id) AS `Expect 7` FROM t1;
+
+--echo # This will delete the row containing max(id) in the table
+ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p3;
+
+--eval $file_name_checking
+
+SELECT MAX(id) AS `Expect 6` FROM t1;
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0, 'study desk', '1988-09-16');
+
+SELECT MAX(id) AS `Expect 8` FROM t1;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION (PARTITION p3 VALUES LESS THAN (2008));
+
+--eval $file_name_checking
+
+ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p0;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0, 'lava lamp', '2006-01-02');
+
+SELECT MAX(id) AS `Expect 9` FROM t1;
+
+DELETE FROM t1 WHERE id >= 0;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p3;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0, 'lava lamp', '1992-01-15');
+
+SELECT MAX(id) AS `Expect 10` FROM t1;
+
+DROP TABLE t1;
+
+#####################################################
+--echo # Test for ADD PARTITION for HASH PARTITIONING
+#####################################################
+
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(50),
+purchased DATE,
+KEY(id))
+PARTITION BY HASH( YEAR(purchased) ) PARTITIONS 4;
+
+--disable_warnings
+INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
+
+SHOW CREATE TABLE t1;
+
+DELETE FROM t1 WHERE id = 6;
+
+SELECT MAX(id) AS `Expect 5` FROM t1;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION PARTITIONS 2;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES (0, 'popcorn maker', '2010-11-22');
+
+SELECT MAX(id) AS `Expect 7` FROM t1;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION PARTITIONS 2;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES
+(0, 'aquarium', '2019-08-04'),
+(0, 'study desk', '2016-06-18');
+
+SELECT MAX(id) AS `Expect 9` FROM t1;
+
+DROP TABLE t1;
+
+#######################################################
+--echo # Test for ADD PARTITION for HASH PARTITIONINNG,
+--echo # along with COALESCE PARTITION
+#######################################################
+
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(50),
+purchased DATE,
+KEY(id))
+PARTITION BY HASH( YEAR(purchased) ) PARTITIONS 8;
+
+--disable_warnings
+INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
+
+SHOW CREATE TABLE t1;
+
+DELETE FROM t1 WHERE id = 6;
+
+SELECT MAX(id) AS `Expect 5` FROM t1;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, COALESCE PARTITION 2;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES (0, 'popcorn maker', '2010-11-22');
+
+SELECT MAX(id) AS `Expect 7` FROM t1;
+
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, COALESCE PARTITION 4;
+
+--eval $file_name_checking
+
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES
+(0, 'aquarium', '2019-08-04'),
+(0, 'study desk', '2016-06-18');
+
+SELECT MAX(id) AS `Expect 9` FROM t1;
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+######################################
+--echo # Test for REORGANIZE PARTITION
+######################################
+
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(50),
+purchased DATE,
+KEY(id))
+PARTITION BY RANGE( YEAR(purchased) ) (
+PARTITION p0 VALUES LESS THAN (1990),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (2000),
+PARTITION p3 VALUES LESS THAN (2005)
+);
+
+--disable_warnings
+INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
+
+SHOW CREATE TABLE t1;
+
+DELETE FROM t1 WHERE id = 6;
+
+SELECT MAX(id) AS `Expect 5` FROM t1;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, REORGANIZE PARTITION p0, p1 INTO
+(PARTITION p01 VALUES LESS THAN(1985), PARTITION p02 VALUES LESS THAN(1990),
+PARTITION p11 VALUES LESS THAN(1993), PARTITION p12 VALUES LESS THAN(1995));
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES (0, 'popcorn maker', '2001-11-22');
+
+SELECT MAX(id) AS `Expect 7` FROM t1;
+
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ALGORITHM = INPLACE, REORGANIZE PARTITION p2, p3 INTO
+(PARTITION p21 VALUES LESS THAN(1997), PARTITION p22 VALUES LESS THAN(2000),
+PARTITION p31 VALUES LESS THAN(2002), PARTITION p32 VALUES LESS THAN(2005));
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES
+(0, 'aquarium', '2002-08-04'),
+(0, 'study desk', '2004-06-18');
+
+SELECT MAX(id) AS `Expect 9` FROM t1;
+
+SHOW CREATE TABLE t1;
+
+###################################
+--echo # Test for REBUILD PARTITION
+###################################
+
+ALTER TABLE t1 ALGORITHM = INPLACE, REBUILD PARTITION p01, p02, p31, p32;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES (0, 'lava lamp', '2000-12-10');
+
+SHOW CREATE TABLE t1;
+
+SELECT MAX(id) AS `Expect 10` FROM t1;
+
+DROP TABLE t1;
+
+####################################
+--echo # Test for EXCHANGE PARTITION
+####################################
+
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(50),
+purchased DATE,
+KEY(id))
+PARTITION BY RANGE( YEAR(purchased) ) (
+PARTITION p0 VALUES LESS THAN (1990),
+PARTITION p1 VALUES LESS THAN (1995),
+PARTITION p2 VALUES LESS THAN (2000),
+PARTITION p3 VALUES LESS THAN (2005)
+);
+
+--disable_warnings
+INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
+
+SHOW CREATE TABLE t1;
+
+DELETE FROM t1 WHERE id = 6;
+
+SELECT MAX(id) AS `Expect 5` FROM t1;
+
+CREATE TABLE tp (
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(50),
+purchased DATE,
+KEY(id)) ENGINE = InnoDB;
+
+INSERT INTO tp VALUES (100, 'DVD player', '2002-03-21');
+
+ALTER TABLE t1 EXCHANGE PARTITION p3 WITH TABLE tp;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE tp;
+SHOW CREATE TABLE t1;
+
+INSERT INTO tp VALUES(0, 'DVD player', '2002-03-22');
+INSERT INTO t1 VALUES(0, 'DVD player', '2002-03-23');
+
+SELECT MAX(id) AS `Expect 101` FROM t1;
+SELECT MAX(id) AS `Expect 101` FROM tp;
+
+ALTER TABLE t1 EXCHANGE PARTITION p3 WITH TABLE tp;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE tp;
+SHOW CREATE TABLE t1;
+
+INSERT INTO tp VALUES(0, 'DVD player', '2002-03-24');
+INSERT INTO t1 VALUES(0, 'DVD player', '2002-03-25');
+
+SELECT MAX(id) AS `Expect 102` FROM t1;
+SELECT MAX(id) AS `Expect 102` FROM tp;
+
+DROP TABLE tp, t1;
+
+#################################
+--echo # Test for subpartitioning
+#################################
+
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(50),
+purchased DATE,
+KEY(id))
+PARTITION BY RANGE( YEAR(purchased) )
+SUBPARTITION BY HASH ( YEAR(purchased) )
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION sp00, SUBPARTITION sp01),
+ PARTITION p1 VALUES LESS THAN (2000)
+ (SUBPARTITION sp10, SUBPARTITION sp11),
+ PARTITION p2 VALUES LESS THAN (2010)
+ (SUBPARTITION sp20, SUBPARTITION sp21));
+
+--disable_warnings
+INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
+
+SHOW CREATE TABLE t1;
+
+DELETE FROM t1 WHERE id = 6;
+
+SELECT MAX(id) AS `Expect 5` FROM t1;
+
+INSERT INTO t1 VALUES
+(0, 'popcorn maker', '2008-07-05'),
+(0, 'lava lamp', '2009-01-23');
+
+SELECT MAX(id) AS `Expect 8` FROM t1;
+
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ADD PARTITION (PARTITION p3 VALUES LESS THAN(2015) (SUBPARTITION sp30, SUBPARTITION sp31));
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES
+(0, 'study desk', '2012-02-20');
+
+SELECT MAX(id) AS `Expect 9` FROM t1;
+
+DELETE FROM t1 WHERE id = 9;
+
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 DROP PARTITION p3;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES
+(0, 'study desk', '2009-05-06');
+
+SELECT MAX(id) AS `Expect 10` FROM t1;
+
+INSERT INTO t1 VALUES
+(0, 'lava lamp', '2007-12-25'),
+(0, 'lava lamp', '2007-12-26'),
+(0, 'lava lamp', '2003-12-27');
+
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 REORGANIZE PARTITION p2 INTO
+(PARTITION p21 VALUES LESS THAN (2005)
+ (SUBPARTITION sp210, SUBPARTITION sp211),
+ PARTITION p22 VALUES LESS THAN (2010)
+ (SUBPARTITION sp220, SUBPARTITION sp221));
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0, 'lava lamp', '2002-12-28');
+
+SELECT MAX(id) AS `Expect 14` FROM t1;
+
+ALTER TABLE t1 DROP PARTITION p21, p0;
+
+--eval $file_name_checking
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES
+(0, 'lava lamp', '2005-12-30'),
+(0, 'lava lamp', '2005-12-31');
+
+SELECT MAX(id) AS `Expect 16` FROM t1;
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+DROP TABLE tr;

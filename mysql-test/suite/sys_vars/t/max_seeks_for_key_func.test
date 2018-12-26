@@ -1,0 +1,105 @@
+# Test for max_seeks_for_key #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+#########################
+#   Creating new table  #
+#########################
+
+CREATE TABLE t1
+(a INT AUTO_INCREMENT PRIMARY KEY,
+b CHAR(20)
+);
+
+SET @start_value= @@global.max_seeks_for_key;
+
+--echo '#--------------------FN_DYNVARS_084_01-------------------------#'
+##########################################################
+#    Test behavior of variable on new connection # 01    #
+##########################################################
+
+CONNECT (test_con1,localhost,root,,);
+CONNECTION test_con1;
+
+# Value of session & global vairable here should be 10
+SELECT @@global.max_seeks_for_key = 10;
+SELECT @@session.max_seeks_for_key = 10;
+
+# Setting global value of variable and inserting data in table
+SET @@global.max_seeks_for_key = 20;
+SELECT @@global.max_seeks_for_key;
+INSERT INTO t1(b) VALUES("AREc");
+--replace_column 10 # 11 #
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+
+# Setting session value of variable and inserting data in table
+SET @@session.max_seeks_for_key = 2;
+SELECT @@session.max_seeks_for_key;
+INSERT INTO t1(b) VALUES("BREc");
+INSERT INTO t1(b) VALUES("CRec");
+--replace_column 10 # 11 #
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+
+
+--echo '#--------------------FN_DYNVARS_084_02-------------------------#'
+##########################################################
+#    Test behavior of variable on new connection # 02    #
+##########################################################
+
+
+CONNECT (test_con2,localhost,root,,);
+connection test_con2;
+
+
+# Value of session & global vairable here should be 10
+SELECT @@global.max_seeks_for_key = 10;
+SELECT @@session.max_seeks_for_key = 10;
+
+# Setting global value of variable and inserting data in table
+SET @@global.max_seeks_for_key = 20;
+SELECT @@global.max_seeks_for_key;
+INSERT INTO t1(b) VALUES("AREc");
+--replace_column 10 # 11 #
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+
+# Setting session value of variable and inserting data in table
+SET @@session.max_seeks_for_key = 2;
+SELECT @@session.max_seeks_for_key;
+INSERT INTO t1(b) VALUES("BREc");
+INSERT INTO t1(b) VALUES("CRec");
+--replace_column 10 # 11 #
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+
+######################################################
+#   Inserting values in  table t and analyzing table #
+######################################################
+
+INSERT INTO t1 VALUES(null,"test");
+INSERT INTO t1 VALUES (null,"a"),(null,"a"),(null,"a"),
+                     (null,"a"),(null,"a"),(null,"a"),(null,"a"),
+                     (null,"a"),(null,"a"),(null,"a");
+--replace_column 10 # 11 #
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+ANALYZE TABLE t1;
+
+###################################################################
+#   Setting new value for max_seeks_for_key and anaylyzing table  #
+###################################################################
+
+SET MAX_SEEKS_FOR_KEY=1;
+
+--replace_column 10 # 11 #
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+SET MAX_SEEKS_FOR_KEY=DEFAULT;
+
+connection default;
+disconnect test_con1;
+disconnect test_con2;
+
+DROP TABLE t1;
+
+SET @@global.max_seeks_for_key= @start_value;
+

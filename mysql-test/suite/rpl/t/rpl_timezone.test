@@ -1,0 +1,181 @@
+#######################################
+# Change Author: JBM
+# Change Date: 2006-01-17
+# Change: Added order by
+#######################################
+# Test of replication of time zones.
+######################################
+# There is currently some bug possibly in prepared statements (this
+# test fails with --ps-protocol): sys_var_thd_time_zone::value_ptr()
+# is called only at prepare time, not at execution time. So,
+# thd->time_zone_used is not equal to 1 (it is back to 0, because of
+# reset_thd_for_next_command called at execution time), so the
+# timezone used in CONVERT_TZ is not binlogged. To debug (by Guilhem
+# and possibly Konstantin).
+
+--source include/not_group_replication_plugin.inc
+source include/master-slave.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
+--disable_ps_protocol
+
+# Save original timezone
+set @my_time_zone= @@global.time_zone;
+
+# Some preparations
+let $VERSION=`select version()`;
+set timestamp=100000000; # for fixed output of mysqlbinlog
+create table t1 (t timestamp, n int not null auto_increment, PRIMARY KEY(n));
+create table t2 (t char(32), n int not null auto_increment, PRIMARY KEY(n));
+
+connection slave;
+select @@time_zone;
+#set time_zone='UTC';
+#select @@time_zone;
+#
+# Let us check how well replication works when we are saving datetime
+# value in TIMESTAMP field.
+#
+connection master;
+select @@time_zone;
+#set time_zone='UTC';
+#select @@time_zone;
+insert into t1 values ('20050101000000', NULL), ('20050611093902',NULL);
+insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
+SELECT * FROM t1 ORDER BY n;
+--source include/sync_slave_sql_with_master.inc
+#set time_zone='UTC';
+SELECT * FROM t1 ORDER BY n;
+
+# Let us check also that setting of time_zone back to default also works
+# well
+connection master;
+delete from t1;
+set time_zone='Europe/Moscow';
+insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
+SELECT * FROM t1 ORDER BY n;
+--source include/sync_slave_sql_with_master.inc
+set time_zone='Europe/Moscow';
+SELECT * FROM t1 ORDER BY n;
+connection master;
+# Change Author: JBM
+# Change Date: 2005-12-22
+# Change: Comment out the exec of the binlog so test works for both SBR and RBR
+#--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+#--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000001
+
+# Let us check with LOAD DATA INFILE
+# (we do it after mysqlbinlog because the temp files names are not constant)
+connection master;
+delete from t1;
+set time_zone='UTC';
+load data infile '../../std_data/rpl_timezone2.dat' ignore into table t1;
+SELECT * FROM t1 ORDER BY n;
+--source include/sync_slave_sql_with_master.inc
+set time_zone='UTC';
+SELECT * FROM t1 ORDER BY n;
+set time_zone='Europe/Moscow';
+
+# Put back values of before the LOAD
+connection master;
+set time_zone='Europe/Moscow';
+delete from t1;
+insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
+
+#
+# Now let us check how well we replicate statments reading TIMESTAMP fields
+# (We should see the same data on master and on slave but it should differ
+# from originally inserted)
+#
+set time_zone='MET';
+--disable_warnings ONCE
+insert into t2 (select * from t1);
+SELECT * FROM t1 ORDER BY n;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY n;
+
+#
+# Now let us check how well we replicate various CURRENT_* functions
+#
+connection master;
+delete from t2;
+set timestamp=1000072000;
+insert into t2 values (current_timestamp,NULL), (current_date,NULL), (current_time,NULL);
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY n;
+
+#
+# At last let us check replication of FROM_UNIXTIME/UNIX_TIMESTAMP functions.
+#
+connection master;
+delete from t2;
+insert into t2 values (from_unixtime(1000000000),NULL),
+                      (unix_timestamp('2001-09-09 03:46:40'),NULL);
+SELECT * FROM t2 ORDER BY n;
+--source include/sync_slave_sql_with_master.inc
+# We should get same result on slave as on master
+SELECT * FROM t2 ORDER BY n;
+
+#
+# Let us check that we are allowing to set global time_zone with
+# replication
+#
+connection master;
+set global time_zone='MET';
+
+#
+# Let us see if CONVERT_TZ(@@time_zone) replicates
+#
+delete from t2;
+set time_zone='UTC';
+insert into t2 values(convert_tz('2004-01-01 00:00:00','MET',@@time_zone),NULL);
+insert into t2 values(convert_tz('2005-01-01 00:00:00','MET','Japan'),NULL);
+SELECT * FROM t2 ORDER BY n;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY n;
+
+# Clean up
+connection master;
+drop table t1, t2;
+--source include/sync_slave_sql_with_master.inc
+
+
+# Restore original timezone
+connection master;
+set global time_zone= @my_time_zone;
+
+--echo End of 4.1 tests
+
+#
+# Bug #29536: timestamp inconsistent in replication around 1970
+#
+connection master;
+
+CREATE TABLE t1 (a INT, b TIMESTAMP);
+INSERT INTO t1 VALUES (1, NOW());
+
+SET @@session.time_zone='Japan';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET b= '1970-01-01 08:59:59' WHERE a= 1;
+SET sql_mode = default;
+SELECT * FROM t1 ORDER BY a;
+
+--source include/sync_slave_sql_with_master.inc
+SET @@session.time_zone='Japan';
+# must procdure the same result as the SELECT on the master
+SELECT * FROM t1 ORDER BY a;
+
+SET @@session.time_zone = default;
+connection master;
+DROP TABLE t1;
+SET @@session.time_zone = default;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
+
+--echo End of 5.0 tests

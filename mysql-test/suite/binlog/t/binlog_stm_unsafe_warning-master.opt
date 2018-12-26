@@ -1,0 +1,3 @@
+--binlog-ignore-db=b42851
+--no-console
+--log-error

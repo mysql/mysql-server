@@ -1,0 +1,85 @@
+set default_storage_engine=innodb;
+Verify that JSON columns do not support indexes on create table
+CREATE TABLE bad(i INT, j1bad JSON NOT NULL PRIMARY KEY);
+ERROR 42000: JSON column 'j1bad' supports indexing only via generated columns on a specified JSON path.
+CREATE TABLE bad(i INT, j1bad JSON NOT NULL, INDEX j1badindex (j1bad));
+ERROR 42000: JSON column 'j1bad' supports indexing only via generated columns on a specified JSON path.
+CREATE TABLE bad(i INT, j1bad JSON NOT NULL, UNIQUE INDEX j1badindex (j1bad));
+ERROR 42000: JSON column 'j1bad' supports indexing only via generated columns on a specified JSON path.
+CREATE TABLE bad(i INT, j1bad JSON NOT NULL, UNIQUE INDEX j1badindex (j1bad) USING HASH);
+ERROR 42000: JSON column 'j1bad' supports indexing only via generated columns on a specified JSON path.
+CREATE TABLE t1(i INT PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN j1 JSON;
+ALTER TABLE t1 ADD COLUMN j2 JSON NOT NULL;
+CREATE INDEX t1_idx_j ON t1(j1);
+ERROR 42000: JSON column 'j1' supports indexing only via generated columns on a specified JSON path.
+CREATE INDEX t1_idx_i_j ON t1(i, j1);
+ERROR 42000: JSON column 'j1' supports indexing only via generated columns on a specified JSON path.
+CREATE INDEX t1_idx_j_i ON t1(j1, i);
+ERROR 42000: JSON column 'j1' supports indexing only via generated columns on a specified JSON path.
+CREATE INDEX t1_idx_i ON t1(i);
+DROP INDEX t1_idx_i ON t1;
+DROP TABLE t1;
+Verify that JSON columns do not support indexes on alter table
+CREATE TABLE t2(i INT PRIMARY KEY, j1 JSON, j2 JSON NOT NULL);
+ALTER TABLE t2 ADD INDEX j1badindex (j1);
+ERROR 42000: JSON column 'j1' supports indexing only via generated columns on a specified JSON path.
+ALTER TABLE t2 ADD UNIQUE INDEX j1badindex (j1);
+ERROR 42000: JSON column 'j1' supports indexing only via generated columns on a specified JSON path.
+ALTER TABLE t2 ADD UNIQUE INDEX j1badindex (j1) USING HASH;
+ERROR 42000: JSON column 'j1' supports indexing only via generated columns on a specified JSON path.
+Verify that JSON columns can be dropped
+ALTER TABLE t2 DROP COLUMN j1;
+ALTER TABLE t2 DROP COLUMN j2;
+DROP TABLE t2;
+CREATE TABLE json(json int);
+INSERT INTO json(json) VALUES (1);
+SELECT json FROM json;
+json
+1
+DROP TABLE json;
+CREATE PROCEDURE p()
+BEGIN
+json: LOOP
+LEAVE json;
+END LOOP json;
+END|
+CALL p();
+DROP PROCEDURE p;
+#
+#  Bug#22278524: ALTER TABLE SOMETIMES CONVERTS TEXT TO JSON WITHOUT
+#                SYNTAX CHECKING
+#
+CREATE TABLE t1(txt TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+INSERT INTO t1 VALUES ('not JSON');
+ALTER TABLE t1 MODIFY COLUMN txt JSON;
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column '#sql-temporary.txt'.
+SELECT * FROM t1;
+txt
+not JSON
+CREATE TABLE t2(j JSON);
+INSERT INTO t2 VALUES (JSON_OBJECT('a', 'b'));
+ALTER TABLE t2 MODIFY COLUMN j TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+SELECT * FROM t2;
+j
+{"a": "b"}
+CREATE TABLE t3 (j JSON);
+INSERT INTO t3 VALUES (JSON_OBJECT('a', 'b'));
+CREATE TABLE t4 AS SELECT UPPER(j) AS jj FROM t3;
+INSERT INTO t4 VALUES ('not JSON');
+ALTER TABLE t4 MODIFY COLUMN jj JSON;
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column '#sql-temporary.jj'.
+SELECT * FROM t4 order by jj;
+jj
+not JSON
+{"A": "B"}
+DROP TABLE t1, t2, t3, t4;
+#
+# Bug#23535703: WRONG TABLE CHECKSUM ON TABLES WITH JSON COLUMNS
+#
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES ('[1,2,3]');
+CHECKSUM TABLE t EXTENDED;
+Table	Checksum
+test.t	3005741875
+DROP TABLE t;

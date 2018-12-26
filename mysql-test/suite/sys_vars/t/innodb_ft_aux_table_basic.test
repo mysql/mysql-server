@@ -1,0 +1,49 @@
+
+
+# 2011-11-15 - Added
+#
+
+
+SET @start_global_value = @@global.innodb_ft_aux_table;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_ft_aux_table;
+show global variables like 'innodb_ft_aux_table';
+show session variables like 'innodb_ft_aux_table';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_ft_aux_table';
+select * from performance_schema.session_variables where variable_name='innodb_ft_aux_table';
+--enable_warnings
+
+--error ER_GLOBAL_VARIABLE
+set session innodb_ft_aux_table='Salmon';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_ft_aux_table='Salmon';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_ft_aux_table=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_ft_aux_table=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_ft_aux_table='Salmon';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_ft_aux_table = @start_global_value;
+SELECT @@global.innodb_ft_aux_table;
+
+set @a:=repeat(':/',128);
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_ft_aux_table =@a;
+set @a:=repeat(':/',256);
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_ft_aux_table =@a;

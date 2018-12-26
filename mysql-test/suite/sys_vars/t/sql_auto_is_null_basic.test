@@ -1,0 +1,64 @@
+
+
+################## mysql-test\t\sql_auto_is_null_basic.test ###################
+#                                                                             #
+# Variable Name: sql_auto_is_null                                             #
+# Scope: Session                                                              #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                      #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable sql_auto_is_null          #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#---------------------BS_STVARS_044_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+
+SELECT @@session.sql_auto_is_null;
+
+--echo '#---------------------BS_STVARS_044_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+SET @@session.sql_auto_is_null=1;
+SELECT @@session.sql_auto_is_null;
+
+--echo '#---------------------BS_STVARS_044_03----------------------#'
+#################################################################
+# Check if the value in session Table matches value in variable #
+#################################################################
+
+--disable_warnings
+SELECT IF(@@session.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_auto_is_null';
+
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_auto_is_null';
+--enable_warnings
+
+--echo '#---------------------BS_STVARS_044_05----------------------#'
+################################################################################
+#   Check if sql_auto_is_null can be accessed with and without @@ sign         #
+################################################################################
+
+SELECT @@sql_auto_is_null;
+SELECT @@local.sql_auto_is_null;
+SELECT @@session.sql_auto_is_null;
+
+SELECT @@global.sql_auto_is_null;
+

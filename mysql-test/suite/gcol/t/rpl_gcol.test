@@ -1,0 +1,100 @@
+################################################################################
+# t/gcol_rpl.test                                                              #
+#                                                                              #
+# Purpose:                                                                     #
+#   Test replication of tables with generated columns.                           #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: Andrey Zhakov                                               #
+# Original Date: 2008-09-04                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+--source suite/gcol/inc/gcol_init_vars.pre
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+# Set the session storage engine
+SET @@session.default_storage_engine = 'InnoDB';
+
+##### Workarounds for known open engine specific bugs
+#     none
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source include/master-slave.inc
+
+connection master;
+create table t1 (a int, b int generated always as (a+1) virtual);
+show create table t1;
+insert into t1 values (1,default);
+insert into t1 values (2,default);
+select * from t1;
+save_master_pos;
+
+connection slave;
+sync_with_master;
+select * from t1;
+
+connection master;
+drop table t1;
+save_master_pos;
+
+connection slave;
+sync_with_master;
+
+--echo #
+--echo # Bug#22241015: REPLICATION SERVERS CRASHES WHILE CHANGING A
+--echo #               VALUE OF INDEXED JSON FIELD
+--echo #
+# Use master connection
+--connection master
+CREATE TABLE gtable (doc JSON);
+INSERT INTO gtable (doc) VALUES
+('{"id": 1, "name": "Omar Bras"}'),
+('{"id": 2, "name": "Omar Mex"}');
+ALTER TABLE gtable ADD COLUMN gtext TEXT GENERATED ALWAYS AS
+(JSON_UNQUOTE(JSON_EXTRACT(doc, '$.name'))) VIRTUAL,
+ADD UNIQUE INDEX name_index (gtext(50));
+UPDATE gtable SET doc=JSON_SET(doc,'$.name',"Omar Argentina") WHERE JSON_EXTRACT(doc, "$.id") = 2;
+INSERT INTO gtable(doc) VALUES (NULL);
+SELECT * FROM gtable;
+UPDATE gtable SET doc= '{ "id": 4, "name": "Omar Ara" }' where doc IS NULL;
+SELECT * FROM gtable ORDER BY gtext;
+UPDATE gtable SET doc= NULL WHERE JSON_EXTRACT(doc, "$.id") = 4;
+SELECT * FROM gtable ORDER BY gtext;
+
+--source include/sync_slave_sql_with_master.inc
+SHOW CREATE TABLE gtable;
+--echo # Connection:slave - Row with value 3 is expected on slave.
+SELECT * FROM gtable ORDER BY gtext;
+
+--let $diff_tables= master:gtable, slave:gtable
+--source include/diff_tables.inc
+
+#cleanup
+--connection master
+DROP TABLE gtable;
+## Postamble
+--source include/sync_slave_sql_with_master.inc
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/gcol/inc/gcol_cleanup.inc
+--source include/rpl_end.inc

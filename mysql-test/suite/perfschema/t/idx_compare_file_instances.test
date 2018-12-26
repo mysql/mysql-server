@@ -1,0 +1,35 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "file_instances";
+let $target_name = wait/io/file/sql/ERRMSG;
+
+--echo TABLE: $table
+--echo INDEXES: PK (FILE_NAME), KEY (EVENT_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--disable_query_log
+# Get a target file name
+eval SELECT file_name INTO @file_name
+  FROM performance_schema.file_instances
+  WHERE event_name = '$target_name' LIMIT 1;
+--enable_query_log
+
+--echo
+--echo ## Test FILE_NAME
+let $key_group = 13.1;
+let $name_column = FILE_NAME;
+SET @target_name = @file_name;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test EVENT_NAME
+let $key_group = 13;
+let $name_column = EVENT_NAME;
+let $target_name = wait/io/file/sql/ERRMSG;
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

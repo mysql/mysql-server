@@ -1,0 +1,48 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/rpl_reset.inc
+**** On Master ****
+CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,2);
+include/sync_slave_sql_with_master.inc
+**** On Master ****
+TRUNCATE TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+==== Test using a table with delete triggers ====
+**** On Master ****
+SET @count := 1;
+CREATE TABLE t2 (a INT, b LONG) ENGINE=MyISAM;
+CREATE TRIGGER trg1 BEFORE DELETE ON t1 FOR EACH ROW SET @count := @count + 1;
+include/sync_slave_sql_with_master.inc
+**** On Master ****
+TRUNCATE TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t2, slave:t2]
+DROP TABLE t1,t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_reset.inc
+**** On Master ****
+CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,2);
+include/sync_slave_sql_with_master.inc
+**** On Master ****
+DELETE FROM t1;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+==== Test using a table with delete triggers ====
+**** On Master ****
+SET @count := 1;
+CREATE TABLE t2 (a INT, b LONG) ENGINE=MyISAM;
+CREATE TRIGGER trg1 BEFORE DELETE ON t1 FOR EACH ROW SET @count := @count + 1;
+include/sync_slave_sql_with_master.inc
+**** On Master ****
+DELETE FROM t1;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t2, slave:t2]
+DROP TABLE t1,t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

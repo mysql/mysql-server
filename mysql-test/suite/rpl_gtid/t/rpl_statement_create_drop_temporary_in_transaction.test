@@ -1,0 +1,245 @@
+# ==== Purpose ====
+#
+# Verify that CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are disallowed
+# inside a transaction or procedure when @@session.binlog_format=STATEMENT
+# and @@global.gtid_mode=ON.
+#
+# ==== Implementation ====
+#
+# 1. Verify that CREATE TEMPORARY TABLE in a single STMT transaction
+#    is disallowed and not written into binlog after committing the
+#    transaction.
+# 2. Verify that DROP TEMPORARY TABLE in a single STMT transaction
+#    is disallowed and not written into binlog after committing
+#    the transaction.
+# 3. Verify that CREATE TEMPORARY TABLE in a MULTI STMTs transaction
+#    is disallowed and not written into binlog after committing the
+#    transaction.
+# 4. Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
+#    is disallowed and not written into binlog after committing
+#    the transaction.
+# 5. Verify that CREATE TEMPORARY TABLE in a single STMT procedure
+#    in transactional context is disallowed and not written into
+#    binlog after committing the transaction.
+# 6. Verify that DROP TEMPORARY TABLE in a single STMT procedure
+#    in transactional context is disallowed and not written into
+#    binlog after committing the transaction.
+# 7. Verify that CREATE TEMPORARY TABLE in a PROCEDURE in transactional
+#    context is disallowed and not written into binlog after committing
+#    the transaction.
+# 8. Verify that DROP TEMPORARY TABLE in a PROCEDURE in transactional
+#    context is disallowed and not written into binlog after
+#    committing the transaction.
+# 9. Verify that CREATE/DROP TEMPORARY TABLE in a procedure outside
+#    transactional context is allowed and written into binlog after
+#    calling the procedure.
+#
+# ==== References ====
+#
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a single STMT transaction
+--echo # is disallowed and not written into binlog after committing the
+--echo # transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+--error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+CREATE TEMPORARY TABLE temp1 (i INT);
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a single STMT transaction
+--echo # is disallowed and not written into binlog after committing
+--echo # the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+--error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+DROP TEMPORARY TABLE temp1;
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+CREATE TABLE t1 (c1 INT);
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a MULTI STMTs transaction
+--echo # is disallowed and not written into binlog after committing the
+--echo # transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+CREATE TEMPORARY TABLE temp1 (i INT);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
+--echo # is disallowed and not written into binlog after committing
+--echo # the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+INSERT INTO t1 VALUES (3);
+--error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+DROP TEMPORARY TABLE temp1;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+# create a procedure
+delimiter //;
+CREATE PROCEDURE sp1 ()
+BEGIN
+  CREATE TEMPORARY TABLE temp1 (i INT);
+END//
+delimiter ;//
+# create a procedure
+delimiter //;
+CREATE PROCEDURE sp2 ()
+BEGIN
+  DROP TEMPORARY TABLE temp1;
+END//
+delimiter ;//
+# create a procedure
+delimiter //;
+CREATE PROCEDURE sp3 ()
+BEGIN
+  INSERT INTO t1 VALUES (9);
+  CREATE TEMPORARY TABLE temp1 (i INT);
+END//
+delimiter ;//
+# create a procedure
+delimiter //;
+CREATE PROCEDURE sp4 ()
+BEGIN
+  INSERT INTO t1 VALUES (10);
+  DROP TEMPORARY TABLE temp1;
+END//
+delimiter ;//
+
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a single STMT procedure
+--echo # in transactional context is disallowed and not written into
+--echo # binlog after committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+--error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+CALL sp1();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a single STMT procedure
+--echo # in transactional context is disallowed and not written into
+--echo # binlog after committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+--error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+CALL sp2();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a PROCEDURE in transactional
+--echo # context is disallowed and not written into binlog after committing
+--echo # the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+--error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+CALL sp3();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a PROCEDURE in transactional
+--echo # context is disallowed and not written into binlog after
+--echo # committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+--error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+CALL sp4();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that CREATE/DROP TEMPORARY TABLE in a procedure outside
+--echo # transactional context is allowed and written into binlog after
+--echo # calling the procedure.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+CALL sp1();
+CALL sp2();
+CALL sp3();
+CALL sp4();
+--source include/show_binlog_events.inc
+
+# Cleanup
+DROP TABLE t1;
+DROP PROCEDURE sp1;
+DROP PROCEDURE sp2;
+DROP PROCEDURE sp3;
+DROP PROCEDURE sp4;
+
+--source include/rpl_end.inc

@@ -1,0 +1,72 @@
+#
+# Tests that the character set setting is properly picked up by the
+# session that reads the rules table.
+#
+# Query rewrite plugin was installed.
+DELETE FROM query_rewrite.rewrite_rules;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM mydb.mytable WHERE mycol = ?', 'select "rule1"' );
+CALL query_rewrite.flush_rewrite_rules();
+CREATE DATABASE mydb;
+CREATE TABLE mydb.mytable ( mycol char(3), mycol2 CHAR(100) );
+INSERT INTO mydb.mytable VALUES ( 'xxx', 'Not supposed to be seeing this.' );
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+rule1
+rule1
+Warnings:
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
+DROP DATABASE mydb;
+# We now set the global value of the variable, this should not affect
+# the plugin. It should copy the session value from our session.
+SET @@global.character_set_client = utf8mb4;
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+rule1
+rule1
+Warnings:
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
+# Regenerating the digests should still work.
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+rule1
+rule1
+Warnings:
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
+# We now repeat the above test with a character set where the digests
+# are known to differ. If we were lucky the last time, it will show now.
+# The global setting should still be ignored.
+SET @@global.character_set_client = latin1;
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+rule1
+rule1
+Warnings:
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
+# Regenerating the digests should still work.
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+rule1
+rule1
+Warnings:
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
+SET @@global.character_set_client = DEFAULT;
+#
+# This is perhaps an unwanted result, but the rules table-reading
+# session can't access our session's setting.
+#
+SET @@session.character_set_client = utf8mb4;
+DELETE FROM query_rewrite.rewrite_rules;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM mydb.mytable WHERE mycol = ?', 'select "rule1"' );
+CALL query_rewrite.flush_rewrite_rules();
+CREATE DATABASE mydb;
+CREATE TABLE mydb.mytable ( mycol char(3), mycol2 CHAR(100) );
+INSERT INTO mydb.mytable VALUES ( 'xxx', 'Not supposed to be seeing this.' );
+SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
+rule1
+rule1
+Warnings:
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
+DROP DATABASE mydb;
+SET @@session.character_set_client = DEFAULT;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

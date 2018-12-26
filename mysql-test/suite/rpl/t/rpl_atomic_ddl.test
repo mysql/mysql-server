@@ -1,0 +1,259 @@
+# ==== Purpose ====
+# Prove successful slave service recovery after a simulated failure
+# at handling recoverable DDL queries.
+# The recoverable DDL:s are those that are binary-logged with xid info
+# with enables the server to decide on their commit or rollback at server
+# recovery.
+#
+# ==== Implementation ====
+# In the test the slave applier processes a sequence of recoverable DDL:s
+# whose applying  is interruped by a few simulated failures.
+# When a failure is an ordinary error slave stops, the failed DDL
+# group is retried to success, provided the failure condition was
+# withdrawn.
+# The crash error is sorted out depending on its timing.
+# When it happens at time before the slave applier has logged the DDL
+# group into its binary log, first the server recovery rolls back and then
+# the slave service restarts at the beginning of the crashed DDL's group.
+# When the applier has logged and yet not committed the DDL statement,
+# the slave server recovery completes with commit and the slave service
+# resumes at the next group of events following the crashed DDL's group.
+#
+# The test requires the TABLE slave info repository type through
+# the opt file and --log-bin through a have macro
+# because of crash-restart actions on the slave side.
+#
+# ==== References ====
+# WL#9175  Correct recovery of DDL statements/transactions by binary log
+#
+# Params:
+# --let $rpl_atomic_ddl_print_verbose # get out more info
+#
+
+--let $rpl_atomic_ddl_print_verbose=1
+
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_udf.inc
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+
+# Simulated data inconsistency on slave causes few errors
+call mtr.add_suppression("Operation CREATE USER failed");
+call mtr.add_suppression("Operation RENAME USER failed");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("Slave worker thread has failed to apply an event");
+call mtr.add_suppression("Error writing relay log configuration");
+call mtr.add_suppression("Error 'Unknown error' on query");
+--disable_query_log
+call mtr.add_suppression("You need to use --log-bin to make.*work");
+--enable_query_log
+
+--source include/rpl_connection_master.inc
+
+# instructing gtid_step_assert that is called by a sourced file
+# to satisfy to gtid-mode OFF as well.
+--let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+--let $gtid_step_gtid_mode_agnostic=`SELECT '$gtid_mode' != 'ON'`
+
+if (!$crash_commit)
+{
+  --let $commit_message=Crash right after the query has been binary-logged before committed in the engine
+  --let $crash_commit="+d,crash_commit_after_log"
+}
+if (!$crash_rollback)
+{
+  --let $rollback_message=Crash right after the query has been prepared in the engine before being logged
+  --let $crash_rollback="+d,crash_commit_before_log"
+}
+
+#
+# The overall logics of the following part of the tests boils down to
+# this pseudo-code block:
+#
+# Run load generator on master to prepare binlog events;
+# For a number of simulated of failures
+#    turn ON simulator,
+#    start the slave,
+#    wait for an expected slave error,
+#    turn OFF the current simulator
+#  end for.
+#
+# Errors due to Interruptive actions described below are meaningful in
+# the context of the sourced load generator.
+# In  each loop the server crashes with roll-back and roll-forward following recovery
+# which is asserted.
+
+# Master load
+#
+# Start off with the master side logger table (see the master opt
+# file) that record DDL queries that will be subject to crash
+# simulation on the slave side.  The table will hold prescribed
+# post-recovery checks to be performed on the slave side.
+#
+--let $master_log_table=t_checks
+--let $master_log_db=master_db
+--eval CREATE DATABASE $master_log_db
+
+--let $save_curr_db=`SELECT database()`
+--eval USE $master_log_db
+--eval CREATE TABLE IF NOT EXISTS $master_log_table (id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,  ddl_query TEXT,  pre_binlog_check TEXT, post_binlog_check TEXT);
+
+--eval USE $save_curr_db
+
+# required for the extra section of the being included binlog_ddl.inc
+--let $table=t_1
+--eval CREATE TABLE $table (a int)
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+
+--let $do_post_prepare=0
+--let $do_post_binlog=0
+--let $do_only_regular_logging=1
+--let $do_show_binlog_events= 0
+--let $do_count_queries=1
+--let $count_ddl_queries=0
+--source extra/binlog_tests/binlog_ddl.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+--source include/rpl_connection_slave.inc
+# First, a regular error
+CREATE USER user1;
+START SLAVE SQL_THREAD;
+--let $slave_sql_errno=convert_error(ER_CANNOT_USER)
+--source include/wait_for_slave_sql_error.inc
+DROP USER user1;
+
+#
+# Simulated error in pre_commit hook stops the slave applier.
+#
+SET @@GLOBAL.debug="+d,rli_pre_commit_error";
+START SLAVE SQL_THREAD;
+--let $slave_sql_errno=convert_error(ER_UNKNOWN_ERROR)
+--source include/wait_for_slave_sql_error.inc
+#
+# Like in above, the fact that there has been no advance of the last
+# executed coordinates is proved later by successful resuming/recovery
+# from the error.
+# The error simulation is lifted:
+SET @@GLOBAL.debug="-d,rli_pre_commit_error";
+
+# The rest is crash-restart in loop of number of DDL queries
+# in the master load.
+--let $loops=$count_ddl_queries
+--let $id=0
+while ($loops)
+{
+  --inc $id
+
+  # Find the loop's query and it post-recovery checks upon the first recovery
+  --source include/rpl_connection_master.inc
+
+  --let $current_query=`SELECT ddl_query FROM $master_log_db.$master_log_table WHERE id = $id `
+  --let $pre_binlog_check=`SELECT pre_binlog_check FROM $master_log_db.$master_log_table WHERE id = $id`
+  --let $post_binlog_check=`SELECT post_binlog_check FROM $master_log_db.$master_log_table WHERE id = $id`
+  if ($rpl_atomic_ddl_print_verbose)
+  {
+  # 
+  --let gen_current_query = `SELECT REPLACE("$current_query",'.so','_LIB')`
+  --let gen_current_query = `SELECT REPLACE("$gen_current_query",'.dll','_LIB')`
+  --echo Loop: $id out of $count_ddl_queries; current query: '$gen_current_query'; pre-binlog check: '$pre_binlog_check'; pre-commit check: '$post_binlog_check';
+  }
+  --source include/rpl_connection_slave.inc
+
+  #
+  # The rollback recovery upon the pre-binlog crash
+  #
+  --source include/expect_crash.inc
+  --echo *** Query: '$gen_current_query'. $rollback_message. ***
+  --eval SET @@GLOBAL.debug=$crash_rollback
+
+  # Memorizing execution status right before "scheduled" failure
+  --source include/gtid_step_reset.inc
+  --error 0,2013
+  START SLAVE SQL_THREAD;
+
+  # Server wait for stop and restart
+  --enable_reconnect
+  --source include/wait_until_disconnected.inc
+  --let $rpl_server_number= 2
+  --source include/rpl_start_server.inc
+  --disable_reconnect
+
+  # Proof of the rollback recovery is no exec progress
+  --let $gtid_step_count=0
+  --source include/gtid_step_assert.inc
+
+  # Proof by the master side post-recovery checks
+  if ($pre_binlog_check)
+  {
+    if (!`$pre_binlog_check`)
+    {
+        --echo *** State check upon recovery after the pre-binlog crash fails ***
+        --die
+    }
+  }
+
+  #
+  # Commit recovery upon the pre-commit crash.
+  #
+  --source include/expect_crash.inc
+  --echo *** Query: '$gen_current_query'. $commit_message. ***
+  --eval SET @@GLOBAL.debug=$crash_commit
+  --source include/gtid_step_reset.inc
+  --error 0,2013
+  START SLAVE SQL_THREAD;
+
+  # Server wait for stop and restart
+  --enable_reconnect
+  --source include/wait_until_disconnected.inc
+  --let $rpl_server_number= 2
+  --source include/rpl_start_server.inc
+  --disable_reconnect
+
+  --source include/rpl_connection_slave.inc
+  # Proof of the commit recovery is one committed gtid
+  --let $gtid_step_only_count=1
+  --let $gtid_step_count=1
+  --source include/gtid_step_assert.inc
+
+  # Proof by the master side post-recovery checks
+  if ($post_binlog_check)
+  {
+    if (!`$post_binlog_check`)
+    {
+       --echo *** State check upon recovery after the pre-commit crash fails ***
+        --die
+    }
+  }
+
+  --dec $loops
+} # end of while
+
+# Eventually:
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--eval DROP table $table
+--eval DROP DATABASE $master_log_db
+
+--source include/sync_slave_sql_with_master.inc
+
+
+--source include/rpl_end.inc

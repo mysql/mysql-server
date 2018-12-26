@@ -1,0 +1,61 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#   1. Change for server 2 and stop it
+#############################################################
+[connection server2]
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Server id not set, will not start slave for channel 'group_replication_applier'");
+call mtr.add_suppression("Error while starting the group replication applier thread");
+call mtr.add_suppression("Unable to initialize the Group Replication applier module.");
+SET SESSION sql_log_bin=1;
+include/stop_group_replication.inc
+
+#   2. Set READ_ONLY= ON and SUPER_READ_ONLY= ON, configure
+#      server with and invalid id an start it
+#############################################################
+SET GLOBAL super_read_only = 1;
+SET GLOBAL server_id=0;
+START GROUP_REPLICATION;
+Got one of the listed errors
+
+#   3. Confirm that server is configured with READ_ONLY= ON
+#      and SUPER_READ_ONLY= ON
+#############################################################
+include/assert_and_disable_read_only.inc
+
+#   4. Set READ_ONLY= ON configure server with a invalid
+#      server id an start it
+#############################################################
+SET GLOBAL read_only = 1;
+SET GLOBAL server_id=0;
+START GROUP_REPLICATION;
+Got one of the listed errors
+
+#   5. Confirm that server is configured with READ_ONLY= ON
+#      and SUPER_READ_ONLY= OFF
+#############################################################
+include/assert.inc [The read_only mode must be 1]
+include/assert.inc [The super_read_only mode must be 0]
+
+#   6. Set READ_ONLY= OFF and SUPER_READ_ONLY= OFF, configure
+#      server with and invalid id an start it
+#############################################################
+SET GLOBAL read_only = 0;
+SET GLOBAL server_id=0;
+START GROUP_REPLICATION;
+Got one of the listed errors
+
+#   7. Confirm that server is configured with READ_ONLY= OFF
+#      and SUPER_READ_ONLY= OFF
+#############################################################
+include/assert.inc [The read_only mode must be 0]
+include/assert.inc [The super_read_only mode must be 0]
+
+#   8. Clean up
+#############################################################
+SET GLOBAL server_id= 2;
+include/group_replication_end.inc

@@ -1,0 +1,192 @@
+############## mysql-test\t\insert_id_basic.test ###############
+#                                                                             #
+# Variable Name: insert_id                                                    #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:-                                                             #
+# Range:    -                                                                 #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable insert_id                #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+
+################################################################ 
+#                    START OF insert_id TESTS                  #
+################################################################
+
+
+################################################################
+# Saving initial value of insert_id in a temporary variable    #
+################################################################
+
+SET @start_value = @@session.insert_id;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_051_01------------------------#'
+#################################################################
+#              Display the DEFAULT value of insert_id           #
+#################################################################
+
+SET @@session.insert_id = 99;
+# SET @@session.insert_id = DEFAULT;
+--echo 'Variable is giving error on assigning Default value';
+SELECT @@session.insert_id;
+
+
+--echo '#---------------------FN_DYNVARS_051_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@session.insert_id = @start_value;
+SELECT @@session.insert_id = 0;
+
+
+--echo '#--------------------FN_DYNVARS_051_03------------------------#'
+#################################################################
+#        Change the value of insert_id to a valid value         #
+#################################################################
+
+SET @@session.insert_id = 0;
+SELECT @@session.insert_id;
+SET @@session.insert_id = 1099;
+SELECT @@session.insert_id;
+SET @@session.insert_id = 1800;
+SELECT @@session.insert_id;
+SET @@session.insert_id = 65535;
+SELECT @@session.insert_id;
+
+
+--echo '#--------------------FN_DYNVARS_051_04-------------------------#'
+####################################################################
+#         Change the value of insert_id to invalid value           #
+####################################################################
+
+SET @@session.insert_id = -1;
+SELECT @@session.insert_id;
+SET @@session.insert_id = 100000000000;
+SELECT @@session.insert_id;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.insert_id = 10000.01;
+SELECT @@session.insert_id;
+SET @@session.insert_id = -1024;
+SELECT @@session.insert_id;
+SET @@session.insert_id = 42949672950;
+SELECT @@session.insert_id;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.insert_id = ON;
+SELECT @@session.insert_id;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.insert_id = 'test';
+SELECT @@session.insert_id;
+
+
+--echo '#-------------------FN_DYNVARS_051_05----------------------------#'
+###################################################################
+#       Test if accessing global insert_id gives error            #
+###################################################################
+
+--Error ER_LOCAL_VARIABLE
+SET @@global.insert_id = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@global.insert_id;
+
+
+--echo '#----------------------FN_DYNVARS_051_06------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@global.insert_id = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='insert_id';
+
+--disable_warnings
+SELECT @@session.insert_id = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='insert_id';
+--enable_warnings
+
+
+--echo '#-------------------FN_DYNVARS_051_07----------------------------#'
+###################################################################### 
+#           Test if accessing GLOBAL identity gives error            #
+###################################################################### 
+
+--Error ER_LOCAL_VARIABLE
+SET @@global.insert_id = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@global.insert_id;
+
+
+--echo '#---------------------FN_DYNVARS_051_08----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@session.insert_id = TRUE;
+SELECT @@session.insert_id;
+SET @@session.insert_id = FALSE;
+SELECT @@session.insert_id;
+
+
+--echo '#---------------------FN_DYNVARS_051_09----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@session.insert_id = 1;
+SELECT @@insert_id = @@session.insert_id;
+SELECT @@session.insert_id = @@local.insert_id;
+
+
+--echo '#---------------------FN_DYNVARS_051_10----------------------#'
+###################################################################
+#   Check if insert_id can be accessed with and without @@ sign   #
+###################################################################
+
+
+SET insert_id = 1;
+SELECT @@insert_id;
+--Error ER_PARSE_ERROR
+SET local.insert_id = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.insert_id;
+--Error ER_PARSE_ERROR
+SET session.insert_id = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT session.insert_id;
+--Error ER_BAD_FIELD_ERROR
+SELECT insert_id = @@session.insert_id;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@session.insert_id = @start_value;
+SELECT @@session.insert_id;
+
+
+#################################################################
+#              END OF insert_id TESTS                           #
+#################################################################
+

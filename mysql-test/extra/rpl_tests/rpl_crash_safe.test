@@ -1,0 +1,230 @@
+###############################################################################
+#  This test case aims at checking if a slave does not go out of sync after
+#  injecting crashes at specific points. The following scenarios are analyzed:
+#
+#  Following table represents the outcomes when Rli are on table.
+#     |------------+-----------------------+---------+---------+---------+---------|
+#     | SCENARIO # | SCENARIO              | CRASH-1 | CRASH-2 | CRASH-3 | CRASH-4 |
+#     |------------+-----------------------+---------+---------+---------+---------|
+#     |          1 | T                     | O1      | O1      | O2      | O2      |
+#     |          2 | T-*                   | O1      | O1      | O2      | O2      |
+#     |          3 | B T T-* C             | O1      | O1      | O2      | O2      |
+#     |          4 | B T-* T C             | O1      | O1      | O2      | O2      |
+#     |          5 | N                     | O3      | O3      | O2      | O3      |
+#     |          6 | N-*                   | O3      | O3      | O2      | O3      |
+#     |------------+-----------------------+---------+---------+---------+---------|
+#
+#  Legend:
+#
+#  . T - Updates transactional table by calling insert/update/delete.
+#
+#  . N - Updates non-transactional by calling insert/update/delete.
+#
+#  . T-* - Updates transactional table through a trigger, procedure or function
+#  by calling insert/update/delete.
+#
+#  . N-* - Updates non-transactional table through a trigger or function
+#  by calling insert/update/delete.
+#
+#  . B - Begin.
+#
+#  . C - Commit.
+#
+#  . R - Rollback.
+#
+#  For those transactions involving only transactional tables, faults are
+#  injected while committing a transaction at the following points:
+#
+#  CRASH-1 - crash_before_update_pos - before updating the positions.
+#  CRASH-2 - crash_after_update_pos_before_apply - after updating the positions
+#  but before committing the transaction.
+#  CRASH-3 - crash_after_apply - after updating the position and committing the
+#  transaction.
+#
+#  When a non-transactional table is updated, faults are injected at one point:
+#
+#  CRASH-3 - crash_after_commit_and_update_pos - after committing and updating
+#  the positions.
+#
+#  CRASH-4 - crash_after_commit_before_update_pos - after committing and
+#  updating positions in (FILE).
+#
+#  After injecting the faults, we expect the following outcomes:
+#
+#  O1. In this case, the slave shall correctly recover to "S" without going out
+#  of sync and process "tx". 
+#
+#  O2. In this case, the slave shall correctly recover to "S'"  without going 
+#  out of sync.
+#
+#  O3. In this case, the slave shall recover to "S''" and re-execute "tx". 
+#  In this case, the SQL Thread may fail due to duplicate keys, if any, and
+#  most likely the slave will become inconsistent. The user should manually 
+#  check the slave and resolve the problems.
+#
+#  where
+#
+#  . S represents a database's state.
+#
+#  . tx represents a transaction ended by either "C" or "R".
+#
+#  . S' represents a database's state after processing "tx" and seen by
+#  concurrent transactions.
+#
+#  . S'' represents a database's state after partially processing "tx"
+#  seen by concurrent transactions.
+#
+#  Note however that we do not inject faults that generate "O3" as we are only
+#  interested in the cases that the slave can automatically recover.
+#  See WL#4801 for further details.
+################################################################################
+
+
+--echo ###################################################################################
+--echo #                               PREPARE EXECUTION
+--echo ###################################################################################
+connection master;
+--let $verbose= 1
+--let $commands= configure
+--source extra/rpl_tests/rpl_crash_safe.inc
+
+--echo ###################################################################################
+--echo #                         EXECUTE CASES CRASHING THE XID
+--echo ###################################################################################
+connection master;
+--let $failures= d,crash_after_apply d,crash_before_update_pos d,crash_after_update_pos_before_apply d,crash_after_commit_before_update_pos
+#
+# Executes a set of tests while there are crash points in $failures.
+#
+while ($failures != '')
+{
+  #
+  # Gets a crash point from the set of crash points in $failures and
+  # stores it into $failure.
+  #
+  --let $failure= `SELECT SUBSTRING_INDEX('$failures', ' ', 1)`
+
+  --echo
+  --echo
+  --echo
+  --let $commands= T
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= T-trig
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= T-func
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= T-proc
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= B T T-trig C
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+   --let $commands= B T T-func C
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= B T T-proc C
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= B T-trig T C
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= B T-func T C
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= B T-proc T C
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  #
+  # Removes $failure from the set of crash points in $failures.
+  #
+  --let $failures= `SELECT LTRIM(SUBSTRING('$failures', LENGTH('$failure') + 1))`
+}
+
+--echo ###################################################################################
+--echo #                      EXECUTE CASES CRASHING THE BEGIN/COMMIT
+--echo ###################################################################################
+--let $failures= d,crash_after_commit_and_update_pos
+#
+# Executes a set of tests while there are crash points in $failures.
+#
+while ($failures != '')
+{
+  #
+  # Gets a crash point from the set of crash points in $failures and
+  # stores it into $failure.
+  #
+  --let $failure= `SELECT SUBSTRING_INDEX('$failures', ' ', 1)`
+
+  --echo
+  --echo
+  --echo
+  --let $commands= N
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= N-trig
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  --let $commands= N-func
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  #
+  # Removes $failure from the set of crash points in $failures.
+  #
+  --let $failures= `SELECT LTRIM(SUBSTRING('$failures', LENGTH('$failure') + 1))`
+}
+
+--echo ###################################################################################
+--echo #                               CHECK CONSISTENCY
+--echo ###################################################################################
+connection master;
+--source include/sync_slave_sql_with_master.inc
+connection master;
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --set-gtid-purged=off --no-create-info test > $MYSQLD_DATADIR/test-crash-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --set-gtid-purged=off --no-create-info test > $MYSQLD_DATADIR/test-crash-slave.sql
+--diff_files $MYSQLD_DATADIR/test-crash-master.sql $MYSQLD_DATADIR/test-crash-slave.sql
+
+--echo ###################################################################################
+--echo #                                        CLEAN
+--echo ###################################################################################
+connection master;
+--let $commands= clean
+--source extra/rpl_tests/rpl_crash_safe.inc

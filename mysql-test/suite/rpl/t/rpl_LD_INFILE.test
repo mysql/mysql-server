@@ -1,0 +1,38 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/18/2005                                                #
+#############################################################################
+# TEST: To test the LOAD DATA INFILE in rbr                                 #
+#############################################################################
+
+# Includes
+-- source include/master-slave.inc
+
+# Begin clean up test section
+--disable_warnings
+connection master;
+DROP TABLE IF EXISTS test.t1;
+--enable_warnings
+
+# Section 1 test 
+CREATE TABLE test.t1 (a VARCHAR(255), PRIMARY KEY(a));
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE test.t1;
+DELETE FROM test.t1 WHERE a = 'abashed';
+DELETE FROM test.t1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE test.t1;
+
+
+SELECT * FROM test.t1 ORDER BY a DESC;
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+SELECT * FROM test.t1 ORDER BY a DESC;
+
+# Cleanup
+#show binlog events;
+connection master;
+DROP TABLE test.t1;
+--source include/sync_slave_sql_with_master.inc
+
+# End of 5.0 test case
+
+--source include/rpl_end.inc

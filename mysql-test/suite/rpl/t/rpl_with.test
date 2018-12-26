@@ -1,0 +1,15 @@
+source include/master-slave.inc;
+
+--echo # Goals: test CTEs in prepared statements, in stored routines,
+--echo # and if those are replicated correctly.
+--echo #
+
+--echo # In-memory tmp tables
+set big_tables=0;
+--source suite/rpl/include/rpl_with.inc
+
+--echo # On-disk tmp tables
+set big_tables=1;
+--source suite/rpl/include/rpl_with.inc
+
+--source include/rpl_end.inc

@@ -1,0 +1,3 @@
+--no-console
+--log-error=$MYSQL_TMP_DIR/errors.err
+--local-infile=true

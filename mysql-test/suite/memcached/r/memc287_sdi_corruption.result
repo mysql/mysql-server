@@ -1,0 +1,84 @@
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+'innodb_only', 'innodb_only', 'innodb_only');
+INSERT INTO config_options VALUES('separator', '|');
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+'c1', 'c2', '0', '0', '0', 'PRIMARY');
+USE test;
+CREATE TABLE t1 (c1 INT PRIMARY KEY,
+c2 VARCHAR(30),
+c3 FLOAT,
+KEY idx1(c3),
+KEY idx2(c2(20)))
+ENGINE = INNODB;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+# 1. Corrupt SDI Leaf Page
+SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
+Get rec(type:id) is t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` varchar(30) DEFAULT NULL,
+  `c3` float DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `idx1` (`c3`),
+  KEY `idx2` (`c2`(20))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innodb_buf_flush_list_now = 1;
+# restart: --innodb_buffer_pool_load_at_startup=OFF
+Get rec(type:id) is t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` varchar(30) DEFAULT NULL,
+  `c3` float DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `idx1` (`c3`),
+  KEY `idx2` (`c2`(20))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY,
+c2 VARCHAR(30),
+c3 FLOAT,
+KEY idx1(c3),
+KEY idx2(c2(20)))
+ENGINE = INNODB;
+# 2. Corrupt SDI Non-Leaf Page
+SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
+Get rec(type:id) is t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` varchar(30) DEFAULT NULL,
+  `c3` float DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `idx1` (`c3`),
+  KEY `idx2` (`c2`(20))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innodb_buf_flush_list_now = 1;
+# restart: --innodb_buffer_pool_load_at_startup=OFF
+Get rec(type:id) is t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` varchar(30) DEFAULT NULL,
+  `c3` float DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `idx1` (`c3`),
+  KEY `idx2` (`c2`(20))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY,
+c2 VARCHAR(30),
+c3 FLOAT,
+KEY idx1(c3),
+KEY idx2(c2(20)))
+ENGINE = INNODB;
+# 3. Corrupt SDI Root Page. We cannot drop and create SDI Indexes
+# We expect crash when dropping SDI indexes.
+SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
+Get rec(type:id) is t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` varchar(30) DEFAULT NULL,
+  `c3` float DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `idx1` (`c3`),
+  KEY `idx2` (`c2`(20))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# restart: --log-error=MYSQLTEST_VARDIR/tmp/crash.log --innodb_buffer_pool_load_at_startup=OFF
+# restart: --innodb_buffer_pool_load_at_startup=OFF
+Pattern "Unable to read page \[page id: space=\d+, page number=\d+\] into the buffer pool after \d+ attempts" found
+DROP TABLE t1;
+DROP DATABASE innodb_memcache;
+UNINSTALL PLUGIN daemon_memcached;

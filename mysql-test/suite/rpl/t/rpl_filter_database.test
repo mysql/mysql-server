@@ -1,0 +1,100 @@
+#
+# BUG#46110: --replicate-wild-do-table invalidates 
+#            --replicate-do-db matching rule
+#
+# In this test we check the following three database level
+# statements, which should be replicated with the given
+# set of filtering rules at the slave:
+#   --replicate-do-db=dbx --replicate-wild-do-table=db%.t1
+#
+# Before this bug was fixed, replicate-wild-do-table would
+# invalidate such database level statements.
+# 
+# The following assertions work like this:
+# 1. CREATE DATABASE
+#    - Issue create database on master
+#    - check if the database is listed on slave's I_S.schemata
+# 2. ALTER DATABASE
+#    - Issue alter database (changing default charset) on 
+#      master
+#    - check (using I_S.schemata) that default charset is
+#      changed as well for the slave's database
+# 3. DROP DATABASE
+#    - Issue drop database on master.
+#    - check that the slave will also drop its own database.
+#
+# If any of the assertions doesn't hold we abort the test and 
+# dump debug information.
+
+-- source include/master-slave.inc
+
+## Checking CREATE DATABASE
+
+-- disable_query_log
+CREATE DATABASE dbx DEFAULT CHARACTER SET=latin1;
+-- enable_query_log
+
+if (!`SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
+{
+  -- echo $CONNECTION_NAME : Database 'dbx' not listed on information_schema.SCHEMATA.
+  -- source include/show_rpl_debug_info.inc
+  -- die
+}
+
+--source include/sync_slave_sql_with_master.inc
+
+if (!`SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
+{
+  -- echo $CONNECTION_NAME : Database 'dbx' not listed on information_schema.SCHEMATA.
+  -- source include/show_rpl_debug_info.inc
+  -- die
+}
+
+## Checking ALTER DATABASE
+
+-- connection master
+
+-- disable_query_log
+ALTER DATABASE dbx DEFAULT CHARACTER SET=latin5;
+-- enable_query_log
+
+if (!`SELECT DEFAULT_CHARACTER_SET_NAME='latin5' FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
+{
+  -- echo $CONNECTION_NAME : Unexpected default character set for table 'dbx'
+  -- source include/show_rpl_debug_info.inc
+  -- die
+}
+
+--source include/sync_slave_sql_with_master.inc
+
+if (!`SELECT DEFAULT_CHARACTER_SET_NAME='latin5' FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
+{
+  -- echo $CONNECTION_NAME : Unexpected default character set for table 'dbx'
+  -- source include/show_rpl_debug_info.inc
+  -- die
+}
+
+## Checking DROP DATABASE
+
+-- connection master
+-- disable_query_log
+DROP DATABASE dbx;
+-- enable_query_log
+
+if (!`SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
+{
+  -- echo $CONNECTION_NAME : Database 'dbx' is still listed on information_schema.SCHEMATA.
+  -- source include/show_rpl_debug_info.inc
+  -- die
+}
+
+--source include/sync_slave_sql_with_master.inc
+
+if (!`SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
+{
+  -- echo $CONNECTION_NAME : Database 'dbx' is still listed on information_schema.SCHEMATA.
+  -- source include/show_rpl_debug_info.inc
+  -- die
+}
+
+--source include/rpl_end.inc

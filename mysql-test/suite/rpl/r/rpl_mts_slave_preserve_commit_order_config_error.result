@@ -1,0 +1,15 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression(".* slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled.");
+include/assert_grep.inc [Slave incompatible configuration error present in log]
+START SLAVE;
+ERROR HY000: slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled.
+SET @@GLOBAL.slave_preserve_commit_order= FALSE;
+include/start_slave.inc
+include/stop_slave.inc
+SET @@GLOBAL.slave_preserve_commit_order= TRUE;
+include/rpl_end.inc

@@ -1,0 +1,50 @@
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "original"', 'SELECT "rewritten"' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+CREATE USER mysqluser1@localhost;
+--connect (conn1, localhost, mysqluser1, , test)
+--connection conn1
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO query_rewrite.rewrite_rules ( pattern ) VALUES ( '' );
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO query_rewrite.rewrite_rules ( replacement ) VALUES ( '' );
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO query_rewrite.rewrite_rules ( enabled ) VALUES ( '' );
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO query_rewrite.rewrite_rules ( message ) VALUES ( '' );
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT pattern FROM query_rewrite.rewrite_rules;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT replacement FROM query_rewrite.rewrite_rules;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT enabled FROM query_rewrite.rewrite_rules;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT message FROM query_rewrite.rewrite_rules;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE query_rewrite.rewrite_rules SET pattern = '';
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE query_rewrite.rewrite_rules SET replacement = '';
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE query_rewrite.rewrite_rules SET enabled = '';
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE query_rewrite.rewrite_rules SET message = '';
+
+--error ER_PROCACCESS_DENIED_ERROR
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT 'original';
+
+--disconnect conn1
+--connection default
+DROP USER mysqluser1@localhost;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

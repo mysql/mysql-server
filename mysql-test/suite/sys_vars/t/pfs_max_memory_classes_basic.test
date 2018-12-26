@@ -1,0 +1,32 @@
+
+#
+# Only global
+#
+
+select @@global.performance_schema_max_memory_classes;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.performance_schema_max_memory_classes;
+
+show global variables like 'performance_schema_max_memory_classes';
+
+show session variables like 'performance_schema_max_memory_classes';
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_max_memory_classes';
+
+select * from performance_schema.session_variables
+  where variable_name='performance_schema_max_memory_classes';
+--enable_warnings
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global performance_schema_max_memory_classes=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session performance_schema_max_memory_classes=1;
+

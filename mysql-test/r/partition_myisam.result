@@ -1,0 +1,713 @@
+#
+# Bug #27816: Log tables ran with partitions crashes the server when logging
+#             is enabled.
+#
+USE mysql;
+TRUNCATE TABLE general_log;
+SET @old_general_log_state = @@global.general_log;
+SET GLOBAL general_log = 0;
+ALTER TABLE general_log ENGINE = MyISAM;
+ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
+(PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
+ERROR HY000: Incorrect usage of PARTITION and log table
+ALTER TABLE general_log ENGINE = CSV;
+SET GLOBAL general_log = @old_general_log_state;
+USE test;
+#
+# Bug#31931: Mix of handlers error message
+#
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (a)
+( PARTITION p0 ENGINE=MyISAM,
+PARTITION p1);
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+CREATE TABLE t1 (a INT)
+PARTITION BY LIST (a)
+SUBPARTITION BY HASH (a)
+( PARTITION p0 VALUES IN (0)
+( SUBPARTITION s0, SUBPARTITION s1 ENGINE=MyISAM, SUBPARTITION s2),
+PARTITION p1 VALUES IN (1)
+( SUBPARTITION s3 ENGINE=MyISAM, SUBPARTITION s4, SUBPARTITION s5 ENGINE=MyISAM));
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+#
+# bug#11760213-52599: ALTER TABLE REMOVE PARTITIONING ON NON-PARTITIONED
+#                                 TABLE CORRUPTS MYISAM
+CREATE TABLE  `t1`(`a` INT)ENGINE=myisam;
+ALTER TABLE `t1` ADD COLUMN `b` INT;
+CREATE UNIQUE INDEX `i1` ON `t1`(`b`);
+CREATE UNIQUE INDEX `i2` ON `t1`(`a`);
+ALTER TABLE `t1` ADD PRIMARY KEY  (`a`);
+ALTER TABLE `t1` REMOVE PARTITIONING;
+ERROR HY000: Partition management on a not partitioned table is not possible
+CHECK TABLE `t1` EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+#
+# WL#1074 - Descending index support.
+#
+CREATE TABLE t1
+(a VARCHAR(10),
+b VARCHAR(10),
+PRIMARY KEY (a DESC, b DESC),
+KEY ab_asc (a ASC, b ASC),
+KEY a_asc_b_desc (a ASC, b DESC),
+key a_desc_b_asc (a DESC, b ASC))
+ENGINE = InnoDB 
+PARTITION BY KEY (a, b) PARTITIONS 3;
+INSERT INTO t1 VALUES ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"),
+("4", "4"), ("55", "55"), ("54", "54"), ("1", "2"), ("1", "4"), ("1", "3"),
+("55", "54"), ("0", "1");
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Test non ordered index access
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`);
+a	b
+4	4
+3	3
+2	2
+1	4
+1	3
+1	2
+1	1
+0	1
+0	0
+55	55
+55	54
+54	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	3
+Handler_external_lock	6
+Handler_read_first	3
+Handler_read_key	5
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`ab_asc`);
+a	b
+0	0
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
+54	54
+55	54
+55	55
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`a_asc_b_desc`);
+a	b
+0	1
+0	0
+1	4
+1	3
+1	2
+1	1
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`a_desc_b_asc`);
+a	b
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+55	54
+55	55
+54	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+# Test sorted index access
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a DESC, b DESC;
+a	b
+55	55
+55	54
+54	54
+4	4
+3	3
+2	2
+1	4
+1	3
+1	2
+1	1
+0	1
+0	0
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a, b;
+a	b
+0	0
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
+54	54
+55	54
+55	55
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a, b DESC;
+a	b
+0	1
+0	0
+1	4
+1	3
+1	2
+1	1
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a DESC, b;
+a	b
+55	54
+55	55
+54	54
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "ab_asc",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b`
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "a_asc_b_desc",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "a_desc_b_asc",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b`
+# Test index access in different sort order
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
+a	b
+0	0
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
+54	54
+55	54
+55	55
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_key	3
+Handler_read_last	3
+Handler_read_prev	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+a	b
+55	54
+55	55
+54	54
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
+a	b
+0	1
+0	0
+1	4
+1	3
+1	2
+1	1
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+a	b
+55	54
+55	55
+54	54
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "backward_index_scan": true,
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) order by `test`.`t1`.`a`,`test`.`t1`.`b`
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "X"
+      },
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) order by `test`.`t1`.`a` desc,`test`.`t1`.`b`
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "X"
+      },
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
+# Test HANDLER statements.
+FLUSH STATUS;
+HANDLER t1 OPEN;
+HANDLER t1 READ `PRIMARY` FIRST;
+a	b
+55	55
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+55	54
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+54	54
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+4	4
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+3	3
+HANDLER t1 READ `PRIMARY` LAST;
+a	b
+0	0
+HANDLER t1 READ `PRIMARY` PREV;
+a	b
+0	1
+HANDLER t1 READ `PRIMARY` PREV;
+a	b
+1	1
+HANDLER t1 READ `PRIMARY` PREV;
+a	b
+1	2
+HANDLER t1 READ ab_asc FIRST;
+a	b
+0	0
+HANDLER t1 READ ab_asc NEXT;
+a	b
+0	1
+HANDLER t1 READ ab_asc NEXT;
+a	b
+1	1
+HANDLER t1 READ ab_asc NEXT;
+a	b
+1	2
+HANDLER t1 READ ab_asc NEXT;
+a	b
+1	3
+HANDLER t1 READ ab_asc LAST;
+a	b
+55	55
+HANDLER t1 READ ab_asc PREV;
+a	b
+55	54
+HANDLER t1 READ ab_asc PREV;
+a	b
+54	54
+HANDLER t1 READ ab_asc PREV;
+a	b
+4	4
+HANDLER t1 CLOSE;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	18
+Handler_external_lock	36
+Handler_read_first	6
+Handler_read_key	12
+Handler_read_last	6
+Handler_read_next	8
+Handler_read_prev	6
+DROP TABLE t1;

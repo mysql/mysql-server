@@ -1,0 +1,33 @@
+
+--echo #
+--echo # Bug #12699505 MEMORY LEAK IN ROW_CREATE_INDEX_FOR_MYSQL()
+--echo #
+# The leak would only be triggered if
+# ha_innobase::max_supported_key_part_length() were set
+# higher than the limit used in row_create_index_for_mysql().
+
+--error ER_DUP_FIELDNAME
+CREATE TABLE t1(a int not null,key(a,a)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+-- error ER_TOO_LONG_KEY
+CREATE TABLE t1(a int,b text,key(b(768))) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ROW_FORMAT=COMPACT;
+CREATE TABLE t1(a int not null,b text) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES (1,''),(2,''),(3,''),(4,''),(5,''),(6,''),(7,'');
+--error ER_DUP_FIELDNAME
+CREATE INDEX t1aa ON t1(a,a);
+-- error ER_TOO_LONG_KEY
+CREATE INDEX t1b ON t1(b(768));
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t2(a int primary key, b text) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ROW_FORMAT=COMPACT;
+INSERT INTO t2 VALUES (1,''),(2,''),(3,''),(4,''),(5,''),(6,''),(7,'');
+--error ER_DUP_FIELDNAME
+CREATE INDEX t2aa ON t2(a,a);
+-- error ER_TOO_LONG_KEY
+CREATE INDEX t2b ON t2(b(768));
+SELECT * FROM t2;
+DROP TABLE t2;

@@ -1,0 +1,130 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+########################################################################
+#                             Environment
+########################################################################
+CREATE TABLE t (i INT, PRIMARY KEY(i), f CHAR(8)) engine = Innodb;
+CREATE TABLE n (d DATETIME, f CHAR(32)) engine = MyIsam;
+CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW 
+BEGIN 
+INSERT INTO n VALUES ( now(), concat( 'updated t: ', old.f, ' -> ', new.f ) ); 
+END |
+INSERT INTO t VALUES (4,'black'), (2,'red'), (3,'yelow'), (1,'cyan');
+########################################################################
+#                     Testing ER_LOCK_WAIT_TIMEOUT
+########################################################################
+SET AUTOCOMMIT = 1;
+BEGIN;
+UPDATE t SET f = 'yellow 2' WHERE i = 3;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+SET AUTOCOMMIT = 1;
+BEGIN;
+UPDATE IGNORE t SET f = 'magenta 2' WHERE f = 'red';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t VALUES (5 + (2 * 10),"brown");
+INSERT INTO n VALUES (now(),"brown");
+COMMIT;
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'yellow 2' WHERE i = 3
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE IGNORE t SET f = 'magenta 2' WHERE f = 'red'
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (5 + (2 * 10),"brown")
+master-bin.000001	#	Query	#	#	ROLLBACK
+SET AUTOCOMMIT = 1;
+BEGIN;
+UPDATE t SET f = 'gray 2' WHERE i = 3;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+SET AUTOCOMMIT = 1;
+BEGIN;
+UPDATE IGNORE t SET f = 'dark blue 2' WHERE f = 'red';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t VALUES (6 + (2 * 10),"brown");
+INSERT INTO n VALUES (now(),"brown");
+COMMIT;
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'gray 2' WHERE i = 3
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE IGNORE t SET f = 'dark blue 2' WHERE f = 'red'
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (6 + (2 * 10),"brown")
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+SET AUTOCOMMIT = 0;
+UPDATE t SET f = 'yellow 1' WHERE i = 3;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+SET AUTOCOMMIT = 0;
+UPDATE IGNORE t SET f = 'magenta 1' WHERE f = 'red';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t VALUES (5 + (1 * 10),"brown");
+INSERT INTO n VALUES (now(),"brown");
+COMMIT;
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'yellow 1' WHERE i = 3
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE IGNORE t SET f = 'magenta 1' WHERE f = 'red'
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (5 + (1 * 10),"brown")
+master-bin.000001	#	Query	#	#	ROLLBACK
+SET AUTOCOMMIT = 0;
+UPDATE t SET f = 'gray 1' WHERE i = 3;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+SET AUTOCOMMIT = 0;
+UPDATE IGNORE t SET f = 'dark blue 1' WHERE f = 'red';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t VALUES (6 + (1 * 10),"brown");
+INSERT INTO n VALUES (now(),"brown");
+COMMIT;
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'gray 1' WHERE i = 3
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE IGNORE t SET f = 'dark blue 1' WHERE f = 'red'
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (6 + (1 * 10),"brown")
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+########################################################################
+#                                Cleanup
+########################################################################
+DROP TRIGGER tr;
+DROP TABLE t;
+DROP TABLE n;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

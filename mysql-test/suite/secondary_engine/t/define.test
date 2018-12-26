@@ -1,0 +1,132 @@
+# Tests for the SECONDARY_ENGINE table option.
+
+--echo #
+--echo # Attempt to load table into an undefined secondary engine.
+--echo #
+CREATE TABLE t1 (a INT);
+--error ER_SECONDARY_ENGINE
+ALTER TABLE t1 SECONDARY_LOAD;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to load table into an unknown storage engine.
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 SECONDARY_LOAD;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to load table into an unsupported secondary storage engine.
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE InnoDB;
+--error ER_SECONDARY_ENGINE
+ALTER TABLE t1 SECONDARY_LOAD;
+DROP TABLE t1;
+
+--echo #
+--echo # Create a table with a secondary engine defined.
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to redefine the secondary engine.
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+--error ER_SECONDARY_ENGINE
+ALTER TABLE t1 SECONDARY_ENGINE ANOTHER_NONEXISTENT;
+DROP TABLE t1;
+
+--echo #
+--echo # Define and undefine secondary engine (without loading in-between).
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+ALTER TABLE t1 SECONDARY_ENGINE NULL;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to create a temporary table with a secondary engine defined.
+--echo #
+--error ER_SECONDARY_ENGINE
+CREATE TEMPORARY TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+--error ER_SECONDARY_ENGINE
+CREATE TEMPORARY TABLE t2 LIKE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to create a table with a primary engine that does not support
+--echo # loading tables into a secondary engine.
+--error ER_CHECK_NOT_IMPLEMENTED
+CREATE TABLE t1 (a INT) ENGINE MYISAM SECONDARY_ENGINE NONEXISTENT;
+
+--echo #
+--echo # Attempt to change primary storage engine to an engine that does not
+--echo # support loading into a secondary engine.
+--echo #
+CREATE TABLE t1 (a INT) ENGINE InnoDB SECONDARY_ENGINE NONEXISTENT;
+--error ER_SECONDARY_ENGINE_DDL
+ALTER TABLE t1 ENGINE MYISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to use SECONDARY_LOAD when creating table.
+--echo #
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (a INT) SECONDARY_LOAD;
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT, SECONDARY_LOAD;
+
+--echo #
+--echo # Attempt to alter a table after a secondary engine has been defined.
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+--error ER_SECONDARY_ENGINE_DDL
+ALTER TABLE t1 COMMENT="Test";
+--error ER_SECONDARY_ENGINE_DDL
+ALTER TABLE t1 COMMENT="Test", ALGORITHM=INPLACE;
+--error ER_SECONDARY_ENGINE_DDL
+ALTER TABLE t1 COMMENT="Test", ALGORITHM=COPY;
+--error ER_SECONDARY_ENGINE_DDL
+ALTER TABLE t1 ADD COLUMN (b INT);
+--error ER_SECONDARY_ENGINE_DDL
+ALTER TABLE t1 ADD COLUMN (b INT), ALGORITHM=INPLACE;
+--error ER_SECONDARY_ENGINE_DDL
+ALTER TABLE t1 ADD COLUMN (b INT), ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to alter table after its secondary engine has been removed.
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 SECONDARY_ENGINE NULL;
+ALTER TABLE t1 COMMENT="Test";
+ALTER TABLE t1 ADD COLUMN (b INT);
+ALTER TABLE t1 SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to rename a table with a secondary engine defined.
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+--error ER_SECONDARY_ENGINE_DDL
+RENAME TABLE t1 TO t2;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to use SECONDARY_LOAD in conjunction with another DDL.
+--echo #
+CREATE TABLE t1 (i INT);
+--error ER_SECONDARY_ENGINE
+ALTER TABLE t1 SECONDARY_LOAD, ADD KEY idx(i);
+ALTER TABLE t1 SECONDARY_ENGINE NONEXISTENT;
+--error ER_SECONDARY_ENGINE_DDL
+ALTER TABLE t1 SECONDARY_LOAD, ADD KEY idx(i);
+DROP TABLE t1;

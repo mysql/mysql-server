@@ -1,0 +1,10 @@
+-- source include/have_log_bin.inc
+-- source include/windows.inc
+
+#
+# WL#4783
+#
+
+-- source include/mysqlbinlog_raw_mode.inc
+
+-- echo End of tests

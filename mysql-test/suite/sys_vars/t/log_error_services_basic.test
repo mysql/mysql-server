@@ -1,0 +1,14 @@
+########## mysql-test\suite\sys_vars\t\log_error_services_basic.test ##########
+#                                                                             #
+# Variable Name: log_error_services                                           #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2017-01-20                                                   #
+# Author : Azundris (tnuernbe)                                                #
+#                                                                             #
+# Description: Dummy for all_vars.  Actually tested in log_components.test    #
+#                                                                             #
+###############################################################################

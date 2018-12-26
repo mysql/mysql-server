@@ -1,0 +1,45 @@
+
+SET @start_global_value = @@global.sync_relay_log_info;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.sync_relay_log_info;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.sync_relay_log_info;
+show global variables like 'sync_relay_log_info';
+show session variables like 'sync_relay_log_info';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='sync_relay_log_info';
+select * from performance_schema.session_variables where variable_name='sync_relay_log_info';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global sync_relay_log_info=1;
+select @@global.sync_relay_log_info;
+--error ER_GLOBAL_VARIABLE
+set session sync_relay_log_info=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global sync_relay_log_info=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global sync_relay_log_info=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global sync_relay_log_info="foo";
+
+#
+# min/max values
+#
+set global sync_relay_log_info=0;
+select @@global.sync_relay_log_info;
+set global sync_relay_log_info=cast(-1 as unsigned int);
+select @@global.sync_relay_log_info;
+
+SET @@global.sync_relay_log_info = @start_global_value;
+SELECT @@global.sync_relay_log_info;

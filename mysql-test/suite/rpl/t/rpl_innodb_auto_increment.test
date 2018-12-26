@@ -1,0 +1,195 @@
+##########################################################################################
+#                                                                                        #
+# The aim of this test is to set up replication between a master and slave and check     #
+# how tables with auto_increment columns are replicated on InnoDB engine.                #
+#                                                                                        #
+# The innodb_autoinc_lock_mode is changed on both master and slave and set               #
+# to values 0,1,2 so that there are 9 possible scenarios.                                #
+#                                                                                        #
+# In each scenario, simple inserts, bulk inserts and mixed mode inserts are done into    #
+# the table with auto_increment column and then replicated on the slave.                 #
+#                                                                                        #
+# Creation Date : 2015-12-14                                                             #
+# Author : Deepa Dixit                                                                   #
+#                                                                                        #
+#                                                                                        #
+##########################################################################################
+
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/big_test.inc
+
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
+# Increasing master_connect_retry to increase the time interval between connection retries due to Bug#23615424:
+# WL#6338: RPL.RPL_INNODB_AUTO_INCREMENT FAILS WITH ERROR IN SYNC_WITH_MASTER.INC
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
+CHANGE MASTER TO MASTER_CONNECT_RETRY = 30 ;
+--source include/start_slave.inc
+
+##########################################################################################
+# Consecutive lock mode                                                                  #
+##########################################################################################
+--echo # Restart master with innodb_autoinc_lock_mode = 1
+--connection master
+
+--let $rpl_server_number=1
+--let $rpl_server_parameters= --innodb_autoinc_lock_mode=1
+--source include/rpl_restart_server.inc
+
+--echo # Restart slave with innodb_autoinc_lock_mode = 1
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
+--let $rpl_server_number=2
+--source include/rpl_restart_server.inc
+
+--connection slave
+--source include/start_slave.inc
+
+--source suite/rpl/include/rpl_auto_increment.inc
+
+##########################################################################################
+# Traditional lock mode                                                                  #
+##########################################################################################
+--echo # Restart master with innodb_autoinc_lock_mode = 0
+--connection master
+
+
+--let $rpl_server_number=1
+--let $rpl_server_parameters= --innodb_autoinc_lock_mode=0
+--source include/rpl_restart_server.inc
+
+
+--echo # Restart slave with innodb_autoinc_lock_mode = 0
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
+--let $rpl_server_number=2
+--source include/rpl_restart_server.inc
+
+--connection slave
+--source include/start_slave.inc
+
+--source suite/rpl/include/rpl_auto_increment.inc
+
+##########################################################################################
+# Interleaved lock mode                                                                  #
+##########################################################################################
+
+--echo # Restart master with innodb_autoinc_lock_mode = 2
+--connection master
+
+--let $rpl_server_number=1
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
+--source include/rpl_restart_server.inc
+
+--echo # Restart slave with innodb_autoinc_lock_mode = 2
+--let $rpl_server_number=2
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
+--source include/rpl_restart_server.inc
+
+--connection slave
+--source include/start_slave.inc
+
+--source suite/rpl/include/rpl_auto_increment.inc
+##########################################################################################
+# Master : Interleaved lock mode; Slave : Traditional lock mode                          #
+##########################################################################################
+
+--echo # Restart slave with innodb_autoinc_lock_mode = 0
+--connection slave
+--let $rpl_server_number=2
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
+--source include/rpl_restart_server.inc
+
+--source include/start_slave.inc
+
+--source suite/rpl/include/rpl_auto_increment.inc
+
+
+##########################################################################################
+# Master : Interleaved lock mode; Slave : Consecutive lock mode                          #
+##########################################################################################
+
+--echo # Restart slave with innodb_autoinc_lock_mode = 1
+--connection slave
+--let $rpl_server_number=2
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
+--source include/rpl_restart_server.inc
+
+--source include/start_slave.inc
+
+--source suite/rpl/include/rpl_auto_increment.inc
+
+##########################################################################################
+# Master : Traditional lock mode; Slave : Consecutive lock mode                          #
+##########################################################################################
+
+--echo # Restart master with innodb_autoinc_lock_mode = 0
+--connection master
+--let $rpl_server_number=1
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
+--source include/rpl_restart_server.inc
+
+--source suite/rpl/include/rpl_auto_increment.inc
+
+##########################################################################################
+# Master : Traditonal lock mode; Slave : Interleaved lock mode                           #
+##########################################################################################
+
+--echo # Restart slave with innodb_autoinc_lock_mode = 2
+--connection slave
+--let $rpl_server_number=2
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
+--source include/rpl_restart_server.inc
+
+--source include/start_slave.inc
+
+--source suite/rpl/include/rpl_auto_increment.inc
+
+##########################################################################################
+# Master : Consecutive lock mode; Slave : Interleaved lock mode                          #
+##########################################################################################
+
+--echo # Restart master with innodb_autoinc_lock_mode = 1
+--connection master
+--let $rpl_server_number=1
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
+--source include/rpl_restart_server.inc
+
+--source suite/rpl/include/rpl_auto_increment.inc
+
+
+##########################################################################################
+# Master : Consecutive lock mode; Slave : Traditonal lock mode                           #
+##########################################################################################
+
+--echo # Restart slave with innodb_autoinc_lock_mode = 0
+--connection slave
+--let $rpl_server_number=2
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=0
+--source include/rpl_restart_server.inc
+
+--source include/start_slave.inc
+
+--source suite/rpl/include/rpl_auto_increment.inc
+
+##########################################################################################
+# Set locking mode back to the default mode                                              #
+##########################################################################################
+
+--echo # Restart master with innodb_autoinc_lock_mode = 2
+--connection master
+--let $rpl_server_number=1
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
+--source include/rpl_restart_server.inc
+
+--echo # Restart slave with innodb_autoinc_lock_mode = 2
+--let $rpl_server_number=2
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
+--source include/rpl_restart_server.inc
+
+--connection slave
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

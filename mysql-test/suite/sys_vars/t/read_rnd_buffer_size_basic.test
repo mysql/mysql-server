@@ -1,0 +1,199 @@
+############## mysql-test\t\read_rnd_buffer_size_basic.test ###############
+#                                                                             #
+# Variable Name: read_rnd_buffer_size                                         #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:262144                                                        #
+# Range:  8200-4294967295                                                     #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable read_rnd_buffer_size     #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+
+######################################################################
+#           START OF read_rnd_buffer_size TESTS                    #
+######################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.read_rnd_buffer_size;
+SELECT @start_global_value;
+SET @start_session_value = @@session.read_rnd_buffer_size;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_140_01-------------------------#'
+######################################################################
+#     Display the DEFAULT value of read_rnd_buffer_size            #
+######################################################################
+
+SET @@global.read_rnd_buffer_size = 1000;
+SET @@global.read_rnd_buffer_size = DEFAULT;
+SELECT @@global.read_rnd_buffer_size;
+
+SET @@session.read_rnd_buffer_size = 2000;
+SET @@session.read_rnd_buffer_size = DEFAULT;
+SELECT @@session.read_rnd_buffer_size;
+
+--echo '#--------------------FN_DYNVARS_140_03-------------------------#'
+################################################################################
+# Change the value of read_rnd_buffer_size to a valid value for GLOBAL Scope #
+################################################################################
+
+SET @@global.read_rnd_buffer_size = 1;
+SELECT @@global.read_rnd_buffer_size;
+SET @@global.read_rnd_buffer_size = 8201;
+SELECT @@global.read_rnd_buffer_size;
+SET @@global.read_rnd_buffer_size = 8200;
+SELECT @@global.read_rnd_buffer_size;
+SET @@global.read_rnd_buffer_size = 2147479552;
+SELECT @@global.read_rnd_buffer_size;
+SET @@global.read_rnd_buffer_size = 2147483647;
+SELECT @@global.read_rnd_buffer_size;
+
+--echo '#--------------------FN_DYNVARS_140_04-------------------------#'
+###################################################################################
+# Change the value of read_rnd_buffer_size to a valid value for SESSION Scope #
+###################################################################################
+ 
+SET @@session.read_rnd_buffer_size = 1;
+SELECT @@session.read_rnd_buffer_size;
+SET @@session.read_rnd_buffer_size = 8200;
+SELECT @@session.read_rnd_buffer_size;
+SET @@session.read_rnd_buffer_size = 8201;
+SELECT @@session.read_rnd_buffer_size;
+SET @@session.read_rnd_buffer_size = 2147479552;
+SELECT @@session.read_rnd_buffer_size;
+SET @@session.read_rnd_buffer_size = 2147483647;
+SELECT @@session.read_rnd_buffer_size;
+
+
+--echo '#------------------FN_DYNVARS_140_05-----------------------#'
+##################################################################
+# Change the value of read_rnd_buffer_size to an invalid value #
+##################################################################
+
+SET @@global.read_rnd_buffer_size = 0;
+SELECT @@global.read_rnd_buffer_size;
+SET @@global.read_rnd_buffer_size = -1024;
+SELECT @@global.read_rnd_buffer_size;
+SET @@global.read_rnd_buffer_size = 2147483648;
+SELECT @@global.read_rnd_buffer_size;
+SET @@global.read_rnd_buffer_size = 4147483648;
+SELECT @@global.read_rnd_buffer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.read_rnd_buffer_size = 65530.34;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.read_rnd_buffer_size = test;
+
+SET @@session.read_rnd_buffer_size = 0;
+SELECT @@session.read_rnd_buffer_size;
+SET @@session.read_rnd_buffer_size = -1024;
+SELECT @@session.read_rnd_buffer_size;
+SET @@session.read_rnd_buffer_size = 2147483648;
+SELECT @@session.read_rnd_buffer_size;
+SET @@session.read_rnd_buffer_size = 4147483648;
+SELECT @@session.read_rnd_buffer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.read_rnd_buffer_size = 65530.34;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.read_rnd_buffer_size = test;
+
+--echo '#------------------FN_DYNVARS_140_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+
+--disable_warnings
+SELECT @@global.read_rnd_buffer_size = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='read_rnd_buffer_size';
+--enable_warnings
+
+--echo '#------------------FN_DYNVARS_140_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@session.read_rnd_buffer_size = 
+VARIABLE_VALUE FROM performance_schema.session_variables WHERE VARIABLE_NAME='read_rnd_buffer_size';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_140_08-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.read_rnd_buffer_size = TRUE;
+SELECT @@global.read_rnd_buffer_size;
+SET @@global.read_rnd_buffer_size = FALSE;
+SELECT @@global.read_rnd_buffer_size;
+
+
+--echo '#---------------------FN_DYNVARS_140_09----------------------#'
+#################################################################################### 
+#  Check if accessing variable with and without GLOBAL point to same variable   #
+#################################################################################### 
+
+SET @@global.read_rnd_buffer_size = 9000;
+SELECT @@read_rnd_buffer_size = @@global.read_rnd_buffer_size;
+
+
+--echo '#---------------------FN_DYNVARS_140_10----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@read_rnd_buffer_size = 9000;
+SELECT @@read_rnd_buffer_size = @@local.read_rnd_buffer_size;
+SELECT @@local.read_rnd_buffer_size = @@session.read_rnd_buffer_size;
+
+
+--echo '#---------------------FN_DYNVARS_140_11----------------------#'
+###################################################################################  
+#   Check if read_rnd_buffer_size can be accessed with and without @@ sign    #
+###################################################################################
+
+SET read_rnd_buffer_size = 9100;
+SELECT @@read_rnd_buffer_size;
+--Error ER_UNKNOWN_TABLE
+SELECT local.read_rnd_buffer_size;
+--Error ER_UNKNOWN_TABLE
+SELECT session.read_rnd_buffer_size;
+--Error ER_BAD_FIELD_ERROR
+SELECT read_rnd_buffer_size = @@session.read_rnd_buffer_size;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.read_rnd_buffer_size = @start_global_value;
+SELECT @@global.read_rnd_buffer_size;
+SET @@session.read_rnd_buffer_size = @start_session_value;
+SELECT @@session.read_rnd_buffer_size;
+
+
+#############################################################
+#                 END OF read_rnd_buffer_size TESTS     #
+#############################################################

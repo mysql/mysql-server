@@ -1,0 +1,35 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+create table t1 (f text) engine=innodb;
+SET DEBUG_SYNC = 'at_purge_logs_before_date WAIT_FOR rotated';
+insert into t1 set f=repeat('a', 4096);
+*** there must be two logs in the list ***
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+master-bin.000002	#
+insert into t1 set f=repeat('b', 4096);
+*** there must be three logs in the list ***
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+master-bin.000002	#
+master-bin.000003	#
+SET DEBUG_SYNC = 'now SIGNAL rotated';
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+include/sync_slave_sql_with_master.inc
+SET DEBUG_SYNC = 'at_purge_logs_before_date WAIT_FOR rotated';
+insert into t1 set f=repeat('b', 4096);
+SET DEBUG_SYNC = 'now SIGNAL rotated';
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+drop table t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

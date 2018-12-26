@@ -1,0 +1,42 @@
+# Tests for sys schema
+# Verify the sys.ps_is_consumer_enabled() function perfoms as expected
+
+# Should be disabled by default
+UPDATE performance_schema.setup_consumers SET enabled = 'NO' WHERE name = 'events_stages_history';
+SELECT sys.ps_is_consumer_enabled('events_stages_history');
+
+# Should be enabled by default
+SELECT sys.ps_is_consumer_enabled('global_instrumentation');
+
+# An error if bad name:
+--error ER_STD_INVALID_ARGUMENT
+SELECT sys.ps_is_consumer_enabled('events_stages_histONg');
+
+#
+# Check that hierarchy is properly reflected
+#
+
+UPDATE performance_schema.setup_consumers SET enabled = 'NO' WHERE name = 'events_stages_current';
+UPDATE performance_schema.setup_consumers SET enabled = 'YES' WHERE name = 'events_stages_history';
+
+# Should still be disabled, as events_stages_current not enabled
+SELECT sys.ps_is_consumer_enabled('events_stages_history');
+
+UPDATE performance_schema.setup_consumers SET enabled = 'YES' WHERE name = 'events_stages_current';
+
+# Now it should be enabled
+SELECT sys.ps_is_consumer_enabled('events_stages_history');
+
+# Toggling global_instrumentation should disable all other consumers
+UPDATE performance_schema.setup_consumers SET enabled = 'NO' WHERE name = 'global_instrumentation';
+
+SELECT sys.ps_is_consumer_enabled('thread_instrumentation');
+SELECT sys.ps_is_consumer_enabled('statements_digest');
+SELECT sys.ps_is_consumer_enabled('events_stages_current');
+SELECT sys.ps_is_consumer_enabled('events_stages_history');
+SELECT sys.ps_is_consumer_enabled('events_stages_history_long');
+SELECT sys.ps_is_consumer_enabled('events_statements_current');
+SELECT sys.ps_is_consumer_enabled('events_statements_history');
+SELECT sys.ps_is_consumer_enabled('events_statements_history_long');
+
+--source ../include/ps_setup_consumers_cleanup.inc

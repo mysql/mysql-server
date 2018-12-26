@@ -1,0 +1,58 @@
+reset master;
+Disconnect mysqld from all datanodes
+Wait for binlog rotate to indicate disconnect
+Wait to get out of read-only mode
+
+Check that the binlog was rotated:
+There should be a 'LOST EVENT', then 'Rotate ... binlog.000002'
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Incident	#	#	#1 (LOST_EVENTS)
+binlog.000001	#	Rotate	#	#	binlog.000002;pos=POS
+
+Testing for Bug#22204186: Stuck in Readonly if slow failure handling
+====================================================================
+reset master;
+Disconnect mysqld from all datanodes
+Wait for binlog rotate to indicate disconnect
+Wait to get out of read-only mode
+
+Check that the binlog was rotated:
+There should be a 'LOST EVENT', then 'Rotate ... binlog.000002'
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Incident	#	#	#1 (LOST_EVENTS)
+binlog.000001	#	Rotate	#	#	binlog.000002;pos=POS
+
+Testcase1 for Bug#22494024 Slow binlog-setup -> MDL deadlock (Meta Data Lock)
+ndb_binlog_setup() fails to fully complete and does not clean up
+its partial setup binlog subscriptions on exit
+=============================================================================
+Prepare mysqld 'server2' to not entirely complete binlog_setup
+Disconnect both mysqld servers from all datanodes -> binlog restarts
+Wait for 'server1' binlog rotate to indicate disconnect
+Wait for 'server2' binlog rotate to indicate disconnect
+Wait for 'server1' to complete setup and get out of read-only mode
+Give 'server2' some time to start, and fail, a binlog_setup
+Create table operation on 'server1' grab MDL lock while waiting for
+schema change distribution to all subscribing mysqld.
+create table t1 (a int primary key) engine=ndb;
+drop table t1;
+Wait for 'server2' to complete setup and get out of read-only mode
+
+Testcase2 for Bug#22494024 Slow binlog-setup -> MDL deadlock (Meta Data Lock)
+Table 'ndb_schema' is accessed from a SQL query. Causing it to be opened
+and a SUBSCRIBE-event sent to other mysqld.
+=============================================================================
+Prepare mysqld 'server2' to do slow binlog_setup upon restart
+Disconnect both mysqld servers from all datanodes -> binlog restarts
+Wait for 'server1' binlog rotate to indicate disconnect
+Wait for 'server2' binlog rotate to indicate disconnect
+Wait for (fast) 'server1' to complete setup and get out of read-only mode
+Reading 'mysql.ndb_schema' on 'server2' announce schema distr. participation as a side effect.
+select * from mysql.ndb_schema where db="" and name="";
+Create table operation on 'server1' grab MDL lock while waiting for
+schema distribution to all subscribing mysqld -> stuck on 'server2'
+create table t1 (a int primary key) engine=ndb;
+drop table t1;
+Wait for 'server2' to complete setup and get out of read-only mode

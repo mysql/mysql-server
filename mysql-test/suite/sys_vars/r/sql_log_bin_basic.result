@@ -1,0 +1,107 @@
+SET @session_start_value = @@session.sql_log_bin;
+SELECT @session_start_value;
+@session_start_value
+1
+'#--------------------FN_DYNVARS_156_01------------------------#'
+SET @@session.sql_log_bin = 0;
+SET @@session.sql_log_bin = DEFAULT;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+SET @@session.sql_log_bin = 1;
+SET @@session.sql_log_bin = DEFAULT;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+'#---------------------FN_DYNVARS_156_02-------------------------#'
+SET sql_log_bin = 1;
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+SELECT session.sql_log_bin;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT local.sql_log_bin;
+ERROR 42S02: Unknown table 'local' in field list
+SET session sql_log_bin = 0;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+0
+'#--------------------FN_DYNVARS_156_03------------------------#'
+SET @@session.sql_log_bin = 0;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+0
+SET @@session.sql_log_bin = 1;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+'#--------------------FN_DYNVARS_156_04-------------------------#'
+SET @@session.sql_log_bin = -1;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '-1'
+SET @@session.sql_log_bin = 2;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '2'
+SET @@session.sql_log_bin = "T";
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'T'
+SET @@session.sql_log_bin = "Y";
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'Y'
+SET @@session.sql_log_bin = TRÜE;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'TRÜE'
+SET @@session.sql_log_bin = ÕN;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'ÕN'
+SET @@session.sql_log_bin = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@session.sql_log_bin = ÓFF;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'ÓFF'
+SET @@session.sql_log_bin = '¹';
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '¹'
+SET @@session.sql_log_bin = NO;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'NO'
+'#-------------------FN_DYNVARS_156_05----------------------------#'
+SELECT @@global.sql_log_bin;
+ERROR HY000: Variable 'sql_log_bin' is a SESSION variable
+SET @@global.sql_log_bin = 0;
+ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
+SELECT @@global.sql_log_bin;
+ERROR HY000: Variable 'sql_log_bin' is a SESSION variable
+SET @@global.sql_log_bin = 1;
+ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
+'#----------------------FN_DYNVARS_156_06------------------------#'
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='sql_log_bin';
+count(VARIABLE_VALUE)
+0
+'#----------------------FN_DYNVARS_156_07------------------------#'
+SELECT IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_log_bin';
+IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE
+1
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='sql_log_bin';
+VARIABLE_VALUE
+ON
+'#---------------------FN_DYNVARS_156_08-------------------------#'
+SET @@session.sql_log_bin = OFF;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+0
+SET @@session.sql_log_bin = ON;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+'#---------------------FN_DYNVARS_156_09----------------------#'
+SET @@session.sql_log_bin = TRUE;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+SET @@session.sql_log_bin = FALSE;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+0
+SET @@session.sql_log_bin = @session_start_value;
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1

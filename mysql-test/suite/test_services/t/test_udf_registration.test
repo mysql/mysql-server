@@ -1,0 +1,28 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN test_udf_registration SONAME '$TESTUDFREGISTRATION';
+
+--echo # Must work
+SELECT test_udf_registration_udf();
+
+UNINSTALL PLUGIN test_udf_registration;
+
+--echo # Must fail: no UDF
+--error ER_SP_DOES_NOT_EXIST
+SELECT test_udf_registration_udf();
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN test_udf_registration SONAME '$TESTUDFREGISTRATION';
+
+
+--echo # Restart the server
+--source include/restart_mysqld.inc
+
+
+--echo # Must work after a restart
+SELECT test_udf_registration_udf();
+
+--echo # Cleanup
+UNINSTALL PLUGIN test_udf_registration;

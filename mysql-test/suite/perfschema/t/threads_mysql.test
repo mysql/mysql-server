@@ -1,0 +1,126 @@
+
+# Tests for special content of performance_schema.threads
+#
+# Show MySQL server related content in performance_schema.threads
+
+--source include/not_windows.inc
+
+# Ensure that the event scheduler (started via threads_mysql-master.opt)
+# is really running.
+--source include/running_event_scheduler.inc
+
+SET GLOBAL event_scheduler = OFF;
+--source include/no_running_event_scheduler.inc
+
+# threads are removed from:
+# - information_schema.processlist
+# - performance_schema.threads
+# at different times, so we may have to wait a little more
+# for the event_scheduler to shutdown
+#
+let $wait_timeout= 1;
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM performance_schema.threads
+  WHERE name like 'thread/sql/event%';
+--source include/wait_condition.inc
+
+--vertical_results
+
+# Show all "system" threads except the event scheduler
+# ---------------------------------------------------
+# 0. The values within the columns "thread_id" and "processlist_id" depend
+#    on server history. Therefore they are unstable and need to be omitted.
+# 1. The columns "time" and "state" are omitted because it is thinkable that
+#    they contain slightly unstable though correct values.
+# 2. The unification of the column "parent_thread_id" is in the moment most
+#    probably not required because I observed all time that the parent is
+#    "thread/sql/main" with the thread_id = 1.
+#    But there might be more kinds of parents with most probably unstable
+#    "thread_id" values in future.
+# 3. In case the test is started with the option "--ps-protocol" we will
+#    find a correcet row for our current thread but the content will differ.
+#    Therefore we have to disable this protocol for the next statement.
+--disable_ps_protocol
+SELECT name, type, processlist_user, processlist_host, processlist_db,
+       processlist_command, processlist_info,
+       IF(parent_thread_id IS NULL, parent_thread_id, 'unified parent_thread_id')
+         AS unified_parent_thread_id,
+       `role`, instrumented
+FROM performance_schema.threads
+WHERE name LIKE 'thread/sql%'
+ORDER BY name;
+--enable_ps_protocol
+
+CREATE TEMPORARY TABLE t1 AS
+SELECT thread_id FROM performance_schema.threads
+WHERE name LIKE 'thread/sql%';
+
+
+SET GLOBAL event_scheduler = ON;
+--source include/running_event_scheduler.inc
+
+# Show entries belonging to the just started event scheduler
+SELECT name, type, processlist_user, processlist_host, processlist_db,
+       processlist_command, processlist_info,
+       IF(parent_thread_id IS NULL, parent_thread_id, 'unified parent_thread_id')
+         AS unified_parent_thread_id,
+       `role`, instrumented
+FROM performance_schema.threads
+WHERE name LIKE 'thread/sql%'
+  AND thread_id NOT IN (SELECT thread_id FROM t1)
+ORDER BY name;
+
+TRUNCATE t1;
+INSERT INTO t1
+SELECT thread_id FROM performance_schema.threads
+WHERE name LIKE 'thread/sql%';
+SELECT COUNT(*) INTO @aux FROM t1;
+
+# Attention:
+#    Just waiting for some new thread showing up is not sufficient because
+#    because the successing SELECT showing the thread might catch this thread
+#    in a very early and short phase.
+#    process_info si quite often
+#        CREATE PROCEDURE `t_ps_event`() SQL SECURITY INVOKER SELECT SLEEP(3)
+#             
+let $wait_condition=
+SELECT COUNT(*) = 1  FROM information_schema.processlist
+WHERE info = 'SELECT SLEEP(3)';
+
+--disable_warnings
+DROP EVENT IF EXISTS t_ps_event;
+--enable_warnings
+CREATE EVENT t_ps_event
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+DO SELECT SLEEP(3);
+
+# Wait till one more thread comes up.
+# This must be the event worker thread.
+let $wait_timeout= 20;
+--source include/wait_condition.inc
+
+# Show entries belonging to the just started event worker
+SELECT name, type, processlist_user, processlist_host, processlist_db,
+       processlist_command, processlist_info,
+       IF(parent_thread_id IS NULL, parent_thread_id, 'unified parent_thread_id')
+         AS unified_parent_thread_id,
+       `role`, instrumented
+FROM performance_schema.threads
+WHERE name LIKE 'thread/sql%'
+  AND thread_id NOT IN (SELECT thread_id FROM t1)
+ORDER BY name;
+
+# Show parent - child relations between "system" threads
+# ------------------------------------------------------
+--horizontal_results
+SELECT t2.name AS parent_thread_name, t1.name AS child_thread_name
+FROM performance_schema.threads t1 INNER JOIN performance_schema.threads t2
+ON t1.parent_thread_id = t2.thread_id
+WHERE t1.name LIKE 'thread/sql%'
+  AND t1.parent_thread_id IS NOT NULL
+ORDER BY parent_thread_name, child_thread_name;
+
+# Cleanup
+#    Wait till the event worker disappeared
+--source include/no_running_events.inc
+

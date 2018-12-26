@@ -1,0 +1,94 @@
+SET @innodb_max_dirty_pages_pct = @@global.innodb_max_dirty_pages_pct;
+'#--------------------FN_DYNVARS_044_02-------------------------#'
+SET @@global.innodb_max_dirty_pages_pct = 80;
+'connect (con1,localhost,root,,,,)'
+'connection con1'
+SELECT @@global.innodb_max_dirty_pages_pct;
+@@global.innodb_max_dirty_pages_pct
+80.000000
+SET @@global.innodb_max_dirty_pages_pct = 70;
+'connect (con2,localhost,root,,,,)'
+'connection con2'
+SELECT @@global.innodb_max_dirty_pages_pct;
+@@global.innodb_max_dirty_pages_pct
+70.000000
+'connection default'
+'disconnect con2'
+'disconnect con1'
+SET @@global.innodb_max_dirty_pages_pct = @innodb_max_dirty_pages_pct;
+'#--------------------FN_DYNVARS_044_02-------------------------#'
+DROP PROCEDURE IF EXISTS add_records;
+DROP PROCEDURE IF EXISTS add_until;
+DROP PROCEDURE IF EXISTS check_pct;
+DROP FUNCTION IF EXISTS dirty_pct;
+DROP TABLE IF EXISTS t1;
+CREATE PROCEDURE add_records(IN num INT)
+BEGIN
+START TRANSACTION;
+WHILE (num > 0) DO
+INSERT INTO t1(b) VALUES('MYSQL');
+SET num = num - 1;
+END WHILE;
+COMMIT;
+END//
+CREATE FUNCTION dirty_pct() RETURNS DECIMAL(20,17)
+BEGIN
+DECLARE res DECIMAL(20,17);
+DECLARE a1, b1 VARCHAR(256);
+DECLARE a2, b2 VARCHAR(256);
+DECLARE dirty CURSOR FOR SELECT * FROM performance_schema.global_status
+WHERE variable_name LIKE 'Innodb_buffer_pool_pages_dirty';
+DECLARE total CURSOR FOR SELECT * FROM performance_schema.global_status
+WHERE variable_name LIKE 'Innodb_buffer_pool_pages_total';
+OPEN dirty;
+OPEN total;
+FETCH dirty INTO a1, b1;
+FETCH total INTO a2, b2;
+SET res = (CONVERT(b1,DECIMAL) * 100) / CONVERT(b2,DECIMAL);
+CLOSE dirty;
+CLOSE total;
+RETURN res;
+END//
+CREATE PROCEDURE add_until(IN num DECIMAL)
+BEGIN
+DECLARE pct,last DECIMAL(20,17);
+SET pct = dirty_pct();
+SET last = 0;
+WHILE (pct < num AND pct < 100) DO
+CALL add_records(500);
+SET pct = dirty_pct();
+IF (pct < last) THEN
+SET pct = num + 1;
+ELSE
+SET last = pct;
+END IF;
+END WHILE;
+END//
+CREATE PROCEDURE check_pct(IN success_on_wait BOOLEAN)
+BEGIN
+IF (success_on_wait > 0) THEN
+SELECT 'BELOW_MAX' AS PCT_VALUE;
+ELSE
+SELECT 'ABOVE_MAX or TimeOut Of The Test' AS PCT_VALUE;
+END IF;
+END//
+CREATE TABLE t1(
+a INT AUTO_INCREMENT PRIMARY KEY,
+b CHAR(200)
+) ENGINE = INNODB;
+'---Check when innodb_max_dirty_pages_pct is 10---'
+SET @@global.innodb_max_dirty_pages_pct = 10;
+FLUSH STATUS;
+CALL add_until(10);
+FLUSH TABLES;
+CALL add_records(500);
+'We expect dirty pages pct to be BELOW_MAX after some time depending on performance'
+CALL check_pct(1);
+PCT_VALUE
+BELOW_MAX
+DROP PROCEDURE add_records;
+DROP PROCEDURE add_until;
+DROP PROCEDURE check_pct;
+DROP FUNCTION dirty_pct;
+DROP TABLE t1;
+SET @@global.innodb_max_dirty_pages_pct = @innodb_max_dirty_pages_pct;

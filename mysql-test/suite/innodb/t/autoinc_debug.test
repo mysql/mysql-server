@@ -1,0 +1,87 @@
+--source include/have_debug.inc
+
+# Two parallel connection with autoinc column after restart.
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY)ENGINE=INNODB;
+
+--echo # SETTING auto_increment_increment IN CONNECTION DEFAULT
+SET AUTO_INCREMENT_INCREMENT = 1;
+INSERT INTO t1 VALUES(NULL);
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+
+--source include/restart_mysqld.inc
+
+--echo # SETTING auto_increment_increment IN CONNECTION1
+SET AUTO_INCREMENT_INCREMENT = 2;
+
+SET DEBUG_SYNC= 'ib_after_row_insert SIGNAL opened WAIT_FOR flushed1';
+
+SEND INSERT INTO t1 VALUES(NULL);
+
+connect(con1, localhost, root,,);
+SET AUTO_INCREMENT_INCREMENT = 2;
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+SET DEBUG_SYNC= 'ib_after_row_insert_step SIGNAL flushed1 WAIT_FOR opened1';
+send insert into t1 values(NULL);
+
+--echo # CONNECTION default
+connection default;
+reap;
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+SET DEBUG_SYNC= 'now SIGNAL opened1';
+
+--echo # CONNECTION con1
+connection con1;
+reap;
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+connection default;
+disconnect con1;
+
+DROP TABLE t1;
+
+# Two parallel connection with autoinc column without restart.
+
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY)ENGINE=INNODB;
+
+--echo # SETTING auto_increment_increment IN CONNECTION DEFAULT
+SET AUTO_INCREMENT_INCREMENT = 1;
+INSERT INTO t1 VALUES(NULL);
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+SET DEBUG_SYNC = 'now SIGNAL flushed';
+
+connect(con1, localhost, root,,);
+
+--echo # SETTING auto_increment_increment in connection1
+SET AUTO_INCREMENT_INCREMENT = 2;
+
+SET DEBUG_SYNC= 'now WAIT_FOR flushed';
+SET DEBUG_SYNC= 'ib_after_row_insert SIGNAL opened WAIT_FOR flushed1';
+
+send INSERT INTO t1 values(NULL);
+
+--echo # CONNECTION DEFAULT
+connection default;
+
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+SET DEBUG_SYNC= 'ib_after_row_insert_step SIGNAL flushed1 WAIT_FOR opened1';
+
+send INSERT INTO t1 VALUES(NULL);
+
+--echo # CONNECTION con1
+connection con1;
+reap;
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+SET DEBUG_SYNC= 'now SIGNAL opened1';
+
+--echo # CONNECTION default
+connection default;
+reap;
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+disconnect con1;
+DROP TABLE t1;

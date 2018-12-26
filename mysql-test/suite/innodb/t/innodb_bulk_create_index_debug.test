@@ -1,0 +1,23 @@
+#
+# wl#7277: InnoDB: Bulk Load for Create Index
+#
+
+# Test Restart & Crash Recovery.
+-- source include/big_test.inc
+-- source include/have_innodb_max_16k.inc
+
+# Test Row Format: REDUNDANT.
+let $row_format = REDUNDANT;
+-- source suite/innodb/include/innodb_bulk_create_index_debug.inc
+
+# Test Row Format: COMPACT.
+let $row_format = COMPACT;
+-- source suite/innodb/include/innodb_bulk_create_index_debug.inc
+
+# Test Row Format: DYNAMIC.
+let $row_format = DYNAMIC;
+-- source suite/innodb/include/innodb_bulk_create_index_debug.inc
+
+# Test Row Format: COMPRESSED.
+let $row_format = COMPRESSED;
+-- source suite/innodb/include/innodb_bulk_create_index_debug.inc

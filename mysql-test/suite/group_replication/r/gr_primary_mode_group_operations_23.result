@@ -1,0 +1,43 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Store uuid from server1 and set election weight to 50
+SET @@GLOBAL.group_replication_member_weight= 50;
+
+# 2. Store uuid from server2 and set election weight to 90
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= 90;
+
+# 3. Execute action switch to single primary mode and confirm server2 is
+#    the primary
+SELECT group_replication_switch_to_single_primary_mode();
+group_replication_switch_to_single_primary_mode()
+Mode switched to single-primary successfully.
+include/gr_assert_primary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+
+# 4. Execute action switch to multiple primary mode
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+include/gr_assert_multi_primary_mode.inc
+
+# 5. Set election weight on server2 to 50
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= 50;
+
+# 6. Execute action switch to single primary mode
+SELECT group_replication_switch_to_single_primary_mode();
+group_replication_switch_to_single_primary_mode()
+Mode switched to single-primary successfully.
+
+# 7. Confirm server with lower lexical uuid is the new primary server
+include/gr_assert_primary_member.inc
+include/gr_assert_secondary_member.inc
+
+# 8. Cleanup
+include/group_replication_end.inc

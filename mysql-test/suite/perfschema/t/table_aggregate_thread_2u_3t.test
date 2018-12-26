@@ -1,0 +1,19 @@
+# Tests for the performance schema
+
+--source ../include/table_aggregate_setup.inc
+
+# table io and table lock by default
+
+# thread
+update performance_schema.setup_consumers
+  set enabled='NO' where name like 'event%';
+
+# 2users
+delete from performance_schema.setup_actors
+  where user in ('user2', 'user4');
+
+# 3tables by default
+
+--source ../include/table_aggregate_load.inc
+--source ../include/table_aggregate_cleanup.inc
+

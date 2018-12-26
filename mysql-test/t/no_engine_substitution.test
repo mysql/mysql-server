@@ -1,0 +1,180 @@
+--source include/have_example_plugin.inc
+
+--echo #
+--echo # Bug#27502530: DISABLING NO_ENGINE_SUBSTITUTION DOES NOT BEHAVE AS
+--echo #               DOCUMENTED
+--echo #
+
+CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
+CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
+
+--echo # Started the server by disabling InnoDB using system variable 'disabled_storage_engines'
+SELECT @@disabled_storage_engines;
+SET DEFAULT_STORAGE_ENGINE= MyISAM;
+SELECT @@default_storage_engine;
+
+--echo
+--echo # NO_ENGINE_SUBSTITUTION enabled
+--disable_warnings
+SET SQL_MODE= 'NO_ENGINE_SUBSTITUTION';
+--enable_warnings
+
+CREATE TABLE t1(c1 INT) ENGINE= MyISAM;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(1);
+
+--error ER_DISABLED_STORAGE_ENGINE
+CREATE TABLE t2(c1 INT) ENGINE= InnoDB;
+
+--error ER_DISABLED_STORAGE_ENGINE
+CREATE TEMPORARY TABLE t2(c1 INT) ENGINE= InnoDB;
+
+--error ER_DISABLED_STORAGE_ENGINE
+ALTER TABLE t1 ENGINE= InnoDB;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Restart the server disabling the myisam storage engine using variable 'disabled_storage_engines'
+--exec echo "restart: --disabled_storage_engines=myisam,example" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT @@disabled_storage_engines;
+SET @old_default_engine= @@default_storage_engine;
+
+--echo # Changing the default engine to InnoDB
+SET DEFAULT_STORAGE_ENGINE= InnoDB;
+SELECT @@default_storage_engine;
+
+--error ER_DISABLED_STORAGE_ENGINE
+CREATE TABLE t2(c1 INT) ENGINE= MyISAM;
+
+SELECT * FROM t1;
+
+--echo # Checking table creation with dynamic storage plugins
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+--ERROR ER_DISABLED_STORAGE_ENGINE
+CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+
+--echo
+--echo # NO_ENGINE_SUBSTITUTION disabled
+--disable_warnings
+SET SQL_MODE='';
+--enable_warnings
+
+--echo # The disabled engine is substituted with the default engine for the table.
+
+# Engine for the table substituted to InnoDB
+CREATE TABLE t2(c1 INT) ENGINE= MyISAM;
+SHOW CREATE TABLE t2;
+
+CREATE TABLE t3 LIKE t1;
+SHOW CREATE TABLE t3;
+
+CREATE TEMPORARY TABLE t4(c1 INT) ENGINE= MyISAM;
+SHOW CREATE TABLE t4;
+
+CREATE TABLE t5 (c1 INT) ENGINE= ARCHIVE;
+--echo # ALTER TABLE ... ENGINE reports a warning and the table is not altered.
+ALTER TABLE t5 ENGINE= MyISAM;
+SHOW CREATE TABLE t5;
+
+DELIMITER /;
+CREATE PROCEDURE p1()
+BEGIN
+  CREATE TABLE t6(c1 INT) ENGINE= MyISAM;
+END /
+
+DELIMITER ;/
+CALL p1();
+SHOW CREATE TABLE t6;
+
+CREATE TABLE t7 (c1 INT) ENGINE= EXAMPLE;
+SHOW CREATE TABLE t7;
+
+# If disabled engine and the default engine are the same.
+SET DEFAULT_STORAGE_ENGINE= MyISAM;
+--error ER_DISABLED_STORAGE_ENGINE
+CREATE TABLE t8 (c1 INT) ENGINE= MyISAM;
+
+# If disabled engine and default engine both are in the disabled SE list.
+--error ER_DISABLED_STORAGE_ENGINE
+CREATE TABLE t8 (c1 INT) ENGINE= EXAMPLE;
+
+# Cleanup
+UNINSTALL PLUGIN EXAMPLE;
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+DROP TABLE t7;
+
+SET @@default_storage_engine=@old_default_engine;
+--disable_warnings
+SET sql_mode= DEFAULT;
+--enable_warnings
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Restart the server disabling archive engine via '--skip-archive or --archive=off'
+--exec echo "restart: --archive=off" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SET @old_default_engine= @@default_storage_engine;
+SET DEFAULT_STORAGE_ENGINE= MyISAM;
+SET DEFAULT_TMP_STORAGE_ENGINE= MyISAM;
+
+--echo
+--echo # NO_ENGINE_SUBSTITUTION enabled
+--disable_warnings
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+--enable_warnings
+
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE t1 (c1 INT) ENGINE= ARCHIVE;
+
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE= ARCHIVE;
+
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 ENGINE= ARCHIVE;
+
+--echo
+--echo # NO_ENGINE_SUBSTITUTION disabled
+--disable_warnings
+SET SQL_MODE='';
+--enable_warnings
+
+CREATE TABLE t2 (c1 INT) ENGINE=ARCHIVE;
+SHOW CREATE TABLE t2;
+
+CREATE TEMPORARY TABLE t3 (c1 INT) ENGINE= ARCHIVE;
+SHOW CREATE TABLE t3;
+
+--echo # ALTER TABLE .. ENGINE reports a warning and the table is not altered.
+ALTER TABLE t1 ENGINE= ARCHIVE;
+SHOW CREATE TABLE t1;
+
+--echo
+# Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+SET @@default_storage_engine= @old_default_engine;
+--disable_warnings
+SET sql_mode = DEFAULT;
+--enable_warnings
+
+--source include/restart_mysqld.inc

@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+4201000
+SELECT COUNT(DISTINCT id) FROM t1 GROUP BY grp;
+# Begin cleanup
+SET session myisam_sort_buffer_size = @orig_myisam_sort_buffer_size;
+DROP TABLE t1;

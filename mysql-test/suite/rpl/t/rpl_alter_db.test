@@ -1,0 +1,15 @@
+source include/master-slave.inc;
+
+--echo ==== Verify that alter database does not stop replication ====
+
+create database temp_db;
+use temp_db; # to be different from initial `test' db of mysqltest client
+alter database collate latin1_bin;
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo ==== Clean up ====
+connection master;
+drop database temp_db;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

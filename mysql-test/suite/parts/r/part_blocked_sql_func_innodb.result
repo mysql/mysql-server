@@ -1,0 +1,4338 @@
+-------------------------------------------------------------------------
+---   All SQL functions should be rejected, otherwise BUG (see 18198)
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+---  ascii(col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(ascii(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(ascii(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(ascii(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(ascii(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(ascii(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (ascii('a')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(ascii(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(ascii(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(ascii(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(ascii(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(ascii(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (ascii('a')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  ord(col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(ord(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(ord(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(ord(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(ord(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(ord(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (ord('a')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(ord(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(ord(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(ord(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(ord(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(ord(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (ord('a')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  greatest(col1,15)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(greatest(col1,15)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(greatest(col1,15)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(greatest(col1,15));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(greatest(col1,15)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(greatest(col1,15)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (greatest(1,15)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(greatest(col1,15)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(greatest(col1,15)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(greatest(col1,15));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(greatest(col1,15)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(greatest(col1,15)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (greatest(1,15)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  isnull(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(isnull(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(isnull(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(isnull(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(isnull(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(isnull(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (isnull(15)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(isnull(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(isnull(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(isnull(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(isnull(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(isnull(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (isnull(15)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  least(col1,15)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(least(col1,15)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(least(col1,15)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(least(col1,15));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(least(col1,15)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(least(col1,15)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (least(15,30)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(least(col1,15)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(least(col1,15)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(least(col1,15));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(least(col1,15)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(least(col1,15)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (least(15,30)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  case when col1>15 then 20 else 10 end  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(case when col1>15 then 20 else 10 end) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(case when col1>15 then 20 else 10 end) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(case when col1>15 then 20 else 10 end);
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(case when col1>15 then 20 else 10 end) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(case when col1>15 then 20 else 10 end) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (case when 1>30 then 20 else 15 end),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(case when col1>15 then 20 else 10 end) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(case when col1>15 then 20 else 10 end) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(case when col1>15 then 20 else 10 end);
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(case when col1>15 then 20 else 10 end) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(case when col1>15 then 20 else 10 end) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (case when 1>30 then 20 else 15 end),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  ifnull(col1,30)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(ifnull(col1,30)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(ifnull(col1,30)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(ifnull(col1,30));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(ifnull(col1,30)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(ifnull(col1,30)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (ifnull(1,30)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(ifnull(col1,30)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(ifnull(col1,30)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(ifnull(col1,30));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(ifnull(col1,30)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(ifnull(col1,30)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (ifnull(1,30)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  nullif(col1,30)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(nullif(col1,30)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(nullif(col1,30)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(nullif(col1,30));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(nullif(col1,30)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(nullif(col1,30)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (nullif(1,30)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(nullif(col1,30)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(nullif(col1,30)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(nullif(col1,30));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(nullif(col1,30)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(nullif(col1,30)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (nullif(1,30)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  bit_length(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(bit_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(bit_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(bit_length(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(bit_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(bit_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (bit_length(255)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(bit_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(bit_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(bit_length(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(bit_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(bit_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (bit_length(255)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  bit_length(col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(bit_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(bit_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(bit_length(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(bit_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(bit_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (bit_length(255)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(bit_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(bit_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(bit_length(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(bit_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(bit_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (bit_length(255)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  char_length(col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(char_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(char_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(char_length(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(char_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(char_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (char_length('a')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(char_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(char_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(char_length(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(char_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(char_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (char_length('a')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  character_length(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(character_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(character_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(character_length(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(character_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(character_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (find_in_set('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(character_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(character_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(character_length(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(character_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(character_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (find_in_set('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  character_length(col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(character_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(character_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(character_length(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(character_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(character_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (find_in_set('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(character_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(character_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(character_length(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(character_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(character_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (find_in_set('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  instr(col1,'acb')  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(instr(col1,'acb')) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(instr(col1,'acb')) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(instr(col1,'acb'));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(instr(col1,'acb')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(instr(col1,'acb')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (instr('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(instr(col1,'acb')) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(instr(col1,'acb')) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(instr(col1,'acb'));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(instr(col1,'acb')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(instr(col1,'acb')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (instr('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  instr(col1,'acb')  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(instr(col1,'acb')) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(instr(col1,'acb')) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(instr(col1,'acb'));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(instr(col1,'acb')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(instr(col1,'acb')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (instr('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(instr(col1,'acb')) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(instr(col1,'acb')) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(instr(col1,'acb'));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(instr(col1,'acb')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(instr(col1,'acb')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (instr('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  length(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(length(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (length('a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(length(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (length('a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  locate('a',col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(locate('a',col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(locate('a',col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(locate('a',col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(locate('a',col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(locate('a',col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (locate('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(locate('a',col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(locate('a',col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(locate('a',col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(locate('a',col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(locate('a',col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (locate('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  locate('a',col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(locate('a',col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(locate('a',col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(locate('a',col1));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(locate('a',col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(locate('a',col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (locate('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(locate('a',col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(locate('a',col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(locate('a',col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(locate('a',col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(locate('a',col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (locate('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  octet_length(col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(octet_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(octet_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(octet_length(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(octet_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(octet_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (octet_length('a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(octet_length(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(octet_length(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(octet_length(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(octet_length(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(octet_length(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (octet_length('a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  position('a' in col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(position('a' in col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(position('a' in col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(position('a' in col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(position('a' in col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(position('a' in col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (position('i' in 'a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(position('a' in col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(position('a' in col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(position('a' in col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(position('a' in col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(position('a' in col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (position('i' in 'a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  position('a' in col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(position('a' in col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(position('a' in col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(position('a' in col1));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(position('a' in col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(position('a' in col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (position('i' in 'a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(position('a' in col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(position('a' in col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(position('a' in col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(position('a' in col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(position('a' in col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (position('i' in 'a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  strcmp(col1,'acb')  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(strcmp(col1,'acb')) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(strcmp(col1,'acb')) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(strcmp(col1,'acb'));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(strcmp(col1,'acb')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(strcmp(col1,'acb')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (strcmp('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(strcmp(col1,'acb')) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(strcmp(col1,'acb')) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(strcmp(col1,'acb'));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(strcmp(col1,'acb')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(strcmp(col1,'acb')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (strcmp('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  strcmp(col1,'acb')  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(strcmp(col1,'acb')) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(strcmp(col1,'acb')) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(strcmp(col1,'acb'));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(strcmp(col1,'acb')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(strcmp(col1,'acb')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (strcmp('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(strcmp(col1,'acb')) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(strcmp(col1,'acb')) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(strcmp(col1,'acb'));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(strcmp(col1,'acb')) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(strcmp(col1,'acb')) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (strcmp('i','a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  crc32(col1)  in partition with coltype  char(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 char(30)) engine='INNODB' 
+partition by range(crc32(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 char(30)) engine='INNODB' 
+partition by list(crc32(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 char(30)) engine='INNODB' 
+partition by hash(crc32(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(crc32(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 char(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(crc32(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 char(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (crc32('a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 char(30)) engine='INNODB' ;
+create table t22 (col1 char(30)) engine='INNODB' ;
+create table t33 (col1 char(30)) engine='INNODB' ;
+create table t44 (colint int, col1 char(30)) engine='INNODB' ;
+create table t55 (colint int, col1 char(30)) engine='INNODB' ;
+create table t66 (colint int, col1 char(30)) engine='INNODB' ;
+alter table t11  
+partition by range(crc32(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(crc32(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(crc32(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(crc32(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(crc32(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (crc32('a,b,c,d,e,f,g,h,i')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  round(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(round(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(round(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(round(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(round(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(round(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (round(15)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(round(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(round(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(round(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(round(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(round(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (round(15)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  sign(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(sign(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(sign(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(sign(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(sign(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(sign(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (sign(123)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(sign(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(sign(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(sign(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(sign(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(sign(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (sign(123)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  period_add(col1,5)  in partition with coltype  datetime
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 datetime) engine='INNODB' 
+partition by range(period_add(col1,5)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 datetime) engine='INNODB' 
+partition by list(period_add(col1,5)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 datetime) engine='INNODB' 
+partition by hash(period_add(col1,5));
+Got one of the listed errors
+create table t4 (colint int, col1 datetime) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(period_add(col1,5)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 datetime) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(period_add(col1,5)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 datetime) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (period_add(9804,5)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 datetime) engine='INNODB' ;
+create table t22 (col1 datetime) engine='INNODB' ;
+create table t33 (col1 datetime) engine='INNODB' ;
+create table t44 (colint int, col1 datetime) engine='INNODB' ;
+create table t55 (colint int, col1 datetime) engine='INNODB' ;
+create table t66 (colint int, col1 datetime) engine='INNODB' ;
+alter table t11  
+partition by range(period_add(col1,5)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(period_add(col1,5)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(period_add(col1,5));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(period_add(col1,5)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(period_add(col1,5)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (period_add(9804,5)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  period_diff(col1,col2)  in partition with coltype  datetime,col2 datetime
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 datetime,col2 datetime) engine='INNODB' 
+partition by range(period_diff(col1,col2)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 datetime,col2 datetime) engine='INNODB' 
+partition by list(period_diff(col1,col2)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 datetime,col2 datetime) engine='INNODB' 
+partition by hash(period_diff(col1,col2));
+Got one of the listed errors
+create table t4 (colint int, col1 datetime,col2 datetime) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(period_diff(col1,col2)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 datetime,col2 datetime) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(period_diff(col1,col2)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 datetime,col2 datetime) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (period_diff(9809,199907)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 datetime,col2 datetime) engine='INNODB' ;
+create table t22 (col1 datetime,col2 datetime) engine='INNODB' ;
+create table t33 (col1 datetime,col2 datetime) engine='INNODB' ;
+create table t44 (colint int, col1 datetime,col2 datetime) engine='INNODB' ;
+create table t55 (colint int, col1 datetime,col2 datetime) engine='INNODB' ;
+create table t66 (colint int, col1 datetime,col2 datetime) engine='INNODB' ;
+alter table t11  
+partition by range(period_diff(col1,col2)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(period_diff(col1,col2)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(period_diff(col1,col2));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(period_diff(col1,col2)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(period_diff(col1,col2)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (period_diff(9809,199907)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  period_diff(col1,col2)  in partition with coltype  int,col2 int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int,col2 int) engine='INNODB' 
+partition by range(period_diff(col1,col2)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int,col2 int) engine='INNODB' 
+partition by list(period_diff(col1,col2)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int,col2 int) engine='INNODB' 
+partition by hash(period_diff(col1,col2));
+Got one of the listed errors
+create table t4 (colint int, col1 int,col2 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(period_diff(col1,col2)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int,col2 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(period_diff(col1,col2)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int,col2 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (period_diff(9809,199907)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int,col2 int) engine='INNODB' ;
+create table t22 (col1 int,col2 int) engine='INNODB' ;
+create table t33 (col1 int,col2 int) engine='INNODB' ;
+create table t44 (colint int, col1 int,col2 int) engine='INNODB' ;
+create table t55 (colint int, col1 int,col2 int) engine='INNODB' ;
+create table t66 (colint int, col1 int,col2 int) engine='INNODB' ;
+alter table t11  
+partition by range(period_diff(col1,col2)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(period_diff(col1,col2)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(period_diff(col1,col2));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(period_diff(col1,col2)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(period_diff(col1,col2)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (period_diff(9809,199907)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  timestampdiff(day,5,col1)  in partition with coltype  datetime
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 datetime) engine='INNODB' 
+partition by range(timestampdiff(day,5,col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 datetime) engine='INNODB' 
+partition by list(timestampdiff(day,5,col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 datetime) engine='INNODB' 
+partition by hash(timestampdiff(day,5,col1));
+Got one of the listed errors
+create table t4 (colint int, col1 datetime) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(timestampdiff(day,5,col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 datetime) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(timestampdiff(day,5,col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 datetime) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (timestampdiff(YEAR,'2002-05-01','2001-01-01')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 datetime) engine='INNODB' ;
+create table t22 (col1 datetime) engine='INNODB' ;
+create table t33 (col1 datetime) engine='INNODB' ;
+create table t44 (colint int, col1 datetime) engine='INNODB' ;
+create table t55 (colint int, col1 datetime) engine='INNODB' ;
+create table t66 (colint int, col1 datetime) engine='INNODB' ;
+alter table t11  
+partition by range(timestampdiff(day,5,col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(timestampdiff(day,5,col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(timestampdiff(day,5,col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(timestampdiff(day,5,col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(timestampdiff(day,5,col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (timestampdiff(YEAR,'2002-05-01','2001-01-01')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  week(col1)  in partition with coltype  datetime
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 datetime) engine='INNODB' 
+partition by range(week(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 datetime) engine='INNODB' 
+partition by list(week(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 datetime) engine='INNODB' 
+partition by hash(week(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 datetime) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(week(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 datetime) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(week(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 datetime) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (week('2002-05-01')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 datetime) engine='INNODB' ;
+create table t22 (col1 datetime) engine='INNODB' ;
+create table t33 (col1 datetime) engine='INNODB' ;
+create table t44 (colint int, col1 datetime) engine='INNODB' ;
+create table t55 (colint int, col1 datetime) engine='INNODB' ;
+create table t66 (colint int, col1 datetime) engine='INNODB' ;
+alter table t11  
+partition by range(week(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(week(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(week(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(week(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(week(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (week('2002-05-01')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  weekofyear(col1)  in partition with coltype  datetime
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 datetime) engine='INNODB' 
+partition by range(weekofyear(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 datetime) engine='INNODB' 
+partition by list(weekofyear(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 datetime) engine='INNODB' 
+partition by hash(weekofyear(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 datetime) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(weekofyear(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 datetime) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(weekofyear(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 datetime) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (weekofyear('2002-05-01')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 datetime) engine='INNODB' ;
+create table t22 (col1 datetime) engine='INNODB' ;
+create table t33 (col1 datetime) engine='INNODB' ;
+create table t44 (colint int, col1 datetime) engine='INNODB' ;
+create table t55 (colint int, col1 datetime) engine='INNODB' ;
+create table t66 (colint int, col1 datetime) engine='INNODB' ;
+alter table t11  
+partition by range(weekofyear(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(weekofyear(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(weekofyear(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(weekofyear(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(weekofyear(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (weekofyear('2002-05-01')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  cast(col1 as signed)  in partition with coltype  varchar(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 varchar(30)) engine='INNODB' 
+partition by range(cast(col1 as signed)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 varchar(30)) engine='INNODB' 
+partition by list(cast(col1 as signed)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 varchar(30)) engine='INNODB' 
+partition by hash(cast(col1 as signed));
+Got one of the listed errors
+create table t4 (colint int, col1 varchar(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(cast(col1 as signed)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 varchar(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(cast(col1 as signed)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 varchar(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (cast(123 as signed)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 varchar(30)) engine='INNODB' ;
+create table t22 (col1 varchar(30)) engine='INNODB' ;
+create table t33 (col1 varchar(30)) engine='INNODB' ;
+create table t44 (colint int, col1 varchar(30)) engine='INNODB' ;
+create table t55 (colint int, col1 varchar(30)) engine='INNODB' ;
+create table t66 (colint int, col1 varchar(30)) engine='INNODB' ;
+alter table t11  
+partition by range(cast(col1 as signed)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(cast(col1 as signed)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(cast(col1 as signed));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(cast(col1 as signed)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(cast(col1 as signed)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (cast(123 as signed)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  convert(col1,unsigned)  in partition with coltype  varchar(30)
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 varchar(30)) engine='INNODB' 
+partition by range(convert(col1,unsigned)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 varchar(30)) engine='INNODB' 
+partition by list(convert(col1,unsigned)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 varchar(30)) engine='INNODB' 
+partition by hash(convert(col1,unsigned));
+Got one of the listed errors
+create table t4 (colint int, col1 varchar(30)) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(convert(col1,unsigned)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 varchar(30)) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(convert(col1,unsigned)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 varchar(30)) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (convert(123,unsigned)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 varchar(30)) engine='INNODB' ;
+create table t22 (col1 varchar(30)) engine='INNODB' ;
+create table t33 (col1 varchar(30)) engine='INNODB' ;
+create table t44 (colint int, col1 varchar(30)) engine='INNODB' ;
+create table t55 (colint int, col1 varchar(30)) engine='INNODB' ;
+create table t66 (colint int, col1 varchar(30)) engine='INNODB' ;
+alter table t11  
+partition by range(convert(col1,unsigned)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(convert(col1,unsigned)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(convert(col1,unsigned));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(convert(col1,unsigned)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(convert(col1,unsigned)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (convert(123,unsigned)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  col1 | 20  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(col1 | 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(col1 | 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(col1 | 20);
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(col1 | 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(col1 | 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (10 | 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(col1 | 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(col1 | 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(col1 | 20);
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(col1 | 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(col1 | 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (10 | 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  col1 & 20  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(col1 & 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(col1 & 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(col1 & 20);
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(col1 & 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(col1 & 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (10 & 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(col1 & 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(col1 & 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(col1 & 20);
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(col1 & 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(col1 & 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (10 & 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  col1 ^ 20  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(col1 ^ 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(col1 ^ 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(col1 ^ 20);
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(col1 ^ 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(col1 ^ 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (10 ^ 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(col1 ^ 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(col1 ^ 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(col1 ^ 20);
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(col1 ^ 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(col1 ^ 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (10 ^ 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  col1 << 20  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(col1 << 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(col1 << 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(col1 << 20);
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(col1 << 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(col1 << 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (10 << 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(col1 << 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(col1 << 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(col1 << 20);
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(col1 << 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(col1 << 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (10 << 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  col1 >> 20  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(col1 >> 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(col1 >> 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(col1 >> 20);
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(col1 >> 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(col1 >> 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (10 >> 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(col1 >> 20) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(col1 >> 20) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(col1 >> 20);
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(col1 >> 20) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(col1 >> 20) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (10 >> 20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  ~col1  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(~col1) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(~col1) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(~col1);
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(~col1) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(~col1) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (~20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(~col1) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(~col1) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(~col1);
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(~col1) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(~col1) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (~20),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  bit_count(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(bit_count(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(bit_count(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(bit_count(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(bit_count(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(bit_count(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (bit_count(20)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(bit_count(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(bit_count(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(bit_count(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(bit_count(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(bit_count(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (bit_count(20)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+-------------------------------------------------------------------------
+---  inet_aton(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(inet_aton(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(inet_aton(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(inet_aton(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(inet_aton(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(inet_aton(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (inet_aton('192.168.1.1')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(inet_aton(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(inet_aton(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(inet_aton(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(inet_aton(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(inet_aton(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (inet_aton('192.168.1.1')),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+set @var =20;
+-------------------------------------------------------------------------
+---  bit_length(col1)+@var-@var  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(bit_length(col1)+@var-@var) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(bit_length(col1)+@var-@var) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(bit_length(col1)+@var-@var);
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(bit_length(col1)+@var-@var) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(bit_length(col1)+@var-@var) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (bit_length(20)+@var-@var),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(bit_length(col1)+@var-@var) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(bit_length(col1)+@var-@var) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(bit_length(col1)+@var-@var);
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(bit_length(col1)+@var-@var) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(bit_length(col1)+@var-@var) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (bit_length(20)+@var-@var),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create function getmaxsigned_t1(col int) returns int
+begin
+declare done int default 0;
+declare v4 int;
+declare max int;
+declare cur1 cursor for 
+select col from t1; 
+declare continue handler for sqlstate '01000' set done = 1;
+declare continue handler for sqlstate '02000' set done = 1;
+open cur1;
+set max = 0;
+fetch cur1 into v4;
+wl_loop: WHILE NOT done DO
+fetch cur1 into v4;
+IF v4 > max
+then set max = v4;
+END IF;
+END WHILE wl_loop;
+close cur1;
+return max;
+end//
+-------------------------------------------------------------------------
+---  getmaxsigned_t1(col1)  in partition with coltype  int
+-------------------------------------------------------------------------
+must all fail!
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+create table t1 (col1 int) engine='INNODB' 
+partition by range(getmaxsigned_t1(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t2 (col1 int) engine='INNODB' 
+partition by list(getmaxsigned_t1(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t3 (col1 int) engine='INNODB' 
+partition by hash(getmaxsigned_t1(col1));
+Got one of the listed errors
+create table t4 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+subpartition by hash(getmaxsigned_t1(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+create table t5 (colint int, col1 int) engine='INNODB' 
+partition by list(colint)
+subpartition by hash(getmaxsigned_t1(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+create table t6 (colint int, col1 int) engine='INNODB' 
+partition by range(colint) 
+(partition p0 values less than (getmaxsigned(10)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+create table t11 (col1 int) engine='INNODB' ;
+create table t22 (col1 int) engine='INNODB' ;
+create table t33 (col1 int) engine='INNODB' ;
+create table t44 (colint int, col1 int) engine='INNODB' ;
+create table t55 (colint int, col1 int) engine='INNODB' ;
+create table t66 (colint int, col1 int) engine='INNODB' ;
+alter table t11  
+partition by range(getmaxsigned_t1(col1)) 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t22 
+partition by list(getmaxsigned_t1(col1)) 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t33 
+partition by hash(getmaxsigned_t1(col1));
+Got one of the listed errors
+alter table t44 
+partition by range(colint) 
+subpartition by hash(getmaxsigned_t1(col1)) subpartitions 2 
+(partition p0 values less than (15),
+partition p1 values less than (31));
+Got one of the listed errors
+alter table t55 
+partition by list(colint)
+subpartition by hash(getmaxsigned_t1(col1)) subpartitions 2 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+partition p2 values in (21,22,23,24,25,26,27,28,29,30));
+Got one of the listed errors
+alter table t66  
+partition by range(colint) 
+(partition p0 values less than (getmaxsigned(10)),
+partition p1 values less than maxvalue);
+Got one of the listed errors
+drop table if exists t1 ;
+drop table if exists t2 ;
+drop table if exists t3 ;
+drop table if exists t4 ;
+drop table if exists t5 ;
+drop table if exists t6 ;
+drop table if exists t11 ;
+drop table if exists t22 ;
+drop table if exists t33 ;
+drop table if exists t44 ;
+drop table if exists t55 ;
+drop table if exists t66 ;
+drop function if exists getmaxsigned_t1;

@@ -1,0 +1,369 @@
+SET DEBUG_SYNC = 'RESET';
+#
+# Bug#15863023 SUPPORT IN-PLACE EXTENSION OF VARCHAR COLUMN
+#
+create table t1 (a SERIAL PRIMARY KEY, c varchar(2) UNIQUE) ENGINE=InnoDB;
+INSERT INTO t1 (c) VALUES('a'),('bb');
+SET DEBUG = '+d,ib_rename_column_error';
+affected rows: 0
+ALTER TABLE t1 CHANGE c b varchar(2), drop index c, add index (b,a);
+ERROR HY000: The table 't1' is full
+SET DEBUG = '-d,ib_rename_column_error';
+affected rows: 0
+ALTER TABLE t1 CHANGE c b varchar(2), drop index c, add index (b,a);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SET DEBUG = '+d,ib_resize_column_error';
+affected rows: 0
+ALTER TABLE t1 CHANGE b fail varchar(4);
+ERROR HY000: The table 't1' is full
+SET DEBUG = '-d,ib_resize_column_error';
+affected rows: 0
+ALTER TABLE t1 CHANGE b c varchar(4);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+INSERT IGNORE INTO t1 (c) VALUES('eeeee'),('ffffff');
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'c' at row 2
+INSERT INTO t1 (c) VALUES('ccc'),('dddd');
+SELECT * FROM t1 ORDER BY c;
+a	c
+1	a
+2	bb
+5	ccc
+6	dddd
+3	eeee
+4	ffff
+DROP TABLE t1;
+# Bug#15863023 - case1
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(254) charset latin1) ENGINE = Innodb;
+INSERT IGNORE INTO t1 (b) VALUES (repeat('a',254)),(repeat('b',254)),(repeat('c',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 3
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	aaaaaaaaaa	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+SET DEBUG_SYNC = 'innodb_commit_inplace_alter_table_enter SIGNAL s1 WAIT_FOR s2';
+ALTER TABLE t1 CHANGE b b varchar(255) charset latin1;;
+SET lock_wait_timeout = 1;
+SET DEBUG_SYNC='now WAIT_FOR s1';
+INSERT INTO t1 (b) VALUES (repeat('d',300));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM t1 WHERE b = repeat('y',254);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC='now SIGNAL s2';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t1 (b) VALUES (repeat('d',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	aaaaaaaaaa	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	0
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	yyyyyyyyyy	0
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	0
+DELETE FROM t1 WHERE b = repeat('y',255);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	0
+DROP TABLE t1;
+# Bug#15863023 - case2 . enlarge varchar with add.drop index/column
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT , b VARCHAR(254) charset latin1) ENGINE=Innodb;
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 3
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	aaaaaaaaaa	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
+ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(255) charset latin1 ,ALGORITHM=INPLACE;;
+SET DEBUG_SYNC='now WAIT_FOR s1';
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	aaaaaaaaaa	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	1
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	yyyyyyyyyy	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	1
+DELETE FROM t1 WHERE b = repeat('y',254);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	1
+SET DEBUG_SYNC='now SIGNAL s2';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+  KEY `idx` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('d',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	1
+5	dddddddddd	0
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+2	yyyyyyyyyy	0
+3	cccccccccc	1
+4	dddddddddd	1
+5	dddddddddd	0
+DELETE FROM t1 WHERE b = repeat('y',255);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+3	cccccccccc	1
+4	dddddddddd	1
+5	dddddddddd	0
+DROP TABLE t1;
+# Bug#15863023 - case3. enlarge varchar other alter operations+charset
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
+c VARCHAR(254) CHARACTER SET utf8) ENGINE=Innodb CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE INDEX c1 ON t1(c);
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 3
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	aaaaaaaaaa	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
+ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(255) CHARACTER SET latin1,CHANGE c c varchar(255) CHARACTER SET utf8,DROP INDEX c1 ,ALGORITHM=INPLACE;;
+SET DEBUG_SYNC='now WAIT_FOR s1';
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254	c
+1	aaaaaaaaaa	1	NULL
+2	bbbbbbbbbb	1	NULL
+3	cccccccccc	1	NULL
+4	dddddddddd	1	NULL
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254	c
+1	yyyyyyyyyy	1	NULL
+2	bbbbbbbbbb	1	NULL
+3	cccccccccc	1	NULL
+4	dddddddddd	1	NULL
+DELETE FROM t1 WHERE b = repeat('y',254);
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254	c
+2	bbbbbbbbbb	1	NULL
+3	cccccccccc	1	NULL
+4	dddddddddd	1	NULL
+INSERT IGNORE INTO t1 (b,c) VALUES (repeat('z',300),"Môžem");
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254	c
+2	bbbbbbbbbb	1	NULL
+3	cccccccccc	1	NULL
+4	dddddddddd	1	NULL
+100	zzzzzzzzzz	1	Môžem
+SET DEBUG_SYNC='now SIGNAL s2';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT '100',
+  `b` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+  `c` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  KEY `idx` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+INSERT IGNORE INTO t1 (a,b,c) VALUES (5,repeat('d',300),"Môžem");
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254	c
+2	bbbbbbbbbb	1	NULL
+3	cccccccccc	1	NULL
+4	dddddddddd	1	NULL
+5	dddddddddd	0	Môžem
+100	zzzzzzzzzz	1	Môžem
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254	c
+2	yyyyyyyyyy	0	NULL
+3	cccccccccc	1	NULL
+4	dddddddddd	1	NULL
+5	dddddddddd	0	Môžem
+100	zzzzzzzzzz	1	Môžem
+DELETE FROM t1 WHERE b = repeat('y',255);
+SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254	c
+3	cccccccccc	1	NULL
+4	dddddddddd	1	NULL
+5	dddddddddd	0	Môžem
+100	zzzzzzzzzz	1	Môžem
+DROP TABLE t1;
+# Bug#15863023 - case4. enlarge varchar other alter operations runs copy
+# if length is more than 255
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
+c VARCHAR(254) CHARACTER SET utf8, d CHAR(10) DEFAULT 'test') ENGINE=Innodb CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE INDEX c1 ON t1(c);
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 3
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	aaaaaaaaaa	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(256) CHARACTER SET latin1,CHANGE c c varchar(256) CHARACTER SET utf8,DROP INDEX c1 ,ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD INDEX idx(b),CHANGE d d char(100) ,ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD INDEX idx1(b),CHANGE d d VARCHAR(100) ,ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(355) CHARACTER SET latin1,CHANGE c c varchar(255) CHARACTER SET utf8,DROP INDEX c1 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLE t1;
+# Bug#15863023 - case6 enlarge varchar other
+# alter operations with fk on parent
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1, KEY(b)) ENGINE=Innodb;
+CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) charset latin1, CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 3
+INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+Warnings:
+Warning	1265	Data truncated for column 'b2' at row 3
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1,t2 WHERE t1.a = t2.a2 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	aaaaaaaaaa	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+ALTER TABLE t2 CHANGE b2 b2 varchar(255) charset latin1, DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding foreign keys needs foreign_key_checks=OFF. Try ALGORITHM=COPY.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
+ALTER TABLE t1 ADD INDEX idx(a),CHANGE b b varchar(255) charset latin1, ALGORITHM=INPLACE;;
+SET DEBUG_SYNC='now WAIT_FOR s1';
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	aaaaaaaaaa	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	1
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+1	yyyyyyyyyy	1
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	1
+DELETE FROM t1 WHERE b = repeat('y',254);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	1
+SET DEBUG_SYNC='now SIGNAL s2';
+SET foreign_key_checks = 1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  KEY `idx` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('k',300));
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+2	bbbbbbbbbb	1
+3	cccccccccc	1
+4	dddddddddd	1
+5	kkkkkkkkkk	0
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+2	yyyyyyyyyy	0
+3	cccccccccc	1
+4	dddddddddd	1
+5	kkkkkkkkkk	0
+DELETE FROM t1 WHERE b = repeat('y',255);
+SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+a	LEFT(b,10)	LENGTH(b) = 254
+3	cccccccccc	1
+4	dddddddddd	1
+5	kkkkkkkkkk	0
+DROP TABLE t2,t1;
+SET DEBUG_SYNC = 'RESET';

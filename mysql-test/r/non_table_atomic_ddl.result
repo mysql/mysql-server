@@ -1,0 +1,704 @@
+#########################################################################
+# A. TEST CASES FOR DDL ON STORED ROUTINES.                             #
+#########################################################################
+#
+# Test case to verify if CREATE routine statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_create_routine_failure";
+CREATE PROCEDURE p() SELECT 1;
+ERROR HY000: Failed to CREATE PROCEDURE p
+CREATE FUNCTION f() RETURNS INT return 1;
+ERROR HY000: Failed to CREATE FUNCTION f
+SET SESSION DEBUG="-d,simulate_create_routine_failure";
+# Data-dictionary objects for p and f are not stored on
+# an error/a transaction rollback.
+# Following statements fails as p and f does not exists.
+SHOW CREATE PROCEDURE p;
+ERROR 42000: PROCEDURE p does not exist
+SHOW CREATE FUNCTION f;
+ERROR 42000: FUNCTION f does not exist
+# Binlog event for failed create routine statement is not created.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+# Routines are created and binlog event is written on a transaction
+# commit.
+CREATE PROCEDURE p() SELECT 1;
+CREATE FUNCTION f() RETURNS INT return 1;
+SHOW CREATE PROCEDURE p;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
+SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION f;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
+SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+#
+# Test case to verify if ALTER routine statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_alter_routine_failure";
+ALTER FUNCTION f comment "atomic DDL on routine";
+ERROR HY000: Failed to ALTER FUNCTION test.f
+ALTER PROCEDURE p comment "atomic DDL on routine";
+ERROR HY000: Failed to ALTER PROCEDURE test.p
+SET SESSION DEBUG="-d,simulate_alter_routine_failure";
+SET SESSION DEBUG="+d,simulate_alter_routine_xcommit_failure";
+ALTER FUNCTION f comment "atomic DDL on routine";
+ERROR HY000: Failed to ALTER FUNCTION test.f
+ALTER PROCEDURE p comment "atomic DDL on routine";
+ERROR HY000: Failed to ALTER PROCEDURE test.p
+SET SESSION DEBUG="-d,simulate_alter_routine_xcommit_failure";
+# Comment for stored routines is not updated on an error/a transaction
+# rollback.
+SHOW CREATE PROCEDURE p;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
+SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION f;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+# Binlog event for failed ALTER routine statement is not created.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
+SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+# Routines are altered and binlog event is written on a transaction commit.
+ALTER FUNCTION f comment "atomic DDL on routine";
+ALTER PROCEDURE p comment "atomic DDL on routine";
+SHOW CREATE FUNCTION f;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+    COMMENT 'atomic DDL on routine'
+return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE p;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
+    COMMENT 'atomic DDL on routine'
+SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
+SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; ALTER FUNCTION f comment "atomic DDL on routine"
+binlog.000001	#	Query	#	#	use `test`; ALTER PROCEDURE p comment "atomic DDL on routine"
+#
+# Test case to verify if DROP routine statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_drop_routine_failure";
+DROP FUNCTION f;
+ERROR HY000: Failed to DROP FUNCTION test.f
+DROP PROCEDURE p;
+ERROR HY000: Failed to DROP PROCEDURE test.p
+SET SESSION DEBUG="-d,simulate_drop_routine_failure";
+# On an error/a transaction rollback, routines are not dropped. Following
+# statements pass in this case.
+SHOW CREATE PROCEDURE p;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
+    COMMENT 'atomic DDL on routine'
+SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION f;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+    COMMENT 'atomic DDL on routine'
+return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+# Binlog event for failed drop routine statement is not created.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
+SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; ALTER FUNCTION f comment "atomic DDL on routine"
+binlog.000001	#	Query	#	#	use `test`; ALTER PROCEDURE p comment "atomic DDL on routine"
+# Routines are dropped and binlog event is written on transaction commit.
+DROP FUNCTION f;
+DROP PROCEDURE p;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
+SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; ALTER FUNCTION f comment "atomic DDL on routine"
+binlog.000001	#	Query	#	#	use `test`; ALTER PROCEDURE p comment "atomic DDL on routine"
+binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f
+binlog.000001	#	Query	#	#	use `test`; DROP PROCEDURE p
+SHOW CREATE PROCEDURE p;
+ERROR 42000: PROCEDURE p does not exist
+SHOW CREATE FUNCTION f;
+ERROR 42000: FUNCTION f does not exist
+#########################################################################
+# B. TEST CASES FOR DDL ON TRIGGERS.                                    #
+#########################################################################
+CREATE TABLE t1(a INT);
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+#
+# Test case to verify if CREATE trigger statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_create_trigger_failure";
+CREATE TRIGGER trig2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+ERROR HY000: Unknown error
+SET SESSION DEBUG="-d,simulate_create_trigger_failure";
+# trig2 is not stored in the DD tables on an error/a transaction rollback.
+# Following statement does not lists trig2 trigger.
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
+# Binlog for failed create trigger statement is not created.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+# Trigger is created and binlog event is written on a transaction commit.
+CREATE TRIGGER trig2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
+trig2	INSERT	t1	BEGIN END	AFTER	#	#	#	#	#	#
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END
+#
+# Test case to verify if DROP trigger statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_drop_trigger_failure";
+DROP TRIGGER trig2;
+ERROR HY000: Unknown error
+SET SESSION DEBUG="-d,simulate_drop_trigger_failure";
+# trig2 is not dropped from the DD tables on an error/a transaction
+# rollback.
+# Following statement lists trig2 trigger.
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
+trig2	INSERT	t1	BEGIN END	AFTER	#	#	#	#	#	#
+# Binlog for failed drop trigger statement is not created.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END
+# Trigger is dropped and binlog event is written on a transaction commit.
+DROP TRIGGER trig2;
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trig1	INSERT	t1	BEGIN END	BEFORE	#	#	#	#	#	#
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END
+binlog.000001	#	Query	#	#	use `test`; DROP TRIGGER trig2
+DROP TABLE t1;
+#########################################################################
+# C. TEST CASES FOR DDL ON EVENTS.                                      #
+#########################################################################
+#
+# Test case to verify if CREATE EVENT statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_create_event_failure";
+CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1;
+ERROR HY000: Unknown error
+SET SESSION DEBUG="-d,simulate_create_event_failure";
+# DD object of event is not stored on an error/a transaction rollback.
+# Following statement does not list any events.
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+# Binlog event for failed create event statement is not created.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+# DD object for event is stored and binlog is written in a transaction
+# commit cases.
+CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	event1	#	#	RECURRING	NULL	1	YEAR	#	#	ENABLED	1	#	#	#
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+# Binlog event for "create event if not exists" statement is
+# created on a transaction commit.
+CREATE EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1;
+Warnings:
+Note	1537	Event 'event1' already exists
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+#
+# Test case to verify if ALTER EVENT statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_alter_event_failure";
+ALTER EVENT event1 COMMENT "Atomic Event's DDL";
+ERROR HY000: Unknown error
+SET SESSION DEBUG="-d,simulate_alter_event_failure";
+# DD object of event is not altered on an error/a transaction rollback.
+# Hence changes are not reflected in the following statements.
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	event1	#	#	RECURRING	NULL	1	YEAR	#	#	ENABLED	1	#	#	#
+# Binlog event for failed alter event statement is not created.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+# Event is altered and binlog event is written on a transaction commit.
+ALTER EVENT event1 COMMENT "Atomic Event's DDL";
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	event1	#	#	RECURRING	NULL	1	YEAR	#	#	ENABLED	1	#	#	#
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+binlog.000001	#	Query	#	#	use `test`; ALTER EVENT event1 COMMENT "Atomic Event's DDL"
+#
+# Test case to verify if DROP EVENT statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_drop_event_failure";
+DROP EVENT event1;
+ERROR HY000: Unknown error
+DROP EVENT IF EXISTS event1;
+ERROR HY000: Unknown error
+SET SESSION DEBUG="-d,simulate_drop_event_failure";
+# On error/transaction rollback, event is not dropped. Following
+# statements list events.
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	event1	#	#	RECURRING	NULL	1	YEAR	#	#	ENABLED	1	#	#	#
+# Binlog event for failed drop event statement is not created.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+binlog.000001	#	Query	#	#	use `test`; ALTER EVENT event1 COMMENT "Atomic Event's DDL"
+# Event is dropped and binlog event is written on a transaction commit.
+DROP EVENT event1;
+DROP EVENT IF EXISTS event1;
+Warnings:
+Note	1305	Event event1 does not exist
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1
+binlog.000001	#	Query	#	#	use `test`; ALTER EVENT event1 COMMENT "Atomic Event's DDL"
+binlog.000001	#	Query	#	#	use `test`; DROP EVENT event1
+binlog.000001	#	Query	#	#	use `test`; DROP EVENT IF EXISTS event1
+#########################################################################
+# D. TEST CASES FOR DDL ON VIEWS.                                       #
+#########################################################################
+CREATE VIEW v1 AS SELECT 1;
+CREATE VIEW v2 AS SELECT * FROM v1;
+DROP VIEW v1;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`1` AS `1` from `v1`	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+#
+# Test case to verify if CREATE VIEW statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_create_view_failure";
+CREATE VIEW v1 AS SELECT 1;
+ERROR HY000: Unknown error
+SET SESSION DEBUG="-d,simulate_create_view_failure";
+# DD object for view v1 is not stored and binlog event for view v1
+# is not written in an error/a rollback scenarios.
+# View v1 is not listed in the following statement.
+SHOW TABLES;
+Tables_in_test
+v2
+# Following statement fails as view v1 does not exists.
+SHOW CREATE VIEW v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+# View v2 state remains as invalid after transaction rollback.
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`1` AS `1` from `v1`	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+# Binlog for failed create view is not written.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+# On transaction commit, DD object of view is stored and binlog
+# event for view v1 is written.
+CREATE VIEW v1 AS SELECT 1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	utf8mb4	utf8mb4_0900_ai_ci
+# Referencing view v2's status is updated.
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`1` AS `1` from `v1`	utf8mb4	utf8mb4_0900_ai_ci
+# View v1 is listed.
+SHOW TABLES;
+Tables_in_test
+v1
+v2
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+#
+# Test case to verify if ALTER VIEW statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_create_view_failure";
+ALTER VIEW v1 AS SELECT 1 as a1, 2 AS a2;
+ERROR HY000: Unknown error
+SET SESSION DEBUG="-d,simulate_create_view_failure";
+# DD object for view v1 is not stored and binlog event for view v1
+# is not written in an error/a rollback scenarios.
+# No change in the view v1 definition and v2 state.
+SHOW TABLES;
+Tables_in_test
+v1
+v2
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`1` AS `1` from `v1`	utf8mb4	utf8mb4_0900_ai_ci
+# Binlog for failed alter view is not written.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+# On a transaction commit, DD object of view is stored and binlog
+# event for view v1 is written.
+ALTER VIEW v1 AS SELECT 1 as a1, 2 AS a2;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `a1`,2 AS `a2`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`1` AS `1` from `v1`	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW TABLES;
+Tables_in_test
+v1
+v2
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1 as a1, 2 AS a2
+#
+# Test case to verify if DROP VIEW statement is atomic/crash safe.
+#
+SET SESSION DEBUG="+d,simulate_drop_view_failure";
+DROP VIEW v1;
+ERROR HY000: Unknown error
+SET SESSION DEBUG="-d,simulate_drop_view_failure";
+# DD object for view v1 is not dropped and binlog event for view v1
+# is not written in an error/ia rollback scenarios.
+# No change in the view v1 definition and v2 state.
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `a1`,2 AS `a2`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`1` AS `1` from `v1`	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW TABLES;
+Tables_in_test
+v1
+v2
+# Binlog for failed drop view is not written.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1 as a1, 2 AS a2
+# On a transaction commit, DD object of view is dropped and binlog
+# event for view v1 is written.
+DROP VIEW v1;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`1` AS `1` from `v1`	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW TABLES;
+Tables_in_test
+v2
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1 as a1, 2 AS a2
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+# v1 view does not exists so only binlog is written in this case.
+DROP VIEW IF EXISTS v1;
+Warnings:
+Note	1051	Unknown table 'test.v1'
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1 as a1, 2 AS a2
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW IF EXISTS v1
+CREATE VIEW v3 AS SELECT 1;
+CREATE VIEW v4 AS SELECT 1;
+CREATE TABLE t1(f1 int);
+DROP VIEW t1, v3, v4;
+ERROR HY000: 'test.t1' is not VIEW
+# No binlog event is written in statement failure because of table
+# usage in the statement.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1 as a1, 2 AS a2
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW IF EXISTS v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 int)
+# Existing views v4 & v5 are dropped and binlog is written in this
+# case.
+DROP VIEW IF EXISTS v3, v4, v5;
+Warnings:
+Note	1051	Unknown table 'test.v5'
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT * FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 1 as a1, 2 AS a2
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW IF EXISTS v1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS SELECT 1
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 int)
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW IF EXISTS v3, v4, v5
+DROP VIEW v2;
+DROP TABLE t1;
+#########################################################################
+#                                                                       #
+# E. These test cases are added in order to test error code path that is#
+#    not covered by existing test cases, focusing gcov test coverage.   #
+#                                                                       #
+#########################################################################
+SET @orig_lock_wait_timeout= @@global.lock_wait_timeout;
+SET GLOBAL lock_wait_timeout= 1;
+#
+# Test case to cover failure of method to update view/stored function
+# referencing views column metadata and status.
+#
+CREATE TABLE t1(f1 INT);
+CREATE FUNCTION f() RETURNS INT return 1;
+CREATE VIEW v1 AS SELECT 2 as f2;
+CREATE VIEW v2 AS SELECT f() as f1, v1.f2 FROM v1;
+include/show_binlog_events.inc
+connection default;
+connection default;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
+connection default;
+connection default;
+# Acquire metadata lock on view v2.
+SET DEBUG_SYNC="rm_table_no_locks_before_delete_table SIGNAL drop_func WAIT_FOR go";
+DROP TABLE IF EXISTS t1, v2;;
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC="now WAIT_FOR drop_func";
+# Drop function "f" fails as lock acquire on view "v2" referencing "f"
+# times out.
+DROP FUNCTION f;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+include/show_binlog_events.inc
+connection con1;
+connection con1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
+connection con1;
+connection con1;
+# Drop function "f" fails as lock acquire on view "v2" referencing "f"
+# times out.
+DROP VIEW v1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+include/show_binlog_events.inc
+connection con1;
+connection con1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
+connection con1;
+connection con1;
+SET DEBUG_SYNC="now SIGNAL go";
+connection default;
+Warnings:
+Note	1051	Unknown table 'test.v2'
+# Status of view "v2" is set to invalid in the drop view statement.
+DROP VIEW v1;
+# Acquire metadata lock on stored function "f".
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL drop_view WAIT_FOR go';
+DROP FUNCTION f;;
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR drop_view';
+# Create view "v1" fails as column metadata update and status of
+# referencing view "v2" fails because lock acquire timeout on "f".
+CREATE VIEW v1 AS SELECT 2 as f2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC="now SIGNAL go";
+connection default;
+CREATE VIEW v1 AS SELECT 2 as f2;
+# Acquire metadata lock on view "v1".
+LOCK TABLES v1 WRITE;
+connection con1;
+# Create function "f" fails as column metadata update and status of view
+# referencing view "v2" fails because lock acquire timeout on view "v1".
+CREATE FUNCTION f() RETURNS INT return 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection default;
+SET DEBUG_SYNC='RESET';
+UNLOCK TABLES;
+disconnect con1;
+DROP VIEW v1, v2;
+SET GLOBAL lock_wait_timeout= @orig_lock_wait_timeout;
+# Binlog should not contain any event from failed statements.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `t1`,`v2` /* generated by server */
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1, v2
+#
+# Test case to cover stored routine and view object acquire method
+# failure.
+#
+CREATE FUNCTION f1() RETURNS INT return 1;
+SET SESSION DEBUG='+d,fail_while_acquiring_dd_object';
+CREATE FUNCTION f1() RETURNS INT return 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER FUNCTION f1 COMMENT "wl9173";
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE VIEW v1 AS SELECT 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP VIEW v1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION DEBUG='-d,fail_while_acquiring_dd_object';
+DROP FUNCTION f1;
+SET SESSION DEBUG='+d,fail_while_acquiring_routine_schema_obj';
+CREATE FUNCTION f1() RETURNS INT return 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION DEBUG='-d,fail_while_acquiring_routine_schema_obj';
+CREATE VIEW v1 AS SELECT 2 as f2;
+SET SESSION DEBUG='+d,fail_while_acquiring_view_obj';
+DROP VIEW v1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION DEBUG='-d,fail_while_acquiring_view_obj';
+DROP VIEW v1;
+# Binlog should not contain any event from failed statements.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `t1`,`v2` /* generated by server */
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1, v2
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+#
+# Test case to cover store routine drop object method failure.
+#
+CREATE FUNCTION f1() RETURNS INT return 1;
+SET DEBUG='+d,fail_while_dropping_dd_object';
+DROP FUNCTION f1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG='-d,fail_while_dropping_dd_object';
+DROP FUNCTION f1;
+# Binlog should not contain any event from failed statements.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
+binlog.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `t1`,`v2` /* generated by server */
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1, v2
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f1
+binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
+binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+return 1
+binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f1
+#########################################################################

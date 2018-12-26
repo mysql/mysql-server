@@ -1,0 +1,149 @@
+#****************************************************************
+# WL6045: Improve Innochecksum
+# Check Innochecksum with ibd file size 3GB
+# When server --default_storage_engine=InnoDB & tab2.ibd (CRC32)
+# When server --default_storage_engine=CRC32  & tab2.ibd (None)
+# Precondition : This testcase assumes 3GB disk space exist
+# on the server where, it is kick off.
+# How to run this testcase:
+# ./mtr --big-test --suite=large_tests --suite-timeout=6360
+# --testcase-timeout=6000 innodb_innochecksum_3gb.test
+#****************************************************************
+
+
+let MYSQLD_BASEDIR= `SELECT @@basedir`;
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--disable_warnings
+DROP TABLE IF EXISTS tab2;
+
+SHOW variables like '%innodb_checksum_algorithm%';
+#check the default engine is always InnoDB after restart
+SELECT @@default_storage_engine;
+
+CREATE TABLE tab2(col_1 CHAR (255) ,
+col_2 VARCHAR (255), col_3 longtext,
+col_4 longtext,col_5 BLOB,
+col_6 LONGBLOB , col_7 bigint)
+engine = innodb ;
+
+#create index on the compress table
+CREATE INDEX idx1 ON tab2(col_3(10));
+CREATE INDEX idx2 ON tab2(col_4(10));
+CREATE INDEX idx3 ON tab2(col_5(10));
+
+--echo # Generate a input text file for loading the table
+perl;
+$count=0;
+my $MYSQLD_TMPDIR= $ENV{'MYSQLTEST_VARDIR'}."/tmp";
+opendir(MYSQLDTMP, $MYSQLD_TMPDIR) or die $!;
+open OUT_FILE, ">", "$MYSQLD_TMPDIR/input.dat" or die $!;
+while ($count <= 500){
+print OUT_FILE "aaaaaaa \t bbbbbbb \t cccccccccc \t dddddd \t eeeeee \t fffff \t $count \n";
+$count++;
+}
+close(OUT_FILE);
+closedir(MYSQLDTMP);
+EOF
+
+--echo # check whether file exist
+--file_exists $MYSQLTEST_VARDIR/tmp/input.dat
+
+--echo # load the data into the table
+
+--disable_query_log
+
+let $i = 14000;
+while ($i) {
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/input.dat' IGNORE INTO TABLE tab2;
+COMMIT;
+dec $i;
+}
+
+--enable_query_log
+
+# check the record count 7014000 ,to ensure ibd file size is 3GB
+SELECT COUNT(*) FROM tab2;
+
+--echo # Stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 
+--source include/wait_until_disconnected.inc
+
+--echo # Rewrite the tab2.ibd file into new checksum=CRC32
+--exec $INNOCHECKSUM --no-check --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
+
+--echo # Restart the DB server with default innodb_checksum_algorithm=InnoDB (Default)
+--echo # no need to pass to the server.
+--exec echo "restart:  --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo # Load the with repeat function
+SET @col_1 = repeat('A', 5);
+SET @col_2 = repeat('B', 20);
+SET @col_3 = repeat('D', 100);
+SET @col_4 = repeat('E', 100);
+SET @col_5 = repeat('F', 100);
+SET @col_6 = repeat('G', 100);
+
+--echo # Check the table status with DML
+let $i = 1000;
+eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+
+--echo # Check with Read operation by record count
+SELECT COUNT(*) FROM tab2 where col_7=1000;
+
+--echo # Stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 
+--source include/wait_until_disconnected.inc
+
+--echo # Rewrite the tab2.ibd file into new checksum=None
+--exec $INNOCHECKSUM --no-check -w None $MYSQLD_DATADIR/test/tab2.ibd
+
+--echo # Check the page type summary with longform for *.ibd
+--replace_regex /File.*.ibd/File::tab2.ibd/ /[0-9]+/#/
+--exec $INNOCHECKSUM --page-type-summary $MYSQLD_DATADIR/test/tab2.ibd
+
+--echo # Page type dump for tab2.ibd
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--exec $INNOCHECKSUM -D $MYSQL_TMP_DIR/dump.txt $MYSQLD_DATADIR/test/tab2.ibd
+
+--echo # check whether dump.txt file exist
+--file_exists $MYSQL_TMP_DIR/dump.txt
+
+--echo # Restart the DB server with default innodb_checksum_algorithm=CRC32
+--exec echo "restart: --innodb_checksum_algorithm=crc32 --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+# Check the server startup option of the checksum
+SHOW variables like '%innodb_checksum_algorithm%';
+
+--echo # Check the default engine is always InnoDB after restart
+SELECT @@default_storage_engine;
+
+--echo # Load the with repeat function
+SET @col_1 = repeat('G', 5);
+SET @col_2 = repeat('H', 20);
+SET @col_3 = repeat('I', 100);
+SET @col_4 = repeat('J', 100);
+SET @col_5 = repeat('K', 100);
+SET @col_6 = repeat('L', 100);
+
+--echo # Check the table status with DML
+let $i = 2000;
+eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+
+--echo # Check with Read operation that record count
+SELECT COUNT(*) FROM tab2 where col_7=2000;
+
+--enable_warnings
+# Cleanup
+DROP TABLE IF EXISTS tab2;

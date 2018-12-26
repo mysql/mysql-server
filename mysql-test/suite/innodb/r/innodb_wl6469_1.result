@@ -1,0 +1,80 @@
+set global innodb_file_per_table = 0;
+DROP TABLE IF EXISTS t1,t2;
+select @@global.innodb_change_buffering;
+@@global.innodb_change_buffering
+all
+create temporary table t1
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc)) engine = innodb;
+create index idx on t1(keyc, c1(20));
+create procedure populate_t1(IN `rows` INT)
+begin
+declare i int default 1;
+while (i <= `rows`) DO
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+set autocommit=0;
+select count(*) from t1;
+count(*)
+0
+call populate_t1(1000);
+select count(*) from t1;
+count(*)
+1000
+select * from t1 limit 10;
+keyc	c1	c2
+1	a	b
+2	a	b
+3	a	b
+4	a	b
+5	a	b
+6	a	b
+7	a	b
+8	a	b
+9	a	b
+10	a	b
+commit;
+update t1 set keyc = -1 * keyc where keyc%50 = 0;
+select count(*) from t1 where keyc < 0;
+count(*)
+20
+drop table t1;
+set @@global.innodb_change_buffering = none ;
+select @@global.innodb_change_buffering;
+@@global.innodb_change_buffering
+none
+create temporary table t1
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc)) engine = innodb;
+create index idx on t1(keyc, c1(20));
+set autocommit=0;
+select count(*) from t1;
+count(*)
+0
+CALL populate_t1(1000);
+select count(*) from t1;
+count(*)
+1000
+select * from t1 limit 10;
+keyc	c1	c2
+1	a	b
+2	a	b
+3	a	b
+4	a	b
+5	a	b
+6	a	b
+7	a	b
+8	a	b
+9	a	b
+10	a	b
+commit;
+update t1 set keyc = -1 * keyc where keyc%50 = 0;
+select count(*) from t1 where keyc < 0;
+count(*)
+20
+drop table t1;
+drop procedure if exists populate_t1;
+set global innodb_change_buffering = all;
+set global innodb_file_per_table = default;

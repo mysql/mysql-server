@@ -1,0 +1,20 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression('Recovery from master pos');
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+FLUSH LOCAL BINARY LOGS;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+[connection slave]
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay_log_recovery=ON]
+include/assert_grep.inc [Found no lines about reading events on the relay log.]
+[connection slave]
+include/start_slave.inc
+include/rpl_end.inc

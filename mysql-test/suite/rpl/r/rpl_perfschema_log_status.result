@@ -1,0 +1,50 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# First step
+CREATE TABLE ils_copy (
+uuid VARCHAR(36) PRIMARY KEY,
+master JSON NOT NULL,
+channels JSON NOT NULL,
+storage_engines JSON NOT NULL);
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+include/sync_slave_sql_with_master.inc
+CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
+include/save_master_pos.inc
+SELECT * FROM performance_schema.log_status INTO OUTFILE 'ILS_DUMP';
+LOAD DATA INFILE 'ILS_DUMP' INTO TABLE ils_copy;
+include/assert.inc [Collected server UUID is correct]
+include/assert.inc [Collected master binary log file name is correct]
+include/assert.inc [Collected master binary log file position is correct]
+include/assert.inc [Collected master gtid_executed is correct]
+include/assert.inc [Collected default replication channel name is correct]
+include/assert.inc [Collected default replication channel relay log file name is correct]
+include/assert.inc [Collected default replication channel relay log file position is correct]
+include/assert.inc [Collected replication channel name for ch1 is correct]
+include/assert.inc [Collected replication channel relay log file name for ch1 is correct]
+include/assert.inc [Collected InnoDB LSN is in correct boundaries]
+include/assert.inc [Collected InnoDB LSN_checkpoint is in correct boundaries]
+# Second step
+CREATE USER user1@'%';
+GRANT SELECT ON *.* TO user1@'%';
+SELECT COUNT(*) FROM performance_schema.global_variables;
+SELECT * FROM performance_schema.log_status;
+ERROR 42000: Access denied; you need (at least one of) the BACKUP_ADMIN privilege(s) for this operation
+[connection slave]
+DROP USER user1@'%';
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+# Third step
+[connection slave1]
+LOCK INSTANCE FOR BACKUP;
+FLUSH TABLES test.t1 WITH READ LOCK;
+[connection slave]
+SELECT * FROM performance_schema.log_status;
+[connection slave1]
+UNLOCK TABLES;
+UNLOCK INSTANCE;
+[connection slave]
+[connection master]
+DROP TABLE ils_copy, t1;
+include/rpl_end.inc

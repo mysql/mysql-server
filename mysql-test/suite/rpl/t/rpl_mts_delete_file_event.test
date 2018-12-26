@@ -1,0 +1,46 @@
+# ==== Purpose ====
+#
+# This test will verify if a MTS enabled server will handle a Delete_file
+# event correctly.
+#
+# The test will create a non-transactional table, insert some data on it and
+# then will try to execute a LOAD DATA INFILE statement into the table but
+# containing data that will violate the table primary key. This statement
+# will be logged into the binary log as the following sequence of events:
+# - QUERY(BEGIN)
+# - BEGIN_LOAD_QUERY
+# - DELETE_FILE
+# - QUERY(COMMIT)
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#19552923: ASSERTION `!WORKER' FAILED FOR DELETE_FILE LOG EVENT IN MTS
+#
+
+--source include/have_myisam.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+# Creates a non-transactional table
+CREATE TABLE t1 (c1 INT KEY) ENGINE=MyISAM;
+
+# Insert some data into the table to generate an error on LOAD DATA INSFILE
+INSERT INTO t1 VALUES (1);
+
+# Generates the file to be loaded
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--write_file $MYSQLTEST_VARDIR/tmp/data01
+1
+EOF
+
+# Generates the Delete_file event by failing the LOAD DATA INFILE statement
+# in the non-transactional table.
+--error ER_DUP_ENTRY
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/data01' INTO TABLE t1
+
+#
+# Cleanup
+#
+--remove_file $MYSQLTEST_VARDIR/tmp/data01
+DROP TABLE t1;
+--source include/rpl_end.inc

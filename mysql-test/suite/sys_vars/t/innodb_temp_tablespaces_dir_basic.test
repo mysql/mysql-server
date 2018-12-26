@@ -1,0 +1,132 @@
+################## mysql-test/t/innodb_temp_tablespaces_dir_basic.test ##############
+#                                                                             #
+# Variable Name: innodb_temp_tablespaces_dir                                        #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: string                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2018-02-09                                                   #
+# Author : Satya Bodapati
+#                                                                             #
+#                                                                             #
+# Description: Read-only config global variable innodb_temp_tablespaces_dir         #
+#              * Value check                                                  #
+#              * Scope check                                                  #
+#                                                                             #
+###############################################################################
+
+
+####################################################################
+#   Display the default value                                      #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_temp_tablespaces_dir);
+--echo 1 Expected
+
+
+####################################################################
+#   Check if Value can set Dynamically                             #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_temp_tablespaces_dir="/tmp";
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.innodb_temp_tablespaces_dir);
+--echo 1 Expected
+
+
+################################################################################
+# Check if the value in GLOBAL table matches value in variable                 #
+################################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.innodb_temp_tablespaces_dir = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_temp_tablespaces_dir';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_temp_tablespaces_dir);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_temp_tablespaces_dir';
+--enable_warnings
+--echo 1 Expected
+
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_temp_tablespaces_dir = @@GLOBAL.innodb_temp_tablespaces_dir;
+--echo 1 Expected
+
+##########################################################################
+#     Check if the value in SESSION Table matches value in variable      #
+##########################################################################
+
+--disable_warnings
+SELECT @@innodb_temp_tablespaces_dir = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='innodb_temp_tablespaces_dir';
+--enable_warnings
+--echo 1 Expected
+
+####################################################################################################
+#     Check if variable is an non-persistent variable                                              #
+####################################################################################################
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY innodb_temp_tablespaces_dir = "/tmp";
+--echo Expected error 'Non persistent read only variable'
+
+###################################################################################
+#   Check if innodb_temp_tablespaces_dir can be accessed with and without @@ sign #
+###################################################################################
+
+SELECT COUNT(@@innodb_temp_tablespaces_dir);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_temp_tablespaces_dir);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_temp_tablespaces_dir);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_temp_tablespaces_dir);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_temp_tablespaces_dir = @@SESSION.innodb_temp_tablespaces_dir;
+--echo Expected error 'Readonly variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET innodb_temp_tablespaces_dir = "/tmp";
+--echo Expected error 'Read only variable'
+
+--Error ER_PARSE_ERROR
+SET local.innodb_temp_tablespaces_dir = 1;
+--echo Expected error 'Parse error'
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_temp_tablespaces_dir;
+--echo Expected error 'Unknown table local in field list'
+
+--Error ER_PARSE_ERROR
+SET global.innodb_temp_tablespaces_dir = 1;
+--echo Expected error 'Parse error'
+
+--Error ER_UNKNOWN_TABLE
+SELECT global.innodb_temp_tablespaces_dir;
+--echo Expected error 'Unknown table global in field list'
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_temp_tablespaces_dir = @@session.innodb_temp_tablespaces_dir;
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_temp_tablespaces_dir;
+--echo Expected error 'Unknown column innodb_temp_tablespaces_dir in field list'

@@ -1,0 +1,355 @@
+#
+# WL#5569 MTS
+#
+# The test verifies correctness of Query event parallelization when
+# a DML Query modifies multiple databases.
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+--source include/no_valgrind_without_big.inc
+
+
+# restart in Parallel
+
+let $workers= 4;
+
+connection slave;
+
+source include/stop_slave.inc;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+eval set @@global.slave_parallel_workers= $workers;
+source include/start_slave.inc;
+
+
+let $dbs= 8;
+let $tables= 8;
+let $queries= `select $dbs*$tables * 4`;
+
+#
+# 1. Case of multi-update
+#
+
+connection master;
+
+--disable_query_log
+call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
+--enable_query_log
+
+# create & populate
+
+let $n= $dbs;
+while ($n)
+{
+  eval create database d$n;
+  let $m= $tables;
+  while ($m)
+  {
+     eval create table d$n.t$m (a int);
+     eval select round(rand()*$tables) into @var;
+     eval insert into d$n.t$m values (@var);
+     dec $m;
+  }
+  dec $n;
+}
+
+
+# operate to check consistency in the end
+
+let $k= $queries;
+
+--disable_query_log
+--disable_warnings
+while ($k)
+{
+   let $tables_in_query= `select 2 * (1 + floor(rand()*$dbs))`;
+   let $i= $tables_in_query;
+   let $table_list= ;
+   let $set_list= ;
+   while ($i)
+   {
+       let $n1= `select floor(rand()*$dbs + 1)`;
+       let $m1= `select floor(rand()*$tables + 1)`;
+       let $n2= `select floor(rand()*$dbs + 1)`;
+       let $m2= `select floor(rand()*$tables + 1)`;
+       let $table_list= $table_list d$n1.t$m1 as t_$i, ;
+       let $set_list= $set_list t_$i.a= ;
+       dec $i;
+
+       let $table_list= $table_list d$n2.t$m2 as t_$i, ;
+       let $set_list= $set_list t_$i.a + round(rand(10)), ;
+
+       dec $i;
+   }
+   let $n1= `select floor(rand()*$dbs + 1)`;
+   let $m1= `select floor(rand()*$tables + 1)`;   
+   let $n2= `select floor(rand()*$dbs + 1)`;
+   let $m2= `select floor(rand()*$tables + 1)`;
+
+##   --disable_warnings
+     
+     eval update $table_list d$n1.t$m1 as t_1_$i, d$n2.t$m2 as t_2_$i
+                 set $set_list t_1_$i.a=t_2_$i.a + round(rand(10));
+##   --enable_warnings
+
+   dec $k;
+}
+--enable_warnings
+--enable_query_log
+
+--source include/sync_slave_sql_with_master.inc 
+
+#
+# 2. Case of invoked routines
+#
+
+# A. Functions
+
+# create functions & run load
+let $n= $dbs;
+# n'th db func is defined through n-1'th except n == 1
+let $n1= $n;
+dec $n1;
+
+connection master;
+
+--disable_query_log
+
+while ($n1)
+{
+  let $m= `select floor(rand()*$tables) + 1`;
+
+  delimiter |;
+
+  eval create function `d$n`.`func` (a int) returns int
+     begin
+     insert into `d$n`.`t$m` values (`d$n1`.`func`(1));
+     return 1;
+     end|
+
+  delimiter ;|
+
+  dec $n;
+  dec $n1;
+}
+
+delimiter |;
+
+eval create function `d1`.`func` (a int) returns int
+     begin
+     insert into `d1`.`t$m` values (0);
+     return 1;
+     end|
+
+delimiter ;|
+
+
+# invoke...
+
+let $k= $queries;
+
+while ($k)
+{
+   let $n= `select floor(rand()*$dbs) + 1`;
+   let $m= `select floor(rand()*$tables) + 1`;
+   let $n1= $n;
+   dec $n1;
+   if ($n1)
+   {
+       eval insert into d$n.t$m values (`d$n1`.`func`(1));
+   }
+   dec $k;
+}
+
+--enable_query_log
+
+--source include/sync_slave_sql_with_master.inc
+
+# B. Triggers
+
+connection master;
+
+# create triggers & run load
+let $n= $dbs;
+# n'th db tables won't have any trigger to avoid circular dependency
+let $n1= $n;
+dec $n1;
+
+--disable_query_log
+while ($n1)
+{
+  let $m= $tables;
+
+  while ($m)
+  {
+     eval create trigger `d$n1`.`trg_t$m` before insert on `d$n1`.`t$m` for each row insert into `d$n`.`t$m` values(1);
+     dec $m;
+  }
+  dec $n;
+  dec $n1;
+}
+--enable_query_log
+
+# invoke...
+
+let $k= $queries;
+
+--disable_query_log
+--disable_warnings
+while ($k)
+{
+   let $n= `select floor(rand()*$dbs + 1)`;
+   let $m= `select floor(rand()*$tables + 1)`;
+   eval insert into d$n.t$n values (2);
+   dec $k;
+}
+--enable_warnings
+--enable_query_log
+
+
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Consistency check
+#
+
+let $n = $dbs;
+while($n)
+{
+  let $m= $tables;
+  while ($m)
+  {
+    let $diff_tables=master:d$n.t$m, slave:d$n.t$m;
+    source include/diff_tables.inc;
+    dec $m;
+  }
+  dec $n;
+}
+
+#
+# Clean-up of the regular case tests
+#
+
+connection master;
+
+--disable_query_log
+
+let $n= $dbs;
+while ($n)
+{
+  eval drop database d$n;
+  dec $n;
+}
+
+--enable_query_log
+
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Over MAX_DBS_IN_QUERY_MTS
+#
+
+let $dbs= 20;
+let $queries= `select $dbs* 4`;
+
+connection master;
+
+let $n= $dbs;
+let $m= 1;
+while ($n)
+{
+  eval create database d$n;
+  eval create table d$n.t$m (a int);
+  eval select round(rand()*$tables) into @var;
+  eval insert into d$n.t$m values (@var);
+
+  dec $n;
+}
+
+--disable_query_log
+--disable_warnings
+
+let $k= $queries;
+
+while ($k)
+{
+   let $tables_in_query= `select 2 * (1 + floor(rand()*$dbs))`;
+   let $i= $tables_in_query;
+   let $table_list= ;
+   let $set_list= ;
+   while ($i)
+   {
+       let $n1= `select floor(rand()*$dbs + 1)`;
+       let $m1= 1;
+       let $n2= `select floor(rand()*$dbs + 1)`;
+       let $m2= 1;
+       let $table_list= $table_list d$n1.t$m1 as t_$i, ;
+       let $set_list= $set_list t_$i.a= ;
+       dec $i;
+
+       let $table_list= $table_list d$n2.t$m2 as t_$i, ;
+       let $set_list= $set_list t_$i.a + round(rand(10)), ;
+
+       dec $i;
+   }
+   let $n1= `select floor(rand()*$dbs + 1)`;
+   let $m1= 1;
+   let $n2= `select floor(rand()*$dbs + 1)`;
+   let $m2= 1;
+
+     eval update $table_list d$n1.t$m1 as t_1_$i, d$n2.t$m2 as t_2_$i
+                 set $set_list t_1_$i.a=t_2_$i.a + round(rand(10));
+   dec $k;
+}
+--enable_warnings
+--enable_query_log
+
+--source include/sync_slave_sql_with_master.inc
+
+# Todo: to impelement a stress test for sync_slave_with_master
+#       specifically in parallel mode.
+#       The following lines are left as extra reminder.
+#
+#--disable_query_log
+#--disable_result_log
+#select sleep(1);
+#--enable_result_log
+#--enable_query_log
+
+#
+# Consistency check
+#
+
+let $n = $dbs;
+let $m= 1;
+while($n)
+{
+  let $diff_tables=master:d$n.t$m, slave:d$n.t$m;
+  source include/diff_tables.inc;
+  dec $n;
+}
+
+#
+# The final clean-up
+#
+
+connection master;
+
+--disable_query_log
+
+let $n= $dbs;
+while ($n)
+{
+  eval drop database d$n;
+  dec $n;
+}
+
+--enable_query_log
+
+--source include/sync_slave_sql_with_master.inc
+
+
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+
+--source include/rpl_end.inc
+

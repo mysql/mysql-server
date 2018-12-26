@@ -1,0 +1,116 @@
+################################################################################
+# Verify that applier channel received_transaction_set does not grow infinitely
+# with holes.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Create a table t1 on a GROUP.
+# 2. Execute some transactions on both members. Transactions executed on M1
+#    will be on M2 applier channel received_transaction_set, and the dual for
+#    M2 transactions.
+# 3. Assert check that both members have holes on its applier channel
+#    received_transaction_set. The holes are expected and despite them members
+#    data is equal.
+# 4. Wait for stable set propagation and certification info garbage collection.
+#    When that happens, the holes on applier channel will be filled.
+# 5. Assert check that both members do not have holes on their applier channel
+#    received_transaction_set.
+# 6. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_gtid_assignment_block_size_1.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Create a table on the group.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Execute some transactions on both members.
+--echo #    Transactions executed on member 1 will be on member 2
+--echo #    applier channel received_transaction_set, and the dual
+--echo #    for member 2 transactions.
+--disable_query_log
+--let $transactions= 10
+while ($transactions > 0)
+{
+  --connection server1
+  --eval INSERT INTO t1 VALUES ($transactions)
+  --dec $transactions
+
+  --connection server2
+  --eval INSERT INTO t1 VALUES ($transactions)
+  --dec $transactions
+}
+--enable_query_log
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Assert that both members have holes on its applier
+--echo #    channel received_transaction_set.
+--echo #    The holes are expected and despite them members data is
+--echo #    equal.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
+--let $assert_text= The value of received_transaction_set must have holes
+--let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:2:5:7:9:11:13"
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
+--let $assert_text= The value of received_transaction_set must have holes
+--let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:1-4:6:8:10:12"
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Wait for stable set propagation and certification info
+--echo #    garbage collection. When that happens, the holes on
+--echo #    applier channel will be filled.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_timeout= 90
+--let $wait_condition= SELECT transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Assert that both members dot not have holes on their
+--echo #    applier channel received_transaction_set.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
+--let $assert_text= The value of received_transaction_set must not have holes
+--let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:1-13"
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
+--let $assert_text= The value of received_transaction_set must not have holes
+--let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:1-13"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+DROP TABLE t1;
+--source include/group_replication_end.inc

@@ -1,0 +1,528 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+==== Initialization ====
+[on master]
+SET @m_auto_increment_increment= @@global.auto_increment_increment;
+SET @m_auto_increment_offset=    @@global.auto_increment_offset;
+SET @m_character_set_client=     @@global.character_set_client;
+SET @m_collation_connection=     @@global.collation_connection;
+SET @m_collation_server=         @@global.collation_server;
+SET @m_time_zone=                @@global.time_zone;
+SET @m_lc_time_names=            @@global.lc_time_names;
+SET @m_collation_database=       @@global.collation_database;
+[on slave]
+SET @s_auto_increment_increment= @@global.auto_increment_increment;
+SET @s_auto_increment_offset=    @@global.auto_increment_offset;
+SET @s_character_set_client=     @@global.character_set_client;
+SET @s_collation_connection=     @@global.collation_connection;
+SET @s_collation_server=         @@global.collation_server;
+SET @s_time_zone=                @@global.time_zone;
+SET @s_lc_time_names=            @@global.lc_time_names;
+SET @s_collation_database=       @@global.collation_database;
+SET @@global.auto_increment_increment=19;
+SET @@global.auto_increment_offset=4;
+SET @@global.character_set_client='latin2';
+SET @@global.collation_connection='latin2_bin';
+SET @@global.collation_server='geostd8_general_ci';
+SET @@global.time_zone='Japan';
+SET @@global.lc_time_names='sv_SE';
+SET @@global.collation_database='geostd8_bin';
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+[on master]
+CREATE TABLE tstmt (id INT AUTO_INCREMENT PRIMARY KEY,
+num INT,
+text VARCHAR(100)) ENGINE=MYISAM;
+CREATE TABLE tproc LIKE tstmt;
+CREATE TABLE tfunc LIKE tstmt;
+CREATE TABLE ttrig LIKE tstmt;
+CREATE TABLE tprep LIKE tstmt;
+CREATE TABLE trigger_table (text CHAR(4)) ENGINE=MYISAM;
+==== Insert variables directly ====
+SET @@pseudo_thread_id= 4712;
+INSERT INTO tstmt(num)  VALUES (@@session.pseudo_thread_id);
+SET @@pseudo_thread_id= 4713;
+INSERT INTO tstmt(num)  VALUES (@@session.pseudo_thread_id);
+SET @@foreign_key_checks= 0;
+INSERT INTO tstmt(num)  VALUES (@@session.foreign_key_checks);
+SET @@foreign_key_checks= 1;
+INSERT INTO tstmt(num)  VALUES (@@session.foreign_key_checks);
+SET @@sql_auto_is_null= 0;
+INSERT INTO tstmt(num)  VALUES (@@session.sql_auto_is_null);
+SET @@sql_auto_is_null= 1;
+INSERT INTO tstmt(num)  VALUES (@@session.sql_auto_is_null);
+SET @@unique_checks= 0;
+INSERT INTO tstmt(num)  VALUES (@@session.unique_checks);
+SET @@unique_checks= 1;
+INSERT INTO tstmt(num)  VALUES (@@session.unique_checks);
+SET @@auto_increment_increment= 11;
+INSERT INTO tstmt(num)  VALUES (@@session.auto_increment_increment);
+SET @@auto_increment_increment= 19;
+INSERT INTO tstmt(num)  VALUES (@@session.auto_increment_increment);
+SET @@auto_increment_offset= 13;
+INSERT INTO tstmt(num)  VALUES (@@session.auto_increment_offset);
+SET @@auto_increment_offset= 17;
+INSERT INTO tstmt(num)  VALUES (@@session.auto_increment_offset);
+SET @@auto_increment_increment= 1;
+SET @@auto_increment_offset= 1;
+SET @@character_set_client= 'cp1257';
+INSERT INTO tstmt(text) VALUES (@@session.character_set_client);
+SET @@character_set_client= 'cp1256';
+INSERT INTO tstmt(text) VALUES (@@session.character_set_client);
+SET @@collation_connection= 'cp1251_ukrainian_ci';
+INSERT INTO tstmt(text) VALUES (@@session.collation_connection);
+INSERT INTO tstmt(text) VALUES (@@session.character_set_connection);
+SET @@collation_connection= 'cp1251_bulgarian_ci';
+INSERT INTO tstmt(text) VALUES (@@session.collation_connection);
+INSERT INTO tstmt(text) VALUES (@@session.character_set_connection);
+SET @@collation_server= 'latin7_bin';
+INSERT INTO tstmt(text) VALUES (@@session.collation_server);
+INSERT INTO tstmt(text) VALUES (@@session.character_set_server);
+SET @@collation_server= 'latin7_general_cs';
+INSERT INTO tstmt(text) VALUES (@@session.collation_server);
+INSERT INTO tstmt(text) VALUES (@@session.character_set_server);
+SET @@time_zone= 'Europe/Moscow';
+INSERT INTO tstmt(text) VALUES (@@session.time_zone);
+SET @@time_zone= 'Universal';
+INSERT INTO tstmt(text) VALUES (@@session.time_zone);
+SET @@lc_time_names= 'sv_FI';
+INSERT INTO tstmt(text) VALUES (@@session.lc_time_names);
+SET @@lc_time_names= 'no_NO';
+INSERT INTO tstmt(text) VALUES (@@session.lc_time_names);
+SET @@collation_database= 'latin7_general_ci';
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+INSERT INTO tstmt(text) VALUES (@@session.collation_database);
+INSERT INTO tstmt(text) VALUES (@@session.character_set_database);
+SET @@collation_database= 'latin7_estonian_cs';
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+INSERT INTO tstmt(text) VALUES (@@session.collation_database);
+INSERT INTO tstmt(text) VALUES (@@session.character_set_database);
+SET @@timestamp= 47114711;
+INSERT INTO tstmt(text) VALUES (@@session.timestamp);
+SET @@timestamp= 47124712;
+INSERT INTO tstmt(text) VALUES (@@session.timestamp);
+SET @@last_insert_id= 1616;
+INSERT INTO tstmt(text) VALUES (@@session.last_insert_id);
+SET @@last_insert_id= 1717;
+INSERT INTO tstmt(text) VALUES (@@session.last_insert_id);
+==== Insert variables from a stored procedure ====
+CREATE PROCEDURE proc()
+BEGIN
+SET @@pseudo_thread_id= 4712;
+INSERT INTO tproc(num)  VALUES (@@session.pseudo_thread_id);
+SET @@pseudo_thread_id= 4713;
+INSERT INTO tproc(num)  VALUES (@@session.pseudo_thread_id);
+SET @@foreign_key_checks= 0;
+INSERT INTO tproc(num)  VALUES (@@session.foreign_key_checks);
+SET @@foreign_key_checks= 1;
+INSERT INTO tproc(num)  VALUES (@@session.foreign_key_checks);
+SET @@sql_auto_is_null= 0;
+INSERT INTO tproc(num)  VALUES (@@session.sql_auto_is_null);
+SET @@sql_auto_is_null= 1;
+INSERT INTO tproc(num)  VALUES (@@session.sql_auto_is_null);
+SET @@unique_checks= 0;
+INSERT INTO tproc(num)  VALUES (@@session.unique_checks);
+SET @@unique_checks= 1;
+INSERT INTO tproc(num)  VALUES (@@session.unique_checks);
+SET @@auto_increment_increment= 11;
+INSERT INTO tproc(num)  VALUES (@@session.auto_increment_increment);
+SET @@auto_increment_increment= 19;
+INSERT INTO tproc(num)  VALUES (@@session.auto_increment_increment);
+SET @@auto_increment_offset= 13;
+INSERT INTO tproc(num)  VALUES (@@session.auto_increment_offset);
+SET @@auto_increment_offset= 17;
+INSERT INTO tproc(num)  VALUES (@@session.auto_increment_offset);
+# reset these as they affect the index column
+SET @@auto_increment_increment= 1;
+SET @@auto_increment_offset= 1;
+SET @@character_set_client= 'cp1257';
+INSERT INTO tproc(text) VALUES (@@session.character_set_client);
+SET @@character_set_client= 'cp1256';
+INSERT INTO tproc(text) VALUES (@@session.character_set_client);
+SET @@collation_connection= 'cp1251_ukrainian_ci';
+INSERT INTO tproc(text) VALUES (@@session.collation_connection);
+INSERT INTO tproc(text) VALUES (@@session.character_set_connection);
+SET @@collation_connection= 'cp1251_bulgarian_ci';
+INSERT INTO tproc(text) VALUES (@@session.collation_connection);
+INSERT INTO tproc(text) VALUES (@@session.character_set_connection);
+SET @@collation_server= 'latin7_bin';
+INSERT INTO tproc(text) VALUES (@@session.collation_server);
+INSERT INTO tproc(text) VALUES (@@session.character_set_server);
+SET @@collation_server= 'latin7_general_cs';
+INSERT INTO tproc(text) VALUES (@@session.collation_server);
+INSERT INTO tproc(text) VALUES (@@session.character_set_server);
+SET @@time_zone= 'Europe/Moscow';
+INSERT INTO tproc(text) VALUES (@@session.time_zone);
+SET @@time_zone= 'Universal';
+INSERT INTO tproc(text) VALUES (@@session.time_zone);
+SET @@lc_time_names= 'sv_FI';
+INSERT INTO tproc(text) VALUES (@@session.lc_time_names);
+SET @@lc_time_names= 'no_NO';
+INSERT INTO tproc(text) VALUES (@@session.lc_time_names);
+SET @@collation_database= 'latin7_general_ci';
+INSERT INTO tproc(text) VALUES (@@session.collation_database);
+INSERT INTO tproc(text) VALUES (@@session.character_set_database);
+SET @@collation_database= 'latin7_estonian_cs';
+INSERT INTO tproc(text) VALUES (@@session.collation_database);
+INSERT INTO tproc(text) VALUES (@@session.character_set_database);
+SET @@timestamp= 47114711;
+INSERT INTO tproc(text) VALUES (@@session.timestamp);
+SET @@timestamp= 47124712;
+INSERT INTO tproc(text) VALUES (@@session.timestamp);
+SET @@last_insert_id= 1616;
+INSERT INTO tproc(text) VALUES (@@session.last_insert_id);
+SET @@last_insert_id= 1717;
+INSERT INTO tproc(text) VALUES (@@session.last_insert_id);
+END|
+CALL proc();
+==== Insert variables from a stored function ====
+CREATE FUNCTION func()
+RETURNS INT
+BEGIN
+SET @@pseudo_thread_id= 4712;
+INSERT INTO tfunc(num)  VALUES (@@session.pseudo_thread_id);
+SET @@pseudo_thread_id= 4713;
+INSERT INTO tfunc(num)  VALUES (@@session.pseudo_thread_id);
+SET @@foreign_key_checks= 0;
+INSERT INTO tfunc(num)  VALUES (@@session.foreign_key_checks);
+SET @@foreign_key_checks= 1;
+INSERT INTO tfunc(num)  VALUES (@@session.foreign_key_checks);
+SET @@sql_auto_is_null= 0;
+INSERT INTO tfunc(num)  VALUES (@@session.sql_auto_is_null);
+SET @@sql_auto_is_null= 1;
+INSERT INTO tfunc(num)  VALUES (@@session.sql_auto_is_null);
+SET @@unique_checks= 0;
+INSERT INTO tfunc(num)  VALUES (@@session.unique_checks);
+SET @@unique_checks= 1;
+INSERT INTO tfunc(num)  VALUES (@@session.unique_checks);
+SET @@auto_increment_increment= 11;
+INSERT INTO tfunc(num)  VALUES (@@session.auto_increment_increment);
+SET @@auto_increment_increment= 19;
+INSERT INTO tfunc(num)  VALUES (@@session.auto_increment_increment);
+SET @@auto_increment_offset= 13;
+INSERT INTO tfunc(num)  VALUES (@@session.auto_increment_offset);
+SET @@auto_increment_offset= 17;
+INSERT INTO tfunc(num)  VALUES (@@session.auto_increment_offset);
+# reset these as they affect the index column
+SET @@auto_increment_increment= 1;
+SET @@auto_increment_offset= 1;
+SET @@character_set_client= 'cp1257';
+INSERT INTO tfunc(text) VALUES (@@session.character_set_client);
+SET @@character_set_client= 'cp1256';
+INSERT INTO tfunc(text) VALUES (@@session.character_set_client);
+SET @@collation_connection= 'cp1251_ukrainian_ci';
+INSERT INTO tfunc(text) VALUES (@@session.collation_connection);
+INSERT INTO tfunc(text) VALUES (@@session.character_set_connection);
+SET @@collation_connection= 'cp1251_bulgarian_ci';
+INSERT INTO tfunc(text) VALUES (@@session.collation_connection);
+INSERT INTO tfunc(text) VALUES (@@session.character_set_connection);
+SET @@collation_server= 'latin7_bin';
+INSERT INTO tfunc(text) VALUES (@@session.collation_server);
+INSERT INTO tfunc(text) VALUES (@@session.character_set_server);
+SET @@collation_server= 'latin7_general_cs';
+INSERT INTO tfunc(text) VALUES (@@session.collation_server);
+INSERT INTO tfunc(text) VALUES (@@session.character_set_server);
+SET @@time_zone= 'Europe/Moscow';
+INSERT INTO tfunc(text) VALUES (@@session.time_zone);
+SET @@time_zone= 'Universal';
+INSERT INTO tfunc(text) VALUES (@@session.time_zone);
+SET @@lc_time_names= 'sv_FI';
+INSERT INTO tfunc(text) VALUES (@@session.lc_time_names);
+SET @@lc_time_names= 'no_NO';
+INSERT INTO tfunc(text) VALUES (@@session.lc_time_names);
+SET @@collation_database= 'latin7_general_ci';
+INSERT INTO tfunc(text) VALUES (@@session.collation_database);
+INSERT INTO tfunc(text) VALUES (@@session.character_set_database);
+SET @@collation_database= 'latin7_estonian_cs';
+INSERT INTO tfunc(text) VALUES (@@session.collation_database);
+INSERT INTO tfunc(text) VALUES (@@session.character_set_database);
+SET @@timestamp= 47114711;
+INSERT INTO tfunc(text) VALUES (@@session.timestamp);
+SET @@timestamp= 47124712;
+INSERT INTO tfunc(text) VALUES (@@session.timestamp);
+SET @@last_insert_id= 1616;
+INSERT INTO tfunc(text) VALUES (@@session.last_insert_id);
+SET @@last_insert_id= 1717;
+INSERT INTO tfunc(text) VALUES (@@session.last_insert_id);
+RETURN 0;
+END|
+SELECT func();
+func()
+0
+==== Insert variables from a trigger ====
+CREATE TRIGGER trig
+BEFORE INSERT ON trigger_table
+FOR EACH ROW
+BEGIN
+SET @@pseudo_thread_id= 4712;
+INSERT INTO ttrig(num)  VALUES (@@session.pseudo_thread_id);
+SET @@pseudo_thread_id= 4713;
+INSERT INTO ttrig(num)  VALUES (@@session.pseudo_thread_id);
+SET @@foreign_key_checks= 0;
+INSERT INTO ttrig(num)  VALUES (@@session.foreign_key_checks);
+SET @@foreign_key_checks= 1;
+INSERT INTO ttrig(num)  VALUES (@@session.foreign_key_checks);
+SET @@sql_auto_is_null= 0;
+INSERT INTO ttrig(num)  VALUES (@@session.sql_auto_is_null);
+SET @@sql_auto_is_null= 1;
+INSERT INTO ttrig(num)  VALUES (@@session.sql_auto_is_null);
+SET @@unique_checks= 0;
+INSERT INTO ttrig(num)  VALUES (@@session.unique_checks);
+SET @@unique_checks= 1;
+INSERT INTO ttrig(num)  VALUES (@@session.unique_checks);
+SET @@auto_increment_increment= 11;
+INSERT INTO ttrig(num)  VALUES (@@session.auto_increment_increment);
+SET @@auto_increment_increment= 19;
+INSERT INTO ttrig(num)  VALUES (@@session.auto_increment_increment);
+SET @@auto_increment_offset= 13;
+INSERT INTO ttrig(num)  VALUES (@@session.auto_increment_offset);
+SET @@auto_increment_offset= 17;
+INSERT INTO ttrig(num)  VALUES (@@session.auto_increment_offset);
+# reset these as they affect the index column
+SET @@auto_increment_increment= 1;
+SET @@auto_increment_offset= 1;
+SET @@character_set_client= 'cp1257';
+INSERT INTO ttrig(text) VALUES (@@session.character_set_client);
+SET @@character_set_client= 'cp1256';
+INSERT INTO ttrig(text) VALUES (@@session.character_set_client);
+SET @@collation_connection= 'cp1251_ukrainian_ci';
+INSERT INTO ttrig(text) VALUES (@@session.collation_connection);
+INSERT INTO ttrig(text) VALUES (@@session.character_set_connection);
+SET @@collation_connection= 'cp1251_bulgarian_ci';
+INSERT INTO ttrig(text) VALUES (@@session.collation_connection);
+INSERT INTO ttrig(text) VALUES (@@session.character_set_connection);
+SET @@collation_server= 'latin7_bin';
+INSERT INTO ttrig(text) VALUES (@@session.collation_server);
+INSERT INTO ttrig(text) VALUES (@@session.character_set_server);
+SET @@collation_server= 'latin7_general_cs';
+INSERT INTO ttrig(text) VALUES (@@session.collation_server);
+INSERT INTO ttrig(text) VALUES (@@session.character_set_server);
+SET @@time_zone= 'Europe/Moscow';
+INSERT INTO ttrig(text) VALUES (@@session.time_zone);
+SET @@time_zone= 'Universal';
+INSERT INTO ttrig(text) VALUES (@@session.time_zone);
+SET @@lc_time_names= 'sv_FI';
+INSERT INTO ttrig(text) VALUES (@@session.lc_time_names);
+SET @@lc_time_names= 'no_NO';
+INSERT INTO ttrig(text) VALUES (@@session.lc_time_names);
+SET @@collation_database= 'latin7_general_ci';
+INSERT INTO ttrig(text) VALUES (@@session.collation_database);
+INSERT INTO ttrig(text) VALUES (@@session.character_set_database);
+SET @@collation_database= 'latin7_estonian_cs';
+INSERT INTO ttrig(text) VALUES (@@session.collation_database);
+INSERT INTO ttrig(text) VALUES (@@session.character_set_database);
+SET @@timestamp= 47114711;
+INSERT INTO ttrig(text) VALUES (@@session.timestamp);
+SET @@timestamp= 47124712;
+INSERT INTO ttrig(text) VALUES (@@session.timestamp);
+SET @@last_insert_id= 1616;
+INSERT INTO ttrig(text) VALUES (@@session.last_insert_id);
+SET @@last_insert_id= 1717;
+INSERT INTO ttrig(text) VALUES (@@session.last_insert_id);
+END|
+INSERT INTO trigger_table VALUES ('bye.');
+==== Insert variables from a prepared statement ====
+PREPARE p1 FROM 'SET @@pseudo_thread_id= 4712';
+PREPARE p2 FROM 'INSERT INTO tprep(num)  VALUES (@@session.pseudo_thread_id)';
+PREPARE p3 FROM 'SET @@pseudo_thread_id= 4713';
+PREPARE p4 FROM 'INSERT INTO tprep(num)  VALUES (@@session.pseudo_thread_id)';
+PREPARE p5 FROM 'SET @@foreign_key_checks= 0';
+PREPARE p6 FROM 'INSERT INTO tprep(num)  VALUES (@@session.foreign_key_checks)';
+PREPARE p7 FROM 'SET @@foreign_key_checks= 1';
+PREPARE p8 FROM 'INSERT INTO tprep(num)  VALUES (@@session.foreign_key_checks)';
+PREPARE p9 FROM 'SET @@sql_auto_is_null= 0';
+PREPARE p10 FROM 'INSERT INTO tprep(num)  VALUES (@@session.sql_auto_is_null)';
+PREPARE p11 FROM 'SET @@sql_auto_is_null= 1';
+PREPARE p12 FROM 'INSERT INTO tprep(num)  VALUES (@@session.sql_auto_is_null)';
+PREPARE p13 FROM 'SET @@unique_checks= 0';
+PREPARE p14 FROM 'INSERT INTO tprep(num)  VALUES (@@session.unique_checks)';
+PREPARE p15 FROM 'SET @@unique_checks= 1';
+PREPARE p16 FROM 'INSERT INTO tprep(num)  VALUES (@@session.unique_checks)';
+PREPARE p17 FROM 'SET @@auto_increment_increment= 11';
+PREPARE p18 FROM 'INSERT INTO tprep(num)  VALUES (@@session.auto_increment_increment)';
+PREPARE p19 FROM 'SET @@auto_increment_increment= 19';
+PREPARE p20 FROM 'INSERT INTO tprep(num)  VALUES (@@session.auto_increment_increment)';
+PREPARE p21 FROM 'SET @@auto_increment_offset= 13';
+PREPARE p22 FROM 'INSERT INTO tprep(num)  VALUES (@@session.auto_increment_offset)';
+PREPARE p23 FROM 'SET @@auto_increment_offset= 17';
+PREPARE p24 FROM 'INSERT INTO tprep(num)  VALUES (@@session.auto_increment_offset)';
+PREPARE p25 FROM 'SET @@auto_increment_increment= 1';
+PREPARE p26 FROM 'SET @@auto_increment_offset= 1';
+PREPARE p27 FROM 'SET @@character_set_client= \'cp1257\'';
+PREPARE p28 FROM 'INSERT INTO tprep(text) VALUES (@@session.character_set_client)';
+PREPARE p29 FROM 'SET @@character_set_client= \'cp1256\'';
+PREPARE p30 FROM 'INSERT INTO tprep(text) VALUES (@@session.character_set_client)';
+PREPARE p31 FROM 'SET @@collation_connection= \'cp1251_ukrainian_ci\'';
+PREPARE p32 FROM 'INSERT INTO tprep(text) VALUES (@@session.collation_connection)';
+PREPARE p33 FROM 'INSERT INTO tprep(text) VALUES (@@session.character_set_connection)';
+PREPARE p34 FROM 'SET @@collation_connection= \'cp1251_bulgarian_ci\'';
+PREPARE p35 FROM 'INSERT INTO tprep(text) VALUES (@@session.collation_connection)';
+PREPARE p36 FROM 'INSERT INTO tprep(text) VALUES (@@session.character_set_connection)';
+PREPARE p37 FROM 'SET @@collation_server= \'latin7_bin\'';
+PREPARE p38 FROM 'INSERT INTO tprep(text) VALUES (@@session.collation_server)';
+PREPARE p39 FROM 'INSERT INTO tprep(text) VALUES (@@session.character_set_server)';
+PREPARE p40 FROM 'SET @@collation_server= \'latin7_general_cs\'';
+PREPARE p41 FROM 'INSERT INTO tprep(text) VALUES (@@session.collation_server)';
+PREPARE p42 FROM 'INSERT INTO tprep(text) VALUES (@@session.character_set_server)';
+PREPARE p43 FROM 'SET @@time_zone= \'Europe/Moscow\'';
+PREPARE p44 FROM 'INSERT INTO tprep(text) VALUES (@@session.time_zone)';
+PREPARE p45 FROM 'SET @@time_zone= \'Universal\'';
+PREPARE p46 FROM 'INSERT INTO tprep(text) VALUES (@@session.time_zone)';
+PREPARE p47 FROM 'SET @@lc_time_names= \'sv_FI\'';
+PREPARE p48 FROM 'INSERT INTO tprep(text) VALUES (@@session.lc_time_names)';
+PREPARE p49 FROM 'SET @@lc_time_names= \'no_NO\'';
+PREPARE p50 FROM 'INSERT INTO tprep(text) VALUES (@@session.lc_time_names)';
+PREPARE p51 FROM 'SET @@collation_database= \'latin7_general_ci\'';
+PREPARE p52 FROM 'INSERT INTO tprep(text) VALUES (@@session.collation_database)';
+PREPARE p53 FROM 'INSERT INTO tprep(text) VALUES (@@session.character_set_database)';
+PREPARE p54 FROM 'SET @@collation_database= \'latin7_estonian_cs\'';
+PREPARE p55 FROM 'INSERT INTO tprep(text) VALUES (@@session.collation_database)';
+PREPARE p56 FROM 'INSERT INTO tprep(text) VALUES (@@session.character_set_database)';
+PREPARE p57 FROM 'SET @@timestamp= 47114711';
+PREPARE p58 FROM 'INSERT INTO tprep(text) VALUES (@@session.timestamp)';
+PREPARE p59 FROM 'SET @@timestamp= 47124712';
+PREPARE p60 FROM 'INSERT INTO tprep(text) VALUES (@@session.timestamp)';
+PREPARE p61 FROM 'SET @@last_insert_id= 1616';
+PREPARE p62 FROM 'INSERT INTO tprep(text) VALUES (@@session.last_insert_id)';
+PREPARE p63 FROM 'SET @@last_insert_id= 1717';
+PREPARE p64 FROM 'INSERT INTO tprep(text) VALUES (@@session.last_insert_id)';
+EXECUTE p1;
+EXECUTE p2;
+EXECUTE p3;
+EXECUTE p4;
+EXECUTE p5;
+EXECUTE p6;
+EXECUTE p7;
+EXECUTE p8;
+EXECUTE p9;
+EXECUTE p10;
+EXECUTE p11;
+EXECUTE p12;
+EXECUTE p13;
+EXECUTE p14;
+EXECUTE p15;
+EXECUTE p16;
+EXECUTE p17;
+EXECUTE p18;
+EXECUTE p19;
+EXECUTE p20;
+EXECUTE p21;
+EXECUTE p22;
+EXECUTE p23;
+EXECUTE p24;
+EXECUTE p25;
+EXECUTE p26;
+EXECUTE p27;
+EXECUTE p28;
+EXECUTE p29;
+EXECUTE p30;
+EXECUTE p31;
+EXECUTE p32;
+EXECUTE p33;
+EXECUTE p34;
+EXECUTE p35;
+EXECUTE p36;
+EXECUTE p37;
+EXECUTE p38;
+EXECUTE p39;
+EXECUTE p40;
+EXECUTE p41;
+EXECUTE p42;
+EXECUTE p43;
+EXECUTE p44;
+EXECUTE p45;
+EXECUTE p46;
+EXECUTE p47;
+EXECUTE p48;
+EXECUTE p49;
+EXECUTE p50;
+EXECUTE p51;
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+EXECUTE p52;
+EXECUTE p53;
+EXECUTE p54;
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+EXECUTE p55;
+EXECUTE p56;
+EXECUTE p57;
+EXECUTE p58;
+EXECUTE p59;
+EXECUTE p60;
+EXECUTE p61;
+EXECUTE p62;
+EXECUTE p63;
+EXECUTE p64;
+==== Results ====
+SELECT * FROM tstmt ORDER BY id;
+id	num	text
+1	4712	NULL
+2	4713	NULL
+3	0	NULL
+4	1	NULL
+5	0	NULL
+6	1	NULL
+7	0	NULL
+8	1	NULL
+12	11	NULL
+20	19	NULL
+32	13	NULL
+36	17	NULL
+37	NULL	cp1257
+38	NULL	cp1256
+39	NULL	cp1251_ukrainian_ci
+40	NULL	cp1251
+41	NULL	cp1251_bulgarian_ci
+42	NULL	cp1251
+43	NULL	latin7_bin
+44	NULL	latin7
+45	NULL	latin7_general_cs
+46	NULL	latin7
+47	NULL	Europe/Moscow
+48	NULL	Universal
+49	NULL	sv_FI
+50	NULL	no_NO
+51	NULL	latin7_general_ci
+52	NULL	latin7
+53	NULL	latin7_estonian_cs
+54	NULL	latin7
+55	NULL	47114711
+56	NULL	47124712
+57	NULL	1616
+58	NULL	1717
+include/diff_tables.inc [master:tstmt, master:tproc, master:tfunc, master:ttrig, master:tprep, slave:tstmt, slave:tproc, slave:tfunc, slave:ttrig, slave:tprep]
+==== Clean up ====
+[on master]
+DROP PROCEDURE proc;
+DROP FUNCTION func;
+DROP TRIGGER trig;
+DROP TABLE tstmt, tproc, tfunc, ttrig, tprep, trigger_table;
+SET @@global.auto_increment_increment= @m_auto_increment_increment;
+SET @@global.auto_increment_offset=    @m_auto_increment_offset;
+SET @@global.character_set_client=     @m_character_set_client;
+SET @@global.collation_connection=     @m_collation_connection;
+SET @@global.collation_server=         @m_collation_server;
+SET @@global.time_zone=                @m_time_zone;
+SET @@global.lc_time_names=            @m_lc_time_names;
+SET @@global.collation_database=       @m_collation_database;
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+[on slave]
+SET @@global.auto_increment_increment= @s_auto_increment_increment;
+SET @@global.auto_increment_offset=    @s_auto_increment_offset;
+SET @@global.character_set_client=     @s_character_set_client;
+SET @@global.collation_connection=     @s_collation_connection;
+SET @@global.collation_server=         @s_collation_server;
+SET @@global.time_zone=                @s_time_zone;
+SET @@global.lc_time_names=            @s_lc_time_names;
+SET @@global.collation_database=       @s_collation_database;
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+include/rpl_end.inc

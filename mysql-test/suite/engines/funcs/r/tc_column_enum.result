@@ -1,0 +1,25 @@
+DROP TABLE IF EXISTS t6;
+CREATE TABLE t6(c1 ENUM('a','b','c') NULL);
+SHOW TABLES;
+Tables_in_test
+t6
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `c1` enum('a','b','c') DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t6;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t6(c1 ENUM('a','b','c') NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t6
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `c1` enum('a','b','c') NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t6;
+SHOW TABLES;
+Tables_in_test

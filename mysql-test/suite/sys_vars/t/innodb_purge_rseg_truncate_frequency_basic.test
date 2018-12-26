@@ -1,0 +1,160 @@
+###### mysql-test\t\innodb_purge_rseg_truncate_frequency_basic.test ###########
+#                                                                             #
+# Variable Name: innodb_purge_rseg_truncate_frequency                         #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: Numeric                                                          #
+# Default Value: 128                                                          #
+# Range: 1 - 128                                                              #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-27-05                                                   #
+# Author:  Krunal Bauskar                                                     #
+#                                                                             #
+#Description:Test Cases of Dynamic System Variable                            #
+#             innodb_purge_rseg_truncate_frequency                            #
+#             that checks the behavior of this variable in the following ways #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#           START OF innodb_purge_rseg_truncate_frequency TESTS               #
+########################################################################
+
+###############################################################################
+#   Saving initial value of innodb_purge_rseg_truncate_frequency in a         #
+#   temporary variable                                                        #
+###############################################################################
+
+SET @global_start_value = @@global.innodb_purge_rseg_truncate_frequency;
+SELECT @global_start_value;
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+########################################################################
+#    Display the DEFAULT value of innodb_purge_rseg_truncate_frequency #
+########################################################################
+
+SET @@global.innodb_purge_rseg_truncate_frequency = 1;
+SET @@global.innodb_purge_rseg_truncate_frequency = DEFAULT;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+############################################################################
+#   Check if innodb_purge_rseg_truncate_frequency can be accessed with and #
+#   without @@ sign                                                        #
+############################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET innodb_purge_rseg_truncate_frequency = 1;
+SELECT @@innodb_purge_rseg_truncate_frequency;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_purge_rseg_truncate_frequency;
+
+SET global innodb_purge_rseg_truncate_frequency = 1;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+##########################################################################
+# change the value of innodb_purge_rseg_truncate_frequency to a valid    #
+# value                                                                  #
+##########################################################################
+
+SET @@global.innodb_purge_rseg_truncate_frequency = 1;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+SET @@global.innodb_purge_rseg_truncate_frequency = 1;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+SET @@global.innodb_purge_rseg_truncate_frequency = 128;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--echo '#--------------------FN_DYNVARS_046_05-------------------------#'
+###########################################################################
+#       Change the value of innodb_purge_rseg_truncate_frequency to       #
+#       invalid value                                                     #
+###########################################################################
+
+SET @@global.innodb_purge_rseg_truncate_frequency = -1;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+SET @@global.innodb_purge_rseg_truncate_frequency = -1024;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_rseg_truncate_frequency = "T";
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_rseg_truncate_frequency = "Y";
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_rseg_truncate_frequency = 1.1;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_rseg_truncate_frequency = ' ';
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_rseg_truncate_frequency = " ";
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--echo '#----------------------FN_DYNVARS_046_06------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT @@global.innodb_purge_rseg_truncate_frequency =
+ VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_purge_rseg_truncate_frequency';
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+ WHERE VARIABLE_NAME='innodb_purge_rseg_truncate_frequency';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_046_07-------------------------#'
+###################################################################
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_rseg_truncate_frequency = OFF;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_purge_rseg_truncate_frequency = ON;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+--echo '#---------------------FN_DYNVARS_046_08----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@global.innodb_purge_rseg_truncate_frequency = TRUE;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+SET @@global.innodb_purge_rseg_truncate_frequency = FALSE;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+##############################
+#   Restore initial value    #
+##############################
+
+
+SET @@global.innodb_purge_rseg_truncate_frequency = @global_start_value;
+SELECT @@global.innodb_purge_rseg_truncate_frequency;
+
+###############################################################
+#    END OF innodb_purge_rseg_truncate_frequency TESTS       #
+###############################################################

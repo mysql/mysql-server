@@ -1,0 +1,53 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.table_io_waits_summary_by_index_usage
+  limit 1;
+
+select * from performance_schema.table_io_waits_summary_by_index_usage
+  where object_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.table_io_waits_summary_by_index_usage
+  set object_type='TABLE', object_name='FOO', object_schema='BAR',
+  count_star=1, sum_timer_wait=2, min_timer_wait=3,
+  avg_timer_wait=4, max_timer_wait=5;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.table_io_waits_summary_by_index_usage
+  set count_star=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.table_io_waits_summary_by_index_usage
+  set count_star=12 where object_name like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.table_io_waits_summary_by_index_usage
+  where count_star=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.table_io_waits_summary_by_index_usage;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.table_io_waits_summary_by_index_usage READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.table_io_waits_summary_by_index_usage WRITE;
+UNLOCK TABLES;
+
+
+--echo #
+--echo # WL#6599/BUG#23044286: New Data Dictionary and I_S Integration.
+--echo #
+
+CREATE TABLE test.t1(fld1 INT);
+LOCK TABLE test.t1 WRITE;
+ALTER TABLE test.t1 OPTIMIZE PARTITION ALL;
+SELECT object_name FROM performance_schema.table_io_waits_summary_by_index_usage
+WHERE object_schema= 'test';
+
+--echo # Cleanup
+UNLOCK TABLES;
+DROP TABLE test.t1;

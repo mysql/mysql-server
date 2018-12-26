@@ -1,0 +1,10 @@
+--echo #
+--echo # bug#27375069 CRASHES ON SHOW GRANTS FOR ANONYMOUS USER
+--echo #
+
+create user ''@'localhost';
+grant all privileges on *.* to ''@'localhost';
+show grants for ''@'localhost';
+
+--echo # cleanup
+drop user ''@'localhost';

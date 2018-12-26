@@ -1,0 +1,43 @@
+--source include/have_debug.inc
+
+# Supplemental test case for query repreparation. Test what happens if
+# EXECUTE fails to open the secondary tables after PREPARE has
+# successfully opened them, using a debug flag to inject an error in
+# EXECUTE.
+
+--disable_query_log
+eval INSTALL PLUGIN MOCK SONAME '$MOCK_PLUGIN';
+--enable_query_log
+
+CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (1);
+ALTER TABLE t SECONDARY_LOAD;
+
+# First execute the statement without the debug flag. The statement
+# should be executed on the secondary engine.
+FLUSH STATUS;
+PREPARE ps FROM 'SELECT * FROM t';
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# Now set the debug flag. Execution fails when opening the secondary
+# tables. The failure triggers a repreparation against the primary
+# storage engine.
+FLUSH STATUS;
+SET DEBUG = '+d,open_secondary_engine_tables_error';
+EXECUTE ps;
+SET DEBUG = '-d,open_secondary_engine_tables_error';
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# The statement remembers that the previous execution failed to open
+# the secondary tables, so it will not attempt to use the secondary
+# engine on re-execution.
+FLUSH STATUS;
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+DROP TABLE t;
+
+--disable_query_log
+UNINSTALL PLUGIN mock;
+--enable_query_log

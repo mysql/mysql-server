@@ -1,0 +1,18 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/stop_slave.inc
+create table t1 (a int);
+drop table t1;
+create table t1 (a int);
+drop table t1;
+reset slave;
+start slave io_thread;
+include/wait_for_slave_param.inc [Slave_IO_State]
+include/stop_slave_io.inc
+reset slave;
+include/start_slave.inc
+include/assert.inc [Assert that master_pos_wait does not timeout nor it returns NULL]
+include/rpl_end.inc

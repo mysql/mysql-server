@@ -1,0 +1,122 @@
+############## mysql-test\t\ft_boolean_syntax_func.test  ######################
+#                                                                             #
+# Variable Name: ft_boolean_syntax                                            #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value: + -><()~*:""&                                                #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable ft_boolean_syntax        #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+--source include/force_myisam_default.inc
+--echo '#--------------------FN_DYNVARS_033_01-------------------------#'
+###################################################################
+# Check if setting ft_boolean_syntax is changed in new connection # 
+###################################################################
+
+SET @@global.ft_boolean_syntax = ' -+()<>~*:``&|';
+# con1 will be default connection from now on
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+--echo 'connection con1'
+connection con1;
+SELECT @@global.ft_boolean_syntax;
+SET @@global.ft_boolean_syntax = '+ -><()~*:""&|';
+--echo 'connect (con2,localhost,root,,,,)'
+connect (con2,localhost,root,,,,);
+--echo 'connection con2'
+connection con2;
+SELECT @@global.ft_boolean_syntax;
+disconnect con2;
+disconnect con1;
+
+--echo '#--------------------FN_DYNVARS_033_02-------------------------#'
+#########################################################
+# Begin the functionality Testing of ft_boolean_syntax  #
+#########################################################
+
+--echo 'connection default'
+connection default;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE articles (
+   id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+   title VARCHAR(200),
+   body TEXT,
+   FULLTEXT (title,body)
+);
+
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...'),
+('How To',''),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show .... Run command line ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('100 Tips for Myisam','1. Myisam is faster than innodb 2. Tricks and Tips for Myisam...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...'),
+('Database Security','Configuring MySQL for ...');
+
+SET @@global.ft_boolean_syntax = DEFAULT;
+
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+mySQL -yourSQL' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+MySQL +YourSQL' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('MySQL' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('mysql tutorial dbms' IN BOOLEAN MODE);
+
+SELECT id,title,body, (MATCH (title,body) 
+AGAINST ('+security configuring' IN BOOLEAN MODE)) AS relevance
+FROM articles WHERE MATCH (title,body) 
+AGAINST ('+security configuring' IN BOOLEAN MODE);
+
+
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('"faster than"' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+tutorial ~line' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('10*' IN BOOLEAN MODE);
+
+SELECT id,title,body, (MATCH (title,body) 
+AGAINST ('+MySQL +(>show <dbms)' IN BOOLEAN MODE)) AS relevance
+FROM articles WHERE MATCH (title,body) 
+AGAINST ('+MySQL +(>show <dbms)' IN BOOLEAN MODE)
+ORDER BY relevance DESC;
+
+#==============================================================================
+--echo '---try setting different operators. Default '+ -><()~*:""&|'--'
+#==============================================================================
+SET @@global.ft_boolean_syntax='~ /!@#$%^&*()-';
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('~mySQL /yourSQL' IN BOOLEAN MODE);
+
+#restore default
+SET @@global.ft_boolean_syntax=DEFAULT;
+
+#########################################################
+# End of functionality Testing for ft_boolean_syntax    #
+#########################################################
+DROP TABLE articles;
+

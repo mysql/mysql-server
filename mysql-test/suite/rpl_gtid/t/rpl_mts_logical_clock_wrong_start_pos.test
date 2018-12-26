@@ -1,0 +1,66 @@
+#
+# The test verifies expected behaviour when
+# the slave retries events starting from group internal position.
+# Their execution in Logical_Clock mode is allowed.
+# See bug#19473291.
+# Notice that old master events are viewed effectively as
+# malformed group events. Therefore this test applies to cross-version replication
+# as well.
+#
+# GTIDs are expected in binlog when events are indexed by query_get_value below
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+# Logic of the test is as the following.
+# Configure MTS with few workers and LOGICAL_CLOCK scheduler.
+# Replicate some events.
+# Stop slave threads to reconfigure retrival from an already read, executed and
+# group internal position (COMMIT/Xid event position is chosen to avoid
+# a GTID specific error).
+# Restart slave threads and observe the SQL applier has processed events.
+
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression("Either event.*is from an old master");
+# The transaction boundary parser will log the following two warning messages:
+call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
+call mtr.add_suppression("QUERY.* is not expected in an event stream");
+
+--source include/stop_slave.inc
+
+SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET @save_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+
+SET GLOBAL slave_parallel_type = LOGICAL_CLOCK;
+SET GLOBAL slave_parallel_workers = 2;
+SET GLOBAL slave_transaction_retries = 0;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1(a INT);
+INSERT INTO t1 SET a=1;
+--let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+--let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM 4, Info, 7)
+--let $query_pos= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM 4, End_log_pos,7)
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+--replace_result $query_pos QUERY_POS
+--eval CHANGE MASTER TO MASTER_LOG_POS=$query_pos, MASTER_AUTO_POSITION=0
+--source include/start_slave_io.inc
+START SLAVE SQL_THREAD;
+
+#
+# Cleanup
+#
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_workers = @save_slave_parallel_workers;
+SET GLOBAL slave_parallel_type = @save_slave_parallel_type;
+SET GLOBAL slave_transaction_retries = @save_slave_transaction_retries;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

@@ -1,0 +1,343 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Create tables
+CREATE TABLE point_geom(id INT PRIMARY KEY, pt POINT NOT NULL SRID 0, SPATIAL INDEX(pt));
+CREATE TABLE linestring_geom(id INT PRIMARY KEY, lnstr LINESTRING NOT NULL SRID 0, SPATIAL INDEX(lnstr));
+CREATE TABLE polygon_geom(id INT PRIMARY KEY, poly POLYGON NOT NULL SRID 0, SPATIAL INDEX(poly));
+CREATE TABLE multipoint_geom(id INT PRIMARY KEY, mpt MULTIPOINT NOT NULL SRID 0, SPATIAL INDEX(mpt));
+CREATE TABLE multilinestring_geom(id INT PRIMARY KEY, mlnstr MULTILINESTRING NOT NULL SRID 0, SPATIAL INDEX(mlnstr));
+CREATE TABLE multipolygon_geom(id INT PRIMARY KEY, mpoly MULTIPOLYGON NOT NULL SRID 0, SPATIAL INDEX(mpoly));
+CREATE TABLE geometrycollection_geom(id INT PRIMARY KEY, geomcoll GEOMETRYCOLLECTION NOT NULL SRID 0, SPATIAL INDEX(geomcoll));
+CREATE TABLE geom_data(id INT PRIMARY KEY , geom GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(geom));
+# Insert different GEOMETRY data
+INSERT INTO point_geom VALUES
+(10,ST_GEOMFROMTEXT('POINT(0 0)')),
+(11,ST_GEOMFROMTEXT('POINT(6 4)')),
+(12,ST_GEOMFROMTEXT('POINT(3 4)')),
+(13,ST_GEOMFROMTEXT('POINT(5 5)')),
+(14,ST_GEOMFROMTEXT('POINT(2 1)'));
+INSERT INTO linestring_geom VALUES
+(20,ST_GEOMFROMTEXT('LINESTRING(0 0,5 5,6 6)')),
+(21,ST_GEOMFROMTEXT('LINESTRING(2 3,4 5)')),
+(22,ST_GEOMFROMTEXT('LINESTRING(3 0,7 5,6 3,2 0)')),
+(23,ST_GEOMFROMTEXT('LINESTRING(5 0,9 5,2 6)')),
+(24,ST_GEOMFROMTEXT('LINESTRING(0 0,5 3,3 4,7 7,9 0)'));
+INSERT INTO polygon_geom VALUES
+(30,ST_GEOMFROMTEXT('POLYGON((0 0,6 7,8 8,3 9,0 0),(3 6,4 6,4 7,3 6))')),
+(31,ST_GEOMFROMTEXT('POLYGON((1 2,5 4,9 9,1 9,1 2))')),
+(32,ST_GEOMFROMTEXT('POLYGON((2 3,3 5,8 1,2 6,2 3))')),
+(33,ST_GEOMFROMTEXT('POLYGON((8 0,2 7,5 6,9 5,8 0))')),
+(34,ST_GEOMFROMTEXT('POLYGON((5 2,5 10,10 10,10 2,5 2),(7 5,9 5,8 8,6 9,7 5))'));
+INSERT INTO multipoint_geom VALUES
+(40,ST_GEOMFROMTEXT('MULTIPOINT(2 2,3 3,4 4)')),
+(41,ST_GEOMFROMTEXT('MULTIPOINT(1 2,3 0,7 4,6 6)')),
+(42,ST_GEOMFROMTEXT('MULTIPOINT(2 9,3 4,6 4,5 5,3 3)')),
+(43,ST_GEOMFROMTEXT('MULTIPOINT(8 7,2 1,5 4,3 4,2 8,4 5)')),
+(44,ST_GEOMFROMTEXT('MULTIPOINT(3 6,2 3,7 3)'));
+INSERT INTO multilinestring_geom VALUES
+(50,ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 3,4 5),(6 6,8 8,9 9,10 10))')),
+(51,ST_GEOMFROMTEXT('MULTILINESTRING((2 3,5 6,4 4,1 1),(2 6,5 8,7 9,9 10))')),
+(52,ST_GEOMFROMTEXT('MULTILINESTRING((0 1,6 3,7 5),(6 2,5 8,6 9))')),
+(53,ST_GEOMFROMTEXT('MULTILINESTRING((5 5,3 7,7 8),(2 2,6 9,10 9),(1 2,6 7,9 9))')),
+(54,ST_GEOMFROMTEXT('MULTILINESTRING((0 1,5 3,8 5),(7 6,9 8,10 9,10 11))'));
+INSERT INTO multipolygon_geom VALUES
+(60,ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((2 2,4 5,6 2,2 2)))')),
+(61,ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 6,6 6,6 0,0 0)),((2 1,2 3,5 3,5 1,2 1)))')),
+(62,ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 7,7 7,7 0,0 0)),((3 3,5 6,7 3,3 3)),((2 6,5 8,8 6,2 6)))')),
+(63,ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 8,8 8,8 0,0 0)),((0 0,0 2,2 2,2 0,0 0)))')),
+(64,ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 9,9 9,9 0,0 0)),((1 1,1 3,3 3,3 1,1 1)))'));
+INSERT INTO geometrycollection_geom VALUES
+(70,ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                            'POINT(0 0),'
+                            'LINESTRING(0 0,10 10),'
+                            'POLYGON((0 0,0 10,10 10,10 0, 0 0)),'
+                            'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10),'
+                            'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                            'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))')),
+(71,ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                            'POINT(4 5),'
+                            'LINESTRING(0 0,10 10,11 11),'
+                            'POLYGON((0 0,0 8,8 8,8 0, 0 0)),'
+                            'MULTIPOINT(0 0,4 4,6 4,8 6,9 9,12 12),'
+                            'MULTILINESTRING((0 0,11 11),(0 8,1 0)),'
+                            'MULTIPOLYGON(((0 0,0 9,9 9,9 0,0 0)),((1 1,4 4,4 1,1 1))))')),
+(72,ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                            'POINT(0 0),'
+                            'LINESTRING(0 0,2 2,3 3,4 4),'
+                            'POLYGON((0 0,0 5,5 5,5 0, 0 0)),'
+                            'MULTIPOINT(0 5,1 6),'
+                            'MULTILINESTRING((0 0,9 9,10 10),(0 1,1 0),(1 0,1 1,1 2,1 3,1 4)),'
+                            'MULTIPOLYGON(((0 0,0 6,6 6,6 0,0 0)),((1 1,7 10,9 8,7 4,1 1))))'));
+INSERT INTO geom_data SELECT * FROM point_geom;
+INSERT INTO geom_data SELECT * FROM linestring_geom;
+INSERT INTO geom_data SELECT * FROM polygon_geom;
+INSERT INTO geom_data SELECT * FROM multipoint_geom;
+INSERT INTO geom_data SELECT * FROM multilinestring_geom;
+INSERT INTO geom_data SELECT * FROM multipolygon_geom;
+INSERT INTO geom_data SELECT * FROM geometrycollection_geom;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether data was inserted on the slave
+SELECT id, ST_ASTEXT(geom) FROM geom_data;
+id	ST_ASTEXT(geom)
+10	POINT(0 0)
+11	POINT(6 4)
+12	POINT(3 4)
+13	POINT(5 5)
+14	POINT(2 1)
+20	LINESTRING(0 0,5 5,6 6)
+21	LINESTRING(2 3,4 5)
+22	LINESTRING(3 0,7 5,6 3,2 0)
+23	LINESTRING(5 0,9 5,2 6)
+24	LINESTRING(0 0,5 3,3 4,7 7,9 0)
+30	POLYGON((0 0,6 7,8 8,3 9,0 0),(3 6,4 6,4 7,3 6))
+31	POLYGON((1 2,5 4,9 9,1 9,1 2))
+32	POLYGON((2 3,3 5,8 1,2 6,2 3))
+33	POLYGON((8 0,2 7,5 6,9 5,8 0))
+34	POLYGON((5 2,5 10,10 10,10 2,5 2),(7 5,9 5,8 8,6 9,7 5))
+40	MULTIPOINT((2 2),(3 3),(4 4))
+41	MULTIPOINT((1 2),(3 0),(7 4),(6 6))
+42	MULTIPOINT((2 9),(3 4),(6 4),(5 5),(3 3))
+43	MULTIPOINT((8 7),(2 1),(5 4),(3 4),(2 8),(4 5))
+44	MULTIPOINT((3 6),(2 3),(7 3))
+50	MULTILINESTRING((0 0,2 3,4 5),(6 6,8 8,9 9,10 10))
+51	MULTILINESTRING((2 3,5 6,4 4,1 1),(2 6,5 8,7 9,9 10))
+52	MULTILINESTRING((0 1,6 3,7 5),(6 2,5 8,6 9))
+53	MULTILINESTRING((5 5,3 7,7 8),(2 2,6 9,10 9),(1 2,6 7,9 9))
+54	MULTILINESTRING((0 1,5 3,8 5),(7 6,9 8,10 9,10 11))
+60	MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((2 2,4 5,6 2,2 2)))
+61	MULTIPOLYGON(((0 0,0 6,6 6,6 0,0 0)),((2 1,2 3,5 3,5 1,2 1)))
+62	MULTIPOLYGON(((0 0,0 7,7 7,7 0,0 0)),((3 3,5 6,7 3,3 3)),((2 6,5 8,8 6,2 6)))
+63	MULTIPOLYGON(((0 0,0 8,8 8,8 0,0 0)),((0 0,0 2,2 2,2 0,0 0)))
+64	MULTIPOLYGON(((0 0,0 9,9 9,9 0,0 0)),((1 1,1 3,3 3,3 1,1 1)))
+70	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOINT((0 0),(2 2),(4 4),(6 6),(8 8),(10 10)),MULTILINESTRING((0 0,10 10),(0 10,10 0)),MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))
+71	GEOMETRYCOLLECTION(POINT(4 5),LINESTRING(0 0,10 10,11 11),POLYGON((0 0,0 8,8 8,8 0,0 0)),MULTIPOINT((0 0),(4 4),(6 4),(8 6),(9 9),(12 12)),MULTILINESTRING((0 0,11 11),(0 8,1 0)),MULTIPOLYGON(((0 0,0 9,9 9,9 0,0 0)),((1 1,4 4,4 1,1 1))))
+72	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,2 2,3 3,4 4),POLYGON((0 0,0 5,5 5,5 0,0 0)),MULTIPOINT((0 5),(1 6)),MULTILINESTRING((0 0,9 9,10 10),(0 1,1 0),(1 0,1 1,1 2,1 3,1 4)),MULTIPOLYGON(((0 0,0 6,6 6,6 0,0 0)),((1 1,7 10,9 8,7 4,1 1))))
+SELECT COUNT(*) FROM geom_data;
+COUNT(*)
+33
+SELECT ST_AREA(geom) FROM geom_data WHERE ST_GEOMETRYTYPE(geom) = 'POLYGON';
+ST_AREA(geom)
+19.5
+34
+2
+18
+33.5
+include/diff_tables.inc [master:geom_data, slave:geom_data]
+[Connection Master]
+# Create a view on LINESTRING type
+CREATE VIEW linestring_view
+AS SELECT ST_NUMPOINTS(geom) AS numpoints, ST_LENGTH(geom) AS length
+FROM geom_data WHERE ST_GEOMETRYTYPE(geom) = 'LINESTRING';
+# Create a view on GEOMETRYCOLLECTION type
+CREATE VIEW geomcollection_view
+AS SELECT ST_NUMGEOMETRIES(geom) as numgeometries, ST_GEOMETRYN(geom,3) as nthgeom
+FROM geom_data WHERE ST_GEOMETRYTYPE(geom) = 'GEOMETRYCOLLECTION';
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether views were created on slave
+SELECT * FROM linestring_view;
+numpoints	length
+3	8.485281374238571
+2	2.8284271247461903
+4	13.639192214932638
+3	13.474192049298324
+5	20.34712976162561
+SELECT numgeometries, ST_ASTEXT(nthgeom) FROM geomcollection_view;
+numgeometries	ST_ASTEXT(nthgeom)
+include/diff_tables.inc [master:geom_data, slave:geom_data]
+[Connection Master]
+# Drop the views
+DROP VIEW linestring_view;
+DROP VIEW geomcollection_view;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether views are dropped on slave
+SELECT * FROM linestring_view;
+ERROR 42S02: Table 'test.linestring_view' doesn't exist
+SELECT * FROM geomcollection_view;
+ERROR 42S02: Table 'test.geomcollection_view' doesn't exist
+[Connection Master]
+# Update a row in the table
+UPDATE geom_data SET geom = ST_GEOMFROMTEXT('POINT(4 5)') WHERE id = 10;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether row is updated on slave
+SELECT id, ST_ASTEXT(geom) FROM geom_data WHERE id = 10;
+id	ST_ASTEXT(geom)
+10	POINT(4 5)
+include/diff_tables.inc [master:geom_data, slave:geom_data]
+[Connection Master]
+# Delete a row from the table
+DELETE FROM geom_data WHERE id = 13;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether row is deleted on slave
+SELECT COUNT(geom) FROM geom_data;
+COUNT(geom)
+32
+include/diff_tables.inc [master:geom_data, slave:geom_data]
+[Connection Master]
+# Drop the spatial index from the table
+ALTER TABLE geom_data DROP INDEX geom;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether spatial index is dropped on slave
+SHOW CREATE TABLE geom_data;
+Table	Create Table
+geom_data	CREATE TABLE `geom_data` (
+  `id` int(11) NOT NULL,
+  `geom` geometry NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[Connection Master]
+# Add spatial index to the column of GEOMETRY data type
+ALTER TABLE geom_data ADD SPATIAL INDEX(geom);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether spatial index is added on slave
+SHOW CREATE TABLE geom_data;
+Table	Create Table
+geom_data	CREATE TABLE `geom_data` (
+  `id` int(11) NOT NULL,
+  `geom` geometry NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`id`),
+  SPATIAL KEY `geom` (`geom`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[Connection Master]
+# Add a column of GEOMETRY data type
+ALTER TABLE geom_data ADD COLUMN geom1 GEOMETRY;
+# Insert values into the column
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('POINT(2 3)') WHERE id = 10;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('POINT(0 0)') WHERE id = 11;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('POINT(9 9)') WHERE id = 12;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('POINT(8 7)') WHERE id = 14;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('LINESTRING(0 0,1 1,2 2,3 3)') WHERE id = 20;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('LINESTRING(5 5,6 7,2 3,9 9)') WHERE id = 21;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('LINESTRING(6 6,8 9,6 7,10 10)') WHERE id = 22;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('LINESTRING(7 7,5 5,7 8,4 5)') WHERE id = 23;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('LINESTRING(9 9,1 6,0 0,2 3)') WHERE id = 24;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('POLYGON((0 0,0 6,6 6,6 0,0 0))') WHERE id = 30;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('POLYGON((0 0,6 6,6 0,0 0))') WHERE id = 31;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('POLYGON((0 0,0 7,7 7,7 0,0 0))') WHERE id = 32;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('POLYGON((1 1,1 6,6 6,6 1,1 1))') WHERE id = 33;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('POLYGON((2 2,2 8,8 8,8 2,2 2))') WHERE id = 34;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOINT(3 4,5 6,10 10,4 4)') WHERE id = 40;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOINT(0 0,2 2,3 3)') WHERE id = 41;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOINT(5 5,5 6,5 7,5 8)') WHERE id = 42;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOINT(7 8,2 3,5 6)') WHERE id = 43;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOINT(6 7,3 4,2 5,7 8,9 9)') WHERE id = 44;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTILINESTRING((5 6,8 8,9 9),(0 0,3 3,6 7))') WHERE id = 50;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTILINESTRING((5 6,8 8,9 9),(0 0,3 3,6 7),(1 1,5 5))') WHERE id = 51;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTILINESTRING((6 7,9 9,10 10),(0 0,3 3,6 7))') WHERE id = 52;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTILINESTRING((7 6,7 8,7 9),(1 1,4 4,7 7))') WHERE id = 53;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTILINESTRING((4 6,9 8,7 9),(3 0,3 3,3 7))') WHERE id = 54;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0)),((3 7,6 9,9 7,3 7)))') WHERE id = 60;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1,1 4,4 4,4 1,1 1)),((4 7,7 9,10 7,4 7)))') WHERE id = 61;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOLYGON(((2 2,2 5,5 5,5 2,2 2)),((5 6,7 10,9 7,5 6)),((0 0,5 5,5 0,0 0)))') WHERE id = 62;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOLYGON(((3 3,3 6,6 6,6 3,3 3)),((0 0,0 2,2 2,2 0,0 0)))') WHERE id = 63;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 7,7 7,7 4,4 4)),((5 7,6 9,9 7,5 7)))') WHERE id = 64;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                 'POINT(6 7),'
+                                                 'LINESTRING(4 4,5 5,8 8,10 10),'
+                                                 'POLYGON((3 3,3 6,6 6,6 3,3 3)),'
+                                                 'MULTIPOINT(5 5,7 8,9 10,10 10),'
+                                                 'MULTILINESTRING((2 2,3 4,5 5),(5 6,7 7,7 8,9 9)),'
+                                                 'MULTIPOLYGON(((4 4,4 7,7 7,7 4,4 4)),((3 3,5 6,7 3,3 3))))')
+WHERE id = 70;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                 'POINT(7 8),'
+                                                 'LINESTRING(5 5,6 6,9 9,10 10),'
+                                                 'POLYGON((0 0,0 8,8 8,8 0,0 0)),'
+                                                 'MULTIPOINT(7 5,7 8,7 10,7 11),'
+                                                 'MULTILINESTRING((2 1,3 6,9 5),(9 6,8 7,7 6,5 9)),'
+                                                 'MULTIPOLYGON(((0 0,0 4,4 4,4 0,0 0)),((6 3,5 6,7 3,6 3))))')
+WHERE id = 71;
+UPDATE geom_data SET geom1 = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                 'POINT(9 6),'
+                                                 'LINESTRING(7 8,7 9,7 10),'
+                                                 'POLYGON((4 5,6 7,9 5,4 5)),'
+                                                 'MULTIPOINT(5 0,6 0),'
+                                                 'MULTILINESTRING((4 3,4 7,4 8),(4 4,5 6,7 6,8 8,10 10)),'
+                                                 'MULTIPOLYGON(((7 7,7 10,10 10,10 7,7 7)),((3 4,5 7,7 4,3 4))))')
+WHERE id = 72;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the column is added and populated on slave
+SHOW CREATE TABLE geom_data;
+Table	Create Table
+geom_data	CREATE TABLE `geom_data` (
+  `id` int(11) NOT NULL,
+  `geom` geometry NOT NULL /*!80003 SRID 0 */,
+  `geom1` geometry DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  SPATIAL KEY `geom` (`geom`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT id, ST_ASTEXT(geom1), ST_GEOMETRYTYPE(geom1), ST_DIMENSION(geom1) FROM geom_data;
+id	ST_ASTEXT(geom1)	ST_GEOMETRYTYPE(geom1)	ST_DIMENSION(geom1)
+10	POINT(2 3)	POINT	0
+11	POINT(0 0)	POINT	0
+12	POINT(9 9)	POINT	0
+14	POINT(8 7)	POINT	0
+20	LINESTRING(0 0,1 1,2 2,3 3)	LINESTRING	1
+21	LINESTRING(5 5,6 7,2 3,9 9)	LINESTRING	1
+22	LINESTRING(6 6,8 9,6 7,10 10)	LINESTRING	1
+23	LINESTRING(7 7,5 5,7 8,4 5)	LINESTRING	1
+24	LINESTRING(9 9,1 6,0 0,2 3)	LINESTRING	1
+30	POLYGON((0 0,0 6,6 6,6 0,0 0))	POLYGON	2
+31	POLYGON((0 0,6 6,6 0,0 0))	POLYGON	2
+32	POLYGON((0 0,0 7,7 7,7 0,0 0))	POLYGON	2
+33	POLYGON((1 1,1 6,6 6,6 1,1 1))	POLYGON	2
+34	POLYGON((2 2,2 8,8 8,8 2,2 2))	POLYGON	2
+40	MULTIPOINT((3 4),(5 6),(10 10),(4 4))	MULTIPOINT	0
+41	MULTIPOINT((0 0),(2 2),(3 3))	MULTIPOINT	0
+42	MULTIPOINT((5 5),(5 6),(5 7),(5 8))	MULTIPOINT	0
+43	MULTIPOINT((7 8),(2 3),(5 6))	MULTIPOINT	0
+44	MULTIPOINT((6 7),(3 4),(2 5),(7 8),(9 9))	MULTIPOINT	0
+50	MULTILINESTRING((5 6,8 8,9 9),(0 0,3 3,6 7))	MULTILINESTRING	1
+51	MULTILINESTRING((5 6,8 8,9 9),(0 0,3 3,6 7),(1 1,5 5))	MULTILINESTRING	1
+52	MULTILINESTRING((6 7,9 9,10 10),(0 0,3 3,6 7))	MULTILINESTRING	1
+53	MULTILINESTRING((7 6,7 8,7 9),(1 1,4 4,7 7))	MULTILINESTRING	1
+54	MULTILINESTRING((4 6,9 8,7 9),(3 0,3 3,3 7))	MULTILINESTRING	1
+60	MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0)),((3 7,6 9,9 7,3 7)))	MULTIPOLYGON	2
+61	MULTIPOLYGON(((1 1,1 4,4 4,4 1,1 1)),((4 7,7 9,10 7,4 7)))	MULTIPOLYGON	2
+62	MULTIPOLYGON(((2 2,2 5,5 5,5 2,2 2)),((5 6,7 10,9 7,5 6)),((0 0,5 5,5 0,0 0)))	MULTIPOLYGON	2
+63	MULTIPOLYGON(((3 3,3 6,6 6,6 3,3 3)),((0 0,0 2,2 2,2 0,0 0)))	MULTIPOLYGON	2
+64	MULTIPOLYGON(((4 4,4 7,7 7,7 4,4 4)),((5 7,6 9,9 7,5 7)))	MULTIPOLYGON	2
+70	GEOMETRYCOLLECTION(POINT(6 7),LINESTRING(4 4,5 5,8 8,10 10),POLYGON((3 3,3 6,6 6,6 3,3 3)),MULTIPOINT((5 5),(7 8),(9 10),(10 10)),MULTILINESTRING((2 2,3 4,5 5),(5 6,7 7,7 8,9 9)),MULTIPOLYGON(((4 4,4 7,7 7,7 4,4 4)),((3 3,5 6,7 3,3 3))))	GEOMCOLLECTION	2
+71	GEOMETRYCOLLECTION(POINT(7 8),LINESTRING(5 5,6 6,9 9,10 10),POLYGON((0 0,0 8,8 8,8 0,0 0)),MULTIPOINT((7 5),(7 8),(7 10),(7 11)),MULTILINESTRING((2 1,3 6,9 5),(9 6,8 7,7 6,5 9)),MULTIPOLYGON(((0 0,0 4,4 4,4 0,0 0)),((6 3,5 6,7 3,6 3))))	GEOMCOLLECTION	2
+72	GEOMETRYCOLLECTION(POINT(9 6),LINESTRING(7 8,7 9,7 10),POLYGON((4 5,6 7,9 5,4 5)),MULTIPOINT((5 0),(6 0)),MULTILINESTRING((4 3,4 7,4 8),(4 4,5 6,7 6,8 8,10 10)),MULTIPOLYGON(((7 7,7 10,10 10,10 7,7 7)),((3 4,5 7,7 4,3 4))))	GEOMCOLLECTION	2
+include/diff_tables.inc [master:geom_data, slave:geom_data]
+[Connection Master]
+# Drop a column from the table
+ALTER TABLE geom_data DROP COLUMN geom1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether column is dropped on slave
+SHOW CREATE TABLE geom_data;
+Table	Create Table
+geom_data	CREATE TABLE `geom_data` (
+  `id` int(11) NOT NULL,
+  `geom` geometry NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`id`),
+  SPATIAL KEY `geom` (`geom`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[Connection Master]
+# Drop all the tables
+DROP TABLE point_geom;
+DROP TABLE linestring_geom;
+DROP TABLE polygon_geom;
+DROP TABLE multipoint_geom;
+DROP TABLE multilinestring_geom;
+DROP TABLE multipolygon_geom;
+DROP TABLE geometrycollection_geom;
+DROP TABLE geom_data;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether table is dropped on slave
+SELECT COUNT(id) FROM geom_data;
+ERROR 42S02: Table 'test.geom_data' doesn't exist
+include/rpl_end.inc

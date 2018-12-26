@@ -1,0 +1,102 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+# Adding debug point 'register_gms_listener_example' to @@GLOBAL.debug
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= OFF;
+SET GLOBAL group_replication_single_primary_mode= ON;
+SET GLOBAL group_replication_force_members='';
+[connection server2]
+# Adding debug point 'register_gms_listener_example' to @@GLOBAL.debug
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= OFF;
+SET GLOBAL group_replication_single_primary_mode= ON;
+SET GLOBAL group_replication_force_members='';
+[connection server3]
+# Adding debug point 'register_gms_listener_example' to @@GLOBAL.debug
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= OFF;
+SET GLOBAL group_replication_single_primary_mode= ON;
+SET GLOBAL group_replication_force_members='';
+### Scenario 5: SERVER BOOTSTRAPS+RECOVERS+PRIMARY ELECTION
+### Expected:
+### - Myself: 1 VIEW CHANGE, 2 STATE CHANGED, 1 ROLE CHANGED
+### - Others: N/A
+##################################################################
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:1]
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:1]
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:1]
+include/assert.inc [Assert that there are 4 notifications logged]
+[Truncating gms_listener_example Table]
+### Scenario 6: PRIMARY LEAVES the GROUP
+### Expected:
+### - Myself (old primary): 1 VIEW CHANGED, 1 STATE CHANGED, 1 ROLE CHANGED
+### - Others (new primary): 1 VIEW CHANGED, 1 ROLE CHANGED
+### - Others (secondary):   1 VIEW CHANGED, 1 ROLE CHANGED
+##################################################################
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:2]
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:2]
+include/assert.inc [Assert that there are 3 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server3]
+include/start_group_replication.inc
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:3]
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:3]
+include/assert.inc [Assert that there are 3 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server1]
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %2]
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:3]
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:2]
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:3]
+include/assert.inc [Assert that there are 6 notifications logged]
+[Truncating gms_listener_example Table]
+include/rpl_sync.inc
+include/stop_group_replication.inc
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %: ]
+include/assert.inc [Assert that there are 1 notifications logged of type STATE %: ]
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:%]
+include/assert.inc [Assert that there are 3 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:4]
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:4]
+include/assert.inc [Assert that there are 2 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server3]
+include/rpl_gr_wait_for_number_of_members.inc
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:4]
+include/assert.inc [Assert that there are 1 notifications logged of type ROLE %:4]
+include/assert.inc [Assert that there are 2 notifications logged]
+[Truncating gms_listener_example Table]
+[connection server2]
+include/stop_group_replication.inc
+[connection server3]
+include/stop_group_replication.inc
+[connection server1]
+# Removing debug point 'register_gms_listener_example' from @@GLOBAL.debug
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+# Removing debug point 'register_gms_listener_example' from @@GLOBAL.debug
+include/start_group_replication.inc
+[connection server3]
+# Removing debug point 'register_gms_listener_example' from @@GLOBAL.debug
+include/start_group_replication.inc
+[connection server1]
+DROP TABLE gms_listener_example;
+include/rpl_sync.inc
+include/group_replication_end.inc

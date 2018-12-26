@@ -1,0 +1,185 @@
+--source include/have_myisam.inc
+#
+# Bug#11401: Load data infile 'REPLACE INTO' fails on slave.
+#
+connection master;
+CREATE TABLE t4 (
+  id INT(5) unsigned NOT NULL auto_increment,
+  name varchar(15) NOT NULL default '',
+  number varchar(35) NOT NULL default 'default',
+  PRIMARY KEY  (id),
+  UNIQUE KEY unique_rec (name,number)
+) ENGINE=InnoDB;
+
+--disable_warnings
+LOAD DATA
+     INFILE '../../std_data/loaddata_pair.dat'  
+     REPLACE INTO TABLE t4 
+     (name,number);
+--enable_warnings
+SELECT * FROM t4;
+
+sync_slave_with_master;
+SELECT * FROM t4;
+
+connection master;
+--disable_warnings
+LOAD DATA
+     INFILE '../../std_data/loaddata_pair.dat'  
+     REPLACE INTO TABLE t4
+     (name,number);
+--enable_warnings
+SELECT * FROM t4;
+
+sync_slave_with_master;
+SELECT * FROM t4;
+
+connection master;
+--disable_query_log
+DROP TABLE t4;
+--enable_query_log
+sync_slave_with_master;
+connection master;
+
+# End of 4.1 tests
+
+#
+# Bug #26418: Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK
+# on master
+#
+
+--source include/not_ndb_default.inc
+
+FLUSH LOGS;
+sync_slave_with_master;
+FLUSH LOGS;
+connection master;
+let $engine_type= "InnoDB";
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+--enable_warnings
+
+CREATE DATABASE mysqltest1;
+CREATE TEMPORARY TABLE mysqltest1.tmp (f1 BIGINT);
+eval CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE=$engine_type;
+SET AUTOCOMMIT = 0;
+
+sync_slave_with_master;
+--echo -------- switch to slave --------
+connection slave;
+
+# We want to verify that the following transactions are written to the
+# binlog in SBR, despite the transaction is rolled back. (They should be
+# written to the binlog since they contain non-transactional CREATE
+# TEMPORARY TABLE).  To see that, we use the auxiliary table t1, which
+# is transactional (InnoDB) on master and MyISAM on slave. t1 should
+# be transactional on master so that the insert into t1 does not cause
+# the transaction to be logged. Since t1 is non-transactional on
+# slave, the change will not be rolled back, so the inserted rows will
+# stay in t1 and we can verify that the transaction was replicated.
+ALTER TABLE mysqltest1.t1 ENGINE = MyISAM;
+SHOW CREATE TABLE mysqltest1.t1;
+
+--echo -------- switch to master --------
+connection master;
+INSERT INTO mysqltest1.t1 SET f1= 1;
+DROP TEMPORARY TABLE mysqltest1.tmp;
+--replace_column 2 #
+ROLLBACK;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE mysqltest1.tmp;
+--echo ######### Must return no rows here #########
+SELECT COUNT(*) FROM mysqltest1.t1;
+
+INSERT INTO mysqltest1.t1 SET f1= 2;
+CREATE TEMPORARY TABLE mysqltest1.tmp2(a INT);
+--replace_column 2 #
+ROLLBACK;
+SHOW CREATE TABLE mysqltest1.tmp2;
+--echo ######### Must return no rows here #########
+SELECT COUNT(*) FROM mysqltest1.t1;
+
+sync_slave_with_master;
+--echo -------- switch to slave --------
+connection slave;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE mysqltest1.tmp;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE mysqltest1.tmp2;
+--echo ######### for SBR, t1 has two rows here: the transaction not rolled back since t1 uses MyISAM  #########
+--echo ######### for MBR, t1 has zero rows here, as CREATE/DROP TEMPORARY TABLE were not binlogged  #########
+SELECT COUNT(*) FROM mysqltest1.t1;
+FLUSH LOGS;
+
+--echo -------- switch to master --------
+connection master;
+FLUSH LOGS;
+DROP TEMPORARY TABLE IF EXISTS mysqltest1.tmp2;
+DROP DATABASE mysqltest1;
+
+--echo End of 5.1 tests
+
+--echo #
+--echo # Bug#39675 rename tables on innodb tables with pending 
+--echo # transactions causes slave data issue.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY auto_increment,
+  b INT DEFAULT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  id INT PRIMARY KEY auto_increment,
+  b INT DEFAULT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (b) VALUES (1),(2),(3);
+
+BEGIN;
+INSERT INTO t1(b) VALUES (4);
+
+--echo -------- switch to master1 --------
+connection master1;
+--send RENAME TABLE t1 TO t3, t2 TO t1;
+
+--echo -------- switch to master --------
+connection master;
+# Need to wait until RENAME is received
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = "RENAME TABLE t1 TO t3, t2 TO t1" and
+  state = "Waiting for table metadata lock";
+--source include/wait_condition_or_abort.inc
+
+COMMIT;
+
+--echo -------- switch to master1 --------
+connection master1;
+--reap
+
+--echo -------- switch to master --------
+connection master;
+SELECT * FROM t1;
+SELECT * FROM t3;
+
+sync_slave_with_master;
+
+--echo -------- switch to slave --------
+connection slave;
+SELECT * FROM t1;
+SELECT * FROM t3;
+
+--echo -------- switch to master --------
+connection master;
+DROP TABLE t1;
+DROP TABLE t3;
+
+--echo End of 6.0 tests

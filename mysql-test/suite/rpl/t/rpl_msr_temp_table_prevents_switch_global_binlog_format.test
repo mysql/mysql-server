@@ -1,0 +1,123 @@
+# ==== Purpose ====
+#
+# Verify that SET @@global.binlog_format and SET @@persist.binlog_format
+# must be disallowed if any replication channel has open temporary
+# table(s) in msr.
+#
+# ==== Implementation ====
+#
+# 1. Start Multi-source replication, set up masters server_1 and server_3
+#    with server_2 being a slave.
+# 2. Connect to slave server.
+# 3. Stop slave applier on slave channel_1.
+# 4. Stop slave applier on slave channel_3.
+# 5. Verify that SET @@global.binlog_format is allowed if none
+#    of all replication channels have open temporary table(s).
+# 6. Set binlog format to statement for replicating
+#    CREATE TEMPORARY TABLE temp1 on server_1
+# 7. Start slave applier on channel_1, so that
+#    SET @@global.binlog_format=STATEMENT takes
+#    effect on channel_1.
+# 8. Connect to master server_1
+# 9. Replicate the 'CREATE TEMPORARY TABLE temp1' to  slave, so that
+#    the slave channel_1 has an open temporary table.
+# 10. Connect to slave.
+# 11. Stop slave threads on slave channel_1.
+# 12. Verify that SET @@global.binlog_format must be disallowed if
+#     any replication channel has open temporary table(s).
+# 13. Verify that SET @@persist.binlog_format must be disallowed if
+#     any replication channel has open temporary table(s).
+#
+# ==== References ====
+#
+# Wl#8872 Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+# Use statement binlog format for replicating CREATE/DROP TEMPORARY TABLE
+--source include/have_binlog_format_statement.inc
+
+--echo #
+--echo # Start Multi-source replication, set up masters server_1 and server_3
+--echo # with server_2 being a slave.
+--echo #
+--let $rpl_topology= 1->2,3->2
+--let $rpl_multi_source= 1
+--source include/rpl_init.inc
+
+# Connect to slave
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+# Stop slave applier on slave channel_1.
+--let $rpl_channel_name= 'channel_1'
+--source include/stop_slave_sql.inc
+# Stop slave applier on slave channel_3.
+--let $rpl_channel_name= 'channel_3'
+--source include/stop_slave_sql.inc
+--echo #
+--echo # Verify that SET @@global.binlog_format is allowed if none
+--echo # of all replication channels have open temporary table(s).
+--echo #
+SET @@global.binlog_format=ROW;
+--echo #
+--echo # Set binlog format to statement for replicating
+--echo # CREATE TEMPORARY TABLE temp1 on server_1
+--echo #
+SET @@global.binlog_format=STATEMENT;
+--echo #
+--echo # Start slave applier on channel_1, so that
+--echo # SET @@global.binlog_format=STATEMENT takes
+--echo # effect on channel_1.
+--echo #
+--let $rpl_channel_name= 'channel_1'
+--source include/start_slave_sql.inc
+
+# Connect to master server_1
+--echo connection_server_1
+--connection server_1
+--echo #
+--echo # Replicate the 'CREATE TEMPORARY TABLE temp1' to  slave, so that
+--echo # the slave channel_1 has an open temporary table.
+--echo #
+CREATE TEMPORARY TABLE temp1(a INT);
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# Connect to slave
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+# Stop slave threads on slave channel_1.
+--let $rpl_channel_name= 'channel_1'
+--source include/stop_slave.inc
+
+--echo #
+--echo # Verify that SET @@global.binlog_format must be disallowed if
+--echo # any replication channel has open temporary table(s).
+--echo #
+--error ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
+SET @@global.binlog_format=ROW;
+--echo #
+--echo # Verify that SET @@persist.binlog_format must be disallowed if
+--echo # any replication channel has open temporary table(s).
+--echo #
+--error ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
+SET @@persist.binlog_format=ROW;
+
+# Start slave threads on slave channel_1.
+--let $rpl_channel_name= 'channel_1'
+--source include/start_slave.inc
+
+#cleanup
+--echo connection_server_1
+--connection server_1
+DROP TEMPORARY TABLE temp1;
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

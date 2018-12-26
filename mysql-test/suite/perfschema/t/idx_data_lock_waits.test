@@ -1,0 +1,294 @@
+# Tests for PERFORMANCE_SCHEMA
+
+show create table performance_schema.data_lock_waits;
+
+# Debug
+let $debug_script = 0;
+
+#setup
+let $select_column = COUNT(*);
+let $table = performance_schema.data_lock_waits;
+
+connect(con1, localhost, root,,);
+
+--echo # Connection con1
+--connection con1
+
+create database explain_test_db;
+create table explain_test_db.explain_test_table(a int, b int, PRIMARY KEY (a, b)) engine=innodb
+  PARTITION BY RANGE( a )
+    SUBPARTITION BY HASH( b ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+  );
+
+insert into explain_test_db.explain_test_table values (1, 100), (1995, 200);
+
+start transaction;
+select * from explain_test_db.explain_test_table where a <= 1990 for update;
+
+connect(con2, localhost, root,,);
+
+--echo # Connection con2
+--connection con2
+
+start transaction;
+--send
+insert into explain_test_db.explain_test_table values (2, 150), (1998, 250);
+
+--echo # Connection default
+--connection default
+
+# Wait for con2 to block
+-- connection default
+let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.data_locks
+  where OBJECT_NAME='explain_test_table' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+
+connect(con3, localhost, root,,);
+
+--echo # Connection con3
+--connection con3
+
+create table explain_test_db.noise_table(a int, b int, PRIMARY KEY (a, b)) engine=innodb;
+insert into explain_test_db.noise_table
+  values (1, 100), (2, 200), (3, 300), (5, 500);
+start transaction;
+select * from explain_test_db.noise_table where a >= 2 for update;
+
+connect(con4, localhost, root,,);
+
+--echo # Connection con4
+--connection con4
+
+start transaction;
+--send
+insert into explain_test_db.noise_table values (4, 400);
+
+--connection default
+
+# Wait for con4 to block
+-- connection default
+let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.data_locks
+  where OBJECT_NAME='noise_table' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+if (!$success)
+{
+# wait_condition failed, dumping data for debug
+  select * from performance_schema.threads;
+  select * from performance_schema.data_locks;
+  select * from performance_schema.data_lock_waits;
+}
+
+IF ($debug_script == 1)
+{
+  select * from performance_schema.data_locks;
+  select * from performance_schema.data_lock_waits;
+}
+
+# Make sure there are enough records for the test to be valid
+select count(*) >= 2 from performance_schema.data_lock_waits;
+
+# Find requesting data lock on hold
+select ENGINE, ENGINE_LOCK_ID, ENGINE_TRANSACTION_ID, THREAD_ID, EVENT_ID
+  from performance_schema.data_locks
+  where OBJECT_NAME='explain_test_table' and LOCK_STATUS='WAITING'
+  into @engine, @requesting_lock_id, @requesting_trx_id,
+  @requesting_thread_id, @requesting_event_id;
+
+# Find blocking data lock
+# use upper(ENGINE) to prevent the optimizer from using an index
+select
+  BLOCKING_ENGINE_LOCK_ID,
+  BLOCKING_ENGINE_TRANSACTION_ID,
+  BLOCKING_THREAD_ID,
+  BLOCKING_EVENT_ID
+  from performance_schema.data_lock_waits
+  where (upper(ENGINE) = upper(@engine))
+    and (REQUESTING_ENGINE_LOCK_ID = @requesting_lock_id)
+  into @blocking_lock_id, @blocking_trx_id, @blocking_thread_id, @blocking_event_id;
+
+IF ($debug_script == 1)
+{
+  select @engine,
+    @requesting_lock_id,
+    @requesting_trx_id,
+    @requesting_thread_id,
+    @requesting_event_id,
+    @blocking_lock_id,
+    @blocking_trx_id,
+    @blocking_thread_id,
+    @blocking_event_id;
+}
+
+# Make sure this test found a record.
+select @engine,
+  @requesting_lock_id is null,
+  @requesting_trx_id is null,
+  @requesting_thread_id is null,
+  @requesting_event_id is null,
+  @blocking_lock_id is null,
+  @blocking_trx_id is null,
+  @blocking_thread_id is null,
+  @blocking_event_id is null;
+
+###########################################################################
+# Test index on REQUESTING_ENGINE_LOCK_ID, ENGINE
+###########################################################################
+
+let $table = performance_schema.data_lock_waits;
+
+let $column_count = 2;
+let $col1 = REQUESTING_ENGINE_LOCK_ID;
+let $col2 = ENGINE;
+let $col1_act = @requesting_lock_id;
+let $col2_act = @engine;
+
+--source ../include/idx_explain_test.inc
+
+# verify actual data
+select BLOCKING_ENGINE_LOCK_ID = @blocking_lock_id
+  from performance_schema.data_lock_waits
+  where (ENGINE = @engine)
+  and (REQUESTING_ENGINE_LOCK_ID = @requesting_lock_id);
+
+###########################################################################
+# Test index on BLOCKING_ENGINE_LOCK_ID, ENGINE
+###########################################################################
+
+let $table = performance_schema.data_lock_waits;
+
+let $column_count = 2;
+let $col1 = BLOCKING_ENGINE_LOCK_ID;
+let $col2 = ENGINE;
+let $col1_act = @blocking_lock_id;
+let $col2_act = @engine;
+
+--source ../include/idx_explain_test.inc
+
+# verify actual data
+select REQUESTING_ENGINE_LOCK_ID = @requesting_lock_id
+  from performance_schema.data_lock_waits
+  where (ENGINE = @engine)
+  and (BLOCKING_ENGINE_LOCK_ID = @blocking_lock_id);
+
+###########################################################################
+# Test index on REQUESTING_ENGINE_TRANSACTION_ID, ENGINE
+###########################################################################
+
+let $table = performance_schema.data_lock_waits;
+
+let $column_count = 2;
+let $col1 = REQUESTING_ENGINE_TRANSACTION_ID;
+let $col2 = ENGINE;
+let $col1_act = @requesting_trx_id;
+let $col2_act = @engine;
+
+--source ../include/idx_explain_test.inc
+
+# verify actual data
+select BLOCKING_ENGINE_LOCK_ID = @blocking_lock_id
+  from performance_schema.data_lock_waits
+  where (ENGINE = @engine)
+  and (REQUESTING_ENGINE_TRANSACTION_ID = @requesting_trx_id);
+
+###########################################################################
+# Test index on BLOCKING_ENGINE_TRANSACTION_ID, ENGINE
+###########################################################################
+
+let $table = performance_schema.data_lock_waits;
+
+let $column_count = 2;
+let $col1 = BLOCKING_ENGINE_TRANSACTION_ID;
+let $col2 = ENGINE;
+let $col1_act = @blocking_trx_id;
+let $col2_act = @engine;
+
+--source ../include/idx_explain_test.inc
+
+# verify actual data
+select REQUESTING_ENGINE_LOCK_ID = @requesting_lock_id
+  from performance_schema.data_lock_waits
+  where (ENGINE = @engine)
+  and (BLOCKING_ENGINE_TRANSACTION_ID = @blocking_trx_id);
+
+###########################################################################
+# Test index on REQUESTING_THREAD_ID, REQUESTING_EVENT_ID
+###########################################################################
+
+let $table = performance_schema.data_lock_waits force index(REQUESTING_THREAD_ID);
+
+let $column_count = 2;
+let $col1 = REQUESTING_THREAD_ID;
+let $col2 = REQUESTING_EVENT_ID;
+let $col1_act = @requesting_thread_id;
+let $col2_act = @requesting_event_id;
+
+--source ../include/idx_explain_test.inc
+
+# verify actual data
+select BLOCKING_ENGINE_LOCK_ID = @blocking_lock_id
+  from performance_schema.data_lock_waits
+  where (REQUESTING_THREAD_ID = @requesting_thread_id)
+  and (REQUESTING_EVENT_ID = @requesting_event_id);
+
+###########################################################################
+# Test index on BLOCKING_THREAD_ID, BLOCKING_EVENT_ID
+###########################################################################
+
+let $table = performance_schema.data_lock_waits force index(BLOCKING_THREAD_ID);
+
+let $column_count = 2;
+let $col1 = BLOCKING_THREAD_ID;
+let $col2 = BLOCKING_EVENT_ID;
+let $col1_act = @blocking_thread_id;
+let $col2_act = @blocking_event_id;
+
+--source ../include/idx_explain_test.inc
+
+# verify actual data
+select REQUESTING_ENGINE_LOCK_ID = @requesting_lock_id
+  from performance_schema.data_lock_waits
+  where (BLOCKING_THREAD_ID = @blocking_thread_id)
+  and (BLOCKING_EVENT_ID = @blocking_event_id);
+
+# Cleanup
+
+--echo # Connection con1
+--connection con1
+commit;
+
+--echo # Connection con2
+--connection con2
+--reap
+commit;
+
+--echo # Connection con3
+--connection con3
+commit;
+
+--echo # Connection con4
+--connection con4
+--reap
+commit;
+
+--echo # Connection default
+--connection default
+
+drop table explain_test_db.explain_test_table;
+drop database explain_test_db;
+
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disconnect con4

@@ -1,0 +1,36 @@
+include/rpl_init.inc [topology=1->2,2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_1]
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+[connection server_2]
+include/start_slave.inc
+[connection server_1]
+include/sync_slave_sql_with_master.inc
+# Adding debug point 'updating_received_transaction_set' to @@GLOBAL.debug
+[connection server_1]
+INSERT INTO t1 VALUES(2);
+[connection server_2]
+SET DEBUG_SYNC="now WAIT_FOR reached_updating_received_transaction_set";
+SET GTID_NEXT='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t1 VALUES(3);
+SET GTID_NEXT= AUTOMATIC;
+include/assert.inc [Insert on master2/slave1 is successful]
+[connection server_3]
+include/start_slave.inc
+[connection server_2]
+sync server_3 with server_2
+include/sync_slave_sql_with_master.inc
+[connection server_2]
+# Removing debug point 'updating_received_transaction_set' from @@GLOBAL.debug
+SET DEBUG_SYNC="now SIGNAL continue_updating_received_transaction_set";
+sync server_3 with server_2
+include/sync_slave_sql_with_master.inc
+[connection server_1]
+DROP TABLE t1;
+include/rpl_end.inc

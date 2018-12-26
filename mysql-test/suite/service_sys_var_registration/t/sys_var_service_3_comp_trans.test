@@ -1,0 +1,82 @@
+# Verfiy that more than one component can register system variablesi, which behave like all global
+# variables in sessions.
+
+--source ../include/have_component_test_sys_var_service.inc
+--source include/count_sessions.inc
+
+call mtr.add_suppression("duplicate variable name");
+call mtr.add_suppression("variable name.*not found");
+CREATE USER test@localhost;
+GRANT SELECT ON test.* TO test@localhost;
+CREATE USER test2@localhost;
+GRANT SELECT ON test.* TO test2@localhost;
+
+--enable_connect_log
+
+INSTALL COMPONENT "file://component_test_sys_var_service";
+INSTALL COMPONENT "file://component_test_sys_var_service_int";
+INSTALL COMPONENT "file://component_test_sys_var_service_str";
+
+connect(c1,localhost,test,,);
+
+--echo # file://component_test_sys_var_service:
+SELECT @@test_component.enum_sys_var;
+--error ER_GLOBAL_VARIABLE
+SET test_component.enum_sys_var="LOW";
+
+--echo # file://component_test_sys_var_service_str:
+SELECT @@test_component_str.str_sys_var;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL test_component_str.str_sys_var="dictionary.txt";
+SELECT @@test_component_str.str_sys_var;
+
+connect(c2,localhost,test2,,);
+
+--echo # Testing long type variable
+SELECT @@test_component.long_sys_var;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL test_component.long_sys_var=1234567890;
+SELECT @@test_component.long_sys_var;
+
+--echo # Testing unsigned long type variable
+SELECT @@test_component.ulong_sys_var;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL test_component.ulong_sys_var=1234567890;
+
+--echo # Testing long long type variable
+SELECT @@test_component.longlong_sys_var;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL test_component.longlong_sys_var=1234567890;
+
+--echo # file://component_test_sys_var_service_int:
+SELECT @@test_component_int.uint_sys_var;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL test_component_int.uint_sys_var=12345678;
+SELECT @@test_component_int.int_sys_var;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL test_component_int.int_sys_var=12345678;
+SELECT @@test_component_int.int_sys_var;
+
+connection default;
+disconnect c1;
+disconnect c2;
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+UNINSTALL COMPONENT "file://component_test_sys_var_service_int";
+UNINSTALL COMPONENT "file://component_test_sys_var_service_str";
+
+DROP USER test@localhost;
+DROP USER test2@localhost;
+
+# Write the test results in "test_component_sys_var_service.log" into the
+# result file of this test
+--echo ########## test_component_sys_var_service.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_sys_var_service.log;
+cat_file $MYSQLD_DATADIR/test_component_sys_var_service_int.log;
+cat_file $MYSQLD_DATADIR/test_component_sys_var_service_str.log;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service.log;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service_int.log;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service_str.log;
+
+--source include/wait_until_count_sessions.inc
+

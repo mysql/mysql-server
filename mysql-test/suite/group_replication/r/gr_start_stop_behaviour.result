@@ -1,0 +1,158 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Create a table on the group.
+############################################################
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+
+############################################################
+# 2. Try to stop Group Replication in the middle of a ongoing
+#    transaction. It should throw error
+#    ER_LOCK_OR_ACTIVE_TRANSACTION
+############################################################
+BEGIN;
+INSERT INTO t1 VALUES (2);
+STOP GROUP_REPLICATION;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+include/assert.inc [GTID_EXECUTED must contain 3 group transactions]
+[connection server_1]
+include/assert.inc [There is no value 2 in table t1]
+[connection server1]
+COMMIT;
+include/rpl_sync.inc
+include/assert.inc [There is a value 2 in table t1 on server1]
+include/assert.inc [GTID_EXECUTED must contain 4 group transactions]
+[connection server2]
+include/assert.inc [There is a value 2 in table t1 on server2]
+include/assert.inc [GTID_EXECUTED must contain 4 group transactions]
+
+############################################################
+# 3. Stop Group Replication while GTID_NEXT is specified
+#    and check that GTID is not used by STOP GROUP_REPLICATION
+#    to prove that STOP GROUP_REPLICATION does not create any
+#    implicit commits.
+############################################################
+[connection server1]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
+include/stop_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain 4 group transactions]
+include/assert.inc [GTID_OWNED is still set since aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1 transaction was not committed]
+COMMIT;
+SET GTID_NEXT= AUTOMATIC;
+include/assert.inc [GTID_OWNED is empty after committing aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1]
+include/assert.inc [GTID_EXECUTED must contain 4 group transactions and 1 local transaction]
+
+############################################################
+# 4. Try to Start Group Replication in the middle of a ongoing
+#    transaction. It should throw error
+#    ER_LOCK_OR_ACTIVE_TRANSACTION
+############################################################
+[connection server1]
+BEGIN;
+INSERT INTO t1 VALUES (4);
+START GROUP_REPLICATION;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+include/assert.inc [GTID_EXECUTED must still contain 4 group transactions and 1 local transaction]
+[connection server_2]
+include/assert.inc [There is no value 4 in table t1]
+[connection server1]
+COMMIT;
+include/assert.inc [There is a value 4 in table t1 on server1]
+include/assert.inc [GTID_EXECUTED must contain 4 group transactions and 2 local transaction]
+DROP TABLE t1;
+RESET MASTER;
+
+##################################################################
+# 5. Try to start Group Replication while there are ongoing
+#    transaction in parallel that does not have any GR compatible
+#    DMLs (no write set that goes to certification). It should be
+#    commit hook error.
+##################################################################
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Failed to extract the set of items written");
+CALL mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+CREATE TABLE t_without_primary_key(i INT);
+SET SESSION sql_log_bin= 1;
+BEGIN;
+INSERT INTO t_without_primary_key VALUES (1);
+[connection server_1]
+include/start_group_replication.inc
+[connection server1]
+COMMIT;
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+SET SESSION sql_log_bin= 0;
+DROP TABLE t_without_primary_key;
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 6. Start Group Replication while GTID_NEXT is specified.
+############################################################
+include/stop_group_replication.inc
+DROP TABLE t1;
+RESET MASTER;
+[connection server1]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain 6 group transactions]
+include/assert.inc [GTID_OWNED is still set since ongoing transaction was not committed]
+COMMIT;
+SET GTID_NEXT= AUTOMATIC;
+include/assert.inc [GTID_OWNED is empty after committing aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1]
+include/assert.inc [GTID_EXECUTED must contain 6 group transactions and 1 local transaction]
+
+#################################################################
+# 7. Verify that if a session is in lock_table_mode (exclusively
+#    acquired a lock on a table), stop group replication command
+#    is not allowed from the session.
+#################################################################
+[connection server2]
+LOCK table t1 WRITE;
+[connection server1]
+INSERT INTO t1 values (6);
+[connection server2]
+STOP GROUP_REPLICATION;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK tables;
+
+#################################################################
+# 8. Verify that if a session is in lock_table_mode (exclusively
+#    acquired a lock on a table), start group replication command
+#    is not allowed from the session.
+#################################################################
+[connection server2]
+include/stop_group_replication.inc
+[connection server2]
+LOCK table t1 WRITE;
+START GROUP_REPLICATION;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK tables;
+include/start_group_replication.inc
+
+############################################################
+# 9. Clean up
+############################################################
+[connection server1]
+DROP TABLE t1;
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

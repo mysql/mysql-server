@@ -1,0 +1,18 @@
+#
+# ==== Purpose ====
+#
+# this test checks that the information related to transaction retry is
+# displayed correctly in the table
+# performance_schema.replication_applier_status_by_worker when the single
+# thread slave is enabled.
+#
+# ==== Implementation ====
+#
+# Please check the test description in the file:
+# extra/rpl_tests/rpl_ps_table_worker_retry.inc
+#
+# ==== References ====
+#
+# WL#9131 Add RETRIES field to replication_applier_status_by_worker P_S table
+
+--source extra/rpl_tests/rpl_ps_table_worker_retry.inc

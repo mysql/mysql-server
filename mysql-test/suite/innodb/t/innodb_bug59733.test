@@ -1,0 +1,53 @@
+#
+# Bug #59733 Possible deadlock when buffered changes are to be discarded
+# in buf_page_create
+#
+
+-- disable_query_log
+# The flag innodb_change_buffering_debug is only available in debug builds.
+# It instructs InnoDB to try to evict pages from the buffer pool when
+# change buffering is possible, so that the change buffer will be used
+# whenever possible.
+-- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
+SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
+-- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL innodb_change_buffering_debug = 1;
+-- enable_query_log
+
+CREATE TABLE bug59733(a INT AUTO_INCREMENT PRIMARY KEY,b CHAR(1)) ENGINE=InnoDB
+STATS_PERSISTENT=1 STATS_AUTO_RECALC=0;
+
+# Create enough rows for the table, so that the insert buffer will be
+# used. There must be multiple index pages, because changes to the
+# root page are never buffered.
+
+INSERT INTO bug59733 VALUES(0,'x');
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+INSERT INTO bug59733 SELECT 0,b FROM bug59733;
+
+# Create the secondary index for which changes will be buffered.
+CREATE INDEX b ON bug59733 (b);
+
+# This should be buffered, if innodb_change_buffering_debug = 1 is in effect.
+DELETE FROM bug59733 WHERE (a%100)=0;
+
+# Drop the index in order to get free pages with orphaned buffered changes.
+DROP INDEX b ON bug59733;
+
+# Create the index and attempt to reuse pages for which buffered changes exist.
+CREATE INDEX b ON bug59733 (b);
+
+DROP TABLE bug59733;
+
+-- disable_query_log
+-- error 0, ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL innodb_change_buffering_debug = @innodb_change_buffering_debug_orig;

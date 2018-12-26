@@ -1,0 +1,9 @@
+#
+# Fips support in OS without fips enabled openssl.
+#
+##Test: Set the variable SSL FIPS mode to ON, since OS doesn't support it. operation will throw error.
+Variable_name	Value
+ssl_fips_mode	OFF
+##Test: Start the server with SSL FIPS mode ON, server will throw error and abort.
+Pattern "FIPS_mode_set:fips mode not supported" found
+Restart server with FIPS mode OFF.

@@ -1,0 +1,38 @@
+update performance_schema.setup_instruments set enabled='YES'
+  where name like "wait/synch/mutex/mysys/THR_LOCK_myisam";
+drop table if exists test.t1;
+drop table if exists test.t2;
+drop table if exists test.t3;
+truncate table performance_schema.events_waits_history_long;
+show global variables like "thread_handling";
+Variable_name	Value
+thread_handling	one-thread-per-connection
+"----------------- Connection 1"
+create table test.t1(a int) engine=MYISAM;
+"----------------- Connection 2"
+create table test.t2(a int) engine=MYISAM;
+"----------------- Connection 3"
+create table test.t3(a int) engine=MYISAM;
+"----------------- Connection default"
+execute stmt_dump_events using @tid;
+event_name	short_source	operation	number_of_bytes
+wait/synch/mutex/mysys/THR_LOCK_myisam	mi_create.cc:	lock	NULL
+execute stmt_dump_thread using @tid;
+name
+thread/sql/one_connection
+execute stmt_dump_events using @tid;
+event_name	short_source	operation	number_of_bytes
+wait/synch/mutex/mysys/THR_LOCK_myisam	mi_create.cc:	lock	NULL
+execute stmt_dump_thread using @tid;
+name
+thread/sql/one_connection
+execute stmt_dump_events using @tid;
+event_name	short_source	operation	number_of_bytes
+wait/synch/mutex/mysys/THR_LOCK_myisam	mi_create.cc:	lock	NULL
+execute stmt_dump_thread using @tid;
+name
+thread/sql/one_connection
+drop table test.t1;
+drop table test.t2;
+drop table test.t3;
+update performance_schema.setup_instruments set enabled='YES';

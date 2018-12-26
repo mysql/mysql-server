@@ -1,0 +1,661 @@
+create user user1@localhost;
+create user user2@localhost;
+create user user3@localhost;
+create user user4@localhost;
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+flush privileges;
+select * from performance_schema.setup_consumers;
+NAME	ENABLED
+events_stages_current	YES
+events_stages_history	YES
+events_stages_history_long	YES
+events_statements_current	YES
+events_statements_history	YES
+events_statements_history_long	YES
+events_transactions_current	YES
+events_transactions_history	YES
+events_transactions_history_long	YES
+events_waits_current	YES
+events_waits_history	YES
+events_waits_history_long	YES
+global_instrumentation	YES
+thread_instrumentation	YES
+statements_digest	YES
+# Switch to (con1, localhost, user1, , )
+update performance_schema.threads
+set INSTRUMENTED='YES', HISTORY='YES'
+  where PROCESSLIST_ID = connection_id();
+# Switch to (con2, localhost, user2, , )
+update performance_schema.threads
+set INSTRUMENTED='YES', HISTORY='NO'
+  where PROCESSLIST_ID = connection_id();
+# Switch to (con3, localhost, user3, , )
+update performance_schema.threads
+set INSTRUMENTED='NO', HISTORY='YES'
+  where PROCESSLIST_ID = connection_id();
+# Switch to (con4, localhost, user4, , )
+update performance_schema.threads
+set INSTRUMENTED='NO', HISTORY='NO'
+  where PROCESSLIST_ID = connection_id();
+# Switch to connection default
+update performance_schema.threads
+set INSTRUMENTED='NO', HISTORY='NO'
+  where PROCESSLIST_ID = connection_id();
+truncate table performance_schema.events_transactions_current;
+truncate table performance_schema.events_transactions_history;
+truncate table performance_schema.events_transactions_history_long;
+truncate table performance_schema.events_statements_current;
+truncate table performance_schema.events_statements_history;
+truncate table performance_schema.events_statements_history_long;
+truncate table performance_schema.events_stages_current;
+truncate table performance_schema.events_stages_history;
+truncate table performance_schema.events_stages_history_long;
+truncate table performance_schema.events_waits_current;
+truncate table performance_schema.events_waits_history;
+truncate table performance_schema.events_waits_history_long;
+# Switch to connection con1
+XA START 'XA_CON1', 'XA_BQUAL', 12;
+select "Hi from con1";
+Hi from con1
+Hi from con1
+XA END 'XA_CON1', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON1', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON1', 'XA_BQUAL', 12;
+# Switch to connection con2
+XA START 'XA_CON2', 'XA_BQUAL', 12;
+select "Hi from con2";
+Hi from con2
+Hi from con2
+XA END 'XA_CON2', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON2', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON2', 'XA_BQUAL', 12;
+# Switch to connection con3
+XA START 'XA_CON3', 'XA_BQUAL', 12;
+select "Hi from con3";
+Hi from con3
+Hi from con3
+XA END 'XA_CON3', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON3', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON3', 'XA_BQUAL', 12;
+# Switch to connection con4
+XA START 'XA_CON4', 'XA_BQUAL', 12;
+select "Hi from con4";
+Hi from con4
+Hi from con4
+XA END 'XA_CON4', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON4', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON4', 'XA_BQUAL', 12;
+"=========================== Transactions user 1"
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON1	XA_BQUAL
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON1	XA_BQUAL
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON1	XA_BQUAL
+"=========================== Transactions user 2"
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON2	XA_BQUAL
+count(*)
+0
+count(*)
+0
+"=========================== Transactions user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Transactions user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 1"
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_commit	XA COMMIT 'XA_CON1', 'XA_BQUAL', 12
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_start	XA START 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/select	select "Hi from con1"
+statement/sql/xa_end	XA END 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/xa_prepare	XA PREPARE 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/xa_commit	XA COMMIT 'XA_CON1', 'XA_BQUAL', 12
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_start	XA START 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/select	select "Hi from con1"
+statement/sql/xa_end	XA END 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/xa_prepare	XA PREPARE 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/xa_commit	XA COMMIT 'XA_CON1', 'XA_BQUAL', 12
+"=========================== Statements user 2"
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_commit	XA COMMIT 'XA_CON2', 'XA_BQUAL', 12
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 1"
+EVENT_NAME
+EVENT_NAME
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+EVENT_NAME
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/checking permissions
+stage/sql/Opening tables
+stage/sql/init
+stage/sql/optimizing
+stage/sql/executing
+stage/sql/end
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+"=========================== Stages user 2"
+EVENT_NAME
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Waits user 1"
+EVENT_NAME
+idle
+has_waits
+1
+has_waits
+1
+"=========================== Waits user 2"
+EVENT_NAME
+idle
+count(*)
+0
+count(*)
+0
+"=========================== Waits user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Waits user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+# Switch to connection default, disable consumers
+update performance_schema.setup_consumers
+set enabled='NO' where name like "%history%";
+select * from performance_schema.setup_consumers;
+NAME	ENABLED
+events_stages_current	YES
+events_stages_history	NO
+events_stages_history_long	NO
+events_statements_current	YES
+events_statements_history	NO
+events_statements_history_long	NO
+events_transactions_current	YES
+events_transactions_history	NO
+events_transactions_history_long	NO
+events_waits_current	YES
+events_waits_history	NO
+events_waits_history_long	NO
+global_instrumentation	YES
+thread_instrumentation	YES
+statements_digest	YES
+truncate table performance_schema.events_transactions_current;
+truncate table performance_schema.events_transactions_history;
+truncate table performance_schema.events_transactions_history_long;
+truncate table performance_schema.events_statements_current;
+truncate table performance_schema.events_statements_history;
+truncate table performance_schema.events_statements_history_long;
+truncate table performance_schema.events_stages_current;
+truncate table performance_schema.events_stages_history;
+truncate table performance_schema.events_stages_history_long;
+truncate table performance_schema.events_waits_current;
+truncate table performance_schema.events_waits_history;
+truncate table performance_schema.events_waits_history_long;
+# Switch to connection con1
+XA START 'XA_CON1', 'XA_BQUAL', 12;
+select "Hi from con1";
+Hi from con1
+Hi from con1
+XA END 'XA_CON1', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON1', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON1', 'XA_BQUAL', 12;
+# Switch to connection con2
+XA START 'XA_CON2', 'XA_BQUAL', 12;
+select "Hi from con2";
+Hi from con2
+Hi from con2
+XA END 'XA_CON2', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON2', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON2', 'XA_BQUAL', 12;
+# Switch to connection con3
+XA START 'XA_CON3', 'XA_BQUAL', 12;
+select "Hi from con3";
+Hi from con3
+Hi from con3
+XA END 'XA_CON3', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON3', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON3', 'XA_BQUAL', 12;
+# Switch to connection con4
+XA START 'XA_CON4', 'XA_BQUAL', 12;
+select "Hi from con4";
+Hi from con4
+Hi from con4
+XA END 'XA_CON4', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON4', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON4', 'XA_BQUAL', 12;
+"=========================== Transactions user 1"
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON1	XA_BQUAL
+count(*)
+0
+count(*)
+0
+"=========================== Transactions user 2"
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON2	XA_BQUAL
+count(*)
+0
+count(*)
+0
+"=========================== Transactions user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Transactions user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 1"
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_commit	XA COMMIT 'XA_CON1', 'XA_BQUAL', 12
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 2"
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_commit	XA COMMIT 'XA_CON2', 'XA_BQUAL', 12
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 1"
+EVENT_NAME
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 2"
+EVENT_NAME
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Waits user 1"
+EVENT_NAME
+idle
+has_waits
+0
+has_waits
+0
+"=========================== Waits user 2"
+EVENT_NAME
+idle
+count(*)
+0
+count(*)
+0
+"=========================== Waits user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Waits user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+# Switch to connection default, enable consumers
+update performance_schema.setup_consumers
+set enabled='YES' where name like "%history%";
+select * from performance_schema.setup_consumers;
+NAME	ENABLED
+events_stages_current	YES
+events_stages_history	YES
+events_stages_history_long	YES
+events_statements_current	YES
+events_statements_history	YES
+events_statements_history_long	YES
+events_transactions_current	YES
+events_transactions_history	YES
+events_transactions_history_long	YES
+events_waits_current	YES
+events_waits_history	YES
+events_waits_history_long	YES
+global_instrumentation	YES
+thread_instrumentation	YES
+statements_digest	YES
+truncate table performance_schema.events_transactions_current;
+truncate table performance_schema.events_transactions_history;
+truncate table performance_schema.events_transactions_history_long;
+truncate table performance_schema.events_statements_current;
+truncate table performance_schema.events_statements_history;
+truncate table performance_schema.events_statements_history_long;
+truncate table performance_schema.events_stages_current;
+truncate table performance_schema.events_stages_history;
+truncate table performance_schema.events_stages_history_long;
+truncate table performance_schema.events_waits_current;
+truncate table performance_schema.events_waits_history;
+truncate table performance_schema.events_waits_history_long;
+# Switch to connection con1
+XA START 'XA_CON1', 'XA_BQUAL', 12;
+select "Hi from con1";
+Hi from con1
+Hi from con1
+XA END 'XA_CON1', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON1', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON1', 'XA_BQUAL', 12;
+# Switch to connection con2
+XA START 'XA_CON2', 'XA_BQUAL', 12;
+select "Hi from con2";
+Hi from con2
+Hi from con2
+XA END 'XA_CON2', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON2', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON2', 'XA_BQUAL', 12;
+# Switch to connection con3
+XA START 'XA_CON3', 'XA_BQUAL', 12;
+select "Hi from con3";
+Hi from con3
+Hi from con3
+XA END 'XA_CON3', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON3', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON3', 'XA_BQUAL', 12;
+# Switch to connection con4
+XA START 'XA_CON4', 'XA_BQUAL', 12;
+select "Hi from con4";
+Hi from con4
+Hi from con4
+XA END 'XA_CON4', 'XA_BQUAL', 12;
+XA PREPARE 'XA_CON4', 'XA_BQUAL', 12;
+XA COMMIT 'XA_CON4', 'XA_BQUAL', 12;
+"=========================== Transactions user 1"
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON1	XA_BQUAL
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON1	XA_BQUAL
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON1	XA_BQUAL
+"=========================== Transactions user 2"
+XID_FORMAT_ID	XID_GTRID	XID_BQUAL
+12	XA_CON2	XA_BQUAL
+count(*)
+0
+count(*)
+0
+"=========================== Transactions user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Transactions user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 1"
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_commit	XA COMMIT 'XA_CON1', 'XA_BQUAL', 12
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_start	XA START 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/select	select "Hi from con1"
+statement/sql/xa_end	XA END 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/xa_prepare	XA PREPARE 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/xa_commit	XA COMMIT 'XA_CON1', 'XA_BQUAL', 12
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_start	XA START 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/select	select "Hi from con1"
+statement/sql/xa_end	XA END 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/xa_prepare	XA PREPARE 'XA_CON1', 'XA_BQUAL', 12
+statement/sql/xa_commit	XA COMMIT 'XA_CON1', 'XA_BQUAL', 12
+"=========================== Statements user 2"
+EVENT_NAME	SQL_TEXT
+statement/sql/xa_commit	XA COMMIT 'XA_CON2', 'XA_BQUAL', 12
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Statements user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 1"
+EVENT_NAME
+EVENT_NAME
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+EVENT_NAME
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/checking permissions
+stage/sql/Opening tables
+stage/sql/init
+stage/sql/optimizing
+stage/sql/executing
+stage/sql/end
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+"=========================== Stages user 2"
+EVENT_NAME
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Stages user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Waits user 1"
+EVENT_NAME
+idle
+has_waits
+1
+has_waits
+1
+"=========================== Waits user 2"
+EVENT_NAME
+idle
+count(*)
+0
+count(*)
+0
+"=========================== Waits user 3"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+"=========================== Waits user 4"
+count(*)
+0
+count(*)
+0
+count(*)
+0
+# Switch to connection default
+update performance_schema.threads
+set INSTRUMENTED='YES', HISTORY='YES'
+  where PROCESSLIST_ID = connection_id();
+revoke all privileges, grant option from user1@localhost;
+revoke all privileges, grant option from user2@localhost;
+revoke all privileges, grant option from user3@localhost;
+revoke all privileges, grant option from user4@localhost;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+flush privileges;
+truncate table performance_schema.setup_actors;
+insert into performance_schema.setup_actors
+values ('%', '%', '%', 'YES', 'YES');
+select * from performance_schema.setup_actors;
+HOST	USER	ROLE	ENABLED	HISTORY
+%	%	%	YES	YES

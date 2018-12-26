@@ -1,0 +1,106 @@
+# Created: Horst Hunger 2014-05-21
+# WL#3836:  Method to bring servers off line
+
+-- source include/not_threadpool.inc
+
+# Save the global value to be used to restore the original value.
+SET @global_saved_tmp =  @@global.offline_mode;
+
+# This count may not be 1, because of the probably existing connections
+# from the previous/parallel test runs
+let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE USER != 'event_scheduler'`;
+
+# test case 2.1.14 1)
+# Create high nb of non-super users
+
+let $nbconn_max= 100;
+let $nbconn= $nbconn_max;
+while ($nbconn)
+{
+  eval CREATE USER 'user$nbconn'@'localhost';
+  dec $nbconn;
+}
+
+# Super user sessions
+let $nbsu_max= 3;
+let $nbsu= $nbsu_max;
+while ($nbsu)
+{
+  --connect(su$nbsu,localhost,root)
+  dec $nbsu;
+}
+
+let $nbconn= $nbconn_max;
+while ($nbconn)
+{
+  --connect(conu$nbconn,localhost,user$nbconn)
+  dec $nbconn;
+}
+
+--connection default
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+SHOW STATUS LIKE 'threads_connected';
+
+SET GLOBAL offline_mode = ON;
+
+# Wait until all non super user have been disconnected (for slow machines)
+let $count_sessions= $nbsu_max + $user_count;
+--source include/wait_until_count_sessions.inc
+
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+SHOW STATUS LIKE 'threads_connected';
+
+SET GLOBAL offline_mode = OFF;
+
+# Disconnect cleanup session infos on client side to be able to reconnect.
+let $nbconn= $nbconn_max;
+while ($nbconn)
+{
+  --disconnect conu$nbconn
+  --connect(conu$nbconn,localhost,user$nbconn)
+  dec $nbconn;
+}
+
+--connection default
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+SHOW STATUS LIKE 'threads_connected';
+
+SET GLOBAL offline_mode = ON;
+
+# Wait until all non super user have been disconnected (for slow machines)
+let $count_sessions= $nbsu_max + $user_count;
+--source include/wait_until_count_sessions.inc
+
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+SHOW STATUS LIKE 'threads_connected';
+
+# Clean up
+let $nbconn= $nbconn_max;
+while ($nbconn)
+{
+  --disconnect conu$nbconn
+  dec $nbconn;
+}
+
+let $nbsu= $nbsu_max;
+while ($nbsu)
+{
+  --disconnect su$nbsu
+  dec $nbsu;
+}
+
+# Wait until all users have been disconnected (for slow machines)
+let $count_sessions= $user_count;
+--source include/wait_until_count_sessions.inc
+
+let $nbconn= $nbconn_max;
+while ($nbconn)
+{
+  eval DROP USER 'user$nbconn'@'localhost';
+  dec $nbconn;
+}
+
+--echo # Restoring the original values.
+SET @@global.offline_mode = @global_saved_tmp;
+

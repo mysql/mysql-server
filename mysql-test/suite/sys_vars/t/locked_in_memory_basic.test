@@ -1,0 +1,22 @@
+--source include/not_windows.inc
+#
+# only global
+#
+select @@global.locked_in_memory;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.locked_in_memory;
+show global variables like 'locked_in_memory';
+show session variables like 'locked_in_memory';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='locked_in_memory';
+select * from performance_schema.session_variables where variable_name='locked_in_memory';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global locked_in_memory=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session locked_in_memory=1;
+

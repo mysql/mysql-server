@@ -1,0 +1,44 @@
+# Default values
+SELECT @@GLOBAL.binlog_max_flush_queue_time;
+@@GLOBAL.binlog_max_flush_queue_time
+0
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+SELECT @@SESSION.binlog_max_flush_queue_time;
+ERROR HY000: Variable 'binlog_max_flush_queue_time' is a GLOBAL variable
+SET @saved_value = @@global.binlog_max_flush_queue_time;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+# Valid values
+SET GLOBAL binlog_max_flush_queue_time = 0;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+SET GLOBAL binlog_max_flush_queue_time = 1;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+SET GLOBAL binlog_max_flush_queue_time = 10000;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+SET GLOBAL binlog_max_flush_queue_time = 100000;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+# Invalid values: there shall be warnings about truncation
+SET GLOBAL binlog_max_flush_queue_time = -1;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect binlog_max_flush_queue_time value: '-1'
+SET GLOBAL binlog_max_flush_queue_time = -1024;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect binlog_max_flush_queue_time value: '-1024'
+SET GLOBAL binlog_max_flush_queue_time = 100001;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect binlog_max_flush_queue_time value: '100001'
+SET GLOBAL binlog_max_flush_queue_time = 200000;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect binlog_max_flush_queue_time value: '200000'
+SET GLOBAL binlog_max_flush_queue_time = @saved_value;
+Warnings:
+Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.

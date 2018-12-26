@@ -1,0 +1,56 @@
+# Purpose : Test ssl fips mode behavior in not supported OS.
+# Author  : Yashwant Kumar sahu
+#############################################################
+
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+--source include/have_openssl.inc
+--source include/have_ssl.inc
+--source include/not_have_fips.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # Fips support in OS without fips enabled openssl.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Resizing redo log");
+call mtr.add_suppression("Starting to delete and rewrite");
+call mtr.add_suppression("New log files created");
+--enable_query_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
+--echo ##Test: Set the variable SSL FIPS mode to ON, since OS doesn't support it. operation will throw error.
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SET @@global.ssl_fips_mode = 'ON';"
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+
+--echo ##Test: Start the server with SSL FIPS mode ON, server will throw error and abort.
+let $error_log = $MYSQLTEST_VARDIR/log/my_restart.err;
+--error 0,1
+--remove_file $error_log
+let SEARCH_FILE = $error_log;
+let $restart_file = $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--error 1
+--exec $MYSQLD_CMD --loose-console --ssl-fips-mode=ON > $error_log 2>&1
+let SEARCH_PATTERN = FIPS_mode_set:fips mode not supported;
+--source include/search_pattern.inc
+--remove_file $error_log
+
+--echo Restart server with FIPS mode OFF.
+--exec echo "restart:--ssl-fips-mode=OFF " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect

@@ -1,0 +1,200 @@
+############# mysql-test\t\sql_mode_func.test ######################################
+#                                                                                  #
+# Variable Name: sql_mode                                                          #
+# Scope: GLOBAL & SESSION                                                          #
+# Access Type: Dynamic                                                             #
+# Data Type: enumeration                                                           #
+# Values:       ALLOW_INVALID_DATES, ANSI_QUOTES, ERROR_FOR_DIVISION_BY_ZERO,      #
+#               HIGH_NOT_PRECEDENCE, IGNORE_SPACE,                                 #
+#               NO_AUTO_VALUE_ON_ZERO, NO_BACKSLASH_ESCAPES, NO_DIR_IN_CREATE,     #
+#               NO_ENGINE_SUBSTITUTION, NO_FIELD_OPTIONS, NO_KEY_OPTIONS,          #
+#               NO_TABLE_OPTIONS, NO_UNSIGNED_SUBTRACTION, NO_ZERO_DATE,           #
+#               NO_ZERO_IN_DATE, ONLY_FULL_GROUP_BY, PIPES_AS_CONCAT, REAL_AS_FLOAT#
+#               STRICT_ALL_TABLES, STRICT_TRANS_TABLES, OFF                        #
+#                                                                                  #
+#                                                                                  #
+# Creation Date: 2008-02-22                                                        #
+# Author:  Sharique Abdullah                                                       #
+#                                                                                  #
+# Description: Test Cases of Dynamic System Variable "sql_mode"                    #
+#              that checks behavior of this variable in the following ways         #
+#              * Functionality based on different values                           #
+#                                                                                  #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                               #
+#            server-system-variables.html#option_mysqld_sql_mode                   #
+#                                                                                  #
+####################################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+#
+# Save initial value
+#
+
+SET @sql_mode_session = @@SESSION.sql_mode;
+SET @sql_mode_global = @@GLOBAL.sql_mode;
+
+#
+# Create tables
+#
+
+CREATE TEMPORARY TABLE t1(a varchar(20) not null, b varchar(20));
+CREATE TEMPORARY TABLE t2(a varchar(20) null, b varchar(20));
+
+--echo '#--------------------FN_DYNVARS_153_01-------------------------#'
+#
+#ANSI mode
+#
+--echo ANSI mode
+
+
+SET SESSION sql_mode = ANSI;
+
+SELECT @@SESSION.sql_mode;
+
+INSERT INTO t1 VALUES('t1a1','t1b1');
+INSERT INTO t1 VALUES('t1a2','t1b2');
+INSERT INTO t1 VALUES('t1a3','t1b3');
+INSERT INTO t1 VALUES('t1a4','t1b4');
+
+INSERT INTO t2 VALUES('t2a1','t2b1');
+INSERT INTO t2 VALUES('t2a2','t2b2');
+INSERT INTO t2 VALUES('t2a3','t2b3');
+INSERT INTO t2 VALUES('t2a4','t2b4');
+
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
+--echo Expected error for invalid group function
+
+#
+# Reset
+#
+
+SET SESSION sql_mode = @sql_mode_session;
+SET GLOBAL sql_mode = @sql_mode_global;
+
+--echo '#--------------------FN_DYNVARS_153_02-------------------------#'
+#
+#STRICT_TRANS_TABLES mode
+#
+--echo STRICT_TRANS_TABLES mode
+
+DELETE FROM t1;
+DELETE FROM t2;
+
+SET SESSION sql_mode = STRICT_TRANS_TABLES;
+
+SELECT @@SESSION.sql_mode;
+
+INSERT INTO t1 VALUES('t1a1','t1b1');
+INSERT INTO t1 VALUES('t1a2','t1b2');
+INSERT INTO t1 VALUES('t1a3','t1b3');
+INSERT INTO t1 VALUES('t1a4','t1b4');
+
+INSERT INTO t2 VALUES(NULL,'t2b1');
+INSERT INTO t2 VALUES('t2a2','t2b2');
+INSERT INTO t2 VALUES('t2a3','t2b3');
+INSERT INTO t2 VALUES('t2a4','t2b4');
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 SELECT * FROM t2;
+--echo Expected error Bad NULL value
+
+SELECT * FROM t1 WHERE a = 't2a2';
+--echo Should return no rows in columns a,b;
+
+#
+# Reset
+#
+
+SET SESSION sql_mode = @sql_mode_session;
+SET GLOBAL sql_mode = @sql_mode_global;
+
+--echo '#--------------------FN_DYNVARS_153_03-------------------------#'
+#
+#TRADITIONAL  mode
+#
+--echo TRADITIONAL  mode
+
+SET SESSION sql_mode = TRADITIONAL;
+
+SELECT @@SESSION.sql_mode;
+
+INSERT INTO t1 VALUES('t1a1','t1b1');
+INSERT INTO t1 VALUES('t1a2','t1b2');
+INSERT INTO t1 VALUES('t1a3','t1b3');
+INSERT INTO t1 VALUES('t1a4','t1b4');
+
+INSERT INTO t2 VALUES(NULL,'t2b1');
+INSERT INTO t2 VALUES('t2a2','t2b2');
+INSERT INTO t2 VALUES('t2a3','t2b3');
+INSERT INTO t2 VALUES('t2a4','t2b4');
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 SELECT * FROM t2;
+--echo Expected error Bad NULL value
+
+SELECT * FROM t1 WHERE a = 't2a2';
+--echo Should return no rows in columns a,b;
+
+
+--echo '#-------------------FN_DYNVARS_153_04-------------------------#'
+#
+# Session data integrity check & GLOBAL Value check
+#
+
+SET GLOBAL sql_mode = '';
+--echo ** Connecting con_int1 using root **
+connect (con_int1,localhost,root,,);
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_mode;
+--echo '' Expected
+
+SET SESSION sql_mode = 'TRADITIONAL';
+
+--echo ** Connecting con_int2 using root **
+connect (con_int2,localhost,root,,);
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_mode;
+--echo '' Expected
+
+SET SESSION sql_mode = 'ANSI';
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_mode;
+--echo 'REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ANSI' Expected
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_mode;
+--echo 'STRICT_TRANS_TABLES, STRICT_ALL_TABLES, NO_ZERO_IN_DATE, NO_ZERO_DATE, ERROR_FOR_DIVISION_BY_ZERO, TRADITIONAL' Expected
+
+
+SELECT @@GLOBAL.sql_mode;
+--echo '' Expected
+
+--echo ** Connection default **
+connection default;
+
+--echo Disconnecting Connections con_int1, con_int2
+disconnect con_int1;
+disconnect con_int2;
+
+#
+# Cleanup
+#
+
+SET SESSION sql_mode = @sql_mode_session;
+SET GLOBAL sql_mode = @sql_mode_global;
+
+DROP TABLE t1;
+DROP TABLE t2;

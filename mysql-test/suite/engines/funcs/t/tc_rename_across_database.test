@@ -1,0 +1,25 @@
+--disable_warnings
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+--enable_warnings
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3;
+--enable_warnings
+CREATE TABLE t1(c1 INTEGER NULL);
+CREATE DATABASE d1;
+CREATE TABLE d1.t2(c1 INTEGER NULL);
+SHOW TABLES; 
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t1; 
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE d1.t2;
+RENAME TABLE t1 TO d1.t3;
+SHOW TABLES; 
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+USE d1;
+SHOW TABLES; 
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t3; 
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t2; DROP TABLE t2,t3; SHOW TABLES;
+DROP DATABASE d1;

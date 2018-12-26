@@ -1,0 +1,64 @@
+include/rpl_init.inc [topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+create table t1 (n int);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+create table t2 (n int);
+include/sync_slave_sql_with_master.inc
+show tables;
+Tables_in_test
+t1
+t2
+create table t3 (n int) engine=innodb;
+set @a=1;
+insert into t3 values(@a);
+begin;
+insert into t3 values(2);
+insert into t3 values(3);
+commit;
+insert into t3 values(4);
+start slave until master_log_file="MASTER_LOG_FILE",master_log_pos=MASTER_LOG_POS;
+Warnings:
+Note	1278	It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
+include/wait_for_slave_sql_to_stop.inc
+show tables;
+Tables_in_test
+t1
+t2
+start slave until master_log_file="MASTER_LOG_FILE",master_log_pos=MASTER_LOG_POS;
+Warnings:
+Note	1278	It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
+include/wait_for_slave_sql_to_stop.inc
+select * from t3;
+n
+1
+start slave until master_log_file="MASTER_LOG_FILE",master_log_pos=MASTER_LOG_POS;
+Warnings:
+Note	1278	It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
+include/wait_for_slave_sql_to_stop.inc
+select * from t3;
+n
+1
+2
+3
+include/start_slave.inc
+create table t4 (n int);
+create table t5 (n int);
+create table t6 (n int);
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+show tables;
+Tables_in_test
+t1
+t2
+t3
+t4
+t5
+t6
+drop table t1, t2, t3, t4, t5, t6;
+include/rpl_end.inc

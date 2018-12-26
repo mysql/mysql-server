@@ -1,0 +1,451 @@
+SELECT @@GLOBAL.default_collation_for_utf8mb4;
+@@GLOBAL.default_collation_for_utf8mb4
+utf8mb4_0900_ai_ci
+SELECT @@SESSION.default_collation_for_utf8mb4;
+@@SESSION.default_collation_for_utf8mb4
+utf8mb4_0900_ai_ci
+#
+SET @@default_collation_for_utf8mb4 = DEFAULT;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SELECT @@default_collation_for_utf8mb4;
+@@default_collation_for_utf8mb4
+utf8mb4_0900_ai_ci
+#
+SET @@default_collation_for_utf8mb4 = utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SELECT @@default_collation_for_utf8mb4;
+@@default_collation_for_utf8mb4
+utf8mb4_0900_ai_ci
+#
+SET @@default_collation_for_utf8mb4 = utf8mb4_general_ci;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SELECT @@default_collation_for_utf8mb4;
+@@default_collation_for_utf8mb4
+utf8mb4_general_ci
+#
+SET @@default_collation_for_utf8mb4 = utf8mb4;
+ERROR HY000: Unknown collation: 'utf8mb4'
+#
+SET @@default_collation_for_utf8mb4 = latin2_general_ci;
+ERROR HY000: Invalid default collation latin2_general_ci: utf8mb4_0900_ai_ci or utf8mb4_general_ci expected
+#
+SET @@default_collation_for_utf8mb4 = utf8mb4_general_ci;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+#
+# String literals
+#
+SELECT COLLATION(_utf8mb4 'a');
+COLLATION(_utf8mb4 'a')
+utf8mb4_general_ci
+SELECT COLLATION(_utf8mb4 'b' COLLATE utf8mb4_0900_ai_ci);
+COLLATION(_utf8mb4 'b' COLLATE utf8mb4_0900_ai_ci)
+utf8mb4_0900_ai_ci
+SELECT COLLATION(_utf8mb4 0x20);
+COLLATION(_utf8mb4 0x20)
+utf8mb4_general_ci
+SELECT COLLATION(_utf8mb4 0x20 COLLATE utf8mb4_0900_ai_ci);
+COLLATION(_utf8mb4 0x20 COLLATE utf8mb4_0900_ai_ci)
+utf8mb4_0900_ai_ci
+SELECT COLLATION(_utf8mb4 0b10100);
+COLLATION(_utf8mb4 0b10100)
+utf8mb4_general_ci
+SELECT COLLATION(_utf8mb4 0b10100 COLLATE utf8mb4_0900_ai_ci);
+COLLATION(_utf8mb4 0b10100 COLLATE utf8mb4_0900_ai_ci)
+utf8mb4_0900_ai_ci
+#
+# SET NAMES
+#
+SELECT @@collation_database;
+@@collation_database
+utf8mb4_0900_ai_ci
+#
+SET NAMES utf8mb4;
+SELECT @@collation_connection;
+@@collation_connection
+utf8mb4_general_ci
+#
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+SELECT @@collation_connection;
+@@collation_connection
+utf8mb4_0900_ai_ci
+#
+SET NAMES latin1;
+SELECT @@collation_connection;
+@@collation_connection
+latin1_swedish_ci
+#
+SET NAMES DEFAULT;
+SELECT @@collation_connection;
+@@collation_connection
+utf8mb4_general_ci
+#
+SET @@default_collation_for_utf8mb4 = DEFAULT;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SET NAMES DEFAULT;
+SET @@default_collation_for_utf8mb4 = utf8mb4_general_ci;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+#
+# CREATE/ALTER SCHEMA/DATABASE
+#
+CREATE DATABASE db1;
+SHOW CREATE DATABASE db1;
+Database	db1
+Create Database	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+ALTER DATABASE db1 CHARSET utf8mb4;
+SHOW CREATE DATABASE db1;
+Database	db1
+Create Database	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */
+DROP DATABASE db1;
+#
+CREATE DATABASE db2 CHARSET utf8mb4;
+SHOW CREATE DATABASE db2;
+Database	db2
+Create Database	CREATE DATABASE `db2` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */
+ALTER DATABASE db2 CHARSET utf8mb4;
+SHOW CREATE DATABASE db2;
+Database	db2
+Create Database	CREATE DATABASE `db2` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */
+ALTER DATABASE db2 CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+SHOW CREATE DATABASE db2;
+Database	db2
+Create Database	CREATE DATABASE `db2` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+DROP DATABASE db2;
+#
+CREATE DATABASE db3 CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+SHOW CREATE DATABASE db3;
+Database	db3
+Create Database	CREATE DATABASE `db3` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+DROP DATABASE db3;
+#
+CREATE DATABASE db4_latin1 CHARSET latin1;
+SHOW CREATE DATABASE db4_latin1;
+Database	db4_latin1
+Create Database	CREATE DATABASE `db4_latin1` /*!40100 DEFAULT CHARACTER SET latin1 */
+#
+CREATE DATABASE db5_utf8mb4_general_ci CHARSET utf8mb4;
+SHOW CREATE DATABASE db5_utf8mb4_general_ci;
+Database	db5_utf8mb4_general_ci
+Create Database	CREATE DATABASE `db5_utf8mb4_general_ci` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */
+#
+# CREATE/ALTER TABLE
+#
+CREATE TABLE db4_latin1.t1 (
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c4 CHAR(1),
+c5 CHAR(1) CHARSET latin1
+);
+SHOW CREATE TABLE db4_latin1.t1;
+Table	t1
+Create Table	CREATE TABLE `t1` (
+  `c1` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `c2` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `c3` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `c4` char(1) DEFAULT NULL,
+  `c5` char(1) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE db4_latin1.t1;
+#
+CREATE TABLE t2 (
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c4 CHAR(1),
+c5 CHAR(1) CHARSET latin1
+);
+SHOW CREATE TABLE t2;
+Table	t2
+Create Table	CREATE TABLE `t2` (
+  `c1` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `c2` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `c3` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `c4` char(1) DEFAULT NULL,
+  `c5` char(1) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+#
+CREATE TABLE t3 (
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c4 CHAR(1),
+c5 CHAR(1) CHARSET latin1
+) CHARSET utf8mb4;
+SHOW CREATE TABLE t3;
+Table	t3
+Create Table	CREATE TABLE `t3` (
+  `c1` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `c2` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `c3` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `c4` char(1) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `c5` char(1) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+DROP TABLE t3;
+#
+CREATE TABLE t4 (
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c4 CHAR(1),
+c5 CHAR(1) CHARSET latin1
+) CHARSET latin1;
+SHOW CREATE TABLE t4;
+Table	t4
+Create Table	CREATE TABLE `t4` (
+  `c1` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `c2` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `c3` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `c4` char(1) DEFAULT NULL,
+  `c5` char(1) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t4;
+#
+# CREATE/ALTER FUNCTION 
+#
+CREATE FUNCTION db5_utf8mb4_general_ci.f1(
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1),
+c4 CHAR(1) CHARSET latin1)
+RETURNS CHAR(246)
+BEGIN
+DECLARE p1 CHAR(1) CHARSET utf8mb4;
+DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+DECLARE p3 CHAR(1);
+DECLARE p4 CHAR(1) CHARSET latin1;
+RETURN CONCAT('c1:', COLLATION(c1),
+' c2:', COLLATION(c2),
+' c3:', COLLATION(c3),
+' c4:', COLLATION(c4),
+' p1:', COLLATION(p1),
+' p2:', COLLATION(p2),
+' p3:', COLLATION(p3),
+' p4:', COLLATION(p4));
+END//
+SHOW CREATE FUNCTION db5_utf8mb4_general_ci.f1//
+Function	f1
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1),
+c4 CHAR(1) CHARSET latin1) RETURNS char(246) CHARSET utf8mb4 COLLATE utf8mb4_general_ci
+BEGIN
+DECLARE p1 CHAR(1) CHARSET utf8mb4;
+DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+DECLARE p3 CHAR(1);
+DECLARE p4 CHAR(1) CHARSET latin1;
+RETURN CONCAT('c1:', COLLATION(c1),
+' c2:', COLLATION(c2),
+' c3:', COLLATION(c3),
+' c4:', COLLATION(c4),
+' p1:', COLLATION(p1),
+' p2:', COLLATION(p2),
+' p3:', COLLATION(p3),
+' p4:', COLLATION(p4));
+END
+character_set_client	utf8mb4
+collation_connection	utf8mb4_0900_ai_ci
+Database Collation	utf8mb4_general_ci
+SELECT db5_utf8mb4_general_ci.f1('1', '2', '3', '4'),
+COLLATION(db5_utf8mb4_general_ci.f1('1', '2', '3', '4'))//
+db5_utf8mb4_general_ci.f1('1', '2', '3', '4')	COLLATION(db5_utf8mb4_general_ci.f1('1', '2', '3', '4'))
+c1:utf8mb4_general_ci c2:utf8mb4_general_ci c3:utf8mb4_general_ci c4:latin1_swedish_ci p1:utf8mb4_general_ci p2:utf8mb4_0900_ai_ci p3:utf8mb4_general_ci p4:latin1_swedish_ci	utf8mb4_general_ci
+DROP FUNCTION db5_utf8mb4_general_ci.f1//
+#
+CREATE FUNCTION f2(
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1),
+c4 CHAR(1) CHARSET latin1)
+RETURNS CHAR(246)
+BEGIN
+DECLARE p1 CHAR(1) CHARSET utf8mb4;
+DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+DECLARE p3 CHAR(1);
+DECLARE p4 CHAR(1) CHARSET latin1;
+RETURN CONCAT('c1:', COLLATION(c1),
+' c2:', COLLATION(c2),
+' c3:', COLLATION(c3),
+' c4:', COLLATION(c4),
+' p1:', COLLATION(p1),
+' p2:', COLLATION(p2),
+' p3:', COLLATION(p3),
+' p4:', COLLATION(p4));
+END//
+SHOW CREATE FUNCTION f2//
+Function	f2
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `f2`(
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1),
+c4 CHAR(1) CHARSET latin1) RETURNS char(246) CHARSET utf8mb4 COLLATE utf8mb4_general_ci
+BEGIN
+DECLARE p1 CHAR(1) CHARSET utf8mb4;
+DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+DECLARE p3 CHAR(1);
+DECLARE p4 CHAR(1) CHARSET latin1;
+RETURN CONCAT('c1:', COLLATION(c1),
+' c2:', COLLATION(c2),
+' c3:', COLLATION(c3),
+' c4:', COLLATION(c4),
+' p1:', COLLATION(p1),
+' p2:', COLLATION(p2),
+' p3:', COLLATION(p3),
+' p4:', COLLATION(p4));
+END
+character_set_client	utf8mb4
+collation_connection	utf8mb4_0900_ai_ci
+Database Collation	utf8mb4_0900_ai_ci
+SELECT f2('1', '2', '3', '4'), COLLATION(f2('1', '2', '3', '4'))//
+f2('1', '2', '3', '4')	COLLATION(f2('1', '2', '3', '4'))
+c1:utf8mb4_general_ci c2:utf8mb4_general_ci c3:utf8mb4_general_ci c4:latin1_swedish_ci p1:utf8mb4_general_ci p2:utf8mb4_0900_ai_ci p3:utf8mb4_general_ci p4:latin1_swedish_ci	utf8mb4_general_ci
+DROP FUNCTION f2//
+#
+CREATE FUNCTION f3(
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1),
+c4 CHAR(1) CHARSET latin1)
+RETURNS CHAR(246)
+BEGIN
+DECLARE p1 CHAR(1) CHARSET utf8mb4;
+DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+DECLARE p3 CHAR(1);
+DECLARE p4 CHAR(1) CHARSET latin1;
+RETURN CONCAT('c1:', COLLATION(c1),
+' c2:', COLLATION(c2),
+' c3:', COLLATION(c3),
+' c4:', COLLATION(c4),
+' p1:', COLLATION(p1),
+' p2:', COLLATION(p2),
+' p3:', COLLATION(p3),
+' p4:', COLLATION(p4));
+END//
+SHOW CREATE FUNCTION f3//
+Function	f3
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `f3`(
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1),
+c4 CHAR(1) CHARSET latin1) RETURNS char(246) CHARSET utf8mb4 COLLATE utf8mb4_general_ci
+BEGIN
+DECLARE p1 CHAR(1) CHARSET utf8mb4;
+DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+DECLARE p3 CHAR(1);
+DECLARE p4 CHAR(1) CHARSET latin1;
+RETURN CONCAT('c1:', COLLATION(c1),
+' c2:', COLLATION(c2),
+' c3:', COLLATION(c3),
+' c4:', COLLATION(c4),
+' p1:', COLLATION(p1),
+' p2:', COLLATION(p2),
+' p3:', COLLATION(p3),
+' p4:', COLLATION(p4));
+END
+character_set_client	utf8mb4
+collation_connection	utf8mb4_0900_ai_ci
+Database Collation	utf8mb4_0900_ai_ci
+SELECT f3('1', '2', '3', '4'), COLLATION(f3('1', '2', '3', '4'))//
+f3('1', '2', '3', '4')	COLLATION(f3('1', '2', '3', '4'))
+c1:utf8mb4_general_ci c2:utf8mb4_general_ci c3:utf8mb4_general_ci c4:latin1_swedish_ci p1:utf8mb4_general_ci p2:utf8mb4_0900_ai_ci p3:utf8mb4_general_ci p4:latin1_swedish_ci	utf8mb4_general_ci
+DROP FUNCTION f3//
+#
+CREATE FUNCTION f4(
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1),
+c4 CHAR(1) CHARSET latin1)
+RETURNS CHAR(246)
+BEGIN
+DECLARE p1 CHAR(1) CHARSET utf8mb4;
+DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+DECLARE p3 CHAR(1);
+DECLARE p4 CHAR(1) CHARSET latin1;
+RETURN CONCAT('c1:', COLLATION(c1),
+' c2:', COLLATION(c2),
+' c3:', COLLATION(c3),
+' c4:', COLLATION(c4),
+' p1:', COLLATION(p1),
+' p2:', COLLATION(p2),
+' p3:', COLLATION(p3),
+' p4:', COLLATION(p4));
+END//
+SHOW CREATE FUNCTION f4//
+Function	f4
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `f4`(
+c1 CHAR(1) CHARSET utf8mb4,
+c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+c3 CHAR(1),
+c4 CHAR(1) CHARSET latin1) RETURNS char(246) CHARSET utf8mb4 COLLATE utf8mb4_general_ci
+BEGIN
+DECLARE p1 CHAR(1) CHARSET utf8mb4;
+DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+DECLARE p3 CHAR(1);
+DECLARE p4 CHAR(1) CHARSET latin1;
+RETURN CONCAT('c1:', COLLATION(c1),
+' c2:', COLLATION(c2),
+' c3:', COLLATION(c3),
+' c4:', COLLATION(c4),
+' p1:', COLLATION(p1),
+' p2:', COLLATION(p2),
+' p3:', COLLATION(p3),
+' p4:', COLLATION(p4));
+END
+character_set_client	utf8mb4
+collation_connection	utf8mb4_0900_ai_ci
+Database Collation	utf8mb4_0900_ai_ci
+SELECT f4('1', '2', '3', '4'), COLLATION(f4('1', '2', '3', '4'))//
+f4('1', '2', '3', '4')	COLLATION(f4('1', '2', '3', '4'))
+c1:utf8mb4_general_ci c2:utf8mb4_general_ci c3:utf8mb4_general_ci c4:latin1_swedish_ci p1:utf8mb4_general_ci p2:utf8mb4_0900_ai_ci p3:utf8mb4_general_ci p4:latin1_swedish_ci	utf8mb4_general_ci
+DROP FUNCTION f4//
+#
+# Cleanup
+#
+DROP DATABASE db4_latin1;
+DROP DATABASE db5_utf8mb4_general_ci;
+#
+# Bug#27607720: WRONG UPDATION OF COLLATION AFTER ALTER TABLE COMMAND
+#
+SET SESSION default_collation_for_utf8mb4 = utf8mb4_general_ci;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SHOW GLOBAL VARIABLES LIKE '%default_collation_for_utf8mb4%';
+Variable_name	Value
+default_collation_for_utf8mb4	utf8mb4_0900_ai_ci
+SHOW SESSION VARIABLES LIKE '%default_collation_for_utf8mb4%';
+Variable_name	Value
+default_collation_for_utf8mb4	utf8mb4_general_ci
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE st1 (c1 INT ,c3 varchar(10) UNIQUE KEY);
+SHOW CREATE TABLE st1;
+Table	Create Table
+st1	CREATE TABLE `st1` (
+  `c1` int(11) DEFAULT NULL,
+  `c3` varchar(10) DEFAULT NULL,
+  UNIQUE KEY `c3` (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE st1 DROP COLUMN c1;
+SHOW CREATE TABLE st1;
+Table	Create Table
+st1	CREATE TABLE `st1` (
+  `c3` varchar(10) DEFAULT NULL,
+  UNIQUE KEY `c3` (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE db1;
+USE test;
+SET @@default_collation_for_utf8mb4 = DEFAULT;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+#

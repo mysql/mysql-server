@@ -1,0 +1,169 @@
+SET @start_global_value = @@global.net_write_timeout;
+SELECT @start_global_value;
+@start_global_value
+60
+SET @start_session_value = @@session.net_write_timeout;
+SELECT @start_session_value;
+@start_session_value
+60
+'#--------------------FN_DYNVARS_112_01-------------------------#'
+SET @@global.net_write_timeout = 100;
+SET @@global.net_write_timeout = DEFAULT;
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+60
+SET @@session.net_write_timeout = 200;
+SET @@session.net_write_timeout = DEFAULT;
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+60
+'#--------------------FN_DYNVARS_112_02-------------------------#'
+SET @@global.net_write_timeout = DEFAULT;
+SELECT @@global.net_write_timeout = 60;
+@@global.net_write_timeout = 60
+1
+SET @@session.net_write_timeout = DEFAULT;
+SELECT @@session.net_write_timeout = 60;
+@@session.net_write_timeout = 60
+1
+'#--------------------FN_DYNVARS_112_03-------------------------#'
+SET @@global.net_write_timeout = 1;
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+1
+SET @@global.net_write_timeout = 60020;
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+60020
+SET @@global.net_write_timeout = 65535;
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+65535
+'#--------------------FN_DYNVARS_112_04-------------------------#'
+SET @@session.net_write_timeout = 1;
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+1
+SET @@session.net_write_timeout = 50050;
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+50050
+SET @@session.net_write_timeout = 65535;
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+65535
+'#------------------FN_DYNVARS_112_05-----------------------#'
+SET @@global.net_write_timeout = 0;
+Warnings:
+Warning	1292	Truncated incorrect net_write_timeout value: '0'
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+1
+SET @@global.net_write_timeout = -1024;
+Warnings:
+Warning	1292	Truncated incorrect net_write_timeout value: '-1024'
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+1
+SET @@global.net_write_timeout = 655360354;
+Warnings:
+Warning	1292	Truncated incorrect net_write_timeout value: '655360354'
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+31536000
+SET @@global.net_write_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'net_write_timeout'
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+31536000
+SET @@global.net_write_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'net_write_timeout'
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+31536000
+SET @@global.net_write_timeout = ' ';
+ERROR 42000: Incorrect argument type to variable 'net_write_timeout'
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+31536000
+SET @@session.net_write_timeout = 0;
+Warnings:
+Warning	1292	Truncated incorrect net_write_timeout value: '0'
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+1
+SET @@session.net_write_timeout = -2;
+Warnings:
+Warning	1292	Truncated incorrect net_write_timeout value: '-2'
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+1
+SET @@session.net_write_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'net_write_timeout'
+SET @@session.net_write_timeout = 6555015425;
+Warnings:
+Warning	1292	Truncated incorrect net_write_timeout value: '6555015425'
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+31536000
+SET @@session.net_write_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'net_write_timeout'
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+31536000
+SET @@session.net_write_timeout = ' ';
+ERROR 42000: Incorrect argument type to variable 'net_write_timeout'
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+31536000
+'#------------------FN_DYNVARS_112_06-----------------------#'
+SELECT @@global.net_write_timeout = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='net_write_timeout';
+@@global.net_write_timeout = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_112_07-----------------------#'
+SELECT @@session.net_write_timeout = VARIABLE_VALUE FROM performance_schema.session_variables WHERE VARIABLE_NAME='net_write_timeout';
+@@session.net_write_timeout = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_112_08-----------------------#'
+SET @@global.net_write_timeout = TRUE;
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+1
+SET @@global.net_write_timeout = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect net_write_timeout value: '0'
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+1
+'#---------------------FN_DYNVARS_112_09----------------------#'
+SET @@global.net_write_timeout = 10;
+SELECT @@net_write_timeout = @@global.net_write_timeout;
+@@net_write_timeout = @@global.net_write_timeout
+0
+'#---------------------FN_DYNVARS_112_10----------------------#'
+SET @@net_write_timeout = 100;
+SELECT @@net_write_timeout = @@local.net_write_timeout;
+@@net_write_timeout = @@local.net_write_timeout
+1
+SELECT @@local.net_write_timeout = @@session.net_write_timeout;
+@@local.net_write_timeout = @@session.net_write_timeout
+1
+'#---------------------FN_DYNVARS_112_11----------------------#'
+SET net_write_timeout = 1;
+SELECT @@net_write_timeout;
+@@net_write_timeout
+1
+SELECT local.net_write_timeout;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.net_write_timeout;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT net_write_timeout = @@session.net_write_timeout;
+ERROR 42S22: Unknown column 'net_write_timeout' in 'field list'
+SET @@global.net_write_timeout = @start_global_value;
+SELECT @@global.net_write_timeout;
+@@global.net_write_timeout
+60
+SET @@session.net_write_timeout = @start_session_value;
+SELECT @@session.net_write_timeout;
+@@session.net_write_timeout
+60

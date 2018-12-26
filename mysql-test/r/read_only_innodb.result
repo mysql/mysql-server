@@ -1,0 +1,224 @@
+DROP TABLE IF EXISTS table_11733 ;
+set @orig_sql_mode= @@sql_mode;
+create user test@localhost;
+grant CREATE, SELECT, DROP on *.* to test@localhost;
+set global read_only=0;
+create table table_11733 (a int) engine=InnoDb;
+BEGIN;
+insert into table_11733 values(11733);
+set global read_only=1;
+select @@global.read_only;
+@@global.read_only
+1
+select * from table_11733 ;
+a
+11733
+COMMIT;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+set global read_only=0;
+drop table table_11733 ;
+drop user test@localhost;
+CREATE USER test@localhost;
+GRANT CREATE, SELECT, DROP ON *.* TO test@localhost;
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (0), (1);
+SET GLOBAL read_only=1;
+SELECT * FROM t1;
+a
+0
+1
+BEGIN;
+SELECT * FROM t1;
+a
+0
+1
+COMMIT;
+SET GLOBAL read_only=0;
+FLUSH TABLES WITH READ LOCK;
+SELECT * FROM t1;
+a
+0
+1
+BEGIN;
+SELECT * FROM t1;
+a
+0
+1
+COMMIT;
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP USER test@localhost;
+echo End of 5.1 tests 
+#
+# Bug#33669: Transactional temporary tables do not work under --read-only
+#
+DROP DATABASE IF EXISTS db1;
+# Setup user and tables
+CREATE USER bug33669@localhost;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT) ENGINE=INNODB;
+CREATE TABLE db1.t2 (a INT) ENGINE=INNODB;
+INSERT INTO db1.t1 VALUES (1);
+INSERT INTO db1.t2 VALUES (2);
+GRANT CREATE TEMPORARY TABLES, DROP, INSERT, DELETE, UPDATE,
+SELECT, LOCK TABLES ON db1.* TO bug33669@localhost;
+SET GLOBAL READ_ONLY = ON;
+# Connection con1 (user bug33669):
+
+# Create, insert and drop temporary table:
+
+CREATE TEMPORARY TABLE temp (a INT) ENGINE=INNODB;
+INSERT INTO temp VALUES (1);
+DROP TABLE temp;
+
+# Lock base tables and use temporary table:
+
+CREATE TEMPORARY TABLE temp (a INT) ENGINE=INNODB;
+LOCK TABLES t1 READ, t2 READ;
+SELECT * FROM t1;
+a
+1
+INSERT INTO temp values (1);
+SELECT * FROM t2;
+a
+2
+UNLOCK TABLES;
+DROP TABLE temp;
+
+# Transaction
+
+BEGIN;
+SELECT * FROM t1;
+a
+1
+CREATE TEMPORARY TABLE temp (a INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+INSERT INTO temp VALUES (1);
+SELECT * FROM t2;
+a
+2
+ROLLBACK;
+Warnings:
+Warning	1751	The creation of some temporary tables could not be rolled back.
+SELECT * FROM temp;
+a
+DROP TABLE temp;
+
+# Lock base table as READ and temporary table as WRITE:
+
+CREATE TEMPORARY TABLE temp (a INT) ENGINE=INNODB;
+LOCK TABLES t1 READ, temp WRITE;
+SELECT * FROM t1;
+a
+1
+SELECT * FROM temp;
+a
+INSERT INTO t1 VALUES (1);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+INSERT INTO temp VALUES (1);
+DROP TABLE temp;
+UNLOCK TABLES;
+
+# Lock temporary table that shadows a base table:
+
+CREATE TEMPORARY TABLE t1 (a INT) ENGINE=INNODB;
+LOCK TABLES t1 WRITE;
+DROP TABLE t1;
+SELECT * FROM t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+
+# INSERT SELECT from base table into temporary table:
+
+CREATE TEMPORARY TABLE temp1 (a INT) ENGINE=INNODB;
+CREATE TEMPORARY TABLE temp2 LIKE temp1;
+BEGIN;
+INSERT INTO temp1 VALUES (10);
+INSERT INTO temp2 VALUES (10);
+INSERT INTO temp1 SELECT * FROM t1;
+INSERT INTO temp2 SELECT * FROM t2;
+SELECT * FROM temp1 ORDER BY a;
+a
+1
+10
+SELECT * FROM temp2 ORDER BY a;
+a
+2
+10
+ROLLBACK;
+SELECT * FROM temp1,temp2;
+a	a
+LOCK TABLES t1 READ, t2 READ;
+INSERT INTO temp1 VALUES (10);
+INSERT INTO temp2 VALUES (10);
+INSERT INTO temp1 SELECT * FROM t1;
+INSERT INTO temp2 SELECT * FROM t2;
+SELECT * FROM temp1 ORDER BY a;
+a
+1
+10
+SELECT * FROM temp2 ORDER BY a;
+a
+2
+10
+UNLOCK TABLES;
+DELETE temp1, temp2 FROM temp1, temp2;
+INSERT INTO temp1 VALUES (10);
+INSERT INTO temp2 VALUES (10);
+INSERT INTO temp1 SELECT * FROM t1;
+INSERT INTO temp2 SELECT * FROM t2;
+SELECT * FROM temp1 ORDER BY a;
+a
+1
+10
+SELECT * FROM temp2 ORDER BY a;
+a
+2
+10
+DROP TABLE temp1, temp2;
+
+# INSERT and INSERT SELECT that uses subqueries:
+CREATE TEMPORARY TABLE temp1 (a INT) ENGINE=INNODB;
+CREATE TEMPORARY TABLE temp2 LIKE temp1;
+INSERT INTO temp1 (a) VALUES ((SELECT MAX(a) FROM t1));
+LOCK TABLES t2 READ;
+INSERT INTO temp2 (a) VALUES ((SELECT MAX(a) FROM t2));
+UNLOCK TABLES;
+LOCK TABLES t1 READ, t2 READ;
+INSERT INTO temp1 SELECT * FROM t1 WHERE a < (SELECT MAX(a) FROM t2);
+INSERT INTO temp2 SELECT * FROM t2 WHERE a > (SELECT MAX(a) FROM t1);
+UNLOCK TABLES;
+INSERT INTO temp1 SELECT * FROM t1 WHERE a < (SELECT MAX(a) FROM t2);
+INSERT INTO temp2 SELECT * FROM t2 WHERE a > (SELECT MAX(a) FROM t1);
+SELECT * FROM temp1 ORDER BY a;
+a
+1
+1
+1
+SELECT * FROM temp2 ORDER BY a;
+a
+2
+2
+2
+DROP TABLE temp1, temp2;
+
+# Multiple table update:
+
+CREATE TEMPORARY TABLE temp1 (a INT) ENGINE=INNODB;
+CREATE TEMPORARY TABLE temp2 LIKE temp1;
+INSERT INTO temp1 VALUES (1),(2);
+INSERT INTO temp2 VALUES (3),(4);
+UPDATE temp1,temp2 SET temp1.a = 5, temp2.a = 10;
+SELECT * FROM temp1, temp2;
+a	a
+5	10
+5	10
+5	10
+5	10
+DROP TABLE temp1, temp2;
+
+# Disconnect and cleanup
+
+SET GLOBAL READ_ONLY = OFF;
+DROP USER bug33669@localhost;
+DROP DATABASE db1;

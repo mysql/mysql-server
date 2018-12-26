@@ -1,0 +1,64 @@
+# BUG#37656
+#
+# DESCRIPTION
+#
+#
+#  This test case is tests whether replication works properly when
+#  slave is configured with --lower-case-table-names=1 and replication
+#  rewrite rules are in effect.
+#
+#  It checks four issues:
+# 
+#   (i) master contains capitalized table name
+#
+#  (ii) slave contains lowered case table name
+#
+# (iii) master and slave tables do not differ
+#
+--source include/not_group_replication_plugin.inc
+-- source include/not_windows.inc
+-- source include/not_lowercase1.inc
+-- source include/master-slave.inc
+
+SET SQL_LOG_BIN=0;
+CREATE DATABASE B37656;
+SET SQL_LOG_BIN=1;
+
+-- connection slave
+CREATE DATABASE BUG37656;
+
+-- echo ### action: show that database on slave is created in lowercase
+SHOW DATABASES LIKE '%37656';
+
+-- connection master
+USE B37656;
+CREATE TABLE T1 (a int);
+INSERT INTO T1 VALUES (1);
+
+-- echo ### assertion: master contains capitalized case table
+# this fixes result mismatches for MacOSX
+--replace_result Tables_in_b37656 Tables_in_B37656
+SHOW TABLES;
+
+--source include/sync_slave_sql_with_master.inc
+
+use bug37656;
+
+-- echo ### assertion: slave contains lowered case table
+SHOW TABLES;
+
+-- echo ### assertion: master and slave tables do not differ
+-- let $diff_tables= master:B37656.T1, slave:bug37656.t1
+-- source include/diff_tables.inc
+
+-- connection master
+SET SQL_LOG_BIN=0;
+DROP DATABASE B37656;
+SET SQL_LOG_BIN=1;
+SHOW DATABASES LIKE '%37656';
+
+-- connection slave
+DROP DATABASE BUG37656;
+SHOW DATABASES LIKE '%37656';
+
+--source include/rpl_end.inc

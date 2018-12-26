@@ -1,0 +1,279 @@
+############## mysql-test\t\character_set_database_basic.test #################
+#                                                                             #
+# Variable Name: character_set_database                                       #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value: latin1 (session), latin1 (global)                            #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable character_set_database   #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+--source include/load_sysvars.inc
+###################################################
+##       START OF character_set_database TESTS   ##
+###################################################
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+SET @global_start_value = @@global.character_set_database;
+SELECT @global_start_value;
+# Save initial session value
+SET @session_start_value = @@character_set_database;
+SELECT @session_start_value;
+# now save using local access 
+SET @session_start_value = @@local.character_set_database;
+SELECT @session_start_value;
+# save using default access (session)
+SET @session_start_value = @@session.character_set_database;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_012_01------------------#'
+##############################################################################
+#       Test Variable access and assignment with and withoud @@              #
+##############################################################################
+# select without @@
+--error ER_BAD_FIELD_ERROR
+SELECT character_set_database;
+# assign value without @@
+SET character_set_database=utf8;
+SELECT @@session.character_set_database;
+# assign global variable without @@
+--Error ER_PARSE_ERROR
+SET global.character_set_database=utf8;
+# using another syntax for accessing session variable
+SET session character_set_database=utf8;
+# accessing variable with scope the wrong way
+--Error ER_BAD_FIELD_ERROR
+SELECT session character_set_database;
+# using another syntax for accessing dynamic variable
+SET global character_set_database=utf8;
+--Error ER_BAD_FIELD_ERROR
+SELECT global character_set_database;
+
+--echo '#--------------------FN_DYNVARS_012_02-------------------------#'
+###############################################################################
+# Check the DEFAULT value of character_set_database for session and global    #
+###############################################################################
+SET @@character_set_database = latin5;
+SET @@character_set_database = DEFAULT;
+SELECT @@character_set_database AS DEFAULT_VALUE;
+
+SET @@global.character_set_database = latin5;
+SET @@global.character_set_database = DEFAULT;
+SELECT @@global.character_set_database;
+
+--echo '#--------------------FN_DYNVARS_012_03-------------------------#'
+##############################################################################
+#     see if setting global value changes session value and vice versa       #
+##############################################################################
+SET @@session.character_set_database = utf8;
+SELECT @@session.character_set_database;
+SET @@global.character_set_database = latin2;
+SELECT @@global.character_set_database;
+SELECT @@session.character_set_database AS res_is_utf8;
+
+SET @@session.character_set_database = latin5;
+SELECT @@session.character_set_database;
+SELECT @@global.character_set_database AS res_is_latin2;
+# composite check
+SELECT @@global.character_set_database=@@session.character_set_database
+AS res_is_false;
+
+--echo '#--------------------FN_DYNVARS_012_04-------------------------#'
+##############################################################################
+# Check if accessing variable with and without session point to session      #
+# variable                                                                   #
+##############################################################################
+SELECT @@character_set_database = @@session.character_set_database AS res;
+SELECT @@character_set_database = @@local.character_set_database AS res;
+
+--echo '#--------------------FN_DYNVARS_012_05-------------------------#'
+###########################################################################
+#     Check if combining character set works                              #
+###########################################################################
+--Error ER_BAD_FIELD_ERROR
+SET @@character_set_database = utf8 + latin2;
+
+--echo '#--------------------FN_DYNVARS_012_06-------------------------#'
+#############################################################################
+# Change the value of character_set_database to a valid value for session   #
+#############################################################################
+
+let charset_variable = @@session.character_set_database;
+--source suite/sys_vars/inc/charset_basic.inc
+
+
+--echo '#--------------------FN_DYNVARS_012_07-------------------------#'
+##############################################################################
+#     Change the value of character_set_database to a valid value for global #
+##############################################################################
+
+let charset_variable = @@global.character_set_database;
+--source suite/sys_vars/inc/charset_basic.inc
+
+
+--echo '#--------------------FN_DYNVARS_012_08-------------------------#'
+##############################################################################
+# Change the value of character_set_database to a valid value with uppercase,#
+# lowercase and mixedcase                                                    #
+##############################################################################
+SET @@character_set_database = UTF8;
+SELECT @@character_set_database;
+SET @@character_set_database = utf8;
+SELECT @@character_set_database;
+
+SET @@global.character_set_database = uTf8;
+SELECT @@global.character_set_database;
+
+--echo '#--------------------FN_DYNVARS_012_09-------------------------#'
+##############################################################
+#     Check if 1,2,3, ... values can be used on variable     #
+##############################################################
+SET @@character_set_database = 1;
+SELECT @@character_set_database;
+SET @@character_set_database = 2;
+SELECT @@character_set_database;
+SET @@character_set_database = 3;
+SELECT @@character_set_database;
+SET @@character_set_database = 36;
+SELECT @@character_set_database;
+SET @@character_set_database = 99;
+SELECT @@character_set_database;
+
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_database = 100;
+
+
+SET @@global.character_set_database = 1;
+SELECT @@global.character_set_database;
+SET @@global.character_set_database = 2;
+SELECT @@global.character_set_database;
+SET @@global.character_set_database = 3;
+SELECT @@global.character_set_database;
+SET @@global.character_set_database = 36;
+SELECT @@global.character_set_database;
+SET @@global.character_set_database = 99;
+SELECT @@global.character_set_database;
+
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = 100;
+
+
+SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
+SELECT @total_charset;
+
+--echo '#--------------------FN_DYNVARS_012_10-------------------------#'
+##############################################################################
+# Change the value of character_set_database to an invalid value for session #
+##############################################################################
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_database = "grek";
+--Error ER_PARSE_ERROR
+SET @@character_set_database = utf 8;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_database = 0;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@character_set_database = 1.1;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_database = -1;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_database = '';
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_database = 'latin 2';
+SET @@character_set_database = true;
+SELECT @@character_set_database AS res_with_true;
+
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_database = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_database = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_database = repeat('e', 1024);
+
+--echo '#--------------------FN_DYNVARS_012_11-------------------------#'
+###############################################################################
+#   Change the value of character_set_database to an invalid value for global #
+###############################################################################
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = abc;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = 1utf8;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = 0;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.character_set_database = 1.1;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = -1;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = '';
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = 'utf';
+
+SET @@global.character_set_database = true;
+
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_database = repeat('e', 1024);
+
+--echo '#--------------------FN_DYNVARS_012_12-------------------------#'
+############################################################################
+#     Check if the value in GLOBAL Table matches value in variable         #
+############################################################################
+--disable_warnings
+SELECT @@global.character_set_database =
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='character_set_database') AS res;
+--enable_warnings
+SET @@global.character_set_database = 1;
+SELECT @@global.character_set_database;
+--disable_warnings
+SELECT @@global.character_set_database =
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='character_set_database') AS res;
+--enable_warnings
+
+--echo '#--------------------FN_DYNVARS_012_13-------------------------#'
+##############################################################################
+#     Check if the value in SESSION Table matches value in variable          #
+##############################################################################
+--disable_warnings
+SELECT @@character_set_database =
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+  WHERE VARIABLE_NAME='character_set_database') AS res;
+SELECT @@local.character_set_database =
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+  WHERE VARIABLE_NAME='character_set_database') AS res;
+SELECT @@session.character_set_database =
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+  WHERE VARIABLE_NAME='character_set_database') AS res;
+--enable_warnings
+
+####################################
+#     Restore initial value        #
+####################################
+SET @@global.character_set_database = @global_start_value;
+SELECT @@global.character_set_database;
+SET @@session.character_set_database = @session_start_value;
+SELECT @@session.character_set_database;
+
+#############################################################
+#               END OF character_set_database TESTS         #
+#############################################################

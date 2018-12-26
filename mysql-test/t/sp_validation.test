@@ -1,0 +1,2167 @@
+# This test file contains a collection of tests developed for
+# WL#4179 (Stored programs: validation of stored program statements).
+#
+# The main idea of the tests here is to check that a stored program
+# properly handles metadata changes of the objects being used by
+# the stored program.
+
+###########################################################################
+###########################################################################
+
+--echo
+--echo #
+--echo # WL#4179: Stored programs: validation of stored program statements.
+--echo #
+--echo
+
+###########################################################################
+###########################################################################
+
+--echo # The test case below demonstrates that meta-data changes are detected
+--echo # by triggers.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t3 (a INT);
+
+INSERT INTO t2 VALUES (11, 12), (21, 22);
+
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW
+  INSERT INTO t1 SELECT * FROM t2;
+
+INSERT INTO t3 (a) VALUES (1);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+ALTER TABLE t1 ADD COLUMN c INT;
+ALTER TABLE t2 ADD COLUMN c INT;
+INSERT INTO t2 VALUES (31, 32, 33);
+
+INSERT INTO t3 (a) VALUES (2);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+###########################################################################
+
+--echo
+--echo # Check that NEW/OLD rows work within triggers.
+--echo
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1(a) VALUES (1);
+
+delimiter |;
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+  SET @a = OLD.a;
+  SET @b = NEW.a;
+  SELECT OLD.a INTO @c;
+  SELECT NEW.a INTO @d;
+
+  SET NEW.a = NEW.a * 2;
+END|
+
+delimiter ;|
+
+UPDATE t1 SET a = a * 10;
+
+SELECT @a, @c, @b, @d;
+
+SELECT a FROM t1;
+
+DROP TABLE t1;
+
+###########################################################################
+
+--echo
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE PROCEDURE p1()
+  SELECT * FROM t1;
+
+CALL p1();
+
+--echo
+--echo # 1.1 Check if added column into table is recognized correctly
+--echo # in a stored procedure.
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 0;
+CALL p1();
+
+--echo
+--echo # 1.2 Check if dropped column is not appeared in SELECT query
+--echo # executed inside a stored procedure.
+ALTER TABLE t1 DROP COLUMN a;
+CALL p1();
+
+--echo
+--echo # 1.3 Check if changed column is picked up properly.
+ALTER TABLE t1 CHANGE COLUMN b b VARCHAR(255) DEFAULT 'n/a';
+DELETE FROM t1;
+INSERT INTO t1 VALUES (b), ('hello');
+CALL p1();
+
+--echo
+--echo # 1.4 Check if table's recreation is handled correctly
+--echo # inside a call of stored procedure. 
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE PROCEDURE p1()
+  SELECT * FROM t1;
+
+CALL p1();
+
+DROP TABLE t1;
+
+--error ER_NO_SUCH_TABLE
+CALL p1();
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+CALL p1();
+
+--echo
+--echo # 1.5 Recreate table t1 with another set of columns and
+--echo # re-call a stored procedure.
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE PROCEDURE p1()
+  SELECT * FROM t1;
+
+CALL p1();
+
+DROP TABLE t1;
+
+--error ER_NO_SUCH_TABLE
+CALL p1();
+
+CREATE TABLE t1 (b VARCHAR(10), c VARCHAR(10));
+INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
+
+CALL p1();
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+###########################################################################
+
+--echo
+--echo # 2.1 Stored program that uses query like 'SELECT * FROM v' must be
+--echo # re-executed successfully if some columns were added into the view
+--echo # definition by ALTER VIEW;
+
+CREATE VIEW v1 AS SELECT 1, 2, 3;
+
+CREATE PROCEDURE p1()
+  SELECT * FROM v1;
+
+CALL p1();
+
+ALTER VIEW v1 AS SELECT 1, 2, 3, 4, 5;
+
+CALL p1();
+
+--echo
+--echo # 2.2 Stored program that uses query like 'SELECT * FROM v' must be
+--echo # re-executed successfully if some columns were removed from the view
+--echo # definition by ALTER VIEW;
+
+ALTER VIEW v1 AS SELECT 1, 5;
+
+CALL p1();
+
+--echo
+--echo # 2.3 Stored program that uses query like 'SELECT * FROM v' must be
+--echo # re-executed successfully if a base table for the view being used was
+--echo # extended by new columns (by ALTER TABLE);
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+  SELECT * FROM v1;
+
+CALL p1();
+
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 3;
+
+# NOTE: this behaviour differs from the one of regular tables -- the thing is
+# that "The view definition is “frozen” at creation time, so changes to the
+# underlying tables afterward do not affect the view definition."
+# (http://dev.mysql.com/doc/refman/5.0/en/create-view.html).
+# So, this call should return 2 (not 3) columns.
+CALL p1();
+
+--echo
+--echo # 2.4 Stored program that uses query like 'SELECT * FROM v' must be
+--echo # re-executed successfully if not used columns were removed from the
+--echo # base table of this view (by ALTER TABLE);
+
+DROP TABLE t1;
+CREATE TABLE t1(a INT, b INT, c INT);
+INSERT INTO t1 VALUES (1, 2, 3);
+
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT b, c FROM t1;
+
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+  SELECT * FROM v1;
+
+CALL p1();
+
+ALTER TABLE t1 DROP COLUMN a;
+
+CALL p1();
+
+ALTER TABLE t1 DROP COLUMN b;
+
+# NOTE: see the note above about view specific. Must-have column has been
+# dropped -- the view has become invalid.
+--error ER_VIEW_INVALID
+CALL p1();
+
+--echo
+--echo # 2.5 Stored program that uses query like 'SELECT * FROM v' must be
+--echo # re-executed successfully if a type of some base table's columns were
+--echo # changed (by ALTER TABLE);
+
+DROP TABLE t1;
+CREATE TABLE t1(a INT, b INT, c INT);
+INSERT INTO t1 VALUES (1, 2, 3);
+
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT b, c FROM t1;
+
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1()
+  SELECT * FROM v1;
+
+CALL p1();
+
+ALTER TABLE t1 CHANGE COLUMN b b VARCHAR(255) DEFAULT 'n/a';
+DELETE FROM t1;
+INSERT INTO t1(a, c) VALUES (10, 30);
+
+CALL p1();
+
+--echo
+--echo # 2.6 Stored program that uses query like 'SELECT * FROM v' must be
+--echo # re-executed successfully if the view 'v' was dropped and created again
+--echo # with the same definition;
+--echo #
+--echo # 2.7 Stored program that uses query like 'SELECT * FROM v' must be
+--echo # re-executed successfully if the view 'v' was dropped and created again
+--echo # with different, but compatible definition.
+
+DROP VIEW v1;
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+CREATE VIEW v1 AS SELECT 1, 2, 3;
+
+CREATE PROCEDURE p1()
+  SELECT * FROM v1;
+
+CALL p1();
+
+DROP VIEW v1;
+
+--error ER_NO_SUCH_TABLE
+CALL p1();
+
+CREATE VIEW v1 AS SELECT 4, 5, 6;
+
+CALL p1();
+
+--echo
+--echo # 2.8 Stored program that uses query like 'SELECT * FROM v' must be
+--echo # re-executed successfully if the view base tables have been re-created
+--echo # using the same or compatible definition.
+
+DROP VIEW v1;
+DROP PROCEDURE p1;
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CREATE PROCEDURE p1()
+  SELECT * FROM v1;
+
+CALL p1();
+
+DROP TABLE t1;
+
+--error ER_VIEW_INVALID
+CALL p1();
+
+CREATE TABLE t1(a VARCHAR(255), b VARCHAR(255));
+INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
+
+CALL p1();
+
+DROP VIEW v1;
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+--echo 
+--echo # 3.1 Stored program that uses query like 'SELECT * FROM t' must be
+--echo # re-executed successfully if some columns were added into temporary table
+--echo # table 't' (by ALTER TABLE);
+
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE PROCEDURE p1() SELECT * FROM t1;
+
+CALL p1();
+
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 3;
+
+CALL p1();
+
+--echo 
+--echo # 3.2 Stored program that uses query like 'SELECT * FROM t' must be
+--echo # re-executed successfully if some columns were removed from temporary
+--echo # table 't' (by ALTER TABLE);
+
+ALTER TABLE t1 DROP COLUMN a;
+
+CALL p1();
+
+--echo 
+--echo # 3.3 Stored program that uses query like 'SELECT * FROM t' must be
+--echo # re-executed successfully if a type of some temporary table's columns were
+--echo # changed (by ALTER TABLE);
+
+ALTER TABLE t1 CHANGE COLUMN b b VARCHAR(255) DEFAULT 'n/a';
+INSERT INTO t1(c) VALUES (4);
+
+CALL p1();
+
+--echo 
+--echo # 3.4 Stored program that uses query like 'SELECT * FROM t' must be
+--echo # re-executed successfully if the temporary table 't' was dropped and
+--echo # created again with the same definition;
+--echo #
+--echo # 3.5 Stored program that uses query like 'SELECT * FROM t' must be
+--echo # re-executed successfully if the temporary table 't' was dropped and
+--echo # created again with different, but compatible definition.
+
+DROP TEMPORARY TABLE t1;
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CALL p1();
+
+DROP TEMPORARY TABLE t1;
+CREATE TEMPORARY TABLE t1(a VARCHAR(255), b VARCHAR(255), c VARCHAR(255));
+INSERT INTO t1 VALUES ('aa', 'bb', 'cc');
+
+CALL p1();
+
+DROP TEMPORARY TABLE t1;
+DROP PROCEDURE p1;
+
+###########################################################################
+
+--echo
+--echo # 4.1 Stored program must fail when it is re-executed after a table's column
+--echo # that this program is referenced to has been removed;
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE PROCEDURE p1() SELECT a, b FROM t1;
+
+CALL p1();
+
+ALTER TABLE t1 DROP COLUMN b;
+
+--error ER_BAD_FIELD_ERROR
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+--echo
+--echo # 4.2 Stored program must fail when it is re-executed after a temporary
+--echo # table's column that this program is referenced to has been removed;
+
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE PROCEDURE p1() SELECT a, b FROM t1;
+
+CALL p1();
+
+ALTER TABLE t1 DROP COLUMN b;
+
+--error ER_BAD_FIELD_ERROR
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TEMPORARY TABLE t1;
+
+--echo
+--echo # 4.3 Stored program must fail when it is re-executed after a view's
+--echo # column that this program is referenced to has been removed;
+
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+
+CREATE PROCEDURE p1() SELECT a, b FROM v1;
+
+CALL p1();
+
+ALTER VIEW v1 AS SELECT 1 AS a;
+
+--error ER_BAD_FIELD_ERROR
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP VIEW v1;
+
+--echo
+--echo # 4.4 Stored program must fail when it is re-executed after a regular table
+--echo # that this program referenced to was removed;
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE PROCEDURE p1() SELECT a, b FROM t1;
+
+CALL p1();
+
+DROP TABLE t1;
+
+--error ER_NO_SUCH_TABLE
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # 4.5 Stored program must fail when it is re-executed after a view that
+--echo # this program referenced to was removed;
+
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+
+CREATE PROCEDURE p1() SELECT a, b FROM v1;
+
+CALL p1();
+
+DROP VIEW v1;
+
+--error ER_NO_SUCH_TABLE
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # 4.6 Stored program must fail when it is re-executed after a temporary
+--echo # table that this program referenced to was removed;
+
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE PROCEDURE p1() SELECT a, b FROM t1;
+
+CALL p1();
+
+DROP TABLE t1;
+
+--error ER_NO_SUCH_TABLE
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # 4.7 Stored program must fail if the program executes some
+--echo # SQL-statement and afterwards re-executes it again when some table 't'
+--echo # referenced by the statement was dropped in the period between statement
+--echo # execution;
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR 1146
+    SELECT 'Table t1 does not exist anymore' as msg;
+
+  SELECT * FROM t1;
+  INSERT INTO t2 VALUES (1);
+
+  SELECT GET_LOCK('m1', 10000);
+  
+  SELECT * FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+--echo # -- connection: con1
+--connect (con1, localhost, root)
+
+SELECT GET_LOCK('m1', 0);
+
+--echo
+--echo # -- connection: default
+--connection default
+
+--send CALL p1()
+
+--echo
+--echo # -- connection: con1
+--connection con1
+
+let $wait_condition = SELECT COUNT(*) = 1 FROM t2;
+--source include/wait_condition.inc
+
+DROP TABLE t1;
+
+SELECT RELEASE_LOCK('m1');
+
+--echo
+--echo # -- connection: default
+--connection default
+
+--reap
+
+--disconnect con1
+
+DROP TABLE t2;
+DROP PROCEDURE p1;
+
+###########################################################################
+
+--echo 
+--echo # 5.1 Regular table -> View
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE PROCEDURE p1() SELECT * FROM t1;
+
+CALL p1();
+
+DROP TABLE t1;
+CREATE VIEW t1 AS SELECT 1 AS a, 2 AS b;
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP VIEW t1;
+
+--echo
+--echo # 5.2 Regular table -> Temporary table
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE PROCEDURE p1() SELECT * FROM t1;
+
+CALL p1();
+
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TEMPORARY TABLE t1;
+
+--echo
+--echo # 5.3 View -> Regular table
+
+CREATE VIEW t1 AS SELECT 1 AS a, 2 AS b;
+
+CREATE PROCEDURE p1() SELECT * FROM t1;
+
+CALL p1();
+
+DROP VIEW t1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+--echo
+--echo # 5.4 View -> Temporary table
+
+CREATE VIEW t1 AS SELECT 1 AS a, 2 AS b;
+
+CREATE PROCEDURE p1() SELECT * FROM t1;
+
+CALL p1();
+
+DROP VIEW t1;
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TEMPORARY TABLE t1;
+
+--echo
+--echo # 5.5 Temporary table -> View
+
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE PROCEDURE p1() SELECT * FROM t1;
+
+CALL p1();
+
+DROP TEMPORARY TABLE t1;
+
+CREATE VIEW t1 AS SELECT 1 AS a, 2 AS b;
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP VIEW t1;
+
+--echo
+--echo # 5.6 Temporary table -> Regular table
+
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CREATE PROCEDURE p1() SELECT * FROM t1;
+
+CALL p1();
+
+DROP TEMPORARY TABLE t1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+###########################################################################
+
+--echo
+--echo # 6.1 Trigger that uses column 'a' of table 't' via pseudo-variable NEW
+--echo # must be re-executed successfully if the table definition has been changed
+--echo # in a compatible way. "Compatible way" in this case is that if the table
+--echo # 't' still has a column named 'a' and the column type is compatible with
+--echo # the operation that NEW.a takes part of.
+--echo #
+--echo # 6.2 Trigger that uses column 'a' of table 't' via pseudo-variable OLD
+--echo # must be re-executed successfully if the table definition has been changed
+--echo # in a compatible way. "Compatible way" in this case is that if the table
+--echo # 't' still has a column named 'a' and the column type is compatible with
+--echo # the operation that OLD.a takes part of.
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+  SET @x = OLD.a;
+  SET @y = NEW.a;
+END|
+
+delimiter ;|
+
+--echo
+SET @x = 0, @y = 0;
+UPDATE t1 SET a = 3, b = 4;
+SELECT @x, @y;
+
+--echo
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT -1;
+
+--echo
+SET @x = 0, @y = 0;
+UPDATE t1 SET a = 5, b = 6;
+SELECT @x, @y;
+
+--echo
+ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(255);
+
+--echo
+SET @x = 0, @y = 0;
+UPDATE t1 SET a = CONCAT('xxx_', a), b = 7;
+SELECT @x, @y;
+
+--echo
+DROP TABLE t1;
+
+--echo
+--echo # 6.3 Re-execution of a trigger that uses column 'a' of table 't' via
+--echo # pseudo-variable NEW must fail if the table definition has been changed in
+--echo # the way that the column 'a' does not exist anymore.
+--echo # 
+--echo # 6.4 Re-execution of a trigger that uses column 'a' of table 't' via
+--echo # pseudo-variable OLD must fail if the table definition has been changed in
+--echo # the way that the column 'a' does not exist anymore.
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+  SET @x = OLD.a;
+  SET @y = NEW.b;
+END|
+
+delimiter ;|
+
+--echo
+UPDATE t1 SET a = 3, b = 4;
+
+--echo
+ALTER TABLE t1 CHANGE COLUMN a a2 INT;
+
+--echo
+--error ER_BAD_FIELD_ERROR
+UPDATE t1 SET a2 = 5, b = 6;
+
+--echo
+ALTER TABLE t1 CHANGE COLUMN a2 a INT;
+ALTER TABLE t1 CHANGE COLUMN b b2 INT;
+
+--echo
+--error ER_BAD_FIELD_ERROR
+UPDATE t1 SET a = 5, b2 = 6;
+
+--echo
+DROP TABLE t1;
+
+###########################################################################
+
+--echo
+--echo # 7.1 Setup:
+--echo #   - stored program 'a', which alters regular table 't' in a compatible
+--echo #     way;
+--echo #   - stored program 'b', which calls 'a' and uses 't' before and after the
+--echo #     call;
+--echo # Stored program 'b' must be executed successfully.
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+  ALTER TABLE t1 ADD COLUMN c INT DEFAULT 3|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM t1;
+  CALL p1();
+  SELECT a, b FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP TABLE t1;
+
+--echo
+--echo # 7.2 Setup:
+--echo #   - stored program 'a', which alters temporary table 't' in a compatible
+--echo #     way;
+--echo #   - stored program 'b', which calls 'a' and uses 't' before and after the
+--echo #     call;
+--echo # Stored program 'b' must be executed successfully.
+
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+  ALTER TABLE t1 ADD COLUMN c INT DEFAULT 3|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM t1;
+  CALL p1();
+  SELECT a, b FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP TEMPORARY TABLE t1;
+
+--echo
+--echo # 7.3 Setup:
+--echo #   - stored program 'a', which re-creates regular table 't' in a
+--echo #     compatible way;
+--echo #   - stored program 'b', which calls 'a' and uses 't' before and after the
+--echo #     call;
+--echo # Stored program 'b' must be executed successfully.
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DROP TABLE t1;
+  CREATE TABLE t1(a INT, b INT, c INT);
+  INSERT INTO t1 VALUES (1, 2, 3);
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM t1;
+  CALL p1();
+  SELECT a, b FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP TABLE t1;
+
+--echo
+--echo # 7.4 Setup:
+--echo #   - stored program 'a', which re-creates temporary table 't' in a
+--echo #     compatible way;
+--echo #   - stored program 'b', which calls 'a' and uses 't' before and after the
+--echo #     call;
+--echo # Stored program 'b' must be executed successfully.
+
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DROP TEMPORARY TABLE t1;
+  CREATE TEMPORARY TABLE t1(a INT, b INT, c INT);
+  INSERT INTO t1 VALUES (1, 2, 3);
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM t1;
+  CALL p1();
+  SELECT a, b FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP TEMPORARY TABLE t1;
+
+--echo
+--echo # 7.5 Setup:
+--echo #   - stored program 'a', which re-creates view 'v' in a compatible way;
+--echo #   - stored program 'b', which calls 'a' and uses 'v' before and after the
+--echo #     call;
+--echo # Stored program 'b' must be executed successfully.
+
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DROP VIEW v1;
+  CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b, 3 AS c;
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM v1;
+  CALL p1();
+  SELECT a, b FROM v1;
+END|
+
+delimiter ;|
+
+--echo
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP VIEW v1;
+
+--echo
+--echo # 7.6 Setup:
+--echo #   - stored program 'a', which alters regular table 't' in an incompatible
+--echo #     way;
+--echo #   - stored program 'b', which calls 'a' and uses 't' before and after the
+--echo #     call;
+--echo # Stored program 'b' must fail on access to the table after its
+--echo # modification.
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+  ALTER TABLE t1 DROP COLUMN a|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM t1;
+  CALL p1();
+  SELECT a, b FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+--error ER_BAD_FIELD_ERROR
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP TABLE t1;
+
+--echo
+--echo # 7.7 Setup:
+--echo #   - stored program 'a', which alters temporary table 't' in an
+--echo #     incompatible way;
+--echo #   - stored program 'b', which calls 'a' and uses 't' before and after the
+--echo #     call;
+--echo # Stored program 'b' must fail on access to the table after its
+--echo # modification.
+
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+  ALTER TABLE t1 DROP COLUMN a|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM t1;
+  CALL p1();
+  SELECT a, b FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+--error ER_BAD_FIELD_ERROR
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP TEMPORARY TABLE t1;
+
+--echo
+--echo # 7.8 Setup:
+--echo #   - stored program 'a', which re-creates regular table 't' in an
+--echo #     incompatible way;
+--echo #   - stored program 'b', which calls 'a' and uses 't' before and after the
+--echo #     call;
+--echo # Stored program 'b' must fail on access to the table after its
+--echo # modification.
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DROP TABLE t1;
+  CREATE TABLE t1(b INT, c INT);
+  INSERT INTO t1 VALUES (2, 3);
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM t1;
+  CALL p1();
+  SELECT a, b FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+--error ER_BAD_FIELD_ERROR
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP TABLE t1;
+
+--echo
+--echo # 7.9 Setup:
+--echo #   - stored program 'a', which re-creates temporary table 't' in an
+--echo #     incompatible way;
+--echo #   - stored program 'b', which calls 'a' and uses 't' before and after the
+--echo #     call;
+--echo # Stored program 'b' must fail on access to the table after its
+--echo # modification.
+
+CREATE TEMPORARY TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DROP TEMPORARY TABLE t1;
+  CREATE TEMPORARY TABLE t1(b INT, c INT);
+  INSERT INTO t1 VALUES (2, 3);
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM t1;
+  CALL p1();
+  SELECT a, b FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+--error ER_BAD_FIELD_ERROR
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP TEMPORARY TABLE t1;
+
+--echo
+--echo # 7.10 Setup:
+--echo #   - stored program 'a', which re-creates view 'v' in an incompatible way;
+--echo #   - stored program 'b', which calls 'a' and uses 'v' before and after the
+--echo #     call;
+--echo # Stored program 'b' must fail on access to the view after its
+--echo # modification.
+
+CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DROP VIEW v1;
+  CREATE VIEW v1 AS SELECT 2 AS b, 3 AS c;
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT a, b FROM v1;
+  CALL p1();
+  SELECT a, b FROM v1;
+END|
+
+delimiter ;|
+
+--echo
+--error ER_BAD_FIELD_ERROR
+CALL p2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+DROP VIEW v1;
+
+###########################################################################
+
+--echo # 8. Stored program must be executed successfully when:
+--echo #  a. the program uses a table/view/temporary table that doesn't exist
+--echo #     at the time of start program execution
+--echo #  b. failed reference to the missed table/view/temporary table handled
+--echo #     by stored program
+--echo #  c. this table/view/temporary table is created as part of the
+--echo #     program execution
+--echo #  d. stored program gets access to newly created table/view/temporary
+--echo #     table from some SQL-statement during subsequent stored program execution.
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+  BEGIN
+    SELECT 'SQLEXCEPTION caught' AS msg;
+    CREATE TABLE t1(a INT, b INT);
+    INSERT INTO t1 VALUES (1, 2);
+  END;
+
+  SELECT * FROM t1;
+  SELECT * FROM t1;
+
+  DROP TABLE t1;
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+  BEGIN
+    SELECT 'SQLEXCEPTION caught' AS msg;
+    CREATE TEMPORARY TABLE t1(a INT, b INT);
+    INSERT INTO t1 VALUES (1, 2);
+  END;
+
+  SELECT * FROM t1;
+  SELECT * FROM t1;
+
+  DROP TEMPORARY TABLE t1;
+END|
+
+CREATE PROCEDURE p3()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+  BEGIN
+    SELECT 'SQLEXCEPTION caught' AS msg;
+    CREATE VIEW v1 AS SELECT 1 AS a, 2 AS b;
+  END;
+
+  SELECT * FROM v1;
+  SELECT * FROM v1;
+
+  DROP VIEW v1;
+END|
+
+delimiter ;|
+
+CALL p1();
+
+CALL p2();
+
+CALL p3();
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+
+###########################################################################
+
+--echo
+--echo # 9. Stored program must be executed successfully when
+--echo #    - the stored program has an expression in one of the following
+--echo #      statements
+--echo #      - RETURN
+--echo #      - IF
+--echo #      - CASE
+--echo #      - WHILE
+--echo #      - UNTIL
+--echo #      - SET
+--echo #    - the expression depends on the meta-data of some table/view/temporary table;
+--echo #    - the meta-data of dependent object has changed in a compatible way.
+--echo #
+--echo #    Note, that CASE-expression must be evaluated once even if (some)
+--echo #    CASE-expressions need to be re-parsed.
+--echo #
+--echo # 10. Subsequent executions of a stored program must fail when
+--echo #    - the stored program has an expression in one of the following
+--echo #      statements
+--echo #      - RETURN
+--echo #      - IF
+--echo #      - CASE
+--echo #      - WHILE
+--echo #      - UNTIL
+--echo #      - SET
+--echo #    - the expression depends on the meta-data of some table/view/temporary table;
+--echo #    - the meta-data of dependent object has changed in a non-compatible way.
+--echo #
+--echo #    Note, that CASE-expression must be evaluated once even if (some)
+--echo #    CASE-expressions need to be re-parsed.
+
+###########################################################################
+
+--echo
+--echo # Check IF-statement.
+--echo
+
+delimiter |;
+
+# NOTE: check also that spaces (no spaces) don't matter.
+
+CREATE PROCEDURE p1()
+BEGIN
+  IF(SELECT * FROM t1)THEN
+    SELECT 1;
+  ELSE
+    SELECT 2;
+  END IF;
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE v INT DEFAULT 1;
+
+  IF v * (SELECT * FROM t1) THEN
+    SELECT 1;
+  ELSE
+    SELECT 2;
+  END IF;
+END|
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  IF (SELECT * FROM t1) THEN
+    RETURN 1;
+  ELSE
+    RETURN 2;
+  END IF;
+
+  RETURN 3;
+END|
+
+CREATE FUNCTION f2() RETURNS INT
+BEGIN
+  DECLARE v INT DEFAULT 1;
+
+  IF v * (SELECT * FROM t1) THEN
+    RETURN 1;
+  ELSE
+    RETURN 2;
+  END IF;
+
+  RETURN 3;
+END|
+
+delimiter ;|
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+
+--echo
+CALL p1();
+CALL p2();
+SELECT f1();
+SELECT f2();
+--echo
+
+UPDATE t1 SET a = 0;
+
+--echo
+CALL p1();
+CALL p2();
+SELECT f1();
+SELECT f2();
+--echo
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 1;
+
+--echo
+
+--error ER_OPERAND_COLUMNS
+CALL p1();
+
+--error ER_OPERAND_COLUMNS
+CALL p2();
+
+--error ER_OPERAND_COLUMNS
+SELECT f1();
+
+--error ER_OPERAND_COLUMNS
+SELECT f2();
+
+--echo
+
+ALTER TABLE t1 DROP COLUMN a;
+
+--echo
+CALL p1();
+CALL p2();
+SELECT f1();
+SELECT f2();
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+
+###########################################################################
+
+--echo
+--echo # Check WHILE-statement.
+--echo
+
+delimiter |;
+
+# NOTE: check also that spaces (no spaces) don't matter.
+
+CREATE PROCEDURE p1(x INT)
+BEGIN
+  WHILE(SELECT * FROM t1)DO
+    SELECT x;
+    UPDATE t1 SET a = x;
+    SET x = x - 1;
+  END WHILE;
+END|
+
+delimiter ;|
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+
+CALL p1(3);
+
+UPDATE t1 SET a = 1;
+
+CALL p1(3);
+
+UPDATE t1 SET a = 1;
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 1;
+
+--error ER_OPERAND_COLUMNS
+CALL p1(3);
+
+ALTER TABLE t1 DROP COLUMN a;
+
+# Column 'a' not found for the UPDATE statememnt.
+--error ER_BAD_FIELD_ERROR
+CALL p1(3);
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+###########################################################################
+
+--echo
+--echo # Check REPEAT-statement.
+--echo
+
+delimiter |;
+
+# NOTE: check also that spaces (no spaces) don't matter.
+
+CREATE PROCEDURE p1(x INT)
+BEGIN
+  REPEAT
+    SELECT x;
+    UPDATE t1 SET a = x;
+    SET x = x - 1;
+  UNTIL(NOT (SELECT * FROM t1))END REPEAT;
+END|
+
+delimiter ;|
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+
+CALL p1(3);
+
+UPDATE t1 SET a = 1;
+
+CALL p1(3);
+
+UPDATE t1 SET a = 1;
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 1;
+
+--error ER_OPERAND_COLUMNS
+CALL p1(3);
+
+ALTER TABLE t1 DROP COLUMN a;
+
+# Column 'a' not found for the UPDATE statememnt.
+--error ER_BAD_FIELD_ERROR
+CALL p1(3);
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+###########################################################################
+
+--echo
+--echo # Check CASE-statement (round #1).
+--echo
+
+delimiter |;
+
+# Check that metadata changes in WHEN-expressions are handled properly.
+CREATE PROCEDURE p1()
+BEGIN
+  CASE
+    WHEN (SELECT * FROM t1) = 1 THEN SELECT 'a1';
+    WHEN (SELECT * FROM t1) = 2 THEN SELECT 'a2';
+    WHEN (SELECT * FROM t1) = 3 THEN SELECT 'a3';
+    ELSE SELECT 'a4';
+  END CASE;
+END|
+
+# Check that metadata changes in CASE-expression, are handled properly.
+CREATE PROCEDURE p2()
+BEGIN
+  CASE (SELECT * FROM t1)
+    WHEN 1 THEN SELECT 'a1';
+    WHEN 2 THEN SELECT 'a2';
+    WHEN 3 THEN SELECT 'a3';
+    ELSE SELECT 'a4';
+  END CASE;
+END|
+
+delimiter ;|
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+
+--echo
+
+CALL p1();
+CALL p2();
+
+--echo
+
+UPDATE t1 SET a = 3;
+
+--echo
+
+CALL p1();
+CALL p2();
+
+--echo
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+
+--echo
+
+--error ER_OPERAND_COLUMNS
+CALL p1();
+
+--error ER_OPERAND_COLUMNS
+CALL p2();
+
+--echo
+
+ALTER TABLE t1 DROP COLUMN a;
+
+--echo
+
+CALL p1();
+CALL p2();
+
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+
+###########################################################################
+
+--echo
+--echo # Check CASE-statement (round #2).
+--echo #
+--echo # Check that CASE-expression is executed once even if the metadata, used
+--echo # in a WHEN-expression, have changed.
+--echo
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+delimiter |;
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  SET @x = @x + 1;
+  RETURN (SELECT a FROM t1);
+END|
+
+CREATE PROCEDURE p1()
+BEGIN
+  CASE f1()
+    WHEN 1 THEN SELECT 'a1';
+    WHEN 2 THEN SELECT 'a2';
+    WHEN (SELECT * FROM t2) THEN SELECT 'subselect';
+    ELSE SELECT 'else';
+  END CASE;
+END|
+
+delimiter ;|
+
+--echo
+
+SET @x = 0;
+CALL p1();
+SELECT @x;
+
+--echo
+
+UPDATE t1 SET a = 3;
+ALTER TABLE t2 ADD COLUMN b INT DEFAULT 3;
+
+--echo
+
+SET @x = 0;
+--error ER_OPERAND_COLUMNS
+CALL p1();
+SELECT @x;
+
+--echo
+
+ALTER TABLE t2 DROP COLUMN a;
+
+--echo
+
+SET @x = 0;
+CALL p1();
+SELECT @x;
+
+--echo
+
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP TABLE t1;
+DROP TABLE t2;
+
+###########################################################################
+
+--echo
+--echo # Check DEFAULT clause.
+--echo #
+--echo
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v INT DEFAULT (SELECT * FROM t1);
+  SELECT v;
+END|
+
+delimiter ;|
+
+--echo
+CALL p1();
+
+--echo
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+
+--echo
+--error ER_OPERAND_COLUMNS
+CALL p1();
+
+--echo
+ALTER TABLE t1 DROP COLUMN a;
+
+--echo
+CALL p1();
+
+--echo
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+###########################################################################
+
+--echo
+--echo # Check SET.
+--echo #
+--echo
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (1);
+
+delimiter |;
+
+# Check SET for SP-variable.
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE x INT;
+  SET x = (SELECT * FROM t1);
+  SELECT x;
+END|
+
+# Check SET for user variable.
+
+CREATE PROCEDURE p2()
+BEGIN
+  SET @x = NULL;
+  SET @x = (SELECT * FROM t1);
+  SELECT @x;
+END|
+
+# Check SET for triggers.
+
+CREATE TRIGGER t2_bu BEFORE UPDATE ON t2 FOR EACH ROW
+BEGIN
+  SET NEW.a = (SELECT * FROM t1) * 2;
+END|
+
+delimiter ;|
+
+--echo
+CALL p1();
+--echo
+CALL p2();
+--echo
+UPDATE t2 SET a = 10;
+
+--echo
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+
+--echo
+--error ER_OPERAND_COLUMNS
+CALL p1();
+--echo
+--error ER_OPERAND_COLUMNS
+CALL p2();
+--echo
+--error ER_OPERAND_COLUMNS
+UPDATE t2 SET a = 20;
+
+--echo
+ALTER TABLE t1 DROP COLUMN a;
+
+--echo
+CALL p1();
+--echo
+CALL p2();
+--echo
+UPDATE t2 SET a = 30;
+
+--echo
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+DROP TABLE t2;
+
+###########################################################################
+
+--echo
+--echo # 11.1 If metadata of the objects (regular tables, temporary tables,
+--echo # views), used in SELECT-statement changed between DECLARE CURSOR and
+--echo # OPEN statements, the SELECT-statement should be re-parsed to use
+--echo # up-to-date metadata.
+--echo
+--echo
+--echo # - Regular table.
+--echo
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v INT;
+  DECLARE c CURSOR FOR SELECT * FROM t1;
+
+  ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+  ALTER TABLE t1 DROP COLUMN a;
+
+  OPEN c;
+  FETCH c INTO v;
+  CLOSE c;
+
+  SELECT v;
+END|
+
+delimiter ;|
+
+--echo
+CALL p1();
+
+--echo
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+--echo
+--echo # - Temporary table.
+--echo
+
+CREATE TEMPORARY TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v INT;
+  DECLARE c CURSOR FOR SELECT * FROM t1;
+
+  ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+  ALTER TABLE t1 DROP COLUMN a;
+
+  OPEN c;
+  FETCH c INTO v;
+  CLOSE c;
+
+  SELECT v;
+END|
+
+delimiter ;|
+
+--echo
+CALL p1();
+
+--echo
+DROP TEMPORARY TABLE t1;
+DROP PROCEDURE p1;
+
+# NOTE: ALTER VIEW is not available within Stored Programs.
+
+--echo
+--echo # 11.2 If the metadata changed between OPEN and FETCH or CLOSE
+--echo # statements, those changes should not be noticed.
+--echo
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v INT;
+  DECLARE c CURSOR FOR SELECT * FROM t1;
+
+  OPEN c;
+
+  ALTER TABLE t1 ADD COLUMN b INT DEFAULT 2;
+  ALTER TABLE t1 DROP COLUMN a;
+
+  FETCH c INTO v;
+  CLOSE c;
+
+  SELECT v;
+END|
+
+delimiter ;|
+
+--echo
+CALL p1();
+
+--echo
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+--echo
+--echo # 11.3 Re-parsing of the SELECT-statement should be made correctly
+--echo # (in the correct parsing context) if the metadata changed between
+--echo # DECLARE CURSOR and OPEN statements, and those statements reside in different
+--echo # parsing contexts.
+--echo
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE f1 INT;
+  DECLARE f2 INT;
+  DECLARE f3 INT;
+
+  DECLARE x INT DEFAULT 1;
+  DECLARE y INT DEFAULT 2;
+
+  DECLARE c CURSOR FOR SELECT x, y, t1.a FROM t1;
+
+  ALTER TABLE t1 ADD COLUMN b INT;
+
+  BEGIN
+    DECLARE x INT DEFAULT 10;
+    DECLARE y INT DEFAULT 20;
+
+    OPEN c;
+
+    FETCH c INTO f1, f2, f3;
+    SELECT f1, f2, f3;
+
+    CLOSE c;
+  END;
+
+END|
+
+delimiter ;|
+
+--echo
+CALL p1();
+
+--echo
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+###########################################################################
+## Other tests.
+###########################################################################
+
+--echo
+--echo # Test procedure behaviour after view recreation.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CREATE PROCEDURE p1()
+  SELECT * FROM v1;
+
+CALL p1();
+
+--echo # Alter underlying table and recreate the view.
+ALTER TABLE t1 ADD COLUMN (b INT);
+ALTER VIEW v1 AS SELECT * FROM t1;
+
+--echo # And check whether the call of stored procedure handles it correctly.
+CALL p1();
+
+DROP VIEW v1;
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+--echo # Test if metadata changes for temporary table is handled
+--echo # correctly inside a stored procedure.
+CREATE TEMPORARY TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE PROCEDURE p1()
+  SELECT * FROM t1;
+
+CALL p1();
+
+--echo # Test if added temporary table's column is recognized during
+--echo # procedure invocation.
+ALTER TABLE t1 ADD COLUMN (b INT);
+CALL p1();
+
+--echo # Test if dropped temporary table's column is not appeared
+--echo # in procedure's result.
+ALTER TABLE t1 DROP COLUMN a;
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+--echo # Test handle of metadata changes with stored function.
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+delimiter |;
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  CREATE TEMPORARY TABLE t1_result_set AS SELECT * FROM t1;
+
+  RETURN 0;
+END|
+
+delimiter ;|
+
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+
+--echo # Check if added column is noticed by invocation of stored function.
+ALTER TABLE t1 ADD COLUMN (b INT);
+
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+
+--echo # Check if dropped column is noticed by invocation of stored function.
+ALTER TABLE t1 DROP COLUMN a;
+
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+
+DROP TABLE t1;
+DROP FUNCTION f1;
+
+--echo # Test if table's recreation is handled correctly
+--echo # inside a stored function. 
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+delimiter |;
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  CREATE TEMPORARY TABLE t1_result_set AS SELECT * FROM t1;
+
+  RETURN 0;
+END|
+
+delimiter ;|
+
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+
+--echo # Recreate table and check if it is handled correctly
+--echo # by function invocation.
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+--echo # Test if changes in the view's metadata is handled
+--echo # correctly by function call.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+delimiter |;
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  CREATE TEMPORARY TABLE t1_result_set AS SELECT * FROM v1;
+  RETURN 0;
+END|
+
+delimiter ;|
+
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+
+ALTER TABLE t1 ADD COLUMN (b INT);
+ALTER VIEW v1 AS SELECT * FROM t1;
+
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+DROP TABLE t1;
+DROP VIEW v1;
+
+DROP FUNCTION f1;
+
+--echo # Check if queried object's type substitution (table->view, view->table,
+--echo # table->temp table, etc.) is handled correctly during invocation of
+--echo # stored function/procedure.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+delimiter |;
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  CREATE TEMPORARY TABLE t1_result_set AS SELECT * FROM t1;
+  RETURN 0;
+END|
+
+CREATE PROCEDURE p1()
+  SELECT * FROM t1|
+
+delimiter ;|
+
+CALL p1();
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+CALL p1;
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+
+DROP TABLE t1;
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES (1), (2);
+CREATE VIEW t1 AS SELECT * FROM t2;
+
+CALL p1;
+SELECT f1();
+SELECT * FROM t1_result_set;
+DROP TABLE t1_result_set;
+
+DROP TABLE t2;
+DROP VIEW t1;
+
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+
+--echo # Test handle of metadata changes with triggers.
+ 
+CREATE TABLE t1 (a INT);
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+  SET new.a = new.a + 100;
+
+INSERT INTO t1 VALUES (1), (2);
+SELECT * FROM t1;
+
+--echo # Check if added table's column is handled correctly inside trigger.
+ALTER TABLE t1 ADD COLUMN (b INT);
+INSERT INTO t1 VALUES (3, 4);
+
+SELECT * FROM t1;
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+
+--echo # Test if deleted column is handled correctly by trigger invocation.
+CREATE TABLE t1 (a INT, b INT);
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+  SET new.a = new.a + 100;
+
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+SELECT * FROM t1;
+
+ALTER TABLE t1 DROP COLUMN b;
+
+INSERT INTO t1 VALUES (5);
+SELECT * FROM t1;
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+
+--echo # Check if server returns and error when was dropped a column
+--echo # that is used inside a trigger body.
+CREATE TABLE t1 (a INT, b INT);
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+  SET new.a = new.a + 100;
+
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+SELECT * FROM t1;
+
+ALTER TABLE t1 DROP COLUMN a;
+
+--error ER_BAD_FIELD_ERROR
+INSERT INTO t1 VALUES (5);
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+
+--echo
+--echo # Check updateable views inside triggers.
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (1);
+
+CREATE VIEW v1 AS SELECT a FROM t1;
+
+delimiter |;
+
+CREATE TRIGGER t2_bu BEFORE UPDATE ON t2 FOR EACH ROW
+BEGIN
+  INSERT INTO v1 VALUES (NEW.a);
+  SET @x = (SELECT CHARSET(a) FROM v1 LIMIT 1);
+END|
+
+delimiter ;|
+
+--echo
+SET @x = NULL;
+
+UPDATE t2 SET a = 10;
+
+SELECT * FROM v1;
+SELECT @x;
+
+--echo
+ALTER TABLE t1 CHANGE COLUMN a a CHAR(2);
+
+--echo
+SET @x = NULL;
+
+UPDATE t2 SET a = 20;
+
+SELECT * FROM v1;
+SELECT @x;
+
+--echo
+DROP TABLE t1;
+DROP TABLE t2;
+DROP VIEW v1;
+SET sql_mode = default;

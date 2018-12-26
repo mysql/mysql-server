@@ -1,0 +1,22 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+# Expect no classes
+show global variables like "performance_schema_max_file_classes";
+
+select count(*) from performance_schema.setup_instruments
+  where name like "wait/io/file/%";
+
+# We lost all the classes
+--disable_warnings
+select variable_value > 0 from performance_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_FILE_CLASSES_LOST';
+--enable_warnings
+
+# Expect no instances
+select count(*) from performance_schema.file_instances;
+
+# Expect no instances lost
+show global status like "performance_schema_file_instances_lost";
+

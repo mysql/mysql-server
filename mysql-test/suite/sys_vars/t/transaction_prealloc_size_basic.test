@@ -1,0 +1,219 @@
+############## mysql-test\t\transaction_prealloc_size_basic.test ##############
+#                                                                             #
+# Variable Name: transaction_prealloc_size                                    #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: 4096                                                         #
+# Range: 1024-131072                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-14                                                   #
+# Author: Sharique Abdullah                                                       #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable transaction_prealloc_size#
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html#option_mysqld_transaction_prealloc_size       #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#           START OF transaction_prealloc_size TESTS                   #
+########################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.transaction_prealloc_size;
+SELECT @start_global_value;
+SET @start_session_value = @@session.transaction_prealloc_size;
+SELECT @start_session_value;
+
+--echo '#--------------------FN_DYNVARS_005_01-------------------------#'
+########################################################################
+#     Display the DEFAULT value of transaction_prealloc_size           #
+########################################################################
+
+SET @@global.transaction_prealloc_size = 100;
+SET @@global.transaction_prealloc_size = DEFAULT;
+SELECT @@global.transaction_prealloc_size;
+
+
+SET @@session.transaction_prealloc_size = 200;
+SET @@session.transaction_prealloc_size = DEFAULT;
+SELECT @@session.transaction_prealloc_size;
+
+--echo '#--------------------FN_DYNVARS_005_02-------------------------#'
+########################################################################
+#     Check the DEFAULT value of transaction_prealloc_size             #
+########################################################################
+
+SET @@global.transaction_prealloc_size = DEFAULT;
+SELECT @@global.transaction_prealloc_size = 4096;
+
+SET @@session.transaction_prealloc_size = DEFAULT;
+SELECT @@session.transaction_prealloc_size = 4096;
+
+--echo '#--------------------FN_DYNVARS_005_03-------------------------#'
+##################################################################
+# Change the value of variable to a valid value for GLOBAL Scope #
+##################################################################
+
+SET @@global.transaction_prealloc_size = 1024;
+SELECT @@global.transaction_prealloc_size;
+
+SET @@global.transaction_prealloc_size = 60020;
+SELECT @@global.transaction_prealloc_size;
+
+--echo '#--------------------FN_DYNVARS_005_04-------------------------#'
+###################################################################
+# Change the value of variable to a valid value for SESSION Scope #
+###################################################################
+
+SET @@session.transaction_prealloc_size = 1024;
+SELECT @@session.transaction_prealloc_size;
+
+SET @@session.transaction_prealloc_size = 65535;
+SELECT @@session.transaction_prealloc_size;
+
+
+--echo '#------------------FN_DYNVARS_005_05-----------------------#'
+#####################################################################
+# Change the value of transaction_prealloc_size to an invalid value #
+#####################################################################
+
+SET @@global.transaction_prealloc_size = 0;
+SELECT @@global.transaction_prealloc_size;
+
+SET @@global.transaction_prealloc_size = -1024;
+SELECT @@global.transaction_prealloc_size;
+
+-- Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.transaction_prealloc_size = ON;
+
+
+-- Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.transaction_prealloc_size = OFF;
+
+
+SET @@global.transaction_prealloc_size = True;
+SELECT @@global.transaction_prealloc_size;
+
+SET @@global.transaction_prealloc_size = False;
+SELECT @@global.transaction_prealloc_size;
+
+
+-- Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.transaction_prealloc_size = 65530.34;
+
+-- Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.transaction_prealloc_size ="Test";
+
+SET @@global.transaction_prealloc_size = 1000;
+SELECT @@global.transaction_prealloc_size;
+
+-- Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.transaction_prealloc_size = ON;
+
+
+-- Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.transaction_prealloc_size = OFF;
+
+SET @@session.transaction_prealloc_size = True;
+SELECT @@session.transaction_prealloc_size;
+
+SET @@session.transaction_prealloc_size = False;
+SELECT @@session.transaction_prealloc_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.transaction_prealloc_size = "Test";
+
+SET @@session.transaction_prealloc_size = 135217728;
+SELECT @@session.transaction_prealloc_size;
+
+
+--echo '#------------------FN_DYNVARS_005_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+
+--disable_warnings
+SELECT @@global.transaction_prealloc_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='transaction_prealloc_size';
+
+--echo '#------------------FN_DYNVARS_005_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+SELECT @@session.transaction_prealloc_size = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='transaction_prealloc_size';
+--enable_warnings
+
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+###########################################################################
+#  Check if global and session variable are independent of each other     #
+###########################################################################
+
+SET @@global.transaction_prealloc_size = 1024;
+SET @@global.transaction_prealloc_size = 10;
+
+SELECT @@transaction_prealloc_size = @@global.transaction_prealloc_size;
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+########################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE  #
+#    points to same session variable                                   #
+########################################################################
+
+SET @@transaction_prealloc_size = 100;
+SELECT @@transaction_prealloc_size = @@local.transaction_prealloc_size;
+SELECT @@local.transaction_prealloc_size = @@session.transaction_prealloc_size;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+###############################################################################
+# Check if transaction_prealloc_size can be accessed with and without @@ sign #
+###############################################################################
+
+SET transaction_prealloc_size = 1027;
+SELECT @@transaction_prealloc_size;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.transaction_prealloc_size;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.transaction_prealloc_size;
+
+--Error ER_BAD_FIELD_ERROR
+SELECT transaction_prealloc_size = @@session.transaction_prealloc_size;
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.transaction_prealloc_size = @start_global_value;
+SELECT @@global.transaction_prealloc_size;
+SET @@session.transaction_prealloc_size = @start_session_value;
+SELECT @@session.transaction_prealloc_size;
+
+
+#############################################################
+#                 END OF transaction_prealloc_size TESTS     #
+#############################################################

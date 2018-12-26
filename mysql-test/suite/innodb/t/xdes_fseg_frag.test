@@ -1,0 +1,43 @@
+--source include/have_debug.inc
+
+SET GLOBAL innodb_fast_shutdown=0;
+--source include/restart_mysqld.inc
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+
+CREATE TABLE t1 (f1 SERIAL, f2 char(200), f3 char(200));
+
+set debug='+d,fil_space_print_xdes_pages';
+
+start transaction;
+
+insert into t1(f2, f3) values (repeat('~', 200), repeat('/', 200));
+
+--disable_query_log
+let $i=50000;
+while ($i)
+{
+   insert into t1(f2, f3) values (repeat('=', 200), repeat('%', 200));
+   dec $i;
+}
+--enable_query_log
+
+commit;
+
+set debug='-d,fil_space_print_xdes_pages';
+
+drop table t1;
+
+perl;
+my $file = "$ENV{MYSQLD_DATADIR}/xdes_pages.log";
+open(FILE, $file) || die "Unable to open $file";
+
+while (<FILE>)
+{
+   $line = $_;
+   $line =~ s/m_space_id=(\d+),/m_space_id=N,/g;
+   print "$line\n";
+}
+close(FILE);
+EOF
+--remove_file $MYSQLD_DATADIR/xdes_pages.log

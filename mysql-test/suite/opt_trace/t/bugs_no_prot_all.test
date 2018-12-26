@@ -1,0 +1,10 @@
+#Start server with MyISAM
+--source include/force_myisam_default.inc
+
+set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+--let $support_native_partitioning= 0
+--source suite/opt_trace/include/bugs.inc

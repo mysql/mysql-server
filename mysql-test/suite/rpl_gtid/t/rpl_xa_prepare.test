@@ -1,0 +1,185 @@
+###############################################################################
+# Bug#25041920 GTID AUTO SKIP DOES NOT WORK ON XA TRANSACTION ON SQL THREAD
+#
+# Problem: Server has a mechanism to skip (silently) a GTID transaction if
+#           it is already executed that particular transaction in the past.
+#           This GTID transaction skipping mechanism is not working properly
+#           for XA transaction.
+#
+# Steps to reproduce:
+#  1: Execute a XA transaction on Master.
+#  2: While Slave is downloading the XA transaction, rotate the relaylog in
+#     between the transaction (exactly before XA_PREPARE event which is
+#     needed to test step 3.1.
+#  3: Test the XA transaction on Slave that can go through four
+#     different execution paths
+#         3.1>  gtid_pre_statement_post_implicit_commit_checks returns
+#               GTID_STATEMENT_CANCEL
+#         3.2>  gtid_pre_statement_checks returns GTID_STATEMENT_CANCEL
+#         3.3>  XA transaction is succesfully applied
+#         3.4>  gtid_pre_statement_checks returns GTID_STATEMENT_SKIP
+###############################################################################
+
+# This test should run only on debug build
+# (rpl_receive_count.inc's restriction)
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# This test script changes SQL thread coordinates in between
+# which is not possible if AUTO_POSITION is active. So disable
+# it for the testing purpose.
+--let $use_gtids=0
+
+# Start Master-slave replication
+--source include/master-slave.inc
+
+# Initial setup
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+--source include/sync_slave_sql_with_master.inc
+FLUSH RELAY LOGS;
+CALL mtr.add_suppression("@@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON");
+CALL mtr.add_suppression("When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK");
+CALL mtr.add_suppression("Cannot execute the current event group");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+--source include/stop_slave.inc
+
+###################################################
+# Step-1: Execute a XA transaction on Master.
+###################################################
+
+--source include/rpl_connection_master.inc
+XA START 'trx1';
+--disable_warnings
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+--enable_warnings
+XA END 'trx1';
+XA PREPARE 'trx1';
+XA COMMIT 'trx1';
+
+###############################################################################
+# Step-2: While Slave is downloading the XA transaction, rotate the relaylog in
+#         between the transaction (exactly before XA_PREPARE event which is
+#         needed to test step 3.1.
+###############################################################################
+--source include/rpl_connection_slave.inc
+--let $rpl_after_received_events_action= flush
+--let $rpl_skip_event_count_print_in_result_log= 1
+if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
+{
+  --let $rpl_event_count= 7
+}
+if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
+{
+  --let $rpl_event_count= 5
+}
+--source include/rpl_receive_event_count.inc
+
+# Assert that the XA_PREPARE is in the expected relay log file
+--let $binlog_limit= 2, 3
+--let $binlog_file=slave-relay-bin.000005
+--source include/show_relaylog_events.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+###############################################################################
+# Step-3: Test the XA transaction on Slave that can go through four
+#         different execution paths
+#         3.1>  gtid_pre_statement_post_implicit_commit_checks returns
+#               GTID_STATEMENT_CANCEL
+#         3.2>  gtid_pre_statement_checks returns GTID_STATEMENT_CANCEL
+#         3.3>  XA transaction is succesfully applied
+#         3.4>  gtid_pre_statement_checks returns GTID_STATEMENT_SKIP
+###############################################################################
+# Stop IO thread which is not needed for the rest of this step.
+--source include/stop_slave_io.inc
+
+###############################################################################
+# Step 3.1: Make gtid_pre_statement_post_implicit_commit_checks to return
+#           GTID_STATEMENT_CANCEL. If a transaction is started without
+#           executing it's GTID_NEXT, it will complain with error
+#           ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+#           or ER_MTS_CANT_PARALLEL (incase of MTS enabled server).
+###############################################################################
+CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
+START SLAVE SQL_THREAD;
+--let $sts_error= convert_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON)
+--let $mts_error= convert_error(ER_MTS_CANT_PARALLEL)
+--let $slave_sql_errno= $sts_error, $mts_error
+--source include/wait_for_slave_sql_error.inc
+
+###############################################################################
+# Step 3.2: Make gtid_pre_statement_checks to return GTID_STATEMENT_CANCEL.
+#           If a transaction is involved with non-transactional DML followed
+#           by transactional DML, gtid_pre_statement_checks will complain that
+#           GTID_NEXT is set to UNDEFINED_GTID while it is executing
+#           transactional DML as GTID that came from Master is utilized by
+#           non-transaction DML alone.
+###############################################################################
+# Change table t1's engine to MyISAM.
+ALTER TABLE t1 engine=MyISAM;
+
+# Start SQL thread from the begining of the XA transaction.
+START SLAVE SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
+--source include/wait_for_slave_sql_to_stop.inc
+CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+START SLAVE SQL_THREAD;
+
+# SQL thread should fail with ER_GTID_NEXT_TYPE_UNDEFINED_GTID
+--let $slave_sql_errno= convert_error(ER_GTID_NEXT_TYPE_UNDEFINED_GTID)
+--source include/wait_for_slave_sql_error.inc
+
+# Cleanup the mess created by this testcase
+ALTER TABLE t1 engine=Innodb;
+DELETE FROM t1;
+RESET MASTER;
+
+###############################################################################
+# Step-3.3: Start SQL thread from the begining of the XA transaction.
+#           This time SQL thread should succesfully apply full XA transaction
+#           without any issues.
+###############################################################################
+CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+--source include/start_slave_sql.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# Assert that the data was inserted into slave's tables.
+# (i.e., the GTID transaction wasn't skipped)
+--let diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+--let diff_tables=master:t2, slave:t2
+--source include/diff_tables.inc
+
+###############################################################################
+# Step-3.4: Again start SQL thread from the begining of the XA transaction.
+#           This time SQL thread should skip these gtid transactions
+#           without any issues (as the gtid transactions are already
+#           executed once).
+###############################################################################
+--source include/stop_slave_sql.inc
+CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+--source include/start_slave_sql.inc
+
+# Check that SQL thread reached end point.
+--source include/sync_slave_sql_with_io.inc
+
+# Assert that no new data was inserted into slave's tables.
+# (i.e., the GTID transaction was skipped)
+--let diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+--let diff_tables=master:t2, slave:t2
+--source include/diff_tables.inc
+
+###########
+# Cleanup
+###########
+--source include/start_slave_io.inc
+--source include/rpl_connection_master.inc
+DROP TABLE t1, t2;
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+--source include/rpl_end.inc

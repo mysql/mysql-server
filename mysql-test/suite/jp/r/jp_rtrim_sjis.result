@@ -1,0 +1,175 @@
+drop table if exists `ÇsÇP`;
+drop table if exists `ÇsÇQ`;
+drop table if exists `ÇsÇR`;
+drop table if exists `ÇsÇS`;
+drop table if exists `ÇsÇT`;
+drop table if exists `ÇsÇU`;
+drop table if exists `ÇsÇV`;
+drop table if exists `ÇsÇW`;
+drop table if exists `ÇsÇX`;
+SET NAMES sjis;
+SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `ÇsÇP` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇQ` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇR` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇS` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇT` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇU` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ ');
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ  ');
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ   ');
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µÅ@');
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µÅ@Å@');
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µÅ@Å@Å@');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç® ');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®  ');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®   ');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Å@');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Å@Å@');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Å@Å@Å@');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\ ');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\  ');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\   ');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\Å@');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\Å@Å@');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\Å@Å@Å@');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ ');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ  ');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ   ');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µÅ@');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µÅ@Å@');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µÅ@Å@Å@');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç® ');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®  ');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®   ');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Å@');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Å@Å@');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Å@Å@Å@');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\ ');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\  ');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\   ');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\Å@');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\Å@Å@');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\Å@Å@Å@');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ ');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ  ');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ   ');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µÅ@');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µÅ@Å@');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µÅ@Å@Å@');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç® ');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®  ');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®   ');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Å@');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Å@Å@');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Å@Å@Å@');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\ ');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\  ');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\   ');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\Å@');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\Å@Å@');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\Å@Å@Å@');
+SELECT RTRIM(`ÇbÇP`) from `ÇsÇP`;
+RTRIM(`ÇbÇP`)
+±≤≥¥µ
+±≤≥¥µ
+±≤≥¥µ
+±≤≥¥µ
+±≤≥¥µÅ@
+±≤≥¥µÅ@Å@
+±≤≥¥µÅ@Å@Å@
+SELECT RTRIM(`ÇbÇP`) from `ÇsÇQ`;
+RTRIM(`ÇbÇP`)
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®Å@
+Ç†Ç¢Ç§Ç¶Ç®Å@Å@
+Ç†Ç¢Ç§Ç¶Ç®Å@Å@Å@
+SELECT RTRIM(`ÇbÇP`) from `ÇsÇR`;
+RTRIM(`ÇbÇP`)
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\Å@
+É\è\ï\ó\ç\Å@Å@
+É\è\ï\ó\ç\Å@Å@Å@
+SELECT RTRIM(`ÇbÇP`) from `ÇsÇS`;
+RTRIM(`ÇbÇP`)
+±≤≥¥µ
+±≤≥¥µ
+±≤≥¥µ
+±≤≥¥µ
+±≤≥¥µÅ@
+±≤≥¥µÅ@Å@
+±≤≥¥µÅ@Å@Å@
+SELECT RTRIM(`ÇbÇP`) from `ÇsÇT`;
+RTRIM(`ÇbÇP`)
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®Å@
+Ç†Ç¢Ç§Ç¶Ç®Å@Å@
+Ç†Ç¢Ç§Ç¶Ç®Å@Å@Å@
+SELECT RTRIM(`ÇbÇP`) from `ÇsÇU`;
+RTRIM(`ÇbÇP`)
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\Å@
+É\è\ï\ó\ç\Å@Å@
+É\è\ï\ó\ç\Å@Å@Å@
+SELECT RTRIM(`ÇbÇP`) from `ÇsÇV`;
+RTRIM(`ÇbÇP`)
+±≤≥¥µ
+±≤≥¥µ
+±≤≥¥µ
+±≤≥¥µ
+±≤≥¥µÅ@
+±≤≥¥µÅ@Å@
+±≤≥¥µÅ@Å@Å@
+SELECT RTRIM(`ÇbÇP`) from `ÇsÇW`;
+RTRIM(`ÇbÇP`)
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®
+Ç†Ç¢Ç§Ç¶Ç®Å@
+Ç†Ç¢Ç§Ç¶Ç®Å@Å@
+Ç†Ç¢Ç§Ç¶Ç®Å@Å@Å@
+SELECT RTRIM(`ÇbÇP`) from `ÇsÇX`;
+RTRIM(`ÇbÇP`)
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\
+É\è\ï\ó\ç\Å@
+É\è\ï\ó\ç\Å@Å@
+É\è\ï\ó\ç\Å@Å@Å@
+DROP TABLE `ÇsÇP`;
+DROP TABLE `ÇsÇQ`;
+DROP TABLE `ÇsÇR`;
+DROP TABLE `ÇsÇS`;
+DROP TABLE `ÇsÇT`;
+DROP TABLE `ÇsÇU`;
+DROP TABLE `ÇsÇV`;
+DROP TABLE `ÇsÇW`;
+DROP TABLE `ÇsÇX`;

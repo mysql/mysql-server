@@ -1,0 +1,8 @@
+# Variable: mysqlx_port
+# Default : 33060
+# Scope   : GLOBAL
+# Read only variable
+
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL mysqlx_port=33060;

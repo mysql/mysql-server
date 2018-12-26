@@ -1,0 +1,397 @@
+# suite/funcs_1/t/is_statistics.test
+#
+# Check the layout of information_schema.statistics and the impact of
+# CREATE/ALTER/DROP TABLE/VIEW/SCHEMA ... on its content.
+#
+# Note:
+#    This test is not intended
+#    - to show information about the all time existing tables
+#      within the databases information_schema and mysql
+#    - for checking storage engine properties
+#      Therefore please do not alter $engine_type and $other_engine_type.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
+
+let $is_table = STATISTICS;
+
+# The table INFORMATION_SCHEMA.STATISTICS must exist
+eval SHOW TABLES FROM information_schema LIKE '$is_table';
+
+--echo #######################################################################
+--echo # Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+--echo #######################################################################
+# Ensure that every INFORMATION_SCHEMA table can be queried with a SELECT
+# statement, just as if it were an ordinary user-defined table.
+#
+--source suite/funcs_1/datadict/is_table_query.inc
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.14.1: INFORMATION_SCHEMA.STATISTICS layout
+--echo #########################################################################
+# Ensure that the INFORMATION_SCHEMA.STATISTICS table has the following columns,
+# in the following order:
+#
+# TABLE_CATALOG (always shows NULL),
+# TABLE_SCHEMA (shows the database, or schema, in which a table indexed by
+#       an accessible index resides),
+# TABLE_NAME (shows the name of  the indexed table),
+# NON_UNIQUE (shows whether the index may contain duplicate values;
+#       0 if it cannot, 1 if it can),
+# INDEX_SCHEMA (shows the database, or schema, in which an accessible
+#       index resides),
+# INDEX_NAME (shows the name of an index which the current user may access),
+# SEQ_IN_INDEX (shows the ordinal position of an indexed column within
+#       the index),
+# COLUMN_NAME (shows the name of a column that comprises some, or all, of an
+#       index key),
+# COLLATION (shows how the column is sorted in the index; either A for ascending
+#       or NULL for unsorted columns),
+# CARDINALITY (shows the number of unique values in the index),
+# SUB_PART (shows the number of indexed characters if the index is
+#       a prefix index),
+# PACKED (shows how the index key is packed),
+# NULLABLE (shows whether the index column may contain NULL values),
+# INDEX_TYPE (shows the index type; either BTREE, FULLTEXT, HASH or RTREE),
+# COMMENT (shows a comment on the index, if any).
+#
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval DESCRIBE          information_schema.$is_table;
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval SHOW CREATE TABLE information_schema.$is_table;
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval SHOW COLUMNS FROM information_schema.$is_table;
+
+# Note: Retrieval of information within information_schema.columns about
+#       information_schema.statistics is in is_columns_is.test.
+
+# Show that TABLE_CATALOG is always NULL.
+--sorted_result
+SELECT table_catalog, table_schema, table_name, index_schema, index_name
+FROM information_schema.statistics WHERE table_catalog IS NOT NULL AND
+     table_name != 'ndb_binlog_index'
+ORDER BY table_schema, table_name, index_schema, index_name;
+
+
+--echo ####################################################################################
+--echo # Testcase 3.2.14.2 + 3.2.14.3: INFORMATION_SCHEMA.STATISTICS accessible information
+--echo ####################################################################################
+# 3.2.14.2 Ensure that the table shows the relevant information on every index
+#          which the current user or PUBLIC may access (usually because
+#          privileges on the indexed table have been granted).
+# 3.2.14.3 Ensure that the table does not show any information on any indexes
+#          which the current user and PUBLIC may not access.
+#
+# Note: Check of content within information_schema.statistics about
+#       database            is in
+#       mysql               is_statistics_mysql.test
+#       information_schema  is_statistics_is.test
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+DROP DATABASE IF EXISTS db_datadict_2;
+--enable_warnings
+CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict_2;
+
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser2'@'localhost';
+CREATE USER 'testuser2'@'localhost';
+
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE db_datadict.t1
+   (f1 INT NOT NULL, PRIMARY KEY(f1), f2 INT, INDEX f2_ind(f2))
+ENGINE = $engine_type;
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE db_datadict.t2
+   (f1 INT NOT NULL, PRIMARY KEY(f1), f2 INT, INDEX f2_ind(f2))
+ENGINE = $engine_type;
+
+eval
+CREATE TABLE db_datadict_2.t3
+   (f1 INT NOT NULL, f2 INT, f5 DATE,
+    PRIMARY KEY(f1), INDEX f2f1_ind(f2,f1), UNIQUE(f5))
+ENGINE = $engine_type;
+eval
+CREATE TABLE db_datadict_2.t4
+   (f1 INT NOT NULL, PRIMARY KEY(f1), f2 INT, INDEX f2_ind(f2))
+ENGINE = $engine_type;
+
+let $my_select = SELECT * FROM information_schema.statistics
+WHERE table_schema LIKE 'db_datadict%'
+ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
+let $my_show1 = SHOW GRANTS FOR 'testuser1'@'localhost';
+let $my_show2 = SHOW GRANTS FOR 'testuser2'@'localhost';
+eval $my_select;
+--sorted_result
+eval $my_show1;
+--sorted_result
+eval $my_show2;
+
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , test);
+# nothing visible for testuser1
+eval $my_select;
+--sorted_result
+eval $my_show1;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_show2;
+
+--echo # Establish connection testuser2 (user=testuser2)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser2, localhost, testuser2, , test);
+# nothing visible for testuser2
+eval $my_select;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_show1;
+--sorted_result
+eval $my_show2;
+
+--echo # Switch to connection default
+connection default;
+GRANT SELECT ON db_datadict.t1 TO 'testuser1'@'localhost' WITH GRANT OPTION;
+GRANT SELECT(f1,f5) ON db_datadict_2.t3 TO 'testuser1'@'localhost';
+eval $my_select;
+--sorted_result
+eval $my_show1;
+--sorted_result
+eval $my_show2;
+
+--echo # Switch to connection testuser1
+connection testuser1;
+eval $my_select;
+--sorted_result
+eval $my_show1;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_show2;
+
+--echo # Switch to connection testuser2
+connection testuser2;
+eval $my_select;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_show1;
+--sorted_result
+eval $my_show2;
+
+--echo # Switch to connection default
+connection default;
+REVOKE SELECT,GRANT OPTION ON db_datadict.t1 FROM 'testuser1'@'localhost';
+--sorted_result
+eval $my_show1;
+
+--echo # Switch to connection testuser1
+# nothing visible for testuser1
+connection testuser1;
+eval $my_select;
+--sorted_result
+eval $my_show1;
+
+# Cleanup
+--echo # Switch to connection default and close connections testuser1, testuser2
+connection default;
+disconnect testuser1;
+disconnect testuser2;
+DROP USER 'testuser1'@'localhost';
+DROP USER 'testuser2'@'localhost';
+DROP DATABASE db_datadict;
+DROP DATABASE db_datadict_2;
+
+
+--echo #########################################################################
+--echo # 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.STATISTICS modifications
+--echo #########################################################################
+# 3.2.1.13: Ensure that the creation of any new database object (e.g. table or
+#           column) automatically inserts all relevant information on that
+#           object into every appropriate INFORMATION_SCHEMA table.
+# 3.2.1.14: Ensure that the alteration of any existing database object
+#           automatically updates all relevant information on that object in
+#           every appropriate INFORMATION_SCHEMA table.
+# 3.2.1.15: Ensure that the dropping of any existing database object
+#           automatically deletes all relevant information on that object from
+#           every appropriate INFORMATION_SCHEMA table.
+#
+--disable_warnings
+DROP TABLE IF EXISTS test.t1_my_table;
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+--replace_result $other_engine_type <other_engine_type>
+eval
+CREATE TABLE test.t1_1 (f1 BIGINT,
+   f2 TEXT, f2x TEXT, f3 CHAR(10), f3x CHAR(10), f4 BIGINT, f4x BIGINT,
+   f5 POINT, f5x POINT NOT NULL)
+DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
+ENGINE = $other_engine_type;
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE test.t1_2 (f1 BIGINT, f2 BIGINT)
+ENGINE = $engine_type;
+
+# Tables without primary key or index do not show up
+# in information_schema.statistics.
+SELECT table_name FROM information_schema.statistics
+WHERE table_name LIKE 't1_%';
+# Check ADD PRIMARY KEY (two columns)
+ALTER TABLE test.t1_1 ADD PRIMARY KEY (f1,f3);
+SELECT * FROM information_schema.statistics
+WHERE table_name LIKE 't1_%'
+ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
+# Check DROP PRIMARY KEY
+ALTER TABLE test.t1_1 DROP PRIMARY KEY;
+SELECT table_name FROM information_schema.statistics
+WHERE table_name LIKE 't1_%';
+# Check ADD PRIMARY KEY (one column)
+ALTER TABLE test.t1_1 ADD PRIMARY KEY (f1);
+SELECT * FROM information_schema.statistics
+WHERE table_name LIKE 't1_%';
+# Some variations on index definitions
+# 1. No name assigned, one column
+ALTER TABLE test.t1_1 ADD INDEX (f4);
+# 2. Name assigned, two columns
+CREATE        INDEX f3_f1     ON test.t1_1 (f3,f1);
+# 3. Unique index
+CREATE UNIQUE INDEX f4x_uni   ON test.t1_1 (f4x);
+# 4. Index using HASH
+CREATE        INDEX f2_hash USING HASH ON test.t1_2 (f2);
+# 5. Index with comment (feature introduced in 5.2)
+--error ER_PARSE_ERROR
+CREATE        INDEX f1_idx    ON test.t1_2 (f1) COMMENT = 'COMMENT';
+# 6. NOT NULL
+CREATE        INDEX not_null  ON test.t1_1 (f3x);
+# 7. Prefix index
+CREATE        INDEX f2_prefix ON test.t1_1 (f2(20));
+#
+SELECT * FROM information_schema.statistics
+WHERE table_name LIKE 't1_%' AND index_name <> 'PRIMARY'
+ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
+--horizontal_results
+DROP TABLE test.t1_2;
+#
+# Check modification of TABLE_NAME
+SELECT DISTINCT table_name FROM information_schema.statistics
+WHERE table_name = 't1_1';
+RENAME TABLE test.t1_1 TO test.t1_1x;
+SELECT DISTINCT table_name FROM information_schema.statistics
+WHERE table_name = 't1_1x';
+#
+# Check modification of TABLE_SCHEMA
+SELECT DISTINCT table_schema,table_name FROM information_schema.statistics
+WHERE table_name LIKE 't1_1%';
+RENAME TABLE test.t1_1x TO db_datadict.t1_1x;
+SELECT DISTINCT table_schema,table_name FROM information_schema.statistics
+WHERE table_name LIKE 't1_1%';
+#
+# Check impact of DROP TABLE
+SELECT DISTINCT table_name FROM information_schema.statistics
+WHERE table_name = 't1_1x';
+DROP TABLE db_datadict.t1_1x;
+SELECT DISTINCT table_name FROM information_schema.statistics
+WHERE table_name = 't1_1x';
+#
+# Check a temporary table (not visible)
+--replace_result $engine_type <engine_type>
+eval
+CREATE TEMPORARY TABLE test.t1_1x (PRIMARY KEY(f1,f2))
+ENGINE = $engine_type
+   AS SELECT 1 AS f1, 2 AS f2;
+--vertical_results
+SELECT * FROM information_schema.statistics
+WHERE table_name = 't1_1x';
+--horizontal_results
+DROP TEMPORARY TABLE test.t1_1x;
+#
+# Check impact of DROP SCHEMA
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE db_datadict.t1_1x (PRIMARY KEY(f1))
+ENGINE = $engine_type
+   AS SELECT 1 AS f1, 2 AS f2;
+SELECT table_name FROM information_schema.statistics
+WHERE table_name = 't1_1x';
+DROP DATABASE db_datadict;
+SELECT table_name FROM information_schema.statistics
+WHERE table_name = 't1_1x';
+
+
+--echo ########################################################################
+--echo # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+--echo #           DDL on INFORMATION_SCHEMA tables are not supported
+--echo ########################################################################
+# 3.2.1.3:  Ensure that no user may execute an INSERT statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.4:  Ensure that no user may execute an UPDATE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.5:  Ensure that no user may execute a DELETE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.8:  Ensure that no user may create an index on an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.9:  Ensure that no user may alter the definition of an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.10: Ensure that no user may drop an INFORMATION_SCHEMA table.
+# 3.2.1.11: Ensure that no user may move an INFORMATION_SCHEMA table to any
+#           other database.
+# 3.2.1.12: Ensure that no user may directly add to, alter, or delete any data
+#           in an INFORMATION_SCHEMA table.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+--replace_result $engine_type <engine_type>
+eval
+CREATE TABLE db_datadict.t1 (f1 BIGINT)
+ENGINE = $engine_type;
+
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.statistics
+SELECT * FROM information_schema.statistics;
+
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.statistics SET table_schema = 'test'
+WHERE table_name = 't1';
+
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM information_schema.statistics WHERE table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+TRUNCATE information_schema.statistics;
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE INDEX my_idx_on_statistics
+ON information_schema.statistics(table_schema);
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.statistics DROP PRIMARY KEY;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.statistics ADD f1 INT;
+
+--error ER_DBACCESS_DENIED_ERROR
+DROP TABLE information_schema.statistics;
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.statistics RENAME db_datadict.statistics;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.statistics RENAME information_schema.xstatistics;
+
+# Cleanup
+DROP DATABASE db_datadict;
+

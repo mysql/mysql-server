@@ -1,0 +1,217 @@
+############## mysql-test\t\interactive_timeout_basic.test ###############
+#                                                                             #
+# Variable Name: interactive_timeout                                          #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:28800                                                         #
+# Minvalue: 1                                                                 #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable interactive_timeout      #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+
+###################################################################
+#           START OF interactive_timeout TESTS                    #
+###################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.interactive_timeout;
+SELECT @start_global_value;
+SET @start_session_value = @@session.interactive_timeout;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_052_01-------------------------#'
+###################################################################
+#     Display the DEFAULT value of interactive_timeout            #
+###################################################################
+
+SET @@global.interactive_timeout = 100;
+SET @@global.interactive_timeout = DEFAULT;
+SELECT @@global.interactive_timeout;
+
+SET @@session.interactive_timeout = 200;
+SET @@session.interactive_timeout = DEFAULT;
+SELECT @@session.interactive_timeout;
+
+
+--echo '#--------------------FN_DYNVARS_052_02-------------------------#'
+###################################################################
+#     Check the DEFAULT value of interactive_timeout              #
+###################################################################
+
+SET @@global.interactive_timeout = DEFAULT;
+SELECT @@global.interactive_timeout = 28800;
+
+SET @@session.interactive_timeout = DEFAULT;
+SELECT @@session.interactive_timeout = 28800;
+
+
+--echo '#--------------------FN_DYNVARS_052_03-------------------------#'
+#############################################################################
+# Change the value of interactive_timeout to a valid value for GLOBAL Scope #
+#############################################################################
+
+SET @@global.interactive_timeout = 1;
+SELECT @@global.interactive_timeout;
+SET @@global.interactive_timeout = 60020;
+SELECT @@global.interactive_timeout;
+SET @@global.interactive_timeout = 65535;
+SELECT @@global.interactive_timeout;
+SET @@global.interactive_timeout = 31536000;
+SELECT @@global.interactive_timeout;
+
+--echo '#--------------------FN_DYNVARS_052_04-------------------------#'
+##############################################################################
+# Change the value of interactive_timeout to a valid value for SESSION Scope #
+##############################################################################
+ 
+SET @@session.interactive_timeout = 1;
+SELECT @@session.interactive_timeout;
+SET @@session.interactive_timeout = 50050;
+SELECT @@session.interactive_timeout;
+SET @@session.interactive_timeout = 65535;
+SELECT @@session.interactive_timeout;
+SET @@session.interactive_timeout = 31536000;
+SELECT @@session.interactive_timeout;
+
+--echo '#------------------FN_DYNVARS_052_05-----------------------#'
+###############################################################
+# Change the value of interactive_timeout to an invalid value #
+###############################################################
+
+SET @@global.interactive_timeout = 0;
+SELECT @@global.interactive_timeout;
+SET @@global.interactive_timeout = -1024;
+SELECT @@global.interactive_timeout;
+SET @@global.interactive_timeout = 31536001;
+SELECT @@global.interactive_timeout;
+SET @@global.interactive_timeout = 1000000000;
+SELECT @@global.interactive_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.interactive_timeout = 65530.34;
+SELECT @@global.interactive_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.interactive_timeout = test;
+SELECT @@global.interactive_timeout;
+
+SET @@session.interactive_timeout = 0;
+SELECT @@session.interactive_timeout;
+SET @@session.interactive_timeout = -2;
+SELECT @@session.interactive_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.interactive_timeout = 65530.34;
+SELECT @@session.interactive_timeout;
+SET @@session.interactive_timeout = 31536001;
+SELECT @@session.interactive_timeout;
+SET @@session.interactive_timeout = 100000000;
+SELECT @@session.interactive_timeout;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.interactive_timeout = test;
+SELECT @@session.interactive_timeout;
+
+
+--echo '#------------------FN_DYNVARS_052_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+
+--disable_warnings
+SELECT @@global.interactive_timeout = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='interactive_timeout';
+--enable_warnings
+
+--echo '#------------------FN_DYNVARS_052_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@session.interactive_timeout = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='interactive_timeout';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_052_08-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.interactive_timeout = TRUE;
+SELECT @@global.interactive_timeout;
+SET @@global.interactive_timeout = FALSE;
+SELECT @@global.interactive_timeout;
+
+
+--echo '#---------------------FN_DYNVARS_052_09----------------------#'
+#################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable   #
+#################################################################################
+
+SET @@global.interactive_timeout = 10;
+SELECT @@interactive_timeout = @@global.interactive_timeout;
+
+
+--echo '#---------------------FN_DYNVARS_052_10----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@interactive_timeout = 100;
+SELECT @@interactive_timeout = @@local.interactive_timeout;
+SELECT @@local.interactive_timeout = @@session.interactive_timeout;
+
+
+--echo '#---------------------FN_DYNVARS_052_11----------------------#'
+##############################################################################
+#   Check if interactive_timeout can be accessed with and without @@ sign    #
+##############################################################################
+
+SET interactive_timeout = 1;
+SELECT @@interactive_timeout;
+--Error ER_UNKNOWN_TABLE
+SELECT local.interactive_timeout;
+--Error ER_UNKNOWN_TABLE
+SELECT session.interactive_timeout;
+--Error ER_BAD_FIELD_ERROR
+SELECT interactive_timeout = @@session.interactive_timeout;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.interactive_timeout = @start_global_value;
+SELECT @@global.interactive_timeout;
+SET @@session.interactive_timeout = @start_session_value;
+SELECT @@session.interactive_timeout;
+
+
+########################################################
+#                 END OF interactive_timeout TESTS     #
+########################################################
+

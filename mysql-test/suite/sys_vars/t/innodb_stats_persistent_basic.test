@@ -1,0 +1,30 @@
+#
+# innodb_stats_persistent
+#
+
+
+# show the default value
+SELECT @@innodb_stats_persistent;
+
+# check that it is writeable
+SET GLOBAL innodb_stats_persistent=ON;
+SELECT @@innodb_stats_persistent;
+
+SET GLOBAL innodb_stats_persistent=OFF;
+SELECT @@innodb_stats_persistent;
+
+SET GLOBAL innodb_stats_persistent=1;
+SELECT @@innodb_stats_persistent;
+
+SET GLOBAL innodb_stats_persistent=0;
+SELECT @@innodb_stats_persistent;
+
+# should be a boolean
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_stats_persistent=123;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_stats_persistent='foo';
+
+# restore the environment
+SET GLOBAL innodb_stats_persistent=default;

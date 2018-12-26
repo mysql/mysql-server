@@ -1,0 +1,17 @@
+###################################################
+#                                                 #
+#  Functions within VIEWs based on MYISAM tables  #
+#                                                 #
+###################################################
+
+#
+# NOTE: PLEASE SEE THE DETAILED DESCRIPTION IN
+#       suite/funcs_1/views/func_view.inc
+#       BEFORE ADDING NEW TEST CASES HERE !!!
+
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+--source include/have_myisam.inc
+let $type= 'MYISAM' ;
+
+--source suite/funcs_1/views/func_view.inc
+

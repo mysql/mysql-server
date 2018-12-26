@@ -1,0 +1,3 @@
+max-time: 14400
+cmd: atrt-mysqltest
+args: --test-file=suite/ndb/t/smoke.test

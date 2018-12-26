@@ -1,0 +1,34 @@
+#
+# 1) Should print error number and error description
+#    for NDB error codes like 4008
+NDB error code 4008: Receive from NDB failed: Unknown result: Unknown result error
+#
+# 1b) Should print error number and description for more
+#     than one error codes
+NDB error code 4008: Receive from NDB failed: Unknown result: Unknown result error
+NDB error code 4009: Cluster Failure: Unknown result: Unknown result error
+#
+# 1c) Should print error description _only_ for 
+#     NDB error codes like 4008 when in silent mode
+Receive from NDB failed: Unknown result: Unknown result error
+#
+# 3) Should print "ndbd exit string" for ndbd exit
+#    code 2808
+NDB error code 2808: Environment error using file: Temporary error, restart node: Internal error, programming error or missing error message, please report a bug
+#
+# 4) Should print mgmapi error number and description
+#    for mgmapi error number 1001
+NDB error code 1001: Illegal connect string
+#
+# 5) Should print and return error for unknown error code
+Illegal ndb error code: 9999
+#
+# 6) Should accept --ndb as argument although it's ignored
+#    since it's always enabled
+NDB error code 4008: Receive from NDB failed: Unknown result: Unknown result error
+#
+# 7) Should print only the error message
+Could not start backup
+#
+# 8) Should print all
+NDB error code 4008: Receive from NDB failed: Unknown result: Unknown result error

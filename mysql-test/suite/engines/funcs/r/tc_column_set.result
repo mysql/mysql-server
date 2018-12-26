@@ -1,0 +1,25 @@
+DROP TABLE IF EXISTS t7;
+CREATE TABLE t7(c1 SET('a','b','c') NULL);
+SHOW TABLES;
+Tables_in_test
+t7
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `c1` set('a','b','c') DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t7;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t7(c1 SET('a','b','c') NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t7
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `c1` set('a','b','c') NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t7;
+SHOW TABLES;
+Tables_in_test

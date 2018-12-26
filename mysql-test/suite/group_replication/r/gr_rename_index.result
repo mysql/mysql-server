@@ -1,0 +1,96 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#1. Create table on master with index
+[connection server1]
+CREATE TABLE t1 (a int PRIMARY KEY, b char(10), FULLTEXT KEY (b));
+INSERT INTO t1 VALUES (1,'abc'), (2, 'def'), (3,'ghi');
+include/assert.inc [There should be a index named b on table t1.]
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc [There should be a index named b on table t1.]
+
+#2. Rename the index using ALTER TABLE..RENAME INDEX command.
+[connection server1]
+ALTER TABLE t1 RENAME index b to idx;
+
+#3. Check that index is renamed sucessfully on both the servers.
+include/assert.inc [There should not be a index named b on table t1.]
+include/assert.inc [There should be a index named idx on table t1.]
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc [There should not be a index named b on table t1.]
+include/assert.inc [There should be a index named idx on table t1.]
+[connection server1]
+UPDATE t1 SET b='mysql' WHERE b='abc';
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+
+#4. Clean-up
+DROP TABLE t1;
+include/rpl_sync.inc
+
+#1. Create table on master with index
+[connection server1]
+CREATE TABLE t1 (a int PRIMARY KEY, b GEOMETRY NOT NULL SRID 0);
+CREATE SPATIAL INDEX b ON t1 (b);
+INSERT INTO t1 VALUES (1, ST_GEOMFROMText('POINT(1 1)')),
+(2, ST_GEOMFROMTEXT('POLYGON((1 2,5 4,9 9,1 9,1 2))')),
+(3, ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+include/assert.inc [There should be a index named b on table t1.]
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc [There should be a index named b on table t1.]
+
+#2. Rename the index using ALTER TABLE..RENAME INDEX command.
+[connection server1]
+ALTER TABLE t1 RENAME index b to idx;
+
+#3. Check that index is renamed sucessfully on both the servers.
+include/assert.inc [There should not be a index named b on table t1.]
+include/assert.inc [There should be a index named idx on table t1.]
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc [There should not be a index named b on table t1.]
+include/assert.inc [There should be a index named idx on table t1.]
+[connection server1]
+UPDATE t1 SET b=ST_GEOMFROMText('POINT(5 5)') WHERE b=ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)');
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+
+#4. Clean-up
+DROP TABLE t1;
+include/rpl_sync.inc
+
+#1. Create table on master with index
+[connection server1]
+CREATE TABLE t1 ( a INT PRIMARY KEY, b int,  KEY (b));
+INSERT INTO t1 VALUES (1,10),(2,20),(3,30);
+include/assert.inc [There should be a index named b on table t1.]
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc [There should be a index named b on table t1.]
+
+#2. Rename the index using ALTER TABLE..RENAME INDEX command.
+[connection server1]
+ALTER TABLE t1 RENAME index b to idx;
+
+#3. Check that index is renamed sucessfully on both the servers.
+include/assert.inc [There should not be a index named b on table t1.]
+include/assert.inc [There should be a index named idx on table t1.]
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc [There should not be a index named b on table t1.]
+include/assert.inc [There should be a index named idx on table t1.]
+[connection server1]
+UPDATE t1 SET b=11 WHERE b=10;
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1]
+
+#4. Clean-up
+DROP TABLE t1;
+include/rpl_sync.inc
+include/group_replication_end.inc

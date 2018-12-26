@@ -1,0 +1,28 @@
+call mtr.add_suppression("Invalid .* username when attempting to connect to the master server");
+SET GLOBAL master_info_repository='TABLE';
+SET GLOBAL relay_log_info_repository='TABLE';
+#
+# 1. Without having a default channel configured
+#
+# Create two additional replication channels
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
+# Execute mysqldump with --dump-slave
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
+# Execute mysql using the dump as input
+include/stop_slave.inc
+#
+# 2. With a default channel configured
+#
+# Setup the default replication channel
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE="binlog-default.000001", MASTER_LOG_POS=4 FOR CHANNEL '';
+# Execute mysqldump with --dump-slave
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-default.000001', MASTER_LOG_POS=4 FOR CHANNEL '';
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
+# Execute mysql using the dump as input
+include/stop_slave.inc
+RESET SLAVE ALL;
+SET @@global.master_info_repository='SAVE_MI_REPO_TYPE';
+SET @@global.relay_log_info_repository='SAVE_RLI_REPO_TYPE';

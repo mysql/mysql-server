@@ -1,0 +1,186 @@
+SET @start_global_value = @@global.interactive_timeout;
+SELECT @start_global_value;
+@start_global_value
+28800
+SET @start_session_value = @@session.interactive_timeout;
+SELECT @start_session_value;
+@start_session_value
+28800
+'#--------------------FN_DYNVARS_052_01-------------------------#'
+SET @@global.interactive_timeout = 100;
+SET @@global.interactive_timeout = DEFAULT;
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+28800
+SET @@session.interactive_timeout = 200;
+SET @@session.interactive_timeout = DEFAULT;
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+28800
+'#--------------------FN_DYNVARS_052_02-------------------------#'
+SET @@global.interactive_timeout = DEFAULT;
+SELECT @@global.interactive_timeout = 28800;
+@@global.interactive_timeout = 28800
+1
+SET @@session.interactive_timeout = DEFAULT;
+SELECT @@session.interactive_timeout = 28800;
+@@session.interactive_timeout = 28800
+1
+'#--------------------FN_DYNVARS_052_03-------------------------#'
+SET @@global.interactive_timeout = 1;
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+1
+SET @@global.interactive_timeout = 60020;
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+60020
+SET @@global.interactive_timeout = 65535;
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+65535
+SET @@global.interactive_timeout = 31536000;
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+31536000
+'#--------------------FN_DYNVARS_052_04-------------------------#'
+SET @@session.interactive_timeout = 1;
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+1
+SET @@session.interactive_timeout = 50050;
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+50050
+SET @@session.interactive_timeout = 65535;
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+65535
+SET @@session.interactive_timeout = 31536000;
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+31536000
+'#------------------FN_DYNVARS_052_05-----------------------#'
+SET @@global.interactive_timeout = 0;
+Warnings:
+Warning	1292	Truncated incorrect interactive_timeout value: '0'
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+1
+SET @@global.interactive_timeout = -1024;
+Warnings:
+Warning	1292	Truncated incorrect interactive_timeout value: '-1024'
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+1
+SET @@global.interactive_timeout = 31536001;
+Warnings:
+Warning	1292	Truncated incorrect interactive_timeout value: '31536001'
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+31536000
+SET @@global.interactive_timeout = 1000000000;
+Warnings:
+Warning	1292	Truncated incorrect interactive_timeout value: '1000000000'
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+31536000
+SET @@global.interactive_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'interactive_timeout'
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+31536000
+SET @@global.interactive_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'interactive_timeout'
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+31536000
+SET @@session.interactive_timeout = 0;
+Warnings:
+Warning	1292	Truncated incorrect interactive_timeout value: '0'
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+1
+SET @@session.interactive_timeout = -2;
+Warnings:
+Warning	1292	Truncated incorrect interactive_timeout value: '-2'
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+1
+SET @@session.interactive_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'interactive_timeout'
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+1
+SET @@session.interactive_timeout = 31536001;
+Warnings:
+Warning	1292	Truncated incorrect interactive_timeout value: '31536001'
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+31536000
+SET @@session.interactive_timeout = 100000000;
+Warnings:
+Warning	1292	Truncated incorrect interactive_timeout value: '100000000'
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+31536000
+SET @@session.interactive_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'interactive_timeout'
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+31536000
+'#------------------FN_DYNVARS_052_06-----------------------#'
+SELECT @@global.interactive_timeout = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='interactive_timeout';
+@@global.interactive_timeout = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_052_07-----------------------#'
+SELECT @@session.interactive_timeout = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='interactive_timeout';
+@@session.interactive_timeout = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_052_08-----------------------#'
+SET @@global.interactive_timeout = TRUE;
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+1
+SET @@global.interactive_timeout = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect interactive_timeout value: '0'
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+1
+'#---------------------FN_DYNVARS_052_09----------------------#'
+SET @@global.interactive_timeout = 10;
+SELECT @@interactive_timeout = @@global.interactive_timeout;
+@@interactive_timeout = @@global.interactive_timeout
+0
+'#---------------------FN_DYNVARS_052_10----------------------#'
+SET @@interactive_timeout = 100;
+SELECT @@interactive_timeout = @@local.interactive_timeout;
+@@interactive_timeout = @@local.interactive_timeout
+1
+SELECT @@local.interactive_timeout = @@session.interactive_timeout;
+@@local.interactive_timeout = @@session.interactive_timeout
+1
+'#---------------------FN_DYNVARS_052_11----------------------#'
+SET interactive_timeout = 1;
+SELECT @@interactive_timeout;
+@@interactive_timeout
+1
+SELECT local.interactive_timeout;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.interactive_timeout;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT interactive_timeout = @@session.interactive_timeout;
+ERROR 42S22: Unknown column 'interactive_timeout' in 'field list'
+SET @@global.interactive_timeout = @start_global_value;
+SELECT @@global.interactive_timeout;
+@@global.interactive_timeout
+28800
+SET @@session.interactive_timeout = @start_session_value;
+SELECT @@session.interactive_timeout;
+@@session.interactive_timeout
+28800

@@ -1,0 +1,23 @@
+# Tests for setting innodb-page-size=64k;
+
+
+# Test COMPRESSED table
+-- source suite/innodb/include/create_options_invalid.inc
+
+# This test is run with 5M buffer pool size
+let $buf_pool_size = `SELECT @@innodb_buffer_pool_size`;
+
+if ($buf_pool_size != 5242880) {
+  --skip "Test requires 5M buffer pool size"
+}
+
+# Test max inline field length should < 16384.
+CREATE TABLE t1 (id int, a TEXT) ROW_FORMAT=COMPACT;
+
+INSERT INTO t1 VALUES (1, REPEAT('a',2000)), (2, REPEAT('a',2000));
+
+UPDATE t1 SET a=REPEAT('a',31000) WHERE id = 1;
+
+INSERT INTO t1 VALUES (1, REPEAT('a',33000));
+
+DROP TABLE t1;

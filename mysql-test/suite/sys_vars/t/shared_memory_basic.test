@@ -1,0 +1,21 @@
+--source include/windows.inc
+#
+# only global
+#
+select @@global.shared_memory;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.shared_memory;
+show global variables like 'shared_memory';
+show session variables like 'shared_memory';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='shared_memory';
+select * from performance_schema.session_variables where variable_name='shared_memory';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global shared_memory=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session shared_memory=1;

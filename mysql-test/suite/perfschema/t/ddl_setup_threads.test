@@ -1,0 +1,16 @@
+# Tests for PERFORMANCE_SCHEMA
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.setup_threads add column foo integer;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+truncate table performance_schema.setup_threads;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.setup_threads ADD INDEX test_index(NAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.setup_threads(NAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY` ON performance_schema.setup_threads;

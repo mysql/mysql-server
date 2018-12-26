@@ -1,0 +1,177 @@
+--character_set sjis
+--disable_warnings
+DROP TABLE IF EXISTS `‚s‚Pa`;
+DROP TABLE IF EXISTS `‚s‚Pb`;
+DROP TABLE IF EXISTS `‚s‚Qa`;
+DROP TABLE IF EXISTS `‚s‚Qb`;
+DROP TABLE IF EXISTS `‚s‚Ra`;
+DROP TABLE IF EXISTS `‚s‚Rb`;
+DROP TABLE IF EXISTS `‚s‚Sa`;
+DROP TABLE IF EXISTS `‚s‚Sb`;
+DROP TABLE IF EXISTS `‚s‚Ta`;
+DROP TABLE IF EXISTS `‚s‚Tb`;
+DROP TABLE IF EXISTS `‚s‚Ua`;
+DROP TABLE IF EXISTS `‚s‚Ub`;
+DROP TABLE IF EXISTS `‚s‚Va`;
+DROP TABLE IF EXISTS `‚s‚Vb`;
+DROP TABLE IF EXISTS `‚s‚Wa`;
+DROP TABLE IF EXISTS `‚s‚Wb`;
+DROP TABLE IF EXISTS `‚s‚Xa`;
+DROP TABLE IF EXISTS `‚s‚Xb`;
+--enable_warnings
+
+#
+# Test table JOIN using Japanese characters in sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+CREATE TABLE `‚s‚Pa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Pb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Qa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Qb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Ra` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Rb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Sa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Sb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Ta` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Tb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Ua` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Ub` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚Va` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Vb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Wa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Wb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Xa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Xb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+
+#insert the following data in each table
+# jisx0201 hankaku-katakana data
+# jisx0208 data
+# jisx0212 supplemental character data
+
+INSERT INTO `‚s‚Pa` VALUES ('±'),('¶'),('»');
+INSERT INTO `‚s‚Pb` VALUES ('±');
+INSERT INTO `‚s‚Qa` VALUES ('‚ '),('‚©'),('‚³');
+INSERT INTO `‚s‚Qb` VALUES ('‚ ');
+INSERT INTO `‚s‚Ra` VALUES ('ƒ\'),('\'),('•\');
+INSERT INTO `‚s‚Rb` VALUES ('ƒ\');
+INSERT INTO `‚s‚Sa` VALUES ('±'),('¶'),('»');
+INSERT INTO `‚s‚Sb` VALUES ('±');
+INSERT INTO `‚s‚Ta` VALUES ('‚ '),('‚©'),('‚³');
+INSERT INTO `‚s‚Tb` VALUES ('‚ ');
+INSERT INTO `‚s‚Ua` VALUES ('ƒ\'),('\'),('•\');
+INSERT INTO `‚s‚Ub` VALUES ('ƒ\');
+INSERT INTO `‚s‚Va` VALUES ('±'),('¶'),('»');
+INSERT INTO `‚s‚Vb` VALUES ('±');
+INSERT INTO `‚s‚Wa` VALUES ('‚ '),('‚©'),('‚³');
+INSERT INTO `‚s‚Wb` VALUES ('‚ ');
+INSERT INTO `‚s‚Xa` VALUES ('ƒ\'),('\'),('•\');
+INSERT INTO `‚s‚Xb` VALUES ('ƒ\');
+
+#Test for innodb
+SELECT * FROM `‚s‚Pa` JOIN `‚s‚Pb`;
+SELECT * FROM `‚s‚Pa` INNER JOIN `‚s‚Pb`;
+SELECT * FROM `‚s‚Pa` JOIN `‚s‚Pb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Pa` INNER JOIN `‚s‚Pb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Pa` CROSS JOIN `‚s‚Pb`;
+SELECT * FROM `‚s‚Pa` LEFT JOIN `‚s‚Pb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Pa` LEFT JOIN `‚s‚Pb` ON (`‚s‚Pa`.`‚b‚P` = `‚s‚Pb`.`‚b‚P`);
+SELECT * FROM `‚s‚Pb` RIGHT JOIN `‚s‚Pa` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Pb` RIGHT JOIN `‚s‚Pa` ON (`‚s‚Pa`.`‚b‚P` = `‚s‚Pb`.`‚b‚P`);
+SELECT * FROM `‚s‚Qa` JOIN `‚s‚Qb`;
+SELECT * FROM `‚s‚Qa` INNER JOIN `‚s‚Qb`;
+SELECT * FROM `‚s‚Qa` JOIN `‚s‚Qb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Qa` INNER JOIN `‚s‚Qb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Qa` CROSS JOIN `‚s‚Qb`;
+SELECT * FROM `‚s‚Qa` LEFT JOIN `‚s‚Qb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Qa` LEFT JOIN `‚s‚Qb` ON (`‚s‚Qa`.`‚b‚P` = `‚s‚Qb`.`‚b‚P`);
+SELECT * FROM `‚s‚Qb` RIGHT JOIN `‚s‚Qa` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Qb` RIGHT JOIN `‚s‚Qa` ON (`‚s‚Qa`.`‚b‚P` = `‚s‚Qb`.`‚b‚P`);
+SELECT * FROM `‚s‚Ra` JOIN `‚s‚Rb`;
+SELECT * FROM `‚s‚Ra` INNER JOIN `‚s‚Rb`;
+SELECT * FROM `‚s‚Ra` JOIN `‚s‚Rb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ra` INNER JOIN `‚s‚Rb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ra` CROSS JOIN `‚s‚Rb`;
+SELECT * FROM `‚s‚Ra` LEFT JOIN `‚s‚Rb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ra` LEFT JOIN `‚s‚Rb` ON (`‚s‚Ra`.`‚b‚P` = `‚s‚Rb`.`‚b‚P`);
+SELECT * FROM `‚s‚Rb` RIGHT JOIN `‚s‚Ra` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Rb` RIGHT JOIN `‚s‚Ra` ON (`‚s‚Ra`.`‚b‚P` = `‚s‚Rb`.`‚b‚P`);
+
+#Test for myisam
+SELECT * FROM `‚s‚Sa` JOIN `‚s‚Sb`;
+SELECT * FROM `‚s‚Sa` INNER JOIN `‚s‚Sb`;
+SELECT * FROM `‚s‚Sa` JOIN `‚s‚Sb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Sa` INNER JOIN `‚s‚Sb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Sa` CROSS JOIN `‚s‚Sb`;
+SELECT * FROM `‚s‚Sa` LEFT JOIN `‚s‚Sb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Sa` LEFT JOIN `‚s‚Sb` ON (`‚s‚Sa`.`‚b‚P` = `‚s‚Sb`.`‚b‚P`);
+SELECT * FROM `‚s‚Sb` RIGHT JOIN `‚s‚Sa` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Sb` RIGHT JOIN `‚s‚Sa` ON (`‚s‚Sa`.`‚b‚P` = `‚s‚Sb`.`‚b‚P`);
+SELECT * FROM `‚s‚Ta` JOIN `‚s‚Tb`;
+SELECT * FROM `‚s‚Ta` INNER JOIN `‚s‚Tb`;
+SELECT * FROM `‚s‚Ta` JOIN `‚s‚Tb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ta` INNER JOIN `‚s‚Tb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ta` CROSS JOIN `‚s‚Tb`;
+SELECT * FROM `‚s‚Ta` LEFT JOIN `‚s‚Tb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ta` LEFT JOIN `‚s‚Tb` ON (`‚s‚Ta`.`‚b‚P` = `‚s‚Tb`.`‚b‚P`);
+SELECT * FROM `‚s‚Tb` RIGHT JOIN `‚s‚Ta` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Tb` RIGHT JOIN `‚s‚Ta` ON (`‚s‚Ta`.`‚b‚P` = `‚s‚Tb`.`‚b‚P`);
+SELECT * FROM `‚s‚Ua` JOIN `‚s‚Ub`;
+SELECT * FROM `‚s‚Ua` INNER JOIN `‚s‚Ub`;
+SELECT * FROM `‚s‚Ua` JOIN `‚s‚Ub` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ua` INNER JOIN `‚s‚Ub` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ua` CROSS JOIN `‚s‚Ub`;
+SELECT * FROM `‚s‚Ua` LEFT JOIN `‚s‚Ub` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ua` LEFT JOIN `‚s‚Ub` ON (`‚s‚Ua`.`‚b‚P` = `‚s‚Ub`.`‚b‚P`);
+SELECT * FROM `‚s‚Ub` RIGHT JOIN `‚s‚Ua` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Ub` RIGHT JOIN `‚s‚Ua` ON (`‚s‚Ua`.`‚b‚P` = `‚s‚Ub`.`‚b‚P`);
+
+#Test for MEMORY
+SELECT * FROM `‚s‚Va` JOIN `‚s‚Vb`;
+SELECT * FROM `‚s‚Va` INNER JOIN `‚s‚Vb`;
+SELECT * FROM `‚s‚Va` JOIN `‚s‚Vb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Va` INNER JOIN `‚s‚Vb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Va` CROSS JOIN `‚s‚Vb`;
+SELECT * FROM `‚s‚Va` LEFT JOIN `‚s‚Vb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Va` LEFT JOIN `‚s‚Vb` ON (`‚s‚Va`.`‚b‚P` = `‚s‚Vb`.`‚b‚P`);
+SELECT * FROM `‚s‚Vb` RIGHT JOIN `‚s‚Va` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Vb` RIGHT JOIN `‚s‚Va` ON (`‚s‚Va`.`‚b‚P` = `‚s‚Vb`.`‚b‚P`);
+SELECT * FROM `‚s‚Wa` JOIN `‚s‚Wb`;
+SELECT * FROM `‚s‚Wa` INNER JOIN `‚s‚Wb`;
+SELECT * FROM `‚s‚Wa` JOIN `‚s‚Wb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Wa` INNER JOIN `‚s‚Wb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Wa` CROSS JOIN `‚s‚Wb`;
+SELECT * FROM `‚s‚Wa` LEFT JOIN `‚s‚Wb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Wa` LEFT JOIN `‚s‚Wb` ON (`‚s‚Wa`.`‚b‚P` = `‚s‚Wb`.`‚b‚P`);
+SELECT * FROM `‚s‚Wb` RIGHT JOIN `‚s‚Wa` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Wb` RIGHT JOIN `‚s‚Wa` ON (`‚s‚Wa`.`‚b‚P` = `‚s‚Wb`.`‚b‚P`);
+SELECT * FROM `‚s‚Xa` JOIN `‚s‚Xb`;
+SELECT * FROM `‚s‚Xa` INNER JOIN `‚s‚Xb`;
+SELECT * FROM `‚s‚Xa` JOIN `‚s‚Xb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Xa` INNER JOIN `‚s‚Xb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Xa` CROSS JOIN `‚s‚Xb`;
+SELECT * FROM `‚s‚Xa` LEFT JOIN `‚s‚Xb` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Xa` LEFT JOIN `‚s‚Xb` ON (`‚s‚Xa`.`‚b‚P` = `‚s‚Xb`.`‚b‚P`);
+SELECT * FROM `‚s‚Xb` RIGHT JOIN `‚s‚Xa` USING (`‚b‚P`);
+SELECT * FROM `‚s‚Xb` RIGHT JOIN `‚s‚Xa` ON (`‚s‚Xa`.`‚b‚P` = `‚s‚Xb`.`‚b‚P`);
+
+DROP TABLE `‚s‚Pa`;
+DROP TABLE `‚s‚Pb`;
+DROP TABLE `‚s‚Qa`;
+DROP TABLE `‚s‚Qb`;
+DROP TABLE `‚s‚Ra`;
+DROP TABLE `‚s‚Rb`;
+DROP TABLE `‚s‚Sa`;
+DROP TABLE `‚s‚Sb`;
+DROP TABLE `‚s‚Ta`;
+DROP TABLE `‚s‚Tb`;
+DROP TABLE `‚s‚Ua`;
+DROP TABLE `‚s‚Ub`;
+DROP TABLE `‚s‚Va`;
+DROP TABLE `‚s‚Vb`;
+DROP TABLE `‚s‚Wa`;
+DROP TABLE `‚s‚Wb`;
+DROP TABLE `‚s‚Xa`;
+DROP TABLE `‚s‚Xb`;

@@ -1,0 +1,160 @@
+#
+# Bug #22876 Four-way deadlock
+#
+DROP TABLE IF EXISTS t1;
+# Connection 1
+set @@autocommit=0;
+CREATE TABLE t1(s1 INT UNIQUE) ENGINE=innodb;
+INSERT INTO t1 VALUES (1);
+# Connection 2
+set @@autocommit=0;
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (1);
+# Connection 3
+set @@autocommit=0;
+DROP TABLE t1;
+# Connection 1
+# Waiting for until transaction will be locked inside innodb subsystem
+# Connection 1 is now holding the lock.
+# Issuing insert from connection 1 while connection 2&3 
+# is waiting for the lock should give a deadlock error.
+INSERT INTO t1 VALUES (2);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Cleanup
+commit;
+set @@autocommit=1;
+commit;
+set @@autocommit=1;
+set @@autocommit=1;
+#
+# Test for bug #37346 "innodb does not detect deadlock between update
+#                      and alter table".
+#
+drop table if exists t1;
+create table t1 (c1 int primary key, c2 int, c3 int) engine=InnoDB;
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+# Run statement which acquires X-lock on one of table's rows.
+update t1 set c3=c3+1 where c2=3;
+#
+# Switching to connection 'con37346'.
+# The below ALTER TABLE statement should wait till transaction
+# in connection 'default' is complete and then succeed.
+# It should not deadlock or fail with ER_LOCK_DEADLOCK error.
+# Sending:
+alter table t1 add column c4 int;;
+#
+# Switching to connection 'default'.
+# Wait until the above ALTER TABLE gets blocked because this
+# connection holds SW metadata lock on table to be altered.
+# The below statement should succeed. It should not
+# deadlock or end with ER_LOCK_DEADLOCK error.
+update t1 set c3=c3+1 where c2=4;
+# Unblock ALTER TABLE by committing transaction.
+commit;
+#
+# Switching to connection 'con37346'.
+# Reaping ALTER TABLE.
+#
+# Switching to connection 'default'.
+drop table t1;
+#
+# Bug#53798 OPTIMIZE TABLE breaks repeatable read
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT) engine=innodb;
+INSERT INTO t1 VALUES (1), (2), (3);
+# Connection con1
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+a
+1
+2
+3
+# Connection default
+# This should block
+# Sending:
+OPTIMIZE TABLE t1;
+# Connection con1
+SELECT * FROM t1;
+a
+1
+2
+3
+COMMIT;
+# Connection default
+# Reaping OPTIMIZE TABLE t1
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+DROP TABLE t1;
+#
+# Bug#49891 View DDL breaks REPEATABLE READ
+#
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v2;
+CREATE TABLE t1 ( f1 INTEGER ) ENGINE = innodb;
+CREATE TABLE t2 ( f1 INTEGER );
+CREATE VIEW v1 AS SELECT 1 FROM t1;
+# Connection con3
+LOCK TABLE t1 WRITE;
+# Connection default
+START TRANSACTION;
+# Sending:
+SELECT * FROM v1;
+# Connection con2
+# Waiting for 'SELECT * FROM v1' to sync in.
+# Sending:
+ALTER VIEW v1 AS SELECT 2 FROM t2;
+# Connection con3
+# Waiting for 'ALTER VIEW v1 AS SELECT 2 FROM t2' to sync in.
+UNLOCK TABLES;
+# Connection default;
+# Reaping: SELECT * FROM v1
+1
+SELECT * FROM v1;
+1
+COMMIT;
+# Connection con2
+# Reaping: ALTER VIEW v1 AS SELECT 2 FROM t2
+# Connection default
+DROP TABLE t1, t2;
+DROP VIEW v1;
+#
+# Bug#11815600 [ERROR] INNODB COULD NOT FIND INDEX PRIMARY
+#              KEY NO 0 FOR TABLE IN ERROR LOG 
+#
+DROP TABLE IF EXISTS t1;
+# Connection default
+CREATE TABLE t1 (id INT PRIMARY KEY, value INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 12345);
+START TRANSACTION;
+SELECT * FROM t1;
+id	value
+1	12345
+# Connection con1
+SET lock_wait_timeout=1;
+ALTER TABLE t1 ADD INDEX idx(value);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE t1 ADD INDEX idx(value);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+SELECT * FROM t1;
+id	value
+1	12345
+COMMIT;
+DROP TABLE t1;
+#
+# Bug#11747690 33650: MYSQL_ALTER_TABLE() UNNECESSARILY DOES
+#              FULL TABLE COPY 
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT, b VARCHAR(250), PRIMARY KEY(a,b))
+engine=innodb default charset=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+CREATE INDEX t1ba ON t1(b,a);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+DROP TABLE t1;

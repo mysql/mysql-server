@@ -1,0 +1,134 @@
+# ==== Purpose ====
+#
+# Verify that we permit replication operations with super_read_only=ON.
+#
+# ==== Implementation ====
+#
+# 1) SET GLOBAL super_read_only to 1 on slave
+# 2) Execute 'STOP SLAVE' command
+# 3) Execute 'CHANGE REPLICATION FILTER' command
+# 4) Execute 'CHANGE MASTER TO' command
+# 5) Execute 'RESET SLAVE FOR CHANNEL <channel_name>' command
+# 7) Execute 'RESET SLAVE ALL FOR CHANNEL <channel_name>' command
+# 8) Execute 'RESET SLAVE' command
+# 9) Execute 'START SLAVE' command
+# 10) Execute 'RESET MASTER' command (with GTID_MODE=ON will assert)
+# 11) Execute 'FLUSH BINARY LOGS' command (with GTID_MODE=ON will assert)
+# 12) Execute 'SET GLOBAL gtid_purged='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1''
+# command
+# 14) Check that replication works fine
+# 15) Restore GLOBAL super_read_only to 0
+#
+# ==== References ====
+#
+# Bug#22097534: SUPER_READ_ONLY ABORTS STOP SLAVE IF
+#               RELAY_LOG_INFO_REPOSITORY=TABLE, DBG CRASH
+# Bug#22857926: ASSERTION `! IS_SET()' AT SQL_ERROR.CC:38 IN READ_ONLY MODE FOR
+#               MANY RPL CMDS.
+# Bug#26414532: MYSQLRPLSYNC ERRORS OUT BECAUSE SLAVE IS USING --SUPER-READ-ONLY
+#               OPTION
+#
+
+if (!$autocommit_opt)
+{
+    --die !!!ERROR IN TEST: you must set $autocommit_opt
+}
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+SET @saved_value_super= @@GLOBAL.super_read_only;
+SET @saved_value= @@GLOBAL.read_only;
+SET @saved_autocommit= @@GLOBAL.autocommit;
+SET GLOBAL super_read_only= 1;
+--eval SET AUTOCOMMIT= $autocommit_opt
+SHOW VARIABLES like '%autocommit%';
+
+--echo ####################################################################
+--echo # Test Case1: STOP SLAVE command
+--echo ####################################################################
+--source include/stop_slave.inc
+
+--echo ####################################################################
+--echo # Test Case2: CHANGE REPLICATION FILTER command
+--echo ####################################################################
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
+
+--echo ####################################################################
+--echo # Test Case3: CHANGE MASTER command
+--echo ####################################################################
+CHANGE MASTER TO MASTER_CONNECT_RETRY=20;
+CHANGE MASTER TO MASTER_HOST='dummy' FOR CHANNEL 'aaa';
+
+--echo ####################################################################
+--echo # Test Case4: RESET SLAVE FOR CHANNEL/RESET SLAVE ALL/RESET SLAVE
+--echo # commands
+--echo ####################################################################
+RESET SLAVE FOR CHANNEL 'aaa';
+RESET SLAVE ALL FOR CHANNEL 'aaa';
+RESET SLAVE;
+
+--echo ####################################################################
+--echo # Test Case5: START SLAVE command
+--echo ####################################################################
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# Check that mysql.gtid_executed table is empty.
+--let $assert_text= mysql.gtid_executed table must have zero records
+--let $assert_cond= [SELECT count(*) FROM mysql.gtid_executed] = 0
+--source include/assert.inc
+
+--echo ####################################################################
+--echo # Test Case6: FLUSH BINARY LOGS command
+--echo ####################################################################
+# FLUSH BINARY LOGS asserts when it is trying to update gtid_executed table
+# during binary log rotation.
+FLUSH BINARY LOGS;
+
+# Check that an entry is updated in gtid_executed table without causing any
+# assert.
+--disable_query_log
+if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
+{
+    --let $table=mysql.gtid_executed
+    --let $count=1
+    --source include/wait_until_rows_count.inc
+}
+--enable_query_log
+
+--echo ####################################################################
+--echo # Test Case7: RESET MASTER command
+--echo ####################################################################
+RESET MASTER;
+
+--echo ####################################################################
+--echo # Test Case8: SET GLOBAL GTID_PURGED command
+--echo ####################################################################
+--let $master_uuid=`SELECT @@SERVER_UUID`
+--replace_result $master_uuid MASTER_UUID
+--eval SET GLOBAL gtid_purged= '$master_uuid:1'
+
+
+--echo "Clean up"
+# Reset slave to clean state
+SET AUTOCOMMIT= @saved_autocommit;
+SET GLOBAL super_read_only= @saved_value_super;
+SET GLOBAL read_only= @saved_value;
+
+# Start fresh slave
+--source include/stop_slave.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root';
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_reset.inc

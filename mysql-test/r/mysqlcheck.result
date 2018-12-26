@@ -1,0 +1,382 @@
+DROP TABLE IF EXISTS t1, `t``1`, `t 1`;
+drop view if exists v1;
+drop database if exists client_test_db;
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log
+note     : The storage engine for the table doesn't support analyze
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log
+note     : The storage engine for the table doesn't support analyze
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+sys.sys_config                                     OK
+mtr.global_suppressions                            Table is already up to date
+mtr.test_suppressions                              Table is already up to date
+mysql.columns_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.component
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.db
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.default_roles
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.engine_cost
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.func
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.general_log
+note     : The storage engine for the table doesn't support optimize
+mysql.global_grants
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.gtid_executed
+Warning  : Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_category
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_keyword
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_relation
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_topic
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.innodb_index_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
+mysql.innodb_table_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.password_history
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.plugin
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.procs_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.proxies_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.role_edges
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.server_cost
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.servers
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.slave_master_info
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.slave_relay_log_info
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.slave_worker_info
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.slow_log
+note     : The storage engine for the table doesn't support optimize
+mysql.tables_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_leap_second
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_name
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_transition
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_transition_type
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.user
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+sys.sys_config
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log
+note     : The storage engine for the table doesn't support analyze
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log
+note     : The storage engine for the table doesn't support analyze
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mysql.columns_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.component
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.db
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.default_roles
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.engine_cost
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.func
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.general_log
+note     : The storage engine for the table doesn't support optimize
+mysql.global_grants
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.gtid_executed
+Warning  : Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_category
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_keyword
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_relation
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_topic
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.innodb_index_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
+mysql.innodb_table_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.password_history
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.plugin
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.procs_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.proxies_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.role_edges
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.server_cost
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.servers
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.slave_master_info
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.slave_relay_log_info
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.slave_worker_info
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.slow_log
+note     : The storage engine for the table doesn't support optimize
+mysql.tables_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_leap_second
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_name
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_transition
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_transition_type
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.user
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+create table t1 (a int) engine=myisam;
+create view v1 as select * from t1;
+test.t1                                            OK
+test.t1                                            Table is already up to date
+test.t1                                            OK
+test.t1                                            Table is already up to date
+drop view v1;
+drop table t1;
+create table `t``1`(a int) engine=myisam;
+create table `t 1`(a int) engine=myisam;
+test.t 1                                           OK
+test.t`1                                           OK
+drop table `t``1`, `t 1`;
+create database d_bug25347;
+use d_bug25347;
+create table t_bug25347 (a int) engine=myisam;
+create view v_bug25347 as select * from t_bug25347;
+insert into t_bug25347 values (1),(2),(3);
+flush tables;
+removing and creating
+d_bug25347.t_bug25347
+Error    : Incorrect file format 't_bug25347'
+error    : Corrupt
+insert into t_bug25347 values (4),(5),(6);
+ERROR HY000: Incorrect file format 't_bug25347'
+d_bug25347.t_bug25347
+warning  : Number of rows changed from 0 to 3
+status   : OK
+insert into t_bug25347 values (7),(8),(9);
+select * from t_bug25347;
+a
+1
+2
+3
+7
+8
+9
+select * from v_bug25347;
+a
+1
+2
+3
+7
+8
+9
+drop view v_bug25347;
+drop table t_bug25347;
+drop database d_bug25347;
+use test;
+create view v1 as select * from information_schema.routines;
+check table v1, information_schema.routines;
+Table	Op	Msg_type	Msg_text
+test.v1	check	Error	Information schema queries do not support the 'FOR UPDATE' clause.
+test.v1	check	error	Corrupt
+information_schema.ROUTINES	check	Error	Information schema queries do not support the 'FOR UPDATE' clause.
+information_schema.ROUTINES	check	error	Corrupt
+drop view v1;
+End of 5.0 tests
+End of 5.1 tests
+#
+# Bug #35269: mysqlcheck behaves different depending on order of parameters
+#
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+DROP DATABASE IF EXISTS b12688860_db;
+CREATE DATABASE b12688860_db;
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+DROP DATABASE b12688860_db;
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+mysql.user                                         OK
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+#
+# Bug#20868496: MYSQL_UPGRADE IN 5.7.7+ REPAIR LOOKS USER TABLES
+#               IN TEST WHEN LOAD FROM 50/51/55
+#
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE db1.t1 (a INT) ENGINE=MYISAM;
+CREATE TABLE db2.t2 (a INT);
+db1.t1                                             To be repaired, cause follows:
+Server issued Error    : Incorrect file format 't1'
+error    : Corrupt
+db2.t2                                             OK
+
+Repairing tables
+db1.t1
+Error    : Incorrect file format 't1'
+error    : Corrupt
+DROP DATABASE db1;
+DROP DATABASE db2;
+
+End of tests

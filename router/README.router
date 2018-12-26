@@ -1,0 +1,18 @@
+Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+
+This is a release of MySQL Router, a building block for high
+availability solutions based on MySQL InnoDB clusters.
+
+License information can be found in the LICENSE.router file.
+
+This distribution may include materials developed by third parties.
+For license and attribution notices for these materials,
+please refer to the LICENSE.router file.
+
+For further information on MySQL Router or additional documentation, visit
+  https://dev.mysql.com/doc/mysql-router/8.0/en/
+
+For additional downloads and the source of MySQL, visit
+  http://dev.mysql.com/downloads/
+
+MySQL Router is brought to you by the MySQL team at Oracle.

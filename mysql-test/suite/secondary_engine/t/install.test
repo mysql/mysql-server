@@ -1,0 +1,14 @@
+--disable_query_log
+eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
+--enable_query_log
+
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
+FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME="MOCK";
+
+--error ER_ILLEGAL_HA
+CREATE TABLE t1 (a INT) ENGINE MOCK;
+
+--disable_query_log
+UNINSTALL PLUGIN mock;
+--enable_query_log

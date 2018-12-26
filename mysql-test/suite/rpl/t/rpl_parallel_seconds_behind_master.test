@@ -1,0 +1,125 @@
+#
+# Testing of Seconds_Behind_Master (SBM) to behave as the following
+# SBM changes discretely per some number of processed group of events,
+# e.g transactions.
+# The number is either @@global.slave_checkpoint_group or less if
+# @@global.slave_checkpoint_period timer elapses first.
+# The value updates *after* the last group commit is executed.
+# Resetting to zero behavior when Slave goes to read events is
+# preserved.
+#
+# Test times out in Valgrind
+-- source include/not_valgrind.inc
+-- source include/master-slave.inc
+-- source include/have_debug.inc
+
+# make the test only run once (STMT is actually needed because we rely
+# on SHOW PROCESS LIST output in some of the tests)
+-- source include/have_binlog_format_statement.inc
+
+
+# restart slave in MTS mode
+connection slave;
+source include/stop_slave.inc;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @@global.slave_parallel_workers= 4;
+set @save.slave_checkpoint_period= @@global.slave_checkpoint_period;
+set @@global.slave_checkpoint_period= 500; # 0.5 sec
+# to avoid warnings
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+
+#
+# Idea of demonstration.
+# 
+# Two transactions on the same db are generated for MTS. The first has some
+# natural delay, and the 2nd will be locked out of its data.
+# While the first is being processed Coordinator empties the relay-log
+# to enter waiting for more events.
+# It does so being awakened @@global.slave_checkpoint_period-ically 
+# to check out if some groups of events have been done to update SBM (demo 1). 
+#
+# Resetting of SBM is a possibility whenever Coordinator
+# notices no more groups left neither to read nor to process (demo 2).
+#
+--source include/start_slave.inc
+
+connection master;
+
+--disable_query_log
+# todo: sleep() is deterministic!!!
+call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
+--enable_query_log
+
+create table t1 (f1 int) engine=innodb;
+create table t2 (f1 int) engine=innodb;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave_sql.inc
+# 1st transaction that will be used to compute SBM.
+# It will hang $idle time at least in processing to get min estimate for SBM
+connection master;
+let $idle= 3;
+
+begin;
+  eval insert into t1 values (sleep($idle) + 1);
+commit;
+
+# 2nd transaction to block Coordinator from resetting SBM
+begin;
+  insert into t2 values (1);
+commit;
+
+#
+# all events are in relay-log
+#
+source include/sync_slave_io_with_master.inc;
+
+connection slave1;
+lock table t2 write;  # to block 2nd trans
+
+connection slave;
+--source include/start_slave_sql.inc
+let $count= 1;
+let $table= t1;
+source include/wait_until_rows_count.inc;
+
+--echo First transaction is done, now get Seconds_Behind_Master after it...
+
+#
+# demo 1:
+# So now 1st is over, and it SBM must have gain at least $idle seconds.
+#
+let $slave_param= Seconds_Behind_Master;
+let $slave_param_comparison= >=; 
+let $slave_param_value= $idle;
+source include/wait_for_slave_param.inc;
+
+--echo Seconds_Behind_Master after first transaction is as expected.
+
+connection slave1;
+unlock tables;
+
+#
+# demo 2: Resetting of SBM upon all groups have been processed and 
+#         nothing left in relay-log.
+#
+connection slave;
+let $slave_param= Seconds_Behind_Master;
+let $slave_param_comparison= =; 
+let $slave_param_value= 0;
+source include/wait_for_slave_param.inc;
+
+##
+# cleanup
+##
+connection master;
+drop tables t1, t2;
+
+--source include/sync_slave_sql_with_master.inc
+
+set @@global.slave_checkpoint_period= @save.slave_checkpoint_period;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+
+--source include/rpl_end.inc
+

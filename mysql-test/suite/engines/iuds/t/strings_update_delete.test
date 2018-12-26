@@ -1,0 +1,147 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18;
+--enable_warnings
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+######## Running UPDATE tests ########
+
+# Generic tables with mixed field types and sizes
+CREATE TABLE t1(c1 CHAR(255), c2 TEXT);
+eval INSERT INTO t1 VALUES(REPEAT('abcdef',40), REPEAT('1',65535));
+eval INSERT INTO t1 VALUES(REPEAT('abc',80), REPEAT('2',65533));
+eval INSERT INTO t1 VALUES(REPEAT('\t',255), REPEAT('3',65534)); 
+UPDATE t1 SET c1=REPEAT('\n',255) WHERE c1=REPEAT('\t',255);
+--sorted_result
+SELECT LENGTH(c1),LENGTH(c2),CHAR_LENGTH(c2) FROM t1;
+--sorted_result
+SELECT c1, c2 FROM t1 where c1= REPEAT('\n',255);
+#--warning 1265 
+UPDATE t1 SET c1=REPEAT('xyz',85), c2=REPEAT(c1, 100) ORDER by c1 LIMIT 2;
+SHOW WARNINGS;
+
+--sorted_result
+SELECT LENGTH(c2) FROM t1 WHERE c2 LIKE 'xyz%';
+--sorted_result
+SELECT LENGTH(c1),LENGTH(c2),CHAR_LENGTH(c2) FROM t1;
+--sorted_result
+SELECT c1, c2 FROM t1;
+--disable_query_log
+eval INSERT INTO t1 VALUES(REPEAT('\0',255),LOAD_FILE('$MYSQLTEST_VARDIR/sample.txt'));
+--enable_query_log
+ALTER TABLE t1 MODIFY c1 TEXT;
+UPDATE t1 SET c1=LOAD_FILE('$MYSQLTEST_VARDIR/temp.txt') LIMIT 2;
+SHOW WARNINGS;
+UPDATE t1 SET c1=NULL WHERE c1 LIKE 'xyz%';
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t1 WHERE c1 NOT LIKE 'xyz%' LIMIT 1;
+--sorted_result
+SELECT length(c1), c1, length(c2), c2 FROM t1;  
+CREATE TABLE t2(c1 BLOB, c2 TINYBLOB, c3 TEXT); 
+eval INSERT INTO t2 VALUES(REPEAT('1',65535),REPEAT('a',254),REPEAT('d',65534 ));
+eval INSERT INTO t2 VALUES(REPEAT('2',65534),REPEAT('b',253),REPEAT('e',65535 ));
+eval INSERT INTO t2 VALUES(REPEAT('3',65533),REPEAT('c',255),REPEAT('f',65533));
+--sorted_result
+SELECT c1,c2 FROM t2;
+let $i=100;
+while($i){
+let $j=100;
+while($j){
+eval INSERT INTO t2 VALUES('abcde\t \t fgh     \n\n  ', '             sdsdsd',NULL);
+dec $j;
+}
+dec $i;
+}
+--sorted_result
+SELECT length(c1),c1, length(c2),c2, length(c3), c3 FROM t2;
+UPDATE t2 SET c3='Not NULL' WHERE c3=NULL;
+--sorted_result
+SELECT length(c1),c1, length(c2),c2, length(c3), c3 FROM t2; 
+ # Multi-table updates/deletes
+ CREATE TABLE t3 (c1 CHAR(10), c2 CHAR(100));
+ INSERT INTO t3 VALUES ('AS','Axel Soa'), ('AK','Axle Kora'), ('HH','Hulk Hogan');
+ CREATE TABLE t4 (c1 CHAR(10), c2 CHAR(100));
+ INSERT INTO t4 VALUES ('AS','#100, Avenue, UK'), ('AK','#101, Avenue, US'), ('HH','#103, Avenu MT');
+ UPDATE t4 SET c2='#102, Avennue MT' WHERE c1='HH';
+--sorted_result
+SELECT LENGTH(c1), c1 , LENGTH(c2),c2 FROM t4;
+DELETE FROM t3 USING t3,t4 WHERE t3.c1='AS' AND t3.c1=t4.c1 ;
+--sorted_result
+SELECT length(c1), c1, length(c2), c2 FROM t3;  
+ DROP TABLE t3,t4;
+ CREATE TABLE t3 (id int(11) NOT NULL default '0',name varchar(10) default NULL,PRIMARY KEY  (id)) ;
+ INSERT INTO t3 VALUES (1, 'aaa'),(2,'aaa'),(3,'aaa');
+ CREATE TABLE t4 (id int(11) NOT NULL default '0',name varchar(10) default NULL, PRIMARY KEY  (id)) ;
+ INSERT INTO t4 VALUES (2,'bbb'),(3,'bbb'),(4,'bbb');
+ CREATE TABLE t5 (id int(11) NOT NULL default '0', mydate datetime default NULL,PRIMARY KEY  (id));
+INSERT INTO t5 VALUES (1,'2002-02-04 00:00:00'),(3,'2002-05-12 00:00:00'),(5,'2002-05-12 00:00:00'),(6,'2002-06-22 00:00:00'),(7,'2002-07-22 00:00:00');
+delete t3,t4,t5 from t3,t4,t5 where to_days(now())-to_days(t5.mydate)>=30 and t5.id=t3.id and t5.id=t4.id;
+select * from t5;
+DROP TABLE t3,t4,t5;
+CREATE TABLE t6 (a char(2) not null primary key, b varchar(20) not null, key (b));
+CREATE TABLE t7 (a char(2) not null primary key, b varchar(20) not null, key (b));
+INSERT INTO t6 values ('AB','MySQLAB'),('JA','Sun Microsystems'),('MS','Microsoft'),('IB','IBM- Inc.'),('GO','Google Inc.');
+INSERT INTO t7 values ('AB','Sweden'),('JA','USA'),('MS','United States of Amercica'),('IB','North America'),('GO','South America'); 
+update t6,t7 set t6.a=LCASE(t6.a);
+--sorted_result
+select * from t6;
+update t6,t7 set t6.a=UCASE(t6.a) where t6.a='AB';
+--sorted_result
+select * from t6;
+update t6,t7 set t6.b=UPPER(t6.b) where t6.b LIKE 'United%';
+--sorted_result
+select * from t7;
+update t6,t7 set t6.b=UPPER(t6.b),t7.b=LOWER(t7.b) where LENGTH(t6.b) between 3 and 5 and t7.a=LOWER(t6.a);
+--sorted_result
+select * from t6;
+--sorted_result
+select * from t7;
+drop table t6,t7;
+ # Test for some STRING functions on TEXT columns
+CREATE TABLE t12(c1 TINYTEXT, c2 TEXT, c3 MEDIUMTEXT, c4 LONGTEXT);
+eval INSERT INTO t12 values (" This is a test ","\0 \0 for STRING","functions available \t in", "   \t\t MySQL " );        
+eval UPDATE t12 SET c1="This is a update test!" WHERE c2 LIKE "\0%";
+--sorted_result
+SELECT LENGTH(c1),LENGTH(c2),LENGTH(c3),LENGTH(c4) FROM t12;
+--sorted_result
+SELECT LEFT(c1,5),LEFT(c2,5),LEFT(c3,5),LEFT(c4,5) FROM t12;  
+--sorted_result
+SELECT RTRIM(c1),RTRIM(c2),RTRIM(c3),RTRIM(c4) FROM t12;   
+--sorted_result
+SELECT HEX(c1),HEX(c2),HEX(c3),HEX(c4) FROM t12;    
+--sorted_result
+SELECT REVERSE(c1),REVERSE(c2),REVERSE(c3),REVERSE(c4) FROM t12;      
+DELETE FROM t12 WHERE C1 LIKE "%update%";
+--sorted_result
+SELECT HEX(c1),HEX(c2),HEX(c3),HEX(c4) FROM t12;     
+# Test for SET datatype
+CREATE TABLE t16 (c1 SET('a', 'b', 'c', 'd', 'e'));
+eval INSERT INTO t16 VALUES (('d,a,d,d'));
+--sorted_result
+SELECT c1 FROM t16;
+eval INSERT INTO t16 (c1) VALUES ('a,b,d'),('d,A ,b');
+--sorted_result
+SELECT c1 FROM t16; 
+#--warning WARN_DATA_TRUNCATED
+eval INSERT INTO t16 (c1) VALUES ('f,a,b'); 
+SHOW WARNINGS;
+--sorted_result
+SELECT c1 FROM t16;   
+#--warning ER_DUPLICATED_VALUE_IN_TYPE
+CREATE TABLE t17 (c1 SET('a','b','a','b'));
+SHOW WARNINGS;
+# Tests for ENUM datatype
+# Invalid ENUM value insert behavior
+CREATE TABLE t18 (c1 CHAR(4),c2 enum('SMALL','MEDIUM','LARGE','VERY LARGE'));
+eval INSERT INTO t18 VALUES('SIZE', 'SMALL');
+eval INSERT INTO t18 VALUES('SIZE', 'SMALL1'); 
+--sorted_result
+SELECT * FROM t18 WHERE c2=0;
+ EXPLAIN SELECT * FROM t18 WHERE c2=0; 
+eval SET sql_mode= default;
+--error 1265
+eval INSERT INTO t18 VALUES('SIZE','SMALL2'); 
+--sorted_result
+SELECT * FROM t18 WHERE c2=0;
+ DROP TABLE t17,t18;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18;

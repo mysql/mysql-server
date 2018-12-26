@@ -1,0 +1,80 @@
+# ==== Purpose ====
+#
+# Verify that we permit replication operations with super_read_only=ON.
+#
+# ==== Implementation ====
+#
+# 1) Have gtid_mode on and binlog less slave.
+# 2) set super_read_only=on on slave server.
+# 3) Set gtid_executed_compression_period=5 so that compression thread wakes
+#    up after 5 gtid transactions are executed.
+# 4) Execute 6 transaction on master so that it triggers compression thread
+#    on slave to update mysql.gtid_executed table.
+# 5) Verify that Slave server is up and running.
+# 6) Check that replication works fine
+# 7) Restore GLOBAL super_read_only to 0
+#
+# ==== References ====
+#
+# Bug#22097534: SUPER_READ_ONLY ABORTS STOP SLAVE IF
+#               RELAY_LOG_INFO_REPOSITORY=TABLE, DBG CRASH
+# Bug#22857926: ASSERTION `! IS_SET()' AT SQL_ERROR.CC:38 IN READ_ONLY MODE
+#               FOR MANY RPL CMDS.
+# Bug#26414532: MYSQLRPLSYNC ERRORS OUT BECAUSE SLAVE IS USING
+#               --SUPER-READ-ONLY OPTION
+#
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--let $use_gtids= 1
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+# Clear gtid_executed table.
+--source include/rpl_reset.inc
+
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression("You need to use --log-bin*");
+SET @saved_value_super= @@GLOBAL.super_read_only;
+SET @saved_value= @@GLOBAL.read_only;
+SET GLOBAL super_read_only= 1;
+--let $assert_cond = "[SELECT @@GLOBAL.gtid_executed_compression_period]" = 5
+--let $assert_text = 'gtid_executed_compression_period global variable is set to 5'
+--source include/assert.inc
+
+
+--source include/rpl_connection_master.inc
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(4);
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # connection slave
+--echo #
+--let $assert_text= committed gtids MASTER_UUID:1-6
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6"
+--source include/assert.inc
+
+--echo #
+--echo # Wait till gtid_executed table has one row and verify that
+--echo # it is MASTER_UUID:1:6
+--echo #
+let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed;
+--source include/wait_condition.inc
+--replace_result $master_uuid MASTER_UUID
+SELECT * FROM mysql.gtid_executed;
+
+--echo "Clean up"
+# Reset slave to clean state
+SET GLOBAL super_read_only= @saved_value_super;
+SET GLOBAL read_only= @saved_value;
+
+--source include/rpl_end.inc

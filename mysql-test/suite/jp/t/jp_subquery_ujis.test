@@ -1,0 +1,119 @@
+--character_set ujis
+--disable_warnings
+DROP TABLE IF EXISTS `£‘£±a`;
+DROP TABLE IF EXISTS `£‘£±b`;
+DROP TABLE IF EXISTS `£‘£≤a`;
+DROP TABLE IF EXISTS `£‘£≤b`;
+DROP TABLE IF EXISTS `£‘£≥a`;
+DROP TABLE IF EXISTS `£‘£≥b`;
+DROP TABLE IF EXISTS `£‘£¥a`;
+DROP TABLE IF EXISTS `£‘£¥b`;
+DROP TABLE IF EXISTS `£‘£µa`;
+DROP TABLE IF EXISTS `£‘£µb`;
+DROP TABLE IF EXISTS `£‘£∂a`;
+DROP TABLE IF EXISTS `£‘£∂b`;
+DROP TABLE IF EXISTS `£‘£∑a`;
+DROP TABLE IF EXISTS `£‘£∑b`;
+DROP TABLE IF EXISTS `£‘£∏a`;
+DROP TABLE IF EXISTS `£‘£∏b`;
+DROP TABLE IF EXISTS `£‘£πa`;
+DROP TABLE IF EXISTS `£‘£πb`;
+--enable_warnings
+
+#
+# Test subquery using Japanese characters in ujis encoding 
+#
+
+SET NAMES ujis;
+SET character_set_database = ujis;
+
+CREATE TABLE `£‘£±a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£‘£±b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£‘£≤a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£‘£≤b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£‘£≥a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£‘£≥b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£‘£¥a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£¥b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£µa` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£µb` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£∂a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£∂b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£∑a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£‘£∑b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£‘£∏a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£‘£∏b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£‘£πa` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£‘£πb` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = MEMORY;
+
+#insert the following data in each table
+# jisx0201 hankaku-katakana data
+# jisx0208 data
+# jisx0212 supplemental character data
+
+INSERT INTO `£‘£±a` VALUES ('é±'),('é∂'),('éª');
+INSERT INTO `£‘£±b` VALUES ('é±');
+INSERT INTO `£‘£≤a` VALUES ('§¢'),('§´'),('§µ');
+INSERT INTO `£‘£≤b` VALUES ('§¢');
+INSERT INTO `£‘£≥a` VALUES ('èÌ‹'),('èÌ›'),('èÌﬁ');
+INSERT INTO `£‘£≥b` VALUES ('èÌ‹');
+INSERT INTO `£‘£¥a` VALUES ('é±'),('é∂'),('éª');
+INSERT INTO `£‘£¥b` VALUES ('é±');
+INSERT INTO `£‘£µa` VALUES ('§¢'),('§´'),('§µ');
+INSERT INTO `£‘£µb` VALUES ('§¢');
+INSERT INTO `£‘£∂a` VALUES ('èÌ‹'),('èÌ›'),('èÌﬁ');
+INSERT INTO `£‘£∂b` VALUES ('èÌ‹');
+INSERT INTO `£‘£∑a` VALUES ('é±'),('é∂'),('éª');
+INSERT INTO `£‘£∑b` VALUES ('é±');
+INSERT INTO `£‘£∏a` VALUES ('§¢'),('§´'),('§µ');
+INSERT INTO `£‘£∏b` VALUES ('§¢');
+INSERT INTO `£‘£πa` VALUES ('èÌ‹'),('èÌ›'),('èÌﬁ');
+INSERT INTO `£‘£πb` VALUES ('èÌ‹');
+
+#Test for innodb
+SELECT `£√£±` FROM `£‘£±a` WHERE `£√£±` IN (SELECT `£√£±` FROM `£‘£±b`);
+SELECT `£√£±` FROM `£‘£±a` WHERE EXISTS (SELECT `£√£±` FROM `£‘£±b` WHERE `£‘£±a`.`£√£±` = `£‘£±b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£±a` WHERE NOT EXISTS (SELECT `£√£±` FROM `£‘£±b` WHERE `£‘£±a`.`£√£±` = `£‘£±b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£≤a` WHERE `£√£±` IN (SELECT `£√£±` FROM `£‘£≤b`);
+SELECT `£√£±` FROM `£‘£≤a` WHERE EXISTS (SELECT `£√£±` FROM `£‘£≤b` WHERE `£‘£≤a`.`£√£±` = `£‘£≤b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£≤a` WHERE NOT EXISTS (SELECT `£√£±` FROM `£‘£≤b` WHERE `£‘£≤a`.`£√£±` = `£‘£≤b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£≥a` WHERE `£√£±` IN (SELECT `£√£±` FROM `£‘£≥b`);
+SELECT `£√£±` FROM `£‘£≥a` WHERE EXISTS (SELECT `£√£±` FROM `£‘£≥b` WHERE `£‘£≥a`.`£√£±` = `£‘£≥b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£≥a` WHERE NOT EXISTS (SELECT `£√£±` FROM `£‘£≥b` WHERE `£‘£≥a`.`£√£±` = `£‘£≥b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£¥a` WHERE `£√£±` IN (SELECT `£√£±` FROM `£‘£¥b`);
+SELECT `£√£±` FROM `£‘£¥a` WHERE EXISTS (SELECT `£√£±` FROM `£‘£¥b` WHERE `£‘£¥a`.`£√£±` = `£‘£¥b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£¥a` WHERE NOT EXISTS (SELECT `£√£±` FROM `£‘£¥b` WHERE `£‘£¥a`.`£√£±` = `£‘£¥b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£µa` WHERE `£√£±` IN (SELECT `£√£±` FROM `£‘£µb`);
+SELECT `£√£±` FROM `£‘£µa` WHERE EXISTS (SELECT `£√£±` FROM `£‘£µb` WHERE `£‘£µa`.`£√£±` = `£‘£µb`.`£√£±`);
+SELECT `£√£±` FROM `£‘£µa` WHERE NOT EXISTS (SELECT `£√£±` FROM `£‘£µb` WHERE `£‘£µa`.`£√£±` = `£‘£µb`.`£√£±`);
+SELECT `£√£±` FROM `£‘£∂a` WHERE `£√£±` IN (SELECT `£√£±` FROM `£‘£∂b`);
+SELECT `£√£±` FROM `£‘£∂a` WHERE EXISTS (SELECT `£√£±` FROM `£‘£∂b` WHERE `£‘£∂a`.`£√£±` = `£‘£∂b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£∂a` WHERE NOT EXISTS (SELECT `£√£±` FROM `£‘£∂b` WHERE `£‘£∂a`.`£√£±` = `£‘£∂b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£∑a` WHERE `£√£±` IN (SELECT `£√£±` FROM `£‘£∑b`);
+SELECT `£√£±` FROM `£‘£∑a` WHERE EXISTS (SELECT `£√£±` FROM `£‘£∑b` WHERE `£‘£∑a`.`£√£±` = `£‘£∑b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£∑a` WHERE NOT EXISTS (SELECT `£√£±` FROM `£‘£∑b` WHERE `£‘£∑a`.`£√£±` = `£‘£∑b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£∏a` WHERE `£√£±` IN (SELECT `£√£±` FROM `£‘£∏b`);
+SELECT `£√£±` FROM `£‘£∏a` WHERE EXISTS (SELECT `£√£±` FROM `£‘£∏b` WHERE `£‘£∏a`.`£√£±` = `£‘£∏b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£∏a` WHERE NOT EXISTS (SELECT `£√£±` FROM `£‘£∏b` WHERE `£‘£∏a`.`£√£±` = `£‘£∏b`.`£√£±`);
+SELECT `£√£±` FROM `£‘£πa` WHERE `£√£±` IN (SELECT `£√£±` FROM `£‘£πb`);
+SELECT `£√£±` FROM `£‘£πa` WHERE EXISTS (SELECT `£√£±` FROM `£‘£πb` WHERE `£‘£πa`.`£√£±` = `£‘£πb`.`£√£±`);
+SELECT `£√£±` FROM `£‘£πa` WHERE NOT EXISTS (SELECT `£√£±` FROM `£‘£πb` WHERE `£‘£πa`.`£√£±` = `£‘£πb`.`£√£±`);
+
+DROP TABLE `£‘£±a`;
+DROP TABLE `£‘£±b`;
+DROP TABLE `£‘£≤a`;
+DROP TABLE `£‘£≤b`;
+DROP TABLE `£‘£≥a`;
+DROP TABLE `£‘£≥b`;
+DROP TABLE `£‘£¥a`;
+DROP TABLE `£‘£¥b`;
+DROP TABLE `£‘£µa`;
+DROP TABLE `£‘£µb`;
+DROP TABLE `£‘£∂a`;
+DROP TABLE `£‘£∂b`;
+DROP TABLE `£‘£∑a`;
+DROP TABLE `£‘£∑b`;
+DROP TABLE `£‘£∏a`;
+DROP TABLE `£‘£∏b`;
+DROP TABLE `£‘£πa`;
+DROP TABLE `£‘£πb`;

@@ -1,0 +1,43 @@
+--source include/have_ndb.inc
+
+#
+# Check that MySQL Cluster version strings and numbers are correct
+#
+
+# Extract MySQL Server version string
+let $mysql_version_string=
+  `SELECT VERSION()`;
+#echo mysql_version_string: $mysql_version_string;
+
+# Check that MySQL Server version include "-cluster" to indicate
+# that this is Cluster edition
+--disable_query_log ONCE
+eval SELECT REGEXP_LIKE('$mysql_version_string', '-cluster')
+       AS "MySQL version contains '-cluster'";
+
+# Extract MySQL Server version number, three numbers separated with dots
+let $mysql_version_number=
+  `SELECT REGEXP_SUBSTR('$mysql_version_string', '[0-9]*[.][0-9]*[.][0-9]*')`;
+#echo mysql_version_number: $mysql_version_number;
+
+# Extract NDB version string
+let $ndb_version_string=
+  `SELECT @@ndb_version_string`;
+#echo ndb_version_string: $ndb_version_string;
+
+# Check that NDB version string starts with "ndb-"
+--disable_query_log ONCE
+eval SELECT REGEXP_LIKE('$ndb_version_string', '^ndb-')
+       AS "NDB version starts with 'ndb-'";
+
+# Extract NDB version number, three numbers separated with dots after "ndb-"
+let $ndb_version_number=
+  `SELECT REGEXP_SUBSTR('$ndb_version_string', '[0-9]*[.][0-9]*[.][0-9]*')`;
+#echo ndb_version_number: $ndb_version_number;
+
+# Check that the NDB version number is the same as the MySQL version number
+--disable_query_log ONCE
+eval SELECT '$ndb_version_number' = '$mysql_version_number' as
+   "NDB version number matches MySQL version number";
+
+

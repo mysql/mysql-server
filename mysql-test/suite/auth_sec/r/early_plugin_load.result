@@ -1,0 +1,19 @@
+call mtr.add_suppression("Dictionary file not specified");
+# Setup : Restart server with --early_plugin_load option
+# 1. Check that VALIDATE_PASSWORD plugin is installed properly
+SELECT PLUGIN_NAME, PLUGIN_STATUS, LOAD_OPTION FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME LIKE 'VALIDATE_PASSWORD';
+PLUGIN_NAME	PLUGIN_STATUS	LOAD_OPTION
+validate_password	ACTIVE	ON
+SHOW VARIABLES LIKE 'validate_password_length';
+Variable_name	Value
+validate_password_length	10
+# 2. Use VALIDATE_PASSWORD plugin
+CREATE USER foo@localhost IDENTIFIED BY 'abcd';
+ERROR HY000: Your password does not satisfy the current policy requirements
+CREATE USER foo@localhost IDENTIFIED BY 'C0mPl3%P@sSw0rD';
+DROP USER foo@localhost;
+# 3. Try uninstalling VALIDATE_PASSWORD plugin
+UNINSTALL PLUGIN VALIDATE_PASSWORD;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead

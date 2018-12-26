@@ -1,0 +1,46 @@
+################################################################################
+# Coverage test for WL#9219 Remove cross compatibility code for binlog V1-V3
+#
+# It tests two errors on COM_REGISTER_SLAVE command
+# 1. master_user has no privilege to replicate.
+# 2. Slave IO thread is killed when registering to master
+################################################################################
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Test Case 1: master_user has no privilege
+--echo #
+
+CREATE USER rpl_user;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_io.inc
+
+CHANGE MASTER TO master_user='rpl_user';
+START SLAVE IO_THREAD;
+
+--let $slave_io_errno= 13120
+--source include/wait_for_slave_io_error.inc
+
+CALL mtr.add_suppression(".*Slave I/O thread couldn't register on master.*");
+CALL mtr.add_suppression(".* Master command COM_REGISTER_SLAVE failed.*");
+
+--echo #
+--echo # Test Case 2: IO thread is killed when registering to master
+--echo #
+
+CHANGE MASTER TO master_user='root';
+
+# Simulate register_slave_to_master is killed
+SET GLOBAL debug = '+d,simulate_register_slave_killed';
+START SLAVE IO_THREAD;
+
+--source include/wait_for_slave_io_to_stop.inc
+SET GLOBAL debug = '-d,simulate_register_slave_killed';
+--source include/start_slave_io.inc
+
+--source include/rpl_connection_master.inc
+DROP USER rpl_user;
+--source include/rpl_end.inc

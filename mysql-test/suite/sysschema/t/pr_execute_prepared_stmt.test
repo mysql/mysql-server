@@ -1,0 +1,23 @@
+# Do some valid changes, ensure they are successful
+SET @sql := "CREATE TABLE test.t1 (i INT)";
+CALL sys.execute_prepared_stmt(@sql);
+
+SHOW CREATE TABLE test.t1;
+
+SET @sql := CONCAT('INSERT INTO test.t1 VALUES (', 1, ')');
+CALL sys.execute_prepared_stmt(@sql);
+
+SELECT * FROM test.t1;
+
+SET @sql := "DROP TABLE test.t1";
+CALL sys.execute_prepared_stmt(@sql);
+
+SHOW TABLES;
+
+SET @sql = NULL;
+
+# Invalid inputs
+-- error S45000
+CALL sys.execute_prepared_stmt(NULL);
+-- error S45000
+CALL sys.execute_prepared_stmt('foo');

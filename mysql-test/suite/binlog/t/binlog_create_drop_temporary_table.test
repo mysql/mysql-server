@@ -1,0 +1,46 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE is not written
+# into binlog when @@session.binlog_format= ROW/MIXED.
+#
+# ==== Implementation ====
+#
+# 1. SET @@session.binlog_format= MIXED;
+# 2. Verify that CREATE/DROP TEMPORARY TABLE is not written
+#    into binlog when @@session.binlog_format= MIXED.
+# 3. SET @@session.binlog_format= ROW;
+# 4. Verify that CREATE/DROP TEMPORARY TABLE is not written
+#    into binlog when @@session.binlog_format= ROW.
+#
+# ==== References ====
+#
+# Wl#8872 Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+--source include/have_log_bin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/have_myisam.inc
+
+SET @@session.binlog_format= MIXED;
+SELECT @@session.binlog_format;
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+CREATE TABLE t2(a INT) ENGINE=MyISAM;
+
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--source extra/binlog_tests/create_drop_temporary_table.test
+--let $assert_text= CREATE/DROP TEMPORARY TABLE is not written into binlog when @@session.binlog_format= MIXED.
+--let $assert_cond= [SHOW MASTER STATUS, Position, 1] = $saved_master_pos
+--source include/assert.inc
+
+SET @@session.binlog_format= ROW;
+SELECT @@session.binlog_format;
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--source extra/binlog_tests/create_drop_temporary_table.test
+--let $assert_text= CREATE/DROP TEMPORARY TABLE is not written into binlog when @@session.binlog_format= ROW.
+--let $assert_cond= [SHOW MASTER STATUS, Position, 1] = $saved_master_pos
+--source include/assert.inc
+
+DROP TABLE t1,t2;

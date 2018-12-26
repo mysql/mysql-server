@@ -1,0 +1,21 @@
+# Non-windows specific partition tests.
+--source include/not_windows.inc
+
+--disable_query_log
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means mysqld does not have the access");
+--enable_query_log
+
+--error ER_GET_ERRNO,1
+CREATE TABLE `example` (
+  `ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `DESCRIPTION` varchar(30) NOT NULL,
+  `LEVEL` smallint(5) unsigned DEFAULT NULL,
+  PRIMARY KEY (`ID_EXAMPLE`)
+)
+PARTITION BY HASH(ID_EXAMPLE)(
+PARTITION p0 DATA DIRECTORY = '/not/existent/p0Data',
+PARTITION p1 DATA DIRECTORY = '/not/existent/p1Data',
+PARTITION p2 DATA DIRECTORY = '/not/existent/p2Data',
+PARTITION p3 DATA DIRECTORY = '/not/existent/p3Data'
+);

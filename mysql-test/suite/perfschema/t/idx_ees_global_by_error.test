@@ -1,0 +1,15 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = SUM_ERROR_RAISED;
+let $table = performance_schema.events_errors_summary_global_by_error;
+
+###########################################################################
+# Test index on ERROR_NUMBER
+###########################################################################
+
+let $column_count = 1;
+let $col1 = ERROR_NUMBER;
+let $col1_act = "1146";
+
+--source ../include/idx_explain_test.inc

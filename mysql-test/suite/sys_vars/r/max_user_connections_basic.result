@@ -1,0 +1,122 @@
+SET @start_global_value = @@global.max_user_connections;
+SELECT @start_global_value;
+@start_global_value
+0
+SET @start_session_value = @@session.max_user_connections;
+SELECT @start_session_value;
+@start_session_value
+0
+'#--------------------FN_DYNVARS_087_01-------------------------#'
+SET @@global.max_user_connections = 1000;
+SET @@global.max_user_connections = DEFAULT;
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+0
+SET @@session.max_user_connections = 1000;
+ERROR HY000: SESSION variable 'max_user_connections' is read-only. Use SET GLOBAL to assign the value
+'#--------------------FN_DYNVARS_087_02-------------------------#'
+SET @@global.max_user_connections = DEFAULT;
+SELECT @@global.max_user_connections = 0;
+@@global.max_user_connections = 0
+1
+SET @@session.max_user_connections = DEFAULT;
+ERROR HY000: SESSION variable 'max_user_connections' is read-only. Use SET GLOBAL to assign the value
+SELECT @@session.max_user_connections;
+@@session.max_user_connections
+0
+'#--------------------FN_DYNVARS_087_03-------------------------#'
+SET @@global.max_user_connections = 1;
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+1
+SET @@global.max_user_connections = 2;
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+2
+SET @@global.max_user_connections = 65536;
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+65536
+SET @@global.max_user_connections = 4294967295;
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+4294967295
+SET @@global.max_user_connections = 4294967294;
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+4294967294
+'#------------------FN_DYNVARS_087_05-----------------------#'
+SET @@global.max_user_connections = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_user_connections value: '-1024'
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+0
+SET @@global.max_user_connections = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect max_user_connections value: '4294967296'
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+4294967295
+SET @@global.max_user_connections = -1;
+Warnings:
+Warning	1292	Truncated incorrect max_user_connections value: '-1'
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+0
+SET @@global.max_user_connections = 429496729500;
+Warnings:
+Warning	1292	Truncated incorrect max_user_connections value: '429496729500'
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+4294967295
+SET @@global.max_user_connections = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_user_connections'
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+4294967295
+SET @@global.max_user_connections = test;
+ERROR 42000: Incorrect argument type to variable 'max_user_connections'
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+4294967295
+SET @@global.max_user_connections = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_user_connections'
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+4294967295
+'#------------------FN_DYNVARS_087_06-----------------------#'
+SELECT @@global.max_user_connections = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='max_user_connections';
+@@global.max_user_connections = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_087_08-----------------------#'
+SET @@global.max_user_connections = TRUE;
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+1
+SET @@global.max_user_connections = FALSE;
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+0
+'#---------------------FN_DYNVARS_087_09----------------------#'
+SET @@global.max_user_connections = 20;
+SELECT @@max_user_connections = @@global.max_user_connections;
+@@max_user_connections = @@global.max_user_connections
+1
+'#---------------------FN_DYNVARS_087_11----------------------#'
+SET @@global.max_user_connections = 102;
+SELECT @@max_user_connections;
+@@max_user_connections
+102
+SELECT local.max_user_connections;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.max_user_connections;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT max_user_connections = @@session.max_user_connections;
+ERROR 42S22: Unknown column 'max_user_connections' in 'field list'
+SET @@global.max_user_connections = @start_global_value;
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+0

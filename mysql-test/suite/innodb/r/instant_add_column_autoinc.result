@@ -1,0 +1,33 @@
+CREATE PROCEDURE test.sp2 (IN start BIGINT)
+BEGIN
+SET @idx =start;
+WHILE (@idx > 0) DO
+ALTER TABLE test.t1 ADD n2 BIGINT;
+ALTER TABLE test.t1 DROP COLUMN n2;
+SET @idx = @idx - 1;
+END WHILE;
+END|
+CREATE PROCEDURE test.sp1 (IN start BIGINT)
+BEGIN
+SET @idx =start;
+WHILE (@idx > 0) DO
+INSERT INTO test.t1 (c2,c3) VALUES(repeat('q',10),@idx);
+SET @idx = @idx - 1;
+END WHILE;
+END|
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT(1024), c3 INT);
+call test.sp2(30);;
+call test.sp1(300);;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT(1024), c3 INT) PARTITION BY HASH (c1) PARTITIONS 2;
+call test.sp2(30);;
+call test.sp1(300);;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP PROCEDURE IF EXISTS test.sp1;
+DROP PROCEDURE IF EXISTS test.sp2;
+DROP TABLE t1;

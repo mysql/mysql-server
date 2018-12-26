@@ -1,0 +1,171 @@
+include/rpl_init.inc [topology=none]
+==== Configure ====
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+CREATE TABLE t1 (a INT);
+==== Test ====
+---- Case 1: Specify ANONYMOUS prior to transaction ----
+* BEGIN ... ROLLBACK
+- history=none current=none
+SET SESSION GTID_NEXT = 'ANONYMOUS';
+BEGIN;
+INSERT INTO t1 VALUES (1);
+ROLLBACK;
+- history=ANONYMOUS current=ANONYMOUS
+* BEGIN ... COMMIT
+- history=none current=none
+SET SESSION GTID_NEXT = 'ANONYMOUS';
+- history=none current=none
+[START] BEGIN;
+- history=none current=AUTOMATIC
+[END] BEGIN;
+- history=none current=ANONYMOUS
+INSERT INTO t1 VALUES (1);
+- history=none current=ANONYMOUS
+COMMIT;
+- history=ANONYMOUS current=ANONYMOUS
+* AUTOCOMMIT = OFF
+SET @@SESSION.AUTOCOMMIT = 0;
+- history=none current=none
+SET SESSION GTID_NEXT = 'ANONYMOUS';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (1);
+- history=none current=ANONYMOUS
+[END] INSERT INTO t1 VALUES (1);
+- history=none current=ANONYMOUS
+COMMIT;
+- history=ANONYMOUS current=ANONYMOUS
+* AUTOCOMMIT = ON
+SET @@SESSION.AUTOCOMMIT = 1;
+- history=none current=none
+SET SESSION GTID_NEXT = 'ANONYMOUS';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (1);
+- history=none current=ANONYMOUS
+[END] INSERT INTO t1 VALUES (1);
+- history=ANONYMOUS current=ANONYMOUS
+---- Case 2: Generate ANONYMOUS at commit ----
+* BEGIN ... ROLLBACK
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+BEGIN;
+INSERT INTO t1 VALUES (2);
+ROLLBACK;
+- history=AUTOMATIC current=AUTOMATIC
+* BEGIN ... COMMIT
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+- history=none current=none
+[START] BEGIN;
+- history=none current=AUTOMATIC
+[END] BEGIN;
+- history=none current=AUTOMATIC
+INSERT INTO t1 VALUES (2);
+- history=none current=AUTOMATIC
+COMMIT;
+- history=ANONYMOUS current=ANONYMOUS
+* AUTOCOMMIT = OFF
+SET @@SESSION.AUTOCOMMIT = 0;
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (2);
+- history=none current=AUTOMATIC
+[END] INSERT INTO t1 VALUES (2);
+- history=none current=AUTOMATIC
+COMMIT;
+- history=ANONYMOUS current=ANONYMOUS
+* AUTOCOMMIT = ON
+SET @@SESSION.AUTOCOMMIT = 1;
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (2);
+- history=none current=AUTOMATIC
+[END] INSERT INTO t1 VALUES (2);
+- history=ANONYMOUS current=ANONYMOUS
+include/rpl_set_gtid_mode.inc [ON on servers 1]
+---- Case 3: Specify GTID prior to transaction ----
+* BEGIN ... ROLLBACK
+- history=none current=none
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+INSERT INTO t1 VALUES (3);
+ROLLBACK;
+- history=A:1 current=A:1
+* BEGIN ... COMMIT
+- history=none current=none
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+- history=none current=none
+[START] BEGIN;
+- history=none current=AUTOMATIC
+[END] BEGIN;
+- history=none current=A:1
+INSERT INTO t1 VALUES (3);
+- history=none current=A:1
+COMMIT;
+- history=A:1 current=A:1
+* AUTOCOMMIT = OFF
+SET @@SESSION.AUTOCOMMIT = 0;
+- history=none current=none
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (3);
+- history=none current=A:1
+[END] INSERT INTO t1 VALUES (3);
+- history=none current=A:1
+COMMIT;
+- history=A:1 current=A:1
+* AUTOCOMMIT = ON
+SET @@SESSION.AUTOCOMMIT = 1;
+- history=none current=none
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (3);
+- history=none current=A:1
+[END] INSERT INTO t1 VALUES (3);
+- history=A:1 current=A:1
+---- Case 4: Generate GTID at commit ----
+* BEGIN ... ROLLBACK
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+BEGIN;
+INSERT INTO t1 VALUES (4);
+ROLLBACK;
+- history=AUTOMATIC current=AUTOMATIC
+* BEGIN ... COMMIT
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+- history=none current=none
+[START] BEGIN;
+- history=none current=AUTOMATIC
+[END] BEGIN;
+- history=none current=AUTOMATIC
+INSERT INTO t1 VALUES (4);
+- history=none current=AUTOMATIC
+COMMIT;
+- history=SERVER_UUID:1 current=SERVER_UUID:1
+* AUTOCOMMIT = OFF
+SET @@SESSION.AUTOCOMMIT = 0;
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (4);
+- history=none current=AUTOMATIC
+[END] INSERT INTO t1 VALUES (4);
+- history=none current=AUTOMATIC
+COMMIT;
+- history=SERVER_UUID:1 current=SERVER_UUID:1
+* AUTOCOMMIT = ON
+SET @@SESSION.AUTOCOMMIT = 1;
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (4);
+- history=none current=AUTOMATIC
+[END] INSERT INTO t1 VALUES (4);
+- history=SERVER_UUID:1 current=SERVER_UUID:1
+==== Clean up ====
+DROP TABLE t1;
+include/rpl_set_gtid_mode.inc [OFF on servers 1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+include/rpl_end.inc

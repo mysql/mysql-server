@@ -1,0 +1,241 @@
+############## mysql-test\t\max_sort_length_basic.test ###############
+#                                                                             #
+# Variable Name: max_sort_length                                              #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:   1024                                                       #
+# Range: 4-8388608                                                            #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable max_sort_length          #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+
+############################################
+#        START OF max_sort_length TESTS    #
+############################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.max_sort_length;
+SELECT @start_global_value;
+SET @start_session_value = @@session.max_sort_length;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_084_01-------------------------#'
+#######################################################
+#    Display the DEFAULT value of max_sort_length     #
+#######################################################
+
+SET @@global.max_sort_length = 1000;
+SET @@global.max_sort_length = DEFAULT;
+SELECT @@global.max_sort_length;
+
+
+SET @@session.max_sort_length = 1000;
+SET @@session.max_sort_length = DEFAULT;
+SELECT @@session.max_sort_length;
+
+
+--echo '#--------------------FN_DYNVARS_084_02-------------------------#'
+#######################################################
+#     Check the DEFAULT value of max_sort_length      #
+#######################################################
+
+SET @@global.max_sort_length = DEFAULT;
+SELECT @@global.max_sort_length = 1024;
+
+SET @@session.max_sort_length = DEFAULT;
+SELECT @@session.max_sort_length = 1024;
+
+
+
+--echo '#--------------------FN_DYNVARS_084_03-------------------------#'
+#########################################################################
+# Change the value of max_sort_length to a valid value for GLOBAL Scope #
+#########################################################################
+
+SET @@global.max_sort_length = 4;
+SELECT @@global.max_sort_length;
+SET @@global.max_sort_length = 5;
+SELECT @@global.max_sort_length;
+SET @@global.max_sort_length = 8388608;
+SELECT @@global.max_sort_length;
+SET @@global.max_sort_length = 8388607;
+SELECT @@global.max_sort_length;
+SET @@global.max_sort_length = 65536;
+SELECT @@global.max_sort_length;
+
+--echo '#--------------------FN_DYNVARS_084_04-------------------------#'
+##########################################################################
+# Change the value of max_sort_length to a valid value for SESSION Scope #
+##########################################################################
+
+SET @@session.max_sort_length = 4;
+SELECT @@session.max_sort_length;
+
+SET @@session.max_sort_length = 5;
+SELECT @@session.max_sort_length;
+
+SET @@session.max_sort_length = 8388608;
+SELECT @@session.max_sort_length;
+
+SET @@session.max_sort_length = 8388607;
+SELECT @@session.max_sort_length;
+
+SET @@session.max_sort_length = 65536;
+SELECT @@session.max_sort_length;
+
+
+--echo '#------------------FN_DYNVARS_084_05-----------------------#'
+###########################################################
+# Change the value of max_sort_length to an invalid value #
+###########################################################
+
+SET @@global.max_sort_length = -1024;
+SELECT @@global.max_sort_length;
+SET @@global.max_sort_length = 3;
+SELECT @@global.max_sort_length;
+SET @@global.max_sort_length = 8388609;
+SELECT @@global.max_sort_length;
+SET @@global.max_sort_length = 0;
+SELECT @@global.max_sort_length;
+SET @@global.max_sort_length = 1075692835;
+SELECT @@global.max_sort_length;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_sort_length = 65530.34;
+SELECT @@global.max_sort_length;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_sort_length = test;
+SELECT @@global.max_sort_length;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_sort_length = ' ';
+SELECT @@global.max_sort_length;
+
+SET @@session.max_sort_length = 8388610;
+SELECT @@session.max_sort_length;
+SET @@session.max_sort_length = -1;
+SELECT @@session.max_sort_length;
+SET @@session.max_sort_length = 3;
+SELECT @@session.max_sort_length;
+SET @@session.max_sort_length = 0;
+SELECT @@session.max_sort_length;
+SET @@session.max_sort_length = -1024;
+SELECT @@session.max_sort_length;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_sort_length = 65530.34;
+SET @@session.max_sort_length = 10737418241;
+SELECT @@session.max_sort_length;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_sort_length = test;
+SELECT @@session.max_sort_length;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_sort_length = ' ';
+SELECT @@session.max_sort_length;
+
+
+--echo '#------------------FN_DYNVARS_084_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+
+--disable_warnings
+SELECT @@global.max_sort_length = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='max_sort_length';
+--enable_warnings
+
+--echo '#------------------FN_DYNVARS_084_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@session.max_sort_length = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='max_sort_length';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_084_08-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.max_sort_length = TRUE;
+SELECT @@global.max_sort_length;
+SET @@global.max_sort_length = FALSE;
+SELECT @@global.max_sort_length;
+
+
+--echo '#---------------------FN_DYNVARS_084_09----------------------#'
+#################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable   #
+#################################################################################
+
+SET @@global.max_sort_length = 2048;
+SELECT @@max_sort_length = @@global.max_sort_length;
+
+
+--echo '#---------------------FN_DYNVARS_084_10----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@max_sort_length = 100000;
+SELECT @@max_sort_length = @@local.max_sort_length;
+SELECT @@local.max_sort_length = @@session.max_sort_length;
+
+
+--echo '#---------------------FN_DYNVARS_084_11----------------------#'
+##########################################################################
+#   Check if max_sort_length can be accessed with and without @@ sign    #
+##########################################################################
+
+
+SET max_sort_length = 1024;
+SELECT @@max_sort_length;
+--Error ER_UNKNOWN_TABLE
+SELECT local.max_sort_length;
+--Error ER_UNKNOWN_TABLE
+SELECT session.max_sort_length;
+--Error ER_BAD_FIELD_ERROR
+SELECT max_sort_length = @@session.max_sort_length;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.max_sort_length = @start_global_value;
+SELECT @@global.max_sort_length;
+SET @@session.max_sort_length = @start_session_value;
+SELECT @@session.max_sort_length;
+
+
+####################################################
+#                 END OF max_sort_length TESTS     #
+####################################################
+

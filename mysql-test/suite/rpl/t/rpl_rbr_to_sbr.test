@@ -1,0 +1,38 @@
+--source include/not_group_replication_plugin.inc
+-- source include/have_binlog_format_mixed.inc
+-- source include/not_ndb_default.inc
+-- source include/master-slave.inc
+
+# Test that the slave temporarily switches to ROW when seeing row
+# events when it is in MIXED mode
+
+--echo **** On Master ****
+CREATE TABLE t1 (a INT, b LONG);
+INSERT INTO t1 VALUES (1,1), (2,2);
+INSERT INTO t1 VALUES (3,UUID()), (4,UUID());
+
+--let $mask_binlog_commit_events= 1
+source include/show_binlog_events.inc;
+--source include/sync_slave_sql_with_master.inc
+--echo **** On Slave ****
+source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_slave.sql
+
+connection master;
+DROP TABLE IF EXISTS t1;
+
+# Let's compare. Note: If they match test will pass, if they do not match
+# the test will show that the diff statement failed and not reject file
+# will be created. You will need to go to the mysql-test dir and diff
+# the files your self to see what is not matching
+
+diff_files $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_slave.sql;
+
+# If all is good, we can remove the files
+
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_slave.sql
+--source include/rpl_end.inc

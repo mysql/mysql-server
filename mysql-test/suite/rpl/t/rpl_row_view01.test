@@ -1,0 +1,98 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/19/2005                                                #
+# Updated: 08/29/2005 Remove sleeps                                         #
+#############################################################################
+#TEST: row based replication of views                                       #
+#############################################################################
+# 2006-02-08 By JBM added order by and sleep for use with ndb engine
+#############################################################################
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+create database if not exists mysqltest1;
+DROP VIEW IF EXISTS mysqltest1.v1;
+DROP VIEW IF EXISTS mysqltest1.v2;
+DROP VIEW IF EXISTS mysqltest1.v3;
+DROP VIEW IF EXISTS mysqltest1.v4;
+DROP TABLE IF EXISTS mysqltest1.t3;
+DROP TABLE IF EXISTS mysqltest1.t1;
+DROP TABLE IF EXISTS mysqltest1.t2;
+DROP TABLE IF EXISTS mysqltest1.t4;
+DROP TABLE IF EXISTS mysqltest1.t10;
+
+# Begin test section 1 
+CREATE TABLE mysqltest1.t1 (a INT, c CHAR(6),PRIMARY KEY(a));
+CREATE TABLE mysqltest1.t2 (a INT, c CHAR(6),PRIMARY KEY(a));
+CREATE TABLE mysqltest1.t3 (a INT, c CHAR(6), c2 CHAR(6), PRIMARY KEY(a));
+CREATE TABLE mysqltest1.t4 (a INT, qty INT, price INT,PRIMARY KEY(a));
+CREATE TABLE mysqltest1.t5 (qty INT, price INT, total INT, PRIMARY KEY(qty));
+INSERT INTO mysqltest1.t1 VALUES (1,'Thank'),(2,'it'),(3,'Friday');
+INSERT INTO mysqltest1.t2 VALUES (1,'GOD'),(2,'is'),(3,'TGIF');
+INSERT INTO mysqltest1.t4 VALUES(1, 3, 50),(2, 18, 3),(4, 4, 4);
+
+
+CREATE VIEW mysqltest1.v2 AS SELECT qty, price, qty*price AS value FROM mysqltest1.t4 ORDER BY qty;
+CREATE VIEW mysqltest1.v1 AS SELECT t1.a, t1.c, t2.c as c2 FROM mysqltest1.t1 as t1, mysqltest1.t2 AS t2 WHERE mysqltest1.t1.a = mysqltest1.t2.a ORDER BY a;
+CREATE VIEW mysqltest1.v3 AS SELECT * FROM mysqltest1.t1;
+CREATE VIEW mysqltest1.v4 AS SELECT * FROM mysqltest1.v3 WHERE a > 1 WITH LOCAL CHECK OPTION;
+
+
+SELECT * FROM mysqltest1.v2;
+SELECT * FROM mysqltest1.v1;
+
+
+# Had to add a waiting for use with NDB
+# engine. Injector thread would have not 
+# populated binlog and data would not be on 
+# the slave.
+
+CREATE TABLE mysqltest1.t10 (a INT, PRIMARY KEY(a));
+let $wait_binlog_event= CREATE TABLE mysqltest1.t10;
+-- source include/wait_for_binlog_event.inc
+--source include/sync_slave_sql_with_master.inc
+
+SELECT * FROM mysqltest1.v2;
+SELECT * FROM mysqltest1.v1;
+connection master;
+
+INSERT INTO mysqltest1.t5 SELECT * FROM mysqltest1.v2;
+INSERT INTO mysqltest1.t3 SELECT * FROM mysqltest1.v1;
+
+SELECT * FROM mysqltest1.t5 ORDER BY qty;
+SELECT * FROM mysqltest1.t3 ORDER BY a;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM mysqltest1.t5 ORDER BY qty;
+SELECT * FROM mysqltest1.t3 ORDER BY a;
+connection master;
+
+INSERT INTO mysqltest1.v4 VALUES (4,'TEST');
+
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+SELECT * FROM mysqltest1.v4 ORDER BY a;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM mysqltest1.t1 ORDER BY a;
+SELECT * FROM mysqltest1.v4 ORDER BY a;
+
+connection master;
+
+# lets cleanup
+DROP VIEW IF EXISTS mysqltest1.v1;
+DROP VIEW IF EXISTS mysqltest1.v2;
+DROP VIEW IF EXISTS mysqltest1.v3;
+DROP VIEW IF EXISTS mysqltest1.v4;
+DROP TABLE IF EXISTS mysqltest1.t3;
+DROP TABLE IF EXISTS mysqltest1.t1;
+DROP TABLE IF EXISTS mysqltest1.t2;
+DROP TABLE IF EXISTS mysqltest1.t4;
+DROP TABLE IF EXISTS mysqltest1.t10;
+DROP DATABASE mysqltest1;
+--source include/sync_slave_sql_with_master.inc
+
+# End of 5.1 test case
+
+--source include/rpl_end.inc

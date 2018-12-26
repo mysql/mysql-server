@@ -1,0 +1,359 @@
+--echo #
+--echo # BUG#21816041 - ROW_FORMAT=DYNAMIC IS RESTRICTIVE THAN ROW_FORMAT=COMPACT
+--echo #
+--source include/no_valgrind_without_big.inc
+
+CREATE TABLE t1 (a VARCHAR(300), b VARCHAR(16383) CHARACTER SET UTF8MB3,
+PRIMARY KEY(a(255), b(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(300), b VARCHAR(16383) CHARACTER SET UTF8MB3,
+PRIMARY KEY(a(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(300), b VARCHAR(16280) CHARACTER SET UTF8MB4,
+PRIMARY KEY(a(255), b(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC charset latin1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(16383) CHARACTER SET UTF8MB4) ENGINE=INNODB
+ROW_FORMAT=DYNAMIC;
+ALTER TABLE t1 ADD  PRIMARY KEY(a(100));
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(16383) CHARACTER SET UTF8MB3,
+PRIMARY KEY(a(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(12383) CHARACTER SET UTF8MB3,
+PRIMARY KEY(a(255)), KEY k1(a(1024))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES(REPEAT('A', 500));
+UPDATE t1 SET a = REPEAT('B', 999);
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(16383) CHARACTER SET UTF8MB3,
+PRIMARY KEY(a(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(16383), b VARCHAR(3000), c TEXT,
+PRIMARY KEY(a(255), c(10)), KEY k1(a(500)), KEY k2(b(72), c(3000)))
+charset latin1 ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(3070) , b TEXT,
+PRIMARY KEY(a(400)), KEY k1(a)) ENGINE=INNODB ROW_FORMAT=DYNAMIC charset latin1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(3000) , b TEXT, c INT, d TEXT,
+PRIMARY KEY(a, b(3), c), KEY k1(a, b(25))) charset latin1 ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT , b TEXT,
+PRIMARY KEY(a, b(3)), KEY k1(a)) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+DROP TABLE t1;
+
+CREATE TABLE t1(a CHAR(10), KEY(a(5)));
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(255), KEY(a(200)));
+DROP TABLE t1;
+
+CREATE TABLE t1(a CHAR(255), KEY(a));
+DROP TABLE t1;
+
+CREATE TABLE t1(a VARCHAR(4000), KEY(a(2000))) charset latin1;
+DROP TABLE t1;
+
+CREATE TABLE t1(a VARCHAR(2000), PRIMARY KEY (a), KEY k1(a(2000))) charset latin1;
+DROP TABLE t1;
+
+CREATE TABLE t1(a VARCHAR(5000), PRIMARY KEY (a(3000)), KEY k1(a(2000))) charset latin1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+        c1 INT AUTO_INCREMENT,
+        c2 GEOMETRY NOT NULL SRID 0,
+        PRIMARY KEY(c1),
+        SPATIAL INDEX(c2)
+) ENGINE=INNODB;
+DROP TABLE t1;
+
+CREATE TABLE t1(a TEXT, b TEXT, c TEXT, FULLTEXT `AB`(a, b), FULLTEXT `C1`(c));
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+col_1_VARBINARY VARBINARY (4000) ,
+col_2_VARCHAR VARCHAR (4000) ,
+col_3_TEXT TEXT (4000),
+col_4_BLOB BLOB (4000),
+col_5_TEXT TEXT (4000),
+col_6_TEXT TEXT (4000),
+col_7_TEXT TEXT (4000),
+col_8_TEXT TEXT (4000),
+col_9_TEXT TEXT (4000),
+col_10_TEXT TEXT (4000),
+col_11_TEXT TEXT (4000),
+col_12_TEXT TEXT (4000),
+col_13_TEXT TEXT (4000),
+col_14_TEXT TEXT (4000),
+col_15_TEXT TEXT (4000),
+col_16_TEXT TEXT (4000),
+col_17_TEXT TEXT (4000),
+col_18_TEXT TEXT (4000),
+col_19_TEXT TEXT (4000),
+col_20_TEXT TEXT (4000),
+col_21_TEXT TEXT (4000),
+col_22_TEXT TEXT (4000),
+col_23_TEXT TEXT (4000),
+col_24_BINARY BINARY (255)
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+
+INSERT INTO t1 VALUES(
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000), repeat("o", 4000),
+repeat("a", 4000),  repeat("a", 255)
+);
+
+CREATE INDEX prefix_idx1 ON t1(col_1_VARBINARY (767));
+CREATE INDEX prefix_idx2 ON t1(col_2_VARCHAR (767));
+CREATE INDEX prefix_idx3 ON t1(col_3_TEXT (767));
+CREATE INDEX prefix_idx4 ON t1(col_4_BLOB (767));
+CREATE INDEX prefix_idx5 ON t1(col_5_TEXT (767));
+CREATE INDEX prefix_idx6 ON t1(col_6_TEXT (767));
+CREATE INDEX prefix_idx7 ON t1(col_7_TEXT (767));
+CREATE INDEX prefix_idx8 ON t1(col_8_TEXT (767));
+CREATE INDEX prefix_idx9 ON t1(col_9_TEXT (767));
+CREATE INDEX prefix_idx10 ON t1(col_10_TEXT (767));
+CREATE INDEX prefix_idx11 ON t1(col_11_TEXT (767));
+CREATE INDEX prefix_idx12 ON t1(col_12_TEXT (767));
+CREATE INDEX prefix_idx13 ON t1(col_13_TEXT (767));
+CREATE INDEX prefix_idx14 ON t1(col_14_TEXT (767));
+CREATE INDEX prefix_idx15 ON t1(col_15_TEXT (767));
+CREATE INDEX prefix_idx16 ON t1(col_16_TEXT (767));
+CREATE INDEX prefix_idx17 ON t1(col_17_TEXT (767));
+CREATE INDEX prefix_idx18 ON t1(col_18_TEXT (767));
+CREATE INDEX prefix_idx19 ON t1(col_19_TEXT (767));
+CREATE INDEX prefix_idx24 ON t1(col_24_BINARY  (250));
+
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t1 SET col_1_VARBINARY = repeat("x", 4000), col_2_VARCHAR=
+repeat("c",
+4000) WHERE col_1_VARBINARY = repeat("a", 4000) AND col_2_VARCHAR =
+repeat("o", 4000);
+
+DROP TABLE t1;
+
+CREATE TABLE t1(a INT, b FLOAT, c CHAR(10),
+	v1 VARCHAR(1001),
+	v2 VARCHAR(1002),
+	vx_blob BLOB,
+	vx_text TEXT,
+	vx_varchar VARCHAR(3005),
+	v3 VARCHAR(1006),
+	v4 VARCHAR(1007),
+	PRIMARY KEY (a,b,c,vx_text(200))) charset latin1 ROW_FORMAT=DYNAMIC;
+CREATE INDEX idx1 ON t1(a,b,c);
+CREATE INDEX idx2 ON t1(a,v1(101));
+CREATE INDEX idx3 ON t1(b,v2(102));
+CREATE INDEX idx4 ON t1(c,vx_blob(3003));
+CREATE INDEX idx5 ON t1(a,vx_text(1004));
+SHOW WARNINGS;
+INSERT INTO t1 VALUES(1,1,'111111111',
+	repeat('a',1001),
+	repeat('a',1002),
+	repeat('a',4003),
+	repeat('a',3004),
+	repeat('a',3005),
+	repeat('a',1006),
+	repeat('a',1007));
+UPDATE t1 SET
+	v1=repeat('b',1001),
+	v2=repeat('b',1002),
+	vx_blob=repeat('b',4003),
+	vx_varchar=repeat('b',3005),
+	v3=repeat('b',1006),
+	v4=repeat('b',1007);
+DROP TABLE t1;
+
+create table t1(a int, b float, c char(10), d date,
+       vx_varchar varchar(10000), vx_text text, vx_blob BLOB,
+       v1 varchar(1000), v2 varchar(1000),
+       v3 varchar(1000), v4 varchar(3000))
+charset latin1 ROW_FORMAT=DYNAMIC;
+create index idx1 on t1(a,b,c,d);
+create index idx2 on t1(vx_varchar(2000));
+create index idx3 on t1(vx_text(2000));
+create index idx8 on t1(vx_blob(2000));
+create index idx4 on t1(v1);
+create index idx5 on t1(v2);
+create index idx6 on t1(v3);
+create index idx7 on t1(v4);
+insert into t1 values(1,1,'111111111', '2011-07-11',
+	repeat('a',10000),
+	repeat('a',10000),
+	repeat('a',10000),
+	repeat('a',1000), repeat('a',1000),
+	repeat('a',1000), repeat('a',3000));
+--error ER_UNDO_RECORD_TOO_BIG
+update t1 set a=2,b=2,c='2222222222',d='2011-07-12',
+	vx_varchar=repeat('b',10000),
+	vx_text=repeat('b',10000),
+	vx_blob=repeat('b',10000),
+	v1=repeat('b',1000), v2=repeat('b',1000),
+	v3=repeat('b',1000), v4=repeat('b',3000);
+drop table t1;
+
+CREATE TABLE t1(x VARCHAR(300), y VARCHAR(200), KEY k1(y,x));
+ALTER TABLE t1 ADD INDEX k2(x(10));
+DROP TABLE t1;
+
+let PREFIX_LEN=767;
+--source ../include/default_row_format_large.inc
+
+--exec $MYSQL -uroot test <$MYSQLTEST_VARDIR/tmp/create_table.sql
+SHOW CREATE TABLE t1;
+
+UPDATE t1 SET
+c1=REPEAT('a', 65535),
+c2=REPEAT('b', 65535),
+c3=REPEAT('c', 65535),
+c4=REPEAT('d', 65535),
+c5=REPEAT('e', 65535),
+c6=REPEAT('f', 65535),
+c7=REPEAT('g', 65535),
+c8=REPEAT('h', 65535),
+c9=REPEAT('i', 65535),
+c10=REPEAT('j', 65535),
+c11=REPEAT('k', 65535),
+c12=REPEAT('l', 65535),
+c13=REPEAT('m', 65535),
+c14=REPEAT('n', 65535),
+c15=REPEAT('o', 65535);
+
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t1 SET
+c14=REPEAT('a', 65535),
+c13=REPEAT('b', 65535),
+c12=REPEAT('c', 65535),
+c11=REPEAT('d', 65535),
+c10=REPEAT('e', 65535),
+c9=REPEAT('f', 65535),
+c8=REPEAT('g', 65535),
+c7=REPEAT('h', 65535),
+c6=REPEAT('i', 65535),
+c5=REPEAT('j', 65535),
+c4=REPEAT('k', 65535),
+c3=REPEAT('l', 65535),
+c2=REPEAT('m', 65535),
+c1=REPEAT('n', 65535);
+
+UPDATE t1 SET
+c14 = REPEAT('a', 65535);
+
+DROP TABLE t1;
+
+let PREFIX_LEN=3072;
+--source ../include/default_row_format_large.inc
+
+--exec $MYSQL -uroot test <$MYSQLTEST_VARDIR/tmp/create_table.sql
+SHOW CREATE TABLE t1;
+
+UPDATE t1 SET
+c1=REPEAT('a', 65535),
+c2=REPEAT('b', 65535),
+c3=REPEAT('c', 65535),
+c4=REPEAT('d', 65535),
+c5=REPEAT('e', 65535),
+c6=REPEAT('f', 65535),
+c7=REPEAT('g', 65535),
+c8=REPEAT('h', 65535),
+c9=REPEAT('i', 65535),
+c10=REPEAT('j', 65535),
+c11=REPEAT('k', 65535),
+c12=REPEAT('l', 65535),
+c13=REPEAT('m', 65535),
+c14=REPEAT('n', 65535),
+c15=REPEAT('o', 65535);
+
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t1 SET
+c14=REPEAT('a', 65535),
+c13=REPEAT('b', 65535),
+c12=REPEAT('c', 65535),
+c11=REPEAT('d', 65535),
+c10=REPEAT('e', 65535),
+c9=REPEAT('f', 65535),
+c8=REPEAT('g', 65535),
+c7=REPEAT('h', 65535),
+c6=REPEAT('i', 65535),
+c5=REPEAT('j', 65535),
+c4=REPEAT('k', 65535),
+c3=REPEAT('l', 65535),
+c2=REPEAT('m', 65535),
+c1=REPEAT('n', 65535);
+
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t1 SET
+c14 = REPEAT('a', 65535);
+
+DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/create_table.sql
+
+--echo #
+--echo # Bug#21880445 - FAILING ASSERTION: !FIELD->PREFIX_LEN ||
+--echo #	        FIELD->FIXED_LEN == FIELD->PREFIX_LEN
+--echo #
+
+CREATE TABLE t1(
+  a CHAR(255) CHARACTER SET UTF32,
+  KEY k1(a(254))
+) ENGINE=INNODB;
+DROP TABLE t1;
+
+CREATE TABLE t1(
+  a VARCHAR(16383) CHARACTER SET UTF32,
+  KEY k1(a(768))
+) ENGINE=INNODB;
+DROP TABLE t1;
+
+CREATE TABLE t1(
+  a TEXT CHARACTER SET UTF32,
+  KEY k1(a(768))
+) ENGINE=INNODB;
+DROP TABLE t1;
+
+CREATE TABLE t1(
+  a CHAR(255) CHARACTER SET UTF32,
+  KEY k1(a)
+)ENGINE=INNODB;
+DROP TABLE t1;
+
+CREATE TABLE t1(
+  a CHAR(20) CHARACTER SET UTF32,
+  KEY k1(a(5))
+) ENGINE=INNODB;
+DROP TABLE t1;
+
+CREATE TABLE t1(
+  a CHAR(255) CHARACTER SET UTF32,
+  KEY k1(a(195))
+) ENGINE=INNODB;
+ALTER TABLE t1 ADD COLUMN b CHAR(255) CHARACTER SET UTF32;
+ALTER TABLE t1 ADD COLUMN c CHAR(255) CHARACTER SET UTF32;
+ALTER TABLE t1 ADD INDEX k2(b);
+ALTER TABLE t1 ADD INDEX k3(c);
+DROP TABLE t1;
+
+CREATE TABLE t1(a VARCHAR(1000)) charset latin1 ROW_FORMAT=DYNAMIC;
+CREATE INDEX idx1 ON t1(a);
+--error ER_TOO_LONG_KEY
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+DROP TABLE t1;
+

@@ -1,0 +1,87 @@
+include/rpl_init.inc [topology=1->2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_connect.inc [creating cluster1]
+include/rpl_connect.inc [creating cluster2]
+include/rpl_connect.inc [creating cluster3]
+[connection cluster1]
+CLUSTER1_SERVER_ID: 1
+[connection cluster2]
+show variables like 'server_id';
+Variable_name	Value
+server_id	2
+[connection cluster3]
+show variables like 'server_id';
+Variable_name	Value
+server_id	3
+First show replication 1->2->3
+[connection cluster1]
+use test;
+create table t1(a int primary key, b varchar(50)) engine=ndb;
+insert into t1 values (1,'Summertime');
+Cluster2 has insert and apply_status from Cluster1
+show variables like 'server_id';
+Variable_name	Value
+server_id	2
+select * from mysql.ndb_apply_status order by server_id;
+server_id	epoch	log_name	start_pos	end_pos
+1	#	#	#	#
+select * from test.t1;
+a	b
+1	Summertime
+Cluster3 has insert and apply_status from Cluster1+2
+show variables like 'server_id';
+Variable_name	Value
+server_id	3
+select * from mysql.ndb_apply_status order by server_id;
+server_id	epoch	log_name	start_pos	end_pos
+1	#	#	#	#
+2	#	#	#	#
+select * from test.t1;
+a	b
+1	Summertime
+Break Cluster3's link with Cluster2
+[connection cluster3]
+include/stop_slave.inc
+Make further changes on Cluster1
+[connection cluster1]
+insert into test.t1 values (2, "The cotton is high");
+insert into test.t1 values (3, "Daddys rich");
+Show changes exist on Cluster2
+select * from test.t1 order by a;
+a	b
+1	Summertime
+2	The cotton is high
+3	Daddys rich
+Check data on Cluster3
+[connection cluster3]
+select * from test.t1 order by a;
+a	b
+1	Summertime
+Now change Cluster3 to skip-over Cluster2 and get binlog direct from Cluster1
+select * from mysql.ndb_apply_status order by server_id;
+server_id	epoch	log_name	start_pos	end_pos
+1	#	#	#	#
+2	#	#	#	#
+reset slave;
+include/rpl_change_topology.inc [new topology=1->2,1->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+[connection cluster1]
+Now show that cluster 3 is successfully replicating from Cluster1
+[connection cluster3]
+select * from test.t1 order by a;
+a	b
+1	Summertime
+2	The cotton is high
+3	Daddys rich
+Clean up
+[connection cluster1]
+drop table test.t1;
+include/rpl_end.inc

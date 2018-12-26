@@ -1,0 +1,37 @@
+--echo #
+--echo # Bug#34300 Tinyblob & tinytext fields currupted after export/import and alter in 5.1
+--echo #
+
+
+-- disable_query_log
+call mtr.add_suppression("Warning: a long semaphore wait:");
+call mtr.add_suppression("The age of the last checkpoint is");
+
+# set packet size and reconnect 
+let $max_packet=`select @@global.max_allowed_packet`;
+-- enable_query_log
+
+SET @@global.max_allowed_packet=16777216;
+--connect (newconn, localhost, root,,)
+
+CREATE TABLE bug34300 (
+  f4 TINYTEXT,
+  f6 MEDIUMTEXT,
+  f8 TINYBLOB
+) ENGINE=InnoDB;
+
+INSERT INTO bug34300 VALUES ('xxx', repeat('a', 8459264), 'zzz');
+
+SELECT f4, f8 FROM bug34300;
+
+ALTER TABLE bug34300 ADD COLUMN (f10 INT);
+
+SELECT f4, f8 FROM bug34300;
+
+--echo # Cleanup
+DROP TABLE bug34300;
+
+-- disable_query_log
+EVAL SET @@global.max_allowed_packet=$max_packet;
+-- enable_query_log
+

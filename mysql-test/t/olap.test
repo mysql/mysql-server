@@ -1,0 +1,1018 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+SET @sav_dpi= @@div_precision_increment;
+SET div_precision_increment= 5;
+SHOW VARIABLES LIKE 'div_precision_increment';
+
+CREATE TABLE t1(
+product VARCHAR(32),
+country_id INTEGER NOT NULL,
+year INTEGER,
+profit INTEGER);
+
+INSERT INTO t1  VALUES ( 'Computer', 2,2000, 1200),
+( 'TV', 1, 1999, 150),
+( 'Calculator', 1, 1999,50),
+( 'Computer', 1, 1999,1500),
+( 'Computer', 1, 2000,1500),
+( 'TV', 1, 2000, 150),
+( 'TV', 2, 2000, 100),
+( 'TV', 2, 2000, 100),
+( 'Calculator', 1, 2000,75),
+( 'Calculator', 2, 2000,75),
+( 'TV', 1, 1999, 100),
+( 'Computer', 1, 1999,1200),
+( 'Computer', 2, 2000,1500),
+( 'Calculator', 2, 2000,75),
+( 'Phone', 3, 2003,10)
+;
+
+CREATE TABLE t2 (
+country_id INTEGER PRIMARY KEY,
+country CHAR(20) NOT NULL);
+
+INSERT INTO t2 VALUES (1, 'USA'),(2,'India'), (3,'Finland');
+
+# First simple rollups, with just grand total
+SELECT product, SUM(profit) FROM t1 GROUP BY product;
+SELECT product, SUM(profit) FROM t1 GROUP BY product WITH ROLLUP;
+SELECT product, SUM(profit) FROM t1 GROUP BY 1 WITH ROLLUP;
+SELECT product, SUM(profit),AVG(profit) FROM t1 GROUP BY product WITH ROLLUP;
+
+# Sub totals
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year;
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH ROLLUP;
+ANALYZE TABLE t1;
+EXPLAIN SELECT product, country_id , year, SUM(profit)
+FROM t1 GROUP BY product, country_id, year WITH ROLLUP;
+SELECT product, country_id , SUM(profit) FROM t1
+GROUP BY product, country_id WITH ROLLUP
+ORDER BY product DESC, GROUPING (country_id), country_id;
+
+# limit
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH ROLLUP LIMIT 5;
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH ROLLUP limit 3,3;
+
+SELECT product, country_id, COUNT(*), COUNT(distinct year)
+FROM t1 GROUP BY product, country_id;
+SELECT product, country_id, COUNT(*), COUNT(distinct year)
+FROM t1 GROUP BY product, country_id WITH ROLLUP;
+
+# Test of having
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH ROLLUP HAVING country_id = 1;
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 200;
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 7000;
+
+# Functions
+SELECT CONCAT(product,':',country_id) AS 'prod', CONCAT(":",year,":") AS 'year',
+1+1, SUM(profit)/COUNT(*) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+SELECT product, SUM(profit)/COUNT(*) FROM t1 GROUP BY product WITH ROLLUP;
+SELECT LEFT(product,4) AS prod, SUM(profit)/COUNT(*) FROM t1
+GROUP BY prod WITH ROLLUP;
+SELECT CONCAT(product,':',country_id), 1+1, SUM(profit)/COUNT(*) FROM t1
+GROUP BY CONCAT(product,':',country_id) WITH ROLLUP;
+
+# Joins
+SELECT product, country , year, SUM(profit) FROM t1,t2 WHERE
+t1.country_id=t2.country_id GROUP BY product, country, year WITH ROLLUP;
+
+# Derived tables and sub SELECTs
+SELECT product, `SUM` FROM (SELECT product, SUM(profit) AS 'sum' FROM t1
+                            GROUP BY product WITH ROLLUP) AS tmp
+WHERE product is null;
+SELECT product FROM t1 WHERE EXISTS
+(SELECT product, country_id , SUM(profit) FROM t1 AS t2
+ WHERE t1.product=t2.product GROUP BY product, country_id WITH ROLLUP
+ HAVING SUM(profit) > 6000);
+
+# The following does not return the expected answer, but this is a limitation
+# in the implementation so we should just document it
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year HAVING country_id is NULL;
+SELECT CONCAT(':',product,':'), SUM(profit), AVG(profit) FROM t1
+GROUP BY product WITH ROLLUP;
+
+# Error handling
+
+# Old, never implemented CUBE syntax
+--error ER_PARSE_ERROR
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH CUBE;
+--error ER_PARSE_ERROR
+EXPLAIN SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH CUBE;
+--error ER_PARSE_ERROR
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH CUBE UNION ALL
+SELECT product, country_id , year, SUM(profit) FROM t1
+GROUP BY product, country_id, year WITH ROLLUP;
+
+drop table t1,t2;
+
+#
+# Test bug with const tables
+#
+
+CREATE TABLE t1 (i int);
+INSERT INTO t1 VALUES(100);
+CREATE TABLE t2 (i int);
+INSERT INTO t2 VALUES (100),(200);
+SELECT i, COUNT(*) FROM t1 GROUP BY i WITH ROLLUP;
+SELECT t1.i, t2.i, COUNT(*) FROM t1,t2 GROUP BY t1.i,t2.i WITH ROLLUP;
+DROP TABLE t1,t2;
+
+#bug #4767: ROLLUP with LEFT JOIN
+
+CREATE TABLE user_day(
+  user_id INT NOT NULL,
+  date DATE NOT NULL,
+  UNIQUE INDEX user_date (user_id, date)
+);
+
+INSERT INTO user_day VALUES
+  (1, '2004-06-06' ),
+  (1, '2004-06-07' ),
+  (2, '2004-06-06' );
+
+SELECT
+       d.date AS day,
+       COUNT(d.user_id) as sample,
+       COUNT(next_day.user_id) AS not_cancelled
+  FROM user_day d
+       LEFT JOIN user_day next_day
+       ON next_day.user_id=d.user_id AND
+          next_day.date= DATE_ADD( d.date, interval 1 day )
+  GROUP BY day;
+
+SELECT
+       d.date AS day,
+       COUNT(d.user_id) as sample,
+       COUNT(next_day.user_id) AS not_cancelled
+  FROM user_day d
+       LEFT JOIN user_day next_day
+       ON next_day.user_id=d.user_id AND
+          next_day.date= DATE_ADD( d.date, interval 1 day )
+  GROUP BY day
+    WITH ROLLUP;
+
+DROP TABLE user_day;
+
+#
+# Tests for bugs #8616, #8615: distinct sum with rollup
+#
+
+CREATE TABLE t1 (a int, b int);
+
+INSERT INTO t1 VALUES
+  (1,4),
+  (2,2), (2,2),
+  (4,1), (4,1), (4,1), (4,1),
+  (2,1), (2,1);
+
+SELECT SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT DISTINCT SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+
+SELECT SUM(b), COUNT(DISTINCT b) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT DISTINCT SUM(b), COUNT(DISTINCT b) FROM t1 GROUP BY a WITH ROLLUP;
+
+SELECT SUM(b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT DISTINCT SUM(b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+
+SELECT SUM(b), COUNT(DISTINCT b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT DISTINCT SUM(b), COUNT(DISTINCT b), COUNT(*) FROM t1
+  GROUP BY a WITH ROLLUP;
+
+SELECT a, SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+SELECT DISTINCT a, SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+
+SELECT b, a, SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+SELECT DISTINCT b,a, SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+
+ALTER TABLE t1 ADD COLUMN c INT;
+SELECT a,b,SUM(c) FROM t1 GROUP BY a,b,c WITH ROLLUP;
+SELECT distinct a,b,SUM(c) FROM t1 GROUP BY a,b,c WITH ROLLUP;
+
+DROP TABLE t1;
+
+#
+# Tests for bugs #8617: SQL_CACL_FOUND_ROWS with rollup and limit
+#
+
+CREATE TABLE t1 (a int, b int);
+
+INSERT INTO t1 VALUES
+  (1,4),
+  (2,2), (2,2),
+  (4,1), (4,1), (4,1), (4,1),
+  (2,1), (2,1);
+
+SELECT a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP LIMIT 1;
+SELECT SQL_CALC_FOUND_ROWS a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP LIMIT 1;
+
+DROP TABLE t1;
+
+#
+# Tests for bug #9681: ROLLUP in subquery for derived table wiht
+#                      a group by field declared as NOT NULL
+#
+
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+
+SELECT a, SUM(a) m FROM  t1 GROUP BY a WITH ROLLUP;
+SELECT * FROM ( SELECT a, SUM(a) m FROM  t1 GROUP BY a WITH ROLLUP ) t2;
+
+DROP TABLE t1;
+set div_precision_increment= @sav_dpi;
+
+#
+# Tests for bug #7914: ROLLUP over expressions on temporary table
+#
+
+CREATE TABLE t1 (a int(11));
+INSERT INTO t1 VALUES (1),(2);
+
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT a FROM t1 UNION select 2) d
+  GROUP BY a;
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT a FROM t1 UNION select 2) d
+  GROUP BY a WITH ROLLUP;
+
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT 1 a UNION select 2) d
+  GROUP BY a;
+SELECT a, SUM(a), SUM(a)+1 FROM (SELECT 1 a UNION select 2) d
+  GROUP BY a WITH ROLLUP;
+
+SELECT a, SUM(a), SUM(a)+1, CONCAT(SUM(a),'x'), SUM(a)+SUM(a), SUM(a)
+  FROM (SELECT 1 a, 2 b UNION SELECT 2,3 UNION SELECT 5,6 ) d
+    GROUP BY a WITH ROLLUP;
+
+DROP TABLE t1;
+
+#
+# Tests for bug #7894: ROLLUP over expressions on group by attributes
+#
+
+CREATE TABLE t1 (a int(11));
+INSERT INTO t1 VALUES (1),(2);
+
+SELECT a, a+1, SUM(a) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP;
+SELECT a+SUM(a) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT a, a+1 as b FROM t1 GROUP BY a WITH ROLLUP HAVING b > 2;
+SELECT a, a+1 as b FROM t1 GROUP BY a WITH ROLLUP HAVING a IS NULL;
+SELECT a, a+1 as b FROM t1 GROUP BY a WITH ROLLUP HAVING b IS NULL;
+SELECT IFNULL(a, 'TEST') FROM t1 GROUP BY a WITH ROLLUP;
+
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES
+  (1,4),
+  (2,2), (2,2),
+  (4,1), (4,1), (4,1), (4,1),
+  (2,1), (2,1);
+
+SELECT a,b,SUM(b) FROM t2 GROUP BY a,b WITH ROLLUP;
+SELECT a,b,SUM(b), a+b as c FROM t2
+  GROUP BY a,b WITH ROLLUP HAVING c IS NULL;
+SELECT IFNULL(a, 'TEST'), COALESCE(b, 'TEST') FROM t2
+  GROUP BY a, b WITH ROLLUP;
+
+DROP TABLE t1,t2;
+
+#
+# Test for bug #11543: ROLLUP query with a repeated column in GROUP BY
+#
+
+CREATE TABLE t1 (a INT(10) NOT NULL, b INT(10) NOT NULL);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (1, 2);
+
+SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
+
+DROP TABLE t1;
+
+# Bug #12885(1): derived table specified by a subquery with
+#                ROLLUP over expressions on not nullable group by attributes
+#
+
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+
+SELECT * FROM (SELECT a, a + 1, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
+SELECT * FROM (SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
+
+DROP TABLE t1;
+
+#
+# Bug #12887 Distinct is not always applied after rollup
+#
+CREATE TABLE t1 ( a VARCHAR(9), b INT );
+INSERT INTO t1 VALUES('a',1),(NULL,2);
+SELECT a, MAX(b) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT DISTINCT a, MAX(b) FROM t1 GROUP BY a WITH ROLLUP;
+DROP TABLE t1;
+
+#
+# Bug #20825: rollup puts non-equal values together
+#
+CREATE TABLE t1 (a VARCHAR(22) NOT NULL , b INT);
+INSERT INTO t1 VALUES ("2006-07-01 21:30", 1), ("2006-07-01 23:30", 10);
+SELECT LEFT(a,10), a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+SELECT LEFT(a,10) x, a, SUM(b) FROM t1 GROUP BY x,a WITH ROLLUP;
+DROP TABLE t1;
+
+#
+# Bug #24856: ROLLUP by const item in a query with DISTINCT
+#
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1
+  VALUES (2,10),(3,30),(2,40),(1,10),(2,30),(1,20),(2,10);
+
+SELECT a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT DISTINCT a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT a, b, COUNT(*) FROM t1 GROUP BY a,b WITH ROLLUP;
+SELECT DISTINCT a, b, COUNT(*) FROM t1 GROUP BY a,b WITH ROLLUP;
+
+SELECT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+SELECT DISTINCT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+SELECT DISTINCT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+
+DROP TABLE t1;
+
+# End of 4.1 tests
+
+#
+# Tests for bug #11639: ROLLUP over view executed through filesort
+#
+
+CREATE TABLE t1(id int, type char(1));
+INSERT INTO t1 VALUES
+  (1,"A"),(2,"C"),(3,"A"),(4,"A"),(5,"B"),
+  (6,"B"),(7,"A"),(8,"C"),(9,"A"),(10,"C");
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT type FROM t1 GROUP BY type WITH ROLLUP;
+SELECT type FROM v1 GROUP BY type WITH ROLLUP;
+analyze table v1,t1;
+EXPLAIN SELECT type FROM v1 GROUP BY type WITH ROLLUP;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #12885(2): view specified by a subquery with
+#                ROLLUP over expressions on not nullable group by attributes
+#
+
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE VIEW v1 AS
+  SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+
+DESC v1;
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #26830: derived table WITH ROLLUP
+#
+
+CREATE TABLE t1 (a int, KEY (a));
+INSERT INTO t1 VALUES (3), (1), (4), (1), (3), (1), (1);
+
+SELECT * FROM (SELECT a, SUM(a) FROM t1 GROUP BY a WITH ROLLUP) as t;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#31095: Unexpected NULL constant caused server crash.
+--echo #
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT COUNT(a) FROM t1 GROUP BY NULL WITH ROLLUP;
+DROP TABLE t1;
+--echo ##############################################################
+
+#
+# Bug #32558: group by null-returning expression with rollup causes crash
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(0);
+SELECT 1 FROM t1 GROUP BY (DATE(NULL)) WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #48131: crash group by with rollup, distinct,
+--echo #             filesort, with temporary tables
+--echo #
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (100);
+
+SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
+SELECT DISTINCT b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #48475: DISTINCT is ignored with GROUP BY WITH ROLLUP
+--echo #             and only const tables
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+SELECT b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
+SELECT DISTINCT b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
+
+DROP TABLE t1, t2;
+
+--echo End of 5.0 tests
+
+--echo #
+--echo # Bug#13011553 CRASH IN SORTCMP OR CACHED_ITEM_STR::CMP IF GROUP BY SUBQUERY WITH ROLLUP
+--echo #
+
+CREATE TABLE t1 (f1 DATETIME);
+--source include/turn_off_only_full_group_by.inc
+INSERT INTO  t1 VALUES ('2012-12-20 00:00:00'), (NULL);
+
+SELECT f1 FROM t1 GROUP BY
+(SELECT f1 FROM t1 HAVING f1 < '2012-12-21 00:00:00') WITH ROLLUP;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 DATE);
+INSERT INTO  t1 VALUES ('2012-12-20'), (NULL);
+
+SELECT f1 FROM t1 GROUP BY
+(SELECT f1 FROM t1 HAVING f1 < '2012-12-21') WITH ROLLUP;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 TIME);
+INSERT INTO  t1 VALUES ('11:11:11'), (NULL);
+
+SELECT f1 FROM t1 GROUP BY
+(SELECT f1 FROM t1 HAVING f1 < '12:12:12') WITH ROLLUP;
+
+DROP TABLE t1;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
+--echo End of 5.5 tests
+
+--echo # Bug#20034943 Assertion failed: argument_count() > 0
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+SELECT NOW() FROM t1 GROUP BY (select 1) WITH ROLLUP;
+DROP TABLE t1;
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+SELECT RELEASE_ALL_LOCKS() FROM t1 GROUP BY a WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21143151 ASSERTION FAILED: BITMAP_IS_CLEAR_ALL(&SORT_FORM->TMP_SET)
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(0);
+INSERT INTO t1 VALUES(1);
+SELECT NOT EXISTS (SELECT 1) FROM t1 JOIN t1 a USING(a)
+GROUP BY 1 WITH ROLLUP ORDER BY 1 DESC;
+DROP TABLE t1;
+
+--echo #
+--echo # Tests for WL#1979 - IMPLEMENTATION OF GROUPING FUNCTION
+--echo #
+
+CREATE TABLE t0 (i0 INTEGER);
+
+INSERT INTO t0 VALUES (1), (2), (3), (4), (5);
+
+CREATE TABLE t1 (
+  a INTEGER,
+  b INTEGER,
+  c INTEGER,
+  INDEX k1 (a),
+  INDEX k2 (a,b)
+);
+
+INSERT INTO t1
+  SELECT i0 + (10 * i0) + (100 * i0),
+    (i0 + (10 * i0) + (100 * i0)) % 100,
+    (i0 + (10 * i0) + (100 * i0)) % 100
+  FROM t0;
+
+INSERT INTO t1
+  SELECT i0 + (10 * i0) + (100 * i0),
+    (i0 + (10 * i0) + (100 * i0) + 1) % 100,
+    (i0 + (10 * i0) + (100 * i0) + 1) % 100
+  FROM t0;
+
+INSERT INTO t1
+  SELECT i0 + (10 * i0) + (100 * i0),
+    (i0 + (10 * i0) + (100 * i0) + 1) % 100,
+    (i0 + (10 * i0) + (100 * i0) + 2) % 100
+  FROM t0;
+
+ANALYZE TABLE t1;
+
+SELECT * FROM t1 ORDER BY a,b,c;
+
+# Testing for syntax
+# Success cases
+SELECT a, b, c, GROUPING(a) FROM t1 GROUP BY a,b,c WITH ROLLUP;
+SELECT a, b, c, GROUPING(a, b) FROM t1 GROUP BY a,b,c WITH ROLLUP;
+SELECT a, b, c, GROUPING(a, b, c) FROM t1 GROUP BY a,b,c WITH ROLLUP;
+SELECT a, b FROM t1 GROUP BY a,b WITH ROLLUP HAVING GROUPING(b) = 1;
+
+# Failure cases
+--error ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+SELECT a, b, GROUPING(c) FROM t1 GROUP BY a,b WITH ROLLUP;
+--error ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+SELECT a, b, c, GROUPING(a, b, c) FROM t1 GROUP BY a,b WITH ROLLUP;
+--error ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+SELECT a, GROUPING(SUM(a)) FROM t1 GROUP BY (a) WITH ROLLUP;
+
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT a, b, GROUPING(a) FROM t1 GROUP BY a,b;
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT a, b, GROUPING(a) FROM t1 ;
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT a, b FROM t1 WHERE GROUPING(a)=1 GROUP BY a,b WITH ROLLUP;
+--error ER_WRONG_GROUP_FIELD
+SELECT a, b FROM t1 GROUP BY GROUPING(a),GROUPING(b) WITH ROLLUP;
+
+# Check for GROUPING by position. We do not allow it
+-- error ER_WRONG_ARGUMENTS
+SELECT a, b, c, GROUPING(1) FROM t1 GROUP BY a,b,c WITH ROLLUP;
+--error ER_WRONG_ARGUMENTS
+SELECT a, GROUPING(1) FROM t1 GROUP BY 1 WITH ROLLUP;
+--error ER_WRONG_ARGUMENTS
+SELECT GROUPING(1) FROM t1 GROUP BY 1 WITH ROLLUP;
+
+# Check the restriction on the number of args to
+# grouping function
+let $query1= CREATE TABLE t3 (;
+let $col_cnt=64;
+while ($col_cnt)
+{
+  let $query1= $query1 i$col_cnt INTEGER,;
+  dec $col_cnt;
+}
+
+let $query1= $query1 i65 INTEGER);
+eval $query1;
+
+let $query= SELECT GROUPING(;
+let col_cnt=64;
+while ($col_cnt)
+{
+let $query= $query i$col_cnt,;
+dec $col_cnt;
+}
+let $query= $query i65) FROM t3 GROUP BY (i1) WITH ROLLUP;
+
+--error ER_INVALID_NO_OF_ARGS
+eval $query;
+DROP TABLE t3;
+
+# Check for expressions
+--error ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+SELECT a, b, GROUPING(c + c) FROM t1 GROUP BY a,b WITH ROLLUP;
+# Wrong results FROM this because of bug in rollup
+SELECT a, b, GROUPING(c + c) FROM t1 GROUP BY a,b,(c + c) WITH ROLLUP;
+
+# We do not allow sub-queries as arguments to GROUPING()
+--error ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+SELECT GROUPING((SELECT MAX(b) FROM t1)) FROM t1
+GROUP BY (SELECT MAX(b) FROM t1) WITH ROLLUP;
+--error ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+SELECT (SELECT MAX(b) FROM t1) FROM t1 GROUP BY (SELECT MAX(b) FROM t1)
+  WITH ROLLUP HAVING GROUPING((SELECT 1 FROM DUAL))=0;
+--error ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+SELECT (SELECT MAX(b) FROM t1) FROM t1 GROUP BY (SELECT MAX(b) FROM t1)
+  WITH ROLLUP HAVING GROUPING((SELECT MAX(b) FROM t1))=0;
+
+# Test GROUPING() with ALL/ANY/EXISTS
+SELECT 1 WHERE EXISTS (SELECT a FROM t1 GROUP BY a WITH ROLLUP);
+SELECT 1 WHERE 2 >
+ALL (SELECT GROUPING(a) FROM t1 GROUP BY a WITH ROLLUP);
+SELECT 1 WHERE 1 =
+ANY (SELECT GROUPING(a) FROM t1 GROUP BY a WITH ROLLUP);
+
+# Test with prepared statements
+PREPARE ps FROM "SELECT a FROM t1 GROUP BY a WITH ROLLUP HAVING GROUPING(a)=0";
+EXECUTE ps;
+PREPARE ps FROM
+"SELECT a FROM t1 GROUP BY a WITH ROLLUP HAVING GROUPING(a)=1";
+EXECUTE ps;
+
+# Test with derived tables with prepared statements
+CREATE VIEW v AS SELECT * FROM t1;
+PREPARE ps FROM "SELECT GROUPING(a) FROM v GROUP BY a WITH ROLLUP";
+EXECUTE ps;
+DROP VIEW v;
+
+# Test with view and GROUPING() in having clause
+#CREATE VIEW v AS SELECT (SELECT  MAX(a) FROM t1) as field1 FROM t1
+#GROUP BY field1 WITH ROLLUP HAVING GROUPING(field1)=0;
+#SELECT * FROM v;
+#DROP VIEW v;
+
+# Test with derived tables
+SELECT  MAX(a) FROM t1 WHERE (b) IN (SELECT MIN(t2.b)
+FROM (SELECT b from t1) AS t2 GROUP BY t2.b);
+# With out derived table in where subquery
+SELECT  MAX(a) FROM t1 WHERE (b) IN (SELECT MIN(t2.b)
+FROM t1 AS t2 GROUP BY t2.b WITH
+ROLLUP HAVING GROUPING (t2.b)=0);
+# With derived table in where subquery
+SELECT  MAX(a) FROM t1 WHERE (b) IN (SELECT MIN(t2.b)
+FROM (SELECT b from t1) AS t2 GROUP BY t2.b WITH
+ROLLUP HAVING GROUPING (t2.b)=0);
+# With CTE
+WITH qn AS (SELECT a, b, c, GROUPING(a) as grouping_a FROM t1
+            GROUP BY a,b,c WITH ROLLUP)
+SELECT * FROM qn;
+WITH qn AS (SELECT (SELECT  MAX(a) FROM t1) as field1 FROM t1
+GROUP BY field1 WITH ROLLUP HAVING GROUPING(field1)=0)
+SELECT * FROM qn;
+with qn as (SELECT  MAX(a) FROM t1 WHERE (b) IN (
+SELECT MIN(t2.b) FROM (SELECT b from t1) AS t2 GROUP BY t2.b WITH
+ROLLUP HAVING GROUPING (t2.b)=0))
+SELECT * FROM qn;
+--error ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+WITH qn AS(SELECT GROUPING((SELECT MAX(b) FROM t1)) as field1
+           FROM t1 GROUP BY (SELECT MAX(b) FROM t1) WITH ROLLUP)
+SELECT qn.field1 FROM qn;
+
+# Usage
+
+# Check for grouping of the two columns
+SELECT a as Department,b as Employees, SUM(c), GROUPING(a) as GP_A,
+       GROUPING(b) as GP_B FROM t1 GROUP BY a,b WITH ROLLUP;
+
+# Check for the rows having only super-aggregates
+SELECT a as Department,b as Employees, SUM(c), GROUPING(a) as GP_A,
+       GROUPING(b) as GP_B FROM t1 GROUP BY a,b WITH ROLLUP
+       HAVING GP_A=1 OR GP_B=1;
+
+# Differentiate Super-Aggregates and Aggregates
+SELECT IF(GROUPING(a)=1,'All Departments', a) as Department,
+       IF(GROUPING(b)=1, 'All Employees', b) as Employees,
+       SUM(c) as SUM
+FROM t1 GROUP BY a,b WITH ROLLUP;
+
+# Use grouping to differentiate between NULLs FROM the table data
+# and NULLs FROM the ROLLUP
+
+INSERT INTO t1 values (1111,NULL,112);
+INSERT INTO t1 values (1111,NULL,NULL);
+INSERT INTO t1 values (NULL,112,NULL);
+
+SELECT a as Department, b as Employees, SUM(c), GROUPING(a) as GP_A,
+       GROUPING(b) as GP_B FROM t1 GROUP BY a,b WITH ROLLUP;
+
+SELECT a as Department, b as Employees, SUM(c), GROUPING(a) as GP_A,
+       GROUPING(b) as GP_B FROM t1 GROUP BY a,b WITH ROLLUP
+       HAVING (GP_A =1 AND GP_B=1) OR (GP_B=1);
+
+DROP TABLE t0,t1;
+
+# End of test for WL#1979
+
+--echo #
+--echo # Bug#25174118 ROLLUP NULL'S GET REPLACED WITH LAST ROW'S VALUE FOR PREPARED STMTS ON A VIEW
+--echo #
+
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(1),(2),(3);
+CREATE VIEW v AS SELECT * FROM t;
+SELECT COALESCE(a,'rollup_null') FROM v GROUP BY a WITH ROLLUP;
+PREPARE ps FROM
+  "SELECT COALESCE(a,'rollup_null') FROM v GROUP BY a WITH ROLLUP";
+EXECUTE ps;
+DROP TABLE t;
+DROP PREPARE ps;
+DROP VIEW v;
+
+--echo # Bug#25727892: Refactor Item::const_item() as a non-virtual function
+
+--echo Extended coverage for ROLLUP and const expressions
+
+CREATE TABLE t1 (a INTEGER) ENGINE=InnoDB;
+CREATE TABLE t2 (c INTEGER) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (7),(8);
+INSERT INTO t2 VALUES (-3);
+
+SELECT c, a, SUM(c) OVER () FROM t1,t2 GROUP BY c,a WITH ROLLUP;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#26073513: Allow ORDER BY with ROLLUP
+--echo #
+
+CREATE TABLE t0 (i0 INTEGER);
+INSERT INTO t0 VALUES (1), (2), (3), (4), (5);
+
+CREATE TABLE t1 (i INTEGER, j INTEGER, k INTEGER, INDEX k1(i), INDEX k2(j,k));
+INSERT INTO t1
+  SELECT i0 + (10 * i0) + (100 * i0),
+    (i0 + (10 * i0) + (100 * i0)) % 100,
+    (i0 + (10 * i0) + (100 * i0)) % 100
+  FROM t0;
+
+INSERT INTO t1
+  SELECT i0 + (10 * i0) + (100 * i0),
+    (i0 + (10 * i0) + (100 * i0) + 1) % 100,
+    (i0 + (10 * i0) + (100 * i0) + 1) % 100
+  FROM t0;
+
+INSERT INTO t1
+  SELECT i0 + (10 * i0) + (100 * i0),
+    (i0 + (10 * i0) + (100 * i0) + 1) % 100,
+    (i0 + (10 * i0) + (100 * i0) + 2) % 100
+  FROM t0;
+
+ANALYZE TABLE t1;
+
+#ROLLUP with ORDER BY
+SELECT i, j, AVG(k) FROM t1 GROUP BY i,j WITH ROLLUP ORDER BY i,j;
+
+#ROLLUP with ORDER BY and LIMIT
+SELECT i, j, AVG(k) FROM t1 GROUP BY i,j WITH ROLLUP ORDER BY i,j LIMIT 5;
+
+#ROLLUP with ORDER BY and HAVING CONDITION
+--sorted_result
+SELECT i, j, SUM(k) FROM t1 GROUP BY i,j WITH ROLLUP
+HAVING i > 10 and j < 1000 ORDER BY i,j;
+
+#ROLLUP with ORDER BY aggregation
+--sorted_result
+SELECT i, j, SUM(k)/COUNT(*) as avg FROM t1 GROUP BY i,j WITH ROLLUP
+ORDER BY avg;
+
+#ROLLUP with ORDER BY expressions
+SELECT CONCAT(i,':',j) as ij, CONCAT(j,':',i) as ji FROM t1 GROUP BY ij, ji
+WITH ROLLUP ORDER BY ij,ji;
+
+#ROLLUP with ORDER BY and DERIVED TABLE
+SELECT i, sum FROM (SELECT i, SUM(j) AS 'sum' FROM t1 GROUP BY i WITH ROLLUP
+                      ORDER BY i) AS tmp WHERE i is NULL;
+
+#ROLLUP with ORDER BY and SUBQUERY
+SELECT i FROM t1 WHERE EXISTS (SELECT i, j, SUM(k) FROM t1 AS t2
+                               WHERE t1.i=t2.i GROUP BY i,j WITH ROLLUP
+                               HAVING SUM(k) > 40 ORDER BY i,j );
+
+#ROLLUP with ORDER BY and UNION
+SELECT a, SUM(a), SUM(a)+1, CONCAT(SUM(a),'x'), SUM(a)+SUM(a), SUM(a)
+  FROM (SELECT 1 a, 2 b UNION SELECT 2,3 UNION SELECT 5,6 ) d
+      GROUP BY a WITH ROLLUP ORDER BY SUM(a);
+
+#ROLLUP with ORDER BY and ALIAS
+SELECT i, j, i AS k, COUNT(*) AS count FROM t1 GROUP BY i, j, k WITH ROLLUP;
+
+#ROLLUP in DERIVED TABLE and outer ORDER BY
+SELECT * FROM (SELECT i, j, SUM(k) FROM t1 GROUP BY i, j WITH ROLLUP) as tmp
+ORDER BY i,j;
+
+#ROLLUP with WINDOWING FUNCTIONS
+
+SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j WITH ROLLUP
+HAVING i+j is NULL ORDER BY i;
+SELECT i, j, i+j, FIRST_VALUE(i) over () from t1 GROUP BY i,j WITH ROLLUP
+HAVING i+j is NULL ORDER BY i;
+
+#ROLLUP with ORDER BY and HAVING CONDITION - with expression, test for null,
+#not null and with grouping
+--sorted_result
+SELECT i,j FROM t1 GROUP BY i,j WITH ROLLUP HAVING i=111 ORDER BY i;
+--sorted_result
+SELECT i,j FROM t1 GROUP BY i,j WITH ROLLUP HAVING i+j < 200 ORDER BY i;
+SELECT i, j, i+j, AVG(k) from t1 GROUP BY i,j WITH ROLLUP
+HAVING i+j is NULL ORDER BY i;
+SELECT i, j, i+j, AVG(k) from t1 GROUP BY i,j WITH ROLLUP
+HAVING i+j is NOT NULL ORDER BY i+j;
+--sorted_result
+SELECT i, GROUPING(i+j), AVG(k) from t1 GROUP BY i,i+j WITH ROLLUP
+HAVING i is NOT NULL ORDER BY i+j;
+--sorted_result
+SELECT i, GROUPING(i+j), AVG(k) from t1 GROUP BY i,i+j WITH ROLLUP
+HAVING AVG(k) > 10 ORDER BY i;
+--sorted_result
+SELECT i, GROUPING(i+j), AVG(k) from t1 GROUP BY i,i+j WITH ROLLUP
+HAVING AVG(k) + 20 < 35 ORDER BY i;
+
+#ROLLUP with ORDER BY, DISTINCT and HAVING CONDITION - with expression,
+#test for null, not null and with grouping
+--sorted_result
+SELECT DISTINCT i,j FROM t1 GROUP BY i,j WITH ROLLUP HAVING i=111 ORDER BY i;
+--sorted_result
+SELECT DISTINCT i FROM t1 GROUP BY i,j WITH ROLLUP HAVING i=111 ORDER BY i;
+--sorted_result
+SELECT DISTINCT i,j FROM t1 GROUP BY i,j WITH ROLLUP
+HAVING i+j < 200 ORDER BY i;
+SELECT DISTINCT i, j, i+j, AVG(k) from t1 GROUP BY i,j WITH ROLLUP
+HAVING i+j is NULL ORDER BY i;
+SELECT DISTINCT i, j, i+j, AVG(k) from t1 GROUP BY i,j WITH ROLLUP
+HAVING i+j is NOT NULL ORDER BY i+j;
+--sorted_result
+SELECT DISTINCT i, i+j, GROUPING(i+j), AVG(k) from t1 GROUP BY i,i+j WITH ROLLUP
+HAVING i is NOT NULL ORDER BY i+j;
+--sorted_result
+SELECT DISTINCT i, GROUPING(i+j), AVG(k) from t1 GROUP BY i,i+j WITH ROLLUP
+HAVING AVG(k) > 10 ORDER BY i;
+--sorted_result
+SELECT DISTINCT i, GROUPING(i+j), AVG(k) from t1 GROUP BY i,i+j WITH ROLLUP
+HAVING AVG(k) + 20 < 35 ORDER BY i;
+
+--echo #
+--echo # Bug#26073525: Allow GROUPING function in ORDER BY
+--echo #
+
+#GROUPING in ORDER BY
+SELECT i, j, AVG(k) FROM t1 GROUP BY i,j WITH ROLLUP
+ORDER BY GROUPING(i),i,GROUPING(j),j;
+
+#GROUPING with ORDER BY and LIMIT
+SELECT i, j, AVG(k) FROM t1 GROUP BY i,j WITH ROLLUP
+ORDER BY GROUPING(i),i,GROUPING(j),j LIMIT 5;
+
+#GROUPING with ORDER BY and HAVING CONDITION
+SELECT i, j, SUM(k) FROM t1 GROUP BY i,j WITH ROLLUP
+HAVING i > 10 and j < 1000 ORDER BY GROUPING(i),i,GROUPINg(j),j;
+
+#GROUPING with ORDER BY function
+SELECT CONCAT(i,':',j) as ij, CONCAT(j,':',i) as ji FROM t1
+GROUP BY ij, ji WITH ROLLUP ORDER BY GROUPING(ij),ij,GROUPINg(ji),ji;
+
+#GROUPING with ORDER BY and DERIVED TABLE
+SELECT i, 'sum' FROM (SELECT i, SUM(j) AS 'sum' FROM t1 GROUP BY i
+                      WITH ROLLUP ORDER BY GROUPING(i),i) AS tmp WHERE i is NULL;
+
+#GROUPING with ORDER BY and SUBQUERY
+SELECT i FROM t1 WHERE EXISTS (SELECT i, j, SUM(k) FROM t1 AS t2
+                               WHERE t1.i=t2.i GROUP BY i,j WITH ROLLUP
+                               HAVING SUM(k) > 40 ORDER BY GROUPING(i),i,
+                               GROUPING(j),j);
+
+#GROUPING with ORDER BY and UNION
+SELECT a, SUM(a), SUM(a)+1, CONCAT(SUM(a),'x'), SUM(a)+SUM(a), SUM(a)
+  FROM (SELECT 1 a, 2 b UNION SELECT 2,3 UNION SELECT 5,6 ) d
+      GROUP BY a WITH ROLLUP ORDER BY GROUPING(a),a;
+
+#GROUPING with ORDER BY and ALIAS
+SELECT i, j, i AS k, COUNT(*) AS count FROM t1 GROUP BY i, j, k WITH ROLLUP
+ORDER BY GROUPING(i),i, GROUPING(j),j, GROUPING(k),k;
+
+#GROUPING in DERIVED TABLE
+SELECT * FROM (SELECT i, j, SUM(k) FROM t1 GROUP BY i, j WITH ROLLUP
+               ORDER BY GROUPING(i),i, GROUPING(j),j) as tmp;
+
+#GROUPING with WINDOWING FUNCTIONS
+SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j WITH ROLLUP
+HAVING i+j is NULL ORDER BY GROUPING(i);
+SELECT i, j, i+j, FIRST_VALUE(i) over () from t1 GROUP BY i,j WITH ROLLUP
+HAVING i+j is NULL ORDER BY GROUPING(i);
+SELECT i, j, i+j, FIRST_VALUE(i) over () from t1 GROUP BY i,j WITH ROLLUP
+HAVING GROUPING(i) = 1 ORDER BY GROUPING(i);
+SELECT i, j, i+j, FIRST_VALUE(i) over () from t1 GROUP BY i,j WITH ROLLUP
+HAVING 1 + 2 - GROUPING(i) = 2 ORDER BY GROUPING(i);
+SELECT i, j, i+j, AVG(j), AVG(j) over () from t1 GROUP BY i,j WITH ROLLUP
+HAVING GROUPING(j)+AVG(j) > 11 ORDER BY GROUPING(i);
+
+#GROUPING with ORDER BY and HAVING CONDITION
+SELECT i,j, SUM(k), GROUPING(i), GROUPING(j) FROM t1 GROUP BY i,j
+WITH ROLLUP HAVING GROUPING(i) = 1 OR GROUPING (j) = 1
+ORDER BY GROUPING(i),i,GROUPING(j),j;
+
+#GROUPING with DISTINCT
+SELECT DISTINCT GROUPING(i), GROUPING(j) FROM t1 GROUP BY i,j WITH ROLLUP;
+SELECT DISTINCT GROUPING(i), GROUPING(j) FROM t1 GROUP BY i,j WITH ROLLUP
+ORDER BY GROUPING(i), GROUPING(j);
+SELECT DISTINCT j, GROUPING(j) FROM t1 GROUP BY i,j WITH ROLLUP;
+
+#Error case
+--error ER_WRONG_GROUP_FIELD
+SELECT i, j, AVG(k) FROM t1 GROUP BY i,j+GROUPING(i) WITH ROLLUP;
+
+DROP TABLE t0,t1;
+
+--echo #
+--echo # Bug#27530568: SIG11 IN FIELD::REAL_MAYBE_NULL IN SQL/FIELD.H
+--echo #
+
+CREATE TABLE t1 (
+  f1 INTEGER,
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES(7,3);
+
+--sorted_result
+SELECT  alias1.f1 AS field1, alias1.f1 AS field2, (alias1.f1 +1) AS field3 FROM
+  ( t1 AS alias1, t1 as alias2 ) WHERE alias1.pk = 3
+  GROUP BY field1, field2, field3 WITH ROLLUP  ORDER BY field2;
+
+SELECT f1 FROM t1 WHERE pk = 3 GROUP BY f1 WITH ROLLUP ORDER BY f1;
+DROP TABLE t1;
+CREATE TABLE t1 (pk INTEGER, PRIMARY KEY (pk))ENGINE= MYISAM;
+CREATE TABLE t2 (pk INTEGER, PRIMARY KEY (pk))ENGINE= MYISAM;
+
+INSERT INTO t2 VALUES (1),(2);
+
+SELECT GROUPING(alias2.pk) AS field2 FROM t2 AS alias1 LEFT JOIN t1 AS alias2
+  ON 0 GROUP BY alias2.pk WITH ROLLUP ORDER BY GROUPING(alias2.pk);
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1(
+  pk INTEGER NOT NULL AUTO_INCREMENT,
+  col_time time DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,'00:20:09'),(2,'00:20:01'),(3,'00:20:02');
+
+SELECT GROUPING(table2.col_time) AS field1 FROM t1 AS table1,t1 as table2
+  WHERE table2.pk = 1 GROUP BY table2.col_time WITH ROLLUP
+  ORDER BY GROUPING(table2.col_time);
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+pk INTEGER NOT NULL AUTO_INCREMENT,
+col_varchar_key varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES (12,'a'),(16,'c'),(3,'d'),(20,'g'),(6,'h'),(15,'h'),
+(4,'i'),(19,'l'),(7,'p'),(9,'p'),(17,'q'),(13,'r'),(5,'t'),(14,'u'),(8,'v'),
+(10,'w'),(2,'x'),(18,'x'),(1,'z'),(11,'z');
+
+CREATE TABLE t2(
+pk INTEGER NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO t2 VALUES (1);
+
+SELECT  CONCAT(alias1.col_varchar_key,1) AS field1 FROM t1 AS alias1
+ RIGHT JOIN t2 ON (alias1.pk = 1) GROUP BY field1 WITH ROLLUP HAVING
+ field1 >= 'n' ORDER BY field1;
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL AUTO_INCREMENT,
+  col_int INTEGER DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO t1 VALUES (1,1);
+
+SELECT ((table1.col_int) * (table1.col_int)) AS field2 FROM (t1 AS table1)
+  WHERE (table1.col_int != 1 OR table1.pk) GROUP BY field2 WITH ROLLUP
+  HAVING (field2 <> 239 ) ORDER BY GROUPING(field2);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#27735167: WITH ROLLUP: CRASH IN SET_FIELD_TO_NULL_WITH_CONVERSIONS
+--echo #
+
+CREATE TABLE t(a INT,b BLOB);
+INSERT INTO t VALUES (1,'a'),(1,'b'),(2,'c'),(3,'d');
+
+SELECT (((@e:=`b`)) NOT BETWEEN 0x0b5f09 AND (CHAR(md5(@pub1),
+  (CONNECTION_ID()+LEAD(5225.750000,110) RESPECT NULLS OVER(ORDER BY b, a)))))
+  FROM t GROUP BY b,a WITH ROLLUP;
+
+SELECT a + COUNT(*) OVER () FROM t GROUP BY a WITH ROLLUP;
+
+SELECT a, b, a + SUM(a) OVER () FROM t GROUP BY a,b WITH ROLLUP;
+
+DROP TABLE t;

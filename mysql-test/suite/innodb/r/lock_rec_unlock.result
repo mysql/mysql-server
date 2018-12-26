@@ -1,0 +1,58 @@
+#################################################################
+#                                                               #
+# Bug # 27898384: InnoDB: Assertion failure: lock0lock.cc:4226: #
+#  !(lock2->trx == trx && lock_get_mode(lock2) == lock_mode)    #
+#                                                               #
+#################################################################
+##############
+# SCENARIO 1 #
+##############
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+val INT
+) Engine=InnoDB;
+INSERT INTO t1 (id, val) VALUES (100,100),(200,200);
+BEGIN;
+DELETE FROM t1 WHERE id=123;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con1_will_wait';
+INSERT INTO t1 (id, val) VALUES (123,123);;
+SET DEBUG_SYNC = 'now WAIT_FOR con1_will_wait';
+ROLLBACK;
+SELECT * FROM t1 WHERE 100<=id AND id<=200 AND val=100 FOR UPDATE;
+id	val
+100	100
+ROLLBACK;
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+##############
+# SCENARIO 2 #
+##############
+CREATE TABLE t1 (
+`a` int(11) NOT NULL auto_increment,
+`b` int(11) default NULL,
+`c` int default 7,
+PRIMARY KEY  (`a`),
+UNIQUE KEY `b` (`b`)
+) ENGINE=innodb;
+INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,2,2), (3,3,3), (4,4,4);
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+UPDATE t1 SET b=2 WHERE a=1;
+ERROR 23000: Duplicate entry '2' for key 'b'
+SELECT a FROM t1 WHERE 2<=b AND b<=3 AND c=1 FOR SHARE;
+a
+BEGIN;
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+DELETE FROM t1 WHERE b=2;
+SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+COMMIT;
+COMMIT;
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+########################
+#                      #
+# End of Bug #27898384 #
+#                      #
+########################

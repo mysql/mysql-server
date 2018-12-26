@@ -1,0 +1,646 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Recovery from master pos .*");
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+call mtr.add_suppression("Failed to read information on Previous GTIDs.");
+call mtr.add_suppression("Error reading GTIDs from binary log");
+CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
+==== Part 1 ====
+include/rpl_reset.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+==== Part 2 ====
+include/rpl_reset.inc
+include/stop_slave.inc
+include/start_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES(0);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+---- i=1 ----
+[connection slave]
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+[connection slave]
+Waiting for 3 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 2 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 1 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+FLUSH LOCAL RELAY LOGS;
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+[connection master]
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+---- i=2 ----
+[connection slave]
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+[connection slave]
+Waiting for 3 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 2 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 1 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+FLUSH LOCAL RELAY LOGS;
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+[connection master]
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+---- i=3 ----
+[connection slave]
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+[connection slave]
+Waiting for 3 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 2 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 1 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+FLUSH LOCAL RELAY LOGS;
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+[connection master]
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+---- i=4 ----
+[connection slave]
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+[connection slave]
+Waiting for 3 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 2 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 1 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+FLUSH LOCAL RELAY LOGS;
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+[connection master]
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+==== Part 3 ====
+include/rpl_reset.inc
+include/stop_slave.inc
+SET GLOBAL debug="";
+include/start_slave.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+==== Part 4 ====
+include/rpl_reset.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+==== Part 5 ====
+---- i=1 ----
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+include/start_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+include/start_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+include/start_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+include/start_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+==== Part 6 ====
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1, MASTER_LOG_FILE= 'master-bin.000001', MASTER_LOG_POS= 4;
+ERROR HY000: Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active.
+include/start_slave.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:1');
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:1-2');
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
+include/start_slave.inc
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:1-3', 300);
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:1-4', 300);
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
+include/start_slave.inc
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:1-5');
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:1-6');
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
+include/start_slave.inc
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:1-7', 300);
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:1-8', 300);
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
+include/start_slave.inc
+FLUSH LOGS;
+==== Part 7 ====
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:2";
+include/wait_for_slave_sql_to_stop.inc
+include/stop_slave.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4";
+include/wait_for_slave_sql_to_stop.inc
+include/stop_slave.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:6";
+include/wait_for_slave_sql_to_stop.inc
+include/stop_slave.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:8";
+include/wait_for_slave_sql_to_stop.inc
+include/stop_slave.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+==== Part 8 ====
+include/stop_slave.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+RESET MASTER;
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_AUTO_POSITION= 0;
+RESET MASTER;
+include/start_slave.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+==== Part 9 ====
+include/rpl_reset.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/start_slave.inc
+FLUSH LOGS;
+FLUSH LOGS;
+include/rpl_reset.inc
+DROP TABLE t1;
+# Failure on creating compression thread
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+call mtr.add_suppression("Can not create thread to compress gtid_executed table .*");
+include/rpl_restart_server.inc [server_number=2 parameters: --debug=d,simulate_create_compress_thread_failure]
+include/assert.inc [compression thread is destroied;]
+call mtr.add_suppression("Plugin 'InnoDB' will be forced to shutdown");
+call mtr.add_suppression("Plugin 'InnoDB' has ref_count=.* after shutdown");
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
+include/rpl_end.inc

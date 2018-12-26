@@ -1,0 +1,216 @@
+############## mysql-test\t\auto_increment_increment_basic.test ################
+#                                                                              #
+# Variable Name: auto_increment_increment                                      #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 1                                                             #
+# Range: 1 - 65536                                                             #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "auto_increment_increment"#
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#  server-system-variables.html#option_mysqld_auto-increment-increment         #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#           START OF auto_increment_increment TESTS                    #
+########################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.auto_increment_increment;
+SELECT @start_global_value;
+SET @start_session_value = @@session.auto_increment_increment;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_001_01-------------------------#'
+########################################################################
+#     Display the DEFAULT value of auto_increment_increment            #
+########################################################################
+
+SET @@global.auto_increment_increment = 100;
+SET @@global.auto_increment_increment = DEFAULT;
+SELECT @@global.auto_increment_increment;
+
+SET @@session.auto_increment_increment = 200;
+SET @@session.auto_increment_increment = DEFAULT;
+SELECT @@session.auto_increment_increment;
+
+
+--echo '#--------------------FN_DYNVARS_001_02-------------------------#'
+########################################################################
+#     Check the DEFAULT value of auto_increment_increment              #
+########################################################################
+
+SET @@global.auto_increment_increment = DEFAULT;
+SELECT @@global.auto_increment_increment = 1;
+
+SET @@session.auto_increment_increment = DEFAULT;
+SELECT @@session.auto_increment_increment = 1;
+
+
+--echo '#--------------------FN_DYNVARS_001_03-------------------------#'
+##################################################################
+# Change the value of variable to a valid value for GLOBAL Scope #
+##################################################################
+
+SET @@global.auto_increment_increment = 1;
+SELECT @@global.auto_increment_increment;
+SET @@global.auto_increment_increment = 60020;
+SELECT @@global.auto_increment_increment;
+SET @@global.auto_increment_increment = 65535;
+SELECT @@global.auto_increment_increment;
+
+
+--echo '#--------------------FN_DYNVARS_001_04-------------------------#'
+###################################################################
+# Change the value of variable to a valid value for SESSION Scope #
+###################################################################
+ 
+SET @@session.auto_increment_increment = 1;
+SELECT @@session.auto_increment_increment;
+SET @@session.auto_increment_increment = 50050;
+SELECT @@session.auto_increment_increment;
+SET @@session.auto_increment_increment = 65535;
+SELECT @@session.auto_increment_increment;
+
+
+--echo '#------------------FN_DYNVARS_001_05-----------------------#'
+####################################################################
+# Change the value of auto_increment_increment to an invalid value #
+####################################################################
+
+SET @@global.auto_increment_increment = 0;
+SELECT @@global.auto_increment_increment;
+SET @@global.auto_increment_increment = -1024;
+SELECT @@global.auto_increment_increment;
+SET @@global.auto_increment_increment = 65536;
+SELECT @@global.auto_increment_increment;
+SET @@global.auto_increment_increment = 4294967295;
+SELECT @@global.auto_increment_increment;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.auto_increment_increment = 65530.34;
+SELECT @@global.auto_increment_increment;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.auto_increment_increment = test;
+SELECT @@global.auto_increment_increment;
+
+SET @@session.auto_increment_increment = 0;
+SELECT @@session.auto_increment_increment;
+SET @@session.auto_increment_increment = -1024;
+SELECT @@session.auto_increment_increment;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.auto_increment_increment = 65530.34;
+SELECT @@global.auto_increment_increment;
+SET @@session.auto_increment_increment = 65536;
+SELECT @@session.auto_increment_increment;
+SET @@session.auto_increment_increment = 4294967295;
+SELECT @@session.auto_increment_increment;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.auto_increment_increment = test;
+SELECT @@session.auto_increment_increment;
+
+
+--echo '#------------------FN_DYNVARS_001_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@global.auto_increment_increment = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='auto_increment_increment';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_001_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@session.auto_increment_increment = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='auto_increment_increment';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_001_08-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.auto_increment_increment = TRUE;
+SELECT @@global.auto_increment_increment;
+SET @@global.auto_increment_increment = FALSE;
+SELECT @@global.auto_increment_increment;
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+###############################################################################
+#  Check if global and session variables are independant of each other        #
+###############################################################################
+
+SET @@global.auto_increment_increment = 10;
+SET @@session.auto_increment_increment = 11;
+SELECT @@auto_increment_increment = @@global.auto_increment_increment;
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+#    to same session variable                                                #
+##############################################################################
+
+SET @@auto_increment_increment = 100;
+SELECT @@auto_increment_increment = @@local.auto_increment_increment;
+SELECT @@local.auto_increment_increment = @@session.auto_increment_increment;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+###############################################################################
+# Check if auto_increment_increment can be accessed with and without @@ sign  #
+###############################################################################
+
+SET auto_increment_increment = 1;
+SELECT @@auto_increment_increment;
+--Error ER_UNKNOWN_TABLE
+SELECT local.auto_increment_increment;
+--Error ER_UNKNOWN_TABLE
+SELECT session.auto_increment_increment;
+--Error ER_BAD_FIELD_ERROR
+SELECT auto_increment_increment = @@session.auto_increment_increment;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.auto_increment_increment = @start_global_value;
+SELECT @@global.auto_increment_increment;
+SET @@session.auto_increment_increment = @start_session_value;
+SELECT @@session.auto_increment_increment;
+
+
+#############################################################
+#                 END OF auto_increment_increment TESTS     #
+#############################################################
+

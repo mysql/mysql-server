@@ -1,0 +1,49 @@
+# Save the count of columns in mysql
+# shut server down
+# Server is down
+#
+# Start of test for Bug #20504142
+#   MYSQLD OPTION --INITIALIZE SHOULD WORK WITH EMPTY DATADIR
+#
+#
+# Try --initialize-insecure with an existing empty data dir
+#
+# create bootstrap file
+# make the data dir
+# Run the server with --initialize-insecure
+# Restart the server against DDIR
+# connect as root
+# must pass: no password expiration
+SELECT 1;
+1
+1
+# shut server down
+# Server is down
+# close the test connection
+# delete mysqld log
+# delete bootstrap file
+# delete datadir
+#
+# Try --initialize-insecure with an exising non-empty data dir
+#
+# make the data dir
+# add afile to the data dir
+# Run the server with --initialize-insecure
+# look for the mysql directory. should not be there
+# delete mysqld log
+# delete datadir
+#
+# Try --initialize-insecure with an exising file as datadir
+#
+# add a file as the data dir
+# Run the server with --initialize-insecure
+# delete mysqld log
+# delete datadir
+#
+# End of test for Bug #20504142
+#   MYSQLD OPTION --INITIALIZE SHOULD WORK WITH EMPTY DATADIR
+#
+#
+# Cleanup
+#
+# Restarting the server

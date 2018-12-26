@@ -1,0 +1,1207 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+[connection slave]
+CHANGE MASTER TO MASTER_CONNECT_RETRY = 30 ;
+include/start_slave.inc
+# Restart master with innodb_autoinc_lock_mode = 1
+include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]
+# Restart slave with innodb_autoinc_lock_mode = 1
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=1]
+include/start_slave.inc
+# Replicating simple inserts
+[Connection Master]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+1
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t1 VALUES (NULL,10),
+(NULL,20),
+(NULL,30);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+1
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	30
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+INSERT INTO t1 VALUES (3,35)
+ON DUPLICATE KEY UPDATE aa = aa+1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET auto_increment_offset = 5;
+SET auto_increment_increment = 15;
+INSERT INTO t1 VALUES (NULL,40),
+(NULL,50),
+(NULL,60),
+(NULL,70),
+(NULL,80);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+5	40
+20	50
+35	60
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Conenction Master]
+DELETE FROM t1 WHERE aa IN (40,60);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+20	50
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment= @default_auto_increment_increment;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Replicating bulk inserts
+[Connection Master]
+CREATE TABLE t1(aa INT);
+INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
+CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET auto_increment_offset = 4;
+SET auto_increment_increment = 16;
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+32
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Replicating mixed mode inserts
+[Connection Master]
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+INSERT INTO t1 VALUES(NULL,20),
+(20,40),
+(NULL,60),
+(NULL,80),
+(30,100),
+(NULL,120);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Restart master with innodb_autoinc_lock_mode = 0
+include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=0]
+# Restart slave with innodb_autoinc_lock_mode = 0
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=0]
+include/start_slave.inc
+# Replicating simple inserts
+[Connection Master]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+0
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t1 VALUES (NULL,10),
+(NULL,20),
+(NULL,30);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+0
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	30
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+INSERT INTO t1 VALUES (3,35)
+ON DUPLICATE KEY UPDATE aa = aa+1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET auto_increment_offset = 5;
+SET auto_increment_increment = 15;
+INSERT INTO t1 VALUES (NULL,40),
+(NULL,50),
+(NULL,60),
+(NULL,70),
+(NULL,80);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+5	40
+20	50
+35	60
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Conenction Master]
+DELETE FROM t1 WHERE aa IN (40,60);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+20	50
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment= @default_auto_increment_increment;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Replicating bulk inserts
+[Connection Master]
+CREATE TABLE t1(aa INT);
+INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
+CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET auto_increment_offset = 4;
+SET auto_increment_increment = 16;
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+32
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Replicating mixed mode inserts
+[Connection Master]
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+INSERT INTO t1 VALUES(NULL,20),
+(20,40),
+(NULL,60),
+(NULL,80),
+(30,100),
+(NULL,120);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Restart master with innodb_autoinc_lock_mode = 2
+include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=2]
+# Restart slave with innodb_autoinc_lock_mode = 2
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
+include/start_slave.inc
+# Replicating simple inserts
+[Connection Master]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+2
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t1 VALUES (NULL,10),
+(NULL,20),
+(NULL,30);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+2
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	30
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+INSERT INTO t1 VALUES (3,35)
+ON DUPLICATE KEY UPDATE aa = aa+1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET auto_increment_offset = 5;
+SET auto_increment_increment = 15;
+INSERT INTO t1 VALUES (NULL,40),
+(NULL,50),
+(NULL,60),
+(NULL,70),
+(NULL,80);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+5	40
+20	50
+35	60
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Conenction Master]
+DELETE FROM t1 WHERE aa IN (40,60);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+20	50
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment= @default_auto_increment_increment;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Replicating bulk inserts
+[Connection Master]
+CREATE TABLE t1(aa INT);
+INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
+CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET auto_increment_offset = 4;
+SET auto_increment_increment = 16;
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+32
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Replicating mixed mode inserts
+[Connection Master]
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+INSERT INTO t1 VALUES(NULL,20),
+(20,40),
+(NULL,60),
+(NULL,80),
+(30,100),
+(NULL,120);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Restart slave with innodb_autoinc_lock_mode = 0
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=0]
+include/start_slave.inc
+# Replicating simple inserts
+[Connection Master]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+2
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t1 VALUES (NULL,10),
+(NULL,20),
+(NULL,30);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+0
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	30
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+INSERT INTO t1 VALUES (3,35)
+ON DUPLICATE KEY UPDATE aa = aa+1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET auto_increment_offset = 5;
+SET auto_increment_increment = 15;
+INSERT INTO t1 VALUES (NULL,40),
+(NULL,50),
+(NULL,60),
+(NULL,70),
+(NULL,80);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+5	40
+20	50
+35	60
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Conenction Master]
+DELETE FROM t1 WHERE aa IN (40,60);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+20	50
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment= @default_auto_increment_increment;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Replicating bulk inserts
+[Connection Master]
+CREATE TABLE t1(aa INT);
+INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
+CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET auto_increment_offset = 4;
+SET auto_increment_increment = 16;
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+32
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Replicating mixed mode inserts
+[Connection Master]
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+INSERT INTO t1 VALUES(NULL,20),
+(20,40),
+(NULL,60),
+(NULL,80),
+(30,100),
+(NULL,120);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Restart slave with innodb_autoinc_lock_mode = 1
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=1]
+include/start_slave.inc
+# Replicating simple inserts
+[Connection Master]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+2
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t1 VALUES (NULL,10),
+(NULL,20),
+(NULL,30);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+1
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	30
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+INSERT INTO t1 VALUES (3,35)
+ON DUPLICATE KEY UPDATE aa = aa+1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET auto_increment_offset = 5;
+SET auto_increment_increment = 15;
+INSERT INTO t1 VALUES (NULL,40),
+(NULL,50),
+(NULL,60),
+(NULL,70),
+(NULL,80);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+5	40
+20	50
+35	60
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Conenction Master]
+DELETE FROM t1 WHERE aa IN (40,60);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+20	50
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment= @default_auto_increment_increment;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Replicating bulk inserts
+[Connection Master]
+CREATE TABLE t1(aa INT);
+INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
+CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET auto_increment_offset = 4;
+SET auto_increment_increment = 16;
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+32
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Replicating mixed mode inserts
+[Connection Master]
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+INSERT INTO t1 VALUES(NULL,20),
+(20,40),
+(NULL,60),
+(NULL,80),
+(30,100),
+(NULL,120);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Restart master with innodb_autoinc_lock_mode = 0
+include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=0]
+# Replicating simple inserts
+[Connection Master]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+0
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t1 VALUES (NULL,10),
+(NULL,20),
+(NULL,30);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+1
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	30
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+INSERT INTO t1 VALUES (3,35)
+ON DUPLICATE KEY UPDATE aa = aa+1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET auto_increment_offset = 5;
+SET auto_increment_increment = 15;
+INSERT INTO t1 VALUES (NULL,40),
+(NULL,50),
+(NULL,60),
+(NULL,70),
+(NULL,80);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+5	40
+20	50
+35	60
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Conenction Master]
+DELETE FROM t1 WHERE aa IN (40,60);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+20	50
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment= @default_auto_increment_increment;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Replicating bulk inserts
+[Connection Master]
+CREATE TABLE t1(aa INT);
+INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
+CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET auto_increment_offset = 4;
+SET auto_increment_increment = 16;
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+32
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Replicating mixed mode inserts
+[Connection Master]
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+INSERT INTO t1 VALUES(NULL,20),
+(20,40),
+(NULL,60),
+(NULL,80),
+(30,100),
+(NULL,120);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Restart slave with innodb_autoinc_lock_mode = 2
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
+include/start_slave.inc
+# Replicating simple inserts
+[Connection Master]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+0
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t1 VALUES (NULL,10),
+(NULL,20),
+(NULL,30);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+2
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	30
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+INSERT INTO t1 VALUES (3,35)
+ON DUPLICATE KEY UPDATE aa = aa+1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET auto_increment_offset = 5;
+SET auto_increment_increment = 15;
+INSERT INTO t1 VALUES (NULL,40),
+(NULL,50),
+(NULL,60),
+(NULL,70),
+(NULL,80);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+5	40
+20	50
+35	60
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Conenction Master]
+DELETE FROM t1 WHERE aa IN (40,60);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+20	50
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment= @default_auto_increment_increment;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Replicating bulk inserts
+[Connection Master]
+CREATE TABLE t1(aa INT);
+INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
+CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET auto_increment_offset = 4;
+SET auto_increment_increment = 16;
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+32
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Replicating mixed mode inserts
+[Connection Master]
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+INSERT INTO t1 VALUES(NULL,20),
+(20,40),
+(NULL,60),
+(NULL,80),
+(30,100),
+(NULL,120);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Restart master with innodb_autoinc_lock_mode = 1
+include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=1]
+# Replicating simple inserts
+[Connection Master]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+1
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t1 VALUES (NULL,10),
+(NULL,20),
+(NULL,30);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+2
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	30
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+INSERT INTO t1 VALUES (3,35)
+ON DUPLICATE KEY UPDATE aa = aa+1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET auto_increment_offset = 5;
+SET auto_increment_increment = 15;
+INSERT INTO t1 VALUES (NULL,40),
+(NULL,50),
+(NULL,60),
+(NULL,70),
+(NULL,80);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+5	40
+20	50
+35	60
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Conenction Master]
+DELETE FROM t1 WHERE aa IN (40,60);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+20	50
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment= @default_auto_increment_increment;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Replicating bulk inserts
+[Connection Master]
+CREATE TABLE t1(aa INT);
+INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
+CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET auto_increment_offset = 4;
+SET auto_increment_increment = 16;
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+32
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Replicating mixed mode inserts
+[Connection Master]
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+INSERT INTO t1 VALUES(NULL,20),
+(20,40),
+(NULL,60),
+(NULL,80),
+(30,100),
+(NULL,120);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Restart slave with innodb_autoinc_lock_mode = 0
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=0]
+include/start_slave.inc
+# Replicating simple inserts
+[Connection Master]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+1
+CREATE TABLE t1 (pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t1 VALUES (NULL,10),
+(NULL,20),
+(NULL,30);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT @@global.innodb_autoinc_lock_mode;
+@@global.innodb_autoinc_lock_mode
+0
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	30
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+INSERT INTO t1 VALUES (3,35)
+ON DUPLICATE KEY UPDATE aa = aa+1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @default_auto_increment_offset = @@auto_increment_offset;
+SET @default_auto_increment_increment = @@auto_increment_increment;
+SET auto_increment_offset = 5;
+SET auto_increment_increment = 15;
+INSERT INTO t1 VALUES (NULL,40),
+(NULL,50),
+(NULL,60),
+(NULL,70),
+(NULL,80);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+5	40
+20	50
+35	60
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Conenction Master]
+DELETE FROM t1 WHERE aa IN (40,60);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+pkey	aa
+1	10
+2	20
+3	31
+20	50
+50	70
+65	80
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment= @default_auto_increment_increment;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Replicating bulk inserts
+[Connection Master]
+CREATE TABLE t1(aa INT);
+INSERT INTO t1 VALUES(5),(10),(15),(20),(25),(30),(35),(40);
+CREATE TABLE t2(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, aa INT);
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+16
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET auto_increment_offset = 4;
+SET auto_increment_increment = 16;
+INSERT INTO t2(aa) SELECT * FROM t1;
+INSERT INTO t2(aa) SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+32
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+SET @@auto_increment_offset = @default_auto_increment_offset;
+SET @@auto_increment_increment = @default_auto_increment_increment;
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Replicating mixed mode inserts
+[Connection Master]
+CREATE TABLE t1(pkey INT NOT NULL AUTO_INCREMENT PRIMARY KEY, bb INT);
+INSERT INTO t1 VALUES(NULL,20),
+(20,40),
+(NULL,60),
+(NULL,80),
+(30,100),
+(NULL,120);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Restart master with innodb_autoinc_lock_mode = 2
+include/rpl_restart_server.inc [server_number=1 parameters: --innodb_autoinc_lock_mode=2]
+# Restart slave with innodb_autoinc_lock_mode = 2
+include/rpl_restart_server.inc [server_number=2 parameters: --innodb_autoinc_lock_mode=2]
+include/start_slave.inc
+include/rpl_end.inc

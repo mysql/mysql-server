@@ -1,0 +1,22 @@
+SET @start_value = @@global.general_log_file;
+SELECT @start_value;
+@start_value
+test.log
+'#---------------------FN_DYNVARS_004_01-------------------------#'
+SET @@global.general_log_file = DEFAULT;
+SET @a=concat(left(@@hostname, instr(concat(@@hostname, '.'), '.')-1), '.log');
+SELECT RIGHT(@@global.general_log_file, length(@a)) = @a;
+RIGHT(@@global.general_log_file, length(@a)) = @a
+1
+'#--------------------FN_DYNVARS_004_02------------------------#'
+SET @@global.general_log_file = mytest.log;
+ERROR 42000: Incorrect argument type to variable 'general_log_file'
+SET @@global.general_log_file = 12;
+ERROR 42000: Incorrect argument type to variable 'general_log_file'
+'#----------------------FN_DYNVARS_004_03------------------------#'
+SELECT @@global.general_log_file = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='general_log_file';
+@@global.general_log_file = VARIABLE_VALUE
+1
+SET @@global.general_log_file= @start_value;

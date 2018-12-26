@@ -1,0 +1,179 @@
+SET @start_global_value = @@global.auto_increment_increment;
+SELECT @start_global_value;
+@start_global_value
+1
+SET @start_session_value = @@session.auto_increment_increment;
+SELECT @start_session_value;
+@start_session_value
+1
+'#--------------------FN_DYNVARS_001_01-------------------------#'
+SET @@global.auto_increment_increment = 100;
+SET @@global.auto_increment_increment = DEFAULT;
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+1
+SET @@session.auto_increment_increment = 200;
+SET @@session.auto_increment_increment = DEFAULT;
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+1
+'#--------------------FN_DYNVARS_001_02-------------------------#'
+SET @@global.auto_increment_increment = DEFAULT;
+SELECT @@global.auto_increment_increment = 1;
+@@global.auto_increment_increment = 1
+1
+SET @@session.auto_increment_increment = DEFAULT;
+SELECT @@session.auto_increment_increment = 1;
+@@session.auto_increment_increment = 1
+1
+'#--------------------FN_DYNVARS_001_03-------------------------#'
+SET @@global.auto_increment_increment = 1;
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+1
+SET @@global.auto_increment_increment = 60020;
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+60020
+SET @@global.auto_increment_increment = 65535;
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+65535
+'#--------------------FN_DYNVARS_001_04-------------------------#'
+SET @@session.auto_increment_increment = 1;
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+1
+SET @@session.auto_increment_increment = 50050;
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+50050
+SET @@session.auto_increment_increment = 65535;
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+65535
+'#------------------FN_DYNVARS_001_05-----------------------#'
+SET @@global.auto_increment_increment = 0;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '0'
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+1
+SET @@global.auto_increment_increment = -1024;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '-1024'
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+1
+SET @@global.auto_increment_increment = 65536;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '65536'
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+65535
+SET @@global.auto_increment_increment = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '4294967295'
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+65535
+SET @@global.auto_increment_increment = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_increment'
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+65535
+SET @@global.auto_increment_increment = test;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_increment'
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+65535
+SET @@session.auto_increment_increment = 0;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '0'
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+1
+SET @@session.auto_increment_increment = -1024;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '-1024'
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+1
+SET @@session.auto_increment_increment = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_increment'
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+65535
+SET @@session.auto_increment_increment = 65536;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '65536'
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+65535
+SET @@session.auto_increment_increment = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '4294967295'
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+65535
+SET @@session.auto_increment_increment = test;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_increment'
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+65535
+'#------------------FN_DYNVARS_001_06-----------------------#'
+SELECT @@global.auto_increment_increment = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='auto_increment_increment';
+@@global.auto_increment_increment = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_001_07-----------------------#'
+SELECT @@session.auto_increment_increment = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='auto_increment_increment';
+@@session.auto_increment_increment = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_001_08-----------------------#'
+SET @@global.auto_increment_increment = TRUE;
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+1
+SET @@global.auto_increment_increment = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '0'
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+1
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@global.auto_increment_increment = 10;
+SET @@session.auto_increment_increment = 11;
+SELECT @@auto_increment_increment = @@global.auto_increment_increment;
+@@auto_increment_increment = @@global.auto_increment_increment
+0
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET @@auto_increment_increment = 100;
+SELECT @@auto_increment_increment = @@local.auto_increment_increment;
+@@auto_increment_increment = @@local.auto_increment_increment
+1
+SELECT @@local.auto_increment_increment = @@session.auto_increment_increment;
+@@local.auto_increment_increment = @@session.auto_increment_increment
+1
+'#---------------------FN_DYNVARS_001_11----------------------#'
+SET auto_increment_increment = 1;
+SELECT @@auto_increment_increment;
+@@auto_increment_increment
+1
+SELECT local.auto_increment_increment;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.auto_increment_increment;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT auto_increment_increment = @@session.auto_increment_increment;
+ERROR 42S22: Unknown column 'auto_increment_increment' in 'field list'
+SET @@global.auto_increment_increment = @start_global_value;
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+1
+SET @@session.auto_increment_increment = @start_session_value;
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+1

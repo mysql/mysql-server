@@ -1,0 +1,127 @@
+# Variable Name: mysqlx_wait_timeout                                          #
+# Creation Date: 2017-12-20                                                   #
+# Author:  Horst Hunger                                                       #
+
+--source include/not_windows.inc
+--source include/load_sysvars.inc
+
+SET @start_global_value = @@global.mysqlx_wait_timeout;
+SET @start_session_value = @@session.mysqlx_wait_timeout;
+
+SET @@global.mysqlx_wait_timeout = 100;
+SET @@global.mysqlx_wait_timeout = DEFAULT;
+SELECT @@global.mysqlx_wait_timeout;
+
+SET @@session.mysqlx_wait_timeout = 200;
+SET @@session.mysqlx_wait_timeout = DEFAULT;
+SELECT @@session.mysqlx_wait_timeout;
+
+SET @@global.mysqlx_wait_timeout = DEFAULT;
+SELECT @@global.mysqlx_wait_timeout = @default_mysqlx_wait_timeout;
+
+SET @@session.mysqlx_wait_timeout = DEFAULT;
+SELECT @@session.mysqlx_wait_timeout = @default_mysqlx_wait_timeout;
+
+SET @@global.mysqlx_wait_timeout= 1;
+SELECT @@global.mysqlx_wait_timeout;
+
+SET @@global.mysqlx_wait_timeout = 60020;
+SELECT @@global.mysqlx_wait_timeout;
+
+SET @@global.mysqlx_wait_timeout = 31536000;
+SELECT @@global.mysqlx_wait_timeout = @max_mysqlx_wait_timeout;
+
+SET @@session.mysqlx_wait_timeout =6000;
+SELECT @@session.mysqlx_wait_timeout;
+
+SET @@global.mysqlx_wait_timeout = 0;
+SELECT @@global.mysqlx_wait_timeout;
+SET @@global.mysqlx_wait_timeout = -1024;
+SELECT @@global.mysqlx_wait_timeout;
+SET @@global.mysqlx_wait_timeout = 123456789031;
+SELECT @@global.mysqlx_wait_timeout;
+SET @@global.mysqlx_wait_timeout = 31536003;
+SELECT @@global.mysqlx_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_wait_timeout = ' ';
+SELECT @@global.mysqlx_wait_timeout;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_wait_timeout = ON;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_wait_timeout = OFF;
+
+SET @@global.mysqlx_wait_timeout = True;
+SELECT @@global.mysqlx_wait_timeout;
+
+SET @@global.mysqlx_wait_timeout = False;
+SELECT @@global.mysqlx_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_wait_timeout = 65530.34;
+SELECT @@global.mysqlx_wait_timeout;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_wait_timeout ="Test";
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.mysqlx_wait_timeout = ON;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.mysqlx_wait_timeout = OFF;
+
+SET @@session.mysqlx_wait_timeout = True;
+SELECT @@session.mysqlx_wait_timeout;
+
+SET @@session.mysqlx_wait_timeout = False;
+SELECT @@session.mysqlx_wait_timeout;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.mysqlx_wait_timeout = "Test";
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.mysqlx_wait_timeout = 65530.34;
+SELECT @@session.mysqlx_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.mysqlx_wait_timeout = 'test';
+SET @@session.mysqlx_wait_timeout = 0;
+SELECT @@session.mysqlx_wait_timeout;
+SELECT @@session.mysqlx_wait_timeout = @max_mysqlx_wait_timeout;
+SELECT @@session.mysqlx_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.mysqlx_wait_timeout = ' ';
+SELECT @@session.mysqlx_wait_timeout;
+
+--disable_warnings
+SELECT @@global.mysqlx_wait_timeout = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='mysqlx_wait_timeout';
+--enable_warnings
+
+--disable_warnings
+SELECT @@session.mysqlx_wait_timeout = VARIABLE_VALUE 
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='mysqlx_wait_timeout';
+--enable_warnings
+
+SET @@global.mysqlx_wait_timeout = 30000;
+SET @@global.mysqlx_wait_timeout = 40000;
+SELECT @@mysqlx_wait_timeout = @@global.mysqlx_wait_timeout;
+
+SET @@mysqlx_wait_timeout = 100;
+SELECT @@mysqlx_wait_timeout = @@local.mysqlx_wait_timeout;
+SELECT @@local.mysqlx_wait_timeout = @@session.mysqlx_wait_timeout;
+
+SET mysqlx_wait_timeout = 1027;
+SELECT @@mysqlx_wait_timeout;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.mysqlx_wait_timeout;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.mysqlx_wait_timeout;
+
+--Error ER_BAD_FIELD_ERROR
+SELECT mysqlx_wait_timeout = @@session.mysqlx_wait_timeout;
+
+SET @@global.mysqlx_wait_timeout = @start_global_value;
+SET @@session.mysqlx_wait_timeout = @start_session_value;

@@ -1,0 +1,105 @@
+## Test of user defined function mysqlx_error
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/udf_mysqlx_error.xpl
+
+-->stmtsql SELECT MYSQLX_ERROR(5018);
+-->expecterror ER_X_BAD_UPSERT_DATA
+-->recvresult
+
+-->stmtsql DO MYSQLX_ERROR(5018);
+-->expecterror ER_X_BAD_UPSERT_DATA
+-->recvresult
+
+-->stmtsql CALL MYSQLX_ERROR(5018);
+-->expecterror ER_NO_DB_ERROR
+-->recvresult
+
+-->stmtsql USE test;
+-->recvresult
+
+-->stmtsql CALL MYSQLX_ERROR(5018);
+-->expecterror ER_SP_DOES_NOT_EXIST
+-->recvresult
+
+-->stmtsql DO MYSQLX_ERROR(5018, 5017);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO MYSQLX_ERROR('abc');
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO MYSQLX_ERROR(NULL);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO MYSQLX_ERROR(123.45);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->expecterror ER_X_BAD_UPSERT_DATA
+-->sql
+DELIMITER ||
+CREATE PROCEDURE my_procedure(IN nr_error INT)
+BEGIN
+  SELECT 1;
+  SELECT MYSQLX_ERROR(nr_error);
+  SELECT 2;
+END ||
+DELIMITER ;
+
+CALL my_procedure(5018);
+-->endsql
+EOF
+
+
+
+--error 5018
+SELECT MYSQLX_ERROR(5018);
+
+--error 5018
+DO MYSQLX_ERROR(5018);
+
+--error 1305
+CALL MYSQLX_ERROR(5018);
+
+--error 1123
+DO MYSQLX_ERROR(5018, 5017);
+
+--error 1123
+DO MYSQLX_ERROR('abc');
+
+--error 1123
+DO MYSQLX_ERROR(NULL);
+
+--error 1123
+DO MYSQLX_ERROR(123.45);
+
+DELIMITER ||;
+CREATE PROCEDURE my_procedure(IN nr_error INT)
+BEGIN
+  SELECT 1;
+  DO MYSQLX_ERROR(nr_error);
+  SELECT 2;
+END ||
+DELIMITER ;||
+
+--error 5018
+CALL my_procedure(5018);
+DROP PROCEDURE my_procedure;
+
+
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/udf_mysqlx_error.xpl 2>&1;
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc
+DROP PROCEDURE my_procedure;

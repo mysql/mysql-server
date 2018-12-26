@@ -1,0 +1,123 @@
+SHOW TABLES FROM information_schema LIKE 'EVENTS';
+Tables_in_information_schema (EVENTS)
+EVENTS
+#######################################################################
+# Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+#######################################################################
+DROP VIEW      IF EXISTS test.v1;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP FUNCTION  IF EXISTS test.f1;
+CREATE VIEW test.v1 AS     SELECT * FROM information_schema.EVENTS;
+CREATE PROCEDURE test.p1() SELECT * FROM information_schema.EVENTS;
+CREATE FUNCTION test.f1() returns BIGINT
+BEGIN
+DECLARE counter BIGINT DEFAULT NULL;
+SELECT COUNT(*) INTO counter FROM information_schema.EVENTS;
+RETURN counter;
+END//
+# Attention: The printing of the next result sets is disabled.
+SELECT * FROM information_schema.EVENTS;
+SELECT * FROM test.v1;
+CALL test.p1;
+SELECT test.f1();
+DROP VIEW test.v1;
+DROP PROCEDURE test.p1;
+DROP FUNCTION test.f1;
+#########################################################################
+# Testcase 3.2.12.1: INFORMATION_SCHEMA.EVENTS layout
+#########################################################################
+DESCRIBE          information_schema.EVENTS;
+Field	Type	Null	Key	Default	Extra
+EVENT_CATALOG	varchar(64)	YES		NULL	
+EVENT_SCHEMA	varchar(64)	YES		NULL	
+EVENT_NAME	varchar(64)	NO		NULL	
+DEFINER	varchar(93)	NO		NULL	
+TIME_ZONE	varchar(64)	NO		NULL	
+EVENT_BODY	varchar(3)	NO			
+EVENT_DEFINITION	longtext	NO		NULL	
+EVENT_TYPE	varchar(9)	NO			
+EXECUTE_AT	datetime	YES		NULL	
+INTERVAL_VALUE	int(11)	YES		NULL	
+INTERVAL_FIELD	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')	YES		NULL	
+SQL_MODE	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')	NO		NULL	
+STARTS	datetime	YES		NULL	
+ENDS	datetime	YES		NULL	
+STATUS	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')	NO		NULL	
+ON_COMPLETION	varchar(12)	NO			
+CREATED	timestamp	NO		NULL	
+LAST_ALTERED	timestamp	NO		NULL	
+LAST_EXECUTED	datetime	YES		NULL	
+EVENT_COMMENT	varchar(2048)	NO		NULL	
+ORIGINATOR	int(10) unsigned	NO		NULL	
+CHARACTER_SET_CLIENT	varchar(64)	NO		NULL	
+COLLATION_CONNECTION	varchar(64)	NO		NULL	
+DATABASE_COLLATION	varchar(64)	NO		NULL	
+SHOW CREATE TABLE information_schema.EVENTS;
+View	Create View	character_set_client	collation_connection
+EVENTS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`EVENTS` AS select (`cat`.`name` collate utf8_tolower_ci) AS `EVENT_CATALOG`,(`sch`.`name` collate utf8_tolower_ci) AS `EVENT_SCHEMA`,`evt`.`name` AS `EVENT_NAME`,`evt`.`definer` AS `DEFINER`,`evt`.`time_zone` AS `TIME_ZONE`,'SQL' AS `EVENT_BODY`,`evt`.`definition_utf8` AS `EVENT_DEFINITION`,if(isnull(`evt`.`interval_value`),'ONE TIME','RECURRING') AS `EVENT_TYPE`,convert_tz(`evt`.`execute_at`,'+00:00',`evt`.`time_zone`) AS `EXECUTE_AT`,`evt`.`interval_value` AS `INTERVAL_VALUE`,`evt`.`interval_field` AS `INTERVAL_FIELD`,`evt`.`sql_mode` AS `SQL_MODE`,convert_tz(`evt`.`starts`,'+00:00',`evt`.`time_zone`) AS `STARTS`,convert_tz(`evt`.`ends`,'+00:00',`evt`.`time_zone`) AS `ENDS`,`evt`.`status` AS `STATUS`,if((`evt`.`on_completion` = 'DROP'),'NOT PRESERVE','PRESERVE') AS `ON_COMPLETION`,`evt`.`created` AS `CREATED`,`evt`.`last_altered` AS `LAST_ALTERED`,`evt`.`last_executed` AS `LAST_EXECUTED`,`evt`.`comment` AS `EVENT_COMMENT`,`evt`.`originator` AS `ORIGINATOR`,`cs_client`.`name` AS `CHARACTER_SET_CLIENT`,`coll_conn`.`name` AS `COLLATION_CONNECTION`,`coll_db`.`name` AS `DATABASE_COLLATION` from ((((((`mysql`.`events` `evt` join `mysql`.`schemata` `sch` on((`evt`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll_client` on((`coll_client`.`id` = `evt`.`client_collation_id`))) join `mysql`.`character_sets` `cs_client` on((`cs_client`.`id` = `coll_client`.`character_set_id`))) join `mysql`.`collations` `coll_conn` on((`coll_conn`.`id` = `evt`.`connection_collation_id`))) join `mysql`.`collations` `coll_db` on((`coll_db`.`id` = `evt`.`schema_collation_id`))) where can_access_event(`sch`.`name`)	utf8	utf8_general_ci
+SHOW COLUMNS FROM information_schema.EVENTS;
+Field	Type	Null	Key	Default	Extra
+EVENT_CATALOG	varchar(64)	YES		NULL	
+EVENT_SCHEMA	varchar(64)	YES		NULL	
+EVENT_NAME	varchar(64)	NO		NULL	
+DEFINER	varchar(93)	NO		NULL	
+TIME_ZONE	varchar(64)	NO		NULL	
+EVENT_BODY	varchar(3)	NO			
+EVENT_DEFINITION	longtext	NO		NULL	
+EVENT_TYPE	varchar(9)	NO			
+EXECUTE_AT	datetime	YES		NULL	
+INTERVAL_VALUE	int(11)	YES		NULL	
+INTERVAL_FIELD	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')	YES		NULL	
+SQL_MODE	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')	NO		NULL	
+STARTS	datetime	YES		NULL	
+ENDS	datetime	YES		NULL	
+STATUS	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')	NO		NULL	
+ON_COMPLETION	varchar(12)	NO			
+CREATED	timestamp	NO		NULL	
+LAST_ALTERED	timestamp	NO		NULL	
+LAST_EXECUTED	datetime	YES		NULL	
+EVENT_COMMENT	varchar(2048)	NO		NULL	
+ORIGINATOR	int(10) unsigned	NO		NULL	
+CHARACTER_SET_CLIENT	varchar(64)	NO		NULL	
+COLLATION_CONNECTION	varchar(64)	NO		NULL	
+DATABASE_COLLATION	varchar(64)	NO		NULL	
+SELECT event_catalog, event_name, event_body, event_type, event_type,
+status, on_completion
+FROM information_schema.events
+WHERE event_catalog IS NOT NULL or
+event_body NOT IN ('SQL') or
+event_type NOT IN ('ONE TIME','RECURRING') or
+status NOT IN ('ENABLED','DISABLED','SLAVESIDE_DISABLED') or
+on_completion NOT IN ('PRESERVE','NOT PRESERVE');
+EVENT_CATALOG	EVENT_NAME	EVENT_BODY	EVENT_TYPE	EVENT_TYPE	STATUS	ON_COMPLETION
+########################################################################
+# Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+#           DDL on INFORMATION_SCHEMA tables are not supported
+########################################################################
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+CREATE TABLE db_datadict.t1 (f1 BIGINT)
+ENGINE = <engine_type>;
+INSERT INTO information_schema.events
+SELECT * FROM information_schema.events;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+UPDATE information_schema.events SET event_name = '1234567'
+WHERE table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DELETE FROM information_schema.events WHERE event_catalog IS NULL;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+TRUNCATE information_schema.events;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CREATE INDEX my_idx_on_events ON information_schema.events(event_name);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.events DROP PRIMARY KEY;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.events ADD f1 INT;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP TABLE information_schema.events;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.events RENAME db_datadict.events;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.events RENAME information_schema.xevents;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP DATABASE db_datadict;

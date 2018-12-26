@@ -1,0 +1,126 @@
+#
+# Code coverage testing of TRUNCATE TABLE.
+#
+# Ingo Struewing, 2009-07-20
+#
+
+--source include/have_debug_sync.inc
+SET DEBUG_SYNC='RESET';
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo #
+--echo # Bug#20667 - Truncate table fails for a write locked table
+--echo #
+########
+# Attack wait_while_table_is_used(). Kill query while trying to
+# upgrade MDL.
+#
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+#
+# Acquire a shared metadata lock on table by opening HANDLER for it and wait.
+# TRUNCATE shall block on this metadata lock.
+# We can't use normal DML as such statements would also block LOCK TABLES.
+#
+--echo #
+--echo # connection con1
+--connect (con1, localhost, root,,)
+HANDLER t1 OPEN;
+#
+# Get connection id of default connection.
+# Lock the table and start TRUNCATE, which will block on MDL upgrade.
+#
+--echo #
+--echo # connection default
+--connection default
+let $ID= `SELECT @id := CONNECTION_ID()`;
+LOCK TABLE t1 WRITE;
+SET DEBUG_SYNC='mdl_upgrade_lock SIGNAL waiting';
+send TRUNCATE TABLE t1;
+#
+# Get the default connection ID into a variable in an invisible statement.
+# Kill the TRUNCATE query. This shall result in an error return
+# from wait_while_table_is_used().
+#
+--echo #
+--echo # connection con2
+--connect (con2, localhost, root,,)
+SET DEBUG_SYNC='now WAIT_FOR waiting';
+let $invisible_assignment_in_select = `SELECT @id := $ID`;
+KILL QUERY @id;
+--disconnect con2
+--echo #
+--echo # connection default
+--connection default
+--error ER_QUERY_INTERRUPTED
+reap;
+UNLOCK TABLES;
+--echo #
+--echo # connection con1
+--connection con1
+--echo # Release shared metadata lock by closing HANDLER.
+HANDLER t1 CLOSE;
+--disconnect con1
+--echo #
+--echo # connection default
+--connection default
+DROP TABLE t1;
+SET DEBUG_SYNC='RESET';
+########
+# Attack acquire_exclusive_locks(). Hold a global read lock.
+# Non-LOCK TABLE case.
+#
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+#
+# Start a transaction and execute a DML in it. Since 5.4.4 this leaves
+# a shared meta data lock (MDL) behind. TRUNCATE shall block on it.
+#
+--echo #
+--echo # connection con1
+--connect (con1, localhost, root,,)
+START TRANSACTION;
+INSERT INTO t1 VALUES (2);
+#
+# Get connection id of default connection.
+# Start TRUNCATE, which will block on acquire_exclusive_locks().
+#
+--echo #
+--echo # connection default
+--connection default
+let $ID= `SELECT @id := CONNECTION_ID()`;
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL waiting';
+send TRUNCATE TABLE t1;
+#
+# Get the default connection ID into a variable in an invisible statement.
+# Kill the TRUNCATE query. This shall result in an error return
+# from wait_while_table_is_used().
+#
+--echo #
+--echo # connection con1
+--connection con1
+SET DEBUG_SYNC='now WAIT_FOR waiting';
+let $invisible_assignment_in_select = `SELECT @id := $ID`;
+KILL QUERY @id;
+--echo #
+--echo # connection default
+--connection default
+--error ER_QUERY_INTERRUPTED
+reap;
+--echo #
+--echo # connection con1
+--connection con1
+--echo # Release SW lock by committing transaction.
+COMMIT;
+--disconnect con1
+--echo #
+--echo # connection default
+--connection default
+UNLOCK TABLES;
+DROP TABLE t1;
+SET DEBUG_SYNC='RESET';

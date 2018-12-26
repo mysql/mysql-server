@@ -1,0 +1,23 @@
+select * from performance_schema.data_lock_waits;
+select * from performance_schema.data_lock_waits
+where blocking_thread_id='foo';
+ENGINE	REQUESTING_ENGINE_LOCK_ID	REQUESTING_ENGINE_TRANSACTION_ID	REQUESTING_THREAD_ID	REQUESTING_EVENT_ID	REQUESTING_OBJECT_INSTANCE_BEGIN	BLOCKING_ENGINE_LOCK_ID	BLOCKING_ENGINE_TRANSACTION_ID	BLOCKING_THREAD_ID	BLOCKING_EVENT_ID	BLOCKING_OBJECT_INSTANCE_BEGIN
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'foo'
+insert into performance_schema.data_lock_waits
+set blocking_engine='FOO', blocking_thread_id=1;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'data_lock_waits'
+update performance_schema.data_lock_waits
+set blocking_thread_id=12 where blocking_engine='foo';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'data_lock_waits'
+delete from performance_schema.data_lock_waits;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'data_lock_waits'
+delete from performance_schema.data_lock_waits
+where blocking_engine='CYCLE';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'data_lock_waits'
+LOCK TABLES performance_schema.data_lock_waits READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'data_lock_waits'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.data_lock_waits WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'data_lock_waits'
+UNLOCK TABLES;

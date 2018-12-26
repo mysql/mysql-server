@@ -1,0 +1,71 @@
+select @@global.host_cache_size;
+@@global.host_cache_size
+123
+select @@session.host_cache_size;
+ERROR HY000: Variable 'host_cache_size' is a GLOBAL variable
+show global variables like 'host_cache_size';
+Variable_name	Value
+host_cache_size	123
+show session variables like 'host_cache_size';
+Variable_name	Value
+host_cache_size	123
+select * from performance_schema.global_variables
+where variable_name='host_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+host_cache_size	123
+select * from performance_schema.session_variables
+where variable_name='host_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+host_cache_size	123
+set global host_cache_size=1;
+select @@global.host_cache_size;
+@@global.host_cache_size
+1
+set global host_cache_size=12;
+select @@global.host_cache_size;
+@@global.host_cache_size
+12
+set global host_cache_size=0;
+select @@global.host_cache_size;
+@@global.host_cache_size
+0
+set global host_cache_size=65536;
+select @@global.host_cache_size;
+@@global.host_cache_size
+65536
+set session host_cache_size=1;
+ERROR HY000: Variable 'host_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
+set global host_cache_size=-1;
+Warnings:
+Warning	1292	Truncated incorrect host_cache_size value: '-1'
+select @@global.host_cache_size;
+@@global.host_cache_size
+0
+set global host_cache_size=-1024;
+Warnings:
+Warning	1292	Truncated incorrect host_cache_size value: '-1024'
+select @@global.host_cache_size;
+@@global.host_cache_size
+0
+set global host_cache_size=65537;
+Warnings:
+Warning	1292	Truncated incorrect host_cache_size value: '65537'
+select @@global.host_cache_size;
+@@global.host_cache_size
+65536
+set global host_cache_size=100000;
+Warnings:
+Warning	1292	Truncated incorrect host_cache_size value: '100000'
+select @@global.host_cache_size;
+@@global.host_cache_size
+65536
+set global host_cache_size=4294967295;
+Warnings:
+Warning	1292	Truncated incorrect host_cache_size value: '4294967295'
+select @@global.host_cache_size;
+@@global.host_cache_size
+65536
+set global host_cache_size=123;
+select @@global.host_cache_size;
+@@global.host_cache_size
+123

@@ -1,0 +1,143 @@
+#################### mysql-test\t\identity_func.test ##########################
+#                                                                             #
+# Variable Name: identity                                                     #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: -                                                            #
+# Range: -                                                                    #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-07                                                   #
+# Author:  Salman Rawala                                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable identity                 #
+#              that checks the functionality of this variable                 #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+
+--disable_warnings
+drop table if exists t1;
+drop table if exists t2;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+
+--echo ## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+) ENGINE = INNODB;
+
+--echo ## Creating another new table t2 ##
+CREATE TABLE t2
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+) ENGINE = INNODB;
+
+--echo '#--------------------FN_DYNVARS_035_01-------------------------#'
+###############################################
+#    Verifying initial value of identity.     #     
+###############################################
+
+--echo ## It should be zero ## 
+SELECT @@identity = 0;
+
+--echo ## Creating and connecting with new connection test_con1 ##
+connect (test_con1, localhost, root,,);
+connection test_con1;
+SET @@autocommit = 0;
+
+--echo ## Inserting rows in table t1 ## 
+INSERT into t1(name) values('Record_1');
+INSERT into t1(name) values('Record_2');	
+INSERT into t1(name) values('Record_3');
+
+--echo ## Verifying total values in t1 ## 
+SELECT @@identity from t1;
+
+
+--echo ## Now inserting some data in table t2 ## 
+INSERT into t2(name) values('Record_1');
+
+--echo ## Verifying total values in t2 ## 
+SELECT @@identity from t2;
+
+
+--echo '#--------------------FN_DYNVARS_035_02-------------------------#'
+##########################################################
+#    Verifying value of identity with new connection     #     
+##########################################################
+
+--echo ## Creating and connecting with new connection test_con2 ##
+connect (test_con2, localhost, root,,);
+connection test_con2;
+SELECT * from t1;
+
+--echo ## Verifying total values in t1 ## 
+SELECT @@identity from t1;
+
+--echo ## Verifying total values in t2 ## 
+SELECT @@identity from t2;
+
+--echo ## Inserting some more records in table t1 ##
+INSERT into t1(name) values('Record_1_1');
+INSERT into t1(name) values('Record_1_2');
+
+--echo ## Verifying total values in t1 ## 
+SELECT @@identity from t1;
+
+--echo ## Inserting row in table t2 ##
+INSERT into t2(name) values('Record_1_3');
+
+--echo ## Verifying total values in t2 ## 
+SELECT @@identity from t2;
+
+
+--echo '#--------------------FN_DYNVARS_035_03-------------------------#'
+###################################################################
+#    Verifying identity value by using commit in connectio # 01   #     
+###################################################################
+
+--echo ## Switching to connection test_con1 ##
+connection test_con1;
+
+--echo ## Commiting rows added in test_con1 ##
+COMMIT;
+
+--echo ## Verifying records in both tables ##
+SELECT * from t1;
+SELECT * from t2;
+
+--echo ## Verifying total values in t1 after commiting data ## 
+SELECT @@identity from t1;
+
+--echo ## Verifying total values in t2 after commiting data ## 
+SELECT @@identity from t2;
+
+INSERT into t1(name) values('Record_4');
+
+--echo ## Now verifying value of variable after inserting 1 row in this connection ## 
+SELECT @@identity from t1;
+
+--echo ## Dropping tables t1 & t2 ##
+drop table t1, t2;
+
+--echo ## Disconnecting both the connections ##
+disconnect test_con1;
+disconnect test_con2;
+
+
+
+
+

@@ -1,0 +1,75 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
+UNIQUE(b));
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT... ON DUPLICATE KEY UPDATE  on a table with more than one UNIQUE KEY is unsafe
+SELECT * FROM t1 order by 1;
+a	b
+1	10
+2	2
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Slave SQL.*suffer.*http:..bugs.mysql.com.bug.php.id=24432");
+include/wait_for_slave_sql_error.inc [errno=1105]
+SELECT * FROM t1 order by 1;
+a	b
+include/rpl_reset.inc
+DROP TABLE t1;
+CREATE TABLE t1 (
+id bigint(20) unsigned NOT NULL auto_increment,
+field_1 int(10) unsigned NOT NULL,
+field_2 varchar(255) NOT NULL,
+field_3 varchar(255) NOT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY field_1 (field_1, field_2)
+);
+CREATE TABLE t2 (
+field_a int(10) unsigned NOT NULL,
+field_b varchar(255) NOT NULL,
+field_c varchar(255) NOT NULL
+);
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (1, 'a', '1a');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (2, 'b', '2b');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (3, 'c', '3c');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (4, 'd', '4d');
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (5, 'e', '5e');
+include/sync_slave_sql_with_master.inc
+INSERT INTO t1 (field_1, field_2, field_3)
+SELECT t2.field_a, t2.field_b, t2.field_c
+FROM t2
+ON DUPLICATE KEY UPDATE
+t1.field_3 = t2.field_c;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+INSERT INTO t2 (field_a, field_b, field_c) VALUES (6, 'f', '6f');
+INSERT INTO t1 (field_1, field_2, field_3)
+SELECT t2.field_a, t2.field_b, t2.field_c
+FROM t2
+ON DUPLICATE KEY UPDATE
+t1.field_3 = t2.field_c;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+SELECT * FROM t1 order by 1;
+id	field_1	field_2	field_3
+1	1	a	1a
+2	2	b	2b
+3	3	c	3c
+4	4	d	4d
+5	5	e	5e
+6	6	f	6f
+include/wait_for_slave_sql_error.inc [errno=1105]
+SELECT * FROM t1 order by 1;
+id	field_1	field_2	field_3
+drop table t1, t2;
+drop table t1, t2;
+include/stop_slave_io.inc
+RESET SLAVE;
+include/rpl_end.inc

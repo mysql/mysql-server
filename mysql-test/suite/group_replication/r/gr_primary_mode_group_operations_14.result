@@ -1,0 +1,49 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. server1 start group replication and server2 join
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. server1 have a slave connection to server3
+[connection server1]
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch3_1']
+#
+# 3. server2 have a slave connection to server4
+[connection server2]
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_4_PORT for channel 'ch4_2';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch4_2']
+
+# 4. Execute action to single primary mode. It shall fail as more than
+#    one server has slave connections
+[connection server2]
+SELECT group_replication_switch_to_single_primary_mode();
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. There is more than a member in the group with running slave channels so no primary can be elected.
+include/gr_assert_multi_primary_mode.inc
+[connection server1]
+include/gr_assert_multi_primary_mode.inc
+
+# 5. Cleanup
+STOP SLAVE FOR CHANNEL 'ch3_1';
+RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: There is more than a member in the group with running slave channels*");
+set session sql_log_bin=1;
+[connection server2]
+STOP SLAVE FOR CHANNEL 'ch4_2';
+RESET SLAVE ALL FOR CHANNEL 'ch4_2';
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. There is more than a member in the group with running slave channels*");
+set session sql_log_bin=1;
+include/group_replication_end.inc

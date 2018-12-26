@@ -1,0 +1,109 @@
+select component_urn from mysql.component;
+component_urn
+select *
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
+INSTALL COMPONENT "file://component_pfs_example";
+select component_urn from mysql.component;
+component_urn
+file://component_pfs_example
+select * from performance_schema.setup_instruments
+where NAME like "%/pfs_example/%";
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/cond/pfs_example/X	YES	YES		0	NULL
+wait/synch/cond/pfs_example/Y	YES	YES		0	NULL
+wait/synch/mutex/pfs_example/T	YES	YES		3	And more.
+wait/synch/mutex/pfs_example/X	YES	YES	singleton	1	Example doc, permanent mutex, singleton.
+wait/synch/mutex/pfs_example/Y	YES	YES		7	Example doc, very volatile mutexes.
+wait/synch/mutex/pfs_example/Z	YES	YES	singleton	2	Another example.
+wait/synch/rwlock/pfs_example/T	YES	YES		0	NULL
+wait/synch/rwlock/pfs_example/X	YES	YES		0	NULL
+wait/synch/rwlock/pfs_example/Y	YES	YES		0	NULL
+wait/synch/rwlock/pfs_example/Z	YES	YES		0	NULL
+wait/synch/sxlock/pfs_example/S1	YES	YES		0	NULL
+wait/synch/sxlock/pfs_example/S2	YES	YES		0	NULL
+select NAME
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME
+wait/synch/mutex/pfs_example/T
+wait/synch/mutex/pfs_example/X
+wait/synch/mutex/pfs_example/Y
+wait/synch/mutex/pfs_example/Z
+UNINSTALL COMPONENT "file://component_pfs_example";
+select component_urn from mysql.component;
+component_urn
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/pfs_example/T	YES	YES		3	And more.
+wait/synch/mutex/pfs_example/X	YES	YES	singleton	1	Example doc, permanent mutex, singleton.
+wait/synch/mutex/pfs_example/Y	YES	YES		7	Example doc, very volatile mutexes.
+wait/synch/mutex/pfs_example/Z	YES	YES	singleton	2	Another example.
+select *
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
+INSTALL COMPONENT "file://component_pfs_example";
+select component_urn from mysql.component;
+component_urn
+file://component_pfs_example
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/pfs_example/T	YES	YES		3	And more.
+wait/synch/mutex/pfs_example/X	YES	YES	singleton	1	Example doc, permanent mutex, singleton.
+wait/synch/mutex/pfs_example/Y	YES	YES		7	Example doc, very volatile mutexes.
+wait/synch/mutex/pfs_example/Z	YES	YES	singleton	2	Another example.
+select NAME
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME
+wait/synch/mutex/pfs_example/T
+wait/synch/mutex/pfs_example/X
+wait/synch/mutex/pfs_example/Y
+wait/synch/mutex/pfs_example/Z
+# restart
+select component_urn from mysql.component;
+component_urn
+file://component_pfs_example
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/pfs_example/T	YES	YES		3	And more.
+wait/synch/mutex/pfs_example/X	YES	YES	singleton	1	Example doc, permanent mutex, singleton.
+wait/synch/mutex/pfs_example/Y	YES	YES		7	Example doc, very volatile mutexes.
+wait/synch/mutex/pfs_example/Z	YES	YES	singleton	2	Another example.
+select NAME
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME
+wait/synch/mutex/pfs_example/T
+wait/synch/mutex/pfs_example/X
+wait/synch/mutex/pfs_example/Y
+wait/synch/mutex/pfs_example/Z
+UNINSTALL COMPONENT "file://component_pfs_example";
+select component_urn from mysql.component;
+component_urn
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/pfs_example/T	YES	YES		3	And more.
+wait/synch/mutex/pfs_example/X	YES	YES	singleton	1	Example doc, permanent mutex, singleton.
+wait/synch/mutex/pfs_example/Y	YES	YES		7	Example doc, very volatile mutexes.
+wait/synch/mutex/pfs_example/Z	YES	YES	singleton	2	Another example.
+select *
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
+# restart
+select component_urn from mysql.component;
+component_urn
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+select *
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID

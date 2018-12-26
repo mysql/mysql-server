@@ -1,0 +1,74 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+#  1. Create a table on server1.
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a));
+INSERT INTO t1 VALUE(1, 1);
+include/rpl_sync.inc
+
+############################################################
+#  2. Set a debug sync before broadcast message to group on
+#     connection server_1.
+#     Commit a transaction that will be block before broadcast.
+[connection server_1]
+SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
+BEGIN;
+UPDATE t1 SET b=10 WHERE a=1;
+COMMIT;
+
+############################################################
+#  3. Wait until server_1 connection reaches the
+#     group_replication_before_message_broadcast debug sync point.
+[connection server1]
+
+############################################################
+#  4. Execute a transaction on server2, that will reach first
+#     certification, since server_1 is blocked before broadcast.
+[connection server2]
+UPDATE t1 SET b=20 WHERE a=1;
+
+############################################################
+#  5. Suspend pipeline on server2.
+SET @@GLOBAL.DEBUG='+d,group_replication_before_apply_data_packet';
+
+############################################################
+#  6. Resume the transaction on server_1
+[connection server1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
+[connection server_1]
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+
+############################################################
+#  7. Make sure the pipeline is suspended on server2.
+[connection server2]
+
+############################################################
+#  8. Wait until certification info garbage collector does
+#     its work.
+
+############################################################
+#  9. Resume the pipeline on server2.
+SET DEBUG_SYNC='now SIGNAL continue_apply';
+SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
+
+############################################################
+# 10. Execute a new transaction in order to have a sync point
+#     to make the test deterministic,
+#     Validate that data and GTIDs are correct.
+[connection server1]
+INSERT INTO t1 VALUE(2, 2);
+include/rpl_sync.inc
+include/assert.inc [GTID_EXECUTED must contain 6 transactions]
+[connection server2]
+include/assert.inc [GTID_EXECUTED must contain 6 transactions]
+include/diff_tables.inc [server1:t1, server2:t1]
+
+############################################################
+# 11. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

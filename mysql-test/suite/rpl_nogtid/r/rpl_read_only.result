@@ -1,0 +1,129 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+create user test;
+include/sync_slave_sql_with_master.inc
+create table t1(a int) engine=InnoDB;
+create table t2(a int) engine=MyISAM;
+insert into t1 values(1001);
+insert into t2 values(2001);
+set global read_only=1;
+select @@read_only;
+@@read_only
+1
+select * from t1;
+a
+1001
+select * from t2;
+a
+2001
+include/sync_slave_sql_with_master.inc
+select @@read_only;
+@@read_only
+0
+select * from t1;
+a
+1001
+select * from t2;
+a
+2001
+set global read_only=0;
+BEGIN;
+BEGIN;
+select @@read_only;
+@@read_only
+0
+set global read_only=1;
+*** On SUPER USER connection ***
+insert into t1 values(1002);
+insert into t2 values(2002);
+*** On regular USER connection ***
+insert into t1 values(1003);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+insert into t2 values(2003);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+*** SUPER USER COMMIT (must succeed) *** 
+COMMIT;
+*** regular USER COMMIT (must succeed - nothing to commit) *** 
+COMMIT;
+select @@read_only;
+@@read_only
+1
+set global read_only=0;
+insert into t1 values(1004);
+insert into t2 values(2004);
+select * from t1;
+a
+1001
+1002
+1004
+select * from t2;
+a
+2001
+2002
+2004
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a
+1001
+1002
+1004
+select * from t2;
+a
+2001
+2002
+2004
+set global read_only=1;
+select @@read_only;
+@@read_only
+1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t1 values(1005);
+insert into t2 values(2005);
+select * from t1;
+a
+1001
+1002
+1004
+1005
+select * from t2;
+a
+2001
+2002
+2004
+2005
+include/sync_slave_sql_with_master.inc
+select * from t1;
+a
+1001
+1002
+1004
+1005
+select * from t2;
+a
+2001
+2002
+2004
+2005
+insert into t1 values(1006);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+insert into t2 values(2006);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+drop user test;
+drop table t1;
+drop table t2;
+include/sync_slave_sql_with_master.inc
+set global read_only=0;
+include/rpl_end.inc

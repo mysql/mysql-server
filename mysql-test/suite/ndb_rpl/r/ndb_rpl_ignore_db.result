@@ -1,0 +1,33 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+delete from mysql.ndb_apply_status;
+use mysql;
+create table t1 (a int primary key, b int) engine=myisam;
+create table t2 (a int primary key, b int) engine=ndb;
+insert into t1 values (1,1), (2,2);
+insert into t2 values (1,1), (2,2);
+delete from t1;
+delete from t2;
+use test;
+create table t3 (a int primary key, b int) engine=ndb;
+insert into t3 values (1,1), (2,2);
+select count(1) from information_schema.tables where table_schema="mysql" and (table_name = "t1" or table_name="t2");
+count(1)
+0
+use test;
+select * from t3 order by a;
+a	b
+1	1
+2	2
+select count(1) from mysql.ndb_apply_status;
+count(1)
+1
+use mysql;
+drop table t1;
+drop table t2;
+use test;
+drop table t3;
+include/rpl_end.inc

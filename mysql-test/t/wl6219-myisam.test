@@ -1,0 +1,15 @@
+# This tests the functionality of the Myisam engine
+# like warnings & errors,ALTER etc.
+# These testcases also exist in other storage engines
+# All tests are required to run with Myisam
+# Hence MTR starts mysqld with MyISAM as default
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+#
+# WL#6219: Deprecate and remove YEAR(2) type
+#
+
+let $engine_type= MyISAM;
+--source include/wl6219-engine.test

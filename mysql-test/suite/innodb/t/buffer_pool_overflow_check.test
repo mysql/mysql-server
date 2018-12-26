@@ -1,0 +1,12 @@
+## Bug#21512749 REFACTOR SYSVAR INNODB_BUFFER_POOL_SIZE BY REMOVING
+## INNOBASE_BUFFER_POOL_SIZE
+
+--source include/have_32bit.inc
+
+SET @before_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
+CALL mtr.add_suppression("option 'innodb-buffer-pool-size': unsigned value 4294967296 adjusted to 2146435072");
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_buffer_pool_size=4294967296;
+
+SET GLOBAL innodb_buffer_pool_size = @before_innodb_buffer_pool_size;

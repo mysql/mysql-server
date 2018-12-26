@@ -1,0 +1,15 @@
+--source suite/innodb/include/checksum_not_strict.inc
+--echo #
+--echo # Bug#19500258 ZERO CAN BE A VALID INNODB CHECKSUM,
+--echo # BUT VALIDATION WILL FAIL LATER
+--echo #
+--let $old_checksum_algorithm= `SELECT @@GLOBAL.innodb_checksum_algorithm`
+SET GLOBAL innodb_checksum_algorithm = 'CRC32';
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARBINARY(512)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, X'666F72636520637263333220a0be0639');
+--source include/restart_mysqld.inc
+SELECT count(*) FROM t1;
+--disable_query_log
+--eval SET GLOBAL innodb_checksum_algorithm = '$old_checksum_algorithm'
+--enable_query_log
+drop table t1;

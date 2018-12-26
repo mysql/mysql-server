@@ -1,0 +1,40 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#####################################################################
+# 1. Assert MEMBER_ROLE and MEMBER_VERSION after start of GR
+#####################################################################
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc ['MEMBER_VERSION is not empty']
+include/assert.inc ['Server1 MEMBER_ROLE should be PRIMARY']
+include/assert.inc ['Server1 MEMBER_VERSION should match with SELECT @@server_version']
+
+#####################################################################
+# 2.  Assert MEMBER_ROLE and MEMBER_VERSION before start of GR
+#####################################################################
+[connection server2]
+include/assert.inc ['Server2 MEMBER_ROLE should not be set when GR is starting']
+include/assert.inc ['Server2 MEMBER_VERSION should not be set when GR is starting']
+include/start_group_replication.inc
+
+##############################################################################
+# 3.  Assert MEMBER_ROLE and MEMBER_VERSION are correct on server1 and server2
+##############################################################################
+[connection server1]
+include/assert.inc ['Server1 MEMBER_ROLE should be PRIMARY']
+include/assert.inc ['Server2 MEMBER_ROLE should be SECONDARY']
+include/assert.inc ['Server1 MEMBER_VERSION should match with SELECT @@server_version']
+include/assert.inc ['Server2 MEMBER_VERSION should match with SELECT @@server_version']
+[connection server2]
+include/assert.inc ['Server1 MEMBER_ROLE should be PRIMARY']
+include/assert.inc ['Server2 MEMBER_ROLE should be SECONDARY']
+include/assert.inc ['Server1 MEMBER_VERSION should match with SELECT @@server_version']
+include/assert.inc ['Server2 MEMBER_VERSION should match with SELECT @@server_version']
+
+##########################################################################
+# 4.  Shutdown GR
+##########################################################################
+include/group_replication_end.inc

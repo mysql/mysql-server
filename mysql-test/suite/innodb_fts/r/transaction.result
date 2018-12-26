@@ -1,0 +1,1088 @@
+drop table if exists t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB STATS_PERSISTENT=0;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...');
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','request docteam for oraclehelp.');
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request' IN NATURAL LANGUAGE MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request MySQL' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('-request +MySQL' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+MySQL -(Tutorial Optimizing)' IN BOOLEAN MODE);
+id	a	b
+2	when To Use MySQL Well	After that you went through a ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"stands Database"@11' IN BOOLEAN MODE) ORDER BY 1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' WITH QUERY EXPANSION);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+2	when To Use MySQL Well	After that you went through a ...
+COMMIT;
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	MySQL Tutorial	request docteam for oraclehelp.
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request MySQL' IN BOOLEAN MODE);
+id	a	b
+4	MySQL Tutorial	request docteam for oraclehelp.
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' WITH QUERY EXPANSION);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+4	MySQL Tutorial	request docteam for oraclehelp.
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+2	when To Use MySQL Well	After that you went through a ...
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+id	a	b
+4	MySQL Tutorial	request docteam for oraclehelp.
+UPDATE t1 SET a = 'Trial version' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...'
+WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request');
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('query performace' IN BOOLEAN MODE);
+id	a	b
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq  xyz.com ...'
+WHERE MATCH (a,b) AGAINST ('+query +performace' IN BOOLEAN MODE);
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('performace');
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+id	a	b
+COMMIT;
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1;
+id	a	b
+4	Trial version	query performace 1255 minute on 2.1Hz Memory 2GB...
+5	NULL	NULL
+INSERT INTO t1 (a,b) VALUES
+('Trial version','query performace 1255 minute on 2.1Hz Memory 2GB...')  ,
+('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+SELECT * FROM t1;
+id	a	b
+4	Trial version	query performace 1255 minute on 2.1Hz Memory 2GB...
+5	NULL	NULL
+6	Trial version	query performace 1255 minute on 2.1Hz Memory 2GB...
+7	when To Use MySQL Well	for free faq  mail@xyz.com ...
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...');
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','request docteam for oraclehelp.');
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request' IN NATURAL LANGUAGE MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request MySQL' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('-request +MySQL' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+MySQL -(Tutorial Optimizing)' IN BOOLEAN MODE);
+id	a	b
+2	when To Use MySQL Well	After that you went through a ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' WITH QUERY EXPANSION);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+2	when To Use MySQL Well	After that you went through a ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' WITH QUERY EXPANSION);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+2	when To Use MySQL Well	After that you went through a ...
+ROLLBACK;
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request MySQL' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' WITH QUERY EXPANSION);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+2	when To Use MySQL Well	After that you went through a ...
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+UPDATE t1 SET a = 'Trial version' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...'
+WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request');
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('query performace' IN BOOLEAN MODE);
+id	a	b
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq  xyz.com ...'
+WHERE MATCH (a,b) AGAINST ('+query +performace' IN BOOLEAN MODE);
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('performace');
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+id	a	b
+ROLLBACK;
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1;
+id	a	b
+INSERT INTO t1 (a,b) VALUES
+('Trial version','query performace 1255 minute on 2.1Hz Memory 2GB...')  ,
+('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+SELECT * FROM t1;
+id	a	b
+6	Trial version	query performace 1255 minute on 2.1Hz Memory 2GB...
+7	when To Use MySQL Well	for free faq  mail@xyz.com ...
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...');
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','request docteam for oraclehelp.');
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+id	a	b
+4	MySQL Tutorial	request docteam for oraclehelp.
+UPDATE t1 SET a = 'Trial version' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...' WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+SELECT * from t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Trial version	query performace 1255 minute on 2.1Hz Memory 2GB...
+5	NULL	NULL
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request');
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('query performace' IN BOOLEAN MODE);
+id	a	b
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq mail xyz.com ...' WHERE MATCH (a,b) AGAINST ('+query +performace' IN BOOLEAN MODE);
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq mail xyz.com ...' WHERE b like '%query performace%';
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('performace');
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+id	a	b
+SELECT * from t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	when To Use MySQL Well	for free faq mail xyz.com ...
+5	NULL	NULL
+COMMIT;
+SELECT * from t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	when To Use MySQL Well	for free faq mail xyz.com ...
+5	NULL	NULL
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1;
+id	a	b
+5	NULL	NULL
+INSERT INTO t1 (a,b) VALUES
+('Trial version','query performace 1255 minute on 2.1Hz Memory 2GB...')  ,
+('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+SELECT * FROM t1;
+id	a	b
+5	NULL	NULL
+6	Trial version	query performace 1255 minute on 2.1Hz Memory 2GB...
+7	when To Use MySQL Well	for free faq  mail@xyz.com ...
+DROP TABLE t1;
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+"In connection 1"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...'),
+('Я могу есть стекло', 'оно мне Mне вредит'),
+('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+('Sævör grét', 'áðan því úlpan var ónýt');
+"In connection 2"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+"In connection 1"
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+INSERT INTO t1 (a,b) VALUES
+('adding record using session 1','for verifying multiple concurrent transactions'),
+('Мога да ям стъкло', 'то Mне ми вреди');
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+γυαλιὰ +χωρὶ*' IN BOOLEAN MODE);
+id	a	b
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','request docteam for oraclehelp.'),
+('Příliš žluťoučký kůň', 'úpěl ďábelské kódy');
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request ďábelské' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY 1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+6	Sævör grét	áðan því úlpan var ónýt
+"In connection 2"
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+record +multiple' IN BOOLEAN MODE);
+id	a	b
+7	adding record using session 1	for verifying multiple concurrent transactions
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutor* Sævö*' IN BOOLEAN MODE) ORDER BY 1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+6	Sævör grét	áðan því úlpan var ónýt
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('usin* multipl*' IN BOOLEAN MODE);
+id	a	b
+7	adding record using session 1	for verifying multiple concurrent transactions
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"request docteam"@08' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request' IN NATURAL LANGUAGE MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request MySQL' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('-request +MySQL' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+MySQL -(Tutorial Optimizing)' IN BOOLEAN MODE);
+id	a	b
+2	when To Use MySQL Well	After that you went through a ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"stands Database"@11' IN BOOLEAN MODE) ORDER BY 1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY 1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+"In connection 1"
+COMMIT;
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+id	a	b
+9	MySQL Tutorial	request docteam for oraclehelp.
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('Příliš žluťoučký' IN BOOLEAN MODE);
+id	a	b
+10	Příliš žluťoučký kůň	úpěl ďábelské kódy
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('Příliš');
+id	a	b
+10	Příliš žluťoučký kůň	úpěl ďábelské kódy
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+SELECT * FROM t1 WHERE a IS NULL AND b IS NULL;
+id	a	b
+11	NULL	NULL
+"In connection 2"
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('usin* multipl*' IN BOOLEAN MODE);
+id	a	b
+7	adding record using session 1	for verifying multiple concurrent transactions
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+id	a	b
+9	MySQL Tutorial	request docteam for oraclehelp.
+SELECT * FROM t1 WHERE a IS NULL AND b IS NULL;
+id	a	b
+11	NULL	NULL
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+START TRANSACTION;
+UPDATE t1 SET a = 'Trial version Příliš žluťoučký' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...'
+WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request');
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+query +performace' IN BOOLEAN MODE);
+id	a	b
+UPDATE t1 SET a = UPPER(a) WHERE MATCH (a,b) AGAINST ('+Příliš +žluťoučký' IN BOOLEAN MODE);
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+Příliš +žluťoučký' IN BOOLEAN MODE);
+id	a	b
+UPDATE t1 SET a = UPPER(a) WHERE a LIKE '%version Příliš%';
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+query +performace' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE b LIKE '%query performace%';
+id	a	b
+9	TRIAL VERSION PŘÍLIŠ ŽLUŤOUČKÝ	query performace 1255 minute on 2.1Hz Memory 2GB...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('request');
+id	a	b
+"In connection 1"
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('query performace' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('performace');
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+id	a	b
+"In connection 2"
+COMMIT;
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+query +performace' IN BOOLEAN MODE);
+id	a	b
+9	TRIAL VERSION PŘÍLIŠ ŽLUŤOUČKÝ	query performace 1255 minute on 2.1Hz Memory 2GB...
+"In connection 1"
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('+query +performace' IN BOOLEAN MODE);
+id	a	b
+9	TRIAL VERSION PŘÍLIŠ ŽLUŤOUČKÝ	query performace 1255 minute on 2.1Hz Memory 2GB...
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq  xyz.com ...'
+WHERE MATCH (a,b) AGAINST ('+πάθω +τίποτα' IN BOOLEAN MODE);
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('well free') ORDER BY 1;
+id	a	b
+2	when To Use MySQL Well	After that you went through a ...
+5	when To Use MySQL Well	for free faq  xyz.com ...
+DROP TABLE t1;
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+"In connection 1"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...'),
+('Я могу есть стекло', 'оно мне Mне вредит'),
+('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+('Sævör grét', 'áðan því úlpan var ónýt');
+"In connection 2"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('adding record using session 1','for verifying multiple concurrent transactions'),
+('Мога да ям стъкло', 'то Mне ми вреди');
+"In connection 1"
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+6	Sævör grét	áðan því úlpan var ónýt
+7	adding record using session 1	for verifying multiple concurrent transactions
+8	Мога да ям стъкло	то Mне ми вреди
+START TRANSACTION;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+id	a	b
+8	Мога да ям стъкло	то Mне ми вреди
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+7	adding record using session 1	for verifying multiple concurrent transactions
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+7	adding record using session 1	for verifying multiple concurrent transactions
+"In connection 2"
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+8	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+6	Sævör grét	áðan því úlpan var ónýt
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+6	Sævör grét	áðan því úlpan var ónýt
+7	adding record using session 1	for verifying multiple concurrent transactions
+8	Мога да ям стъкло	то Mне ми вреди
+"In connection 1"
+COMMIT;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+"In connection 2"
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+7	adding record using session 1	for verifying multiple concurrent transactions
+DROP TABLE t1;
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+"In connection 1"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...'),
+('Я могу есть стекло', 'оно мне Mне вредит');
+"In connection 2"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('adding record using session 1','for verifying multiple concurrent transactions'),
+('Мога да ям стъкло', 'то Mне ми вреди');
+"In connection 1"
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+START TRANSACTION;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
+INSERT INTO t1(a,b) VALUES ('Sævör grét', 'áðan því úlpan var ónýt');
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+7	Sævör grét	áðan því úlpan var ónýt
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+7	Sævör grét	áðan því úlpan var ónýt
+"In connection 2"
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+7	Sævör grét	áðan því úlpan var ónýt
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+"In connection 1"
+COMMIT;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+7	Sævör grét	áðan því úlpan var ónýt
+"In connection 2"
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+id	a	b
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+7	Sævör grét	áðan því úlpan var ónýt
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+7	Sævör grét	áðan því úlpan var ónýt
+DROP TABLE t1;
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+"In connection 1"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...'),
+('Я могу есть стекло', 'оно мне Mне вредит'),
+('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+('Sævör grét', 'áðan því úlpan var ónýt');
+"In connection 2"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('adding record using session 1','for verifying multiple concurrent transactions'),
+('Мога да ям стъкло', 'то Mне ми вреди');
+"In connection 1"
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+6	Sævör grét	áðan því úlpan var ónýt
+7	adding record using session 1	for verifying multiple concurrent transactions
+8	Мога да ям стъкло	то Mне ми вреди
+START TRANSACTION;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+id	a	b
+8	Мога да ям стъкло	то Mне ми вреди
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+7	adding record using session 1	for verifying multiple concurrent transactions
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+7	adding record using session 1	for verifying multiple concurrent transactions
+"In connection 2"
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+8	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+8	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+6	Sævör grét	áðan því úlpan var ónýt
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+6	Sævör grét	áðan því úlpan var ónýt
+7	adding record using session 1	for verifying multiple concurrent transactions
+8	Мога да ям стъкло	то Mне ми вреди
+"In connection 1"
+ROLLBACK;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+8	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+8	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+6	Sævör grét	áðan því úlpan var ónýt
+"In connection 2"
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+8	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+8	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+6	Sævör grét	áðan því úlpan var ónýt
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+6	Sævör grét	áðan því úlpan var ónýt
+7	adding record using session 1	for verifying multiple concurrent transactions
+8	Мога да ям стъкло	то Mне ми вреди
+DROP TABLE t1;
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+"In connection 1"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','what In this tutorial we will show ...'),
+('Я могу есть стекло', 'оно мне Mне вредит');
+"In connection 2"
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('adding record using session 1','for verifying multiple concurrent transactions'),
+('Мога да ям стъкло', 'то Mне ми вреди');
+"In connection 1"
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+START TRANSACTION;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
+INSERT INTO t1(a,b) VALUES ('Sævör grét', 'áðan því úlpan var ónýt');
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+7	Sævör grét	áðan því úlpan var ónýt
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+7	Sævör grét	áðan því úlpan var ónýt
+"In connection 2"
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+7	Sævör grét	áðan því úlpan var ónýt
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+"In connection 1"
+ROLLBACK;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+"In connection 2"
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+id	a	b
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+id	a	b
+6	Мога да ям стъкло	то Mне ми вреди
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1;
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
+4	Я могу есть стекло	оно мне Mне вредит
+5	adding record using session 1	for verifying multiple concurrent transactions
+6	Мога да ям стъкло	то Mне ми вреди
+DROP TABLE t1;

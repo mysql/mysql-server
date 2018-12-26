@@ -1,0 +1,142 @@
+--source include/have_debug_sync.inc
+
+--echo ################################################################
+--echo #                                                              #
+--echo # Bug #27944920: INNODB: ASSERTION FAILURE:                    #
+--echo #                LOCK_GET_TYPE_LOW(LOCK) == 32 IN LOCK0PRIV.IC #
+--echo #                                                              #
+--echo ################################################################
+
+  # We want a situation in which:
+  # C1 has a rec lock granted
+  # C1 waits for a table lock
+  # C2 waits for a rec lock
+  #  and this triggers the bug in proccessing C1.wait_lock of LOCK_TABLE type.
+  # However it turns out it is not so simple to generate a situation in which
+  # C1 waits for a table lock, because most of the time table level conflicts
+  # are handled at the mysql layer, not at the InnoDB layer.
+  # In particular IS and IX table locks do not conflict with each other, and
+  # they conflict with S or X table locks, but to obtain X or S lock you need to
+  # perform LOCK TABLES ..statement which informs the mysql layer about what
+  # you are doing, making it much harder to get trough with conflicting queries
+  # to the InnoDB layer.
+  # The simplest way to slip trough the mysql's checks is to play with LOCK_AUTO_INC
+  # locks, which conflict with each other.
+  # There is a difficulty though: even in the traditional innodb_autoinc_lock_mode=0
+  # such locks are held only for the duration of a query, and not for the whole transaction.
+  # So, if you want to make the LOCK_AUTO_INC to be held long enough to cause another
+  # transaction to conflict with it, you must somehow make the query take longer.
+  # A simple way to do that is to use INSERT ... SELECT ... statement, where
+  # the SELECT has to wait for a lock.
+  # So compiling this all ideas together here is our plan:
+  #   1. C3 obtains an X-lock on a record t2.id=2
+  #         (fun fact: it will not work with id=1, because in step 2, we need at least one
+  #          row to be successfuly inserted before blocking on the locked row)
+  #   2. C4 performs INSERT INTO t1 (val) SELECT id FROM t2;
+  #         and has to wait for C3 to release rec lock,
+  #         while C4 is holding LOCK_AUTO_INC
+  #   3. C1 obtains an S-lock on a record t1.id=1
+  #   4. C1 performs INSERT INTO T1 (val) VALUES (7)
+  #         and has to wait for C4 to release LOCK_AUTO_INC
+  #   5. C2 tries to SELECT * FROM t1 WHERE id=1 FOR UPDATE
+  #         and has to wait for C1 to realse the S-lock
+  #         this causes the bug
+
+  # This test requires innodb_autoinc_lock_mode == 0, so we explicitly check it here:
+
+  SHOW VARIABLES LIKE 'innodb_autoinc_lock_mode';
+
+  # Prepare the tables
+
+  CREATE TABLE t1 (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    val INT
+  ) Engine=InnoDB;
+
+  CREATE TABLE t2 (
+    id INT PRIMARY KEY
+  ) Engine=InnoDB;
+
+  INSERT INTO t1 (id, val) VALUES (1,1);
+  INSERT INTO t2 (id) VALUES (1),(2),(3);
+
+  # Save the original settings, to be restored at the end of test
+    SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+  # Make sure that transactions will not finish prematurely
+    SET @@global.innodb_lock_wait_timeout = 100000;
+
+
+  --source suite/innodb/include/force_cats.inc
+
+  --connect (C1, localhost, root,,)
+  --connect (C2, localhost, root,,)
+  --connect (C3, localhost, root,,)
+  --connect (C4, localhost, root,,)
+
+  --connection C3
+    BEGIN;
+    SELECT * FROM t2 WHERE id=2 FOR UPDATE;
+
+  --connection C4
+    BEGIN;
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C4_will_wait';
+    --send INSERT INTO t1 (val) SELECT id FROM t2
+
+  --connection C1
+    BEGIN;
+    SELECT * FROM t1 WHERE id=1 FOR SHARE;
+    SET DEBUG_SYNC = 'now WAIT_FOR C4_will_wait';
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C1_will_wait';
+    --send INSERT INTO t1 (val) VALUES (7)
+
+  --connection C2
+    BEGIN;
+    SET DEBUG_SYNC = 'now WAIT_FOR C1_will_wait';
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C2_will_wait';
+    --send SELECT * FROM t1 WHERE id=1 FOR UPDATE
+
+  # The bug if present, will manifest at this moment.
+  --connection default
+    SET DEBUG_SYNC = 'now WAIT_FOR C2_will_wait';
+
+  # Clean up all transactions
+  --connection C3
+    ROLLBACK;
+
+  --connection C4
+    --reap
+    ROLLBACK;
+
+  --connection C1
+    --reap
+    ROLLBACK;
+
+  --connection C2
+    --reap
+    ROLLBACK;
+
+  --source suite/innodb/include/discourage_cats.inc
+
+  # Clean up connections
+
+  --connection default
+  --disconnect C1
+  --disconnect C2
+  --disconnect C3
+  --disconnect C4
+
+  # Clean up tables
+
+  DROP TABLE t2;
+  DROP TABLE t1;
+
+  # Restore saved state
+
+  SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+
+--echo ########################
+--echo #                      #
+--echo # End of Bug #27944920 #
+--echo #                      #
+--echo ########################

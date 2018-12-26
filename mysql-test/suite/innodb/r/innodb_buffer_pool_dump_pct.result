@@ -1,0 +1,41 @@
+# Set the environmental variables
+# Create a table
+CREATE TABLE tab5 (col1 int auto_increment primary key,
+col2 VARCHAR(25), col3 varchar(25)) ENGINE=InnoDB;
+# Create indexes
+CREATE INDEX idx1 ON tab5(col2(10));
+CREATE INDEX idx2 ON tab5(col3(10));
+# Insert a sample record
+INSERT INTO tab5(col2,col3) VALUES('Test for wl6504','Test for dump pct');
+# Set the dump file name
+SET GLOBAL innodb_buffer_pool_filename=ib_buffer_pool100;
+SET GLOBAL innodb_buffer_pool_dump_pct=100;
+SELECT variable_value INTO @IBPDS
+FROM performance_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+# Take the dump file
+SET GLOBAL innodb_buffer_pool_dump_now=ON;
+# Wait until the system table get updated & dump get created
+# Check the dump file exist in the DATADIR
+# Set the dump file name
+SET GLOBAL innodb_buffer_pool_filename=ib_buffer_pool50;
+# Set the value 50
+SET GLOBAL innodb_buffer_pool_dump_pct=50;
+# Check the value is 50
+SELECT @@global.innodb_buffer_pool_dump_pct;
+@@global.innodb_buffer_pool_dump_pct
+50
+SELECT variable_value INTO @IBPDS
+FROM performance_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+# Take the dump file
+SET GLOBAL innodb_buffer_pool_dump_now=ON;
+# Wait until the system table get updated & dump get created
+# Check the dump file exist in the DATADIR
+# Get the size of the dump files & compare
+wl6504 test PASS
+# Reset the default value
+SET GLOBAL innodb_buffer_pool_dump_pct=Default;
+SET GLOBAL innodb_buffer_pool_filename=Default;
+# Cleanup
+DROP TABLE tab5;

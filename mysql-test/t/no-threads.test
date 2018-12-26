@@ -1,0 +1,18 @@
+
+--source include/not_threadpool.inc
+#
+# Test the --thread-handler=no-threads option
+#
+select 1+1;
+select 1+2;
+SHOW GLOBAL VARIABLES LIKE 'thread_handling';
+
+#
+# Bug #30651	Problems with thread_handling system variable
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.thread_handling;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set GLOBAL thread_handling='one-thread';

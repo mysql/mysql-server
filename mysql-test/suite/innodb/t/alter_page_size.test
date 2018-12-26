@@ -1,0 +1,35 @@
+--source include/have_innodb_max_16k.inc
+
+--echo #
+--echo # Bug #19077964 ASSERT PAGE_SIZE.EQUALS_TO SPACE_PAGE_SIZE
+--echo # BTR_COPY_BLOB_PREFIX
+--echo #
+
+#
+# TODO: The column 'f3' should have the SRID attribute when bug#27021029 has been
+#       fixed.
+#
+create table t1 (f1 int primary key, f3 linestring not null,
+  spatial key(f3)) engine=innodb row_format=compressed key_block_size=1;
+show create table t1;
+
+let $points = 80;
+let $x = 0;
+let $y = 0;
+let $linestr = (;
+
+while ($points)
+{
+  let $linestr = $linestr $x $y,;
+  dec $points;
+  inc $x;
+  inc $y;
+}
+
+let $linestr = $linestr 9999 9999);
+
+--eval insert into t1 values (1, ST_linefromtext(concat('linestring', '$linestr')));
+
+alter table t1 row_format=dynamic, key_block_size=0, algorithm=inplace;
+
+drop table t1;

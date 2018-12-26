@@ -1,0 +1,37 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Delete the user and check the start fails
+#
+[connection server1]
+DROP USER "mysql.session"@"localhost";
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert.inc [Member 1 is OFFLINE]
+include/assert_grep.inc [Found the expected error about the missing user in server log]
+#
+# Restart the server
+# Check the plugin is not running
+#
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1 --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+include/assert.inc [Member 1 is OFFLINE]
+#
+# Restore the user
+#
+FLUSH PRIVILEGES;
+#
+# Suppress errors
+#
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when trying to access the server with user: mysql.session.*");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
+call mtr.add_suppression("It was not possible to establish a connection to server SQL service");
+call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
+call mtr.add_suppression("On plugin shutdown it was not possible to reset the server read mode settings.");
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

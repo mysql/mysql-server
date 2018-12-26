@@ -1,0 +1,29 @@
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning.
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] You need to use --log-bin to make --binlog-format work.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] You need to use --log-bin to make --binlog-expire-logs-seconds work.");
+--enable_query_log
+
+#
+# Bug#17733 Flushing logs causes daily server crash
+#
+
+select @@GLOBAL.relay_log_info_repository into @save_relay_log_info_repository;
+select @@GLOBAL.expire_logs_days into @save_expire_logs_days;
+set @@GLOBAL.relay_log_info_repository = 'FILE';
+# The hostname needs to be stripped off its extensions as even
+# in code we use the stripped hostname as default basename
+--let $HOST_NAME= `SELECT SUBSTRING_INDEX(@@hostname, '.', 1)`
+flush logs;
+set global expire_logs_days = 3;
+show variables like 'log_bin%';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
+show variables like 'relay_log%';
+flush logs;
+show variables like 'log_bin%';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
+show variables like 'relay_log%';
+--disable_warnings ONCE
+set @@GLOBAL.relay_log_info_repository = @save_relay_log_info_repository;
+set @@GLOBAL.expire_logs_days = @save_expire_logs_days;

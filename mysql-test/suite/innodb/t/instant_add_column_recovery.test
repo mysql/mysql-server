@@ -1,0 +1,27 @@
+
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+--source include/have_debug.inc
+
+
+--echo ##############################################
+--echo # Test instant ADD COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = REDUNDANT;
+--source suite/innodb/include/instant_add_column_recovery.inc
+
+--echo ############################################
+--echo # Test instant ADD COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = DYNAMIC;
+--source suite/innodb/include/instant_add_column_recovery.inc
+
+--echo ############################################
+--echo # Test instant ADD COLUMN for COMPACT format
+--echo ############################################
+let $row_format = COMPACT;
+--source suite/innodb/include/instant_add_column_recovery.inc
+

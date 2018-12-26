@@ -1,0 +1,26 @@
+# Tests for the performance schema
+
+# Use MyISAM as InnoDB SE no longer uses THR_LOCK locks.
+--source include/force_myisam_default.inc
+
+--source ../include/table_aggregate_setup.inc
+
+# table lock
+update performance_schema.setup_instruments
+  set enabled='NO' where name='wait/io/table/sql/handler';
+
+# global
+update performance_schema.setup_consumers
+  set enabled='NO' where name='thread_instrumentation';
+
+# 2users
+delete from performance_schema.setup_actors
+  where user in ('user2', 'user4');
+
+# 2tables
+delete from performance_schema.setup_objects
+  where object_name='t2';
+
+--source ../include/table_aggregate_load.inc
+--source ../include/table_aggregate_cleanup.inc
+

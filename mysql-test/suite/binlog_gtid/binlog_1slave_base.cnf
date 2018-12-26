@@ -1,0 +1,19 @@
+# Use default setting for mysqld processes
+!include include/default_mysqld.cnf
+
+# Set innodb-write-io-threads and innodb-read-io-threads to 2,
+# instead of the default value 4, so that the aio-max-nr limit is
+# not exceeded when MTR runs rpl tests with parallel 4 or more due
+# to increased number of concurrent mysqld instances.
+
+[mysqld.1]
+
+# Run the master.sh script before starting this process
+#!run-master-sh
+
+loose-innodb_write_io_threads=    2
+loose-innodb_read_io_threads=     2
+
+[ENV]
+MASTER_MYPORT=              @mysqld.1.port
+MASTER_MYSOCK=              @mysqld.1.socket

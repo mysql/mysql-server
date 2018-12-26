@@ -1,0 +1,20 @@
+
+# Tests for special content of performance_schema.threads
+#
+# Show MySQL server related content in performance_schema.threads
+
+--source include/freebsd.inc
+
+# Every thread should be bound to an operating system thread
+# (this test is not using the thread_pool)
+
+# Note that this test will fail:
+# - on platforms where my_thread_os_id() is not supported,
+#   which is not the case on FreeBSD
+# - if some code in the server does not assign a THREAD_OS_ID
+#   to an instrumented thread, in which case this is a bug
+#   in the component instrumentation.
+
+SELECT THREAD_ID, NAME, THREAD_OS_ID from performance_schema.threads
+  WHERE THREAD_OS_ID is NULL;
+

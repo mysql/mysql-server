@@ -1,0 +1,55 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Enable debug point to block action
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+
+# 2. Execute a switch to single primary mode on server1
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+
+# 3. Execute parallel group action on server2 that must fail
+#    due to already one operation is being executed
+[connection server2]
+
+# Execute a switch to single primary mode that must fail
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. There is already a configuration action being executed. Wait for it to finish.
+
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. There is already a configuration action being executed. Wait for it to finish.
+
+SELECT group_replication_switch_to_single_primary_mode();
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. There is already a configuration action being executed. Wait for it to finish.
+
+# Execute a switch to multi primary mode that must be no-op
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+The group is already on multi-primary mode.
+
+# Execute a set primary that must fail as can't initialize
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; In multi-primary mode. Use group_replication_switch_to_single_primary_mode.
+
+SELECT group_replication_set_as_primary("MEMBER1_UUID");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; In multi-primary mode. Use group_replication_switch_to_single_primary_mode.
+
+# Add suppression
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. There is*");
+set session sql_log_bin=1;
+
+# 4. Unlock the blocked action on server1
+[connection server_1]
+SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
+[connection server1]
+
+# 5. Resume the action on server1
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+
+# 6. Cleanup
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
+include/group_replication_end.inc

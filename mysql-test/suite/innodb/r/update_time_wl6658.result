@@ -1,0 +1,307 @@
+#create base table
+CREATE TABLE tab1(c1 int,c2 varchar(30), c3 BLOB) ENGINE=InnoDB;
+CREATE TABLE tab3(c1 int,c2 varchar(30)) ENGINE=InnoDB;
+CREATE TABLE tab4(c1 int,c2 varchar(30)) ENGINE=InnoDB;
+CREATE TABLE tab5(c1 int,c2 varchar(30)) ENGINE=InnoDB;
+#insert some base records
+INSERT INTO tab4 VALUES(1,'Test for Update');
+INSERT INTO tab5 VALUES(1,'Test for Delete');
+#create a trigger
+CREATE TRIGGER test_trig BEFORE INSERT ON tab1
+FOR EACH ROW BEGIN
+INSERT INTO tab3 VALUES(1,'Inserted From Trigger');
+UPDATE tab4 SET c2='Updated from Trigger' WHERE c1=1;
+DELETE FROM tab5;
+END |
+#restart the server
+# restart
+check the update_time Before DML, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables
+WHERE table_name IN ('tab1','tab3','tab4','tab5');
+TABLE_NAME	UPDATE_TIME
+tab1	NULL
+tab3	NULL
+tab4	NULL
+tab5	NULL
+SET AUTOCOMMIT=OFF;
+#case1:
+BEGIN WORK;
+INSERT INTO tab1
+VALUES(1,'Testing the wl6658', 'Testing the wl6658');
+check the update_time Before commit, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	UPDATE_TIME
+tab1	NULL
+COMMIT;
+#check the record is inserted
+SELECT * FROM tab1;
+c1	c2	c3
+1	Testing the wl6658	Testing the wl6658
+#check the record is inserted
+SELECT * FROM tab3;
+c1	c2
+1	Inserted From Trigger
+#check the record is updated
+SELECT * FROM tab4;
+c1	c2
+1	Updated from Trigger
+#check no record exists
+SELECT * FROM tab5;
+c1	c2
+check the update_time After Commit, whether it is not NULL
+SET information_schema_stats_expiry=0;
+SELECT table_name,COUNT(update_time)
+FROM information_schema.tables
+WHERE table_name IN ('tab1','tab3','tab4','tab5')
+GROUP BY table_schema, table_name;
+TABLE_NAME	COUNT(update_time)
+tab1	1
+tab3	1
+tab4	1
+tab5	1
+#restart the server
+# restart
+SET information_schema_stats_expiry=0;
+Testcase with UPDATE stmt and transaction
+#check the record is existing
+SELECT * FROM tab1;
+c1	c2	c3
+1	Testing the wl6658	Testing the wl6658
+check the update_time Before DML, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	UPDATE_TIME
+tab1	NULL
+SET AUTOCOMMIT=OFF;
+#case2:
+START TRANSACTION;
+UPDATE tab1 SET c2='Updated',c3='Updated' WHERE c1=1;
+check the update_time Before commit, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	UPDATE_TIME
+tab1	NULL
+COMMIT;
+#check the record is updated
+SELECT * FROM tab1;
+c1	c2	c3
+1	Updated	Updated
+check the update_time After Commit, whether it is not NULL
+SELECT table_name,COUNT(update_time)
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	COUNT(update_time)
+tab1	1
+#restart the server
+# restart
+SET information_schema_stats_expiry=0;
+#check the record is existing
+SELECT * FROM tab1;
+c1	c2	c3
+1	Updated	Updated
+check the update_time Before DML, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	UPDATE_TIME
+tab1	NULL
+SET AUTOCOMMIT=OFF;
+#case3:
+START TRANSACTION;
+DELETE FROM tab1;
+check the update_time Before commit, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	UPDATE_TIME
+tab1	NULL
+COMMIT;
+#check the record is deleted
+SELECT * FROM tab1;
+c1	c2	c3
+check the update_time After Commit, whether it is not NULL
+SELECT table_name,COUNT(update_time)
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	COUNT(update_time)
+tab1	1
+#restart the server
+# restart
+SET information_schema_stats_expiry=0;
+#check no records are existing
+SELECT * FROM tab1;
+c1	c2	c3
+check the update_time Before DML, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	UPDATE_TIME
+tab1	NULL
+SET AUTOCOMMIT=OFF;
+#case4:
+START TRANSACTION;
+INSERT INTO tab1
+VALUES(1,'Testing the wl6658', 'Testing the wl6658');
+check the update_time Before Rollback, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	UPDATE_TIME
+tab1	NULL
+ROLLBACK;
+#check no record is inserted.
+SELECT * FROM tab1;
+c1	c2	c3
+check the update_time After Rollback, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab1';
+TABLE_NAME	UPDATE_TIME
+tab1	NULL
+CREATE TABLE tab2(
+id INT NOT NULL,
+store_name VARCHAR(30),
+parts VARCHAR(30),
+store_id INT
+) ENGINE=InnoDB
+PARTITION BY LIST(store_id) (
+PARTITION pNorth VALUES IN (10,20,30),
+PARTITION pEast VALUES IN (40,50,60),
+PARTITION pWest VALUES IN (70,80,100)
+);
+check the update_time Before DML, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab2';
+TABLE_NAME	UPDATE_TIME
+tab2	NULL
+#case5:
+#create proc with DML
+CREATE PROCEDURE proc_wl6658()
+BEGIN
+INSERT INTO tab2 VALUES(1,'ORACLE','NUTT',10);
+INSERT INTO tab2 VALUES(2,'HUAWEI','BOLT',40);
+COMMIT;
+END |
+CALL proc_wl6658;
+#check the records are inserted
+SELECT * FROM tab2 ORDER BY id,store_id;
+id	store_name	parts	store_id
+1	ORACLE	NUTT	10
+2	HUAWEI	BOLT	40
+check the update_time After Commit, whether it is not NULL
+SELECT table_name,COUNT(update_time)
+FROM information_schema.tables WHERE table_name='tab2';
+TABLE_NAME	COUNT(update_time)
+tab2	1
+#delete all records
+TRUNCATE TABLE tab2;
+#restart the server
+# restart
+SET information_schema_stats_expiry=0;
+#case6:
+SET AUTOCOMMIT=off;
+BEGIN WORK;
+INSERT INTO tab2 VALUES(1,'Oracle','NUTT',10);
+SAVEPOINT A;
+INSERT INTO tab2 VALUES(2,'HUAWEI','BOLT',40);
+SAVEPOINT B;
+INSERT INTO tab2 VALUES(3,'IBM','NAIL',70);
+SAVEPOINT C;
+ROLLBACK to A;
+#check 1 record is inserted
+SELECT * FROM tab2;
+id	store_name	parts	store_id
+1	Oracle	NUTT	10
+check the update_time Before DML, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab2';
+TABLE_NAME	UPDATE_TIME
+tab2	NULL
+#execute DDL instead of commit
+create table tab6(c1 int);
+check the update_time After Commit, whether it is not NULL
+SELECT table_name,COUNT(update_time)
+FROM information_schema.tables WHERE table_name='tab2';
+TABLE_NAME	COUNT(update_time)
+tab2	1
+#case7:
+#create some base tables
+set the flag to default
+SET AUTOCOMMIT=Default;
+CREATE TABLE tab7(c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE=INNODB;
+CREATE TABLE tab8(c1 INT PRIMARY KEY,c2 INT,
+FOREIGN KEY (c2) REFERENCES tab7(c1)  ON DELETE CASCADE )
+ENGINE=INNODB;
+check the update_time Before DML, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab7';
+TABLE_NAME	UPDATE_TIME
+tab7	NULL
+check the update_time Before DML, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab8';
+TABLE_NAME	UPDATE_TIME
+tab8	NULL
+INSERT INTO tab7 VALUES(1);
+INSERT INTO tab8 VALUES(1,1);
+#check the record is inserted
+SELECT * FROM tab7;
+c1
+1
+#check the record is inserted
+SELECT * FROM tab8;
+c1	c2
+1	1
+check the update_time After Autocommit, whether it is not NULL
+SELECT table_name,COUNT(update_time)
+FROM information_schema.tables WHERE table_name='tab7';
+TABLE_NAME	COUNT(update_time)
+tab7	1
+check the update_time After Autocommit, whether it is not NULL
+SELECT table_name,COUNT(update_time)
+FROM information_schema.tables WHERE table_name='tab8';
+TABLE_NAME	COUNT(update_time)
+tab8	1
+#restart the server
+# restart
+SET information_schema_stats_expiry=0;
+SET AUTOCOMMIT=off;
+START TRANSACTION;
+DELETE FROM tab7;
+ROLLBACK;
+#check record exist
+SELECT * FROM tab7;
+c1
+1
+#check record exist
+SELECT * FROM tab8;
+c1	c2
+1	1
+check the update_time After Rollback, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab7';
+TABLE_NAME	UPDATE_TIME
+tab7	NULL
+check the update_time After Rollback, whether it is NULL
+SELECT table_name,update_time
+FROM information_schema.tables WHERE table_name='tab8';
+TABLE_NAME	UPDATE_TIME
+tab8	NULL
+START TRANSACTION;
+DELETE FROM tab7;
+COMMIT;
+#check no record exist
+SELECT * FROM tab7;
+c1
+#check no record exist
+SELECT * FROM tab8;
+c1	c2
+check the update_time After Commit, whether it is not NULL
+SELECT table_name,COUNT(update_time)
+FROM information_schema.tables WHERE table_name='tab7';
+TABLE_NAME	COUNT(update_time)
+tab7	1
+check the update_time After Commit, whether it is not NULL
+SELECT table_name,COUNT(update_time)
+FROM information_schema.tables WHERE table_name='tab8';
+TABLE_NAME	COUNT(update_time)
+tab8	1
+#cleanup
+DROP TRIGGER test_trig;
+DROP TABLE tab1,tab2,tab3,tab4,tab5,tab6,tab8,tab7;
+DROP PROCEDURE proc_wl6658;

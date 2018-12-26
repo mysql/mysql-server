@@ -1,0 +1,102 @@
+SET @start_value = @@big_tables;
+SELECT @start_value;
+@start_value
+0
+'#--------------------FN_DYNVARS_005_01------------------------#'
+SET @@big_tables = 1;
+SET @@big_tables = DEFAULT;
+SELECT @@big_tables;
+@@big_tables
+0
+'#--------------------FN_DYNVARS_005_02------------------------#'
+SET @@big_tables = 0;
+SELECT @@big_tables;
+@@big_tables
+0
+SET @@big_tables = 1;
+SELECT @@big_tables;
+@@big_tables
+1
+'#--------------------FN_DYNVARS_005_03-------------------------#'
+SET @@big_tables = 2;
+ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
+SET @@big_tables = -1;
+ERROR 42000: Variable 'big_tables' can't be set to the value of '-1'
+SET @@big_tables = TRUEF;
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'TRUEF'
+SET @@big_tables = TRUE_F;
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'TRUE_F'
+SET @@big_tables = FALSE0;
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'FALSE0'
+SET @@big_tables = OON;
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'OON'
+SET @@big_tables = ONN;
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'ONN'
+SET @@big_tables = OOFF;
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'OOFF'
+SET @@big_tables = 0FF;
+ERROR 42000: Variable 'big_tables' can't be set to the value of '0FF'
+SET @@big_tables = ' ';
+ERROR 42000: Variable 'big_tables' can't be set to the value of ' '
+SET @@big_tables = " ";
+ERROR 42000: Variable 'big_tables' can't be set to the value of ' '
+SET @@big_tables = '';
+ERROR 42000: Variable 'big_tables' can't be set to the value of ''
+'#-------------------FN_DYNVARS_005_04----------------------------#'
+SET @@global.big_tables = 1-@@global.big_tables;
+SELECT @@global.big_tables;
+@@global.big_tables
+1
+SET @@global.big_tables = 1-@@global.big_tables;
+'#----------------------FN_DYNVARS_005_05------------------------#'
+SELECT IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='big_tables';
+IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_005_06----------------------#'
+SET @@big_tables = OFF;
+SELECT @@big_tables;
+@@big_tables
+0
+SET @@big_tables = ON;
+SELECT @@big_tables;
+@@big_tables
+1
+'#---------------------FN_DYNVARS_005_07----------------------#'
+SET @@big_tables = TRUE;
+SELECT @@big_tables;
+@@big_tables
+1
+SET @@big_tables = FALSE;
+SELECT @@big_tables;
+@@big_tables
+0
+'#---------------------FN_DYNVARS_005_08----------------------#'
+SET @@big_tables = 0;
+SELECT @@big_tables = @@session.big_tables;
+@@big_tables = @@session.big_tables
+1
+SET @@big_tables = 1;
+SELECT @@big_tables = @@local.big_tables and @@local.big_tables = @@session.big_tables;
+@@big_tables = @@local.big_tables and @@local.big_tables = @@session.big_tables
+1
+'#---------------------FN_DYNVARS_005_09----------------------#'
+SET big_tables = 1;
+SELECT @@big_tables;
+@@big_tables
+1
+SET local.big_tables = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.big_tables = 1' at line 1
+SELECT local.big_tables;
+ERROR 42S02: Unknown table 'local' in field list
+SET session.big_tables = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.big_tables = 1' at line 1
+SELECT session.big_tables;
+ERROR 42S02: Unknown table 'session' in field list
+select big_tables;
+ERROR 42S22: Unknown column 'big_tables' in 'field list'
+SET @@big_tables = @start_value;
+SELECT @@big_tables;
+@@big_tables
+0

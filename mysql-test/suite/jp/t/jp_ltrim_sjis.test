@@ -1,0 +1,127 @@
+--character_set sjis
+--disable_warnings
+drop table if exists `ÇsÇP`;
+drop table if exists `ÇsÇQ`;
+drop table if exists `ÇsÇR`;
+drop table if exists `ÇsÇS`;
+drop table if exists `ÇsÇT`;
+drop table if exists `ÇsÇU`;
+drop table if exists `ÇsÇV`;
+drop table if exists `ÇsÇW`;
+drop table if exists `ÇsÇX`;
+--enable_warnings
+
+#
+# Test LTRIM() function with Japanese characters in sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+CREATE TABLE `ÇsÇP` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇQ` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇR` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇS` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇT` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇU` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(8), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇP` VALUES (' ±≤≥¥µ');
+INSERT INTO `ÇsÇP` VALUES ('  ±≤≥¥µ');
+INSERT INTO `ÇsÇP` VALUES ('   ±≤≥¥µ');
+# Double byte spaces are not supposed to be trimed
+INSERT INTO `ÇsÇP` VALUES ('Å@±≤≥¥µ');
+INSERT INTO `ÇsÇP` VALUES ('Å@Å@±≤≥¥µ');
+INSERT INTO `ÇsÇP` VALUES ('Å@Å@Å@±≤≥¥µ');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES (' Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES ('  Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES ('   Ç†Ç¢Ç§Ç¶Ç®');
+# Double byte spaces are not supposed to be trimed
+INSERT INTO `ÇsÇQ` VALUES ('Å@Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES ('Å@Å@Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES ('Å@Å@Å@Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES (' É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES ('  É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES ('   É\è\ï\ó\ç\');
+# Double byte spaces are not supposed to be trimed
+INSERT INTO `ÇsÇR` VALUES ('Å@É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES ('Å@Å@É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES ('Å@Å@Å@É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES (' ±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES ('  ±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES ('   ±≤≥¥µ');
+# Double byte spaces are not supposed to be trimed
+INSERT INTO `ÇsÇS` VALUES ('Å@±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES ('Å@Å@±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES ('Å@Å@Å@±≤≥¥µ');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES (' Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES ('  Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES ('   Ç†Ç¢Ç§Ç¶Ç®');
+# Double byte spaces are not supposed to be trimed
+INSERT INTO `ÇsÇT` VALUES ('Å@Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES ('Å@Å@Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES ('Å@Å@Å@Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES (' É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES ('  É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES ('   É\è\ï\ó\ç\');
+# Double byte spaces are not supposed to be trimed
+INSERT INTO `ÇsÇU` VALUES ('Å@É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES ('Å@Å@É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES ('Å@Å@Å@É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES (' ±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES ('  ±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES ('   ±≤≥¥µ');
+# Double byte spaces are not supposed to be trimed
+INSERT INTO `ÇsÇV` VALUES ('Å@±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES ('Å@Å@±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES ('Å@Å@Å@±≤≥¥µ');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES (' Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES ('  Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES ('   Ç†Ç¢Ç§Ç¶Ç®');
+# Double byte spaces are not supposed to be trimed
+INSERT INTO `ÇsÇW` VALUES ('Å@Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES ('Å@Å@Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES ('Å@Å@Å@Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES (' É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES ('  É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES ('   É\è\ï\ó\ç\');
+# Double byte spaces are not supposed to be trimed
+INSERT INTO `ÇsÇX` VALUES ('Å@É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES ('Å@Å@É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES ('Å@Å@Å@É\è\ï\ó\ç\');
+
+#InnoDB
+SELECT LTRIM(`ÇbÇP`) from `ÇsÇP`;
+SELECT LTRIM(`ÇbÇP`) from `ÇsÇQ`;
+SELECT LTRIM(`ÇbÇP`) from `ÇsÇR`;
+
+#MyISAM
+SELECT LTRIM(`ÇbÇP`) from `ÇsÇS`;
+SELECT LTRIM(`ÇbÇP`) from `ÇsÇT`;
+SELECT LTRIM(`ÇbÇP`) from `ÇsÇU`;
+
+#MEMORY
+SELECT LTRIM(`ÇbÇP`) from `ÇsÇV`;
+SELECT LTRIM(`ÇbÇP`) from `ÇsÇW`;
+SELECT LTRIM(`ÇbÇP`) from `ÇsÇX`;
+
+DROP TABLE `ÇsÇP`;
+DROP TABLE `ÇsÇQ`;
+DROP TABLE `ÇsÇR`;
+DROP TABLE `ÇsÇS`;
+DROP TABLE `ÇsÇT`;
+DROP TABLE `ÇsÇU`;
+DROP TABLE `ÇsÇV`;
+DROP TABLE `ÇsÇW`;
+DROP TABLE `ÇsÇX`;

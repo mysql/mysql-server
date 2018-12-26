@@ -1,0 +1,98 @@
+--echo #
+--echo # Bug #21950389 SMALL TABLESPACES WITH BLOBS TAKE UP TO 80 TIMES MORE
+--echo # SPACE IN 5.7 THAN IN 5.6
+--echo #
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+
+SET GLOBAL innodb_file_per_table=ON;
+
+#
+# Table 1: small rows
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+let FILE_TO_CHECK=test/t1.ibd;
+echo Empty table:;
+--source include/show_file_size.inc
+
+let $i = 0;
+
+--disable_query_log
+BEGIN;
+while ($i < 25000) {
+      eval INSERT INTO t1 VALUES($i);
+      inc $i;
+      let $print= `SELECT $i MOD 5000`;
+      if ($print == 0) {
+         COMMIT;
+         echo Rows inserted: $i;
+         source include/show_file_size.inc;
+         BEGIN;
+      }
+}
+COMMIT;
+--enable_query_log
+
+DROP TABLE t1;
+
+#
+# Table 2: BLOB
+#
+CREATE TABLE t2 (a INT PRIMARY KEY, b BLOB) ENGINE=InnoDB;
+
+let FILE_TO_CHECK=test/t2.ibd;
+echo Empty table:;
+--source include/show_file_size.inc
+
+let $i = 0;
+
+--disable_query_log
+BEGIN;
+while ($i < 20) {
+      eval INSERT INTO t2 VALUES($i, REPEAT('a', 30000));
+      inc $i;
+      let $print= `SELECT $i MOD 4`;
+      if ($print == 0) {
+         COMMIT;
+         echo Rows inserted: $i;
+         source include/show_file_size.inc;
+         BEGIN;
+      }
+}
+COMMIT;
+--enable_query_log
+
+DROP TABLE t2;
+
+#
+# Table 3: compressed BLOB
+#
+CREATE TABLE t3 (a INT PRIMARY KEY, b BLOB)
+       ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+
+let FILE_TO_CHECK=test/t3.ibd;
+echo Empty table:;
+--source include/show_file_size.inc
+
+let $i = 0;
+
+--disable_query_log
+BEGIN;
+while ($i < 40) {
+      eval INSERT INTO t3 VALUES($i, REPEAT('a', 30000));
+      inc $i;
+      let $print= `SELECT $i MOD 8`;
+      if ($print == 0) {
+         COMMIT;
+         echo Rows inserted: $i;
+         source include/show_file_size.inc;
+         BEGIN;
+      }
+}
+COMMIT;
+--enable_query_log
+
+DROP TABLE t3;
+
+SET GLOBAL innodb_file_per_table=default;

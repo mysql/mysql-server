@@ -1,0 +1,19 @@
+--source include/not_group_replication_plugin.inc
+--source include/have_myisam.inc
+
+# depends on the binlog output
+-- source include/have_binlog_format_row.inc
+
+let $rename_event_pos= 900;
+
+# Bug#18326: Do not lock table for writing during prepare of statement
+# The use of the ps protocol causes extra table maps in the binlog, so
+# we disable the ps-protocol for this statement.
+
+# Merge tables are not supported in NDB
+-- source include/not_ndb_default.inc
+
+
+--disable_ps_protocol
+-- source extra/rpl_tests/rpl_flsh_tbls.test
+--enable_ps_protocol

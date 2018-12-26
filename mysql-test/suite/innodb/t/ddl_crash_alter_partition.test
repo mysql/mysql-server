@@ -1,0 +1,137 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--source include/big_test.inc
+
+--disable_query_log
+--disable_result_log
+# Basically, these are sporadic warnings/errors and harmless to the table
+CALL mtr.add_suppression("Operating system error number 32 in a file operation.");
+CALL mtr.add_suppression("The error means that another program is using InnoDB's files.");
+--enable_result_log
+--enable_query_log
+
+LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
+
+let $table_name= t1;
+
+# ADD PARTITION for RANGE
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB
+PARTITION BY RANGE(a) PARTITIONS 2
+ ( PARTITION p0 VALUES LESS THAN (10) TABLESPACE innodb_file_per_table,
+   PARTITION p1 VALUES LESS THAN (20) TABLESPACE innodb_file_per_table);
+
+let $insert_statement= INSERT INTO t1 VALUES (1, "Filler1", 1),
+(2, "filler2", 2), (3, "FILLER3", 3), (14, "Filler4", 14), (15, "15", 15),
+(16, "filler6", 16);
+
+
+let $test_free= 1;
+let $test_delete= 0;
+let $test_rename= 0;
+let $test_drop= 0;
+let $crash_statement= ALTER TABLE $table_name ADD PARTITION (PARTITION p2 VALUES LESS THAN(30) TABLESPACE = innodb_file_per_table, PARTITION p3 VALUES LESS THAN(40) TABLESPACE = innodb_file_per_table);
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+# DROP PARTITION
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB
+PARTITION BY RANGE(a) PARTITIONS 4
+ ( PARTITION p0 VALUES LESS THAN (10) TABLESPACE innodb_file_per_table,
+   PARTITION p1 VALUES LESS THAN (20) TABLESPACE innodb_file_per_table,
+   PARTITION p2 VALUES LESS THAN (30) TABLESPACE innodb_file_per_table,
+   PARTITION p3 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table);
+
+let $insert_statement= INSERT INTO t1 VALUES (1, "Filler1", 1),
+(2, "filler2", 2), (3, "FILLER3", 3), (14, "Filler4", 14), (25, "15", 25),
+(36, "filler6", 36);
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 0;
+let $test_drop= 0;
+let $crash_statement= ALTER TABLE $table_name DROP PARTITION p1, p3;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+# REORGANIZE PARTITION
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB
+PARTITION BY RANGE(a) PARTITIONS 4
+ ( PARTITION p0 VALUES LESS THAN (10) TABLESPACE innodb_file_per_table,
+   PARTITION p1 VALUES LESS THAN (20) TABLESPACE innodb_file_per_table,
+   PARTITION p2 VALUES LESS THAN (30) TABLESPACE innodb_file_per_table,
+   PARTITION p3 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table);
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 1;
+let $test_drop= 0;
+let $crash_statement= ALTER TABLE $table_name REORGANIZE PARTITION p2, p3 INTO(PARTITION p2 VALUES LESS THAN(40));
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+# ADD PARTITION for HASH
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) PARTITION BY HASH(a) PARTITIONS 2;
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 1;
+let $test_drop= 0;
+let $crash_statement= ALTER TABLE $table_name ADD PARTITION PARTITIONS 2;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+# COALESCE PARTITION
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) PARTITION BY HASH(a) PARTITIONS 4;
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 1;
+let $test_drop= 0;
+let $crash_statement= ALTER TABLE $table_name COALESCE PARTITION 2;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+# EXCHANGE PARTITION
+
+# These errors are allowable, because it is proved to be reported during
+# recovery. And after recovery, the problematic data file/tablespace
+# can be opened properly. CHECK TABLE on these tables are OK.
+# One we improve the opening tablespaces flow, this kind of error
+# can be prevented.
+-- disable_query_log
+call mtr.add_suppression("Could not find a valid tablespace file for");
+call mtr.add_suppression("Operating system error number 2 in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
+call mtr.add_suppression("Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\].* Tablespace.*, name 'test.t[12].*', unable to open file '.*test.t[12].*\\.ibd' - Data structure corruption");
+--enable_query_log
+
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB
+PARTITION BY RANGE(a) PARTITIONS 2
+ ( PARTITION p0 VALUES LESS THAN (10),
+   PARTITION p1 VALUES LESS THAN (20));
+
+let $insert_statement= INSERT INTO t1 VALUES (1, "Filler1", 1),
+(2, "filler2", 2), (3, "FILLER3", 3), (14, "Filler4", 14), (15, "15", 15),
+(16, "filler6", 16);
+
+CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+
+let $test_free= 0;
+let $test_delete= 0;
+let $test_rename= 1;
+let $test_drop= 0;
+let $crash_statement= ALTER TABLE $table_name EXCHANGE PARTITION p1 WITH TABLE t2;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+CHECK TABLE t2;
+DROP TABLE t2;
+
+eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $innodb_ddl_log_crash_reset_debug_orig;

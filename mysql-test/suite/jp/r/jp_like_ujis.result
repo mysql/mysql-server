@@ -1,0 +1,262 @@
+drop table if exists `Ｔ１`;
+drop table if exists `Ｔ２`;
+drop table if exists `Ｔ３`;
+drop table if exists `Ｔ４`;
+drop table if exists `Ｔ５`;
+drop table if exists `Ｔ６`;
+drop table if exists `Ｔ７`;
+drop table if exists `Ｔ８`;
+drop table if exists `Ｔ９`;
+SET NAMES ujis;
+SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `Ｔ１` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `Ｔ２` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `Ｔ３` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `Ｔ４` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `Ｔ５` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `Ｔ６` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `Ｔ７` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `Ｔ８` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `Ｔ９` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = ujis engine = MEMORY;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `Ｔ１`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `Ｔ２`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `Ｔ３`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `Ｔ４`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `Ｔ５`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `Ｔ６`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `Ｔ７`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `Ｔ８`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `Ｔ９`;
+SELECT * FROM `Ｔ１` WHERE `Ｃ１` LIKE ' %';
+Ｃ１
+ !"#$%&'()*+,-./
+ ｡｢｣､･ｦｧｨｩｪｫｬｭｮｯ
+SELECT * FROM `Ｔ１` WHERE `Ｃ１` LIKE '% %';
+Ｃ１
+ !"#$%&'()*+,-./
+ ｡｢｣､･ｦｧｨｩｪｫｬｭｮｯ
+SELECT * FROM `Ｔ１` WHERE `Ｃ１` LIKE '% ';
+Ｃ１
+SELECT * FROM `Ｔ１` WHERE `Ｃ１` LIKE 'ﾀ%';
+Ｃ１
+ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ
+SELECT * FROM `Ｔ１` WHERE `Ｃ１` LIKE '%ﾗﾘ%';
+Ｃ１
+ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ
+SELECT * FROM `Ｔ１` WHERE `Ｃ１` LIKE '%ｿ';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ１` WHERE `Ｃ１` LIKE 'ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ%';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ１` WHERE `Ｃ１` LIKE '%ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ%';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ１` WHERE `Ｃ１` LIKE '%ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ２` WHERE `Ｃ１` LIKE '　%';
+Ｃ１
+　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
+SELECT * FROM `Ｔ２` WHERE `Ｃ１` LIKE '%　%';
+Ｃ１
+　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
+・・Å‰♯♭♪†‡¶・・・・◯・・・・　
+SELECT * FROM `Ｔ２` WHERE `Ｃ１` LIKE '%　';
+Ｃ１
+・・Å‰♯♭♪†‡¶・・・・◯・・・・　
+SELECT * FROM `Ｔ２` WHERE `Ｃ１` LIKE 'と%';
+Ｃ１
+とどなにぬねのはばぱひびぴふぶぷへべぺほ
+SELECT * FROM `Ｔ２` WHERE `Ｃ１` LIKE '%あ%';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ２` WHERE `Ｃ１` LIKE '%わ';
+Ｃ１
+ぼぽまみむめもゃやゅゆょよらりるれろゎわ
+SELECT * FROM `Ｔ２` WHERE `Ｃ１` LIKE '・ぁあぃいぅうぇえぉおかがきぎくぐけげこ%';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ２` WHERE `Ｃ１` LIKE '%・ぁあぃいぅうぇえぉおかがきぎくぐけげこ%';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ２` WHERE `Ｃ１` LIKE '%・ぁあぃいぅうぇえぉおかがきぎくぐけげこ';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ３` WHERE `Ｃ１` LIKE '鼫%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ３` WHERE `Ｃ１` LIKE '%鼺%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ３` WHERE `Ｃ１` LIKE '%齖';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ３` WHERE `Ｃ１` LIKE '鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ３` WHERE `Ｃ１` LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ３` WHERE `Ｃ１` LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ４` WHERE `Ｃ１` LIKE ' %';
+Ｃ１
+ !"#$%&'()*+,-./
+ ｡｢｣､･ｦｧｨｩｪｫｬｭｮｯ
+SELECT * FROM `Ｔ４` WHERE `Ｃ１` LIKE '% %';
+Ｃ１
+ !"#$%&'()*+,-./
+ ｡｢｣､･ｦｧｨｩｪｫｬｭｮｯ
+SELECT * FROM `Ｔ４` WHERE `Ｃ１` LIKE '% ';
+Ｃ１
+SELECT * FROM `Ｔ４` WHERE `Ｃ１` LIKE 'ﾀ%';
+Ｃ１
+ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ
+SELECT * FROM `Ｔ４` WHERE `Ｃ１` LIKE '%ﾗﾘ%';
+Ｃ１
+ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ
+SELECT * FROM `Ｔ４` WHERE `Ｃ１` LIKE '%ｿ';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ４` WHERE `Ｃ１` LIKE 'ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ%';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ４` WHERE `Ｃ１` LIKE '%ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ%';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ４` WHERE `Ｃ１` LIKE '%ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ５` WHERE `Ｃ１` LIKE '　%';
+Ｃ１
+　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
+SELECT * FROM `Ｔ５` WHERE `Ｃ１` LIKE '%　%';
+Ｃ１
+　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
+・・Å‰♯♭♪†‡¶・・・・◯・・・・　
+SELECT * FROM `Ｔ５` WHERE `Ｃ１` LIKE '%　';
+Ｃ１
+・・Å‰♯♭♪†‡¶・・・・◯・・・・　
+SELECT * FROM `Ｔ５` WHERE `Ｃ１` LIKE 'と%';
+Ｃ１
+とどなにぬねのはばぱひびぴふぶぷへべぺほ
+SELECT * FROM `Ｔ５` WHERE `Ｃ１` LIKE '%あ%';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ５` WHERE `Ｃ１` LIKE '%わ';
+Ｃ１
+ぼぽまみむめもゃやゅゆょよらりるれろゎわ
+SELECT * FROM `Ｔ５` WHERE `Ｃ１` LIKE '・ぁあぃいぅうぇえぉおかがきぎくぐけげこ%';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ５` WHERE `Ｃ１` LIKE '%・ぁあぃいぅうぇえぉおかがきぎくぐけげこ%';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ５` WHERE `Ｃ１` LIKE '%・ぁあぃいぅうぇえぉおかがきぎくぐけげこ';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ６` WHERE `Ｃ１` LIKE '鼫%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ６` WHERE `Ｃ１` LIKE '%鼺%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ６` WHERE `Ｃ１` LIKE '%齖';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ６` WHERE `Ｃ１` LIKE '鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ６` WHERE `Ｃ１` LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ６` WHERE `Ｃ１` LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ７` WHERE `Ｃ１` LIKE ' %';
+Ｃ１
+ !"#$%&'()*+,-./
+ ｡｢｣､･ｦｧｨｩｪｫｬｭｮｯ
+SELECT * FROM `Ｔ７` WHERE `Ｃ１` LIKE '% %';
+Ｃ１
+ !"#$%&'()*+,-./
+ ｡｢｣､･ｦｧｨｩｪｫｬｭｮｯ
+SELECT * FROM `Ｔ７` WHERE `Ｃ１` LIKE '% ';
+Ｃ１
+SELECT * FROM `Ｔ７` WHERE `Ｃ１` LIKE 'ﾀ%';
+Ｃ１
+ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ
+SELECT * FROM `Ｔ７` WHERE `Ｃ１` LIKE '%ﾗﾘ%';
+Ｃ１
+ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ
+SELECT * FROM `Ｔ７` WHERE `Ｃ１` LIKE '%ｿ';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ７` WHERE `Ｃ１` LIKE 'ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ%';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ７` WHERE `Ｃ１` LIKE '%ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ%';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ７` WHERE `Ｃ１` LIKE '%ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ';
+Ｃ１
+ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ
+SELECT * FROM `Ｔ８` WHERE `Ｃ１` LIKE '　%';
+Ｃ１
+　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
+SELECT * FROM `Ｔ８` WHERE `Ｃ１` LIKE '%　%';
+Ｃ１
+　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
+・・Å‰♯♭♪†‡¶・・・・◯・・・・　
+SELECT * FROM `Ｔ８` WHERE `Ｃ１` LIKE '%　';
+Ｃ１
+・・Å‰♯♭♪†‡¶・・・・◯・・・・　
+SELECT * FROM `Ｔ８` WHERE `Ｃ１` LIKE 'と%';
+Ｃ１
+とどなにぬねのはばぱひびぴふぶぷへべぺほ
+SELECT * FROM `Ｔ８` WHERE `Ｃ１` LIKE '%あ%';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ８` WHERE `Ｃ１` LIKE '%わ';
+Ｃ１
+ぼぽまみむめもゃやゅゆょよらりるれろゎわ
+SELECT * FROM `Ｔ８` WHERE `Ｃ１` LIKE '・ぁあぃいぅうぇえぉおかがきぎくぐけげこ%';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ８` WHERE `Ｃ１` LIKE '%・ぁあぃいぅうぇえぉおかがきぎくぐけげこ%';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ８` WHERE `Ｃ１` LIKE '%・ぁあぃいぅうぇえぉおかがきぎくぐけげこ';
+Ｃ１
+・ぁあぃいぅうぇえぉおかがきぎくぐけげこ
+SELECT * FROM `Ｔ９` WHERE `Ｃ１` LIKE '鼫%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ９` WHERE `Ｃ１` LIKE '%鼺%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ９` WHERE `Ｃ１` LIKE '%齖';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ９` WHERE `Ｃ１` LIKE '鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ９` WHERE `Ｃ１` LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖%';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+SELECT * FROM `Ｔ９` WHERE `Ｃ１` LIKE '%鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖';
+Ｃ１
+鼫鼯鼱鼲鼴鼷鼹鼺鼼鼽鼿齁齃齄齅齆齇齓齕齖
+DROP TABLE `Ｔ１`;
+DROP TABLE `Ｔ２`;
+DROP TABLE `Ｔ３`;
+DROP TABLE `Ｔ４`;
+DROP TABLE `Ｔ５`;
+DROP TABLE `Ｔ６`;
+DROP TABLE `Ｔ７`;
+DROP TABLE `Ｔ８`;
+DROP TABLE `Ｔ９`;

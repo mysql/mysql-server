@@ -1,0 +1,31 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (c1 INTEGER NOT NULL PRIMARY KEY, c2 TEXT);
+INSERT INTO t1 VALUES(3,'a');
+
+copy_file suite/engines/funcs/t/load_unique_error1.inc $MYSQLTEST_VARDIR/tmp/t1.dat;
+
+--disable_query_log
+--error ER_DUP_ENTRY
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.dat' INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+--enable_query_log
+
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES(3,'a');
+
+--disable_query_log
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.dat' IGNORE INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+--enable_query_log
+SELECT * FROM t1 ORDER BY c1;
+TRUNCATE TABLE t1;
+
+INSERT INTO t1 VALUES(3,'a');
+SELECT * FROM t1;
+--disable_query_log
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.dat' REPLACE INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+--enable_query_log
+SELECT * FROM t1 ORDER BY c1;
+remove_file $MYSQLTEST_VARDIR/tmp/t1.dat;
+DROP TABLE t1;
+

@@ -1,0 +1,70 @@
+# -----------------------------------------------------------------------
+# Tests for the performance schema nested stored program instrumentation.
+# -----------------------------------------------------------------------
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--echo #################################################
+--echo # Quering PS statement summary and history_long #
+--echo #################################################
+
+--source suite/perfschema/include/program_nested_setup.inc
+--source suite/perfschema/include/program_nested_execution.inc
+
+SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
+       OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL 
+       FROM performance_schema.events_statements_history_long WHERE
+       CURRENT_SCHEMA='nested_sp' ORDER BY 
+       OBJECT_NAME,NESTING_EVENT_LEVEL,SQL_TEXT,EVENT_NAME;
+
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
+
+--echo # clean-up
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+# After truncate the statictics collected will are reset
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
+
+--source suite/perfschema/include/program_nested_cleanup.inc
+
+# After clean-up the stored programs are removed from PS tables 
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
+
+
+# Check the intrumentation of stored programs 
+# when statement/sp/% instruments not timed
+
+--source suite/perfschema/include/program_nested_setup.inc
+
+update performance_schema.setup_instruments set enabled='YES', timed='NO'
+  where name like "statement/sp/%" order by name;
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--source suite/perfschema/include/program_nested_execution.inc
+
+# check instrumentation 
+
+SELECT EVENT_NAME, TIMER_START, TIMER_END, TIMER_WAIT FROM 
+       performance_schema.events_statements_history_long WHERE
+       CURRENT_SCHEMA='nested_sp' AND EVENT_NAME like "statement/sp/%";
+
+# clean-up
+
+# Restore the setup
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name like "statement/sp/%" order by name;
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--source suite/perfschema/include/program_nested_cleanup.inc

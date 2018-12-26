@@ -1,0 +1,58 @@
+################# mysql-test\t\innodb_autoinc_lock_mode_func.test  ############
+#                                                                             #
+# Variable Name: innodb_autoinc_lock_mode                                     #
+# Scope: GLOBAL                                                               #
+# Access Type: Readonly                                                       #
+# Data Type: Numeric                                                          #
+# Default Value: 1                                                            #
+# Range: 0,1,2                                                                #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan Maredia                                                     #
+#                                                                             #
+# Description:                                                                #
+#    Test Cases of Dynamic System Variable innodb_autoextend_increment that   #
+#    checks the behavior of this variable                                     #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+--echo '#--------------------FN_DYNVARS_039_01-------------------------#'
+################################################################
+# Begin the functionality Testing of innodb_autoinc_lock_mode  #
+################################################################
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET global innodb_autoinc_lock_mode = 1;
+
+#========================================================
+--echo '--innodb_autoinc_lock_mode is 1 (consecutive)--'
+#========================================================
+
+
+# innodb_autoinc_lock_mode is 1 in opt file
+SELECT @@global.innodb_autoinc_lock_mode;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(
+a INT AUTO_INCREMENT PRIMARY KEY,
+b CHAR
+) ENGINE=INNODB, AUTO_INCREMENT=100;
+
+INSERT INTO t1 (a,b) VALUES (5,'a'), (NULL,'b'), (1,'c'), (NULL,'d');
+INSERT INTO t1 (a,b) VALUES (NULL,'e');
+--echo 'the new auto incremented value should be 104'
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+###############################################################
+# End of functionality Testing for innodb_autoinc_lock_mode   #
+###############################################################
+

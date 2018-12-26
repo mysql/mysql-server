@@ -1,0 +1,41 @@
+################################################################################
+# WL#6969    Additional concurrency tests for BGC
+#
+# Concurrency test verifies that there is not deadlock on group commit
+# when semi-sync is disabled
+#
+# ################################################################################
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+--source include/not_group_replication_plugin.inc
+# Adding big test option for this test.
+--source include/big_test.inc
+--source include/have_myisam.inc
+--source include/master-slave.inc
+
+--source include/have_debug.inc
+SET @max_binlog_size_save= @@GLOBAL.MAX_BINLOG_SIZE;
+SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
+
+--let $connections= 11
+--let $loops= 500
+--let $error_simulation= 1
+
+--echo # Disable diff_table test
+--let $enable_diff_table= 0
+--echo # Test tables with MyISAM engine when disabling diff_table and
+--echo # simulating flush error
+--let $engine = MyISAM
+--source extra/rpl_tests/rpl_stress_test.inc
+
+--echo # Disable diff_table test
+--let $enable_diff_table= 0
+--echo # Test tables with InnoDB engine when disabling diff_table
+--echo # and simulating flush error
+--let $engine = InnoDB
+--source extra/rpl_tests/rpl_stress_test.inc
+
+--connection master
+SET @@GLOBAL.MAX_BINLOG_SIZE= @max_binlog_size_save;
+
+--source include/rpl_end.inc

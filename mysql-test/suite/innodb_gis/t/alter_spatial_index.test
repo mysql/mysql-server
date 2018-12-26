@@ -1,0 +1,764 @@
+# ******************************************************************
+# Test Alter table add spatial idex asc/desc comments
+# Test error Alter table modify column with No not null option
+# Test error Alter table modify column with null option
+# Test table column having both indexes spatial and Btree
+# Test error Alter table spatial index using hash/Btree
+# Test modify column from point to multipoint,line to multiline
+# Test modify column from mutipoint to point,multiline to line
+# Test discard & import tablepsace
+# spatial index on temp tables
+# Unique constraint on spatial index column Geometry
+# Unique constraint on spatial index column POINT
+# Modify Engine Innodb to Myisam to InnoDB
+# Check Foreign Key constraint on Point column
+# Check Foreign Key constraint on Geometry column
+# ******************************************************************
+
+CALL mtr.add_suppression("but MySQL is asking statistics for 2 columns. Have you mixed");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace for table .* is set as discarded");
+
+
+let MYSQLD_DATADIR= `select @@datadir`;
+
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
+ENGINE=InnoDB;
+
+CREATE TABLE tab1(c1 int NOT NULL PRIMARY KEY,c2 MULTIPOINT NOT NULL SRID 0,
+c3 MULTILINESTRING NOT NULL SRID 0,c4 MULTIPOLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
+ENGINE=InnoDB;
+
+INSERT INTO tab1 SELECT * FROM tab;
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(3,ST_GeomFromText('POINT(4 4)'),ST_GeomFromText('LINESTRING(130 130,140 140,150 150)'),
+ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'),
+ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(4,ST_GeomFromText('POINT(50 50)'),ST_GeomFromText('LINESTRING(200 200,300 300,400 400)'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(5,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(400 400,500 500,600 700)'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(6,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(7,ST_GeomFromText('POINT(60 70)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(8,ST_GeomFromText('POINT(0 0)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(9,ST_GeomFromText('POINT(120 120)'),ST_GeomFromText('LINESTRING(100 100,110 110,120 120)'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'));
+
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
+
+
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
+
+--error ER_WRONG_USAGE
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3 DESC);
+
+--error ER_WRONG_USAGE
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3 ASC);
+
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
+
+--error ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
+ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
+
+
+# Test the MBRContains
+SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
+
+UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)')
+WHERE MBRContains(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
+
+DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
+
+
+SET @g1 = ST_GeomFromText('LINESTRING( 300 300,400 400)');
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
+
+UPDATE tab SET C2 = ST_GeomFromText('POINT(100 100)')
+WHERE MBRContains(tab.c4, @g1);
+
+DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
+
+# Test the MBRWithin
+SET @g1 = ST_GeomFromText( 'POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
+
+SELECT c1,ST_AsText(c2),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1);
+
+UPDATE tab SET C2 = ST_GeomFromText('POINT(200 200)')
+WHERE MBRWithin(tab.c4, @g1);
+
+SELECT c1,ST_AsText(c2),ST_AsText(c4) FROM tab WHERE MBRWithin(tab.c4, @g1);
+
+DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
+
+--error ER_SPATIAL_CANT_HAVE_NULL
+ALTER TABLE tab MODIFY COLUMN c2 MULTIPOINT SRID 0;
+
+--error ER_SPATIAL_CANT_HAVE_NULL
+ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING SRID 0;
+
+--error ER_SPATIAL_CANT_HAVE_NULL
+ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON SRID 0;
+
+--error ER_SPATIAL_CANT_HAVE_NULL
+ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NULL SRID 0;
+
+--error ER_SPATIAL_CANT_HAVE_NULL
+ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NULL SRID 0;
+
+--error ER_SPATIAL_CANT_HAVE_NULL
+ALTER TABLE tab MODIFY COLUMN c4 Geometry NULL SRID 0;
+
+--error ER_SPATIAL_CANT_HAVE_NULL
+ALTER TABLE tab CHANGE COLUMN c2 c22 POINT SRID 0;
+
+--error ER_SPATIAL_CANT_HAVE_NULL
+ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING SRID 0;
+
+--error ER_SPATIAL_CANT_HAVE_NULL
+ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON SRID 0;
+
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
+ALTER TABLE tab add SPATIAL INDEX idx1(c1);
+
+--error ER_PARSE_ERROR
+ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING BTREE;
+
+--error ER_PARSE_ERROR
+ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING HASH;
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL SRID 0 FIRST, ALGORITHM=COPY;
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NOT NULL SRID 0,ALGORITHM=COPY;
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NOT NULL SRID 0;
+
+SHOW CREATE TABLE tab;
+
+--replace_column 7 #
+SHOW INDEX FROM tab;
+
+# g1 is an invalid polygon. It contains a spike.
+SET @g1 = ST_GeomFromText('POLYGON((20 20,30 30,40 40,50 50,40 50,30 40,30 30,20 20))');
+
+--echo # Invalid polygon.
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
+
+--echo # Invalid polygon.
+UPDATE tab SET C2 = ST_GeomFromText('POINT(1000 1000)')
+WHERE ST_Crosses(tab.c4, @g1);
+
+--echo # Invalid polygon.
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
+
+--echo # Invalid polygon.
+DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
+
+ALTER TABLE tab CHANGE COLUMN c2 c22 POINT NOT NULL SRID 0;
+
+ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING NOT NULL SRID 0;
+
+ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON NOT NULL SRID 0;
+
+SHOW CREATE TABLE tab;
+
+--replace_column 7 #
+SHOW INDEX FROM tab;
+
+ALTER TABLE tab CHANGE COLUMN c22 c2 POINT NOT NULL SRID 0;
+
+ALTER TABLE tab CHANGE COLUMN c33 c3 LINESTRING NOT NULL SRID 0;
+
+ALTER TABLE tab CHANGE COLUMN c44 c4 POLYGON NOT NULL SRID 0;
+
+SHOW CREATE TABLE tab;
+
+--replace_column 7 #
+SHOW INDEX FROM tab;
+
+ALTER TABLE tab DISABLE KEYS;
+
+SHOW WARNINGS;
+
+SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
+
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE MBREquals(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
+
+DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
+
+ALTER TABLE tab  DROP PRIMARY KEY;
+
+--error ER_SPATIAL_UNIQUE_INDEX
+ALTER TABLE tab ADD PRIMARY KEY(c2) ;
+
+SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
+
+UPDATE tab SET C2 = ST_GeomFromText('POINT(3000 3000)') 
+WHERE ST_Touches(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
+
+DELETE FROM tab WHERE ST_Touches(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
+
+FLUSH TABLE tab FOR EXPORT;
+
+--copy_file $MYSQLD_DATADIR/test/tab.ibd $MYSQLD_DATADIR/test/tab.ibd.bk
+
+UNLOCK TABLES;
+
+ALTER TABLE tab DISCARD TABLESPACE;
+
+--disable_warnings
+
+--error ER_TABLESPACE_DISCARDED
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab;
+
+--copy_file $MYSQLD_DATADIR/test/tab.ibd.bk $MYSQLD_DATADIR/test/tab.ibd
+
+--remove_file $MYSQLD_DATADIR/test/tab.ibd.bk
+
+--disable_query_log
+
+ALTER TABLE tab IMPORT TABLESPACE;
+
+--enable_query_log
+
+CHECK TABLE tab;
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab ORDER BY c1;
+
+SET @g1 = ST_GeomFromText('LINESTRING( 3010 3010,4010 4010,5010 5010)');
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) order by c1;
+
+UPDATE tab SET c2 = ST_GeomFromText('POINT(4000 4000)')
+WHERE MBRIntersects(tab.c4, @g1);
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+UPDATE tab SET c4 = ST_GeomFromText('POINT(4000 4000)')
+WHERE MBRIntersects(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
+
+DELETE FROM tab WHERE MBRIntersects(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
+
+INSERT INTO tab SELECT * FROM tab1;
+
+ALTER TABLE tab DROP INDEX idx2;
+
+# Check spatial index on temp tables
+
+CREATE TEMPORARY TABLE temp_tab AS SELECT * FROM tab where c1 = c2;
+
+INSERT INTO temp_tab SELECT * FROM tab;
+
+CREATE SPATIAL INDEX idx2 ON temp_tab(c2);
+
+CREATE SPATIAL INDEX idx3 ON temp_tab(c3);
+
+CREATE SPATIAL INDEX idx4 ON temp_tab(c4);
+
+CREATE SPATIAL INDEX idx5 ON temp_tab(c5);
+
+SHOW CREATE TABLE temp_tab;
+
+SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1) ORDER BY c1;
+
+# The following comments will be removed once the patch is available
+UPDATE temp_tab SET C2 = ST_GeomFromText('POINT(1000 1000)')
+WHERE MBRContains(temp_tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1);
+
+# Sever crashes Here so commented, will be removed later
+DELETE FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1) ORDER BY c1;
+
+# Check Unique constraint on spatial index column POINT
+
+SHOW CREATE TABLE tab;
+
+--replace_column 7 #
+SHOW INDEX FROM tab;
+
+DELETE FROM tab;
+
+--error ER_SPATIAL_UNIQUE_INDEX
+ALTER TABLE tab ADD PRIMARY KEY(c2);
+
+CREATE SPATIAL INDEX idx2 ON tab(c2);
+
+--error ER_SPATIAL_UNIQUE_INDEX
+ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c2);
+
+SHOW CREATE TABLE tab;
+
+--replace_column 7 #
+SHOW INDEX FROM tab;
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+
+# Check Unique constraint on spatial index column Geometry
+
+DELETE FROM tab;
+
+--error ER_WRONG_SUB_KEY
+ALTER TABLE tab ADD PRIMARY KEY(c5(10));
+
+--error ER_WRONG_SUB_KEY
+ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c5(10));
+
+SHOW CREATE TABLE tab;
+
+--replace_column 7 #
+SHOW INDEX FROM tab;
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+
+#cleanup
+DROP TABLE tab,tab1,temp_tab;
+
+--enable_warnings
+
+# Check Modify POINT to GEOMETRY and GEOMETRY to POINT
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
+ENGINE=InnoDB;
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(3,ST_GeomFromText('POINT(4 4)'),ST_GeomFromText('LINESTRING(130 130,140 140,150 150)'),
+ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'),
+ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(4,ST_GeomFromText('POINT(50 50)'),ST_GeomFromText('LINESTRING(200 200,300 300,400 400)'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(5,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(400 400,500 500,600 700)'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(6,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(7,ST_GeomFromText('POINT(60 70)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(8,ST_GeomFromText('POINT(0 0)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(9,ST_GeomFromText('POINT(120 120)'),ST_GeomFromText('LINESTRING(100 100,110 110,120 120)'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'));
+
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
+
+ANALYZE TABLE tab;
+
+ALTER TABLE tab ADD SPATIAL INDEX idx2(c2);
+
+ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
+
+ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
+
+ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
+
+--error ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
+ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
+
+
+ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL SRID 0;
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL SRID 0;
+
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=NONE;
+
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=SHARED;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INSTANT;
+
+SHOW CREATE TABLE tab;
+
+--replace_column 7 #
+SHOW INDEX FROM tab;
+
+SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+
+UPDATE tab SET C2 = ST_GeomFromText('POINT(1000 1000)') 
+WHERE MBRContains(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
+
+DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
+
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL SRID 0;
+
+ALTER TABLE tab MODIFY COLUMN c4 GEOMETRY NOT NULL SRID 0;
+
+SHOW CREATE TABLE tab;
+
+--replace_column 7 #
+SHOW INDEX FROM tab;
+
+ANALYZE TABLE tab;
+
+SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
+
+SET @g2 = ST_GeomFromText('LINESTRING(140 140,150 150,160 160)');
+
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
+AND MBREquals(tab.c3,@g2) ORDER BY c1;
+
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
+
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
+AND MBREquals(tab.c3,@g2) ORDER BY c1;
+
+DELETE FROM tab WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
+
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1)
+AND MBREquals(tab.c3,@g2) ORDER BY c1;
+
+ANALYZE TABLE tab;
+
+SET @g1 = ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'); 
+
+SET @g2 = ST_GeomFromText('LINESTRING(1 1,2 2,3 3)');
+
+# When Point type data exist in the column allow DDL operation
+ALTER TABLE tab MODIFY COLUMN c2 POINT NOT NULL SRID 0;
+
+ALTER TABLE tab MODIFY COLUMN c3 LINESTRING NOT NULL SRID 0;
+
+ALTER TABLE tab MODIFY COLUMN c4 POLYGON NOT NULL SRID 0;
+
+SHOW CREATE TABLE tab;
+
+--replace_column 7 #
+SHOW INDEX FROM tab;
+
+ANALYZE TABLE tab;
+
+SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
+
+SET @g2 = ST_GeomFromText('LINESTRING(1 1,2 2,3 3)');
+
+# Should be 0 rows affected
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) 
+AND ST_Touches(tab.c3,@g2);
+
+# Should be 0 rows affected
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE ST_Touches(tab.c4, @g1) AND ST_Touches(tab.c3,@g2);
+
+# Should be 0 rows affected
+DELETE FROM tab WHERE ST_Touches(tab.c4, @g1) AND ST_Touches(tab.c3,@g2);
+
+# Should be 0 rows affected
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+AND ST_Touches(tab.c3,@g2);
+
+# should be 1 row affected
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+OR ST_Touches(tab.c3,@g2);
+
+# should be 1 row affected
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
+
+# should be 1 row affected
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+OR ST_Touches(tab.c3,@g2);
+
+# should be 1 row affected
+DELETE FROM tab WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
+
+# Should be Empty set
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+OR ST_Touches(tab.c3,@g2);
+
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
+ALTER TABLE tab MODIFY COLUMN c4 INT NOT NULL;
+
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
+ALTER TABLE tab MODIFY COLUMN c4 BLOB NOT NULL;
+
+# Test InnoDB to Myisam to InnoDB
+ALTER TABLE tab  ENGINE Myisam;
+
+ALTER TABLE tab  ENGINE InnoDB;
+
+ANALYZE TABLE tab;
+
+SET @g1 = ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
+
+SET @g2 = ST_GeomFromText('LINESTRING(400 400,500 500,600 700)');
+
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) AND MBRWithin(tab.c3, @g2);
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+UPDATE tab SET c2 = ST_GeomFromText('POINT(2000 2000)'),
+           c3=ST_GeomFromText('POINT(2000 2000)')
+WHERE MBRWithin(tab.c4, @g1) AND MBRWithin(tab.c3, @g2);
+
+SET @g1 = ST_GeomFromText('POINT(2000 2000)');
+
+SET @g2 = ST_GeomFromText('POINT(2000 2000)');
+
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
+
+DELETE FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
+
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
+
+#cleanup
+DROP TABLE tab;
+
+# Check Foreign Key constraint on Point column
+CREATE TABLE parent (id POINT SRID 0 NOT NULL) ENGINE=InnoDB;
+
+CREATE TABLE child (id GEOMETRY NOT NULL, parent_id POINT NOT NULL SRID 0) ENGINE=InnoDB;
+
+ALTER TABLE parent ADD SPATIAL INDEX idx1(id);
+
+ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
+
+ANALYZE TABLE parent;
+ANALYZE TABLE child;
+
+SHOW CREATE TABLE parent;
+
+SHOW CREATE TABLE child;
+
+SHOW INDEX FROM parent;
+
+--replace_column 7 #
+SHOW INDEX FROM child;
+
+--error ER_FK_NO_INDEX_CHILD
+ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
+
+--error ER_FK_NO_INDEX_CHILD
+ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ON DELETE CASCADE ;
+
+#cleanup
+DROP table child,parent;
+
+# Check Foreign Key constraint on Geometry column
+CREATE TABLE parent (id GEOMETRY SRID 0 NOT NULL) ENGINE=InnoDB;
+
+CREATE TABLE child (id GEOMETRY NOT NULL, parent_id GEOMETRY NOT NULL SRID 0) ENGINE=InnoDB;
+
+ALTER TABLE parent ADD SPATIAL INDEX idx1(id) ;
+
+ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
+
+ANALYZE TABLE parent;
+ANALYZE TABLE child;
+
+SHOW CREATE TABLE parent;
+
+SHOW CREATE TABLE child;
+
+SHOW INDEX FROM parent;
+
+SHOW INDEX FROM child;
+
+--error ER_FK_NO_INDEX_CHILD
+ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
+
+#cleanup
+DROP table child,parent;
+
+# Check add spatial index when table already has rows (inplace).
+create table t1 (c1 int) engine=innodb;
+insert into t1 values(NULL);
+
+# Add spatial index fail, since geometry column can't be null.
+--error ER_SPATIAL_CANT_HAVE_NULL
+alter table t1 add b geometry, add spatial index(b), algorithm=inplace;
+
+# Add spatial index fail, since there's invalid geo data.
+# The case has to be commented because it no longer fails and following cases
+# don't expect the effect of such a statement.
+#--error ER_CANT_CREATE_GEOMETRY_OBJECT
+# alter table t1 add b geometry not null, add spatial index(b), algorithm=inplace;
+
+# Add a geometry column.
+alter table t1 add b geometry, algorithm=inplace;
+
+# Add spatial index fail, since there's a NULL or invalid geo data.
+# The case has to be commented because it no longer fails and following cases
+# don't expect the effect of such a statement.
+#--error ER_CANT_CREATE_GEOMETRY_OBJECT
+#alter table t1 add spatial index(b), algorithm=inplace;
+
+# Update invalide geo data to point(0 0).
+update t1 set b = st_geomfromtext('point(0 0)');
+
+# Add spatial index success.
+--error ER_SPATIAL_CANT_HAVE_NULL
+alter table t1 add spatial index(b), algorithm=inplace;
+
+# Delete rows.
+delete from t1;
+
+#cleanup
+DROP table t1;
+
+# Check add spatial index when table already has rows (copy).
+create table t1 (c1 int) engine=innodb;
+insert into t1 values(NULL);
+
+# Add spatial index fail, since geometry column can't be null.
+--error ER_SPATIAL_CANT_HAVE_NULL
+alter table t1 add b geometry, add spatial index(b), algorithm=copy;
+
+# Add spatial index fail, since there's a NULL or invalid geo data.
+--error ER_INVALID_USE_OF_NULL
+alter table t1 add b geometry not null, add spatial index(b), algorithm=copy;
+
+# Add a geometry column.
+--error ER_INVALID_USE_OF_NULL
+alter table t1 add b geometry not null, algorithm=copy;
+
+# Add spatial index.
+# The case has to be commented because it no longer fails and following cases
+# don't expect the effect of such a statement.
+#--error ER_CANT_CREATE_GEOMETRY_OBJECT
+#alter table t1 add spatial index(b), algorithm=copy;
+
+# Update invalide geo data to point(0 0).
+--error ER_BAD_FIELD_ERROR
+update t1 set b = st_geomfromtext('point(0 0)');
+
+# Add spatial index success.
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+alter table t1 add spatial index(b), algorithm=copy;
+
+# Delete rows.
+delete from t1;
+
+#cleanup
+DROP table t1;
+
+--echo #
+--echo # BUG#20111575 ALTER TABLE...ADD SPATIAL INDEX...LOCK NONE IS REFUSED
+--echo # WITHOUT STATING A REASON
+--echo #
+CREATE TABLE t1(p point NOT NULL SRID 0) ENGINE=innodb;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD SPATIAL INDEX(p), LOCK=NONE;
+ALTER TABLE t1 ADD SPATIAL INDEX(p);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 FORCE, LOCK=NONE;
+DROP TABLE t1;

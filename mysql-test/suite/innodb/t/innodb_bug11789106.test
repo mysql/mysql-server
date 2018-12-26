@@ -1,0 +1,15 @@
+# Test for bug #11789106: FAILING ASSERTION: templ->mbmaxlen > templ->mbminlen
+# templ->mysql_col_len == len
+
+
+create table table_11789106(`a` point,`b` int,`c` char(2))
+character set latin2 engine=innodb;
+
+insert ignore into table_11789106 values (ST_geomfromtext('point(1 1)'),'','');
+
+# This will trigger the assertion failure in
+# row_sel_field_store_in_mysql_format_func()
+select `a` from table_11789106 where `b` < '1' for update;
+
+drop table table_11789106;
+

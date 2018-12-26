@@ -1,0 +1,46 @@
+# WL#6839 - GCS Replication: P_S table to show DBSM stats
+#
+# This test proofs the existence of the replication_group_member_stats table
+# and all its fields. Since the table only returns values if the plugin is
+# loaded, all queries will return "No such row" or "0"
+#
+
+--let $member_id= query_get_value(SELECT Member_Id from performance_schema.replication_group_member_stats, Member_Id, 1)
+--let $assert_text= The value of member_id should not be present
+--let $assert_cond= "$member_id" = "No such row"
+--source include/assert.inc
+
+--let $view_id= query_get_value(SELECT View_Id from performance_schema.replication_group_member_stats, View_Id, 1)
+--let $assert_text= The value of view_id should not be present
+--let $assert_cond= "$View_Id" = "No such row"
+--source include/assert.inc
+
+--let $transaction_in_queue= query_get_value(SELECT Count_Transactions_in_queue from performance_schema.replication_group_member_stats, Count_Transactions_in_queue, 1)
+--let $assert_text= The value of Count_Transactions_in_queue should be 0
+--let $assert_cond= "$transaction_in_queue" = 0
+--source include/assert.inc
+
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_checked from performance_schema.replication_group_member_stats, Count_Transactions_checked, 1)
+--let $assert_text= The value of Count_Transactions_checked should be 0
+--let $assert_cond= "$certified_transactions" = 0
+--source include/assert.inc
+
+--let $negatively_certified= query_get_value(SELECT Count_conflicts_detected from performance_schema.replication_group_member_stats, Count_conflicts_detected, 1)
+--let $assert_text= The value of Count_conflicts_detected should be 0
+--let $assert_cond= "$negatively_certified" = 0
+--source include/assert.inc
+
+--let $certification_db_size= query_get_value(SELECT Count_Transactions_rows_validating from performance_schema.replication_group_member_stats, Count_Transactions_rows_validating, 1)
+--let $assert_text= The value of Count_Transactions_rows_validating should be 0
+--let $assert_cond= "$certification_db_size" = 0
+--source include/assert.inc
+
+--let $stable_set= query_get_value(SELECT Transactions_Committed_all_members from performance_schema.replication_group_member_stats, Transactions_Committed_all_members, 1)
+--let $assert_text= The value of Transactions_Committed_all_members should be 0
+--let $assert_cond= "$stable_set" = 0
+--source include/assert.inc
+
+--let $last_certified_transaction= query_get_value(SELECT Last_conflict_free_transaction from performance_schema.replication_group_member_stats, Last_conflict_free_transaction, 1)
+--let $assert_text= The value of Last_conflict_free_transaction should not be present
+--let $assert_cond= "$last_certified_transaction" = "No such row"
+--source include/assert.inc

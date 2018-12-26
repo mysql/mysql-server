@@ -1,0 +1,29 @@
+RESET MASTER;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
+call mtr.add_suppression("The content of the statement cache is corrupted "
+                         "while writing a rollback record of the transaction "
+                         "to the binary log. An incident event has been "
+                         "written to the binary log which will stop the "
+                         "slaves.");
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+Warnings:
+Warning	1745	Option binlog_stmt_cache_size (32768) is greater than max_binlog_stmt_cache_size (4096); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size.
+SET GLOBAL binlog_stmt_cache_size = 4096;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
+#
+# A single statement on non-transactional table causes to log an incident
+# event with an unique gtid due to the stmt_cache is not big enough to
+# accommodate the changes.
+#
+Got one of the listed errors
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam
+binlog.000001	#	Incident	#	#	#1 (LOST_EVENTS)
+binlog.000001	#	Rotate	#	#	binlog.000002;pos=POS
+DROP TABLE t1;
+Contain RELOAD DATABASE
+1
+SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
+SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;

@@ -1,0 +1,79 @@
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+SET NAMES utf8mb4;
+CREATE TABLE t1 (c1 CHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+
+--source include/ctype_unicode_latin.inc
+
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_unicode_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_icelandic_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_latvian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_romanian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_slovenian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_polish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_estonian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_spanish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_swedish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_turkish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_czech_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_danish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_lithuanian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_slovak_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_spanish2_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_roman_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_esperanto_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_hungarian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_croatian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_german2_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_unicode_520_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf8mb4_vietnamese_ci;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+#
+# Bug#57737 Character sets: search fails with like, contraction, index
+# Test my_like_range and contractions
+#
+SET collation_connection=utf8mb4_czech_ci;
+--source include/ctype_czech.inc
+--source include/ctype_like_ignorable.inc
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
+
+--echo #
+--echo # Bug#23752284: STRCMP NOT CONSISTENT WITH ORDER BY FOR
+--echo #               UTF8MB4_UNICODE_CI
+--echo #
+SET @A = CONVERT('A' USING utf8mb4);
+SET @B = CONVERT('B' USING utf8mb4);
+CREATE TABLE t1 (chr CHAR(4)) CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+INSERT INTO t1 VALUES(@A),(@B);
+SELECT HEX(chr), HEX(WEIGHT_STRING(chr)) FROM t1 ORDER BY chr;
+SELECT STRCMP(@B, @A COLLATE utf8mb4_unicode_ci);
+DELETE FROM t1;
+
+SET @A = CONVERT(CHAR(X'33fc' USING utf32) USING utf8mb4);
+SET @B = CONVERT(CHAR(X'32' USING utf32) USING utf8mb4);
+INSERT INTO t1 VALUES(@A),(@B);
+SELECT HEX(chr), HEX(WEIGHT_STRING(chr)) FROM t1 ORDER BY chr;
+SELECT STRCMP(@B, @A COLLATE utf8mb4_unicode_ci);
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES('s'), (_utf16 0x00DF), (_utf16 0x33FC), (_utf16 0x0032);
+INSERT INTO t1 VALUES('sa'), (_utf16 0x00DF0061), (_utf16 0x33FC0061), (_utf16 0x00320061);
+SELECT HEX(chr), HEX(WEIGHT_STRING(chr AS CHAR(1))) FROM t1;
+SELECT HEX(chr), HEX(WEIGHT_STRING(chr AS CHAR(2))) FROM t1;
+SELECT HEX(chr), HEX(WEIGHT_STRING(chr AS CHAR(3))) FROM t1;
+DROP TABLE t1;

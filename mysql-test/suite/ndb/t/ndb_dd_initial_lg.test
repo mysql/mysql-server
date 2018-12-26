@@ -1,0 +1,31 @@
+--source include/have_ndb.inc
+
+
+#
+# BUG#11762867
+# - show that system started with InitialLogFileGroup automatically allocated
+#   extra reserved memory for use by the undo buffer
+select reserved, (used>reserved) from ndbinfo.resources
+  where resource_name = 'TRANSACTION_MEMORY'
+    order by node_id;
+
+# - show basic usability of the auto created log file group
+create tablespace ts1
+  add datafile 'data1.dat'
+  use logfile group initial_lg1
+  initial_size 20M
+  engine = ndb;
+
+create table t1 (
+  a int primary key,
+  b varchar(256)
+) tablespace ts1 storage disk, engine = ndb;
+
+insert into t1 values
+ (1, "initial log file test");
+
+drop table t1;
+alter tablespace ts1 drop datafile 'data1.dat';
+drop tablespace ts1;
+drop logfile group initial_lg1 engine = ndb;
+

@@ -1,0 +1,8 @@
+Sun Sep  6 10:56:59 1992  Michael Widenius  (monty@bitch)
+
+	* Added functions for first,next,last,prev and clear of database-heap
+	* Added optional index to rsame for compability.
+
+Fri Aug 14 14:34:35 1992  Michael Widenius  (monty@bitch)
+
+	* changed file parameter to HP_INFO *

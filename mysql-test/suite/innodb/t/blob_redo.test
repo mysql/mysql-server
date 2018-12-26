@@ -1,0 +1,63 @@
+--source include/have_innodb_max_16k.inc
+
+--echo #
+--echo # Bug #19498877 LIMITATION ON BLOB SIZE IS TOO STRICT, BLOB CAN
+--echo # BE 10% OF TOTAL REDO LOG SIZE
+--echo #
+
+SET GLOBAL max_allowed_packet = 100*1024*1024;
+
+--echo # Connection big_packets:
+connect(big_packets,localhost,root,,);
+connection big_packets;
+
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+
+# Insert a few rows (it doesn't really matter how many). These transactions
+# are committed once they are acked, so they should not be lost.
+INSERT INTO t1 (a, b) VALUES (1, '1');
+INSERT INTO t1 (a, b) VALUES (2, '2');
+INSERT INTO t1 (a, b) VALUES (3, '3');
+INSERT INTO t1 (a, b) VALUES (4, '4');
+INSERT INTO t1 (a, b) VALUES (5, '5');
+
+start transaction;
+INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 6*1024*1024));
+
+--echo # Connection default:
+connection default;
+
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
+--source include/kill_and_restart_mysqld.inc
+
+--disconnect big_packets
+
+# We should see (1,2,3,4,5) here.
+SELECT a, b FROM t1;
+
+SET GLOBAL max_allowed_packet = 100*1024*1024;
+
+--echo # Connection big_packets:
+connect(big_packets,localhost,root,,);
+
+start transaction;
+UPDATE t1 SET b = REPEAT('a', 6*1024*1024) WHERE a = 1;
+
+--echo # Connection default:
+connection default;
+
+# Wait for 300 seconds instead of the default 100
+--let $wait_counter= 3000
+--source include/kill_and_restart_mysqld.inc
+
+--echo # Connection default:
+connection default;
+
+--disconnect big_packets
+
+# We should see (1,2,3,4,5) here.
+SELECT a, b FROM t1;
+
+# Clean up.
+DROP TABLE t1;

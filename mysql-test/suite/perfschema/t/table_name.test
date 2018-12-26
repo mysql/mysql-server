@@ -1,0 +1,173 @@
+#
+# Performance Schema
+#
+# Verify that the Performance Schema correctly identifies normal and temporary
+# tables with non-standard names.
+
+# The server uses the table name prefix "#sql" for temporary and intermediate
+# tables, however user-defined tables having the "#sql" prefix are also permitted.
+# Independent of the table name, temporary or intermediate tables always have the
+# "#sql" prefix in the filename. (For non-temporary tables starting with "#",
+# the "#" is encoded to @0023 in the filename.)
+#
+# Given the ambiguity with temporary table names, the Performance Schema identifies
+# temporary tables tables either by the table category or by the filename.
+#
+
+--echo
+--echo #
+--echo # TEST 1: Normal tables prefixed with "#sql" and "sql".
+--echo #
+USE test;
+CREATE TABLE `#sql_1` (a int, b text);
+# INSERT forces path through get_table_share()
+INSERT INTO `#sql_1` VALUES(1,'one');
+--echo
+CREATE TABLE `sql_1` (a int, b text);
+INSERT INTO `sql_1` VALUES(1,'one');
+--echo
+--echo # Verify that the tables are treated as normal tables .
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+--echo
+--echo # Drop the tables, verify that the table objects are removed.
+--echo
+DROP TABLE `#sql_1`;
+DROP TABLE `sql_1`;
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+
+--echo
+--echo #
+--echo # TEST 2: Temporary tables, no special prefix.
+--echo #
+CREATE TEMPORARY TABLE sql_temp2_myisam (a int, b text) ENGINE=MYISAM;
+INSERT INTO sql_temp2_myisam VALUES(1,'one');
+--echo
+CREATE TEMPORARY TABLE sql_temp2_innodb (a int, b text) ENGINE=INNODB;
+INSERT INTO sql_temp2_innodb VALUES(1,'one');
+--echo
+--echo # Confirm that the temporary tables are ignored.
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+--echo
+--echo # Drop the tables, verify that the table objects are not created.
+--echo
+DROP TABLE sql_temp2_myisam;
+DROP TABLE sql_temp2_innodb;
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+
+--echo
+--echo #
+--echo # TEST 3: Temporary tables with the "#sql" prefix.
+--echo #
+CREATE TEMPORARY TABLE `#sql_temp3_myisam` (a int, b text) ENGINE=MYISAM;
+CHECK TABLE `#sql_temp3_myisam`;
+INSERT INTO `#sql_temp3_myisam` VALUES(1,'one');
+--echo
+CREATE TEMPORARY TABLE `#sql_temp3_innodb` (a int, b text) ENGINE=INNODB;
+CHECK TABLE `#sql_temp3_innodb`;
+INSERT INTO `#sql_temp3_innodb` VALUES(1,'one');
+--echo
+--echo # Confirm that the temporary tables are ignored.
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+--echo
+--echo # Drop the temporary tables.
+--echo
+DROP TABLE `#sql_temp3_myisam`;
+DROP TABLE `#sql_temp3_innodb`;
+--echo
+--echo # Confirm that the temporary tables are still ignored.
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+
+--echo
+--echo #
+--echo # TEST 4: Special case: MyISAM temporary tables are recreated as non-temporary
+--echo #         when they are truncated.
+--echo #
+CREATE TEMPORARY TABLE `sql_temp4_myisam` (a int, b text) ENGINE=MYISAM;
+INSERT INTO `sql_temp4_myisam` VALUES(1,'one');
+--echo
+CREATE TEMPORARY TABLE `#sql_temp4_myisam` (a int, b text) ENGINE=MYISAM;
+INSERT INTO `#sql_temp4_myisam` VALUES(1,'one');
+--echo
+--echo # Confirm that the MyISAM temporary tables are ignored.
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+--echo
+--echo # Truncate the MyISAM temporary tables, forcing them to be recreated as non-temporary.
+--echo
+TRUNCATE TABLE `sql_temp4_myisam`;
+TRUNCATE TABLE `#sql_temp4_myisam`;
+--echo
+--echo # Confirm that the recreated MyISAM tables are still regarded as temporary and ignored.
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+--echo
+--echo # Drop the recreated MyISAM tables;
+--echo
+DROP TABLE `sql_temp4_myisam`;
+DROP TABLE `#sql_temp4_myisam`;
+--echo
+--echo # Confirm that the recreated temporary tables are still ignored.
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+
+--echo
+--echo #
+--echo # TEST 5: Generate temporary tables with ALTER MyISAM table.
+--echo #
+USE test;
+CREATE TABLE t1 (a int) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+# Force a path throug mysql_alter_table() and ha_create_table().
+ALTER TABLE t1 ADD COLUMN (b int);
+--echo
+--echo # Confirm that the recreated temporary tables are still ignored.
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;
+--echo
+--echo # Drop the MyISAM table
+--echo
+DROP TABLE t1;
+
+--echo
+--echo # Confirm that no tables remain;
+--echo
+SELECT object_type, object_schema, object_name
+FROM performance_schema.objects_summary_global_by_type
+WHERE object_schema="test"
+ORDER BY object_name;

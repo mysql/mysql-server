@@ -1,0 +1,147 @@
+CREATE TABLE test_ps_fetch
+(a INT, b INT, c INT, d INT, PRIMARY KEY (a, b), INDEX idx (c, d))
+ENGINE=INNODB STATS_PERSISTENT=1;
+ANALYZE TABLE test_ps_fetch;
+Table	test.test_ps_fetch
+Op	analyze
+Msg_type	status
+Msg_text	OK
+SELECT n_rows, clustered_index_size, sum_of_other_index_sizes
+FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_fetch';
+n_rows	0
+clustered_index_size	1
+sum_of_other_index_sizes	1
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_fetch'
+ORDER BY index_name, stat_name;
+index_name	PRIMARY
+stat_name	n_diff_pfx01
+stat_value	0
+sample_size	1
+stat_description	a
+index_name	PRIMARY
+stat_name	n_diff_pfx02
+stat_value	0
+sample_size	1
+stat_description	a,b
+index_name	PRIMARY
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+index_name	PRIMARY
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+index_name	idx
+stat_name	n_diff_pfx01
+stat_value	0
+sample_size	1
+stat_description	c
+index_name	idx
+stat_name	n_diff_pfx02
+stat_value	0
+sample_size	1
+stat_description	c,d
+index_name	idx
+stat_name	n_diff_pfx03
+stat_value	0
+sample_size	1
+stat_description	c,d,a
+index_name	idx
+stat_name	n_diff_pfx04
+stat_value	0
+sample_size	1
+stat_description	c,d,a,b
+index_name	idx
+stat_name	n_leaf_pages
+stat_value	1
+sample_size	NULL
+stat_description	Number of leaf pages in the index
+index_name	idx
+stat_name	size
+stat_value	1
+sample_size	NULL
+stat_description	Number of pages in the index
+SELECT index_name, seq_in_index, column_name, cardinality
+FROM information_schema.statistics WHERE table_name = 'test_ps_fetch'
+ORDER BY index_name, seq_in_index;
+INDEX_NAME	idx
+SEQ_IN_INDEX	1
+COLUMN_NAME	c
+CARDINALITY	0
+INDEX_NAME	idx
+SEQ_IN_INDEX	2
+COLUMN_NAME	d
+CARDINALITY	0
+INDEX_NAME	PRIMARY
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+CARDINALITY	0
+INDEX_NAME	PRIMARY
+SEQ_IN_INDEX	2
+COLUMN_NAME	b
+CARDINALITY	0
+SELECT
+table_rows, avg_row_length, max_data_length, index_length
+FROM information_schema.tables WHERE table_name = 'test_ps_fetch';
+TABLE_ROWS	0
+AVG_ROW_LENGTH	0
+MAX_DATA_LENGTH	0
+INDEX_LENGTH	16384
+UPDATE mysql.innodb_table_stats SET
+n_rows = 1000,
+clustered_index_size = 5
+WHERE
+table_name = 'test_ps_fetch';
+UPDATE mysql.innodb_index_stats SET
+stat_value = 20
+WHERE
+table_name = 'test_ps_fetch' AND
+index_name = 'PRIMARY' AND
+stat_name = 'n_diff_pfx01';
+UPDATE mysql.innodb_index_stats SET
+stat_value = 90
+WHERE
+table_name = 'test_ps_fetch' AND
+index_name = 'PRIMARY' AND
+stat_name = 'n_diff_pfx02';
+UPDATE mysql.innodb_index_stats SET
+stat_value = 3
+WHERE
+table_name = 'test_ps_fetch' AND
+index_name = 'idx' AND
+stat_name = 'n_diff_pfx01';
+UPDATE mysql.innodb_index_stats SET
+stat_value = 11
+WHERE
+table_name = 'test_ps_fetch' AND
+index_name = 'idx' AND
+stat_name = 'n_diff_pfx02';
+FLUSH TABLE test_ps_fetch;
+SET SESSION information_schema_stats_expiry=0;
+SELECT seq_in_index, column_name, cardinality
+FROM information_schema.statistics WHERE table_name = 'test_ps_fetch'
+ORDER BY index_name, seq_in_index;
+SEQ_IN_INDEX	1
+COLUMN_NAME	c
+CARDINALITY	3
+SEQ_IN_INDEX	2
+COLUMN_NAME	d
+CARDINALITY	11
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+CARDINALITY	20
+SEQ_IN_INDEX	2
+COLUMN_NAME	b
+CARDINALITY	90
+SELECT
+table_rows, avg_row_length, max_data_length, index_length
+FROM information_schema.tables WHERE table_name = 'test_ps_fetch';
+TABLE_ROWS	1000
+AVG_ROW_LENGTH	81
+MAX_DATA_LENGTH	0
+INDEX_LENGTH	16384
+DROP TABLE test_ps_fetch;
+SET SESSION information_schema_stats_expiry=default;

@@ -1,0 +1,197 @@
+###############################################################################
+#
+# This test validates that members that join during an primary election cannot
+# execute group coordinate actions until the election ends.
+#
+# Test:
+#   0. This test needs 3 servers configured in primary mode mode
+#   1. Prepare phase: Start the servers, create a table
+#      Set server 2 weight so it becomes the next primary
+#      Server 3 has a user for recovery, so he is the only valid donor
+#   2. Lock a table so the election gets stuck
+#   3. Execute a query and cause an election
+#   4. Make server 1 return insuring it uses server 3 as a donor
+#   5. Check the election is running on server 2
+#   6. Check no election is running on server 1
+#   7. Check we can't execute actions on server 1
+#   8. Unlock the table to unblock the election
+#   9. Check the election results are the expected
+#   10. Check that actions can now be executed on the joiner
+#   11. Cleanup
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Prepare phase: Start the servers, create a table
+--echo #    Set server 2 weight so it becomes the next primary
+--echo #    Server 3 has a user for recovery, so he is the only valid donor
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. A primary election is occurring in the group. Wait for it to end.");
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table*");
+set session sql_log_bin=1;
+
+CREATE TABLE test.t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT);
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL group_replication_member_weight= 90;
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+# Server 3 has a user for recovery to ensure this server
+# is the donor in the upcoming recovery of server 1
+
+SET sql_log_bin=0;
+CREATE USER 'recovery_user'@'%' IDENTIFIED BY 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Lock a table so the election gets stuck
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+LOCK TABLE t1 READ;
+
+--echo
+--echo # 3. Execute a query and cause an election
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 4. Make server 1 return insuring it uses server 3 as a donor
+
+--disable_warnings
+CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 5. Check the election is running on server 2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Election: applying buffered transactions%"
+--source include/wait_condition.inc
+
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $assert_text= The stage should be "Primary Election: applying buffered transactions"
+--let $assert_cond= "$stage_name" = "stage/group_rpl/Primary Election: applying buffered transactions"
+--source include/assert.inc
+
+--echo
+--echo # 6. Check no election is running on server 1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $assert_text= There is no stage present
+--let $assert_cond= "$stages_present" = "0"
+--source include/assert.inc
+
+--echo
+--echo # 7. Check we can't execute actions on server 1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 8. Unlock the table to unblock the election
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+UNLOCK TABLES;
+
+--echo
+--echo # 9. Check the election results are the expected
+
+#Wait for the election
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--source include/wait_condition.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo # 10. Check that actions can now be executed on the joiner
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--echo
+--echo # 11. Cleanup
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET sql_log_bin=0;
+DROP USER recovery_user;
+SET sql_log_bin=1;
+
+DROP TABLE t1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+--let $rpl_group_replication_single_primary_mode=0
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

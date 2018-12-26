@@ -1,0 +1,338 @@
+# ==== Purpose ====
+#
+# In order to avoid problems with GTIDs, MySQL server should refuse to execute
+# any statements that will be split before sending to binlog if
+# @@SESSION.GTID_NEXT is set to 'UUID:NUMBER'.
+#
+# In MySQL server, DROP TABLE statements can be split into up to three
+# distinct binlog events: one containing the regular tables, one containing
+# transactional temporary tables and one containing non-transactional
+# temporary tables.
+#
+# In the first part, this test will verify if a splittable DROP TABLE
+# statement is being refused to execute throwing the correct error to the
+# client session.
+#
+# In the second part, this test will verify an issue with inexistent temporary
+# tables being assumed as transactional on the slave side. This was making
+# the slave to split a DROP statement that the master logged as a single DROP
+# statement.
+#
+# In the third part, this test will verify that a slave having to drop
+# temporary tables because of the master have restarted will split the DROP
+# TABLE statement also based on table types (transactional or not).
+#
+# The details about the implementation of this test is in the beginning of
+# each part.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#17620053: SET GTID_NEXT AND DROP TABLE WITH BOTH REGULAR AND TEMPORARY
+#               TABLES
+#
+--let $rpl_topology= 1->2->3
+--source include/rpl_init.inc
+--source include/rpl_default_connections.inc
+--source include/have_myisam.inc
+
+--echo #
+--echo # First part
+--echo #
+#
+# This part verifies the splittable DROP TABLE behavior in client sessions by
+# creating three tables (one regular and two temporary), setting session
+# GTID_NEXT to a specific GTID and then trying to issue a DROP TABLE
+# statement containing the combinations of at least two tables.
+#
+# This part only applies to statement binary log format, as otherwise temporary
+# table operations are completely invisible to the binary log.
+#
+# As DROP statements with both regular and temporary tables or with
+# transactional and non transactional temporary tables are split before
+# sending to binlog, the following DROP statements must return an error to the
+# client session because of being considered unsafe for GTID enforcement as it
+# would be split into two (or three) statements to be sent to binlog.
+#
+# In order to improve the test coverage, we will verify DROP TABLE statements
+# with all combinations of the following:
+# 1) Regular transactional table;
+# 2) Regular non-transactional table;
+# 3) Temporary transactional table;
+# 4) Temporary non-transactional table;
+# 5) Nonexistent table.
+#
+# With the above set we could make up to 32 possibilities (including none of
+# above). But we will test the behavior only for the following combinations:
+# - 18 error cases (ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID):
+#   (1 | 2 | 1+2) + (3 | 4 | 3+4) + (nothing | 5)
+#   (3+4) | (3+4+5)
+#   (3 | 4) + 5  /* as this it not DROP TEMPORARY, nonexistent tables will be
+#                   assumed as regular tables, so the DROP will be split */
+# - 3 error cases (ER_BAD_TABLE_ERROR):
+#   (1 | 2 | 1+2) + 5
+# - 1 non-error case:
+#   1+2
+# Note: for ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID cases, the
+# statement will not be executed and no DROP will be performed. For
+# ER_BAD_TABLE_ERROR cases, the existent tables will be dropped regardless the
+# error.
+
+# Create two regular tables and two temporary tables with distinct storage engines
+--source include/rpl_connection_master.inc
+CREATE TABLE trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TABLE non_trans_t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+
+--let $binlog_format= `SELECT @@GLOBAL.binlog_format`
+if ($binlog_format == "STATEMENT")
+{
+  --echo # Error cases ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
+  --let $next_gtid= '11111111-1111-1111-1111-111111111111:1'
+  --let $expected_error= ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
+  # reg trans + reg non trans + temp trans
+  --let $statement= DROP TABLE trans_t1, non_trans_t1, temp_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + reg non trans + temp trans + temp non trans
+  --let $statement= DROP TABLE trans_t1, non_trans_t1, temp_trans_t1, temp_non_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + reg non trans + temp trans + temp non trans + inexistent
+  --let $statement= DROP TABLE trans_t1, non_trans_t1, temp_trans_t1, temp_non_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + reg non trans + temp trans + inexistent
+  --let $statement= DROP TABLE trans_t1, non_trans_t1, temp_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + reg non trans + temp non trans
+  --let $statement= DROP TABLE trans_t1, non_trans_t1, temp_non_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + reg non trans + temp non trans + inexistent
+  --let $statement= DROP TABLE trans_t1, non_trans_t1, temp_non_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + temp trans
+  --let $statement= DROP TABLE trans_t1, temp_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + temp trans + temp non trans
+  --let $statement= DROP TABLE trans_t1, temp_trans_t1, temp_non_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + temp trans + temp non trans + inexistent
+  --let $statement= DROP TABLE trans_t1, temp_trans_t1, temp_non_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + temp trans + inexistent
+  --let $statement= DROP TABLE trans_t1, temp_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + temp non trans
+  --let $statement= DROP TABLE trans_t1, temp_non_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg trans + temp non trans + inexistent
+  --let $statement= DROP TABLE trans_t1, temp_non_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg non trans + temp trans
+  --let $statement= DROP TABLE non_trans_t1, temp_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg non trans + temp trans + temp non trans
+  --let $statement= DROP TABLE non_trans_t1, temp_trans_t1, temp_non_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg non trans + temp trans + temp non trans + inexistent
+  --let $statement= DROP TABLE non_trans_t1, temp_trans_t1, temp_non_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg non trans + temp trans + inexistent
+  --let $statement= DROP TABLE non_trans_t1, temp_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg non trans + temp non trans
+  --let $statement= DROP TABLE non_trans_t1, temp_non_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # reg non trans + temp non trans + inexistent
+  --let $statement= DROP TABLE non_trans_t1, temp_non_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # temp trans + temp non trans
+  --let $statement= DROP TABLE temp_trans_t1, temp_non_trans_t1
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # temp trans + temp non trans + inexistent
+  --let $statement= DROP TABLE temp_trans_t1, temp_non_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # temp trans + inexistent
+  --let $statement= DROP TABLE temp_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+  # temp non trans + inexistent
+  --let $statement= DROP TABLE temp_non_trans_t1, non_existent
+  --source extra/rpl_tests/rpl_gtid_drop_table.inc
+}
+
+--echo # Error cases ER_BAD_TABLE_ERROR.
+# All error cases below are no-ops.
+--let $expected_error= ER_BAD_TABLE_ERROR
+
+# reg trans + reg non trans + inexistent
+--let $next_gtid= '11111111-1111-1111-1111-111111111111:1'
+--let $statement= DROP TABLE trans_t1, non_trans_t1, non_existent
+--source extra/rpl_tests/rpl_gtid_drop_table.inc
+# reg trans + inexistent
+--let $next_gtid= '11111111-1111-1111-1111-111111111111:2'
+--let $statement= DROP TABLE trans_t1, non_existent
+--source extra/rpl_tests/rpl_gtid_drop_table.inc
+# reg non trans + inexistent
+--let $next_gtid= '11111111-1111-1111-1111-111111111111:3'
+--let $statement= DROP TABLE non_trans_t1, non_existent
+--source extra/rpl_tests/rpl_gtid_drop_table.inc
+
+--echo # Non-error cases
+--let $expected_error=
+
+# reg trans + reg non trans
+--let $next_gtid= '11111111-1111-1111-1111-111111111111:4'
+--let $statement= DROP TABLE trans_t1, non_trans_t1
+--source extra/rpl_tests/rpl_gtid_drop_table.inc
+
+SET GTID_NEXT= AUTOMATIC;
+CREATE TABLE trans_t1 (c1 INT) ENGINE=InnoDB;
+
+
+--echo #
+--echo # Second part
+--echo #
+#
+# The MySQL server cannot evaluate if an inexistent temporary table is
+# transactional or not. Before the fix for BUG#17620053, the inexistent
+# temporary tables were assumed to be transactional.
+#
+# This assumption could lead to a split if, for example, you issue a DROP
+# TEMPORARY TABLE for two existent non-transactional temporary tables in the
+# master (will binlog only one statement) but a filter made one of the
+# temporary tables inexistent on the slave side (will binlog two statements:
+# one with the existent non-transactional table and other with the inexistent
+# table assumed to be transactional).
+#
+# As this test has a filter in its slave configuration like this:
+# '--replicate-ignore-table=test.temp_ignore', all statements containing the
+# 'test.temp_ignore' temporary table alone wont be executed by the SQL slave
+# thread. So, the CREATE TABLE statements for 'temp_ignore' table will be
+# executed only on the master.
+#
+# Issuing a DROP TEMPORARY TABLE statement in the master containing the two
+# non-transaction temporary tables would result in a single binlog statement,
+# as the two tables are non-transactional ones.
+#
+# In the slave, because of the filter, the non-replicated table will be
+# assumed unknown. With the fix for BUG#17620053, the unknown tables will
+# be assumed as transactional only if at least one transactional table is
+# dropped. If the DROP recognizes only non-transactional tables, the unknown
+# temporary tables will be assumed non-transactional, avoiding splitting the
+# statement.
+
+# Create an additional non-transactional temporary table that will not be
+# replicated due to the replication filter, only t1 will be replicated.
+CREATE TEMPORARY TABLE temp_ignore (c1 INT) ENGINE=MyISAM;
+# Drop the two non-transactional temp tables
+DROP TEMPORARY TABLE IF EXISTS temp_ignore, temp_non_trans_t1;
+# Sync to know that everything was replicated
+--source include/sync_slave_sql_with_master.inc
+# Back to the 'master' connection
+--source include/rpl_connection_master.inc
+# Create temp_ignore table again, but with InnoDB storage engine
+CREATE TEMPORARY TABLE temp_ignore (c1 INT) ENGINE=InnoDB;
+# Drop the two transactional temp tables
+DROP TEMPORARY TABLE IF EXISTS temp_ignore, temp_trans_t1;
+# Sync to know that everything was replicated
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Third part
+--echo #
+#
+# This part was adapted from rpl_create_drop_temp_table.test
+#
+# As we use three server topology, when the slave (mysqld 2) detects the
+# master (mysqld 1) has restarted it will drop the temporary tables and
+# will binlog the DROP TABLE statements that will be replicated to
+# the third server (mysqld 3).
+#
+# As the DROP of temporary table in the slave side groups the tables
+# by pseudo-threadid and by database, we will use two sessions on master,
+# creating three sets of temporary tables, each set on a distinct database.
+#
+# The first set contains two tables with distinct storage engines, the
+# second set contains a single table and the third set contains two tables
+# with the same storage engine.
+#
+--source include/rpl_connection_master.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error: table .* does not exist in the InnoDB internal");
+SET SESSION sql_log_bin= 1;
+
+CREATE DATABASE test2;
+CREATE DATABASE test3;
+
+# Create two temporary tables with distinct storage engines in 'test'
+# This should generate two DROP statements
+use test;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+# Create one temporary table with transactional storage engine in 'test2'
+# This should generate only one DROP statement
+USE test2;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+# Create two temporary tables with transactional storage engine in 'test3'
+# This should generate only one DROP statement with the two tables
+USE test3;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_trans_t2 (c1 INT) ENGINE=InnoDB;
+
+# Create two temporary tables with distinct storage engines in 'test'
+# in another client session. This should generate two DROP statements
+--source include/rpl_connection_master1.inc
+use test;
+CREATE TEMPORARY TABLE temp_trans_t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+# Create one temporary table with non-transactional storage engine in 'test2'
+# This should generate only one DROP statement
+USE test2;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+# Create two temporary tables with non-transactional storage engine in 'test3'
+# This should generate only one DROP statement with the two tables
+USE test3;
+CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE temp_non_trans_t2 (c1 INT) ENGINE=MyISAM;
+
+# Sync to know that everything was replicated
+--source include/sync_slave_sql_with_master.inc
+
+# Stop slave io thread
+--disable_warnings
+--source include/stop_slave_io.inc
+--enable_warnings
+
+# Kill Master so that it does not go through THD::cleanup logic. Hence it does
+# not generate "drop temporary" query for 'temp' tables.
+--let $rpl_server_number= 1
+--let $rpl_force_stop=1
+--source include/rpl_stop_server.inc
+
+# Restart Master (generates Format Description event which tells slave to
+# drop all temporary tables)
+--source include/rpl_start_server.inc
+
+# Start and sync slave IO thread
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+# Wait for slave thread to apply all events (including the newly generated
+# FormatDescription event which tells slave SQL thread to drop all temporary
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= 'Slave has read all relay log; waiting for the slave I/O thread to update it';
+--source include/wait_show_condition.inc
+
+# Now we verify slave_open_temp_tables, it should be '0'
+--let $assert_text= Slave_open_temp_tables should be 0
+--let $assert_cond= [SHOW STATUS LIKE "Slave_open_temp_tables", Value, 1] = 0
+--source include/assert.inc
+
+# Cleanup replication
+--source include/rpl_connection_master.inc
+USE test;
+DROP TABLE trans_t1;
+DROP DATABASE test2;
+DROP DATABASE test3;
+--source include/rpl_end.inc

@@ -1,0 +1,76 @@
+#########################################################################
+# Verify:
+#  Relay log file names are properly set for multisource replication
+#  In this tests we test if relay log files per channel based
+#  on --relay-log-index and --relay-log is properly set.
+# 1. The slave is started with --relay-log=msr-relay
+# 2. the slave is restarted with --relay-log-index=idx-msr-relay
+# 3. the slave is restarted with --relay-log-index=idx-msr-relay.idx
+#     and --relay-log=msr-relay.log
+#########################################################################
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+#
+# Check that the names of relay log files per channel are properly set
+#
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS FOR CHANNEL "channel1";
+#
+# RESET SLAVE ALL for next test;
+#
+include/rpl_stop_slaves.inc
+Warnings:
+Note	3084	Replication thread(s) for channel 'channel1' are already stopped.
+RESET SLAVE ALL;
+#
+# 2. Shutdown server. Remove relay log files. Start server with
+#     --relay-log-index
+#
+include/rpl_stop_server.inc [server_number=2]
+include/rpl_start_server.inc [server_number=2 parameters: --relay-log-index=idx-msr-relay]
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+#
+# Check that the names of relay log files per channel are properly set
+#
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS FOR CHANNEL "channel1";
+#
+# RESET SLAVE ALL cleaningup.
+#
+include/rpl_stop_slaves.inc
+Warnings:
+Note	3084	Replication thread(s) for channel 'channel1' are already stopped.
+RESET SLAVE ALL;
+#
+# 3. Shutdown server. Remove relay log files. Start server with
+#    --relay-log-index and --relay-log with extensions.
+#    These extensions shall be stripped off
+include/rpl_stop_server.inc [server_number=2]
+include/rpl_start_server.inc [server_number=2 parameters: --relay-log-index=idx-msr-relay.index1 --relay-log=msr-relay.log1]
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+#
+# Check that the names of relay log files per channel are properly set
+#
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS FOR CHANNEL "channel1";
+#
+# RESET SLAVE ALL cleaningup.
+#
+include/rpl_stop_slaves.inc
+Warnings:
+Note	3084	Replication thread(s) for channel 'channel1' are already stopped.
+RESET SLAVE ALL;
+#
+# We have to reset the --relay-log and --relay-log-index options,
+# so that in the  next test case if the server restarts there is no mismatch
+# with the current options and the default option (i.e relay-log=slave-relay-bin)
+#
+CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=MYPORT,
+MASTER_USER="root";
+include/start_slave.inc
+include/rpl_end.inc

@@ -1,0 +1,137 @@
+# WL#6968 InnoDB R-tree cursor support
+
+--source include/not_valgrind.inc
+
+
+# Create table with R-tree index.
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+
+# Insert enough values to let R-tree split.
+delimiter |;
+create procedure insert_t1(IN total int)
+begin
+	declare i int default 1;
+	while (i <= total) DO
+		insert into t1 values (i, Point(i, i));
+		set i = i + 1;
+	end while;
+end|
+delimiter ;|
+
+# Test level 1 rtree.
+CALL insert_t1(1000);
+select count(*) from t1;
+
+set @g1 = ST_GeomFromText('Polygon((0 0,0 1000,1000 1000,1000 0,0 0))');
+
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+set @g1 = ST_GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+set @g1 = ST_GeomFromText('Polygon((100 100,100 800,800 800,800 100,100 100))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+#SET DEBUG='+d, rtr_pessimistic_position';
+#select count(*) from t1 where MBRWithin(t1.c2, @g1);
+#SET DEBUG='-d, rtr_pessimistic_position';
+
+# Equality search
+set @g1 =  ST_GeomFromText('Point(1 1)');
+select count(*) from t1 where MBRequals(t1.c2, @g1);
+
+# MBRDisjoint search
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where MBRdisjoint(t1.c2, @g1);
+
+# Clean up.
+DROP PROCEDURE insert_t1;
+
+truncate t1;
+
+let $1=150;
+let $2=150;
+while ($1)
+{
+  eval INSERT INTO t1  VALUES ($1, ST_GeomFromText('LineString($1 $1, $2 $2)'));
+  dec $1;
+  inc $2;
+}
+
+select count(*) from t1;
+
+set @g1 = ST_GeomFromText('Polygon((0 0,0 1000,1000 1000,1000 0,0 0))');
+select count(*) from t1 where MBRwithin(t1.c2, @g1);
+truncate t1;
+
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(3 3, 160 160)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(4 4, 170 170)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(5 5, 180 180)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(6 6, 190 190)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(7 7, 200 200)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
+
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+# Testing "MBRtouches"
+# This is apparently now treated as "intersects"
+set @g1 = ST_GeomFromText('Polygon((0 0,0 2, 2 2, 2 0, 0 0))');
+select count(*) from t1 where MBRtouches(t1.c2, @g1);
+
+set @g1 = ST_GeomFromText('Polygon((0 0,0 200,200 200,200 0,0 0))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
+
+# Test MBRequals
+set @g1 = ST_GeomFromText('LineString(2 2, 150 150)');
+select count(*) from t1 where MBRequals(t1.c2, @g1);
+
+# Test store procedure with open cursor
+set @g1 = ST_GeomFromText('Polygon((0 0,0 200,200 200,200 0,0 0))');
+create table t3 (a int) engine = innodb;
+
+delimiter |;
+
+CREATE PROCEDURE curdemo()
+BEGIN
+  DECLARE done INT DEFAULT FALSE;
+  DECLARE a INT;
+
+  DECLARE cur1 CURSOR FOR SELECT c1 from t1 where  MBRWithin(t1.c2, @g1);
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+  OPEN cur1;
+  read_loop: LOOP
+    FETCH cur1 INTO a;
+   IF done THEN
+      LEAVE read_loop;
+   END IF;
+  INSERT INTO test.t3 VALUES (a);
+END LOOP;
+
+CLOSE cur1;
+END|
+
+delimiter ;|
+
+call curdemo();
+
+select count(*) from t3;
+
+drop procedure curdemo;
+drop table t3;
+drop table t1;
+

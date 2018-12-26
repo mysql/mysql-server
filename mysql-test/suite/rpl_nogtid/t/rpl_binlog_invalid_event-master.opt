@@ -1,0 +1,1 @@
+--binlog-cache-size=8192 --binlog-checksum=crc32

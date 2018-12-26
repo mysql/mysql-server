@@ -1,0 +1,40 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+## 1.  Verify lower_case_table_names cannot be set while server is
+##     running and start GR on server-1.
+
+[connection server1]
+SET GLOBAL lower_case_table_names= 1;
+ERROR HY000: Variable 'lower_case_table_names' is a read only variable
+include/start_and_bootstrap_group_replication.inc
+
+## 2.  Store variables of server-2 for restart.
+
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("The member is configured with a lower_case_table_names option value .*");
+call mtr.add_suppression("lower_case_table_names was set to 2, .*");
+set session sql_log_bin=1;
+
+## 3A. Test GR does not start on boot when lower_case_table_names
+##     does not match.
+
+# restart:--group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=2
+include/rpl_reconnect.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+## 3B. Test GR does not start with command when lower_case_table_names
+##     does not match.
+
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert_grep.inc [Found the expected error about lower_case_table_names]
+include/assert.inc ['Assert server-2 is OFFLINE']
+
+## 4.  Cleanup.
+
+include/group_replication_end.inc

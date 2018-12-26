@@ -1,0 +1,95 @@
+## generated
+## Rel: Delete a valid rows in order and limit
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/delete_del_table_order.tmp
+## Test data
+-->sql
+drop schema if exists xtest;
+create schema xtest;
+use xtest;
+create table mycoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY);
+insert into mycoll (doc, _id) values ('{"_id": "1", "name": "Robb"}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc, _id) values ('{"_id": "2", "name": "Bran"}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc, _id) values ('{"_id": "3", "name": "Arya"}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc, _id) values ('{"_id": "4", "name": "Sansa"}', json_unquote(json_extract(doc, '$._id')));
+create table mytable (id int primary key, name varchar(40), price decimal(5,2), info json);
+insert into mytable values (1, 'banana', 1.20, '{"color": "yellow"}');
+insert into mytable values (2, 'apple', 0.25, '{"color":"red"}');
+insert into mytable values (3, 'tomato', 1.80, '{"color":"red"}');
+insert into mytable values (4, 'mango', 3.14, '{"color":"green"}');
+insert into mytable values (5, 'orange', 0.90, '{"color":"orange"}');
+SELECT * FROM xtest.mytable ORDER BY price;
+-->endsql
+
+Mysqlx.Crud.Delete {
+  collection {
+    name: "mytable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  limit {
+    row_count: 2
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "price"
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+
+-->sql
+SELECT * FROM xtest.mytable;
+SELECT * FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'));
+-->endsql
+
+Mysqlx.Crud.Delete {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  limit {
+    row_count: 2
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "name"
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'));
+-->endsql
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/delete_del_table_order.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/delete_del_table_order.tmp
+--source include/xplugin_drop_user.inc

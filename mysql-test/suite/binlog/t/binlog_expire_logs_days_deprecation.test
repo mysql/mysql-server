@@ -1,0 +1,288 @@
+###############################################################################
+# Bug#26274274: IGNORE EXPIRE_LOGS_DAYS IF BINLOG_EXPIRE_LOGS_SECONDS IS SET  #
+#                                                                             #
+# This test case will test setting binlog_expire_logs_seconds and             #
+# expire_logs_days either as start up parameter or as dynamic global          #
+# variables, verifying that proper warning and error is thrown by the server. #
+#                                                                             #
+# Bug#27252658: CHANGE DEFAULT VALUE OF BINLOG_EXPIRE_LOGS_SECONDS            #
+#                                                                             #
+# Here we will also test if the default value of binlog_expire_logs_seconds   #
+# and expire_logs_days is used as accoradance to the rule as mentioned below  #
+# with title Bug#27252658.                                                    #
+#                                                                             #
+# These cases will be tested here.                                            #
+#                                                                             #
+# 1) expire_logs_days (>0)  binlog_expire_logs_seconds (>0)                   #
+#    This case will check the following:                                      #
+#    1.1) The value of expire_logs_days is ignored and the purge time was     #
+#         calculated only using binlog_expire_logs_seconds value.             #
+#    1.2) There is an error while trying to set binlog_expire_logs_seconds    #
+#         and expire_logs_days dynamically.                                   #
+#    1.3) A warning message is printed describing the ignored value of        #
+#         expire_logs_days when used together with binlog_expire_logs_seconds #
+#    1.4) Bug#27252658:                                                       #
+#         If user provides values for both options, both variables are set    #
+#         accordingly and 'binlog_expire_logs_seconds' takes effect.          #
+#                                                                             #
+# 2) expire_logs_days (>0)  binlog_expire_logs_seconds (=0)                   #
+#    This case will check the following:                                      #
+#    2.1) The value of expire_logs_days is used when                          #
+#         binlog_expire_logs_seconds is not set or set to 0                   #
+#    2.2) No warning message is printed in this case as the user has not      #
+#         specified any value for binlog_expire_logs_seconds.                 #
+#    2.3) Bug#27252658:                                                       #
+#         If user provides a value for only one of the options,that particular#
+#         variable is set accordingly, and the other variable defaults to 0.  #
+#                                                                             #
+# 3) expire_logs_days (=0)  binlog_expire_logs_seconds (>0)                   #
+#    This case will check the following:                                      #
+#    3.1) No warning message is printed in this case as the user has not      #
+#         specified any value for expire_logs_days.                           #
+#    3.2) Bug#27252658:                                                       #
+#         If user provides a value for only one of the options,that particular#
+#         variable is set accordingly, and the other variable defaults to 0.  #
+#                                                                             #
+# 4) expire_logs_days (=0) or binlog_expire_logs_seconds (=0)                 #
+#    Bug#27252658:                                                            #
+#    This case will check the following:                                      #
+#    4.1) Nothing should be purged at restart when any one of the variable is #
+#         set to 0 and other variable is not specified at start.              #
+#    4.2) If one of these variable is set to zero and other is not specified  #
+#         at start up then there will not be any purging.                     #
+#    4.3) Both the variable are set to 0.                                     #
+#                                                                             #
+# 5) expire_logs_days and binlog_expire_logs_seconds both not specified       #
+#    This case will check the following:                                      #
+#    5.1) Bug#27252658:                                                       #
+#         If user does not provide a value for any of the options, then       #
+#         'binlog_expire_logs_seconds' defaults to 30*24*60*60 and            #
+#         'expire_logs_days' to 0.                                            #
+###############################################################################
+
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/linux.inc
+
+CALL mtr.add_suppression("The option expire_logs_days cannot be used together*");
+--let $saved_expire_logs_days= `SELECT @@GLOBAL.expire_logs_days`
+--let $saved_binlog_expire_logs_seconds= `SELECT @@GLOBAL.binlog_expire_logs_seconds`
+# Set the datadir
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--let $ofile= $MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
+
+--echo ####
+--echo #### Case 1:
+--echo ####
+
+--echo #### Case 1.1:
+
+# Restart the server with expire_logs_days (>0)  binlog_expire_logs_seconds (>0)
+# Here we have set binlog_expire_logs_seconds as well so expire_logs_days will
+# be ignored and the purge will happen.
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+
+--let $restart_parameters=restart:--binlog_expire_logs_seconds=2 --expire_logs_days=1 --log-error=$ofile
+--source include/restart_mysqld.inc
+--let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+# Sleep for twice of binlog_expire_logs_seconds value
+--sleep 4
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+FLUSH LOGS;
+--error 1
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+
+--echo #### Case 1.2:
+
+# There should be an error while setting the variables dynamically.
+--error ER_BINLOG_EXPIRE_LOG_DAYS_AND_SECS_USED_TOGETHER
+SET GLOBAL expire_logs_days= 10;
+--echo #### Case 1.3:
+
+# Check if the warning is there in the error log when expire_logs_days is used along
+# with binlog_expire_logs_seconds.
+
+--let $assert_text= Assert that there is a warning at bootstrap for expire_logs_days
+--let $assert_file= $ofile
+--let $assert_select= The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--echo #### Case 1.4
+
+# Check if the value of expire_logs_days is changed to 0.
+--let $expire_logs_days_value = `SELECT @@GLOBAL.expire_logs_days`
+--let $assert_cond = $expire_logs_days_value = 0
+--let $assert_text = The value of expire_logs_days is not changed.
+--source include/assert.inc
+
+# Check if the value of binlog_expire_logs_seconds is not changed.
+--let $binlog_expire_logs_seconds_value = `SELECT @@GLOBAL.binlog_expire_logs_seconds`
+--let $assert_cond = $binlog_expire_logs_seconds_value = 2
+--let $assert_text = The value of binlog_expire_logs_seconds is not changed.
+--source include/assert.inc
+
+--echo ####
+--echo #### Case 2:
+--echo ####
+
+--echo #### Case 2.1:
+
+# Restart the server with expire_logs_days (>0) & binlog_expire_logs_seconds (=0)
+# Here we have not set binlog_expire_logs_seconds as well so expire_logs_days will
+# not be ignored and the purge will not happen.
+--remove_file $ofile
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+
+--let $restart_parameters=restart: --expire_logs_days=1 --binlog_expire_logs_seconds=0 --log-error=$ofile
+--source include/restart_mysqld.inc
+--let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--sleep 4
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+FLUSH LOGS;
+#The file still exists
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+
+--echo #### Case 2.2:
+
+# Check if the warning is not there in the error log when binlog_expire_logs_seconds
+# is not used (or have a value = 0) with expire_logs_days.
+
+# When binlog_expire_logs_seconds is specified a value '0' (same as the above in restart command)
+--let $assert_text= There is no warning at server start when binlog_expire_logs_seconds is not set.
+--let $assert_file= $ofile
+--let $assert_select= The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds.
+--let $assert_count= 0
+--source include/assert_grep.inc
+
+# When binlog_expire_logs_seconds is not specified
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let $restart_parameters=restart: --expire_logs_days=1 --log-error=$ofile
+--source include/restart_mysqld.inc
+
+--let $assert_text= There is no warning at server start when binlog_expire_logs_seconds is not set.
+--let $assert_file= $ofile
+--let $assert_select= The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds.
+--let $assert_count= 0
+--source include/assert_grep.inc
+
+--echo #### Case 2.3
+
+# Check if the value of expire_logs_days is not changed.
+--let $expire_logs_days_value = `SELECT @@GLOBAL.expire_logs_days`
+--let $assert_cond = $expire_logs_days_value = 1
+--let $assert_text = The value of expire_logs_days is not changed.
+--source include/assert.inc
+
+# Check if the value of binlog_expire_logs_seconds is set to 0 and not 30 (the default value).
+--let $binlog_expire_logs_seconds_value = `SELECT @@GLOBAL.binlog_expire_logs_seconds`
+--let $assert_cond = $binlog_expire_logs_seconds_value = 0
+--let $assert_text = The value of binlog_expire_logs_seconds is changed from default 2592000 to 0 .
+--source include/assert.inc
+
+--echo ####
+--echo #### Case 3:
+--echo ####
+
+--echo #### Case 3.1:
+# Check if the warning is not there in the error log when expire_logs_days is not used (or
+# have a value = 0) with binlog_expire_logs_seconds.
+
+# When expire_logs_days is specified a value '0'
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let $restart_parameters=restart: --binlog_expire_logs_seconds=5 --expire_logs_days=0 --log-error=$ofile
+--source include/restart_mysqld.inc
+
+--let $assert_text= There is a no warning at server start for expire_logs_days
+--let $assert_file= $ofile
+--let $assert_select= The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds.
+--let $assert_count= 0
+--source include/assert_grep.inc
+
+# When expire_logs_days is not specified
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let $restart_parameters=restart: --binlog_expire_logs_seconds=5 --log-error=$ofile
+--source include/restart_mysqld.inc
+
+--let $assert_text= There is a no warning at server start for expire_logs_days
+--let $assert_file= $ofile
+--let $assert_select= The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds.
+--let $assert_count= 0
+--source include/assert_grep.inc
+
+--echo #### Case 3.2
+
+# Check if the value of expire_logs_days is set to 0 (The default value).
+--let $expire_logs_days_value = `SELECT @@GLOBAL.expire_logs_days`
+--let $assert_cond = $expire_logs_days_value = 0
+--let $assert_text = The value of expire_logs_days is 0.
+--source include/assert.inc
+
+# Check if the value of binlog_expire_logs_seconds is not changed.
+--let $binlog_expire_logs_seconds_value = `SELECT @@GLOBAL.binlog_expire_logs_seconds`
+--let $assert_cond = $binlog_expire_logs_seconds_value = 5
+--let $assert_text = The value of binlog_expire_logs_seconds is not changed.
+--source include/assert.inc
+
+--echo ####
+--echo #### Case 4:
+--echo ####
+
+--echo #### Case 4.1: server start should not purge the file
+--let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let $restart_parameters=restart: --log-error=$ofile --expire_logs_days=0
+--source include/restart_mysqld.inc
+
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+
+--echo #### Case 4.2: flush logs should not purge the file
+--let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--sleep 4
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+FLUSH LOGS;
+#The file still exists
+--file_exists $MYSQLD_DATADIR/$first_binlog_file
+
+--echo #### Case 4.3
+
+# Check if the value of binlog_expire_logs_seconds is set to 0 and not 30*24*60*60 (the default value).
+
+--let $binlog_expire_logs_seconds_value = `SELECT @@GLOBAL.binlog_expire_logs_seconds`
+--let $assert_cond = $binlog_expire_logs_seconds_value = 0
+--let $assert_text = The value of binlog_expire_logs_seconds is changed to 0.
+--source include/assert.inc
+
+
+--echo ####
+--echo #### Case 5:
+--echo ####
+
+--echo #### Case 5.1
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let $restart_parameters=restart: --log-error=$ofile
+--source include/restart_mysqld.inc
+# Check if the value of expire_logs_days is set to 0 (the default value).
+# And the value of binlog_expire_logs_seconds is set to 30*24*60*60
+
+--let $expire_logs_days_value = `SELECT @@GLOBAL.expire_logs_days`
+--let $assert_cond = $expire_logs_days_value = 0
+--let $assert_text = The value of expire_logs_days is 0.
+--source include/assert.inc
+
+--let $binlog_expire_logs_seconds_value = `SELECT @@GLOBAL.binlog_expire_logs_seconds`
+--let $assert_cond = $binlog_expire_logs_seconds_value = 2592000
+--let $assert_text = The value of binlog_expire_logs_seconds is changed to 2592000(30 days).
+--source include/assert.inc
+
+# reset the variables
+--eval SET GLOBAL binlog_expire_logs_seconds= $saved_binlog_expire_logs_seconds
+--eval SET GLOBAL expire_logs_days= $saved_expire_logs_days

@@ -1,0 +1,152 @@
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testScan
+args: -n TupCheckSumError T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n MultiCrashTest T1
+max-time: 1800
+
+cmd: test_event
+args: -n Bug56579 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n Bug_11133 T1 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n WaitUntilReady T1 T6 T13
+max-time: 180
+
+cmd: testBasic
+args: -n UnlockBatch T6
+max-time: 180
+
+cmd: testNdbApi
+args: -n UpdateWithoutKeys T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n NoCommitAndClose T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadError5025 T1 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n PkInsertTwice T1 T6 D1 D2
+max-time: 180
+
+cmd: flexHammer
+args: -r 5 -t 32
+max-time: 180
+
+cmd: testFK
+args: -n Cascade1 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n RecordSpecificationBackwardCompatibility
+max-time: 180
+
+cmd: testDict
+args: -n Bug57057 T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug15685 T1
+max-time: 180
+
+cmd: test_event_merge
+args: --no-implicit-nulls --separate-events
+max-time: 180
+
+cmd: testDict
+args: -n FragmentTypeSingle T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug57767 T2
+max-time: 360
+
+cmd: testDict
+args: -n Bug14645319 T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanReadError5030 T1 D1 D2
+max-time: 360
+
+cmd: testNodeRestart
+args: -n Bug15632 T1
+max-time: 360
+
+cmd: testIndex
+args: -n InsertDelete T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n DeleteRestart T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n TwoNodeFailure T6 T13
+max-time: 2520
+
+cmd: testDict
+args: -n FailAddPartition T1 I3
+max-time: 720
+
+cmd: testNodeRestart
+args: -n ForceStopAndRestart T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n pnr --nologging T1
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n MixReadUnlockRestart T1
+max-time: 1080
+
+cmd: testSystemRestart
+args: -n SR_DD_3b D2
+max-time: 1080
+
+cmd: testLimits
+args: -n SlowDihFileWrites T1
+max-time: 1620
+
+cmd: testDict
+args: -n CreateAndDropIndexes -l 200 T1
+max-time: 3060
+
+cmd: testSystemRestart
+args: -n SR1 T1
+max-time: 4140
+

@@ -1,0 +1,7 @@
+!include suite/ndb/my.cnf
+
+[cluster_config.1]
+ndbd=
+NoOfReplicas=1
+MaxNoOfOpenFiles=27
+InitialNoOfOpenFiles=26

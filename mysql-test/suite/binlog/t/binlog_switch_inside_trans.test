@@ -1,0 +1,200 @@
+#
+# BUG#47863
+# This test verifies if the session variable 'binlog_format' and
+# 'binlog_direct_non_transactional_updates' are read-only inside
+# a transaction and in sub-statements.
+#
+
+source include/have_myisam.inc;
+source include/have_binlog_format_row.inc;
+
+set @save_binlog_format= @@global.binlog_format;
+set @save_binlog_dirct= @@global.binlog_direct_non_transactional_updates;
+create table t1 (a int) engine= myisam;
+create table t2 (a int) engine= innodb;
+
+SELECT @@session.binlog_format;
+SELECT @@session.binlog_direct_non_transactional_updates;
+SELECT @@session.sql_log_bin;
+SET AUTOCOMMIT=1;
+--echo # Test that the session variable 'binlog_format',
+--echo # 'binlog_direct_non_transactional_updates' and 'sql_log_bin'
+--echo # are writable outside a transaction.
+--echo # Current session values are ROW, FALSE, TRUE, respectively.
+set @@session.binlog_format= statement;
+set @@session.binlog_direct_non_transactional_updates= TRUE;
+set @@session.sql_log_bin= FALSE;
+SELECT @@session.binlog_format;
+SELECT @@session.binlog_direct_non_transactional_updates;
+SELECT @@session.sql_log_bin;
+
+begin;
+--echo # Test that the session variable 'binlog_format',
+--echo # 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+--echo # read-only inside a transaction with no preceding updates.
+--echo # Current session values are STATEMENT, TRUE, FALSE, respectively.
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
+  set @@session.binlog_format= mixed;
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
+  set @@session.binlog_direct_non_transactional_updates= FALSE;
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+set @@session.sql_log_bin= FALSE;
+
+  insert into t2 values (1);
+--echo # Test that the session variable 'binlog_format',
+--echo # 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+--echo # read-only inside a transaction with preceding transactional updates.
+--echo # Current session values are STATEMENT, TRUE and FALSE, respectively.
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
+  set @@session.binlog_format= 'row';
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
+  set @@session.binlog_direct_non_transactional_updates= FALSE;
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+set @@session.sql_log_bin= FALSE;
+commit;
+
+begin;
+  insert into t1 values (2);
+--echo # Test that the session variable 'binlog_format'
+--echo # 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+--echo # read-only inside a transaction with preceding non-transactional updates.
+--echo # Current session values are STATEMENT, TRUE, FALSE, respectively.
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
+  set @@session.binlog_format= mixed;
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
+  set @@session.binlog_direct_non_transactional_updates= FALSE;
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+set @@session.sql_log_bin= FALSE;
+commit;
+
+--echo # Test that the session variable 'binlog_format',
+--echo # 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+--echo # writable when AUTOCOMMIT=0, before a transaction has started.
+--echo # Current session values are STATEMENT, TRUE, FALSE, respectively.
+set AUTOCOMMIT=0;
+set @@session.binlog_format= 'row';
+set @@session.binlog_direct_non_transactional_updates= FALSE;
+set @@session.sql_log_bin= TRUE;
+SELECT @@session.binlog_format;
+SELECT @@session.binlog_direct_non_transactional_updates;
+SELECT @@session.sql_log_bin;
+
+insert into t1 values (3);
+--echo # Test that the session variable 'binlog_format',
+--echo # 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+--echo # read-only inside an AUTOCOMMIT=0 transaction
+--echo # with preceding non-transactional updates.
+--echo # Current session values are ROW, FALSE, TRUE, respectively.
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
+set @@session.binlog_format= statement;
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
+set @@session.binlog_direct_non_transactional_updates= TRUE;
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+set @@session.sql_log_bin= FALSE;
+SELECT @@session.binlog_format;
+SELECT @@session.binlog_direct_non_transactional_updates;
+SELECT @@session.sql_log_bin;
+commit;
+
+insert into t2 values (4);
+--echo # Test that the session variable 'binlog_format', 
+--echo # 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+--echo # read-only inside an AUTOCOMMIT=0 transaction with
+--echo # preceding transactional updates.
+--echo # Current session values are ROW, FALSE, TRUE, respectively.
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
+set @@session.binlog_format= statement;
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
+set @@session.binlog_direct_non_transactional_updates= TRUE;
+--error ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+set @@session.sql_log_bin= FALSE;
+SELECT @@session.binlog_format;
+SELECT @@session.binlog_direct_non_transactional_updates;
+SELECT @@session.sql_log_bin;
+commit;
+
+begin;
+  insert into t2 values (5);
+--echo # Test that the global variable 'binlog_format' and
+--echo # 'binlog_direct_non_transactional_updates' are
+--echo # writable inside a transaction.
+--echo # Current session values are ROW, FALSE, TRUE respectively.
+  SELECT @@global.binlog_format;
+  set @@global.binlog_format= statement;
+  set @@global.binlog_direct_non_transactional_updates= TRUE;
+  SELECT @@global.binlog_format;
+  SELECT @@global.binlog_direct_non_transactional_updates;
+commit;
+
+set @@global.binlog_format= @save_binlog_format;
+set @@global.binlog_direct_non_transactional_updates= @save_binlog_dirct;
+
+create table t3(a int, b int) engine= innodb;
+create table t4(a int) engine= innodb;
+create table t5(a int) engine= innodb;
+delimiter |;
+eval create trigger tr1 after insert on t3 for each row begin
+    insert into t4(a) values(1);
+    set @@session.binlog_format= statement;
+    insert into t4(a) values(2);
+    insert into t5(a) values(3);
+end |
+delimiter ;|
+
+--echo # Test that the session variable 'binlog_format' is read-only
+--echo # in sub-statements.
+--echo # Current session value is ROW.
+--error ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT
+insert into t3(a,b) values(1,1);
+SELECT @@session.binlog_format;
+
+create table t6(a int, b int) engine= innodb;
+create table t7(a int) engine= innodb;
+create table t8(a int) engine= innodb;
+delimiter |;
+eval create trigger tr2 after insert on t6 for each row begin
+    insert into t7(a) values(1);
+    set @@session.binlog_direct_non_transactional_updates= TRUE;
+    insert into t7(a) values(2);
+    insert into t8(a) values(3);
+end |
+delimiter ;|
+
+--echo # Test that the session variable
+--echo # 'binlog_direct_non_transactional_updates' is
+--echo # read-only in sub-statements.
+--echo # Current session value is FALSE.
+--error ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
+insert into t6(a,b) values(1,1);
+SELECT @@session.binlog_direct_non_transactional_updates;
+
+create table t9(a int, b int) engine= innodb;
+create table t10(a int) engine= innodb;
+create table t11(a int) engine= innodb;
+delimiter |;
+eval create trigger tr3 after insert on t9 for each row begin
+    insert into t10(a) values(1);
+    set @@session.sql_log_bin= TRUE;
+    insert into t10(a) values(2);
+    insert into t11(a) values(3);
+end |
+delimiter ;|
+
+--echo # Test that the session variable 'sql_log_bin' is
+--echo # read-only in sub-statements.
+--echo # Current session value is FALSE.
+--error ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
+insert into t9(a,b) values(1,1);
+SELECT @@session.sql_log_bin;
+
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+drop table t9;
+drop table t10;
+drop table t11;

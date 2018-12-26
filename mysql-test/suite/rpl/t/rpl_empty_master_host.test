@@ -1,0 +1,53 @@
+# 
+# BUG
+# ---
+#   BUG#28796: CHANGE MASTER TO MASTER_HOST="" leads to invalid master.info
+#
+# Description
+# -----------
+#
+#   This test aims at: 
+#     i) verifying that an error is thrown when setting MASTER_HOST=''
+#     ii) no error is thrown when setting non empty MASTER_HOST
+#     iii) replication works after setting a correct host name/ip
+#
+#   Implementation is performed by feeding different values (according
+#   to i), ii) and iii) ) to CHANGE MASTER TO MASTER_HOST= x and checking
+#   along the way if error/no error is thrown and/or if replication starts
+#   working when expected.
+
+--source include/master-slave.inc
+--source include/have_binlog_format_mixed.inc
+
+connection slave;
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
+
+let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+--echo Master_Host = '$master_host' (expected '127.0.0.1')
+
+# attempt to change to an empty master host should 
+# result in error ER_WRONG_ARGUMENTS: "Incorrect arguments to ..."
+error ER_WRONG_ARGUMENTS;
+CHANGE MASTER TO MASTER_HOST="";
+
+# show slave status still holds previous information
+let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+--echo Master_Host = '$master_host' (expected '127.0.0.1')
+
+# changing master to other than empty master host succeeds
+CHANGE MASTER TO MASTER_HOST="foo";
+
+# show slave status should hold "foo" as master host
+let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+--echo Master_Host = '$master_host' (expected 'foo')
+
+# changing back to localhost
+CHANGE MASTER TO MASTER_HOST="127.0.0.1";
+let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+--echo Master_Host = '$master_host' (expected '127.0.0.1')
+
+# start slave must succeed.
+START SLAVE;
+--source include/wait_for_slave_to_start.inc
+--source include/rpl_end.inc

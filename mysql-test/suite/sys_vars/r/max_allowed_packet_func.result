@@ -1,0 +1,40 @@
+SET @start_max_allowed_packet= @@global.max_allowed_packet;
+SET @start_value= @@global.net_buffer_length;
+drop table if exists t1;
+## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name BLOB
+);
+'#--------------------FN_DYNVARS_070_01-------------------------#'
+## Setting value of max_allowed packet and net_buffer_length to 1024 ## 
+SET @@session.max_allowed_packet = 1024;
+ERROR HY000: SESSION variable 'max_allowed_packet' is read-only. Use SET GLOBAL to assign the value
+SELECT @@session.max_allowed_packet;
+@@session.max_allowed_packet
+67108864
+SET @@session.net_buffer_length = 1024;
+ERROR HY000: SESSION variable 'net_buffer_length' is read-only. Use SET GLOBAL to assign the value
+SELECT @@session.net_buffer_length;
+@@session.net_buffer_length
+16384
+'#--------------------FN_DYNVARS_070_02-------------------------#'
+## Setting value of max_allowed packet and net_buffer_length to 1024 ##
+SET @@global.max_allowed_packet = 1024;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+SET @@global.net_buffer_length = 1024;
+SELECT @@global.max_allowed_packet;
+@@global.max_allowed_packet
+1024
+SELECT @@global.net_buffer_length;
+@@global.net_buffer_length
+1024
+## Creating new connection test_con1 ##
+## Inserting and fetching data of length greater than 1024 ##
+INSERT into t1(name) values("aaassssssssddddddddffffffgggggggg, askdlfjalsdkjfalksdjflaksdjfalkjdflaksjdflakjdflajsflajflajdfalsjfdlajfladjslfajdflajdsflajsflakjsdfla;kjflsdjkf;aljfa;lkdsfjla;sjlkajffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllakjsdffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa;;;;;;;;;;;;;;;;;;;;;;;;;;;dsklfjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjkljffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdkskkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
+drop table t1;
+SET @@global.max_allowed_packet= @start_max_allowed_packet;
+SET @@global.net_buffer_length= @start_value;

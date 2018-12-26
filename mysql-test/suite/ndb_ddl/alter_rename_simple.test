@@ -1,0 +1,12 @@
+--source setup.inc
+
+# Test ALTER TABLE with "simple rename"
+# - ie. ALTER TABLE which only renames the table and/or
+#   enable/disable indexes which is implemented as a
+#   special case in mysql_alter_table()
+let $query =
+ALTER TABLE tx
+  RENAME TO ty;
+--source alter_rename.inc
+
+--source cleanup.inc

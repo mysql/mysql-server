@@ -1,0 +1,85 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t1 (a int, b int, unique(b)) engine=ndbcluster;
+create table t2 (a int, b int, unique(b)) engine=innodb;
+begin;
+insert into t1 values(1,1);
+insert into t2 values(1,1);
+rollback;
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+0
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+0
+begin;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+select count(*) from t1;
+count(*)
+2
+select count(*) from t2;
+count(*)
+0
+select count(*) from t1;
+count(*)
+2
+select count(*) from t2;
+count(*)
+0
+delete from t1;
+delete from t2;
+begin;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+select count(*) from t1;
+count(*)
+2
+select count(*) from t2;
+count(*)
+0
+select count(*) from t1;
+count(*)
+2
+select count(*) from t2;
+count(*)
+0
+delete from t1;
+delete from t2;
+begin;
+insert into t2 values(3,3),(4,4);
+insert into t1 values(3,3),(4,4);
+load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+select count(*) from t1;
+count(*)
+4
+select count(*) from t2;
+count(*)
+0
+select count(*) from t1;
+count(*)
+4
+select count(*) from t2;
+count(*)
+0
+drop table t1,t2;
+include/rpl_end.inc

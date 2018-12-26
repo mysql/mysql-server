@@ -1,0 +1,2 @@
+--secure_file_priv=$SECURE_LOAD_PATH
+--local-infile=true

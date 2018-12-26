@@ -1,0 +1,181 @@
+# === Purpose ===
+#
+# The purpose of this test is assess the behaviour of the information on the
+# performance_schema table replication_applier_status_by_worker after the
+# STOP SLAVE command both for a single thread slave and for a multi-threaded
+# slave.
+#
+# === Implementation ===
+#
+# We test four scenarios in which we stop and start the slave, changing between
+# STS and MTS or keeping the number of workers. In each scenario, we test is the
+# values after the stop slave and after the start slave are as expected.
+#
+# === References ===
+#
+# BUG#28191382 LAST_APPLIED_TRANSACTION* AND APPLYING_TRANSACTION* ARE PRESERVED
+#              ON START SLAVE
+
+
+# the test in binlog format agnostic
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (a INT);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+--source include/stop_slave.inc
+SET @@GLOBAL.slave_parallel_workers = 0;
+--source include/start_slave.inc
+
+# Four scenarios are tested:
+# Scenario 1:
+#  - Switch: STS to STS
+#  - Expected outcome: the values must be preserved after START SLAVE
+# Scenario 2:
+#  - Switch: STS to MTS
+#  - Expected outcome: the values must be cleared after START SLAVE
+# Scenario 3:
+#  - Switch: MTS to MTS
+#  - Expected outcome: the values must be cleared after START SLAVE
+# Scenario 4:
+#  - Switch: MTS to STS
+#  - Expected outcome: the values must be cleared after START SLAVE
+#
+# In all four scenarios the values must be preserved after STOP SLAVE
+
+--let $ps_table = performance_schema.replication_applier_status_by_worker
+--let $scenario = 1
+--let $new_slave_parallel_workers = 0
+
+while ($scenario < 5)
+{
+  if ($scenario == 2)
+  {
+    --let $new_slave_parallel_workers = 1
+  }
+  if ($scenario == 4)
+  {
+    --let $new_slave_parallel_workers = 0
+  }
+
+  --source include/rpl_connection_master.inc
+  --eval INSERT INTO t1 VALUES ($scenario)
+  --source include/sync_slave_sql_with_master.inc
+
+  --let $last_applied_trx_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
+  --let $last_applied_trx_OCT_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_ICT_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_start_apply_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_end_apply_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP, 1)
+
+  --source include/stop_slave.inc
+  --eval SET @@GLOBAL.slave_parallel_workers = $new_slave_parallel_workers
+
+  --let $last_applied_trx_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
+  --let $last_applied_trx_OCT_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_ICT_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_start_apply_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_end_apply_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP, 1)
+
+  --source include/start_slave.inc
+
+  --let $last_applied_trx_3 = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
+  --let $last_applied_trx_OCT_3 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_ICT_3 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_start_apply_3 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_end_apply_3 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP, 1)
+
+  --let $assert_cond = "$last_applied_trx_1" = "$last_applied_trx_2"
+  --let $assert_text = The GTID information about the last applied transaction was preserved after the slave was stopped
+  --source include/assert.inc
+
+  --let $assert_cond = "$last_applied_trx_OCT_1" = "$last_applied_trx_OCT_2"
+  --let $assert_text = The OCT information about the last applied transaction was preserved after the slave was stopped
+  --source include/assert.inc
+
+  --let $assert_cond = "$last_applied_trx_ICT_1" = "$last_applied_trx_ICT_2"
+  --let $assert_text = The ICT information about the last applied transaction was preserved after the slave was stopped
+  --source include/assert.inc
+
+  --let $assert_cond = "$last_applied_trx_start_apply_1" = "$last_applied_trx_start_apply_2"
+  --let $assert_text = The start apply timestamp information about the last applied transaction was preserved after the slave was stopped
+  --source include/assert.inc
+
+  --let $assert_cond = "$last_applied_trx_end_apply_1" = "$last_applied_trx_end_apply_2"
+  --let $assert_text = The end apply timestamp information about the last applied transaction was preserved after the slave was stopped
+  --source include/assert.inc
+
+  if ($scenario == 1)
+  {
+    --let $assert_cond = "$last_applied_trx_2" = "$last_applied_trx_3"
+    --let $assert_text = The GTID information about the last applied transaction was preserved after the slave was started
+  }
+  if ($scenario != 1)
+  {
+    --let $assert_cond = "$last_applied_trx_3" = ""
+    --let $assert_text = The GTID information about the last applied transaction was cleared after the slave was started
+  }
+  --source include/assert.inc
+
+  if ($scenario == 1)
+  {
+    --let $assert_cond = "$last_applied_trx_OCT_2" = "$last_applied_trx_OCT_3"
+    --let $assert_text = The OCT information about the last applied transaction was preserved after the slave was started
+  }
+  if ($scenario != 1)
+  {
+    --let $assert_cond = "$last_applied_trx_OCT_3" = "0000-00-00 00:00:00.000000"
+    --let $assert_text = The OCT information about the last applied transaction was cleared after the slave was started
+  }
+  --source include/assert.inc
+
+  if ($scenario == 1)
+  {
+    --let $assert_cond = "$last_applied_trx_ICT_2" = "$last_applied_trx_ICT_3"
+    --let $assert_text = The ICT information about the last applied transaction was preserved after the slave was started
+  }
+  if ($scenario != 1)
+  {
+    --let $assert_cond = "$last_applied_trx_ICT_3" = "0000-00-00 00:00:00.000000"
+    --let $assert_text = The ICT information about the last applied transaction was cleared after the slave was started
+  }
+  --source include/assert.inc
+
+  if ($scenario == 1)
+  {
+    --let $assert_cond = "$last_applied_trx_start_apply_2" = "$last_applied_trx_start_apply_3"
+    --let $assert_text = The start apply timestamp information about the last applied transaction was preserved after the slave was started
+  }
+  if ($scenario != 1)
+  {
+    --let $assert_cond = "$last_applied_trx_start_apply_3" = "0000-00-00 00:00:00.000000"
+    --let $assert_text = The start apply timestamp information about the last applied transaction was cleared after the slave was started
+  }
+  --source include/assert.inc
+
+  if ($scenario == 1)
+  {
+    --let $assert_cond = "$last_applied_trx_end_apply_2" = "$last_applied_trx_end_apply_3"
+    --let $assert_text = The end apply timestamp information about the last applied transaction was preserved after the slave was started
+  }
+  if ($scenario != 1)
+  {
+    --let $assert_cond = "$last_applied_trx_end_apply_3" = "0000-00-00 00:00:00.000000"
+    --let $assert_text = The end apply timestamp information about the last applied transaction was cleared after the slave was started
+  }
+  --source include/assert.inc
+
+  --inc $scenario
+}
+
+# cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET @@GLOBAL.slave_parallel_workers = @saved_slave_parallel_workers;
+--source include/start_slave.inc
+--source include/rpl_end.inc

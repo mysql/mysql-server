@@ -1,0 +1,27 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--echo ## 
+--echo ## Use 'irrational' joins to compare columns longer than the key length of the index.
+--echo ##
+
+USE performance_schema;
+
+--echo
+--echo ## HA_KEY_TYPE_TEXT
+--echo ## users.user char(32) vs. hosts.host char(60)
+--echo
+--replace_column 10 #
+EXPLAIN SELECT * FROM (users AS t1 INNER JOIN hosts AS t2 ON (t2.host = t1.user));
+--echo
+--replace_column 1 #
+SELECT COUNT(*) FROM (users AS t1 INNER JOIN hosts AS t2 ON (t2.host = t1.user));
+
+--echo
+--echo ## HA_KEY_TYPE_VARCHAR1 or HA_KEY_TYPE_VARCHAR2
+--echo ## file_instances.file_name varchar(512) vs. session_variables.variable_name varchar(1024)
+--echo
+--replace_column 10 #
+EXPLAIN SELECT * FROM (file_instances AS t1 INNER JOIN session_variables AS t2 ON (t2.variable_value = t1.file_name));
+--echo
+--replace_column 1 #
+SELECT COUNT(*) FROM (file_instances AS t1 INNER JOIN session_variables AS t2 ON (t2.variable_value = t1.file_name));

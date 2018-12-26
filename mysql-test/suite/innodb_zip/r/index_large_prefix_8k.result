@@ -1,0 +1,395 @@
+SET default_storage_engine=InnoDB;
+set global innodb_file_per_table=1;
+### Test 1 ###
+create table worklog5743(a TEXT not null, primary key (a(1000))) charset latin1 ROW_FORMAT=DYNAMIC;
+show warnings;
+Level	Code	Message
+insert into worklog5743 values(repeat("a", 20000));
+update worklog5743 set a = (repeat("b", 16000));
+SET sql_mode= '';
+create index idx on worklog5743(a(2000));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+show warnings;
+Level	Code	Message
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+SET sql_mode= default;
+begin;
+update worklog5743 set a = (repeat("x", 17000));
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+select a = repeat("x", 17000) from worklog5743;
+a = repeat("x", 17000)
+0
+select a = repeat("b", 16000) from worklog5743;
+a = repeat("b", 16000)
+1
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+READ-UNCOMMITTED
+select a = repeat("x", 17000) from worklog5743;
+a = repeat("x", 17000)
+1
+rollback;
+drop table worklog5743;
+### Test 2 ###
+create table worklog5743(a1 int, a2 TEXT not null) charset latin1 ROW_FORMAT=DYNAMIC;
+show warnings;
+Level	Code	Message
+create index idx on worklog5743(a1, a2(1250));
+show warnings;
+Level	Code	Message
+insert into worklog5743 values(9, repeat("a", 10000));
+begin;
+update worklog5743 set a1 = 1000;
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743	NULL	ref	idx	idx	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743`.`a1` AS `a1`,(`test`.`worklog5743`.`a2` = convert(repeat('a',10000) using latin1)) AS `a2 = repeat("a", 10000)` from `test`.`worklog5743` where (`test`.`worklog5743`.`a1` = 9)
+select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+a1	a2 = repeat("a", 10000)
+9	1
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+READ-UNCOMMITTED
+select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+a1	a2 = repeat("a", 10000)
+rollback;
+drop table worklog5743;
+### Test 3 ###
+create table worklog5743(a1 int, a2 TEXT not null) ROW_FORMAT=DYNAMIC;
+create index idx on worklog5743(a1, a2(50));
+insert into worklog5743 values(9, repeat("a", 10000));
+begin;
+update worklog5743 set a1 = 1000;
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743	NULL	ref	idx	idx	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743`.`a1` AS `a1`,(`test`.`worklog5743`.`a2` = repeat('a',10000)) AS `a2 = repeat("a", 10000)` from `test`.`worklog5743` where (`test`.`worklog5743`.`a1` = 9)
+select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+a1	a2 = repeat("a", 10000)
+9	1
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+READ-UNCOMMITTED
+select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+a1	a2 = repeat("a", 10000)
+rollback;
+drop table worklog5743;
+### Test 4 ###
+create table worklog5743_1(a1 int, a2 TEXT not null) charset latin1 KEY_BLOCK_SIZE=1;
+create table worklog5743_2(a1 int, a2 TEXT not null) charset latin1 KEY_BLOCK_SIZE=2;
+create table worklog5743_4(a1 int, a2 TEXT not null) charset latin1 KEY_BLOCK_SIZE=4;
+create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) charset latin1 KEY_BLOCK_SIZE=8;
+create index idx2 on worklog5743_1(a2(4000));
+ERROR 42000: Specified key was too long; max key length is 1536 bytes
+show warnings;
+Level	Code	Message
+Error	1071	Specified key was too long; max key length is 1536 bytes
+create index idx3 on worklog5743_1(a2(436));
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+show warnings;
+Level	Code	Message
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+create index idx4 on worklog5743_1(a2(434));
+show warnings;
+Level	Code	Message
+create index idx5 on worklog5743_1(a1, a2(430));
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+show warnings;
+Level	Code	Message
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+create index idx6 on worklog5743_1(a1, a2(428));
+show warnings;
+Level	Code	Message
+SET sql_mode= '';
+create index idx2 on worklog5743_2(a2(4000));
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+show warnings;
+Level	Code	Message
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+create index idx3 on worklog5743_2(a2(948));
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+show warnings;
+Level	Code	Message
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+create index idx4 on worklog5743_2(a2(946));
+show warnings;
+Level	Code	Message
+create index idx5 on worklog5743_2(a1, a2(942));
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+show warnings;
+Level	Code	Message
+Error	1118	Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+create index idx6 on worklog5743_2(a1, a2(940));
+show warnings;
+Level	Code	Message
+create index idx1 on worklog5743_4(a2(4000));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+show warnings;
+Level	Code	Message
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+create index idx3 on worklog5743_4(a2(1537));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+Warning	1831	Duplicate index 'idx3' defined on the table 'test.worklog5743_4'. This is deprecated and will be disallowed in a future release.
+show warnings;
+Level	Code	Message
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+Warning	1831	Duplicate index 'idx3' defined on the table 'test.worklog5743_4'. This is deprecated and will be disallowed in a future release.
+create index idx4 on worklog5743_4(a2(1536));
+Warnings:
+Warning	1831	Duplicate index 'idx4' defined on the table 'test.worklog5743_4'. This is deprecated and will be disallowed in a future release.
+show warnings;
+Level	Code	Message
+Warning	1831	Duplicate index 'idx4' defined on the table 'test.worklog5743_4'. This is deprecated and will be disallowed in a future release.
+create index idx5 on worklog5743_4(a1, a2(1533));
+ERROR 42000: Specified key was too long; max key length is 1536 bytes
+show warnings;
+Level	Code	Message
+Error	1071	Specified key was too long; max key length is 1536 bytes
+create index idx6 on worklog5743_4(a1, a2(1532));
+show warnings;
+Level	Code	Message
+create index idx2 on worklog5743_8(a2(3073));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+show warnings;
+Level	Code	Message
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+create index idx3 on worklog5743_8(a2(3072));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+Warning	1831	Duplicate index 'idx3' defined on the table 'test.worklog5743_8'. This is deprecated and will be disallowed in a future release.
+show warnings;
+Level	Code	Message
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+Warning	1831	Duplicate index 'idx3' defined on the table 'test.worklog5743_8'. This is deprecated and will be disallowed in a future release.
+create index idx4 on worklog5743_8(a1, a2(1533));
+ERROR 42000: Specified key was too long; max key length is 1536 bytes
+show warnings;
+Level	Code	Message
+Error	1071	Specified key was too long; max key length is 1536 bytes
+create index idx5 on worklog5743_8(a1, a2(1532));
+show warnings;
+Level	Code	Message
+SET sql_mode= default;
+insert into worklog5743_1 values(9, repeat("a", 10000));
+insert into worklog5743_2 values(9, repeat("a", 10000));
+insert into worklog5743_4 values(9, repeat("a", 10000));
+insert into worklog5743_8 values(9, repeat("a", 10000), repeat("a", 10000));
+insert into worklog5743_1 values(2, repeat("b", 10000));
+insert into worklog5743_2 values(2, repeat("b", 10000));
+insert into worklog5743_4 values(2, repeat("b", 10000));
+insert into worklog5743_8 values(2, repeat("b", 10000), repeat("b", 10000));
+select a1, left(a2, 20) from worklog5743_1;
+a1	left(a2, 20)
+9	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+select a1, left(a2, 20) from worklog5743_2;
+a1	left(a2, 20)
+9	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+select a1, left(a2, 20) from worklog5743_4;
+a1	left(a2, 20)
+9	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+select a1, left(a2, 20) from worklog5743_8;
+a1	left(a2, 20)
+9	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+begin;
+update worklog5743_1 set a1 = 1000;
+update worklog5743_2 set a1 = 1000;
+update worklog5743_4 set a1 = 1000;
+update worklog5743_8 set a1 = 1000;
+select a1, left(a2, 20) from worklog5743_1;
+a1	left(a2, 20)
+1000	aaaaaaaaaaaaaaaaaaaa
+1000	bbbbbbbbbbbbbbbbbbbb
+select a1, left(a2, 20) from worklog5743_2;
+a1	left(a2, 20)
+1000	aaaaaaaaaaaaaaaaaaaa
+1000	bbbbbbbbbbbbbbbbbbbb
+select a1, left(a2, 20) from worklog5743_4;
+a1	left(a2, 20)
+1000	aaaaaaaaaaaaaaaaaaaa
+1000	bbbbbbbbbbbbbbbbbbbb
+select a1, left(a2, 20) from worklog5743_8;
+a1	left(a2, 20)
+1000	aaaaaaaaaaaaaaaaaaaa
+1000	bbbbbbbbbbbbbbbbbbbb
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+explain select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743_1	NULL	ref	idx6	idx6	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743_1`.`a1` AS `a1`,left(`test`.`worklog5743_1`.`a2`,20) AS `left(a2, 20)` from `test`.`worklog5743_1` where (`test`.`worklog5743_1`.`a1` = 9)
+explain select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743_2	NULL	ref	idx6	idx6	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743_2`.`a1` AS `a1`,left(`test`.`worklog5743_2`.`a2`,20) AS `left(a2, 20)` from `test`.`worklog5743_2` where (`test`.`worklog5743_2`.`a1` = 9)
+explain select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743_4	NULL	ref	idx6	idx6	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743_4`.`a1` AS `a1`,left(`test`.`worklog5743_4`.`a2`,20) AS `left(a2, 20)` from `test`.`worklog5743_4` where (`test`.`worklog5743_4`.`a1` = 9)
+explain select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743_8	NULL	ref	idx5	idx5	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743_8`.`a1` AS `a1`,left(`test`.`worklog5743_8`.`a2`,20) AS `left(a2, 20)` from `test`.`worklog5743_8` where (`test`.`worklog5743_8`.`a1` = 9)
+select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
+a1	left(a2, 20)
+9	aaaaaaaaaaaaaaaaaaaa
+select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
+a1	left(a2, 20)
+9	aaaaaaaaaaaaaaaaaaaa
+select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
+a1	left(a2, 20)
+9	aaaaaaaaaaaaaaaaaaaa
+select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
+a1	left(a2, 20)
+9	aaaaaaaaaaaaaaaaaaaa
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+READ-UNCOMMITTED
+select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
+a1	left(a2, 20)
+select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
+a1	left(a2, 20)
+select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
+a1	left(a2, 20)
+select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
+a1	left(a2, 20)
+rollback;
+drop table worklog5743_1;
+drop table worklog5743_2;
+drop table worklog5743_4;
+drop table worklog5743_8;
+### Test 5 ###
+create table worklog5743(a1 int, a2 varchar(20000)) charset latin1 ROW_FORMAT=DYNAMIC;
+create index idx1 on worklog5743(a2);
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+drop table worklog5743;
+create table worklog5743(a1 int, a2 varchar(1537)) charset latin1 ROW_FORMAT=DYNAMIC;
+create index idx1 on worklog5743(a2);
+ERROR 42000: Specified key was too long; max key length is 1536 bytes
+drop table worklog5743;
+create table worklog5743(a1 int, a2 varchar(1536)) charset latin1 ROW_FORMAT=DYNAMIC;
+create index idx1 on worklog5743(a2);
+show warnings;
+Level	Code	Message
+insert into worklog5743 values(9, repeat("a", 1536));
+update worklog5743 set a1 = 1000;
+drop table worklog5743;
+create table worklog5743(a1 int, a2 varchar(1533)) charset latin1 ROW_FORMAT=DYNAMIC;
+create index idx1 on worklog5743(a1, a2);
+ERROR 42000: Specified key was too long; max key length is 1536 bytes
+show warnings;
+Level	Code	Message
+Error	1071	Specified key was too long; max key length is 1536 bytes
+drop table worklog5743;
+create table worklog5743(a1 int, a2 varchar(1532)) charset latin1 ROW_FORMAT=DYNAMIC;
+create index idx1 on worklog5743(a1, a2);
+show warnings;
+Level	Code	Message
+insert into worklog5743 values(9, repeat("a", 1532));
+update worklog5743 set a1 = 1000;
+begin;
+update worklog5743 set a1 = 1000;
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+explain select a1 from worklog5743 where a1 = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	worklog5743	NULL	ref	idx1	idx1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`worklog5743`.`a1` AS `a1` from `test`.`worklog5743` where (`test`.`worklog5743`.`a1` = 9)
+select a1 from worklog5743 where a1 = 9;
+a1
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+READ-UNCOMMITTED
+select a1 from worklog5743 where a1 = 9;
+a1
+rollback;
+drop table worklog5743;
+### Test 6 ###
+create table worklog5743(a TEXT not null, primary key (a(1000)))
+charset latin1
+row_format=compact;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+create table worklog5743(a TEXT) charset latin1 row_format=compact;
+create index idx on worklog5743(a(768));
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+create index idx on worklog5743(a(767));
+insert into worklog5743 values(repeat("a", 20000));
+begin;
+insert into worklog5743 values(repeat("b", 20000));
+update worklog5743 set a = (repeat("x", 25000));
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+select a = repeat("a", 20000) from worklog5743;
+a = repeat("a", 20000)
+1
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+READ-UNCOMMITTED
+select a = repeat("x", 25000) from worklog5743;
+a = repeat("x", 25000)
+1
+1
+rollback;
+drop table worklog5743;
+### Test 7 ###
+create table worklog5743(a TEXT not null) ROW_FORMAT=DYNAMIC;
+SET sql_mode= '';
+create index idx1 on worklog5743(a(3073));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+create index idx2 on worklog5743(a(3072));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1536 bytes
+Warning	1831	Duplicate index 'idx2' defined on the table 'test.worklog5743'. This is deprecated and will be disallowed in a future release.
+SET sql_mode= default;
+show create table worklog5743;
+Table	Create Table
+worklog5743	CREATE TABLE `worklog5743` (
+  `a` text NOT NULL,
+  KEY `idx1` (`a`(384)),
+  KEY `idx2` (`a`(384))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+drop table worklog5743;
+create table worklog5743(a TEXT not null) charset latin1 ROW_FORMAT=REDUNDANT;
+create index idx on worklog5743(a(768));
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+create index idx2 on worklog5743(a(767));
+drop table worklog5743;
+create table worklog5743(a TEXT not null) charset latin1 ROW_FORMAT=COMPACT;
+create index idx on worklog5743(a(768));
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+create index idx2 on worklog5743(a(767));
+drop table worklog5743;
+SET GLOBAL innodb_file_per_table=1;

@@ -1,0 +1,10 @@
+#### suite/funcs_1/t/memory_trig_09.test
+
+# Memory tables should be used
+#
+# Set $engine_type
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+# --source include/have_memory.inc
+let $engine_type= memory;
+
+--source suite/funcs_1/triggers/triggers_09.inc

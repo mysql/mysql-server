@@ -1,0 +1,118 @@
+--source include/have_mysql_no_login_plugin.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN mysql_no_login SONAME '$MYSQL_NO_LOGIN';
+
+query_vertical SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
+  FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'mysql_no_login';
+
+--disable_query_log
+CREATE DATABASE noauthdb;
+CREATE TABLE noauthdb.t1 (a INT);
+CREATE TABLE noauthdb.t2 (a INT);
+INSERT INTO noauthdb.t1 VALUES (1), (2);
+INSERT INTO noauthdb.t2 VALUES (3), (4);
+
+--echo Creating users noauth, otheruser
+CREATE USER noauth@localhost IDENTIFIED WITH 'mysql_no_login';
+CREATE USER otheruser@localhost;
+GRANT SELECT, UPDATE, INSERT ON noauthdb.* TO noauth@localhost;
+
+--echo Creating view, procedure, function
+CREATE DEFINER = noauth@localhost SQL SECURITY DEFINER VIEW noauthdb.v1 AS SELECT * FROM noauthdb.t1 WHERE a % 2 = 0;
+CREATE DEFINER = noauth@localhost PROCEDURE noauthdb.p1 () CONTAINS SQL SQL SECURITY DEFINER UPDATE noauthdb.t2 SET a = 5 WHERE a = 3;
+delimiter //;
+CREATE DEFINER = noauth@localhost FUNCTION noauthdb.f1() RETURNS INT CONTAINS SQL SQL SECURITY DEFINER
+BEGIN
+DECLARE outp INT DEFAULT NULL;
+SELECT MAX(a) INTO outp FROM noauthdb.t2;
+RETURN outp;
+END//
+delimiter ;//
+
+GRANT SELECT ON noauthdb.v1 TO otheruser@localhost;
+GRANT EXECUTE ON noauthdb.* TO otheruser@localhost;
+GRANT EXECUTE ON noauthdb.* TO noauth@localhost;
+
+--enable_query_log
+
+--echo # Connect as otheruser - should succeed.
+--exec $MYSQL --user=otheruser -e "select user(), current_user(), @@proxy_user; SELECT * FROM noauthdb.v1; CALL noauthdb.p1(); SELECT noauthdb.f1();"
+
+--echo # Attempt to access underlying tables directly using otheruser - should fail.
+--error 1, ER_TABLEACCESS_DENIED_ERROR
+--exec $MYSQL --user=otheruser   -e "SELECT * FROM noauthdb.t1;"
+
+--echo # Connect as noauth - should fail.
+--error 1, ER_ACCESS_DENIED_ERROR
+--exec $MYSQL --user=noauth   -e "select user(), current_user(), @@proxy_user"
+
+--echo #try to expire password of this plugin user - should warn
+--error ER_CANNOT_USER
+alter user noauth@localhost password expire;
+
+--echo #uninstall plugin and try to login with this plugin user - should return error
+uninstall plugin mysql_no_login;
+--echo # Connect as noauth - should fail.
+--error 1, ER_PLUGIN_IS_NOT_LOADED
+--exec $MYSQL --user=noauth  -e "select user(), current_user(), @@proxy_user"
+
+# Cleanup
+--disable_query_log
+
+DROP DATABASE noauthdb;
+DROP USER noauth@localhost;
+DROP USER otheruser@localhost;
+
+--enable_query_log
+##proxy related scenario
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN mysql_no_login SONAME '$MYSQL_NO_LOGIN';
+--disable_query_log
+CREATE DATABASE noauthdb;
+CREATE TABLE noauthdb.t1 (a INT);
+CREATE TABLE noauthdb.t2 (a INT);
+INSERT INTO noauthdb.t1 VALUES (1), (2);
+INSERT INTO noauthdb.t2 VALUES (3), (4);
+
+--echo Creating users noauth, otheruser
+CREATE USER noauth@localhost IDENTIFIED WITH 'mysql_no_login';
+CREATE USER otheruser@localhost;
+GRANT PROXY ON 'noauth'@'localhost' TO 'otheruser'@'localhost';
+GRANT SELECT, UPDATE, INSERT ON noauthdb.* TO noauth@localhost;
+
+--echo Creating view, procedure, function
+CREATE DEFINER = noauth@localhost SQL SECURITY DEFINER VIEW noauthdb.v1 AS SELECT * FROM noauthdb.t1 WHERE a % 2 = 0;
+CREATE DEFINER = noauth@localhost PROCEDURE noauthdb.p1 () CONTAINS SQL SQL SECURITY DEFINER UPDATE noauthdb.t2 SET a = 5 WHERE a = 3;
+delimiter //;
+CREATE DEFINER = noauth@localhost FUNCTION noauthdb.f1() RETURNS INT CONTAINS SQL SQL SECURITY DEFINER
+BEGIN
+DECLARE outp INT DEFAULT NULL;
+SELECT MAX(a) INTO outp FROM noauthdb.t2;
+RETURN outp;
+END//
+delimiter ;//
+
+GRANT SELECT ON noauthdb.v1 TO otheruser@localhost;
+GRANT EXECUTE ON noauthdb.* TO otheruser@localhost;
+GRANT EXECUTE ON noauthdb.* TO noauth@localhost;
+
+--enable_query_log
+
+--echo # Connect as otheruser - should succeed.
+--exec $MYSQL --user=otheruser -e "select user(), current_user(), @@proxy_user; SELECT * FROM noauthdb.v1; CALL noauthdb.p1(); SELECT noauthdb.f1();"
+
+--echo # Attempt to access underlying tables directly using otheruser - should fail.
+--error 1, ER_TABLEACCESS_DENIED_ERROR
+--exec $MYSQL --user=otheruser   -e "SELECT * FROM noauthdb.t1;"
+
+# Cleanup
+ --disable_query_log
+
+ DROP DATABASE noauthdb;
+ DROP USER noauth@localhost;
+ DROP USER otheruser@localhost;
+
+ UNINSTALL PLUGIN mysql_no_login;
+ --enable_query_log
+--exit

@@ -1,0 +1,50 @@
+###########################################################################
+# BUG#20928790 SHOW BINLOG EVENTS COMPLETELY LOCKS DOWN WRITES TO BINLOG, #
+# HENCE TRANSACTIONS.                                                     #
+#                                                                         #
+# Problem: While a `SHOW BINLOG EVENTS` is executing, any parallel        #
+# transaction is blocked.                                                 #
+#                                                                         #
+# Steps to reproduce:                                                     #
+# ===================                                                     #
+#  1) Execute 'show binlog events' on one connection and let it wait      #
+#     inside a loop that reads the events from the file using DEBUG_SYNC  #
+#     point                                                               #
+#  2) While the command is waiting, execute some transactions and see     #
+#     that they are not blocked.                                          #
+#                                                                         #
+###########################################################################
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+
+# To make test to start with binlog.000001
+RESET MASTER;
+# Run some sample tests to put it in binlog.000001
+CREATE TABLE t1(i INT);
+DROP TABLE t1;
+
+connect (con1,localhost,root,,);
+# Let show binlog events wait while it is reading events
+SET DEBUG_SYNC = "wait_in_show_binlog_events_loop SIGNAL reached_for_loop WAIT_FOR go_ahead";
+--send SHOW BINLOG EVENTS
+
+--connection default
+# Make sure show binlog events execution reaches the point where we wanted to
+SET DEBUG_SYNC = "now WAIT_FOR reached_for_loop";
+
+# Now execute some transactions and it should not be blocked
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (12);
+DROP TABLE t1;
+
+# Once above sample transactions are running fine, send signal to continue
+# 'show binlog events' command
+SET DEBUG_SYNC = "now SIGNAL go_ahead";
+
+# Make sure show binlog events run successfully
+# 'show binlog events' output varies for different runs
+# (gtid, non-gtid, 5.6, 5.7). So lets disable the output
+--disable_result_log
+--connection con1
+--reap
+--enable_result_log

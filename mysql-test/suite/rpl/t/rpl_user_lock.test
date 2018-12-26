@@ -1,0 +1,110 @@
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+# Suppress "unsafe" warnings.
+#
+--disable_query_log
+CALL mtr.add_suppression(
+     CONCAT('Unsafe statement written to the binary log using ',
+            'statement format since BINLOG_FORMAT = STATEMENT'));
+--enable_query_log
+
+--echo #
+--echo # Coverage for the user-level lock related functions
+--echo # GET_LOCK, RELEASE_LOCK, RELEASE_ALL_LOCKS, IS_USED_LOCK and IS_FREE_LOCK
+--echo # when replication with different binlog_formats is used.
+--echo # All these function are unsafe in statement based replication.
+--echo #
+--echo #
+
+--disable_warnings
+DROP TRIGGER IF EXISTS trig_t1_ins;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (col1 INT, col2 INT);
+--disable_warnings
+--echo # FT_RPL-1: Use all user-level lock related functions.
+--echo # FT_RPL-1.1: binlog_format = 'statement'
+--echo #             Reveal that all these statements get a warning about being
+--echo #             in that mode.
+--echo # FT_RPL-1.2: binlog_format = 'mixed'
+--echo #             Reveal that all these statements pass without warning.
+--echo # FT_RPL-1.3: binlog_format = 'row'
+--echo #             Reveal that all these statements pass without warning.
+--echo # The printing of warnings is temporary disabled. But there is some
+--echo # routine which checks the warnings and aborts in case of failure.
+INSERT INTO t1 SELECT GET_LOCK('a',0),     1;
+--source suite/rpl/include/rpl_only_stmt_unsafe.inc
+INSERT INTO t1 SELECT IS_USED_LOCK('a'),   2;
+--source suite/rpl/include/rpl_only_stmt_unsafe.inc
+INSERT INTO t1 SELECT IS_FREE_LOCK('a'),   3;
+--source suite/rpl/include/rpl_only_stmt_unsafe.inc
+INSERT INTO t1 SELECT RELEASE_LOCK('a'),   4;
+--source suite/rpl/include/rpl_only_stmt_unsafe.inc
+INSERT INTO t1 SELECT RELEASE_ALL_LOCKS(), 5;
+--source suite/rpl/include/rpl_only_stmt_unsafe.inc
+--echo # FT_RPL-2: Check GET_LOCK within some INSERT TRIGGER
+--echo #           Reveal that statements harvest a warning or not according the
+--echo #           the binlog_format used.
+--enable_warnings
+--delimiter |
+CREATE TRIGGER trig_t1_ins BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  SET @aux = GET_LOCK(2,0);
+  IF @aux <> 1 THEN
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'LOCK 2 not got. Abort.', MYSQL_ERRNO = 9999;
+  END IF;
+END;|
+--delimiter ;
+--disable_warnings
+INSERT INTO t1 VALUES (6,6), (7,7), (8,8);
+--source suite/rpl/include/rpl_only_stmt_unsafe.inc
+--enable_warnings
+--source include/sync_slave_sql_with_master.inc
+--connection master
+
+--echo # FT_RPL-3: Check that there is no diff in table content between master
+--echo #           and slave in case binlog_format != 'statement'.
+# Master and slave differ for @@binlog_format = 'statement'.
+# We do not reveal that difference here because the warnings about unsafe
+# statements checked above is sufficient.
+# Master and slave must not differ for @@binlog_format <> 'statement'.
+# That gets checked here.
+# Getting no difference for binlog_format 'row' is no challenge because any
+# modification of table content has to be done based on 'row'.
+# But getting no difference for binlog_format 'mixed' is of high interest
+# because replication has to identify our INSERTs which use user-level lock
+# functions in order to replace the unsafe statement based operation with some
+# safe row based operation.
+if (`SELECT @@binlog_format <> 'statement'`)
+{
+   let $master_avg_col1= `SELECT AVG(col1) FROM t1`;
+   let $master_avg_col2= `SELECT AVG(col2) FROM t1`;
+   --connection slave
+   let $slave_avg_col1= `SELECT AVG(col1) FROM t1`;
+   let $slave_avg_col2= `SELECT AVG(col2) FROM t1`;
+   if (`SELECT $master_avg_col1 <> $slave_avg_col1 OR
+               $master_avg_col2 <> $slave_avg_col2`)
+   {
+   --echo ERROR: The content of t1 differs between slave and master.
+   --echo Slave:
+   SELECT col1, col2 FROM t1 ORDER BY col2;
+   --connection master
+   --echo Master:
+   SELECT col1, col2 FROM t1 ORDER BY col2;
+   --echo This must not happen with @@binlog_format <> 'statement'.
+   --echo Abort.
+   --exit
+   }
+}
+
+--connection master
+DROP TRIGGER trig_t1_ins;
+DROP TABLE t1;
+
+--echo #
+--echo # End of tests
+--echo #
+--source include/rpl_end.inc
+

@@ -1,0 +1,120 @@
+--echo # Test for bug #12400341: INNODB CAN LEAVE ORPHAN IBD FILES AROUND
+
+-- source include/have_debug.inc
+
+# Don't test under valgrind, undo slots of the previous test might exist still
+# and cause unstable result.
+--source include/not_valgrind.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot find a free slot for an undo log. Do you have too many active transactions");
+
+set @old_innodb_trx_rseg_n_slots_debug = @@innodb_trx_rseg_n_slots_debug;
+set global innodb_trx_rseg_n_slots_debug = 5;
+--enable_query_log
+
+set @old_innodb_rollback_segments = @@innodb_rollback_segments;
+set global innodb_rollback_segments=1;
+
+show variables like "max_connections";
+show variables like "innodb_thread_concurrency";
+show variables like "innodb_file_per_table";
+show variables like "innodb_undo_tablespaces";
+show variables like "innodb_rollback_segments";
+show variables like "innodb_trx_rseg_n_slots_debug";
+
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+
+create database mysqltest;
+CREATE TABLE mysqltest.transtable (id int unsigned NOT NULL PRIMARY KEY, val int DEFAULT 0) ENGINE=InnoDB;
+
+--disable_query_log
+#
+# Add some rows so UPDATE below has something to work on.
+#
+let $c = 5;
+while ($c)
+{
+  eval INSERT INTO mysqltest.transtable (id) VALUES ($c);
+  dec $c;
+}
+
+let $c = 10;
+while ($c)
+{
+  # if failed at here, it might be shortage of file descriptors limit.
+  connect (con$c,localhost,root,,);
+  dec $c;
+}
+--enable_query_log
+
+select count(*) from information_schema.processlist;
+
+#
+# Fill all the undo slots.
+#
+# CREATE TABLE above creates both cached insert and update slots, with exact
+# number of slots of each type depending on implementation. Since type of the
+# slot can't be changed we have to use transactions of both insert and update
+# types to to fill all undo slots.
+#
+--disable_query_log
+let $c = 10;
+while ($c > 5)
+{
+  connection con$c;
+  START TRANSACTION;
+  eval INSERT INTO mysqltest.transtable (id) VALUES ($c);
+  dec $c;
+}
+
+while ($c)
+{
+  connection con$c;
+  START TRANSACTION;
+  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 6 - $c;
+  dec $c;
+}
+--enable_query_log
+
+connection default;
+
+--error ER_TOO_MANY_CONCURRENT_TRXS
+CREATE TABLE mysqltest.testtable (id int unsigned not null primary key) ENGINE=InnoDB;
+
+select count(*) from information_schema.processlist;
+
+--disable_query_log
+let $c = 10;
+while ($c)
+{
+  connection con$c;
+  ROLLBACK;
+  dec $c;
+}
+--enable_query_log
+
+connection default;
+select count(*) from information_schema.processlist;
+
+--disable_query_log
+let $c = 10;
+while ($c)
+{
+  disconnect con$c;
+  dec $c;
+}
+--enable_query_log
+
+#
+# If the isolated .ibd file remained, the drop database should fail.
+#
+drop database mysqltest;
+
+set global innodb_rollback_segments = @old_innodb_rollback_segments;
+
+--disable_query_log
+set global innodb_trx_rseg_n_slots_debug = @old_innodb_trx_rseg_n_slots_debug;
+--enable_query_log

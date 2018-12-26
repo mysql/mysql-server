@@ -1,0 +1,166 @@
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
+--enable_query_log
+
+--enable_connect_log
+SET @transaction_isolation= @@global.transaction_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "|");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1        (c1 VARCHAR(32),
+			c2 VARCHAR(40),
+			c21 VARCHAR(40),
+			c22 VARCHAR(40),
+			c23 VARCHAR(40),
+			c24 VARCHAR(40),
+			c25 VARCHAR(40) DEFAULT 'world',
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', NULL,'1', 'dddddddddddddd', '1234', NULL, 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', NULL, 'bbbbbbbbbbbbbb', '2345', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', NULL, '3456', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('H', NULL, NULL, NULL, 'hhhhhhhhhh', NULL, NULL, 0, 0, 0);
+
+# Add some columns instantly
+ALTER TABLE t1 ADD COLUMN c26 INT DEFAULT 20, ALGORITHM = INSTANT;
+ALTER TABLE t1 ADD COLUMN c27 BIGINT UNSIGNED DEFAULT 50, ALGORITHM = INSTANT;
+ALTER TABLE t1 ADD COLUMN c28 VARCHAR(20) DEFAULT 'hello', ALGORITHM = INSTANT;
+UPDATE t1 SET c27 = 100 WHERE c1 < 'D';
+
+# describe table for memcache
+INSERT INTO innodb_memcache.containers VALUES ("desc_t1", "test", "t1",
+    "c1", "c2,c21,c22,c23,c24,c25,c26,c27,c28", "c3", "c4", "c5", "PRIMARY");
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11232" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with D,B,H,C:\n";
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11232" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after set:\n";
+$val = $memd->set("E","Essen||||5678|2012|'germany'|'western'|'city'|100|200|'Hello world'");
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11232" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after add:\n";
+$val = $memd->add("F","Frankfurt|Airport||||2012");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11232" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after replace:\n";
+$val = $memd->replace("F","Frankfurt a.M.|Sachsenhausen|61|fffff|6789|");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11232" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after delete:\n";
+$val = $memd->delete("F");
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25,c26,c27,c28 FROM t1;
+
+DROP TABLE t1;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+ 
+SET @@global.transaction_isolation= @transaction_isolation;

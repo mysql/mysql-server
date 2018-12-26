@@ -1,0 +1,91 @@
+
+#
+# Testing files that were built to be packaged, both for existence and for contents
+#
+
+#
+# Bug #42969: Create MANIFEST files
+#
+# Use a Perl script to verify that files "docs/INFO_BIN" and "docs/INFO_SRC" do exist
+# and have the expected contents.
+
+--perl
+print "\nChecking 'INFO_SRC' and 'INFO_BIN'\n";
+$dir_bin = $ENV{'MYSQL_BINDIR'};
+if ($dir_bin =~ m|^/usr/|) {
+  # RPM package
+  $dir_docs = $dir_bin;
+  $dir_docs =~ s|/lib|/share/doc|;
+  if(-d "$dir_docs/packages") {
+    # SuSE: "packages/" in the documentation path
+    # Skip the management-server directory in the documentation path for cluster release
+    @dir_docs = grep { (! /management/) } glob "$dir_docs/packages/mysql-*-server*";
+    $dir_docs = $dir_docs[0];
+  } else {
+    # RedHat: version number in directory name
+    $dir_docs = glob "$dir_docs/MySQL-server*";
+    if (! -d "$dir_docs") {
+      # If not it might be ULN so try that
+      # Skip the management-server directory in the documentation path for cluster release
+      @dir_docs = grep { (! /management/) } glob "$dir_bin/share/doc/mysql-*-server*";
+      $dir_docs = $dir_docs[0];
+      if (! -f "$dir_docs/INFO_BIN") {
+        # Debian/ Ubuntu
+        $dir_docs = glob "$dir_bin/share/mysql-*/docs";
+      }
+    }
+  }
+} elsif ($dir_bin =~ m|/usr$|) {
+  # RPM build during development
+  $dir_docs = "$dir_bin/share/doc";
+  if(-d "$dir_docs/packages") {
+    # SuSE: "packages/" in the documentation path
+    # Skip the management-server directory in the documentation path for cluster release
+    @dir_docs = grep { (! /management/) } glob "$dir_docs/packages/mysql-*-server*";
+    $dir_docs = $dir_docs[0];
+  } else {
+    # RedHat: version number in directory name
+    $dir_docs = glob "$dir_docs/MySQL-server*";
+    if (! -d "$dir_docs") {
+      # If not it might be ULN so try that
+      @dir_docs = grep { (! /management/) } glob "$dir_bin/share/doc/mysql-*-server*";
+      $dir_docs = $dir_docs[0];
+      if (! -f "$dir_docs/INFO_BIN") {
+        # Debian/ Ubuntu
+        $dir_docs = glob "$dir_bin/share/mysql-*/docs";
+      }
+    }
+  }
+} else {
+  # tar.gz package, Windows, or developer work (in git)
+  $dir_docs = $dir_bin;
+  if(-d "$dir_docs/docs") {
+    $dir_docs = "$dir_docs/docs"; # package
+  } else {
+    $dir_docs = "$dir_docs/Docs"; # development tree
+  }
+}
+$found_version = "No line 'MySQL source #.#.#'";
+$found_revision = "No line 'revision-id: .....'";
+open(I_SRC,"<","$dir_docs/INFO_SRC") or print "Cannot open 'INFO_SRC' in '$dir_docs' (starting from bindir '$dir_bin')\n";
+while(defined ($line = <I_SRC>)) {
+  if ($line =~ m|^MySQL source \d\.\d\.\d+|) {$found_version = "Found MySQL version number";}
+  if ($line =~ m|^commit: \w{40}$|) {$found_revision = "Found GIT revision id";}
+}
+close I_SRC;
+print "INFO_SRC: $found_version / $found_revision\n";
+$found_compiler = "No line about compiler information";
+$found_features = "No line 'Feature flags'";
+open(I_BIN,"<","$dir_docs/INFO_BIN") or print "Cannot open 'INFO_BIN' in '$dir_docs' (starting from bindir '$dir_bin')\n";
+while(defined ($line = <I_BIN>)) {
+  # "generator" on Windows, "flags" on Unix:
+  if (($line =~ m| Compiler / generator used: |) ||
+      ($line =~ m| Compiler flags used:|))   {$found_compiler = "Found 'Compiler ... used' line";}
+  if  ($line =~ m| Feature flags used:|)     {$found_features = "Found 'Feature flags' line";}
+}
+close I_BIN;
+print "INFO_BIN: $found_compiler / $found_features\n";
+EOF
+
+--echo
+--echo End of tests

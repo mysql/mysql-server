@@ -1,0 +1,161 @@
+##################################################################
+# Author: Giuseppe                                               #
+# Date: 2006-12-20                                               #
+# Purpose: To test that event effects are replicated.            #
+##################################################################
+
+--source include/not_group_replication_plugin.inc
+--source include/have_myisam.inc
+--source include/master-slave.inc
+
+SET @old_event_scheduler = @@global.event_scheduler;
+set global event_scheduler=1;
+
+let $engine_type= MyISAM;
+
+--source include/rpl_events.inc
+
+#
+# Bug #28953  	Using events in a replication let the slave crash.
+#
+
+connection master;
+
+CREATE TABLE t28953 (a INT);
+
+DELIMITER |;
+CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR
+DO BEGIN
+	select * from t28953;
+END;|
+DELIMITER ;|
+
+ALTER EVENT event1 RENAME TO event2;
+
+--source include/sync_slave_sql_with_master.inc
+
+connection master;
+
+DROP EVENT event2;
+
+#
+# BUG#44331
+# This test verifies if the definer is consistent between master and slave,
+# when the event is created without the DEFINER clause set explicitly or the 
+# DEFINER is set to CURRENT_USER
+#
+CREATE TABLE test.t1(details CHAR(30));
+
+CREATE EVENT /*!50000 event44331_1 */
+  ON SCHEDULE AT CURRENT_TIMESTAMP
+  ON COMPLETION PRESERVE DISABLE
+  DO INSERT INTO test.t1 VALUES('event event44331_1 fired - no definer');
+
+CREATE DEFINER=CURRENT_USER /*!50000 EVENT event44331_2 */
+  ON SCHEDULE AT CURRENT_TIMESTAMP
+  ON COMPLETION PRESERVE DISABLE
+  DO INSERT INTO test.t1 VALUES('event event44331_2 fired - DEFINER=CURRENT_USER');
+            
+CREATE DEFINER=CURRENT_USER() EVENT event44331_3
+  ON SCHEDULE AT CURRENT_TIMESTAMP
+  ON COMPLETION PRESERVE DISABLE
+  DO INSERT INTO test.t1 VALUES('event event44331_3 fired - DEFINER=CURRENT_USER() function');
+
+DELIMITER |;
+CREATE /*!50000 DEFINER='user44331' */ EVENT event44331_4
+  ON SCHEDULE AT CURRENT_TIMESTAMP
+  ON COMPLETION PRESERVE DISABLE
+  DO INSERT INTO test.t1 VALUES('event event44331_4 fired - DEFINER=user1');
+# Test for bug#50095 Multi-statement including CREATE EVENT causes rotten
+# binlog entry
+  SELECT 'ABC';
+  SELECT '123'|
+DELIMITER ;|
+
+--echo #on master 
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_1';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_2';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_3';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_4';
+
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+--echo #on slave
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_1';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_2';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_3';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_4';
+
+connection master;
+SET @@global.event_scheduler= @old_event_scheduler;
+DROP TABLE t28953;
+DROP TABLE t1;
+DROP EVENT event44331_1;
+DROP EVENT event44331_2;
+DROP EVENT event44331_3;
+DROP EVENT event44331_4;
+--source include/sync_slave_sql_with_master.inc
+
+# Bug#21229951 VARIABLES IN ALTER EVENT NOT REPLICATED PROPERLY
+connection master;
+DELIMITER \\;
+CREATE EVENT event1 ON SCHEDULE EVERY 100 SECOND STARTS '2000-01-01 00:00:00'
+ON COMPLETION PRESERVE ENABLE DO
+BEGIN
+   SET @dummy = 100;
+END\\
+
+# A procedure that has alter event which uses sp local variable in it
+CREATE PROCEDURE proc1()
+BEGIN
+  DECLARE dummy INT UNSIGNED;
+  SET dummy = 100;
+  ALTER EVENT EVENT1 ON SCHEDULE EVERY dummy SECOND
+  STARTS '2000-01-01 00:00:00' ENABLE;
+END \\
+
+DELIMITER ;\\
+
+CALL proc1();
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+connection master;
+DROP EVENT event1;
+DROP PROCEDURE proc1;
+
+#
+# Bug #19286708 REPLICATION BROKEN AFTER CREATION OF SCHEDULED EVENTS
+# Testing create/alter event that has sysdate() (which makes statement unsafe)
+# Testing create/alter event that has local variables
+#
+connection master;
+call mtr.add_suppression("Unsafe statement written to the binary log");
+--disable_warnings
+set @secs=100;
+DELIMITER |;
+CREATE EVENT EVENT_WITH_SYSDATE_AND_VARIABLES
+ON SCHEDULE EVERY @secs MINUTE STARTS sysdate()
+ON COMPLETION PRESERVE
+DO BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+SELECT CONCAT('SAMPLE MSG');
+END |
+
+ALTER EVENT EVENT_WITH_SYSDATE_AND_VARIABLES
+ON SCHEDULE
+EVERY @secs HOUR
+STARTS sysdate() |
+
+DROP EVENT EVENT_WITH_SYSDATE_AND_VARIABLES |
+--enable_warnings
+DELIMITER ;|
+--source include/rpl_end.inc

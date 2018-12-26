@@ -1,0 +1,88 @@
+############## mysql-test\t\master_info_repository_basic.test #################
+#                                                                             #
+# Variable Name: master_info_repository                                       #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: enumeration                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2010-06-19                                                   #
+# Author : Alfranio Correia                                                   #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of System Variable master_info_repository            #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+--source include/not_master_info_file.inc
+
+CALL mtr.add_suppression("The repository is not configured properly. Please, fix this before using replication.");
+
+--echo '#---------------------BS_STVARS_002_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT @@GLOBAL.master_info_repository;
+
+SELECT COUNT(@@GLOBAL.master_info_repository);
+--echo 1 Expected
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.master_info_repository);
+
+--echo '#---------------------BS_STVARS_002_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+SET @@GLOBAL.master_info_repository= "FILE";
+
+SELECT @@GLOBAL.master_info_repository;
+
+
+--echo '#---------------------BS_STVARS_002_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+--disable_warnings
+SELECT @@GLOBAL.master_info_repository = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='master_info_repository';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.master_info_repository);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='master_info_repository';
+--enable_warnings
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_05----------------------#'
+################################################################################
+#   Check if master_info_repository can be accessed with and without @@ sign   #
+################################################################################
+
+SELECT COUNT(@@master_info_repository);
+--echo 1 Expected
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.master_info_repository);
+
+SELECT COUNT(@@GLOBAL.master_info_repository);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_06----------------------#'
+################################################################################
+#                                     Clean up                                 #
+################################################################################
+SET @@GLOBAL.master_info_repository= "TABLE";

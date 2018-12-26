@@ -1,0 +1,15 @@
+#
+# Bug#25054104 DATA DICTIONARY INITIALIZATION FAILS WHEN USING BINARY
+# CHARSETS
+#
+# Some collation names must be quoted. E.g. the follwing fails:
+CREATE SCHEMA s1 COLLATE binary;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'binary' at line 1
+# While this is ok:
+CREATE SCHEMA s2 COLLATE 'binary';
+# The collation used when creating the DD schema is taken from the
+# startup option --collation_server, but was not quoted, which caused the same
+# error as for s1 above. Fix is to add quotes (which is always safe).
+# This test runs with --collation_server=binary and getting here, shows that it
+# works.
+DROP SCHEMA s2;

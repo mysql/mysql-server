@@ -1,0 +1,115 @@
+# suite/funcs_1/t/is_collations.test
+#
+# Check the layout of information_schema.collations and some
+# functionality related tests.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+
+let $is_table = COLLATIONS;
+
+# The table INFORMATION_SCHEMA.COLLATIONS must exist
+eval SHOW TABLES FROM information_schema LIKE '$is_table';
+
+--echo #######################################################################
+--echo # Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+--echo #######################################################################
+# Ensure that every INFORMATION_SCHEMA table can be queried with a SELECT
+# statement, just as if it were an ordinary user-defined table.
+#
+--source suite/funcs_1/datadict/is_table_query.inc
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.3.1: INFORMATION_SCHEMA.COLLATIONS layout
+--echo #########################################################################
+# Ensure that the INFORMATION_SCHEMA.COLLATIONS table has the following
+# columns, in the following order:
+#
+# COLLATION_NAME (shows a collation name),
+# CHARACTER_SET_NAME (shows the name of the character set to which the
+#       collation applies),
+# ID (shows a numeric identifier for that collation/character set combination),
+# IS_DEFAULT (shows whether the collation is the default collation for the
+#       character set shown),
+# IS_COMPILED (indicates whether the collation is compiled into the MySQL server),
+# SORTLEN (shows a value related to the amount of memory required to sort
+#       strings using this collation/character set combination).
+#
+eval DESCRIBE          information_schema.$is_table;
+eval SHOW CREATE TABLE information_schema.$is_table;
+eval SHOW COLUMNS FROM information_schema.$is_table;
+
+# Note: Retrieval of information within information_schema.columns about
+#       information_schema.collations is in is_columns_is.test.
+#       Retrieval of information_schema.collations content is in
+#       charset_collation.inc (sourced by charset_collation_*.test).
+
+echo # Testcases 3.2.3.2 and 3.2.3.3 are checked in suite/funcs_1/t/charset_collation*.test;
+
+--echo ########################################################################
+--echo # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+--echo #           DDL on INFORMATION_SCHEMA tables are not supported
+--echo ########################################################################
+# 3.2.1.3:  Ensure that no user may execute an INSERT statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.4:  Ensure that no user may execute an UPDATE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.5:  Ensure that no user may execute a DELETE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.8:  Ensure that no user may create an index on an INFORMATION_SCHEMA table.
+# 3.2.1.9:  Ensure that no user may alter the definition of an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.10: Ensure that no user may drop an INFORMATION_SCHEMA table.
+# 3.2.1.11: Ensure that no user may move an INFORMATION_SCHEMA table to any
+#           other database.
+# 3.2.1.12: Ensure that no user may directly add to, alter, or delete any data
+#           in an INFORMATION_SCHEMA table.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.collations
+SELECT * FROM information_schema.collations;
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.collations
+       (collation_name,character_set_name,id,is_default,is_compiled,sortlen)
+VALUES (  'cp1251_bin',          'cp1251',50,        '',         '',0);
+
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.collations SET description = 'just updated';
+
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM information_schema.collations WHERE table_name = 't1';
+--error ER_DBACCESS_DENIED_ERROR
+TRUNCATE information_schema.collations;
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE INDEX my_idx ON information_schema.collations(character_set_name);
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.collations DROP PRIMARY KEY;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.collations ADD f1 INT;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.collations ENABLE KEYS;
+
+--error ER_DBACCESS_DENIED_ERROR
+DROP TABLE information_schema.collations;
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.collations RENAME db_datadict.collations;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.collations
+RENAME information_schema.xcollations;
+
+# Cleanup
+DROP DATABASE db_datadict;
+

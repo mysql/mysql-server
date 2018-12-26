@@ -1,0 +1,80 @@
+--echo #
+--echo # Test of rewrites of queries where the database (a.k.a. schema) is not
+--echo # specified in the pattern.
+--echo #
+--echo # MySQL behaves in the most peculiar way in this respect. Some
+--echo # explanation is order here: When a query is parsed, the
+--echo # parser injects the current database when parsing a table name, i.e.
+--echo # 'table' is _parsed_ as '<current database>.table'.
+--echo #
+--echo # The session that loads the rules has no current database, so the rule
+--echo # has to specify it if there are unqualified table names in the pattern.
+--echo #
+
+CALL mtr.add_suppression("Plugin rewriter reported: 'Some rules failed to load.'");
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+
+CREATE TABLE t1 ( a VARCHAR(23) );
+INSERT INTO t1 VALUES ( 'This was not rewritten.' );
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+INSERT
+INTO query_rewrite.rewrite_rules ( pattern, pattern_database, replacement )
+VALUES ( 'SELECT * FROM db1.nonexistent_table1', NULL, 'SELECT "Rule #1"' ),
+       ( 'SELECT * FROM db2.nonexistent_table2', NULL, 'SELECT "Rule #2"' ),
+       ( 'SELECT * FROM nonexistent_table_db1', 'db1', 'SELECT "Rule #3"' ),
+       ( 'SELECT * FROM nonexistent_table_db2', 'db2', 'SELECT "Rule #4"' ),
+       ( 'SELECT * FROM nonexistent_table',      NULL, 'SELECT "Rule #5"' ),
+       ( 'SELECT * FROM test.t1',              'test', 'SELECT "Rule #6"' ),
+       ( 'SELECT 1 FROM t1',                   'test', 'SELECT 4 FROM t1' ),
+       ( 'SELECT 2 FROM t1',                     NULL, 'SELECT 5 FROM t1' ),
+       ( 'SELECT 3 FROM test.t1',                NULL, 'SELECT 6 FROM t1' );
+
+--error ER_SIGNAL_EXCEPTION
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT * FROM query_rewrite.rewrite_rules;
+
+USE test;
+
+SELECT * FROM db1.nonexistent_table1;
+SELECT * FROM db2.nonexistent_table2;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM nonexistent_table_db1;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM nonexistent_table_db2;
+SELECT * FROM test.t1;
+SELECT 1 FROM t1;
+
+USE db1;
+
+SELECT * FROM db1.nonexistent_table1;
+SELECT * FROM db2.nonexistent_table2;
+SELECT * FROM nonexistent_table_db1;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM nonexistent_table_db2;
+SELECT * FROM test.t1;
+--error ER_NO_SUCH_TABLE
+SELECT 1 FROM t1;
+
+USE db2;
+
+SELECT * FROM db1.nonexistent_table1;
+SELECT * FROM db2.nonexistent_table2;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM nonexistent_table_db1;
+SELECT * FROM nonexistent_table_db2;
+SELECT * FROM test.t1;
+--error ER_NO_SUCH_TABLE
+SELECT 1 FROM t1;
+
+DROP DATABASE db1;
+DROP DATABASE db2;
+USE test;
+DROP TABLE t1;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

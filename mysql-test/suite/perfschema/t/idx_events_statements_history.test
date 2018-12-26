@@ -1,0 +1,36 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = END_EVENT_ID;
+let $table = performance_schema.events_statements_history;
+
+select connection_id() into @conid;
+
+let $tid = `select thread_id from performance_schema.threads
+            where PROCESSLIST_ID = @conid`;
+
+truncate table performance_schema.events_statements_history;
+
+select 1;
+
+# Connection 1
+connect(con1,127.0.0.1,root,,);
+
+--disable_query_log
+--eval select $tid into @tid_default;
+--let $wait_condition = select count(*) > 0 from performance_schema.events_statements_history where THREAD_ID = @tid_default
+--source include/wait_condition.inc
+select EVENT_ID from performance_schema.events_statements_history where THREAD_ID = @tid_default limit 1 into @eid_default;
+--enable_query_log
+
+###########################################################################
+# Test index on THREAD_ID, EVENT_ID
+###########################################################################
+
+let $column_count = 2;
+let $col1 = THREAD_ID;
+let $col2 = EVENT_ID;
+let $col1_act = @tid_default;
+let $col2_act = @eid_default;
+
+--source ../include/idx_explain_test.inc

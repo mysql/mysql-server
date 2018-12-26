@@ -1,0 +1,55 @@
+#
+# Make sure http://bugs.mysql.com/34053 remains fixed.
+#
+
+
+SET default_storage_engine=InnoDB;
+
+# we do not really care about what gets printed, we are only
+# interested in getting success or failure according to our
+# expectations
+-- disable_query_log
+-- disable_result_log
+
+CREATE USER 'shane'@'localhost' IDENTIFIED BY '12345';
+FLUSH PRIVILEGES;
+
+-- connect (con1,localhost,shane,12345,)
+
+-- connection con1
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL innodb_status_output=ON;
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL innodb_status_output_locks=ON;
+
+CREATE TABLE innodb_monitor (a INT) ENGINE=INNODB;
+DROP TABLE innodb_monitor;
+CREATE TABLE innodb_mem_validate (a INT) ENGINE=INNODB;
+DROP TABLE innodb_mem_validate;
+CREATE TABLE innodb_sql (a INT) ENGINE=INNODB;
+DROP TABLE innodb_sql;
+CREATE TABLE innodb_monitorx (a INT) ENGINE=INNODB;
+DROP TABLE innodb_monitorx;
+CREATE TABLE innodb_monito (a INT) ENGINE=INNODB;
+DROP TABLE innodb_monito;
+CREATE TABLE xinnodb_monitor (a INT) ENGINE=INNODB;
+DROP TABLE xinnodb_monitor;
+CREATE TABLE nnodb_monitor (a INT) ENGINE=INNODB;
+DROP TABLE nnodb_monitor;
+
+-- connection default
+SET GLOBAL innodb_status_output=ON;
+SET GLOBAL innodb_status_output_locks=ON;
+
+-- connection con1
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL innodb_status_output=OFF;
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL innodb_status_output_locks=OFF;
+
+-- connection default
+SET GLOBAL innodb_status_output=OFF;
+SET GLOBAL innodb_status_output_locks=OFF;
+DROP USER 'shane'@'localhost';
+
+-- disconnect con1

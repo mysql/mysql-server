@@ -1,0 +1,110 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+--enable_warnings
+# Create tables
+CREATE TABLE t1(c1 YEAR NOT NULL,c2 YEAR, PRIMARY KEY(c1));
+CREATE TABLE t2(c1 YEAR NOT NULL, c2 YEAR, UNIQUE INDEX idx(c1,c2));
+CREATE TABLE t3(c1 YEAR(4) NOT NULL,c2 YEAR(4), PRIMARY KEY(c1));
+CREATE TABLE t4(c1 YEAR(4), c2 YEAR(4), UNIQUE INDEX idx(c1,c2));
+#Insert as 4-digit number format in the range '1901' to '2155'
+INSERT INTO t1 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
+INSERT INTO t2 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
+INSERT INTO t3 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
+INSERT INTO t4 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
+#Insert as 4-digit string format in the range '1901' to '2155'
+INSERT INTO t1 VALUES ('1902','1902'),('1971','1971'),('1998','1998'),('2001','2001'),('2154','2154');
+INSERT INTO t2 VALUES ('1902','1902'),('1971','1971'),('1998','1998'),('2001','2001'),('2154','2154');
+INSERT INTO t3 VALUES ('1902','1902'),('1971','1971'),('1998','1998'),('2001','2001'),('2154','2154');
+INSERT INTO t4 VALUES ('1902','1902'),('1971','1971'),('1998','1998'),('2001','2001'),('2154','2154');
+#Insert as 2-digit number format
+INSERT INTO t1 VALUES (04,04),(64,64),(69,69),(97,97);
+INSERT INTO t2 VALUES (04,04),(64,64),(69,69),(97,97);
+INSERT INTO t3 VALUES (04,04),(64,64),(69,69),(97,97);
+INSERT INTO t4 VALUES (04,04),(64,64),(69,69),(97,97);
+#Insert as 2-digit string format
+INSERT INTO t1 VALUES ('05','05'),('65','65'),('75','75'),('95','95');
+INSERT INTO t2 VALUES ('05','05'),('65','65'),('75','75'),('95','95');
+INSERT INTO t3 VALUES ('05','05'),('65','65'),('75','75'),('95','95');
+INSERT INTO t4 VALUES ('05','05'),('65','65'),('75','75'),('95','95');
+#Insert permissible NULLs
+INSERT INTO t1 VALUES ('09',null),('61',null),('79',null),('96',null);
+INSERT INTO t2 VALUES ('09',null),('61',null),('79',null),('96',null);
+INSERT INTO t3 VALUES ('09',null),('61',null),('79',null),('96',null);
+INSERT INTO t4 VALUES ('09',null),('61',null),('79',null),('96',null);
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t2;
+--sorted_result
+SELECT * FROM t3;
+--sorted_result
+SELECT * FROM t4;
+#Deleting the specified rows
+--sorted_result
+SELECT c1 FROM t1 WHERE c1='2005';
+DELETE FROM t1 WHERE c1='2005';
+--sorted_result
+SELECT c1 FROM t1;
+
+# Delete rows with null attributes
+--sorted_result
+SELECT c2 FROM t2 WHERE c2=null;
+DELETE FROM t2 WHERE c2=null LIMIT 2;
+--sorted_result
+SELECT c2 FROM t2;
+
+#Delete order by limit
+--sorted_result
+SELECT c1 FROM t4 WHERE c1 < '55';
+DELETE FROM t4 WHERE c1 < '65' ORDER BY c1 LIMIT 5;
+--sorted_result
+SELECT c1 FROM t4;
+
+#Delete by range values
+DELETE FROM t2 WHERE c1=2009 AND c2=null;
+--sorted_result
+SELECT c2 FROM t2;
+DELETE FROM t1 WHERE c1=1979 OR c1=2154;
+--sorted_result
+SELECT c2 FROM t1;
+DELETE FROM t4 WHERE c2 IN (01,54,65,69,null) LIMIT 2;
+--sorted_result
+SELECT c1 FROM t4;
+
+#Multi table delete
+DELETE t3,t4 FROM t3,t4 WHERE t3.c1=61 AND t4.c2=4;
+ 
+# Delete using various access methods
+
+# Delete using Const
+# EXPLAIN SELECT * FROM t1 WHERE c1=2064 AND c2=2064;
+DELETE FROM t1 WHERE c1=2064 AND c2=2064;
+--sorted_result
+SELECT * FROM t1;
+
+# Delete using range
+# EXPLAIN SELECT * FROM t1 WHERE c1 BETWEEN 2000 AND 2010;
+DELETE FROM t1 WHERE c1 BETWEEN 2000 AND 2010 LIMIT 2; 
+--sorted_result
+SELECT * FROM t1;
+# EXPLAIN SELECT * FROM t1 WHERE c1 IN (2155,2009,1975);
+DELETE FROM t1 WHERE c1 IN (2155,2009,1975) LIMIT 2;
+--sorted_result
+SELECT * FROM t1;
+
+# Delete using eq_ref
+# EXPLAIN SELECT * FROM t1,t2 WHERE t1.c1=t2.c1 AND t1.c2=t2.c2;
+DELETE t1,t2 FROM t1,t2 WHERE t1.c1=t2.c1 AND t1.c2=t2.c2;
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t2;
+--sorted_result
+SELECT * FROM t3;
+--sorted_result
+SELECT * FROM t4;
+
+#Drop tables
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+

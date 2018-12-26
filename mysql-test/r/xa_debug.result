@@ -1,0 +1,118 @@
+#
+# WL#7155: Test 1: check that prepared transaction branch
+# is recovered after abnormal server termination.
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+SELECT * FROM t1;
+a
+XA COMMIT 'xid1';
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;
+#
+# WL#7155: Test 2: check that in case of abnormal server termination
+# the changes done by unprepared transaction branch will be rolled back
+# after the server restart.
+# 
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1;
+a
+DROP TABLE t1;
+#
+# WL#7155: Test 3: Check that escaped "'" symbol for xid value
+# is handled correctly during recovering XA transaction. 
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1', 'br\'_1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1', 'br\'_1';
+XA PREPARE 'xid1', 'br\'_1';
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	5	xid1br'_1
+XA ROLLBACK 'xid1', 'br\'_1';
+DROP TABLE t1;
+#
+# Bug#18068253 - XA START WITH THE EXIST XID, AND THEN XA COMMIT WITH THE XID WILL FAILED
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+set session debug="+d,crash_after_xa_recover";
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+set session debug="-d,crash_after_xa_recover";
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+XA START 'xid1';
+ERROR XAE08: XAER_DUPID: The XID already exists
+XA COMMIT 'xid1';
+DROP TABLE t1;
+#
+# Bug#20538956 - XA PREPARE ERROR BRANCH LEAVES THE TRANSACTION IN SCREWED STATE
+#
+CREATE TABLE t1 (a INT);
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SET @@session.debug = '+d,simulate_xa_failure_prepare';
+XA PREPARE 'xid1';
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@session.debug = '-d,simulate_xa_failure_prepare';
+XA ROLLBACK 'xid1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA START 'trx_another_one';
+#
+# Bug#20488921 - ERROR PROPAGATION DOES NOT FULLY WORK IN XA
+#
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+SET @@session.debug= '+d,simulate_xa_commit_log_failure';
+XA COMMIT 'xid1';
+ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+SET @@session.debug= '-d,simulate_xa_commit_log_failure';
+INSERT INTO t1 VALUES (2);
+DROP TABLE t1;
+#
+# Bug#23264552 - XA: ASSERT `m_status == da_error' IN mysql_errno:sql_error.h:385
+#
+CREATE TABLE t1 (a INT);
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SET @@session.debug = '+d,simulate_xa_failure_prepare_in_engine';
+XA PREPARE 'xid1';
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@session.debug = '-d,simulate_xa_failure_prepare_in_engine';
+XA ROLLBACK 'xid1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA START 'trx_another_one';
+DROP TABLE t1;

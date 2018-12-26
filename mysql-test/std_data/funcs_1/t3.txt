@@ -1,0 +1,10 @@
+a`	a`	-5000
+aaa	aaa	-4999
+abaa	abaa	-4998
+acaaa	acaaa	-4997
+adaaaa	adaaaa	-4996
+aeaaaaa	aeaaaaa	-4995
+afaaaaaa	afaaaaaa	-4994
+agaaaaaaa	agaaaaaaa	-4993
+a^aaaaaaaa	a^aaaaaaaa	-4992
+a_aaaaaaaaa	a_aaaaaaaaa	-4991

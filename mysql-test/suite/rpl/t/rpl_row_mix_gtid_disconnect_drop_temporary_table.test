@@ -1,0 +1,2 @@
+--source include/have_binlog_format_mixed_or_row.inc
+--source extra/rpl_tests/gtid_disconnect_drop_temporary_table.test

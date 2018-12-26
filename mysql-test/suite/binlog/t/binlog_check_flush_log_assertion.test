@@ -1,0 +1,52 @@
+# ==== Purpose ====
+#
+# Verify that 'FLUSH LOGS' does not cause assertion failure any more,
+# even if there is no binlog file before executing it.
+#
+# ==== Implementation ====
+#
+# 1) SET GLOBAL debug='d,error_unique_log_filename' to
+#    cause 'FLUSH LOGS' error and 'RESET MASTER' error.
+# 2) Execute 'FLUSH LOGS' to verify that it does not cause
+#    assertion failure any more.
+#
+# ==== References ====
+#
+# Bug #20592961  'FLUSH LOGS' POST FAULT INJECTION HITS ASSERT `! IS_SET()' AT SQL_ERROR.CC:381
+# Bug #22732184  HEAP-USE-AFTER-FREE IN BINLOG.BINLOG_CHECK_FLUSH_LOG_ASSERTION
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun them for every format.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("Can't generate a unique log-filename");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to generate new file name.");
+call mtr.add_suppression("Failed to locate old binlog or relay log files");
+call mtr.add_suppression('Could not open .*');
+--enable_query_log
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+SET GLOBAL debug='+d,error_unique_log_filename';
+
+--error ER_NO_UNIQUE_LOGFILE
+FLUSH LOGS;
+
+# Restart the server to enable binary log.
+--source include/restart_mysqld.inc
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+SET GLOBAL debug='+d,error_unique_log_filename';
+
+--error ER_NO_UNIQUE_LOGFILE
+RESET MASTER;
+
+SET GLOBAL debug='-d,error_unique_log_filename';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--error ER_UNKNOWN_TARGET_BINLOG
+RESET MASTER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
+
+# Verify that 'FLUSH LOGS' does not cause assertion failure any more,
+# even if there is no binlog before executing it.
+FLUSH LOGS;

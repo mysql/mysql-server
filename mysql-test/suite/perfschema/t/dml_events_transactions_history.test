@@ -1,0 +1,44 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.events_transactions_history
+  where event_name in ('transaction') limit 1;
+
+select * from performance_schema.events_transactions_history
+  where event_name='FOO';
+
+select * from performance_schema.events_transactions_history
+  where event_name in ('transaction') order by timer_wait limit 1;
+
+select * from performance_schema.events_transactions_history
+  where event_name in ('transaction') order by timer_wait desc limit 1;
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.events_transactions_history
+  set thread_id='1', event_id=1,
+  event_name='FOO', timer_start=1, timer_end=2, timer_wait=3;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_transactions_history
+  set timer_start=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_transactions_history
+  set timer_start=12 where thread_id=0;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_transactions_history
+  where thread_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_transactions_history;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_transactions_history READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_transactions_history WRITE;
+UNLOCK TABLES;
+

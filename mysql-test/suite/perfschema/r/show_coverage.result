@@ -1,0 +1,71 @@
+
+# TEST 3
+# Select status and system variable tables using ORDER BY to exercise the
+# rnd_pos() method
+#
+use performance_schema;
+select * from global_variables order by variable_name;
+select * from variables_by_thread order by variable_name;
+select * from session_variables order by variable_name;
+select * from global_status order by variable_name;
+select * from session_status order by variable_name;
+select * from status_by_thread order by variable_name;
+select * from status_by_user order by variable_name;
+select * from status_by_host order by variable_name;
+select * from status_by_account order by variable_name;
+
+# TEST 4
+# Handling of SHOW STATUS/VARIABLES ... WHERE
+#
+SHOW STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+# TEST 5
+# Confirm FLUSH STATUS resets counters for all threads.
+#
+
+# Create a new connection
+
+# Record thread id
+
+# Increase bytes_received for new connection
+USE test;
+SHOW TABLES;
+Tables_in_test
+USE performance_schema;
+
+# Record bytes_received for other connection
+SELECT variable_value FROM status_by_thread
+WHERE variable_name = "bytes_received" and thread_id = @thread_id INTO @bytes_before;
+
+# Reset status counters
+FLUSH STATUS;
+
+# Record bytes_received after reset
+SELECT variable_value FROM status_by_thread
+WHERE variable_name = "bytes_received" and thread_id = @thread_id INTO @bytes_after;
+
+# Expect bytes_before > bytes_after
+SELECT @bytes_before > @bytes_after;
+@bytes_before > @bytes_after
+1
+
+# Expect bytes_after is zero
+SELECT @bytes_after;
+@bytes_after
+0

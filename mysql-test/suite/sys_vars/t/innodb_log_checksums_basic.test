@@ -1,0 +1,35 @@
+
+# Check the default value
+SET @orig = @@global.innodb_log_checksums;
+SELECT @orig;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_log_checksums = 'crc32';
+SELECT @@global.innodb_log_checksums;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_log_checksums = 2;
+SELECT @@global.innodb_log_checksums;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_log_checksums = 1e2;
+SELECT @@global.innodb_log_checksums;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_log_checksums = 1.0;
+SELECT @@global.innodb_log_checksums;
+
+-- error ER_GLOBAL_VARIABLE
+SET innodb_log_checksums = OFF;
+SELECT @@global.innodb_log_checksums;
+
+SET GLOBAL innodb_log_checksums = OFF;
+SELECT @@global.innodb_log_checksums;
+
+SET GLOBAL innodb_log_checksums = default;
+
+SET GLOBAL innodb_log_checksums = ON;
+SELECT @@global.innodb_log_checksums;
+
+SET GLOBAL innodb_log_checksums = @orig;
+SELECT @@global.innodb_log_checksums;

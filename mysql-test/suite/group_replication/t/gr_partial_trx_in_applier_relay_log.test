@@ -1,0 +1,100 @@
+################################################################################
+#Bug#24665506 MEMBER RESTART WHILE DML ON GROUP RESULTS IN RESTARTED MEMBER
+#             RECOVERING FOREVER
+# Problem: If the group replication is stopped while the node is downloading
+#          partial transaction data, starting the group replication is
+#          hanging forever.
+#
+# # Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Create a basic table on all three servers.
+# 2. On M2: To replicate a partial transaction downloaded scenario,
+#           setup a debug point to bring down the applier channel
+#           if it receives a Write_rows_log_event and restart the
+#           group replication to make the debug point effective.
+# 3. On M1: Execute an insert and wait till M2 goes offline
+#           (because of the above debug point, applier channel will
+#           go down after receiving Write_rows_log_event).
+# 4. On M2: Reset the debug point and restart the group replication in order
+#           to download the transaction into the new relay log file fully.
+# 5. On M1: Insert another tuple and do a diff tables with other nodes.
+#           (just to check that everything is working fine).
+# 6. Cleanup.
+################################################################################
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+
+--echo ########################################################################
+--echo # 0. The test requires three servers: M1, M2 and M3.
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo ########################################################################
+--echo # 1. Create a basic table on all three servers.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1(a INT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET sql_log_bin=0;
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+SET sql_log_bin=1;
+
+--echo ########################################################################
+--echo # 2. On M2: To replicate a partial transaction downloaded scenario,
+--echo #           setup a debug point to bring down the applier channel
+--echo #           if it receives a Write_rows_log_event and restart the
+--echo #           group replication to make the debug point effective.
+SET GLOBAL DEBUG="+d,stop_applier_channel_after_reading_write_rows_log_event";
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--echo ########################################################################
+--echo # 3. On M1: Execute an insert and wait till M2 goes offline
+--echo #           (because of the above debug point, applier channel will
+--echo #           go down after receiving Write_rows_log_event).
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 values (12);
+
+--let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_members WHERE member_state='ONLINE';
+--source include/wait_condition.inc
+
+--echo ########################################################################
+--echo # 4. On M2: Reset the debug point and restart the group replication in
+--echo #           order to download the transaction into the new relay log
+--echo #           file fully.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL DEBUG="-d,stop_applier_channel_after_reading_write_rows_log_event";
+
+# In case MTS, applier coordinator thread will wait for 60 seconds to get the
+# remaining group of events. Setting the timeout to a bigger number to avoid
+# time out on pb2 machines.
+--let $wait_timeout=120
+--source include/stop_group_replication.inc
+
+--let $wait_timeout=120
+--source include/start_group_replication.inc
+
+--echo ########################################################################
+--echo # 5. On M1: Insert another tuple and do a diff tables with other nodes.
+--echo #           (just to check that everything is working fine).
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 values (13);
+--source include/rpl_sync.inc
+
+--let $diff_tables=server1:t1, server2:t1, server3:t1
+--source include/diff_tables.inc
+
+--echo ################
+--echo # 6. Cleanup.
+DROP TABLE t1;
+--source include/group_replication_end.inc

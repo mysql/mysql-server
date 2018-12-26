@@ -1,0 +1,270 @@
+drop database if exists demo;
+create database demo;
+use demo;
+create table ab_physical_person (
+person_id integer,
+first_name VARCHAR(50),
+middle_initial CHAR,
+last_name VARCHAR(50),
+primary key (person_id));
+create table ab_moral_person (
+company_id integer,
+name VARCHAR(100),
+primary key (company_id));
+create table in_inventory (
+item_id integer,
+descr VARCHAR(50),
+stock integer,
+primary key (item_id));
+create table po_order (
+po_id integer auto_increment,
+cust_type char, /* arc relationship, see cust_id */
+cust_id integer, /* FK to ab_physical_person *OR* ab_moral_person */
+primary key (po_id));
+create table po_order_line (
+po_id integer, /* FK to po_order.po_id */
+line_no integer,
+item_id integer, /* FK to in_inventory.item_id */
+qty integer);
+#
+# Schema integrity enforcement
+#
+create procedure check_pk_person(in person_type char, in id integer)
+begin
+declare x integer;
+declare msg varchar(128);
+/*
+Test integrity constraints for an 'arc' relationship.
+Based on 'person_type', 'id' points to either a
+physical person, or a moral person.
+*/
+case person_type
+when 'P' then
+begin
+select count(person_id) from ab_physical_person
+where ab_physical_person.person_id = id
+into x;
+if (x != 1)
+then
+set msg= concat('No such physical person, PK:', id);
+SIGNAL SQLSTATE '45000' SET
+MESSAGE_TEXT = msg,
+MYSQL_ERRNO = 10000;
+end if;
+end;
+when 'M' then
+begin
+select count(company_id) from ab_moral_person
+where ab_moral_person.company_id = id
+into x;
+if (x != 1)
+then
+set msg= concat('No such moral person, PK:', id);
+SIGNAL SQLSTATE '45000' SET
+MESSAGE_TEXT = msg,
+MYSQL_ERRNO = 10000;
+end if;
+end;
+else
+begin
+set msg= concat('No such person type:', person_type);
+SIGNAL SQLSTATE '45000' SET
+MESSAGE_TEXT = msg,
+MYSQL_ERRNO = 50000;
+end;
+end case;
+end
+$$
+create procedure check_pk_inventory(in id integer)
+begin
+declare x integer;
+declare msg varchar(128);
+select count(item_id) from in_inventory
+where in_inventory.item_id = id
+into x;
+if (x != 1)
+then
+set msg= concat('Failed integrity constraint, table in_inventory, PK:',
+id);
+SIGNAL SQLSTATE '45000' SET
+MESSAGE_TEXT = msg,
+MYSQL_ERRNO = 10000;
+end if;
+end
+$$
+create procedure check_pk_order(in id integer)
+begin
+declare x integer;
+declare msg varchar(128);
+select count(po_id) from po_order
+where po_order.po_id = id
+into x;
+if (x != 1)
+then
+set msg= concat('Failed integrity constraint, table po_order, PK:', id);
+SIGNAL SQLSTATE '45000' SET
+MESSAGE_TEXT = msg,
+MYSQL_ERRNO = 10000;
+end if;
+end
+$$
+create trigger po_order_bi before insert on po_order
+for each row
+begin
+call check_pk_person(NEW.cust_type, NEW.cust_id);
+end
+$$
+create trigger po_order_bu before update on po_order
+for each row
+begin
+call check_pk_person(NEW.cust_type, NEW.cust_id);
+end
+$$
+create trigger po_order_line_bi before insert on po_order_line
+for each row
+begin
+call check_pk_order(NEW.po_id);
+call check_pk_inventory(NEW.item_id);
+end
+$$
+create trigger po_order_line_bu before update on po_order_line
+for each row
+begin
+call check_pk_order(NEW.po_id);
+call check_pk_inventory(NEW.item_id);
+end
+$$
+#
+# Application helpers
+#
+create procedure po_create_order(
+in p_cust_type char,
+in p_cust_id integer,
+out id integer)
+begin
+insert into po_order set cust_type = p_cust_type, cust_id = p_cust_id;
+set id = last_insert_id();
+end
+$$
+create procedure po_add_order_line(
+in po integer,
+in line integer,
+in item integer,
+in q integer)
+begin
+insert into po_order_line set
+po_id = po, line_no = line, item_id = item, qty = q;
+end
+$$
+#
+# Create sample data
+#
+insert into ab_physical_person values
+( 1, "John", "A", "Doe"),
+( 2, "Marry", "B", "Smith")
+;
+insert into ab_moral_person values
+( 3, "ACME real estate, INC"),
+( 4, "Local school")
+;
+insert into in_inventory values
+( 100, "Table, dinner", 5),
+( 101, "Chair", 20),
+( 200, "Table, coffee", 3),
+( 300, "School table", 25),
+( 301, "School chairs", 50)
+;
+select * from ab_physical_person order by person_id;
+person_id	first_name	middle_initial	last_name
+1	John	A	Doe
+2	Marry	B	Smith
+select * from ab_moral_person order by company_id;
+company_id	name
+3	ACME real estate, INC
+4	Local school
+select * from in_inventory order by item_id;
+item_id	descr	stock
+100	Table, dinner	5
+101	Chair	20
+200	Table, coffee	3
+300	School table	25
+301	School chairs	50
+#
+# Entering an order
+#
+set @my_po = 0;
+/* John Doe wants 1 table and 4 chairs */
+call po_create_order("P", 1, @my_po);
+call po_add_order_line (@my_po, 1, 100, 1);
+call po_add_order_line (@my_po, 2, 101, 4);
+/* Marry Smith wants a coffee table */
+call po_create_order("P", 2, @my_po);
+call po_add_order_line (@my_po, 1, 200, 1);
+#
+# Entering bad data in an order
+#
+call po_add_order_line (@my_po, 1, 999, 1);
+ERROR 45000: Failed integrity constraint, table in_inventory, PK:999
+#
+# Entering bad data in an unknown order
+#
+call po_add_order_line (99, 1, 100, 1);
+ERROR 45000: Failed integrity constraint, table po_order, PK:99
+#
+# Entering an order for an unknown company
+#
+call po_create_order("M", 7, @my_po);
+ERROR 45000: No such moral person, PK:7
+#
+# Entering an order for an unknown person type
+#
+call po_create_order("X", 1, @my_po);
+ERROR 45000: No such person type:X
+/* The local school wants 10 class tables and 20 chairs */
+call po_create_order("M", 4, @my_po);
+call po_add_order_line (@my_po, 1, 300, 10);
+call po_add_order_line (@my_po, 2, 301, 20);
+select * from po_order;
+po_id	cust_type	cust_id
+1	P	1
+2	P	2
+3	M	4
+select * from po_order_line;
+po_id	line_no	item_id	qty
+1	1	100	1
+1	2	101	4
+2	1	200	1
+3	1	300	10
+3	2	301	20
+select po_id as "PO#",
+( case cust_type
+when "P" then concat (pp.first_name,
+" ",
+pp.middle_initial,
+" ",
+pp.last_name)
+when "M" then mp.name
+end ) as "Sold to"
+  from po_order po
+left join ab_physical_person pp on po.cust_id = pp.person_id
+left join ab_moral_person mp on po.cust_id = company_id
+;
+PO#	Sold to
+1	John A Doe
+2	Marry B Smith
+3	Local school
+select po_id as "PO#",
+ol.line_no as "Line",
+ol.item_id as "Item",
+inv.descr as "Description",
+ol.qty as "Quantity"
+  from po_order_line ol, in_inventory inv
+where inv.item_id = ol.item_id
+order by ol.item_id, ol.line_no;
+PO#	Line	Item	Description	Quantity
+1	1	100	Table, dinner	1
+1	2	101	Chair	4
+2	1	200	Table, coffee	1
+3	1	300	School table	10
+3	2	301	School chairs	20
+drop database demo;

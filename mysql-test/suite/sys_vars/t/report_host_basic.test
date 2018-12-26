@@ -1,0 +1,20 @@
+#
+# only global
+#
+select @@global.report_host;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.report_host;
+show global variables like 'report_host';
+show session variables like 'report_host';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='report_host';
+select * from performance_schema.session_variables where variable_name='report_host';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global report_host=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session report_host=1;

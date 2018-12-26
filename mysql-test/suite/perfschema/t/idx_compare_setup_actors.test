@@ -1,0 +1,23 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "setup_actors";
+let $key_group = 2.7;
+
+--echo TABLE: $table
+--echo INDEXES: PK (USER, HOST, EVENT_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+insert into performance_schema.setup_actors values ("localhost","user1","%",'YES','YES');
+insert into performance_schema.setup_actors values ("localhost","user2","%",'YES','YES');
+insert into performance_schema.setup_actors values ("localhost","user3","%",'YES','YES');
+
+--source ../include/idx_compare_load.inc
+
+TRUNCATE performance_schema.setup_actors;
+INSERT INTO performance_schema.setup_actors VALUES ('%', '%', '%', 'YES', 'YES');
+
+--source ../include/idx_compare_cleanup.inc

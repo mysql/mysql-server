@@ -1,0 +1,966 @@
+##############################################
+# Test instant ADD COLUMN for REDUNDANT format
+##############################################
+#
+# Scenario 1:
+# Create a normal table, rebuild and truncate will clear the instant
+# information
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ADD KEY(c2);
+Table ID differed
+SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT count(*) FROM information_schema.innodb_tables WHERE instant_cols != 0;
+count(*)
+0
+SELECT count(*) FROM information_schema.innodb_columns WHERE has_default = 1;
+count(*)
+0
+INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+TRUNCATE TABLE t1;
+Table ID differed
+SELECT 4 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT count(*) FROM information_schema.innodb_tables WHERE instant_cols != 0;
+count(*)
+0
+SELECT count(*) FROM information_schema.innodb_columns WHERE has_default = 1;
+count(*)
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT '10',
+  `c2` int(11) DEFAULT '20',
+  `c3` int(11) DEFAULT '10',
+  PRIMARY KEY (`a`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+DROP TABLE t1;
+#
+# Scenario 2:
+# Create a partitioned table, rebuild and truncate will clear the instant
+# information
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT PARTITION BY HASH(a) PARTITIONS 3;;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM = COPY;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+INSERT INTO t1(b, c1, c2) SELECT b, c1, c2 FROM t1;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+TRUNCATE TABLE t1;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT '10',
+  `c2` int(11) DEFAULT '20',
+  `c3` int(11) DEFAULT '30',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY HASH (`a`)
+PARTITIONS 3 */
+DROP TABLE t1;
+#
+# Scenario 3:
+# Create a partitioned table, ALTER TABLE ... PARTITION will clear the
+# instant information
+#
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20), PARTITION p3 VALUES LESS THAN (30));;
+INSERT INTO t1 VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22), (26, 26), (27, 27);
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD PARTITION (PARTITION p4 VALUES LESS THAN(40));
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p4%';
+instant_cols
+0
+ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p31 VALUES LESS THAN(25), PARTITION p32 VALUES LESS THAN(30));
+SELECT * FROM t1 WHERE a > 20 AND a < 30;
+a	b	c
+21	21	100
+22	22	100
+26	26	100
+27	27	100
+SELECT * FROM t1 WHERE a > 10 AND a < 20;
+a	b	c
+11	11	100
+12	12	100
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 2
+2
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p3%';
+instant_cols
+0
+0
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+SELECT * FROM t1 WHERE a < 10;
+a	b	c
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 1
+1
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%';
+instant_cols
+0
+ALTER TABLE t1 TRUNCATE PARTITION p1, p2, p31, p32, p4;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+INSERT INTO t1(a, b) VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22), (26, 26), (27, 27);
+SELECT c FROM t1 GROUP BY c;
+c
+100
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100;
+SELECT count(*) AS `Expect 5` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 5
+5
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+SELECT count(*) AS `Expect 4` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 4
+4
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%';
+instant_cols
+0
+ALTER TABLE t1 DROP PARTITION p2, p4;
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 2
+2
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 DROP PARTITION p31, p32;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT '100',
+  `d` int(11) DEFAULT '100',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB) */
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT PARTITION BY HASH(a) PARTITIONS 3;;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20;
+SELECT count(*) AS `Expect 5` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 5
+5
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 COALESCE PARTITION 2;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+SELECT * FROM t1;
+a	b	c1	c2	c3
+5	5	10	20	30
+1	1	10	20	30
+6	6	10	20	30
+2	2	10	20	30
+7	7	10	20	30
+3	3	10	20	30
+8	8	10	20	30
+4	4	10	20	30
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT '10',
+  `c2` int(11) DEFAULT '20',
+  `c3` int(11) DEFAULT '30',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY HASH (`a`)
+PARTITIONS 5 */
+DROP TABLE t1;
+############################################
+# Test instant ADD COLUMN for DYNAMIC format
+############################################
+#
+# Scenario 1:
+# Create a normal table, rebuild and truncate will clear the instant
+# information
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ADD KEY(c2);
+Table ID differed
+SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT count(*) FROM information_schema.innodb_tables WHERE instant_cols != 0;
+count(*)
+0
+SELECT count(*) FROM information_schema.innodb_columns WHERE has_default = 1;
+count(*)
+0
+INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+TRUNCATE TABLE t1;
+Table ID differed
+SELECT 4 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT count(*) FROM information_schema.innodb_tables WHERE instant_cols != 0;
+count(*)
+0
+SELECT count(*) FROM information_schema.innodb_columns WHERE has_default = 1;
+count(*)
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT '10',
+  `c2` int(11) DEFAULT '20',
+  `c3` int(11) DEFAULT '10',
+  PRIMARY KEY (`a`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+DROP TABLE t1;
+#
+# Scenario 2:
+# Create a partitioned table, rebuild and truncate will clear the instant
+# information
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC PARTITION BY HASH(a) PARTITIONS 3;;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM = COPY;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+INSERT INTO t1(b, c1, c2) SELECT b, c1, c2 FROM t1;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+TRUNCATE TABLE t1;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT '10',
+  `c2` int(11) DEFAULT '20',
+  `c3` int(11) DEFAULT '30',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY HASH (`a`)
+PARTITIONS 3 */
+DROP TABLE t1;
+#
+# Scenario 3:
+# Create a partitioned table, ALTER TABLE ... PARTITION will clear the
+# instant information
+#
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20), PARTITION p3 VALUES LESS THAN (30));;
+INSERT INTO t1 VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22), (26, 26), (27, 27);
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD PARTITION (PARTITION p4 VALUES LESS THAN(40));
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p4%';
+instant_cols
+0
+ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p31 VALUES LESS THAN(25), PARTITION p32 VALUES LESS THAN(30));
+SELECT * FROM t1 WHERE a > 20 AND a < 30;
+a	b	c
+21	21	100
+22	22	100
+26	26	100
+27	27	100
+SELECT * FROM t1 WHERE a > 10 AND a < 20;
+a	b	c
+11	11	100
+12	12	100
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 2
+2
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p3%';
+instant_cols
+0
+0
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+SELECT * FROM t1 WHERE a < 10;
+a	b	c
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 1
+1
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%';
+instant_cols
+0
+ALTER TABLE t1 TRUNCATE PARTITION p1, p2, p31, p32, p4;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+INSERT INTO t1(a, b) VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22), (26, 26), (27, 27);
+SELECT c FROM t1 GROUP BY c;
+c
+100
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100;
+SELECT count(*) AS `Expect 5` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 5
+5
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+SELECT count(*) AS `Expect 4` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 4
+4
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%';
+instant_cols
+0
+ALTER TABLE t1 DROP PARTITION p2, p4;
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 2
+2
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 DROP PARTITION p31, p32;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT '100',
+  `d` int(11) DEFAULT '100',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB) */
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC PARTITION BY HASH(a) PARTITIONS 3;;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20;
+SELECT count(*) AS `Expect 5` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 5
+5
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 COALESCE PARTITION 2;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+SELECT * FROM t1;
+a	b	c1	c2	c3
+5	5	10	20	30
+1	1	10	20	30
+6	6	10	20	30
+2	2	10	20	30
+7	7	10	20	30
+3	3	10	20	30
+8	8	10	20	30
+4	4	10	20	30
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT '10',
+  `c2` int(11) DEFAULT '20',
+  `c3` int(11) DEFAULT '30',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY HASH (`a`)
+PARTITIONS 5 */
+DROP TABLE t1;
+############################################
+# Test instant ADD COLUMN for COMPACT format
+############################################
+#
+# Scenario 1:
+# Create a normal table, rebuild and truncate will clear the instant
+# information
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ADD KEY(c2);
+Table ID differed
+SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT count(*) FROM information_schema.innodb_tables WHERE instant_cols != 0;
+count(*)
+0
+SELECT count(*) FROM information_schema.innodb_columns WHERE has_default = 1;
+count(*)
+0
+INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+TRUNCATE TABLE t1;
+Table ID differed
+SELECT 4 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT count(*) FROM information_schema.innodb_tables WHERE instant_cols != 0;
+count(*)
+0
+SELECT count(*) FROM information_schema.innodb_columns WHERE has_default = 1;
+count(*)
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT '10',
+  `c2` int(11) DEFAULT '20',
+  `c3` int(11) DEFAULT '10',
+  PRIMARY KEY (`a`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+DROP TABLE t1;
+#
+# Scenario 2:
+# Create a partitioned table, rebuild and truncate will clear the instant
+# information
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT PARTITION BY HASH(a) PARTITIONS 3;;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM = COPY;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+INSERT INTO t1(b, c1, c2) SELECT b, c1, c2 FROM t1;
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+TRUNCATE TABLE t1;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT '10',
+  `c2` int(11) DEFAULT '20',
+  `c3` int(11) DEFAULT '30',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY HASH (`a`)
+PARTITIONS 3 */
+DROP TABLE t1;
+#
+# Scenario 3:
+# Create a partitioned table, ALTER TABLE ... PARTITION will clear the
+# instant information
+#
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT) ROW_FORMAT=COMPACT PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20), PARTITION p3 VALUES LESS THAN (30));;
+INSERT INTO t1 VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22), (26, 26), (27, 27);
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 100;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD PARTITION (PARTITION p4 VALUES LESS THAN(40));
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p4%';
+instant_cols
+0
+ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p31 VALUES LESS THAN(25), PARTITION p32 VALUES LESS THAN(30));
+SELECT * FROM t1 WHERE a > 20 AND a < 30;
+a	b	c
+21	21	100
+22	22	100
+26	26	100
+27	27	100
+SELECT * FROM t1 WHERE a > 10 AND a < 20;
+a	b	c
+11	11	100
+12	12	100
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 2
+2
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p3%';
+instant_cols
+0
+0
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+SELECT * FROM t1 WHERE a < 10;
+a	b	c
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 1
+1
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%';
+instant_cols
+0
+ALTER TABLE t1 TRUNCATE PARTITION p1, p2, p31, p32, p4;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+INSERT INTO t1(a, b) VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22), (26, 26), (27, 27);
+SELECT c FROM t1 GROUP BY c;
+c
+100
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100;
+SELECT count(*) AS `Expect 5` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 5
+5
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+SELECT count(*) AS `Expect 4` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 4
+4
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%';
+instant_cols
+0
+ALTER TABLE t1 DROP PARTITION p2, p4;
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 2
+2
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 DROP PARTITION p31, p32;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT '100',
+  `d` int(11) DEFAULT '100',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB) */
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT PARTITION BY HASH(a) PARTITIONS 3;;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8);
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20;
+SELECT count(*) AS `Expect 5` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 5
+5
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 COALESCE PARTITION 2;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+ALTER TABLE t1 ADD COLUMN c3 INT DEFAULT 30;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 3
+3
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 1
+1
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+Expect 0
+0
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+Expect 0
+0
+SELECT * FROM t1;
+a	b	c1	c2	c3
+5	5	10	20	30
+1	1	10	20	30
+6	6	10	20	30
+2	2	10	20	30
+7	7	10	20	30
+3	3	10	20	30
+8	8	10	20	30
+4	4	10	20	30
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT '10',
+  `c2` int(11) DEFAULT '20',
+  `c3` int(11) DEFAULT '30',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY HASH (`a`)
+PARTITIONS 5 */
+DROP TABLE t1;

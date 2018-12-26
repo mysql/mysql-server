@@ -1,0 +1,129 @@
+################## mysql-test\t\binlog_row_image_basic.test ###################
+#                                                                             #
+# Variable Name: binlog_row_image                                             #
+# Scope: Global & Session                                                     #
+# Access Type: Static                                                         #
+# Data Type: enumeration                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2010-05-20                                                   #
+# Author : Luis Soares                                                        #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable binlog_row_image          #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.X/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+
+SELECT @@GLOBAL.binlog_row_image;
+SELECT @@SESSION.binlog_row_image;
+--echo FULL Expected
+
+--echo '#---------------------BS_STVARS_002_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SET @start_value= @@global.binlog_row_image;
+
+SELECT COUNT(@@GLOBAL.binlog_row_image);
+--echo 1 Expected
+
+SELECT COUNT(@@SESSION.binlog_row_image);
+--echo 1 Expected
+
+--echo '#---------------------BS_STVARS_002_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+SET @@GLOBAL.binlog_row_image=0;
+SELECT @@GLOBAL.binlog_row_image;
+--echo MINIMAL Expected
+
+SET @@SESSION.binlog_row_image=0;
+SELECT @@SESSION.binlog_row_image;
+--echo MINIMAL Expected
+
+SET @@GLOBAL.binlog_row_image=1;
+SELECT @@GLOBAL.binlog_row_image;
+--echo NOBLOB Expected
+
+SET @@SESSION.binlog_row_image=1;
+SELECT @@SESSION.binlog_row_image;
+--echo NOBLOB Expected
+
+SET @@GLOBAL.binlog_row_image=2;
+SELECT @@GLOBAL.binlog_row_image;
+--echo FULL Expected
+
+SET @@SESSION.binlog_row_image=2;
+SELECT @@SESSION.binlog_row_image;
+--echo FULL Expected
+
+--echo '#---------------------BS_STVARS_002_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.binlog_row_image = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='binlog_row_image';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.binlog_row_image);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='binlog_row_image';
+--enable_warnings
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_04----------------------#'
+#################################################################
+# Check if the value in SESSION Table matches value in variable #
+#################################################################
+
+--disable_warnings
+SELECT @@SESSION.binlog_row_image = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='binlog_row_image';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@SESSION.binlog_row_image);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='binlog_row_image';
+--enable_warnings
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_05----------------------#'
+################################################################################
+#   Check if binlog_row_image can be accessed with and without @@ sign         #
+################################################################################
+
+SELECT COUNT(@@binlog_row_image);
+--echo 1 Expected
+SELECT COUNT(@@local.binlog_row_image);
+--echo 1 Expected
+SELECT COUNT(@@SESSION.binlog_row_image);
+--echo 1 Expected
+SELECT COUNT(@@GLOBAL.binlog_row_image);
+--echo 1 Expected
+
+SET @@global.binlog_row_image= @start_value;
+

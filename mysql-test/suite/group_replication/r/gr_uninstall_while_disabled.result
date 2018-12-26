@@ -1,0 +1,16 @@
+
+############################################################
+# 1. Uninstall plugin while it is disabled.
+#    See group_replication_uninstall_while_disabled-master.opt
+#    file.
+include/uninstall_group_replication_plugin.inc
+
+############################################################
+# 2. Try install plugin while it is disabled.
+#    Then uninstall it again twice.
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+Warnings:
+Warning	1123	Can't initialize function 'group_replication'; Plugin is disabled
+include/uninstall_group_replication_plugin.inc
+UNINSTALL PLUGIN group_replication;
+ERROR 42000: PLUGIN group_replication does not exist

@@ -1,0 +1,51 @@
+#------------------------------------------------------------------------------
+# Redo log optimization
+# Test aims to verify recovery works when server is stopped in debug point
+# 1) log_flush_notifier_before_flushed_to_disk_lsn
+# 2) log_flush_notifier_before_notify
+# 3) log_get_available_for_chkp_lsn_before_buf_pool
+# 4) log_get_available_for_chkp_lsn_before_dpa
+# 5) log_before_checkpoint_write
+#------------------------------------------------------------------------------
+
+# Test uses debug binary
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--echo # Test with log_notifier_before_flushed_to_disk_lsn
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_flush_notifier_before_flushed_to_disk_lsn;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_notifier_before_notify
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_flush_notifier_before_notify;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_get_available_for_chkp_lsn_before_buf_pool
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_get_available_for_chkp_lsn_before_buf_pool;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_get_available_for_chkp_lsn_before_dpa
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_get_available_for_chkp_lsn_before_dpa;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_before_checkpoint_write
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_before_checkpoint_write;
+--source suite/innodb/include/innodb_redo_debug.inc

@@ -1,0 +1,52 @@
+# ==== Purpose ====
+#
+# This test will check if a thread performing a REPAIR TABLE into a MyISAM
+# table, blocked waiting for disk space because of debug instrumentation, will
+# display the expected thread PROCCESLIST_STATE (it should not display "Waiting
+# for disk space", as only the I/O threads should use this state).
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#26161405 EXECUTING STOP SLAVE WHEN IO_THREAD IS "WAITING FOR DISK
+#              SPACE" CAUSES PROBLEMS
+#
+--source include/have_debug.inc
+--source include/have_myisam.inc
+
+# Suppression of error messages
+CALL mtr.add_suppression('Disk is full writing');
+CALL mtr.add_suppression('Retry in 60 secs');
+
+# Create and populate the MyISAM table
+CREATE TABLE t1 (c1 INT, c2 LONGTEXT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1, REPEAT("a", 8192));
+INSERT INTO t1 VALUES (2, REPEAT("b", 8192));
+INSERT INTO t1 VALUES (3, REPEAT("c", 8192));
+
+# Add the debug point to simulate no disk space
+--let $debug_point=force_wait_for_disk_space
+--source include/add_debug_point.inc
+
+# Try to repair the table in a new client connection
+--connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,)
+--send REPAIR TABLE t1
+
+# Wait until the REPAIR operated for at least 5 seconds (to reach the wait)
+--connection default
+--let $wait_condition= SELECT PROCESSLIST_TIME >= 5 FROM performance_schema.threads WHERE PROCESSLIST_INFO = 'REPAIR TABLE t1'
+--source include/wait_condition.inc
+
+# Inspect thread status
+--let $state=`SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_INFO = 'REPAIR TABLE t1'`
+--let $assert_text= REPAIR TABLE PROCESSLIST_STATE must not be "Waiting for disk space"
+--let $assert_cond= "$state" != "Waiting for disk space"
+--source include/assert.inc
+
+# Let the repair to finish
+--source include/remove_debug_point.inc
+--connection con1
+--reap
+
+# Cleanup
+DROP TABLE t1;
+

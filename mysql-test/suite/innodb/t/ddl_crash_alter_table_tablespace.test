@@ -1,0 +1,63 @@
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--disable_query_log
+CALL mtr.add_suppression("\\[ERROR\\]  Could not find a valid tablespace file for");
+CALL mtr.add_suppression("\\[ERROR\\].*MLOG_FILE_RENAME: Invalid to file name.* File name in the redo log is ''");
+--enable_query_log
+
+LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'data1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'data2.ibd';
+
+let $table_name= t1;
+
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+
+let $insert_statement= INSERT INTO t1 VALUES (1, "Filler1", 1),
+(2, "filler2", 2), (3, "FILLER3", 3), (4, "Filler4", 4), (5, "5", 5),
+(6, "filler6", 6);
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 0;
+let $test_drop= 0;
+let $crash_statement= ALTER TABLE $table_name ADD INDEX(b), TABLESPACE=innodb_system;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 0;
+let $test_drop= 0;
+let $crash_statement= ALTER TABLE $table_name DROP INDEX c, TABLESPACE=ts1;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+let $test_free= 1;
+let $test_delete= 0;
+let $test_rename= 0;
+let $test_drop= 0;
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+let $crash_statement= ALTER TABLE $table_name ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+
+let $test_free= 1;
+let $test_delete= 0;
+let $test_rename= 0;
+let $test_drop= 0;
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+let $crash_statement= ALTER TABLE $table_name DROP INDEX c, TABLESPACE=ts2;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+
+eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $innodb_ddl_log_crash_reset_debug_orig;
+

@@ -1,0 +1,53 @@
+# This testcase throws following error when run with InnoDB as Default
+# Unknown/unsupported storage engine: InnoDB
+# All tests are required to run with MyISAM
+# MTR starts mysqld with MyISAM as default
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+SET SQL_MODE='';
+#
+# Test bugs in the MyISAM code with blobs
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# Bug #2159 (Problem with update of blob to > 16M)
+
+CREATE TABLE t1 (data LONGBLOB) ENGINE=myisam;
+INSERT INTO t1 (data) VALUES (NULL);
+UPDATE t1 set data=repeat('a',18*1024*1024);
+select length(data) from t1;
+delete from t1 where left(data,1)='a';
+check table t1;
+truncate table t1;
+INSERT INTO t1 (data) VALUES (repeat('a',1*1024*1024));
+INSERT INTO t1 (data) VALUES (repeat('b',16*1024*1024-1024));
+delete from t1 where left(data,1)='b';
+check table t1;
+
+# now we have two blocks in the table, first is a 1M record and second is
+# a 16M delete block.
+
+UPDATE t1 set data=repeat('c',17*1024*1024);
+check table t1;
+delete from t1 where left(data,1)='c';
+check table t1;
+
+INSERT INTO t1 set data=repeat('a',18*1024*1024);
+select length(data) from t1;
+alter table t1 modify data blob;
+select length(data) from t1;
+drop table t1;
+
+CREATE TABLE t1 (data BLOB) ENGINE=myisam;
+INSERT INTO t1 (data) VALUES (NULL);
+UPDATE IGNORE t1 set data=repeat('a',18*1024*1024);
+select length(data) from t1;
+drop table t1;
+
+SET SQL_MODE=default;
+# End of 4.1 tests

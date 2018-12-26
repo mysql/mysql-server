@@ -1,0 +1,210 @@
+set @save_binlog_format= @@global.binlog_format;
+set @save_binlog_dirct= @@global.binlog_direct_non_transactional_updates;
+create table t1 (a int) engine= myisam;
+create table t2 (a int) engine= innodb;
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+SELECT @@session.binlog_direct_non_transactional_updates;
+@@session.binlog_direct_non_transactional_updates
+0
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+SET AUTOCOMMIT=1;
+# Test that the session variable 'binlog_format',
+# 'binlog_direct_non_transactional_updates' and 'sql_log_bin'
+# are writable outside a transaction.
+# Current session values are ROW, FALSE, TRUE, respectively.
+set @@session.binlog_format= statement;
+set @@session.binlog_direct_non_transactional_updates= TRUE;
+set @@session.sql_log_bin= FALSE;
+SELECT @@session.binlog_format;
+@@session.binlog_format
+STATEMENT
+SELECT @@session.binlog_direct_non_transactional_updates;
+@@session.binlog_direct_non_transactional_updates
+1
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+0
+begin;
+# Test that the session variable 'binlog_format',
+# 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+# read-only inside a transaction with no preceding updates.
+# Current session values are STATEMENT, TRUE, FALSE, respectively.
+set @@session.binlog_format= mixed;
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+set @@session.binlog_direct_non_transactional_updates= FALSE;
+ERROR HY000: Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction
+set @@session.sql_log_bin= FALSE;
+ERROR HY000: Cannot modify @@session.sql_log_bin inside a transaction
+insert into t2 values (1);
+# Test that the session variable 'binlog_format',
+# 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+# read-only inside a transaction with preceding transactional updates.
+# Current session values are STATEMENT, TRUE and FALSE, respectively.
+set @@session.binlog_format= 'row';
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+set @@session.binlog_direct_non_transactional_updates= FALSE;
+ERROR HY000: Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction
+set @@session.sql_log_bin= FALSE;
+ERROR HY000: Cannot modify @@session.sql_log_bin inside a transaction
+commit;
+begin;
+insert into t1 values (2);
+# Test that the session variable 'binlog_format'
+# 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+# read-only inside a transaction with preceding non-transactional updates.
+# Current session values are STATEMENT, TRUE, FALSE, respectively.
+set @@session.binlog_format= mixed;
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+set @@session.binlog_direct_non_transactional_updates= FALSE;
+ERROR HY000: Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction
+set @@session.sql_log_bin= FALSE;
+ERROR HY000: Cannot modify @@session.sql_log_bin inside a transaction
+commit;
+# Test that the session variable 'binlog_format',
+# 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+# writable when AUTOCOMMIT=0, before a transaction has started.
+# Current session values are STATEMENT, TRUE, FALSE, respectively.
+set AUTOCOMMIT=0;
+set @@session.binlog_format= 'row';
+set @@session.binlog_direct_non_transactional_updates= FALSE;
+set @@session.sql_log_bin= TRUE;
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+SELECT @@session.binlog_direct_non_transactional_updates;
+@@session.binlog_direct_non_transactional_updates
+0
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+insert into t1 values (3);
+# Test that the session variable 'binlog_format',
+# 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+# read-only inside an AUTOCOMMIT=0 transaction
+# with preceding non-transactional updates.
+# Current session values are ROW, FALSE, TRUE, respectively.
+set @@session.binlog_format= statement;
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+set @@session.binlog_direct_non_transactional_updates= TRUE;
+ERROR HY000: Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction
+set @@session.sql_log_bin= FALSE;
+ERROR HY000: Cannot modify @@session.sql_log_bin inside a transaction
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+SELECT @@session.binlog_direct_non_transactional_updates;
+@@session.binlog_direct_non_transactional_updates
+0
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+commit;
+insert into t2 values (4);
+# Test that the session variable 'binlog_format', 
+# 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+# read-only inside an AUTOCOMMIT=0 transaction with
+# preceding transactional updates.
+# Current session values are ROW, FALSE, TRUE, respectively.
+set @@session.binlog_format= statement;
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+set @@session.binlog_direct_non_transactional_updates= TRUE;
+ERROR HY000: Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction
+set @@session.sql_log_bin= FALSE;
+ERROR HY000: Cannot modify @@session.sql_log_bin inside a transaction
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+SELECT @@session.binlog_direct_non_transactional_updates;
+@@session.binlog_direct_non_transactional_updates
+0
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+commit;
+begin;
+insert into t2 values (5);
+# Test that the global variable 'binlog_format' and
+# 'binlog_direct_non_transactional_updates' are
+# writable inside a transaction.
+# Current session values are ROW, FALSE, TRUE respectively.
+SELECT @@global.binlog_format;
+@@global.binlog_format
+ROW
+set @@global.binlog_format= statement;
+set @@global.binlog_direct_non_transactional_updates= TRUE;
+SELECT @@global.binlog_format;
+@@global.binlog_format
+STATEMENT
+SELECT @@global.binlog_direct_non_transactional_updates;
+@@global.binlog_direct_non_transactional_updates
+1
+commit;
+set @@global.binlog_format= @save_binlog_format;
+set @@global.binlog_direct_non_transactional_updates= @save_binlog_dirct;
+create table t3(a int, b int) engine= innodb;
+create table t4(a int) engine= innodb;
+create table t5(a int) engine= innodb;
+create trigger tr1 after insert on t3 for each row begin
+insert into t4(a) values(1);
+set @@session.binlog_format= statement;
+insert into t4(a) values(2);
+insert into t5(a) values(3);
+end |
+# Test that the session variable 'binlog_format' is read-only
+# in sub-statements.
+# Current session value is ROW.
+insert into t3(a,b) values(1,1);
+ERROR HY000: Cannot change the binary logging format inside a stored function or trigger
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+create table t6(a int, b int) engine= innodb;
+create table t7(a int) engine= innodb;
+create table t8(a int) engine= innodb;
+create trigger tr2 after insert on t6 for each row begin
+insert into t7(a) values(1);
+set @@session.binlog_direct_non_transactional_updates= TRUE;
+insert into t7(a) values(2);
+insert into t8(a) values(3);
+end |
+# Test that the session variable
+# 'binlog_direct_non_transactional_updates' is
+# read-only in sub-statements.
+# Current session value is FALSE.
+insert into t6(a,b) values(1,1);
+ERROR HY000: Cannot change the binlog direct flag inside a stored function or trigger
+SELECT @@session.binlog_direct_non_transactional_updates;
+@@session.binlog_direct_non_transactional_updates
+0
+create table t9(a int, b int) engine= innodb;
+create table t10(a int) engine= innodb;
+create table t11(a int) engine= innodb;
+create trigger tr3 after insert on t9 for each row begin
+insert into t10(a) values(1);
+set @@session.sql_log_bin= TRUE;
+insert into t10(a) values(2);
+insert into t11(a) values(3);
+end |
+# Test that the session variable 'sql_log_bin' is
+# read-only in sub-statements.
+# Current session value is FALSE.
+insert into t9(a,b) values(1,1);
+ERROR HY000: Cannot change the sql_log_bin inside a stored function or trigger
+SELECT @@session.sql_log_bin;
+@@session.sql_log_bin
+1
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+drop table t9;
+drop table t10;
+drop table t11;

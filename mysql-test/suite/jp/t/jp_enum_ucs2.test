@@ -1,0 +1,123 @@
+#Server variable option 'lower_case_table_names' sets '0' as default value
+#in case sensitive filesystem. Using 'lower_case_table_names=0' in case of
+#insensitive filsystem is not allowed.
+-- source include/have_case_sensitive_file_system.inc
+
+--character_set ujis
+
+# half-with kana is not handled correctly in 4.1
+# because of bug #5174
+# It will be fixed in 5.0
+
+--disable_warnings
+drop table if exists `£Τ£±`;
+drop table if exists `£Τ£²`;
+drop table if exists `£Τ£³`;
+drop table if exists `£Τ£΄`;
+drop table if exists `£Τ£µ`;
+drop table if exists `£Τ£¶`;
+drop table if exists `£Τ£·`;
+drop table if exists `£Τ£Έ`;
+drop table if exists `£Τ£Ή`;
+--enable_warnings
+
+#
+# Test ENUM values with Japanese characters in ucs2 encoding
+#
+
+SET NAMES ujis;
+SET character_set_database = ucs2;
+SET collation_connection = ucs2_general_ci;
+
+CREATE TABLE `£Τ£±` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£²` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£³` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£΄` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£µ` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£¶` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£·` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+
+INSERT INTO `£Τ£±` VALUES ('±'),('²'),('³');
+INSERT INTO `£Τ£²` VALUES ('¤Ά'),('¤¤'),('¤¦');
+INSERT INTO `£Τ£³` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£΄` VALUES ('±'),('²'),('³');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά'),('¤¤'),('¤¦');
+INSERT INTO `£Τ£¶` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£·` VALUES ('±'),('²'),('³');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά'),('¤¤'),('¤¦');
+INSERT INTO `£Τ£Ή` VALUES ('νά'),('νέ'),('νή');
+
+SELECT * FROM `£Τ£±`;
+SELECT * FROM `£Τ£²`;
+SELECT * FROM `£Τ£³`;
+SELECT * FROM `£Τ£΄`;
+SELECT * FROM `£Τ£µ`;
+SELECT * FROM `£Τ£¶`;
+SELECT * FROM `£Τ£·`;
+SELECT * FROM `£Τ£Έ`;
+SELECT * FROM `£Τ£Ή`;
+
+SHOW CREATE TABLE `£Τ£±`;
+SHOW CREATE TABLE `£Τ£²`;
+SHOW CREATE TABLE `£Τ£³`;
+SHOW CREATE TABLE `£Τ£΄`;
+SHOW CREATE TABLE `£Τ£µ`;
+SHOW CREATE TABLE `£Τ£¶`;
+SHOW CREATE TABLE `£Τ£·`;
+SHOW CREATE TABLE `£Τ£Έ`;
+SHOW CREATE TABLE `£Τ£Ή`;
+
+DESC `£Τ£±`;
+DESC `£Τ£²`;
+DESC `£Τ£³`;
+DESC `£Τ£΄`;
+DESC `£Τ£µ`;
+DESC `£Τ£¶`;
+DESC `£Τ£·`;
+DESC `£Τ£Έ`;
+DESC `£Τ£Ή`;
+
+#
+# Test problem with enum values after the colum with  NOT NULL restriction
+# Bug#7302 UCS2 data in ENUM field get truncated when new column is added
+ALTER TABLE `£Τ£±` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£²` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£³` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£΄` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£µ` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£¶` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£·` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£Έ` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+ALTER TABLE `£Τ£Ή` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
+
+SHOW CREATE TABLE `£Τ£±`;
+SHOW CREATE TABLE `£Τ£²`;
+SHOW CREATE TABLE `£Τ£³`;
+SHOW CREATE TABLE `£Τ£΄`;
+SHOW CREATE TABLE `£Τ£µ`;
+SHOW CREATE TABLE `£Τ£¶`;
+SHOW CREATE TABLE `£Τ£·`;
+SHOW CREATE TABLE `£Τ£Έ`;
+SHOW CREATE TABLE `£Τ£Ή`;
+
+DESC `£Τ£±`;
+DESC `£Τ£²`;
+DESC `£Τ£³`;
+DESC `£Τ£΄`;
+DESC `£Τ£µ`;
+DESC `£Τ£¶`;
+DESC `£Τ£·`;
+DESC `£Τ£Έ`;
+DESC `£Τ£Ή`;
+
+DROP TABLE `£Τ£±`;
+DROP TABLE `£Τ£²`;
+DROP TABLE `£Τ£³`;
+DROP TABLE `£Τ£΄`;
+DROP TABLE `£Τ£µ`;
+DROP TABLE `£Τ£¶`;
+DROP TABLE `£Τ£·`;
+DROP TABLE `£Τ£Έ`;
+DROP TABLE `£Τ£Ή`;

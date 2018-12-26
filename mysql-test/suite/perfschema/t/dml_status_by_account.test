@@ -1,0 +1,37 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.status_by_account
+  where variable_name like 'bytes_%' limit 1;
+
+select * from performance_schema.status_by_account
+  where variable_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.status_by_account
+  set user='USER', host='HOST', variable_name='FOO', variable_value='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.status_by_account
+  set variable_name='FOO', variable_value='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.status_by_account
+  set variable_name='FOO' where user <> 'USER';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.status_by_account
+  where user <> 'USER';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.status_by_account;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.status_by_account READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.status_by_account WRITE;
+UNLOCK TABLES;
+

@@ -1,0 +1,205 @@
+
+--echo #
+--echo # WL#11864 Implement I_S.VIEW_TABLE_USAGE and I_S.VIEW_ROUTINE_USAGE
+--echo #
+
+--echo # Basic schema definition used by test cases.
+CREATE DATABASE db1;
+USE db1;
+
+CREATE TABLE t1 (c1 INT);
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE FUNCTION f2() RETURNS INT RETURN 2;
+CREATE VIEW v1 AS SELECT f1() AS f1;
+CREATE VIEW v2 AS SELECT f1, f2() AS f2  FROM v1;
+CREATE VIEW v3 AS SELECT c1, f2 FROM t1, v2;
+
+
+--echo # Case 1: Show table and views used by view v2 and v3.
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+
+--echo # Case 2: Show routines used by views.
+SELECT * FROM INFORMATION_SCHEMA.VIEW_ROUTINE_USAGE
+  WHERE TABLE_SCHEMA='db1';
+
+
+--echo # Case 3: Rename the column of t1 and list view dependency.
+--echo # The query should throw warning on view v3.
+ALTER TABLE t1 RENAME COLUMN c1 TO c2;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' AND VIEW_NAME='v3';
+ALTER TABLE t1 RENAME COLUMN c2 TO c1;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' AND VIEW_NAME='v3';
+
+
+--echo # Case 4: Drop function f1 and list dependency.
+--echo # The query should throw warning on view v1.
+DROP FUNCTION f1;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_ROUTINE_USAGE
+  WHERE TABLE_SCHEMA='db1' AND TABLE_NAME='v1';
+CREATE FUNCTION f1() RETURNS INT return 1;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_ROUTINE_USAGE
+  WHERE TABLE_SCHEMA='db1' AND TABLE_NAME='v1';
+
+
+--echo # Case 5: Access checks.
+
+CREATE USER 'testuser'@'localhost';
+
+--echo # 5.1 Grant permission on v2, but not v1. VIEW_TABLE_USAGE will not
+--echo # list any entry because user has no permission on v1.
+GRANT ALL ON db1.v2 TO 'testuser'@'localhost';
+--connect (con1,localhost,testuser,,db1)
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+
+--echo # 5.2 Give permission on v1 and that VIEW_TABLE_USAGE shows v2 entry.
+--connection default
+GRANT ALL ON db1.v1 TO 'testuser'@'localhost';
+--connection con1
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+
+--echo # 5.3 VIEW_ROUTINE_USAGE does not list v1, as it have no grant on f1.
+SELECT * FROM INFORMATION_SCHEMA.VIEW_ROUTINE_USAGE
+  WHERE TABLE_SCHEMA='db1';
+
+--echo # 5.4 Grant access to f1 and check that VIEW_ROUTINE_USAGE shows it.
+--connection default
+GRANT EXECUTE ON FUNCTION db1.f1 TO 'testuser'@'localhost';
+--connection con1
+SELECT * FROM INFORMATION_SCHEMA.VIEW_ROUTINE_USAGE
+  WHERE TABLE_SCHEMA='db1';
+
+--echo # 5.5 Grant access on v3, see that dependency 't1' is not listed.
+--connection default
+GRANT ALL ON db1.v3 TO 'testuser'@'localhost';
+--connection con1
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+
+--echo # 5.6 Grant access on t1, see that dependency 't1' is listed.
+--connection default
+GRANT SELECT on db1.t1 TO 'testuser'@'localhost';
+--connection con1
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+
+--disconnect con1
+--connection default
+DROP USER 'testuser'@'localhost';
+
+--echo # Cleanup
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP VIEW v1, v2, v3;
+DROP TABLE t1;
+
+
+--echo # Case 6:
+--echo # 6.1 Rename table t1 to t2 and list view dependency.
+--echo # The query should throw warning on view v1.
+CREATE TABLE t1 (c1 INT);
+CREATE VIEW v1 AS SELECT c1 FROM t1;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+RENAME TABLE t1 to t2;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+RENAME TABLE t2 to t1;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+
+--echo # 6.2 Drop table t1 and list view dependency.
+DROP TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+   WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+DROP VIEW v1;
+
+
+--echo # Case 7: List dependent table and function names
+--echo # that are permitted to the current user.
+CREATE USER testuser1@localhost;
+GRANT CREATE ON db1.* TO testuser1@localhost;
+GRANT SELECT ON db1.* TO testuser1@localhost;
+GRANT CREATE VIEW ON db1.* TO testuser1@localhost;
+GRANT CREATE ROUTINE ON db1.* TO testuser1@localhost;
+GRANT DROP ON db1.* TO testuser1@localhost;
+
+CREATE USER testuser2@localhost;
+GRANT CREATE ON db1.* TO testuser2@localhost;
+GRANT SELECT ON db1.* TO testuser2@localhost;
+GRANT CREATE VIEW ON db1.* TO testuser2@localhost;
+GRANT CREATE ROUTINE ON db1.* TO testuser2@localhost;
+GRANT DROP ON db1.* TO testuser2@localhost;
+
+--connect (con1,localhost,testuser1,,db1)
+CREATE TABLE t1(c1 INT);
+CREATE VIEW v1 AS SELECT c1 FROM t1;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE VIEW v2 AS SELECT f1();
+
+--connect (con2,localhost,testuser2,,db1)
+CREATE TABLE t2(c1 INT);
+CREATE VIEW v3 AS SELECT c1 FROM t2;
+CREATE FUNCTION f2() RETURNS INT RETURN 1;
+CREATE VIEW v4 AS SELECT f2();
+
+--connection con1
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_ROUTINE_USAGE
+  WHERE TABLE_SCHEMA='db1';
+
+--connection con2
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+SELECT * FROM INFORMATION_SCHEMA.VIEW_ROUTINE_USAGE
+  WHERE TABLE_SCHEMA='db1';
+
+--connection con1
+DROP VIEW v1,v2;
+DROP FUNCTION f1;
+DROP TABLE t1;
+--disconnect con1
+
+--connection con2
+DROP VIEW v3,v4;
+DROP FUNCTION f2;
+DROP TABLE t2;
+--disconnect con2
+
+--connection default
+DROP USER testuser1@localhost;
+DROP USER testuser2@localhost;
+
+
+--echo # Case 8: Revoke view privilege
+CREATE USER testuser1@localhost;
+CREATE TABLE t1(c1 INT);
+CREATE VIEW v1 AS SELECT c1 FROM t1;
+GRANT ALL ON db1.v1 TO testuser1@localhost;
+GRANT ALL ON db1.t1 TO testuser1@localhost;
+
+--connect (con1,localhost,testuser1,,db1)
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+
+--connection default
+REVOKE ALL ON db1.v1 FROM testuser1@localhost;
+
+--connection con1
+SELECT * FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE
+  WHERE VIEW_SCHEMA='db1' ORDER BY VIEW_NAME, TABLE_NAME;
+--disconnect con1
+
+--connection default
+REVOKE ALL ON db1.t1 FROM testuser1@localhost;
+DROP USER testuser1@localhost;
+DROP VIEW v1;
+DROP TABLE t1;
+
+
+DROP DATABASE db1;

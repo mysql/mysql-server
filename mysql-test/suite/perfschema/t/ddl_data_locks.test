@@ -1,0 +1,14 @@
+# Tests for PERFORMANCE_SCHEMA
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.data_locks add column foo integer;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+truncate table performance_schema.data_locks;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.data_locks ADD INDEX test_index(LOCK_DATA);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.data_locks(LOCK_DATA);
+

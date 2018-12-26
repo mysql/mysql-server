@@ -1,0 +1,6 @@
+RESTART;
+# Executing a sql command after RESTART.
+SELECT 1;
+1
+1
+SHUTDOWN;

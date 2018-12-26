@@ -1,0 +1,89 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+CREATE TABLE t1 (
+a int unsigned not null auto_increment primary key,
+b int unsigned,
+unique (b)
+) ENGINE=innodb;
+CREATE TABLE t2 (
+a int unsigned, # to force INSERT SELECT to have a certain order
+b int unsigned
+) ENGINE=innodb;
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+INSERT INTO t1 VALUES (NULL, 3);
+INSERT INTO t1 VALUES (NULL, 4);
+INSERT INTO t2 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+INSERT INTO t2 VALUES (3, 5);
+INSERT INTO t2 VALUES (4, 3);
+INSERT INTO t2 VALUES (5, 4);
+INSERT INTO t2 VALUES (6, 6);
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+include/assert.inc [Count of elements in t1 should be 6.]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:test.t1 , slave:test.t1]
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+include/assert.inc [Count of elements in t1 should be 6.]
+include/assert.inc [In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.]
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (
+a INT UNSIGNED NOT NULL PRIMARY KEY
+) ENGINE=innodb;
+CREATE TABLE t2 (
+a INT UNSIGNED
+) ENGINE=innodb;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t1 SELECT t2.a FROM t2 ORDER BY t2.a ON DUPLICATE KEY UPDATE t1.a= t1.a;
+include/assert.inc [Sum of elements in t1 should be 1.]
+include/assert.inc [In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.]
+drop table t1, t2;
+include/sync_slave_sql_with_master.inc
+CREATE TABLE t1 (
+a int unsigned not null auto_increment primary key,
+b int unsigned,
+unique (b)
+) ENGINE=myisam;
+CREATE TABLE t2 (
+a int unsigned, # to force INSERT SELECT to have a certain order
+b int unsigned
+) ENGINE=myisam;
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+INSERT INTO t1 VALUES (NULL, 3);
+INSERT INTO t1 VALUES (NULL, 4);
+INSERT INTO t2 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+INSERT INTO t2 VALUES (3, 5);
+INSERT INTO t2 VALUES (4, 3);
+INSERT INTO t2 VALUES (5, 4);
+INSERT INTO t2 VALUES (6, 6);
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+include/assert.inc [Count of elements in t1 should be 6.]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:test.t1 , slave:test.t1]
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+include/assert.inc [Count of elements in t1 should be 6.]
+include/assert.inc [In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.]
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (
+a INT UNSIGNED NOT NULL PRIMARY KEY
+) ENGINE=myisam;
+CREATE TABLE t2 (
+a INT UNSIGNED
+) ENGINE=myisam;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t1 SELECT t2.a FROM t2 ORDER BY t2.a ON DUPLICATE KEY UPDATE t1.a= t1.a;
+include/assert.inc [Sum of elements in t1 should be 1.]
+include/assert.inc [In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.]
+drop table t1, t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

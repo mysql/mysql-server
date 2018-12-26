@@ -1,0 +1,123 @@
+reset master;
+create table t1 (a int);
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+update t1 set a=a+2 where a=2;
+update t1 set a=a+2 where a=3;
+create table t2 (word varchar(20));
+load data infile '../../std_data/words.dat' into table t2;
+flush logs;
+drop table t1;
+drop table t2;
+RESET MASTER;
+select * from t1;
+a
+1
+4
+5
+select * from t2;
+word
+Aarhus
+Aaron
+Ababa
+aback
+abaft
+abandon
+abandoned
+abandoning
+abandonment
+abandons
+Aarhus
+Aaron
+Ababa
+aback
+abaft
+abandon
+abandoned
+abandoning
+abandonment
+abandons
+abase
+abased
+abasement
+abasements
+abases
+abash
+abashed
+abashes
+abashing
+abasing
+abate
+abated
+abatement
+abatements
+abater
+abates
+abating
+Abba
+abbe
+abbey
+abbeys
+abbot
+abbots
+Abbott
+abbreviate
+abbreviated
+abbreviates
+abbreviating
+abbreviation
+abbreviations
+Abby
+abdomen
+abdomens
+abdominal
+abduct
+abducted
+abduction
+abductions
+abductor
+abductors
+abducts
+Abe
+abed
+Abel
+Abelian
+Abelson
+Aberdeen
+Abernathy
+aberrant
+aberration
+flush logs;
+drop table t2;
+create table t2 (word varchar(20));
+load data infile '../../std_data/words.dat' into table t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+select count(*) from t2;
+count(*)
+35840
+flush logs;
+RESET MASTER;
+select count(*) from t2;
+count(*)
+35840
+drop table t1;
+drop table t2;
+RESET MASTER;
+USE test;
+SET @old_binlog_format= @@binlog_format;
+SET SESSION binlog_format='ROW';
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES (1);
+FLUSH LOGS;
+DROP TABLE t1;
+SET SESSION binlog_format= @old_binlog_format;
+RESET MASTER;

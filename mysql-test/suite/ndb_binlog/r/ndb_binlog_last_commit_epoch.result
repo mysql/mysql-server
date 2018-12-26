@@ -1,0 +1,63 @@
+Reset binlog and show no state held
+reset master;
+select count(1) from mysql.ndb_binlog_index;
+count(1)
+0
+Create table for experiments
+use test;
+create table test.t1 (a int primary key, b varchar(1000), c text) engine=ndb;
+Basic test that an insert affects Server + Session epochs
+insert into test.t1 values (1, repeat("B", 1000), repeat("E", 500));
+init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
+1	1	1	1
+binlog_contains_last_session_epoch
+1
+Basic test that a read with exclusive lock has no effect
+begin;
+select count(1) from test.t1 where a=1 for update;
+count(1)
+1
+commit;
+init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
+1	1	1	1
+binlog_contains_last_session_epoch
+0
+Basic test that a read with shared lock has no effect
+begin;
+select count(1) from test.t1 where a=1 lock in share mode;
+count(1)
+1
+commit;
+init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
+1	1	1	1
+binlog_contains_last_session_epoch
+0
+Basic test that a committedread has no effect
+begin;
+select count(1) from test.t1 where a=1;
+count(1)
+1
+commit;
+init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
+1	1	1	1
+binlog_contains_last_session_epoch
+0
+Basic test that an update affects Server + Session epochs
+update test.t1 set b=repeat("E", 1000), c=repeat("A", 5000) where a=1;
+init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
+1	1	1	1
+binlog_contains_last_session_epoch
+1
+Basic test that a delete affects Server + Session epochs
+delete from test.t1 where a=1;
+init_server_epoch_includes_session_epoch	curr_server_epoch_includes_session_epoch	server_epoch_does_not_regress	session_epoch_does_not_regress
+1	1	1	1
+binlog_contains_last_session_epoch
+1
+Show that server epoch is preserved across connections
+but session epoch is not
+server_epoch_preserved
+1
+session_epoch_reset
+1
+drop table test.t1;

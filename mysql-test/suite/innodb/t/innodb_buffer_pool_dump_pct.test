@@ -1,0 +1,147 @@
+# ************************************************************
+# wl6504: This testcase is to check the functionality of the
+# innodb_buffer_pool_dump_pct flag
+# step 1.Set innodb_buffer_pool_dump_pct=100 and take the dump
+# step 2.Set innodb_buffer_pool_dump_pct=50 and take the dump
+# step 3.Compare the size of both the dump files
+# Here if the size of step 1 > size of step 2 (pass) else fail
+#*************************************************************
+
+--echo # Set the environmental variables
+let MYSQLD_DATADIR = `SELECT @@datadir`;
+
+--echo # Create a table
+CREATE TABLE tab5 (col1 int auto_increment primary key,
+col2 VARCHAR(25), col3 varchar(25)) ENGINE=InnoDB;
+
+-- echo # Create indexes
+CREATE INDEX idx1 ON tab5(col2(10));
+CREATE INDEX idx2 ON tab5(col3(10));
+
+--echo # Insert a sample record
+INSERT INTO tab5(col2,col3) VALUES('Test for wl6504','Test for dump pct');
+
+--echo # Set the dump file name
+SET GLOBAL innodb_buffer_pool_filename=ib_buffer_pool100;
+
+SET GLOBAL innodb_buffer_pool_dump_pct=100;
+
+#***********************************************************
+# SELECT *
+# FROM performance_schema.global_status
+# WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
+# gives
+# a) VARIABLE_NAME                   VARIABLE_VALUE
+#    INNODB_BUFFER_POOL_DUMP_STATUS  not started
+#    in case there was no innodb_buffer_pool_dump since server start.
+# b) Something like
+#    VARIABLE_NAME                   VARIABLE_VALUE
+#    INNODB_BUFFER_POOL_DUMP_STATUS  Buffer pool(s) dump completed at 130711 13:43:24
+#    in case there was a innodb_buffer_pool_dump since server start.
+# Attention:
+# - There is no guarantee that the current test is the first test which
+#   made an innodb_buffer_pool_dump since server startup.
+# - The granularity of the timestamp is one second.
+# - There could have been some dump caused by some previous test
+#   just a few milliseconds before.
+# In order to avoid conflict with previous tests, read the current value
+# of INNODB_BUFFER_POOL_DUMP_STATUS
+# and confirm that the timestamp is different after the dump
+#***********************************************************
+
+# Read the current value to compare with the new value.
+--disable_warnings
+SELECT variable_value INTO @IBPDS
+FROM performance_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+--enable_warnings
+
+--echo # Take the dump file
+SET GLOBAL innodb_buffer_pool_dump_now=ON;
+
+# Sleep one second in order to ensure that the time stamp is
+# different at next dump
+--sleep 1
+
+--echo # Wait until the system table get updated & dump get created
+--disable_warnings
+let $wait_condition = SELECT count(*) = 1
+FROM performance_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
+AND variable_value != @IBPDS
+AND variable_value like 'Buffer pool(s) dump completed at%';
+--enable_warnings
+
+--echo # Check the dump file exist in the DATADIR
+--file_exists $MYSQLD_DATADIR/ib_buffer_pool100
+
+--echo # Set the dump file name
+SET GLOBAL innodb_buffer_pool_filename=ib_buffer_pool50;
+
+--echo # Set the value 50
+SET GLOBAL innodb_buffer_pool_dump_pct=50;
+
+--echo # Check the value is 50
+SELECT @@global.innodb_buffer_pool_dump_pct;
+
+# Read the current value to compare with the new value.
+--disable_warnings
+SELECT variable_value INTO @IBPDS
+FROM performance_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+--enable_warnings
+
+--echo # Take the dump file
+SET GLOBAL innodb_buffer_pool_dump_now=ON;
+
+# Sleep one second in order to ensure that the time stamp is
+# different at next dump
+--sleep 1
+
+--echo # Wait until the system table get updated & dump get created
+--disable_warnings
+let $wait_condition = SELECT count(*) = 1
+FROM performance_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
+AND variable_value != @IBPDS
+AND variable_value like 'Buffer pool(s) dump completed at%'; 
+--enable_warnings
+
+--echo # Check the dump file exist in the DATADIR
+--file_exists $MYSQLD_DATADIR/ib_buffer_pool50
+
+--echo # Get the size of the dump files & compare
+perl;
+my $dir = $ENV{'MYSQLD_DATADIR'};
+my $size;
+opendir(DIR, $dir) or die $!;
+while (my $file = readdir(DIR))
+{
+
+  if ($file =~ m/\ib_buffer_pool50$/) {
+    $size50 = -s "$dir/$file";
+  } elsif ($file =~ m/\ib_buffer_pool100$/) {
+    $size100 = -s "$dir/$file";
+  }
+
+}
+
+# Check the size of the dump files ,here size100 should always be greater
+ if ($size100 > $size50) {
+   print "wl6504 test PASS\n";
+ } else {
+   print "wl6504 test FAIL\n";
+ }
+
+ close(DIR);
+ exit(0)
+EOF
+
+--echo # Reset the default value
+SET GLOBAL innodb_buffer_pool_dump_pct=Default;
+SET GLOBAL innodb_buffer_pool_filename=Default;
+
+--echo # Cleanup
+--remove_file $MYSQLD_DATADIR/ib_buffer_pool100
+--remove_file $MYSQLD_DATADIR/ib_buffer_pool50
+DROP TABLE tab5;

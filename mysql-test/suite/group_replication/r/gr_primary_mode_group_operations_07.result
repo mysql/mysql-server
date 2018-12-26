@@ -1,0 +1,35 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Confirm value of auto_increment_increment is 1 and
+#    auto_increment_offset is 1 with server stopped
+include/assert.inc [The default value of auto_increment_increment for single primary should be 1]
+include/assert.inc [The default value of auto_increment_offset for single primary should be 1]
+
+# 2. Start server and bootstrap group
+include/start_and_bootstrap_group_replication.inc
+
+# 3. On Single Primary the default value of  auto_increment_increment is
+#    1 and auto_increment_offset is 1
+include/assert.inc [The default value of auto_increment_increment for single primary should be 1]
+include/assert.inc [The default value of auto_increment_offset for single primary should be 1]
+
+# 4. Change to multi primary mode and confirm value of
+#    auto_increment_increment is 7 and auto_increment_offset is 1
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+include/assert.inc [The default value of auto_increment_increment for single primary should be 7]
+include/assert.inc [The default value of auto_increment_offset for single primary should be 1]
+
+# 5. Stop server and confirm value of auto_increment_increment is 1 and
+#    auto_increment_offset is 1
+include/stop_group_replication.inc
+include/assert.inc [The default value of auto_increment_increment for single primary should be 1]
+include/assert.inc [The default value of auto_increment_offset for single primary should be 1]
+
+# 6. Clean up
+include/group_replication_end.inc

@@ -1,0 +1,66 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+# On connection master
+START TRANSACTION;
+UPDATE t1 SET c1=1 WHERE c1=0;
+
+# On connection con1
+include/start_transaction_high_prio.inc
+START TRANSACTION /* HIGH PRIORITY */;
+UPDATE t1 SET c1=2 WHERE c1=0;
+COMMIT;
+
+# On connection master
+COMMIT;
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
+# Row with value 2 is expected on master.
+SELECT * FROM t1;
+c1
+2
+include/sync_slave_sql_with_master.inc
+# Row with value 2 is expected on slave.
+SELECT * FROM t1;
+c1
+2
+#
+# Bug#23021168 REPLICATION STOPS AFTER TRANSACTION IS ROLLED BACK
+# ASYNCHRONOUSLY IN MASTER
+#
+
+# On connection master
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+
+# On connection con1
+include/start_transaction_high_prio.inc
+START TRANSACTION /* HIGH PRIORITY */;
+INSERT INTO t1 VALUES (1);
+COMMIT;
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+
+# On connection master
+INSERT INTO t1 VALUES (3);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+INSERT INTO t1 VALUES (4);
+COMMIT;
+include/sync_slave_sql_with_master.inc
+# Rows 1, 2, 3 & 4 is expected on slave.
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+4
+
+# On connection master
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

@@ -1,0 +1,48 @@
+
+--echo #
+--echo #Bug #21133329   HANGING "SYSTEM LOCK" WHEN EXECUTING "FLUSH TABLE ... FOR EXPORT"
+--echo #
+
+--source include/have_debug.inc
+
+CREATE TABLE t1 (
+	c1 BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	c2 BIGINT,
+	c3 VARCHAR(2048),
+	c4 VARCHAR(2048),
+	INDEX idx1(c2),
+	INDEX idx2(c3(512)),
+	INDEX idx3(c4(512))) Engine=InnoDB charset latin1;
+
+CREATE TABLE t2 ( f1 int PRIMARY KEY) engine=innodb;
+
+# Stop purge so that it doesn't remove the delete marked entries.
+SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
+
+# Disable change buffer merge from the master thread, additionally
+# enable aggressive flushing so that more changes are buffered.
+SET GLOBAL innodb_disable_background_merge=ON;
+SET GLOBAL innodb_stats_persistent=OFF;
+show variables like '%innodb_stats_persistent%';
+
+INSERT INTO t1(c2, c3, c4) VALUES
+	(1, REPEAT('a', 2048), REPEAT('a', 2048)),
+	(2, REPEAT('b', 2048), REPEAT('b', 2048)),
+	(3, REPEAT('c', 2048), REPEAT('c', 2048)),
+	(4, REPEAT('d', 2048), REPEAT('d', 2048));
+
+INSERT INTO t1(c2, c3, c4) SELECT c2, c3, c4 FROM t1;
+INSERT INTO t1(c2, c3, c4) SELECT c2, c3, c4 FROM t1;
+INSERT INTO t1(c2, c3, c4) SELECT c2, c3, c4 FROM t1;
+INSERT INTO t1(c2, c3, c4) SELECT c2, c3, c4 FROM t1;
+INSERT INTO t1(c2, c3, c4) SELECT c2, c3, c4 FROM t1;
+INSERT INTO t1(c2, c3, c4) SELECT c2, c3, c4 FROM t1;
+
+FLUSH TABLES t2 FOR EXPORT;
+UNLOCK TABLES;
+
+SET GLOBAL innodb_disable_background_merge=OFF;
+SET GLOBAL INNODB_PURGE_RUN_NOW=ON;
+SET GLOBAL innodb_stats_persistent=ON;
+
+DROP TABLE t1,t2;

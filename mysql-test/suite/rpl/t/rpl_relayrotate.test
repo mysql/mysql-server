@@ -1,0 +1,13 @@
+#######################################################
+# Wrapper for rpl_relayrotate.test to allow multi     #
+# Engines to reuse test code. By JBM 2006-02-15       #
+# Added comments section and to skip when ndb is      #
+# Default engine.                                     #
+#######################################################
+-- source include/not_group_replication_plugin.inc
+-- source include/not_ndb_default.inc
+-- source include/master-slave.inc
+call mtr.add_suppression("Slave SQL for channel '': Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+let $engine_type=innodb;
+-- source extra/rpl_tests/rpl_relayrotate.test
+--source include/rpl_end.inc

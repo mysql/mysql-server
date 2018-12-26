@@ -1,0 +1,19 @@
+# GIS implementation is specific to myisam.
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# correct behavoiur for function from reduced subselect
+#
+create table t1(City VARCHAR(30),Location geometry);
+insert into t1 values("Paris",ST_GeomFromText('POINT(2.33 48.87)'));
+select City from t1 where (select
+MBRintersects(ST_GeomFromText(ST_AsText(Location)),ST_GeomFromText('Polygon((2 50, 2.5
+50, 2.5 47, 2 47, 2 50))'))=0);
+drop table t1;
+
+# End of 4.1 tests

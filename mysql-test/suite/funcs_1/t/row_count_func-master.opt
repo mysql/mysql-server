@@ -1,0 +1,2 @@
+--secure-file-priv=$MYSQL_TMP_DIR
+--local-infile=true

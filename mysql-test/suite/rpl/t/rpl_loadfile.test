@@ -1,0 +1,116 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/18/2005                                                #
+#############################################################################
+# TEST: To test the LOAD_FILE() in rbr                                      #
+#############################################################################
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
+
+# Includes
+--source include/not_group_replication_plugin.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+-- source include/master-slave.inc
+
+-- source extra/rpl_tests/rpl_loadfile.test
+
+#  BUG#39701: Mixed binlog format does not switch to row mode on LOAD_FILE
+#
+#  DESCRIPTION
+#
+#    Problem: when using load_file string function and mixed binlogging format
+#             there was no switch to row based binlogging format. This leads
+#             to scenarios on which the slave replicates the statement and it
+#             will try to load the file from local file system, which in most
+#             likely it will not exist.
+#
+#    Solution:
+#             Marking this function as unsafe for statement format, makes the
+#             statement using it to be logged in row based format. As such, data 
+#             replicated from the master, becomes the content of the loaded file.
+#             Consequently, the slave receives the necessary data to complete
+#             the load_file instruction correctly.
+#
+#  IMPLEMENTATION
+#
+#    The test is implemented as follows:
+#
+#      On Master,
+#       i) write to file the desired content.
+#      ii) create table and stored procedure with load_file
+#     iii) stop slave
+#     iii) execute load_file 
+#      iv) remove file
+#
+#      On Slave,
+#       v) start slave
+#      vi) sync it with master so that it gets the updates from binlog (which 
+#          should have bin logged in row format). 
+#
+#          If the the binlog format does not change to row, then the assertion
+#          done in the following step fails. This happens because tables differ 
+#          since the file does not exist anymore, meaning that when slave 
+#          attempts to execute LOAD_FILE statement it inserts NULL on table 
+#          instead of the same contents that the master loaded when it executed 
+#          the procedure (which was executed when file existed).
+#
+#     vii) assert that the contents of master and slave 
+#          table are the same
+
+--source include/rpl_reset.inc
+
+connection master;
+let $file= $MYSQLTEST_VARDIR/tmp/bug_39701.data;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT repeat('x',20) INTO OUTFILE '$file'
+
+disable_warnings;
+DROP TABLE IF EXISTS t1;
+enable_warnings;
+
+CREATE TABLE t1 (t text);
+DELIMITER |;
+CREATE PROCEDURE p(file varchar(4096)) 
+  BEGIN
+    INSERT INTO t1 VALUES (LOAD_FILE(file));
+  END|
+DELIMITER ;|
+
+# stop slave before issuing the load_file on master
+connection slave;
+source include/stop_slave.inc;
+
+connection master;
+
+# test: check that logging falls back to rbr.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval CALL p('$file')
+
+# test: remove the file from the filesystem and assert that slave still 
+#       gets the loaded file
+remove_file $file;
+
+# now that the file is removed it is safe (regarding what we want to test) 
+# to start slave
+connection slave;
+source include/start_slave.inc;
+
+connection master;
+--source include/sync_slave_sql_with_master.inc
+
+# assertion: assert that the slave got the updates even
+#            if the file was removed before the slave started,
+#            meaning that contents were indeed transfered
+#            through binlog (in row format)
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+# CLEAN UP
+--connection master
+DROP TABLE t1;
+DROP PROCEDURE p;
+
+--source include/rpl_end.inc

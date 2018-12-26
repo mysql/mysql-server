@@ -1,0 +1,35 @@
+-- source include/have_binlog_format_row.inc
+-- source include/not_group_replication_plugin.inc
+-- source include/have_myisam.inc
+-- source include/master-slave.inc
+-- let $engine= MyISAM
+
+#
+# BUG#52868 Wrong handling of NULL value during update, replication out of sync
+#
+
+
+-- echo ## coverage purposes - Field_bits 
+-- echo ##                     1 X bit + 2 Null bits + 5 bits => last_null_bit_pos==0
+## Added here because AFAIK it's only MyISAM and NDB that use Field_bits
+
+--source include/rpl_reset.inc
+-- connection master
+
+-- eval CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bit(5)) ENGINE=$engine DEFAULT CHARSET=latin1
+
+INSERT INTO t1(c1,c2) VALUES (10, b'1');
+INSERT INTO t1(c1,c2) VALUES (NULL, b'1');
+UPDATE t1 SET c1= 0;
+--source include/sync_slave_sql_with_master.inc
+
+-- let $diff_tables= master:t1, slave:t1
+-- source include/diff_tables.inc
+
+-- connection master
+DROP TABLE t1; 
+--source include/sync_slave_sql_with_master.inc
+
+-- source extra/rpl_tests/rpl_record_compare.test
+
+--source include/rpl_end.inc

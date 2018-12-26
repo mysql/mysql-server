@@ -1,0 +1,110 @@
+--character_set ujis
+--disable_warnings
+drop table if exists `£Τ£±`;
+drop table if exists `£Τ£²`;
+drop table if exists `£Τ£³`;
+drop table if exists `£Τ£΄`;
+drop table if exists `£Τ£µ`;
+drop table if exists `£Τ£¶`;
+drop table if exists `£Τ£·`;
+drop table if exists `£Τ£Έ`;
+drop table if exists `£Τ£Ή`;
+--enable_warnings
+
+#
+# Test RIGHT() function with Japanese character in ucs2 encoding
+#
+
+SET NAMES ujis;
+SET character_set_database = ucs2;
+SET collation_connection = ucs2_general_ci;
+
+CREATE TABLE `£Τ£±` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£³` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£΄` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£µ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£¶` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+
+INSERT INTO `£Τ£±` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
+INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
+INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
+INSERT INTO `£Τ£΄` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
+INSERT INTO `£Τ£µ` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
+INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
+INSERT INTO `£Τ£·` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
+INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
+INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
+
+#InnoDB
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,0) FROM `£Τ£±`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,1) FROM `£Τ£±`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,2) FROM `£Τ£±`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,3) FROM `£Τ£±`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,4) FROM `£Τ£±`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,5) FROM `£Τ£±`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,0) FROM `£Τ£²`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,1) FROM `£Τ£²`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,2) FROM `£Τ£²`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,3) FROM `£Τ£²`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,4) FROM `£Τ£²`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,5) FROM `£Τ£²`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,0) FROM `£Τ£³`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,1) FROM `£Τ£³`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,2) FROM `£Τ£³`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,3) FROM `£Τ£³`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,4) FROM `£Τ£³`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,5) FROM `£Τ£³`;
+
+#MyISAM
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,0) FROM `£Τ£΄`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,1) FROM `£Τ£΄`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,2) FROM `£Τ£΄`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,3) FROM `£Τ£΄`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,4) FROM `£Τ£΄`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,5) FROM `£Τ£΄`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,0) FROM `£Τ£µ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,1) FROM `£Τ£µ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,2) FROM `£Τ£µ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,3) FROM `£Τ£µ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,4) FROM `£Τ£µ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,5) FROM `£Τ£µ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,0) FROM `£Τ£¶`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,1) FROM `£Τ£¶`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,2) FROM `£Τ£¶`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,3) FROM `£Τ£¶`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,4) FROM `£Τ£¶`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,5) FROM `£Τ£¶`;
+
+#MEMORY
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,0) FROM `£Τ£·`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,1) FROM `£Τ£·`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,2) FROM `£Τ£·`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,3) FROM `£Τ£·`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,4) FROM `£Τ£·`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,5) FROM `£Τ£·`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,0) FROM `£Τ£Έ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,1) FROM `£Τ£Έ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,2) FROM `£Τ£Έ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,3) FROM `£Τ£Έ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,4) FROM `£Τ£Έ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,5) FROM `£Τ£Έ`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,0) FROM `£Τ£Ή`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,1) FROM `£Τ£Ή`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,2) FROM `£Τ£Ή`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,3) FROM `£Τ£Ή`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,4) FROM `£Τ£Ή`;
+SELECT `£Γ£±`, RIGHT(`£Γ£±`,5) FROM `£Τ£Ή`;
+
+DROP TABLE `£Τ£±`;
+DROP TABLE `£Τ£²`;
+DROP TABLE `£Τ£³`;
+DROP TABLE `£Τ£΄`;
+DROP TABLE `£Τ£µ`;
+DROP TABLE `£Τ£¶`;
+DROP TABLE `£Τ£·`;
+DROP TABLE `£Τ£Έ`;
+DROP TABLE `£Τ£Ή`;

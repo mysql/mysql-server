@@ -1,0 +1,52 @@
+USE test;
+DROP TABLE IF EXISTS t1;
+*********************************
+* restore tables w/ new column from little endian
+*********************************
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `b` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `c` float DEFAULT NULL,
+  `d` double unsigned DEFAULT NULL,
+  `e` decimal(5,2) DEFAULT NULL,
+  `f` datetime DEFAULT NULL,
+  `g` binary(4) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=31 DEFAULT CHARSET=latin1
+SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
+a	b	c	d	e	f	g
+1	5	3.40282e38	1.2686868689898e308	666.66	2007-10-23 23:23:23	1111
+10	1	-3.40282e38	NULL	NULL	NULL	NULL
+20	1	-3.40282e38	1.7976931348623e308	345.21	NULL	NULL
+30	1	-3.40282e38	1.7976931348623e308	345.21	1000-01-01 00:00:00	0101
+DROP TABLE t1;
+*********************************
+* restore tables w/ new column from big endian
+*********************************
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `b` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `c` float DEFAULT NULL,
+  `d` double unsigned DEFAULT NULL,
+  `e` decimal(5,2) DEFAULT NULL,
+  `f` datetime DEFAULT NULL,
+  `g` binary(4) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=31 DEFAULT CHARSET=latin1
+SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
+a	b	c	d	e	f	g
+1	5	3.40282e38	1.2686868689898e308	666.66	2007-10-23 23:23:23	1111
+10	1	-3.40282e38	NULL	NULL	NULL	NULL
+20	1	-3.40282e38	1.7976931348623e308	345.21	NULL	NULL
+30	1	-3.40282e38	1.7976931348623e308	345.21	1000-01-01 00:00:00	0101
+DROP TABLE t1;

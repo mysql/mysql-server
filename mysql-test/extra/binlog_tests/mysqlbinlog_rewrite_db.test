@@ -1,0 +1,127 @@
+#
+# This test validates that when the rewrite rules are
+# specified for mysqlbinlog, we can replay the logs
+# according to those rules. For instance, on SBR the
+# USE clause will be rewritten properly and on RBR,
+# the Table_map_log_event is also rewritten properly.
+#
+# Moreover, this also tests that a database not affected
+# by the rewritting is left untouched.
+#
+# To be included in the binlog_rewrite_order.test
+#
+# parameters:
+# --let $rewrite_from_db=<from_db>
+# --let $rewrite_to_db=<to_db>
+# [--let $other=<neutral_name_db>]
+# --source extra/binlog_tests/mysqlbinlog_rewrite_db.test
+#
+
+if (!$other)
+{
+  --let $other=_other_
+}
+
+
+RESET MASTER;
+
+--eval CREATE SCHEMA $rewrite_from_db
+--eval USE $rewrite_from_db
+FLUSH LOGS;
+
+CREATE TABLE test (id int);
+CREATE TABLE tload (c1 TEXT);
+
+SET SESSION BINLOG_FORMAT='STATEMENT';
+INSERT INTO test (id) VALUES (1);
+SET SESSION BINLOG_FORMAT='ROW';
+INSERT INTO test (id) VALUES (2);
+
+SET SESSION BINLOG_FORMAT=STATEMENT;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+
+SET SESSION SQL_LOG_BIN=0;
+--eval CREATE DATABASE $other
+--eval USE $other
+SET SESSION SQL_LOG_BIN=1;
+CREATE TABLE t1 (a INT);
+SET SESSION BINLOG_FORMAT='STATEMENT';
+INSERT INTO t1 VALUES (1);
+SET SESSION BINLOG_FORMAT='ROW';
+INSERT INTO t1 VALUES (2);
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+SET SQL_LOG_BIN=0;
+FLUSH LOGS;
+--copy_file $datadir/$binlog_file $datadir/backup_$binlog_file
+
+--eval CREATE SCHEMA $rewrite_to_db
+RESET MASTER;
+--eval TRUNCATE $other.t1
+
+#
+# Assert that the changes are applied when we rewrite the
+# database name and also filter only those changes that affect
+# the database with the new name
+#
+--exec $MYSQL_BINLOG --database=$rewrite_to_db --rewrite-db="$rewrite_from_db->$rewrite_to_db" --force-if-open $datadir/backup_$binlog_file | $MYSQL --local-infile=1
+
+--let $diff_tables=$rewrite_from_db.test,$rewrite_to_db.test
+--source include/diff_tables.inc
+
+--let $diff_tables=$rewrite_from_db.tload,$rewrite_to_db.tload
+--source include/diff_tables.inc
+
+--eval TRUNCATE $rewrite_to_db.test
+--eval TRUNCATE $rewrite_to_db.tload
+--eval TRUNCATE $other.t1
+
+RESET MASTER;
+
+#
+# Assert that the no changes are applied when we rewrite the
+# database name and also filter only changes to the database
+# with the old name
+#
+
+--exec $MYSQL_BINLOG --database=$rewrite_from_db --rewrite-db="$rewrite_from_db->$rewrite_to_db" --force-if-open $datadir/backup_$binlog_file | $MYSQL --local-infile=1
+
+--eval USE $rewrite_to_db
+--let $assert_text= Zero records on $rewrite_to_db.test
+--let $assert_cond= COUNT(*) = 0 FROM test
+--source include/assert.inc
+
+--let $assert_text= There is NO data in 'tload' table
+--let $assert_cond= COUNT(*) = 0 FROM tload
+--source include/assert.inc
+
+--eval TRUNCATE $rewrite_to_db.test
+--eval TRUNCATE $rewrite_to_db.tload
+--eval TRUNCATE $other.t1
+
+RESET MASTER;
+
+#
+# Assert that if the database name is not rewritten, then
+# it is applied properly.
+#
+
+--eval DROP TABLE $rewrite_to_db.test
+--eval DROP TABLE $rewrite_to_db.tload
+--eval DROP TABLE $other.t1
+
+--exec $MYSQL_BINLOG --rewrite-db="$rewrite_from_db->$rewrite_to_db" --force-if-open $datadir/backup_$binlog_file | $MYSQL --local-infile=1
+
+--let $assert_cond= COUNT(*) = 2 FROM $other.t1
+--let $assert_text= Verify that other database was not rewritten
+--source include/assert.inc
+
+SET SQL_LOG_BIN=1;
+--eval SET BINLOG_FORMAT=$saved_binlog_format
+
+--eval DROP SCHEMA $rewrite_to_db
+--eval DROP SCHEMA $rewrite_from_db
+--eval DROP SCHEMA $other
+RESET MASTER;
+--remove_file $datadir/backup_$binlog_file

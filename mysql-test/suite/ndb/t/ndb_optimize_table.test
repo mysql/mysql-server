@@ -1,0 +1,91 @@
+-- source include/have_ndb.inc
+
+CREATE TABLE t1 (
+  pk INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  attr1 VARCHAR(1024),
+  attr2 VARBINARY(1024),
+  attr3 TEXT
+) ROW_FORMAT=DYNAMIC ENGINE=ndbcluster CHARACTER SET latin1;
+
+CREATE UNIQUE INDEX ui on t1(pk,attr1,attr2);
+
+#
+# insert 10000 records into table, turn up autoincrement_prefetch_sz
+# to avoid that a new autoincrement value has to be fetched for
+# every insert
+#
+set @val = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
+set @val2 = 0x0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF;
+let $1=1000;
+set ndb_autoincrement_prefetch_sz = 256;
+disable_query_log;
+while ($1)
+{
+  insert into t1(attr1, attr2, attr3)
+    values (@val, @val2, @val),
+           (@val, @val2, @val),
+           (@val, @val2, @val),
+           (@val, @val2, @val),
+           (@val, @val2, @val),
+           (@val, @val2, @val),
+           (@val, @val2, @val),
+           (@val, @val2, @val),
+           (@val, @val2, @val),
+           (@val, @val2, @val);
+  dec $1;
+}
+enable_query_log;
+
+# Check that table contains 10000 rows
+select count(*) from t1;
+
+# Turn off caching for information_schema, otherwise values like
+# the 'data_length' value will be cached and only updated
+# after ANALYZE TABLE
+SET SESSION information_schema_stats_expiry=0;
+
+# Read data lenght before deletes
+let $data_length0= `select data_length from information_schema.tables
+                      where table_name = 't1'`;
+#
+# delete some rows
+#
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+select count(*) from t1;
+select count(*) from t1 where mod(pk, 100) < 75;
+
+# remember data_length before optimize
+let $data_length= `select data_length from information_schema.tables
+                      where table_name = 't1'`;
+
+set ndb_optimization_delay = 0;
+optimize table t1;
+
+# read data_length after optimize
+let $data_length2= `select data_length from information_schema.tables
+                      where table_name = 't1'`;
+
+# calculate optimization level
+let $opt_level = `select 100*($data_length-$data_length2)/$data_length`;
+
+# check that optimization level is greater than 30
+if (`select $opt_level < 30`)
+{
+ echo data_length0: $data_length0;
+ echo data_length: $data_length;
+ echo data_length: $data_length2;
+ echo opt_level: $opt_level;
+ die Too little optimization achieved;
+}
+echo optimize worked ok!;
+
+drop table t1;
+SET SESSION information_schema_stats_expiry=default;

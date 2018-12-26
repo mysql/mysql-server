@@ -1,0 +1,111 @@
+# Test NDB replication with generated columns
+# Part of wl9048
+#
+
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--echo --- Doing pre test setup and CREATE TABLE ---
+
+connection master;
+
+CREATE TABLE test_gcol_stored
+   (id MEDIUMINT NOT NULL PRIMARY KEY,
+    gcol_int int GENERATED ALWAYS AS (100 + id) STORED,
+    misc int,
+    gcol_str varchar(20) GENERATED ALWAYS AS (concat("User ", id)) STORED
+   ) engine = ndb;
+
+
+CREATE TABLE test_gcol_virtual
+   (id MEDIUMINT NOT NULL PRIMARY KEY,
+    gcol_int int GENERATED ALWAYS AS (100 + id),
+    misc int,
+    gcol_str varchar(20) GENERATED ALWAYS AS (concat("User ", id))
+   ) engine = ndb;
+
+## test_gcol_virtual_hidden_pk is known not to work
+##
+#CREATE TABLE test_gcol_virtual_hidden_pk
+#   (id MEDIUMINT,
+#    gcol_int int GENERATED ALWAYS AS (100 + id),
+#    misc int,
+#    gcol_str varchar(20) GENERATED ALWAYS AS (concat("User ", id)),
+#    index(id)
+#   ) engine = ndb;
+
+
+--echo --- Show table on slave ---
+sync_slave_with_master;
+SHOW CREATE TABLE test_gcol_stored;
+
+
+--echo --- Insert on master
+connection master;
+insert into test_gcol_stored (id) values (1), (2), (3), (4), (5);
+insert into test_gcol_virtual (id) values (1), (2), (3), (4), (5);
+
+sync_slave_with_master;
+
+select * from test_gcol_stored order by id;
+select * from test_gcol_virtual order by id;
+
+
+--echo --- Update by pk on master
+connection master;
+update test_gcol_stored set misc = 44 where id = 4;
+update test_gcol_virtual set misc = 44 where id = 4;
+
+sync_slave_with_master;
+select * from test_gcol_stored order by id;
+select * from test_gcol_virtual order by id;
+
+
+--echo --- Update by gcol on master
+connection master;
+update test_gcol_stored set misc = 45 where gcol_int = 105;
+update test_gcol_virtual set misc = 45 where gcol_int = 105;
+
+sync_slave_with_master;
+select * from test_gcol_stored order by id;
+select * from test_gcol_virtual order by id;
+
+
+--echo --- Delete by key on master
+connection master;
+delete from test_gcol_stored where id = 1;
+delete from test_gcol_virtual where id = 1;
+
+sync_slave_with_master;
+select * from test_gcol_stored order by id;
+select * from test_gcol_virtual order by id;
+
+
+--echo -- Delete by gcol on master
+connection master;
+delete from test_gcol_stored where gcol_int = 102;
+delete from test_gcol_virtual where gcol_int = 102;
+
+sync_slave_with_master;
+select * from test_gcol_stored order by id;
+select * from test_gcol_virtual order by id;
+
+
+--echo -- Delete by non-key stored column on master
+connection master;
+delete from test_gcol_stored where misc is null;
+delete from test_gcol_virtual where misc is null;
+
+sync_slave_with_master;
+select * from test_gcol_stored order by id;
+select * from test_gcol_virtual order by id;
+
+
+--echo -- Drop test table and clean up
+connection master;
+drop table test_gcol_stored;
+drop table test_gcol_virtual;
+
+--source include/rpl_end.inc
+

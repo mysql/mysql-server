@@ -1,0 +1,30 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+SET @start_value = @@global.max_binlog_size;
+set global max_binlog_size=8192;
+SELECT @@global.max_binlog_size;
+
+# Create test table with a 10000 bytes column
+create table t1 (
+  a varchar(10000) character set latin1
+) engine=ndb;
+
+# Repeat in a loop enough to cause buggy code to exceed testcase timeout.
+# Fix for bug#18845822 will eliminate the timeout.
+
+let $1=35;
+while ($1)
+{
+  insert into t1 values (repeat('B', 10000));
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+
+ dec $1;
+}
+
+drop table t1;
+
+set global max_binlog_size= @start_value;
+

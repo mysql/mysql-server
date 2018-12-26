@@ -1,0 +1,21 @@
+SET SQL_MODE="TRADITIONAL,ANSI";
+DROP TABLE IF EXISTS t7;
+CREATE TABLE t7(c1 SET('a','abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij') NULL);
+INSERT INTO t7(c1) VALUES(NULL);
+INSERT INTO t7(c1) VALUES('');
+INSERT INTO t7(c1) VALUES('a');
+INSERT INTO t7(c1) VALUES('abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij');
+INSERT INTO t7(c1) VALUES('abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij');
+ERROR 01000: Data truncated for column 'c1' at row 1
+INSERT INTO t7(c1) VALUES('a,abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij');
+SELECT * FROM t7;
+c1
+NULL
+
+a
+abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij
+a,abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij
+SELECT COUNT(c1) AS null_rows FROM t7 WHERE c1 IS NULL;
+null_rows
+0
+DROP TABLE t7;

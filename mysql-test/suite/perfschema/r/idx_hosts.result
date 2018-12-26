@@ -1,0 +1,39 @@
+create user foo@localhost;
+grant ALL on *.* to foo@localhost;
+
+====================================================================
+Testing index for columns HOST
+====================================================================
+############ Explain for Query ####################################
+explain select TOTAL_CONNECTIONS 
+from performance_schema.hosts 
+where HOST = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select TOTAL_CONNECTIONS
+from performance_schema.hosts
+where HOST > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	hosts	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select TOTAL_CONNECTIONS
+from performance_schema.hosts
+where HOST < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	hosts	NULL	ALL	HOST	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select TOTAL_CONNECTIONS
+from performance_schema.hosts
+where HOST = "localhost";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	hosts	NULL	const	HOST	HOST	241	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select TOTAL_CONNECTIONS
+from performance_schema.hosts
+where HOST = "localhost";
+TOTAL_CONNECTIONS
+#
+OK: handler_read_key incremented
+drop user foo@localhost;

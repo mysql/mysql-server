@@ -1,0 +1,14 @@
+
+# Windows does not have SOCKET, but will try to create a PIPE as well as MEMORY
+--source include/not_windows.inc
+
+# test for Bug #4998 "--protocol doesn't reject bad values"
+
+--exec echo "select ' ok' as '<default>'" | $MYSQL
+--exec echo "select ' ok' as 'TCP'"       | $MYSQL --protocol=TCP
+--exec echo "select ' ok' as 'SOCKET'"    | $MYSQL --protocol=SOCKET
+--exec echo "select ' ok' as 'PIPE'"      | $MYSQL --protocol=PIPE    2>&1 || true
+--exec echo "select ' ok' as 'MEMORY'"    | $MYSQL --protocol=MEMORY  2>&1 || true
+--exec echo "select ' ok' as 'NullS'"     | $MYSQL --protocol=NullS   2>&1 || true
+
+# End of 4.1 tests

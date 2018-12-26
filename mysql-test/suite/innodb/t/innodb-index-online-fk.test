@@ -1,0 +1,522 @@
+--source include/have_debug.inc
+
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO parent VALUES(1,2),(2,3);
+
+CREATE INDEX tb ON parent(b);
+
+INSERT INTO parent VALUES(10,20),(20,30);
+
+CREATE TABLE child (a1 INT PRIMARY KEY, a2 INT) ENGINE = InnoDB;
+
+CREATE INDEX tb ON child(a2);
+
+INSERT INTO child VALUES(10,20);
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE child ADD FOREIGN KEY(a2) REFERENCES parent(b),
+ALGORITHM = INPLACE;
+
+SET foreign_key_checks = 0;
+
+ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
+REFERENCES parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+# duplicated foreign key name
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
+REFERENCES parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SET foreign_key_checks = 1;
+
+INSERT INTO child VALUES(1,2),(2,3);
+
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES(4,4);
+
+SELECT * FROM parent;
+
+SET foreign_key_checks = 0;
+
+# This would fail. No corresponding index
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE child ADD CONSTRAINT fk_20 FOREIGN KEY (a1, a2)
+REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SHOW WARNINGS;
+
+SHOW ERRORS;
+
+CREATE INDEX idx1 on parent(a, b);
+
+ALTER TABLE child ADD CONSTRAINT fk_10 FOREIGN KEY (a1, a2)
+REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+# This should be successful, as we added the index
+ALTER TABLE child ADD CONSTRAINT fk_2 FOREIGN KEY (a1, a2)
+REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE, ADD INDEX idx1(a1,a2),
+ALGORITHM = INPLACE;
+
+ALTER TABLE child ADD CONSTRAINT fk_3 FOREIGN KEY (a1, a2)
+REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE;
+
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+SET foreign_key_checks = 1;
+
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES(5,4);
+
+SHOW CREATE TABLE child;
+
+DELETE FROM parent where a = 1;
+
+SELECT * FROM child;
+
+# Now test referenced table cannot be opened. This should work fine
+# when foreign_key_checks is set to 0
+
+SET foreign_key_checks = 0;
+
+# This is to test the scenario we cannot open the referenced table.
+# Since foreign_key_checks is set to 0, the foreign key should still
+# be added.
+SET DEBUG = '+d,innodb_test_open_ref_fail';
+ALTER TABLE child ADD CONSTRAINT fk_4 FOREIGN KEY (a1, a2)
+REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+SET DEBUG = '-d,innodb_test_open_ref_fail';
+
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
+
+# this should succeed, since we disabled the foreign key check
+INSERT INTO child VALUES(5,4);
+
+SET foreign_key_checks = 1;
+
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES(6,5);
+
+SET foreign_key_checks = 0;
+
+# Create some table with 'funny' characters, for testing the
+# error message
+CREATE TABLE `#parent` (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+
+CREATE INDEX tb ON `#parent`(a, b);
+
+CREATE TABLE `#child` (a1 INT PRIMARY KEY, a2 INT) ENGINE = InnoDB;
+
+CREATE INDEX tb ON `#child`(a1, a2);
+
+# This is to test the scenario no foreign index, alter table should fail
+SET DEBUG = '+d,innodb_test_no_foreign_idx';
+--error ER_FK_NO_INDEX_CHILD,
+ALTER TABLE `#child` ADD CONSTRAINT fk_40 FOREIGN KEY (a1, a2)
+REFERENCES `#parent`(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SHOW ERRORS;
+
+SET DEBUG = '-d,innodb_test_no_foreign_idx';
+
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+# This is to test the scenario no index on referenced table,
+# alter table should fail
+SET DEBUG = '+d,innodb_test_no_reference_idx';
+--error ER_FK_NO_INDEX_PARENT,
+ALTER TABLE child ADD CONSTRAINT fk_42 FOREIGN KEY (a1, a2)
+REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SHOW ERRORS;
+
+SET DEBUG = '-d,innodb_test_no_reference_idx';
+
+# This is to test the scenario no index on referenced table,
+# alter table should fail
+SET DEBUG = '+d,innodb_test_wrong_fk_option';
+--error ER_FK_INCORRECT_OPTION
+ALTER TABLE child ADD CONSTRAINT fk_42 FOREIGN KEY (a1, a2)
+REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+SET DEBUG = '-d,innodb_test_wrong_fk_option';
+
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+# This is to test the scenario cannot add fk to the system table,
+# alter table should fail
+SET DEBUG = '+d,innodb_test_cannot_add_fk_system';
+--error ER_FK_FAIL_ADD_SYSTEM
+ALTER TABLE `#child` ADD CONSTRAINT fk_43 FOREIGN KEY (a1, a2)
+REFERENCES `#parent`(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SHOW ERRORS;
+
+SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
+
+DROP TABLE `#child`;
+DROP TABLE `#parent`;
+
+# Now test add multiple foreign key constrain in a single clause
+SET foreign_key_checks = 0;
+
+ALTER TABLE child ADD CONSTRAINT fk_5 FOREIGN KEY (a2) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ADD CONSTRAINT fk_6 FOREIGN KEY (a1, a2)
+REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+DROP TABLE child;
+DROP TABLE parent;
+
+# Test a case where child's foreign key index is being dropped in the
+# same clause of adding the foreign key. In theory, MySQL will
+# automatically create a new index to meet the index requirement
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+
+INSERT INTO parent VALUES(1,2),(2,3);
+
+CREATE INDEX tb ON parent(b);
+
+INSERT INTO parent VALUES(10,20),(20,30);
+
+CREATE TABLE child (a1 INT PRIMARY KEY, a2 INT) ENGINE = InnoDB;
+
+CREATE INDEX tb ON child(a2);
+
+INSERT INTO child VALUES(10,20);
+
+SET foreign_key_checks = 0;
+
+ALTER TABLE child DROP INDEX tb, ADD CONSTRAINT fk_4 FOREIGN KEY (a2)
+REFERENCES parent(b) ON DELETE CASCADE ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SHOW CREATE TABLE child;
+
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+SET foreign_key_checks = 1;
+
+DROP TABLE child;
+
+DROP TABLE parent;
+
+# Test ADD FOREIGN KEY together with renaming columns.
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+
+INSERT INTO parent VALUES(1,2),(2,3);
+
+CREATE INDEX tb ON parent(b);
+
+INSERT INTO parent VALUES(10,20),(20,30);
+
+CREATE TABLE child (a1 INT PRIMARY KEY, a2 INT) ENGINE = InnoDB;
+
+CREATE INDEX tb ON child(a2);
+
+SET foreign_key_checks = 0;
+
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE child CHANGE a2 a3 INT,
+ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+ALTER TABLE child CHANGE a2 a3 INT,
+ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+DROP TABLE child;
+
+DROP TABLE parent;
+
+# Add test for add Primary key and FK on changing columns
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO parent VALUES(1,2),(2,3);
+
+CREATE INDEX tb ON parent(b);
+
+INSERT INTO parent VALUES(10,20),(20,30);
+
+CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
+
+CREATE INDEX tb ON child(a2);
+
+SET foreign_key_checks = 0;
+
+# Let's rebuild the table and add the FK, make the add FK failed.
+
+SET DEBUG = '+d,innodb_test_cannot_add_fk_system';
+--error ER_FK_FAIL_ADD_SYSTEM
+ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
+ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
+
+# This should be successful. It will also check any left over
+# from previous failed operation (if dictionary entries not cleaned,
+# it will have dup key error.
+ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
+ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
+
+SHOW CREATE TABLE child;
+
+DROP TABLE child;
+
+CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
+
+# Now try primary index and FK
+ALTER TABLE child ADD PRIMARY KEY idx (a1),
+ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
+
+SHOW CREATE TABLE child;
+
+DROP TABLE child;
+
+CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
+
+ALTER TABLE child CHANGE a1 a3 INT,
+ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
+
+
+SHOW CREATE TABLE child;
+
+DROP TABLE child;
+
+CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
+# Now try all three
+--error ER_FK_COLUMN_NOT_NULL
+ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
+ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+DROP TABLE parent;
+DROP TABLE child;
+
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL, c INT) ENGINE = InnoDB;
+INSERT INTO parent VALUES(1,2,3),(2,3,4);
+
+CREATE INDEX tb ON parent(b);
+
+CREATE TABLE child (a1 INT NOT NULL, a2 INT, a3 INT) ENGINE = InnoDB;
+CREATE INDEX tb ON child(a2);
+
+ALTER TABLE child
+ADD CONSTRAINT fk_a FOREIGN KEY (a2) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+ALTER TABLE child
+ADD CONSTRAINT fk_b FOREIGN KEY (a1) REFERENCES parent(a),
+ALGORITHM = INPLACE;
+
+ALTER TABLE child CHANGE a2 a2_new INT, CHANGE a1 a1_new INT;
+
+SHOW CREATE TABLE child;
+
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+# The third add FK will fail
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE child
+ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1_new) REFERENCES parent(b),
+ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2_new) REFERENCES parent(a),
+ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(c),
+ALGORITHM = INPLACE;
+
+# It should still have only 2 FKs
+SHOW CREATE TABLE child;
+
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+#Now let's make it successful
+ALTER TABLE child
+ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1_new) REFERENCES parent(b),
+ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2_new) REFERENCES parent(a),
+ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(a),
+ALGORITHM = INPLACE;
+
+# It should still have 5 FKs
+SHOW CREATE TABLE child;
+
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+DROP TABLE child;
+CREATE TABLE child (a1 INT NOT NULL, a2 INT, a3 INT) ENGINE = InnoDB;
+CREATE INDEX tb ON child(a2);
+
+# Let's try this 3rd fk failure with add primary index
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE child ADD PRIMARY KEY idx (a1),
+ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1) REFERENCES parent(b),
+ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2) REFERENCES parent(a),
+ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(c),
+ALGORITHM = INPLACE;
+
+# It should still have no FKs, no PRIMARY
+SHOW CREATE TABLE child;
+
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+# make it successful
+ALTER TABLE child ADD PRIMARY KEY idx (a1),
+ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1) REFERENCES parent(b),
+ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2) REFERENCES parent(a),
+ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(a),
+ALGORITHM = INPLACE;
+
+# It should have 3 FKs, a new PRIMARY
+SHOW CREATE TABLE child;
+
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
+
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+SET foreign_key_checks = 1;
+
+DROP TABLE child;
+DROP TABLE parent;
+
+CREATE TABLE Parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO Parent VALUES(1,2),(2,3);
+
+CREATE INDEX tb ON Parent(b);
+
+INSERT INTO Parent VALUES(10,20),(20,30);
+
+CREATE TABLE Child (a1 INT PRIMARY KEY, a2 INT) ENGINE = InnoDB;
+
+CREATE INDEX tb ON Child(a2);
+
+INSERT INTO Child VALUES(10,20);
+
+SET foreign_key_checks = 0;
+
+ALTER TABLE Child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
+REFERENCES Parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+
+DROP TABLE Child;
+DROP TABLE Parent;
+
+# This is the test for bug 14594526 - FK: ASSERTION IN
+# DICT_TABLE_CHECK_FOR_DUP_INDEXES
+CREATE TABLE `t2`(a int,c int,d int) ENGINE=INNODB;
+CREATE TABLE `t3`(a int,c int,d int) ENGINE=INNODB;
+CREATE INDEX idx ON t3(a);
+
+ALTER TABLE `t2` ADD CONSTRAINT `fw` FOREIGN KEY (`c`) REFERENCES t3 (a);
+
+ALTER TABLE `t2` ADD CONSTRAINT `e` foreign key (`d`) REFERENCES t3(a);
+
+--error ER_FK_DUP_NAME
+ALTER TABLE `t3` ADD CONSTRAINT `e` foreign key (`c`) REFERENCES `t2`(`c`) ON UPDATE SET NULL;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS ORDER BY ID, POS;
+
+DROP TABLE t2;
+
+DROP TABLE t3;
+
+--echo # Bug #17449901	 TABLE DISAPPEARS WHEN ALTERING
+--echo # WITH FOREIGN KEY CHECKS OFF
+
+# Drop index via inplace algorithm
+create table t1(f1 int,primary key(f1))engine=innodb;
+create table t2(f2 int,f3 int,key t(f2,f3),foreign key(f2) references t1(f1))engine=innodb;
+SET foreign_key_checks=0;
+--error ER_DROP_INDEX_FK
+drop index t on t2;
+drop table t2;
+drop table t1;
+
+# Drop index using alter statement via inplace
+create table t1(f1 int ,primary key(f1))engine=innodb;
+create table t2(f2 int,f3 int, key t(f2),foreign key(f2) references t1(f1))engine=innodb;
+SET foreign_key_checks = 0;
+--error ER_DROP_INDEX_FK
+alter table t2 drop key t,algorithm=inplace;
+show create table t2;
+drop table t2;
+drop table t1;
+
+create table t1(f1 int ,primary key(f1))engine=innodb;
+create table t2(f2 int,f3 int, key t(f2),key t1(f2,f3),
+foreign key(f2) references t1(f1))engine=innodb;
+SET foreign_key_checks = 0;
+alter table t2 drop key t,algorithm=inplace;
+show create table t2;
+drop table t2;
+drop table t1;

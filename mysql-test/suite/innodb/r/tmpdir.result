@@ -1,0 +1,51 @@
+#
+# Bug #19183565 CREATE DYNAMIC INNODB_TMPDIR VARIABLE TO CONTROL
+#		WHERE INNODB WRITES TEMP FILES
+#
+# If innodb_tmpdir is NULL or "", temporary file will be created in
+# server configuration variable location(--tmpdir)
+create table t1(a int primary key)engine=innodb;
+show session variables like 'innodb_tmpdir';
+Variable_name	Value
+innodb_tmpdir	
+alter table t1 add column b int not null;
+set global innodb_tmpdir=NULL;
+# Connection con1
+show session variables like 'innodb_tmpdir';
+Variable_name	Value
+innodb_tmpdir	
+alter table t1 add key(b);
+drop table t1;
+# innodb_tmpdir with invalid path.
+create table t1(a int primary key)engine=innodb;
+set global innodb_tmpdir='wrong_value';
+ERROR 42000: Variable 'innodb_tmpdir' can't be set to the value of 'wrong_value'
+show warnings;
+Level	Code	Message
+Warning	1210	InnoDB: Path doesn't exist.
+Error	1231	Variable 'innodb_tmpdir' can't be set to the value of 'wrong_value'
+drop table t1;
+# innodb_tmpdir with mysql data directory path.
+create table t1(a text, b text, fulltext(a,b))engine=innodb;
+insert into t1 values('test1', 'test2');
+insert into t1 values('text1', 'text2');
+set global innodb_tmpdir = @@global.datadir;
+ERROR 42000: Variable 'innodb_tmpdir' can't be set to the value of 'MYSQL_DATADIR'
+show warnings;
+Level	Code	Message
+Warning	1210	InnoDB: Path location should not be same as mysql data directory location.
+Error	1231	DATADIR/data/'
+drop table t1;
+# innodb_tmpdir with valid location.
+create table t1(a text, b text, fulltext(a,b))engine=innodb;
+insert into t1 values('test1', 'test2');
+insert into t1 values('text1', 'text2');
+set @tmpdir = @@global.tmpdir;
+set global innodb_tmpdir = @tmpdir;
+show session variables like 'innodb_tmpdir';
+Variable_name	Value
+innodb_tmpdir	
+# Connection con3
+alter table t1 add fulltext(b);
+set global innodb_tmpdir=NULL;
+drop table t1;

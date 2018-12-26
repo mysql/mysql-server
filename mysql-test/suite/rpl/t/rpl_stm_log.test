@@ -1,0 +1,14 @@
+# Requires statement logging
+-- source include/have_binlog_format_statement.inc
+-- source include/not_group_replication_plugin.inc
+-- source include/have_myisam.inc
+-- source include/master-slave.inc
+let $engine_type=MyISAM;
+--let $mask_binlog_commit_events= 1
+-- source extra/rpl_tests/rpl_log.test
+--let $mask_binlog_commit_events= 0
+
+
+# End of 4.1 tests
+# Adding comment for force manual merge 5.0 -> wl1012: Delete me
+--source include/rpl_end.inc

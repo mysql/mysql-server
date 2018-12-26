@@ -1,0 +1,11 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+# Expect no history
+show global variables like "performance_schema_events_stages_history_size";
+select count(*) from performance_schema.events_stages_history;
+
+# Valid operation, edge case
+truncate table performance_schema.events_stages_history;
+

@@ -1,0 +1,62 @@
+
+############################################################
+# 1. Setup a new group with four members.
+#    Four view_change transactions will be logged on member
+#    4. All these transactions, when seen on member 4, will
+#    have indexes:
+#    server_id=4, last_committed=0, sequence_number=0
+#
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 2. Execute some transactions on member 1, 2 and 3 that will
+#    be applied on member 4 through Group Replication applier.
+#
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+[connection server2]
+CREATE USER user@nohost1;
+[connection server3]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT= AUTOMATIC;
+[connection server1]
+DROP TABLE t1;
+[connection server2]
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+[connection server3]
+CREATE DATABASE db1;
+include/rpl_sync.inc
+
+############################################################
+# 3. Dump Group Replication applier channel relay log and
+#    validate its indexes on member 4.
+#
+[connection server4]
+Matching lines are:
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=6	sequence_number=7	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=7	sequence_number=8	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=8	sequence_number=9	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=9	sequence_number=10	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+Occurrences of 'last_committed' in the input file: 10
+include/include/assert_logical_timestamps.inc [0 0;0 0;0 0;0 0;4 5;5 6;6 7;7 8;8 9;9 10]
+Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000002'
+Inspected 9 transactions, all with correct transaction length.
+
+############################################################
+# 4. Test cleanup.
+DROP USER user@nohost1;
+DROP TABLE t2;
+DROP DATABASE db1;
+include/group_replication_end.inc

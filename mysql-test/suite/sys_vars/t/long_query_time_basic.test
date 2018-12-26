@@ -1,0 +1,221 @@
+####################### mysql-test\t\long_query_time_basic.test ###############
+#                                                                             #
+# Variable Name: long_query_time                                              #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:10                                                            #
+# Min Value: 1                                                                #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable long_query_time          #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+############################################################
+#           START OF long_query_time TESTS                 #
+############################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.long_query_time;
+SELECT @start_global_value;
+SET @start_session_value = @@session.long_query_time;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_068_01-------------------------#'
+###############################################################
+#     Display the DEFAULT value of long_query_time            #
+###############################################################
+
+SET @@global.long_query_time = 100;
+SET @@global.long_query_time = DEFAULT;
+SELECT @@global.long_query_time;
+
+SET @@session.long_query_time = 200;
+SET @@session.long_query_time = DEFAULT;
+SELECT @@session.long_query_time;
+
+
+--echo '#--------------------FN_DYNVARS_068_02-------------------------#'
+###############################################################
+#     Check the DEFAULT value of long_query_time              #
+###############################################################
+
+SET @@global.long_query_time = DEFAULT;
+SELECT @@global.long_query_time = 10;
+
+SET @@session.long_query_time = DEFAULT;
+SELECT @@session.long_query_time = 10;
+
+
+--echo '#--------------------FN_DYNVARS_068_03-------------------------#'
+#########################################################################
+# Change the value of long_query_time to a valid value for GLOBAL Scope #
+#########################################################################
+
+SET @@global.long_query_time = 0;
+SELECT @@global.long_query_time;
+SET @@global.long_query_time = 1;
+SELECT @@global.long_query_time;
+SET @@global.long_query_time = 60020;
+SELECT @@global.long_query_time;
+SET @@global.long_query_time = 31536000;
+SELECT @@global.long_query_time;
+SET @@global.long_query_time = 65536;
+SELECT @@global.long_query_time;
+
+
+--echo '#--------------------FN_DYNVARS_068_04-------------------------#'
+##########################################################################
+# Change the value of long_query_time to a valid value for SESSION Scope #
+##########################################################################
+ 
+SET @@session.long_query_time = 0;
+SELECT @@session.long_query_time;
+SET @@session.long_query_time = 1;
+SELECT @@session.long_query_time;
+SET @@session.long_query_time = 50050;
+SELECT @@session.long_query_time;
+SET @@session.long_query_time = 31536000;
+SELECT @@session.long_query_time;
+SET @@session.long_query_time = 65550;
+SELECT @@session.long_query_time;
+
+
+--echo '#------------------FN_DYNVARS_068_05-----------------------#'
+########################################################
+# Change the value of long_query_time to an invalid value #
+########################################################
+
+SET @@global.long_query_time = 100000000000;
+SELECT @@global.long_query_time;
+SET @@global.long_query_time = -1;
+SELECT @@global.long_query_time;
+#--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.long_query_time = 65530.34;
+SELECT @@global.long_query_time;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.long_query_time = test;
+SELECT @@global.long_query_time;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.long_query_time = ' ';
+SELECT @@global.long_query_time;
+
+SET @@session.long_query_time = 100000000000;
+SELECT @@session.long_query_time;
+SET @@session.long_query_time = -2;
+SELECT @@session.long_query_time;
+#--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.long_query_time = 65530.34;
+SELECT @@session.long_query_time;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.long_query_time = test;
+SELECT @@session.long_query_time;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.long_query_time = ' ';
+SELECT @@session.long_query_time;
+
+
+
+--echo '#------------------FN_DYNVARS_068_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+
+--disable_warnings
+SELECT @@global.long_query_time = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='long_query_time';
+--enable_warnings
+
+--echo '#------------------FN_DYNVARS_068_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+--disable_warnings
+SELECT @@session.long_query_time = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='long_query_time';
+--enable_warnings
+
+
+--echo '#------------------FN_DYNVARS_068_08-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.long_query_time = TRUE;
+SELECT @@global.long_query_time;
+SET @@global.long_query_time = FALSE;
+SELECT @@global.long_query_time;
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+#################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable   #
+#################################################################################
+
+SET @@global.long_query_time = 10;
+SELECT @@long_query_time = @@global.long_query_time;
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@long_query_time = 100;
+SELECT @@long_query_time = @@local.long_query_time;
+SELECT @@local.long_query_time = @@session.long_query_time;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+########################################################################## 
+#   Check if long_query_time can be accessed with and without @@ sign    #
+##########################################################################
+
+SET long_query_time = 1;
+SELECT @@long_query_time;
+--Error ER_UNKNOWN_TABLE
+SELECT local.long_query_time;
+--Error ER_UNKNOWN_TABLE
+SELECT session.long_query_time;
+--Error ER_BAD_FIELD_ERROR
+SELECT long_query_time = @@session.long_query_time;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.long_query_time = @start_global_value;
+SELECT @@global.long_query_time;
+SET @@session.long_query_time = @start_session_value;
+SELECT @@session.long_query_time;
+
+
+####################################################
+#                 END OF long_query_time TESTS     #
+####################################################
+

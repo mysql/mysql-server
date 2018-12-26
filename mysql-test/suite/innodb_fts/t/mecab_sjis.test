@@ -1,0 +1,12 @@
+--source include/have_mecab.inc
+
+#
+# WL#6607 : InnoDB FULLTEXT SEARCH: CJK support (mecab parser)
+# Test mecab charset sjis
+#------------------------------------------------------------------------------
+
+let $ipadic_charset=sjis;
+let $mysql_charset=sjis;
+let $mysql_win_charset=cp932;
+
+--source suite/innodb_fts/include/mecab.inc

@@ -1,0 +1,1 @@
+--log-error=$MYSQLTEST_VARDIR/tmp/group_replication_recovery_change_master.err

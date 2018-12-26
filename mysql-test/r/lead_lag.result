@@ -1,0 +1,1911 @@
+# Test of SQL window functions LEAD/LAG
+# ----------------------------------------------------------------------
+SET NAMES utf8mb4;
+SELECT LEAD(6, 0)    OVER ();
+LEAD(6, 0)    OVER ()
+6
+SELECT LEAD(NULL, 0) OVER ();
+LEAD(NULL, 0) OVER ()
+NULL
+SELECT LEAD(6, 0)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LEAD(6, 0)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+6
+SELECT LEAD(NULL, 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LEAD(NULL, 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+NULL
+SELECT LEAD(6, 1)    OVER ();
+LEAD(6, 1)    OVER ()
+NULL
+SELECT LEAD(NULL, 1) OVER ();
+LEAD(NULL, 1) OVER ()
+NULL
+SELECT LEAD(6, 1)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LEAD(6, 1)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+NULL
+SELECT LEAD(NULL, 1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LEAD(NULL, 1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+NULL
+SELECT LEAD(6, 1, 7)    OVER ();
+LEAD(6, 1, 7)    OVER ()
+7
+SELECT LEAD(NULL, 1, 7) OVER ();
+LEAD(NULL, 1, 7) OVER ()
+7
+SELECT LEAD(6, 1, 7)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LEAD(6, 1, 7)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+7
+SELECT LEAD(NULL, 1, 7) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LEAD(NULL, 1, 7) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+7
+SELECT LAG(6, 0)    OVER ();
+LAG(6, 0)    OVER ()
+6
+SELECT LAG(NULL, 0) OVER ();
+LAG(NULL, 0) OVER ()
+NULL
+SELECT LAG(6, 0)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LAG(6, 0)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+6
+SELECT LAG(NULL, 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LAG(NULL, 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+NULL
+SELECT LAG(6, 1)    OVER ();
+LAG(6, 1)    OVER ()
+NULL
+SELECT LAG(NULL, 1) OVER ();
+LAG(NULL, 1) OVER ()
+NULL
+SELECT LAG(6, 1)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LAG(6, 1)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+NULL
+SELECT LAG(NULL, 1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LAG(NULL, 1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+NULL
+SELECT LAG(6, 1, 7)    OVER ();
+LAG(6, 1, 7)    OVER ()
+7
+SELECT LAG(NULL, 1, 7) OVER ();
+LAG(NULL, 1, 7) OVER ()
+7
+SELECT LAG(6, 1, 7)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LAG(6, 1, 7)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+7
+SELECT LAG(NULL, 1, 7) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+LAG(NULL, 1, 7) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+7
+CREATE TABLE t1 (d DOUBLE, id INT, sex CHAR(1), n INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(n));
+INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M'),
+(2.0, 2, 'F'),
+(3.0, 3, 'F'),
+(4.0, 4, 'F'),
+(5.0, 5, 'M'),
+(NULL, NULL, 'M'),
+(10.0, 10, NULL),
+(10.0, 10, NULL),
+(11.0, 11, NULL);
+SELECT id, sex, LEAD(id, -1) RESPECT NULLS OVER () FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1) RESPECT NULLS OVER () FROM t1' at line 1
+SELECT id, sex, LEAD(id, 1.2) RESPECT NULLS OVER () FROM t1;
+ERROR HY000: Incorrect arguments to lead
+SELECT id, sex, LEAD(id, 'a') RESPECT NULLS OVER () FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''a') RESPECT NULLS OVER () FROM t1' at line 1
+SELECT id, sex, LEAD(id, NULL) RESPECT NULLS OVER () FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL) RESPECT NULLS OVER () FROM t1' at line 1
+PREPARE p FROM "SELECT id, sex, LEAD(id, ?) OVER () FROM t1";
+SET @p1= 3;
+EXECUTE p USING @p1;
+id	sex	LEAD(id, ?) OVER ()
+1	M	4
+2	F	5
+3	F	NULL
+4	F	10
+5	M	10
+NULL	M	11
+10	NULL	NULL
+10	NULL	NULL
+11	NULL	NULL
+SET @p1= -3;
+EXECUTE p USING @p1;
+id	sex	LEAD(id, ?) OVER ()
+1	M	NULL
+2	F	NULL
+3	F	NULL
+4	F	1
+5	M	2
+NULL	M	3
+10	NULL	4
+10	NULL	5
+11	NULL	NULL
+SET @p1= 'a';
+EXECUTE p USING @p1;
+ERROR HY000: Incorrect arguments to lead
+PREPARE p FROM "SELECT id, sex, LEAD(id+?, ?, ?) RESPECT NULLS OVER () FROM t1";
+SET @p1= 8;
+SET @p2= 3;
+SET @p3= 7;
+EXECUTE p USING @p1, @p2, @p3;
+id	sex	LEAD(id+?, ?, ?) RESPECT NULLS OVER ()
+1	M	12
+2	F	13
+3	F	NULL
+4	F	18
+5	M	18
+NULL	M	19
+10	NULL	7
+10	NULL	7
+11	NULL	7
+EXECUTE p USING @p1, @p2, @p3;
+id	sex	LEAD(id+?, ?, ?) RESPECT NULLS OVER ()
+1	M	12
+2	F	13
+3	F	NULL
+4	F	18
+5	M	18
+NULL	M	19
+10	NULL	7
+10	NULL	7
+11	NULL	7
+DROP PREPARE p;
+SELECT id, sex, LEAD(id, 1, 10) IGNORE NULLS OVER () FROM t1;
+ERROR 42000: This version of MySQL doesn't yet support 'IGNORE NULLS'
+Ok, default semantics:
+First without default:
+SELECT id, sex, LEAD(id, 1) RESPECT NULLS OVER () FROM t1;
+id	sex	LEAD(id, 1) RESPECT NULLS OVER ()
+1	M	2
+2	F	3
+3	F	4
+4	F	5
+5	M	NULL
+NULL	M	10
+10	NULL	10
+10	NULL	11
+11	NULL	NULL
+SELECT id, sex, LAG(id, 1) RESPECT NULLS OVER () FROM t1;
+id	sex	LAG(id, 1) RESPECT NULLS OVER ()
+1	M	NULL
+2	F	1
+3	F	2
+4	F	3
+5	M	4
+NULL	M	5
+10	NULL	NULL
+10	NULL	10
+11	NULL	10
+SELECT id, sex, LEAD(id, 0) RESPECT NULLS OVER () FROM t1;
+id	sex	LEAD(id, 0) RESPECT NULLS OVER ()
+1	M	1
+2	F	2
+3	F	3
+4	F	4
+5	M	5
+NULL	M	NULL
+10	NULL	10
+10	NULL	10
+11	NULL	11
+Now with default:
+SELECT id, sex, LEAD(id, 1, id) RESPECT NULLS OVER () FROM t1;
+id	sex	LEAD(id, 1, id) RESPECT NULLS OVER ()
+1	M	2
+2	F	3
+3	F	4
+4	F	5
+5	M	NULL
+NULL	M	10
+10	NULL	10
+10	NULL	11
+11	NULL	11
+SELECT id, sex, LAG(id, 1, id) RESPECT NULLS OVER () FROM t1;
+id	sex	LAG(id, 1, id) RESPECT NULLS OVER ()
+1	M	1
+2	F	1
+3	F	2
+4	F	3
+5	M	4
+NULL	M	5
+10	NULL	NULL
+10	NULL	10
+11	NULL	10
+SELECT id, sex, LEAD(id, 0, 7) RESPECT NULLS OVER () FROM t1;
+id	sex	LEAD(id, 0, 7) RESPECT NULLS OVER ()
+1	M	1
+2	F	2
+3	F	3
+4	F	4
+5	M	5
+NULL	M	NULL
+10	NULL	10
+10	NULL	10
+11	NULL	11
+SELECT n, id, LEAD(id, 1, 3) OVER
+(ORDER BY id DESC, n ASC ROWS BETWEEN  CURRENT ROW AND 2 FOLLOWING) L FROM t1;
+n	id	L
+9	11	10
+7	10	10
+8	10	5
+5	5	4
+4	4	3
+3	3	2
+2	2	1
+1	1	NULL
+6	NULL	3
+SELECT n, id,  LAG(id, 0, n*n) OVER
+(ORDER BY id DESC, n ASC ROWS BETWEEN  CURRENT ROW AND 2 FOLLOWING) L FROM t1;
+n	id	L
+9	11	11
+7	10	10
+8	10	10
+5	5	5
+4	4	4
+3	3	3
+2	2	2
+1	1	1
+6	NULL	NULL
+SELECT n, id,  LAG(id, 1, n*n) OVER
+(ORDER BY id DESC, n ASC ROWS BETWEEN  CURRENT ROW AND 2 FOLLOWING) L FROM t1;
+n	id	L
+9	11	81
+7	10	11
+8	10	10
+5	5	10
+4	4	5
+3	3	4
+2	2	3
+1	1	2
+6	NULL	1
+SELECT n, id,  LEAD(id, 1, n*n) OVER
+(ORDER BY id DESC, n ASC ROWS BETWEEN  CURRENT ROW AND 2 FOLLOWING) L FROM t1;
+n	id	L
+9	11	10
+7	10	10
+8	10	5
+5	5	4
+4	4	3
+3	3	2
+2	2	1
+1	1	NULL
+6	NULL	36
+Check imcompatible character sets
+CREATE TABLE t (c1 CHAR(10) CHARACTER SET big5,
+i INT,
+c2 VARCHAR(10) CHARACTER SET euckr);
+SELECT c1, c2, LEAD(c1, 0, c2) OVER () l0 FROM t;
+ERROR HY000: Illegal mix of collations (big5_chinese_ci,IMPLICIT) and (euckr_korean_ci,IMPLICIT) for operation 'lead'
+DROP TABLE t;
+Check default char set & collation promotion to result
+CREATE TABLE t (c1 CHAR(10) CHARACTER SET utf8mb4,
+i INT,
+c2 VARCHAR(10) CHARACTER SET latin1);
+INSERT INTO t VALUES('A', 1, '1');
+INSERT INTO t VALUES('A', 3, '3');
+INSERT INTO t VALUES(x'F09F90AC' /* dolphin */, 5, null);
+INSERT INTO t VALUES('A', 5, null);
+INSERT INTO t VALUES(null, 10, '0');
+Result sets should contain dolphin in columns c1 and l1.
+SELECT c1, c2, LEAD(c1, 0, c2) OVER () l0 FROM t;
+c1	c2	l0
+A	1	A
+A	3	A
+ðŸ¬	NULL	ðŸ¬
+A	NULL	A
+NULL	0	NULL
+SELECT c1, c2, LEAD(c1, 1, c2) OVER () l1 FROM t;
+c1	c2	l1
+A	1	A
+A	3	ðŸ¬
+ðŸ¬	NULL	A
+A	NULL	NULL
+NULL	0	0
+SELECT c1, c2, LEAD(c2, 1, c1) OVER () l1 FROM t;
+c1	c2	l1
+A	1	3
+A	3	NULL
+ðŸ¬	NULL	NULL
+A	NULL	0
+NULL	0	NULL
+Use CREATE TABLE AS to show type of the resulting LEAD function
+CREATE TABLE tt AS SELECT LEAD(c1, 0, c2) OVER () c FROM t;
+CREATE TABLE ts AS SELECT LEAD(c2, 1, c1) OVER () c FROM t;
+Both tables should have c as VARCHAR(10) CHARACTER SET utf8mb4
+even though only c1 has that type.
+SHOW CREATE TABLE tt;
+Table	Create Table
+tt	CREATE TABLE `tt` (
+  `c` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE ts;
+Table	Create Table
+ts	CREATE TABLE `ts` (
+  `c` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t, tt, ts;
+Defaults: check non obvious type pairs, comparing with IFNULL
+whose type reconciliation behavior we emulate when combining
+types in LEAD/LAG with default value.
+CREATE TABLE t (c1 VARCHAR(10),
+j1 JSON,
+g1 POINT,
+i1 INT,
+b1 BLOB,
+d1 DOUBLE,
+e1 DECIMAL(5,4),
+e2 DECIMAL(5,2));
+INSERT INTO t VALUES (null, '[6]', ST_POINTFROMTEXT('POINT(6 6)'), 6, '6', 6.0, 10.0/3, 20.0/3),
+('7', null ,   ST_POINTFROMTEXT('POINT(7 7)'), 7, '7', 7.0, 10.0/3, 20.0/3),
+('8', '[8]' ,  null,                           7, '8', 8.0, 10.0/3, 20.0/3),
+('9', '[9]' , ST_POINTFROMTEXT('POINT(9 9)'), null, '9', 9.0, 10.0/3, 20.0/3),
+('0', '[0]' , ST_POINTFROMTEXT('POINT(0 0)'), 0, null, 0.0, 10.0/3, 20.0/3),
+('1', '[1]' , ST_POINTFROMTEXT('POINT(1 1)'), 1, '1', null, 10.0/3, 20.0/3),
+('2', '[2]' , ST_POINTFROMTEXT('POINT(2 2)'), 2, '2', 2.0, null, 20.0/3),
+('3', '[3]' , ST_POINTFROMTEXT('POINT(3 3)'), 3, '3', 3.0, 10.0/3, null);
+Warnings:
+Note	1265	Data truncated for column 'e1' at row 1
+Note	1265	Data truncated for column 'e2' at row 1
+Note	1265	Data truncated for column 'e1' at row 2
+Note	1265	Data truncated for column 'e2' at row 2
+Note	1265	Data truncated for column 'e1' at row 3
+Note	1265	Data truncated for column 'e2' at row 3
+Note	1265	Data truncated for column 'e1' at row 4
+Note	1265	Data truncated for column 'e2' at row 4
+Note	1265	Data truncated for column 'e1' at row 5
+Note	1265	Data truncated for column 'e2' at row 5
+Note	1265	Data truncated for column 'e1' at row 6
+Note	1265	Data truncated for column 'e2' at row 6
+Note	1265	Data truncated for column 'e2' at row 7
+Note	1265	Data truncated for column 'e1' at row 8
+SELECT LEAD(c1, 100, j1) OVER () lcj, IFNULL(c1, j1) ifn_cj FROM t;
+lcj	ifn_cj
+[6]	[6]
+NULL	7
+[8]	8
+[9]	9
+[0]	0
+[1]	1
+[2]	2
+[3]	3
+SELECT LEAD(j1, 100, j1) OVER () lcj, IFNULL(c1, j1) ifn_cj FROM t;
+lcj	ifn_cj
+[6]	[6]
+NULL	7
+[8]	8
+[9]	9
+[0]	0
+[1]	1
+[2]	2
+[3]	3
+SELECT LEAD(c1, 100, g1) OVER () lcg, IFNULL(c1, g1) ifn_cg FROM t;
+lcg	ifn_cg
+             @      @	             @      @
+             @      @	7
+NULL	8
+             "@      "@	9
+                       	0
+             ð?      ð?	1
+              @       @	2
+             @      @	3
+SELECT LEAD(c1, 100, i1) OVER () lci, IFNULL(c1, i1) ifn_ci FROM t;
+lci	ifn_ci
+6	6
+7	7
+7	8
+NULL	9
+0	0
+1	1
+2	2
+3	3
+SELECT LEAD(c1, 100, b1) OVER () lcb, IFNULL(c1, b1) ifn_cb FROM t;
+lcb	ifn_cb
+6	6
+7	7
+8	8
+9	9
+NULL	0
+1	1
+2	2
+3	3
+SELECT LEAD(c1, 100, d1) OVER () lcd, IFNULL(c1, d1) ifn_cd FROM t;
+lcd	ifn_cd
+6	6
+7	7
+8	8
+9	9
+0	0
+NULL	1
+2	2
+3	3
+SELECT LEAD(c1, 100, e1) OVER () lce1, IFNULL(c1, e1) ifn_ce1 FROM t;
+lce1	ifn_ce1
+3.3333	3.3333
+3.3333	7
+3.3333	8
+3.3333	9
+3.3333	0
+3.3333	1
+NULL	2
+3.3333	3
+SELECT LEAD(c1, 100, e2) OVER () lce2, IFNULL(c1, e2) ifn_ce2 FROM t;
+lce2	ifn_ce2
+6.67	6.67
+6.67	7
+6.67	8
+6.67	9
+6.67	0
+6.67	1
+6.67	2
+NULL	3
+SELECT LEAD(j1, 100, c1) OVER () ljc, IFNULL(j1, c1) ifn_jc FROM t;
+ljc	ifn_jc
+NULL	[6]
+7	7
+8	[8]
+9	[9]
+0	[0]
+1	[1]
+2	[2]
+3	[3]
+SELECT LEAD(j1, 100, g1) OVER () ljg, IFNULL(j1, g1) ifn_jg FROM t;
+ljg	ifn_jg
+             @      @	[6]
+             @      @	             @      @
+NULL	[8]
+             "@      "@	[9]
+                       	[0]
+             ð?      ð?	[1]
+              @       @	[2]
+             @      @	[3]
+SELECT LEAD(j1, 100, i1) OVER () lji, IFNULL(j1, i1) ifn_ji FROM t;
+lji	ifn_ji
+6	[6]
+7	7
+7	[8]
+NULL	[9]
+0	[0]
+1	[1]
+2	[2]
+3	[3]
+SELECT LEAD(j1, 100, b1) OVER () ljb, IFNULL(j1, b1) ifn_jb FROM t;
+ljb	ifn_jb
+6	[6]
+7	7
+8	[8]
+9	[9]
+NULL	[0]
+1	[1]
+2	[2]
+3	[3]
+SELECT LEAD(j1, 100, d1) OVER () ljd, IFNULL(j1, d1) ifn_jd FROM t;
+ljd	ifn_jd
+6	[6]
+7	7
+8	[8]
+9	[9]
+0	[0]
+NULL	[1]
+2	[2]
+3	[3]
+SELECT LEAD(j1, 100, e1) OVER () lje1, IFNULL(j1, e1) ifn_je1 FROM t;
+lje1	ifn_je1
+3.3333	[6]
+3.3333	3.3333
+3.3333	[8]
+3.3333	[9]
+3.3333	[0]
+3.3333	[1]
+NULL	[2]
+3.3333	[3]
+SELECT LEAD(j1, 100, e2) OVER () lje2, IFNULL(j1, e2) ifn_je2 FROM t;
+lje2	ifn_je2
+6.67	[6]
+6.67	6.67
+6.67	[8]
+6.67	[9]
+6.67	[0]
+6.67	[1]
+6.67	[2]
+NULL	[3]
+SELECT LEAD(g1, 100, c1) OVER () lgc, IFNULL(g1, c1) ifn_gc FROM t;
+lgc	ifn_gc
+NULL	             @      @
+7	             @      @
+8	8
+9	             "@      "@
+0	                       
+1	             ð?      ð?
+2	              @       @
+3	             @      @
+SELECT LEAD(g1, 100, j1) OVER () lgj, IFNULL(g1, j1) ifn_gj FROM t;
+lgj	ifn_gj
+[6]	             @      @
+NULL	             @      @
+[8]	[8]
+[9]	             "@      "@
+[0]	                       
+[1]	             ð?      ð?
+[2]	              @       @
+[3]	             @      @
+SELECT LEAD(g1, 100, i1) OVER () lgi, IFNULL(g1, i1) ifn_gi FROM t;
+lgi	ifn_gi
+6	             @      @
+7	             @      @
+7	7
+NULL	             "@      "@
+0	                       
+1	             ð?      ð?
+2	              @       @
+3	             @      @
+SELECT LEAD(g1, 100, b1) OVER () lgb, IFNULL(g1, b1) ifn_gb FROM t;
+lgb	ifn_gb
+6	             @      @
+7	             @      @
+8	8
+9	             "@      "@
+NULL	                       
+1	             ð?      ð?
+2	              @       @
+3	             @      @
+SELECT LEAD(g1, 100, d1) OVER () lgd, IFNULL(g1, d1) ifn_gd FROM t;
+lgd	ifn_gd
+6	             @      @
+7	             @      @
+8	8
+9	             "@      "@
+0	                       
+NULL	             ð?      ð?
+2	              @       @
+3	             @      @
+SELECT LEAD(g1, 100, e1) OVER () lge1, IFNULL(g1, e1) ifn_ge1 FROM t;
+lge1	ifn_ge1
+3.3333	             @      @
+3.3333	             @      @
+3.3333	3.3333
+3.3333	             "@      "@
+3.3333	                       
+3.3333	             ð?      ð?
+NULL	              @       @
+3.3333	             @      @
+SELECT LEAD(g1, 100, e2) OVER () lge2, IFNULL(g1, e2) ifn_ge2 FROM t;
+lge2	ifn_ge2
+6.67	             @      @
+6.67	             @      @
+6.67	6.67
+6.67	             "@      "@
+6.67	                       
+6.67	             ð?      ð?
+6.67	              @       @
+NULL	             @      @
+SELECT LEAD(i1, 100, c1) OVER () lic, IFNULL(i1, c1) ifn_ic FROM t;
+lic	ifn_ic
+NULL	6
+7	7
+8	7
+9	9
+0	0
+1	1
+2	2
+3	3
+SELECT LEAD(i1, 100, j1) OVER () lij, IFNULL(i1, j1) ifn_ij FROM t;
+lij	ifn_ij
+[6]	6
+NULL	7
+[8]	7
+[9]	[9]
+[0]	0
+[1]	1
+[2]	2
+[3]	3
+SELECT LEAD(i1, 100, g1) OVER () lig, IFNULL(i1, g1) ifn_ig FROM t;
+lig	ifn_ig
+             @      @	6
+             @      @	7
+NULL	7
+             "@      "@	             "@      "@
+                       	0
+             ð?      ð?	1
+              @       @	2
+             @      @	3
+SELECT LEAD(i1, 100, b1) OVER () lib, IFNULL(i1, b1) ifn_ib FROM t;
+lib	ifn_ib
+6	6
+7	7
+8	7
+9	9
+NULL	0
+1	1
+2	2
+3	3
+SELECT LEAD(i1, 100, d1) OVER () lid, IFNULL(i1, d1) ifn_id FROM t;
+lid	ifn_id
+6	6
+7	7
+8	7
+9	9
+0	0
+NULL	1
+2	2
+3	3
+SELECT LEAD(i1, 100, e1) OVER () lie1, IFNULL(i1, e1) ifn_ie1 FROM t;
+lie1	ifn_ie1
+3.3333	6.0000
+3.3333	7.0000
+3.3333	7.0000
+3.3333	3.3333
+3.3333	0.0000
+3.3333	1.0000
+NULL	2.0000
+3.3333	3.0000
+SELECT LEAD(i1, 100, e2) OVER () lie2, IFNULL(i1, e2) ifn_ie2 FROM t;
+lie2	ifn_ie2
+6.67	6.00
+6.67	7.00
+6.67	7.00
+6.67	6.67
+6.67	0.00
+6.67	1.00
+6.67	2.00
+NULL	3.00
+SELECT LEAD(b1, 100, c1) OVER () lbc, IFNULL(b1, c1) ifn_bc FROM t;
+lbc	ifn_bc
+NULL	6
+7	7
+8	8
+9	9
+0	0
+1	1
+2	2
+3	3
+SELECT LEAD(b1, 100, j1) OVER () lbj, IFNULL(b1, j1) ifn_bj FROM t;
+lbj	ifn_bj
+[6]	6
+NULL	7
+[8]	8
+[9]	9
+[0]	[0]
+[1]	1
+[2]	2
+[3]	3
+SELECT LEAD(b1, 100, g1) OVER () lbg, IFNULL(b1, g1) ifn_bg FROM t;
+lbg	ifn_bg
+             @      @	6
+             @      @	7
+NULL	8
+             "@      "@	9
+                       	                       
+             ð?      ð?	1
+              @       @	2
+             @      @	3
+SELECT LEAD(b1, 100, i1) OVER () lbi, IFNULL(b1, i1) ifn_bi FROM t;
+lbi	ifn_bi
+6	6
+7	7
+7	8
+NULL	9
+0	0
+1	1
+2	2
+3	3
+SELECT LEAD(b1, 100, d1) OVER () lbd, IFNULL(b1, d1) ifn_bd FROM t;
+lbd	ifn_bd
+6	6
+7	7
+8	8
+9	9
+0	0
+NULL	1
+2	2
+3	3
+SELECT LEAD(b1, 100, e1) OVER () lbe1, IFNULL(b1, e1) ifn_be1 FROM t;
+lbe1	ifn_be1
+3.3333	6
+3.3333	7
+3.3333	8
+3.3333	9
+3.3333	3.3333
+3.3333	1
+NULL	2
+3.3333	3
+SELECT LEAD(b1, 100, e2) OVER () lbe2, IFNULL(b1, e2) ifn_be2 FROM t;
+lbe2	ifn_be2
+6.67	6
+6.67	7
+6.67	8
+6.67	9
+6.67	6.67
+6.67	1
+6.67	2
+NULL	3
+SELECT LEAD(d1, 100, c1) OVER () ldc, IFNULL(d1, c1) ifn_dc FROM t;
+ldc	ifn_dc
+NULL	6
+7	7
+8	8
+9	9
+0	0
+1	1
+2	2
+3	3
+SELECT LEAD(d1, 100, j1) OVER () ldj, IFNULL(d1, j1) ifn_dj FROM t;
+ldj	ifn_dj
+[6]	6
+NULL	7
+[8]	8
+[9]	9
+[0]	0
+[1]	[1]
+[2]	2
+[3]	3
+SELECT LEAD(d1, 100, g1) OVER () ldg, IFNULL(d1, g1) ifn_dg FROM t;
+ldg	ifn_dg
+             @      @	6
+             @      @	7
+NULL	8
+             "@      "@	9
+                       	0
+             ð?      ð?	             ð?      ð?
+              @       @	2
+             @      @	3
+SELECT LEAD(d1, 100, i1) OVER () ldi, IFNULL(d1, i1) ifn_di FROM t;
+ldi	ifn_di
+6	6
+7	7
+7	8
+NULL	9
+0	0
+1	1
+2	2
+3	3
+SELECT LEAD(d1, 100, b1) OVER () ldd, IFNULL(d1, b1) ifn_db FROM t;
+ldd	ifn_db
+6	6
+7	7
+8	8
+9	9
+NULL	0
+1	1
+2	2
+3	3
+SELECT LEAD(d1, 100, e1) OVER () lde1, IFNULL(d1, e1) ifn_de1 FROM t;
+lde1	ifn_de1
+3.3333	6
+3.3333	7
+3.3333	8
+3.3333	9
+3.3333	0
+3.3333	3.3333
+NULL	2
+3.3333	3
+SELECT LEAD(d1, 100, e2) OVER () lde2, IFNULL(d1, e2) ifn_de2 FROM t;
+lde2	ifn_de2
+6.67	6
+6.67	7
+6.67	8
+6.67	9
+6.67	0
+6.67	6.67
+6.67	2
+NULL	3
+SELECT LEAD(e1, 100, c1) OVER () le1c, IFNULL(e1, c1) ifn_e1c FROM t;
+le1c	ifn_e1c
+NULL	3.3333
+7	3.3333
+8	3.3333
+9	3.3333
+0	3.3333
+1	3.3333
+2	2
+3	3.3333
+SELECT LEAD(e1, 100, j1) OVER () le1j, IFNULL(e1, j1) ifn_e1j FROM t;
+le1j	ifn_e1j
+[6]	3.3333
+NULL	3.3333
+[8]	3.3333
+[9]	3.3333
+[0]	3.3333
+[1]	3.3333
+[2]	[2]
+[3]	3.3333
+SELECT LEAD(e1, 100, g1) OVER () le1g, IFNULL(e1, g1) ifn_e1g FROM t;
+le1g	ifn_e1g
+             @      @	3.3333
+             @      @	3.3333
+NULL	3.3333
+             "@      "@	3.3333
+                       	3.3333
+             ð?      ð?	3.3333
+              @       @	              @       @
+             @      @	3.3333
+SELECT LEAD(e1, 100, i1) OVER () le1i, IFNULL(e1, i1) ifn_e1i FROM t;
+le1i	ifn_e1i
+6.0000	3.3333
+7.0000	3.3333
+7.0000	3.3333
+NULL	3.3333
+0.0000	3.3333
+1.0000	3.3333
+2.0000	2.0000
+3.0000	3.3333
+SELECT LEAD(e1, 100, b1) OVER () le1d, IFNULL(e1, b1) ifn_e1d FROM t;
+le1d	ifn_e1d
+6	3.3333
+7	3.3333
+8	3.3333
+9	3.3333
+NULL	3.3333
+1	3.3333
+2	2
+3	3.3333
+SELECT LEAD(e1, 100, d1) OVER () le1d, IFNULL(e1, d1) ifn_e1d FROM t;
+le1d	ifn_e1d
+6	3.3333
+7	3.3333
+8	3.3333
+9	3.3333
+0	3.3333
+NULL	3.3333
+2	2
+3	3.3333
+SELECT LEAD(e1, 100, e2) OVER () le1e2, IFNULL(e1, e2) ifn_e1e2 FROM t;
+le1e2	ifn_e1e2
+6.6700	3.3333
+6.6700	3.3333
+6.6700	3.3333
+6.6700	3.3333
+6.6700	3.3333
+6.6700	3.3333
+6.6700	6.6700
+NULL	3.3333
+SELECT LEAD(e2, 100, c1) OVER () le2c, IFNULL(e2, c1) ifn_e2c FROM t;
+le2c	ifn_e2c
+NULL	6.67
+7	6.67
+8	6.67
+9	6.67
+0	6.67
+1	6.67
+2	6.67
+3	3
+SELECT LEAD(e2, 100, j1) OVER () le2j, IFNULL(e2, j1) ifn_e2j FROM t;
+le2j	ifn_e2j
+[6]	6.67
+NULL	6.67
+[8]	6.67
+[9]	6.67
+[0]	6.67
+[1]	6.67
+[2]	6.67
+[3]	[3]
+SELECT LEAD(e2, 100, g1) OVER () le2g, IFNULL(e2, g1) ifn_e2g FROM t;
+le2g	ifn_e2g
+             @      @	6.67
+             @      @	6.67
+NULL	6.67
+             "@      "@	6.67
+                       	6.67
+             ð?      ð?	6.67
+              @       @	6.67
+             @      @	             @      @
+SELECT LEAD(e2, 100, i1) OVER () le2i, IFNULL(e2, i1) ifn_e2i FROM t;
+le2i	ifn_e2i
+6.00	6.67
+7.00	6.67
+7.00	6.67
+NULL	6.67
+0.00	6.67
+1.00	6.67
+2.00	6.67
+3.00	3.00
+SELECT LEAD(e2, 100, b1) OVER () le2d, IFNULL(e2, b1) ifn_e2d FROM t;
+le2d	ifn_e2d
+6	6.67
+7	6.67
+8	6.67
+9	6.67
+NULL	6.67
+1	6.67
+2	6.67
+3	3
+SELECT LEAD(e2, 100, d1) OVER () le2d, IFNULL(e2, d1) ifn_e2d FROM t;
+le2d	ifn_e2d
+6	6.67
+7	6.67
+8	6.67
+9	6.67
+0	6.67
+NULL	6.67
+2	6.67
+3	3
+SELECT LEAD(e2, 100, e1) OVER () le2e1, IFNULL(e2, e1) ifn_e2e1 FROM t;
+le2e1	ifn_e2e1
+3.3333	6.6700
+3.3333	6.6700
+3.3333	6.6700
+3.3333	6.6700
+3.3333	6.6700
+3.3333	6.6700
+NULL	6.6700
+3.3333	3.3333
+DROP TABLE t;
+static wf
+SELECT id, sex, COUNT(*) OVER w cnt, NTILE(3) OVER w `ntile`,
+LEAD(id, 1) OVER w le1,
+LAG(id, 1) OVER w la1,
+LEAD(id, 100) OVER w le100,
+LAG(id, 2, 777) OVER w la2 FROM t1
+WINDOW w AS (ORDER BY id);
+id	sex	cnt	ntile	le1	la1	le100	la2
+NULL	M	1	1	1	NULL	NULL	777
+1	M	2	1	2	NULL	NULL	777
+2	F	3	1	3	1	NULL	NULL
+3	F	4	2	4	2	NULL	1
+4	F	5	2	5	3	NULL	2
+5	M	6	2	10	4	NULL	3
+10	NULL	8	3	10	5	NULL	4
+10	NULL	8	3	11	10	NULL	5
+11	NULL	9	3	NULL	10	NULL	10
+SELECT id, sex, COUNT(*) OVER w cnt, NTH_VALUE(id, 2) OVER w nth,
+LEAD(id, 1) OVER w le1,
+LAG(id, 1) OVER w la1,
+LEAD(id, 100) OVER w le100,
+LAG(id, 2, 777) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY sex ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING);
+id	sex	cnt	nth	le1	la1	le100	la2
+10	NULL	3	10	10	NULL	NULL	777
+10	NULL	3	10	11	10	NULL	777
+11	NULL	3	10	NULL	10	NULL	10
+2	F	3	3	3	NULL	NULL	777
+3	F	3	3	4	2	NULL	777
+4	F	3	3	NULL	3	NULL	2
+NULL	M	3	1	1	NULL	NULL	777
+1	M	3	1	5	NULL	NULL	777
+5	M	3	1	NULL	1	NULL	NULL
+SELECT id, sex, COUNT(*) OVER w cnt, NTH_VALUE(id, 2) OVER w nth,
+LEAD(id, 1) OVER w le1,
+LAG(id, 1) OVER w la1,
+LEAD(id, 100) OVER w le100,
+LAG(id, 2, 777) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY id ORDER BY sex ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING);
+id	sex	cnt	nth	le1	la1	le100	la2
+NULL	M	1	NULL	NULL	NULL	NULL	777
+1	M	1	NULL	NULL	NULL	NULL	777
+2	F	1	NULL	NULL	NULL	NULL	777
+3	F	1	NULL	NULL	NULL	NULL	777
+4	F	1	NULL	NULL	NULL	NULL	777
+5	M	1	NULL	NULL	NULL	NULL	777
+10	NULL	2	10	10	NULL	NULL	777
+10	NULL	2	10	NULL	10	NULL	777
+11	NULL	1	NULL	NULL	NULL	NULL	777
+unbuffered
+SELECT id, sex, COUNT(*) OVER w cnt,
+LEAD(id, 1) OVER w le1,
+LAG(id, 1) OVER w la1,
+LEAD(id, 100) OVER w le100,
+LAG(id, 2, 777) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY ID ROWS UNBOUNDED PRECEDING);
+id	sex	cnt	le1	la1	le100	la2
+10	NULL	1	10	NULL	NULL	777
+10	NULL	2	11	10	NULL	777
+11	NULL	3	NULL	10	NULL	10
+2	F	1	3	NULL	NULL	777
+3	F	2	4	2	NULL	777
+4	F	3	NULL	3	NULL	2
+NULL	M	1	1	NULL	NULL	777
+1	M	2	5	NULL	NULL	777
+5	M	3	NULL	1	NULL	NULL
+SELECT id, sex, COUNT(*) OVER w cnt, NTH_VALUE(id, 2) OVER w nth,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY ID RANGE UNBOUNDED PRECEDING);
+id	sex	cnt	nth	le2	la2
+10	NULL	2	10	11	NULL
+10	NULL	2	10	NULL	NULL
+11	NULL	3	10	NULL	10
+2	F	1	NULL	4	NULL
+3	F	2	3	NULL	NULL
+4	F	3	3	NULL	2
+NULL	M	1	NULL	5	NULL
+1	M	2	1	NULL	NULL
+5	M	3	1	NULL	NULL
+test unoptimized path: trick: add DOUBLE type w/SUM which is unoptimized by default
+ascending
+SELECT d, SUM(d) OVER w `sum`, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY d ROWS 2 PRECEDING);
+d	sum	sex	le2	la2
+10	10	NULL	11	NULL
+10	20	NULL	NULL	NULL
+11	31	NULL	NULL	10
+2	2	F	4	NULL
+3	5	F	NULL	NULL
+4	9	F	NULL	2
+NULL	NULL	M	5	NULL
+1	1	M	NULL	NULL
+5	6	M	NULL	NULL
+SELECT d, SUM(d) OVER w `sum`, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY d RANGE 2 PRECEDING);
+d	sum	sex	le2	la2
+10	20	NULL	11	NULL
+10	20	NULL	NULL	NULL
+11	31	NULL	NULL	10
+2	2	F	4	NULL
+3	5	F	NULL	NULL
+4	9	F	NULL	2
+NULL	NULL	M	5	NULL
+1	1	M	NULL	NULL
+5	5	M	NULL	NULL
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d ROWS 2 PRECEDING);
+d	sum	cnt	le2	la2
+NULL	NULL	1	2	NULL
+1	1	2	3	NULL
+2	3	3	4	NULL
+3	6	3	5	1
+4	9	3	10	2
+5	12	3	10	3
+10	19	3	11	4
+10	25	3	NULL	5
+11	31	3	NULL	10
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d ASC ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+d	sum	cnt	le2	la2
+NULL	NULL	0	2	NULL
+1	NULL	1	3	NULL
+2	1	2	4	NULL
+3	3	2	5	1
+4	5	2	10	2
+5	7	2	10	3
+10	9	2	11	4
+10	15	2	NULL	5
+11	20	2	NULL	10
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d ASC ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+d	sum	cnt	le2	la2
+NULL	3	2	2	NULL
+1	5	2	3	NULL
+2	7	2	4	NULL
+3	9	2	5	1
+4	15	2	10	2
+5	20	2	10	3
+10	21	2	11	4
+10	11	1	NULL	5
+11	NULL	0	NULL	10
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d RANGE 2 PRECEDING);
+d	sum	cnt	le2	la2
+NULL	NULL	1	2	NULL
+1	1	1	3	NULL
+2	3	2	4	NULL
+3	6	3	5	1
+4	9	3	10	2
+5	12	3	10	3
+10	20	2	11	4
+10	20	2	NULL	5
+11	31	3	NULL	10
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+d	sum	cnt	le2	la2
+NULL	NULL	1	2	NULL
+1	3	2	3	NULL
+2	6	3	4	NULL
+3	9	3	5	1
+4	12	3	10	2
+5	9	2	10	3
+10	31	3	11	4
+10	31	3	NULL	5
+11	31	3	NULL	10
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+d	sum	cnt	le2	la2
+NULL	NULL	1	2	NULL
+1	5	2	3	NULL
+2	7	2	4	NULL
+3	9	2	5	1
+4	5	1	10	2
+5	NULL	0	10	3
+10	11	1	11	4
+10	11	1	NULL	5
+11	NULL	0	NULL	10
+descending
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY d DESC ROWS 2 PRECEDING);
+d	sum	cnt	sex	le2	la2
+11	11	1	NULL	10	NULL
+10	21	2	NULL	NULL	NULL
+10	31	3	NULL	NULL	11
+4	4	1	F	2	NULL
+3	7	2	F	NULL	NULL
+2	9	3	F	NULL	4
+5	5	1	M	NULL	NULL
+1	6	2	M	NULL	NULL
+NULL	6	3	M	NULL	5
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY d DESC RANGE 2 PRECEDING);
+d	sum	cnt	sex	le2	la2
+11	11	1	NULL	10	NULL
+10	31	3	NULL	NULL	NULL
+10	31	3	NULL	NULL	11
+4	4	1	F	2	NULL
+3	7	2	F	NULL	NULL
+2	9	3	F	NULL	4
+5	5	1	M	NULL	NULL
+1	1	1	M	NULL	NULL
+NULL	NULL	1	M	NULL	5
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC ROWS 2 PRECEDING);
+d	sum	cnt	sex	le2	la2
+11	11	1	NULL	10	NULL
+10	21	2	NULL	5	NULL
+10	31	3	NULL	4	11
+5	25	3	M	3	10
+4	19	3	F	2	10
+3	12	3	F	1	5
+2	9	3	F	NULL	4
+1	6	3	M	NULL	3
+NULL	3	3	M	NULL	2
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+d	sum	cnt	sex	le2	la2
+11	NULL	0	NULL	10	NULL
+10	11	1	NULL	5	NULL
+10	21	2	NULL	4	11
+5	20	2	M	3	10
+4	15	2	F	2	10
+3	9	2	F	1	5
+2	7	2	F	NULL	4
+1	5	2	M	NULL	3
+NULL	3	2	M	NULL	2
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+d	sum	cnt	sex	le2	la2
+11	20	2	NULL	10	NULL
+10	15	2	NULL	5	NULL
+10	9	2	NULL	4	11
+5	7	2	M	3	10
+4	5	2	F	2	10
+3	3	2	F	1	5
+2	1	2	F	NULL	4
+1	NULL	1	M	NULL	3
+NULL	NULL	0	M	NULL	2
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC RANGE 2 PRECEDING);
+d	sum	cnt	sex	le2	la2
+11	11	1	NULL	10	NULL
+10	31	3	NULL	5	NULL
+10	31	3	NULL	4	11
+5	5	1	M	3	10
+4	9	2	F	2	10
+3	12	3	F	1	5
+2	9	3	F	NULL	4
+1	6	3	M	NULL	3
+NULL	NULL	1	M	NULL	2
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+d	sum	cnt	sex	le2	la2
+11	31	3	NULL	10	NULL
+10	31	3	NULL	5	NULL
+10	31	3	NULL	4	11
+5	9	2	M	3	10
+4	12	3	F	2	10
+3	9	3	F	1	5
+2	6	3	F	NULL	4
+1	3	2	M	NULL	3
+NULL	NULL	1	M	NULL	2
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY d DESC RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+d	sum	cnt	sex	le2	la2
+11	20	2	NULL	10	NULL
+10	NULL	0	NULL	5	NULL
+10	NULL	0	NULL	4	11
+5	7	2	M	3	10
+4	5	2	F	2	10
+3	3	2	F	1	5
+2	1	1	F	NULL	4
+1	NULL	0	M	NULL	3
+NULL	NULL	1	M	NULL	2
+Dynamic upper
+SELECT id, sex, COUNT(*) OVER w cnt, NTILE(3) OVER w `ntile`,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1 WINDOW w as (ORDER BY id);
+id	sex	cnt	ntile	le2	la2
+NULL	M	1	1	2	NULL
+1	M	2	1	3	NULL
+2	F	3	1	4	NULL
+3	F	4	2	5	1
+4	F	5	2	10	2
+5	M	6	2	10	3
+10	NULL	8	3	11	4
+10	NULL	8	3	NULL	5
+11	NULL	9	3	NULL	10
+optimized path
+ascending
+SELECT id, SUM(id) OVER w `sum`, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY id ROWS 2 PRECEDING);
+id	sum	sex	le2	la2
+10	10	NULL	11	NULL
+10	20	NULL	NULL	NULL
+11	31	NULL	NULL	10
+2	2	F	4	NULL
+3	5	F	NULL	NULL
+4	9	F	NULL	2
+NULL	NULL	M	5	NULL
+1	1	M	NULL	NULL
+5	6	M	NULL	NULL
+SELECT id, SUM(id) OVER w `sum`, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY id RANGE 2 PRECEDING);
+id	sum	sex	le2	la2
+10	20	NULL	11	NULL
+10	20	NULL	NULL	NULL
+11	31	NULL	NULL	10
+2	2	F	4	NULL
+3	5	F	NULL	NULL
+4	9	F	NULL	2
+NULL	NULL	M	5	NULL
+1	1	M	NULL	NULL
+5	5	M	NULL	NULL
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id ROWS 2 PRECEDING);
+id	sum	cnt	le2	la2
+NULL	NULL	1	2	NULL
+1	1	2	3	NULL
+2	3	3	4	NULL
+3	6	3	5	1
+4	9	3	10	2
+5	12	3	10	3
+10	19	3	11	4
+10	25	3	NULL	5
+11	31	3	NULL	10
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id ASC ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+id	sum	cnt	le2	la2
+NULL	NULL	0	2	NULL
+1	NULL	1	3	NULL
+2	1	2	4	NULL
+3	3	2	5	1
+4	5	2	10	2
+5	7	2	10	3
+10	9	2	11	4
+10	15	2	NULL	5
+11	20	2	NULL	10
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id ASC ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+id	sum	cnt	le2	la2
+NULL	3	2	2	NULL
+1	5	2	3	NULL
+2	7	2	4	NULL
+3	9	2	5	1
+4	15	2	10	2
+5	20	2	10	3
+10	21	2	11	4
+10	11	1	NULL	5
+11	NULL	0	NULL	10
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id RANGE 2 PRECEDING);
+id	sum	cnt	le2	la2
+NULL	NULL	1	2	NULL
+1	1	1	3	NULL
+2	3	2	4	NULL
+3	6	3	5	1
+4	9	3	10	2
+5	12	3	10	3
+10	20	2	11	4
+10	20	2	NULL	5
+11	31	3	NULL	10
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+id	sum	cnt	le2	la2
+NULL	NULL	1	2	NULL
+1	3	2	3	NULL
+2	6	3	4	NULL
+3	9	3	5	1
+4	12	3	10	2
+5	9	2	10	3
+10	31	3	11	4
+10	31	3	NULL	5
+11	31	3	NULL	10
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+id	sum	cnt	le2	la2
+NULL	NULL	1	2	NULL
+1	5	2	3	NULL
+2	7	2	4	NULL
+3	9	2	5	1
+4	5	1	10	2
+5	NULL	0	10	3
+10	11	1	11	4
+10	11	1	NULL	5
+11	NULL	0	NULL	10
+descending
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY id DESC ROWS 2 PRECEDING);
+id	sum	cnt	sex	le2	la2
+11	11	1	NULL	10	NULL
+10	21	2	NULL	NULL	NULL
+10	31	3	NULL	NULL	11
+4	4	1	F	2	NULL
+3	7	2	F	NULL	NULL
+2	9	3	F	NULL	4
+5	5	1	M	NULL	NULL
+1	6	2	M	NULL	NULL
+NULL	6	3	M	NULL	5
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (PARTITION BY SEX ORDER BY id DESC RANGE 2 PRECEDING);
+id	sum	cnt	sex	le2	la2
+11	11	1	NULL	10	NULL
+10	31	3	NULL	NULL	NULL
+10	31	3	NULL	NULL	11
+4	4	1	F	2	NULL
+3	7	2	F	NULL	NULL
+2	9	3	F	NULL	4
+5	5	1	M	NULL	NULL
+1	1	1	M	NULL	NULL
+NULL	NULL	1	M	NULL	5
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC ROWS 2 PRECEDING);
+id	sum	cnt	sex	le2	la2
+11	11	1	NULL	10	NULL
+10	21	2	NULL	5	NULL
+10	31	3	NULL	4	11
+5	25	3	M	3	10
+4	19	3	F	2	10
+3	12	3	F	1	5
+2	9	3	F	NULL	4
+1	6	3	M	NULL	3
+NULL	3	3	M	NULL	2
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+id	sum	cnt	sex	le2	la2
+11	NULL	0	NULL	10	NULL
+10	11	1	NULL	5	NULL
+10	21	2	NULL	4	11
+5	20	2	M	3	10
+4	15	2	F	2	10
+3	9	2	F	1	5
+2	7	2	F	NULL	4
+1	5	2	M	NULL	3
+NULL	3	2	M	NULL	2
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+id	sum	cnt	sex	le2	la2
+11	20	2	NULL	10	NULL
+10	15	2	NULL	5	NULL
+10	9	2	NULL	4	11
+5	7	2	M	3	10
+4	5	2	F	2	10
+3	3	2	F	1	5
+2	1	2	F	NULL	4
+1	NULL	1	M	NULL	3
+NULL	NULL	0	M	NULL	2
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC RANGE 2 PRECEDING);
+id	sum	cnt	sex	le2	la2
+11	11	1	NULL	10	NULL
+10	31	3	NULL	5	NULL
+10	31	3	NULL	4	11
+5	5	1	M	3	10
+4	9	2	F	2	10
+3	12	3	F	1	5
+2	9	3	F	NULL	4
+1	6	3	M	NULL	3
+NULL	NULL	1	M	NULL	2
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+id	sum	cnt	sex	le2	la2
+11	31	3	NULL	10	NULL
+10	31	3	NULL	5	NULL
+10	31	3	NULL	4	11
+5	9	2	M	3	10
+4	12	3	F	2	10
+3	9	3	F	1	5
+2	6	3	F	NULL	4
+1	3	2	M	NULL	3
+NULL	NULL	1	M	NULL	2
+SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt, sex,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w as (ORDER BY id DESC RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+id	sum	cnt	sex	le2	la2
+11	20	2	NULL	10	NULL
+10	NULL	0	NULL	5	NULL
+10	NULL	0	NULL	4	11
+5	7	2	M	3	10
+4	5	2	F	2	10
+3	3	2	F	1	5
+2	1	1	F	NULL	4
+1	NULL	0	M	NULL	3
+NULL	NULL	1	M	NULL	2
+many nth_value calls on one window, unoptimized path
+SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(d, 3) OVER w le3,
+FIRST_VALUE(d) OVER w fv,
+LEAD(d, 1) OVER w le1,
+LEAD(d, 2) OVER w le2,
+LAG(d, 2) OVER w la2 FROM t1
+WINDOW w AS (ORDER BY d ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW);
+d	sum	cnt	le3	fv	le1	le2	la2
+NULL	NULL	1	3	NULL	1	2	NULL
+1	1	2	4	NULL	2	3	NULL
+2	3	3	5	NULL	3	4	NULL
+3	6	3	10	1	4	5	1
+4	9	3	10	2	5	10	2
+5	12	3	11	3	10	10	3
+10	19	3	NULL	4	10	11	4
+10	25	3	NULL	5	11	NULL	5
+11	31	3	NULL	10	NULL	NULL	10
+many nth_value calls on one window, optimized path
+SELECT id, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
+LEAD(id, 3) OVER w le3,
+FIRST_VALUE(id) OVER w fv,
+LEAD(id, 1) OVER w le1,
+LEAD(id, 2) OVER w le2,
+LAG(id, 2) OVER w la2 FROM t1
+WINDOW w AS (ORDER BY id ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW);
+id	sum	cnt	le3	fv	le1	le2	la2
+NULL	NULL	1	3	NULL	1	2	NULL
+1	1	2	4	NULL	2	3	NULL
+2	3	3	5	NULL	3	4	NULL
+3	6	3	10	1	4	5	1
+4	9	3	10	2	5	10	2
+5	12	3	11	3	10	10	3
+10	19	3	NULL	4	10	11	4
+10	25	3	NULL	5	11	NULL	5
+11	31	3	NULL	10	NULL	NULL	10
+DROP TABLE t1;
+Check interference with other two pass window functions
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (NULL), (1), (2), (3), (3), (4), (5), (6), (6), (7), (8), (9), (10);
+SELECT i, PERCENT_RANK() OVER w cd
+FROM t WINDOW w AS (ORDER BY i);
+i	cd
+NULL	0
+1	0.08333333333333333
+2	0.16666666666666666
+3	0.25
+3	0.25
+4	0.4166666666666667
+5	0.5
+6	0.5833333333333334
+6	0.5833333333333334
+7	0.75
+8	0.8333333333333334
+9	0.9166666666666666
+10	1
+SELECT i, PERCENT_RANK() OVER w cd FROM t
+WINDOW w AS (ORDER BY i ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+i	cd
+NULL	0
+1	0.08333333333333333
+2	0.16666666666666666
+3	0.25
+3	0.25
+4	0.4166666666666667
+5	0.5
+6	0.5833333333333334
+6	0.5833333333333334
+7	0.75
+8	0.8333333333333334
+9	0.9166666666666666
+10	1
+SELECT i, PERCENT_RANK() OVER w cd, NTILE(3) OVER w `ntile`, COUNT(*) OVER w cnt, SUM(i) OVER W `sum` FROM t
+WINDOW w AS (ORDER BY i ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+i	cd	ntile	cnt	sum
+NULL	0	1	3	3
+1	0.08333333333333333	1	4	6
+2	0.16666666666666666	1	4	9
+3	0.25	1	4	12
+3	0.25	1	4	15
+4	0.4166666666666667	2	4	18
+5	0.5	2	4	21
+6	0.5833333333333334	2	4	24
+6	0.5833333333333334	2	4	27
+7	0.75	3	4	30
+8	0.8333333333333334	3	4	34
+9	0.9166666666666666	3	3	27
+10	1	3	2	19
+SELECT i, PERCENT_RANK() OVER w cd, NTILE(3) OVER w `ntile`, COUNT(*) OVER w cnt, SUM(i) OVER W `sum`,
+LEAD(i,2) OVER w le2,
+LAG(i) OVER w la FROM t
+WINDOW w AS (ORDER BY i ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+i	cd	ntile	cnt	sum	le2	la
+NULL	0	1	3	3	2	NULL
+1	0.08333333333333333	1	4	6	3	NULL
+2	0.16666666666666666	1	4	9	3	1
+3	0.25	1	4	12	4	2
+3	0.25	1	4	15	5	3
+4	0.4166666666666667	2	4	18	6	3
+5	0.5	2	4	21	6	4
+6	0.5833333333333334	2	4	24	7	5
+6	0.5833333333333334	2	4	27	8	6
+7	0.75	3	4	30	9	6
+8	0.8333333333333334	3	4	34	10	7
+9	0.9166666666666666	3	3	27	NULL	8
+10	1	3	2	19	NULL	9
+DROP TABLE t;
+Nullability bug fixed
+CREATE TABLE t(i INT NOT NULL);
+INSERT INTO t VALUES (1), (2), (3), (3), (4), (5), (6);
+SELECT LEAD(i, 3) OVER () FROM t;
+LEAD(i, 3) OVER ()
+3
+4
+5
+6
+NULL
+NULL
+NULL
+SELECT LAG(i, 3) OVER () FROM t;
+LAG(i, 3) OVER ()
+NULL
+NULL
+NULL
+1
+2
+3
+3
+DROP TABLE t;
+
+Bug#25835149
+
+SET @savmode=@@SESSION.SQL_MODE;
+SET SESSION SQL_MODE='';
+CREATE TABLE `test`(
+`pk` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+`dt` DATETIME DEFAULT NULL,
+`ge` GEOMETRY DEFAULT NULL
+);
+INSERT INTO `test` VALUES
+(1, '2007-05-08 12:10:55', ST_GeomFromText('POINT(1 1)')),
+(2, NULL, NULL), (3, NULL, NULL),
+(4, '2001-01-18 00:00:00', ST_GeomFromText('POINT(4 4)')),
+(5, '2009-11-24 00:00:00', ST_GeomFromText('POINT(5 5)')),
+(6, '2001-11-22 21:41:15', ST_GeomFromText('POINT(6 6)')),
+(7, NULL, NULL),
+(8, '0000-00-00 00:00:00', ST_GeomFromText('POINT(8 8)')),
+(9, '2003-05-13 18:03:04', ST_GeomFromText('POINT(9 9)')),
+(10, '2008-04-15 09:44:20', ST_GeomFromText('POINT(10 10)')),
+(11, '2009-07-15 00:00:00', ST_GeomFromText('POINT(11 11)')),
+(12, '2007-04-27 13:53:37', ST_GeomFromText('POINT(12 12)')),
+(13, '0000-00-00 00:00:00', ST_GeomFromText('POINT(13 13)')),
+(14, '2000-02-02 02:15:28', ST_GeomFromText('POINT(14 14)')),
+(15, '2004-06-06 00:00:00', ST_GeomFromText('POINT(15 15)')),
+(16, NULL, NULL),
+(17, '2002-06-21 00:00:00', ST_GeomFromText('POINT(17 17)')),
+(18, '2007-03-23 00:00:00', ST_GeomFromText('POINT(18 18)')),
+(19, '2006-10-06 00:00:00', ST_GeomFromText('POINT(19 19)')),
+(20, '2008-07-07 00:00:00', ST_GeomFromText('POINT(20 20)'));
+SELECT dt, LEAD(dt, 1) OVER w1 `lead`,
+CAST(LEAD(ge, 1) OVER w1 AS JSON) geo
+FROM test WHERE `pk` = 2 WINDOW w1 AS ();
+dt	lead	geo
+NULL	NULL	NULL
+SELECT dt, LAG(dt) OVER w1 `lag`,
+CAST(LAG(ge) OVER w1 AS JSON) geo
+FROM test WHERE `pk` > 3 WINDOW w1 AS ();
+dt	lag	geo
+2001-01-18 00:00:00	NULL	NULL
+2009-11-24 00:00:00	2001-01-18 00:00:00	{"type": "Point", "coordinates": [4.0, 4.0]}
+2001-11-22 21:41:15	2009-11-24 00:00:00	{"type": "Point", "coordinates": [5.0, 5.0]}
+NULL	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+0000-00-00 00:00:00	NULL	NULL
+2003-05-13 18:03:04	0000-00-00 00:00:00	{"type": "Point", "coordinates": [8.0, 8.0]}
+2008-04-15 09:44:20	2003-05-13 18:03:04	{"type": "Point", "coordinates": [9.0, 9.0]}
+2009-07-15 00:00:00	2008-04-15 09:44:20	{"type": "Point", "coordinates": [10.0, 10.0]}
+2007-04-27 13:53:37	2009-07-15 00:00:00	{"type": "Point", "coordinates": [11.0, 11.0]}
+0000-00-00 00:00:00	2007-04-27 13:53:37	{"type": "Point", "coordinates": [12.0, 12.0]}
+2000-02-02 02:15:28	0000-00-00 00:00:00	{"type": "Point", "coordinates": [13.0, 13.0]}
+2004-06-06 00:00:00	2000-02-02 02:15:28	{"type": "Point", "coordinates": [14.0, 14.0]}
+NULL	2004-06-06 00:00:00	{"type": "Point", "coordinates": [15.0, 15.0]}
+2002-06-21 00:00:00	NULL	NULL
+2007-03-23 00:00:00	2002-06-21 00:00:00	{"type": "Point", "coordinates": [17.0, 17.0]}
+2006-10-06 00:00:00	2007-03-23 00:00:00	{"type": "Point", "coordinates": [18.0, 18.0]}
+2008-07-07 00:00:00	2006-10-06 00:00:00	{"type": "Point", "coordinates": [19.0, 19.0]}
+SELECT dt, LEAD(CAST(dt AS TIME), 1) OVER w1
+FROM test WHERE `pk` > 3 WINDOW w1 AS ();
+dt	LEAD(CAST(dt AS TIME), 1) OVER w1
+2001-01-18 00:00:00	00:00:00
+2009-11-24 00:00:00	21:41:15
+2001-11-22 21:41:15	NULL
+NULL	00:00:00
+0000-00-00 00:00:00	18:03:04
+2003-05-13 18:03:04	09:44:20
+2008-04-15 09:44:20	00:00:00
+2009-07-15 00:00:00	13:53:37
+2007-04-27 13:53:37	00:00:00
+0000-00-00 00:00:00	02:15:28
+2000-02-02 02:15:28	00:00:00
+2004-06-06 00:00:00	NULL
+NULL	00:00:00
+2002-06-21 00:00:00	00:00:00
+2007-03-23 00:00:00	00:00:00
+2006-10-06 00:00:00	00:00:00
+2008-07-07 00:00:00	NULL
+SET SESSION SQL_MODE=@savmode;
+DROP TABLE `test`;
+
+Bug with missing update of cached example after split_sum_func
+for NTH_VALUE
+
+CREATE TABLE t(a INT, b INT, c INT, d INT);
+INSERT INTO t VALUES (1,1,1,1), (2,2,4,2), (3,3,9,3);
+SELECT SUM(c/d), LEAD(SUM(c/d), 1) OVER (ORDER BY a)  FROM t GROUP BY a,b;
+SUM(c/d)	LEAD(SUM(c/d), 1) OVER (ORDER BY a)
+1.0000	2.0000
+2.0000	3.0000
+3.0000	NULL
+SELECT SUM(c/d), LEAD(SUM(c/d), 1, SUM(c/d)) OVER (ORDER BY a)  FROM t GROUP BY a,b;
+SUM(c/d)	LEAD(SUM(c/d), 1, SUM(c/d)) OVER (ORDER BY a)
+1.0000	2.0000
+2.0000	3.0000
+3.0000	3.0000
+SELECT SUM(c/d), LAG(SUM(c/d), 1) OVER (ORDER BY a)  FROM t GROUP BY a,b;
+SUM(c/d)	LAG(SUM(c/d), 1) OVER (ORDER BY a)
+1.0000	NULL
+2.0000	1.0000
+3.0000	2.0000
+SELECT SUM(c/d), LAG(SUM(c/d), 1, SUM(c/d)) OVER (ORDER BY a)  FROM t GROUP BY a,b;
+SUM(c/d)	LAG(SUM(c/d), 1, SUM(c/d)) OVER (ORDER BY a)
+1.0000	1.0000
+2.0000	1.0000
+3.0000	2.0000
+SELECT LEAD(SUM(c/d), 2) OVER (ORDER BY a)  FROM t GROUP BY a,b;
+LEAD(SUM(c/d), 2) OVER (ORDER BY a)
+3.0000
+NULL
+NULL
+SELECT 1+LEAD(SUM(c/d), 1) OVER (ORDER BY a)  FROM t GROUP BY a,b;
+1+LEAD(SUM(c/d), 1) OVER (ORDER BY a)
+3.0000
+4.0000
+NULL
+SELECT ROW_NUMBER() OVER () rn,
+1 + LEAD(SUM(c/d), 1) OVER (ORDER BY a) le1,
+1 + LAG(SUM(c/d), 1) OVER (ORDER BY a) la1,
+1 + LEAD(SUM(c/d), 2) OVER (ORDER BY a) le2,
+1 + LAG(SUM(c/d), 2) OVER (ORDER BY a) la2,
+1 + LEAD(SUM(c/d), 1, SUM(c/d)) OVER (ORDER BY a) le1d,
+1 + LAG(SUM(c/d), 1, SUM(c/d)) OVER (ORDER BY a) la1d,
+1 + LEAD(SUM(c/d), 2, SUM(c/d)) OVER (ORDER BY a) le2d,
+1 + LAG(SUM(c/d), 2, SUM(c/d)) OVER (ORDER BY a) la2d,
+1 + LEAD(SUM(c/d), 1, 1 + SUM(c/d)) OVER (ORDER BY a) le1dp,
+1 + LAG(SUM(c/d), 1, 1 + SUM(c/d)) OVER (ORDER BY a) la1dp,
+1 + LEAD(SUM(c/d), 2, 1 + SUM(c/d)) OVER (ORDER BY a) le2dp,
+1 + LAG(SUM(c/d), 2, 1 + SUM(c/d)) OVER (ORDER BY a) la2dp
+FROM t GROUP BY a,b;
+rn	le1	la1	le2	la2	le1d	la1d	le2d	la2d	le1dp	la1dp	le2dp	la2dp
+1	3.0000	NULL	4.0000	NULL	3.0000	2.0000	4.0000	2.0000	3.0000	3.0000	4.0000	3.0000
+2	4.0000	2.0000	NULL	NULL	4.0000	2.0000	3.0000	3.0000	4.0000	2.0000	4.0000	4.0000
+3	NULL	3.0000	NULL	2.0000	4.0000	3.0000	4.0000	2.0000	5.0000	3.0000	5.0000	2.0000
+DROP TABLE t;
+#
+# Bug#25883997 : WL#9603: SIG11 AT STRING::LENGTH() IN INCLUDE/SQL_STRING.H
+#
+CREATE TABLE t1 (a int, b char(1), c varchar(1));
+INSERT INTO t1 VALUES (1,'s','k'),(NULL,'e','t'),(NULL,'w','i'),(2,'i','k');
+SELECT  LEAD(a, 7,'abc') OVER w1, LAG(a) OVER w1 FROM t1 WINDOW w1 AS (PARTITION BY a);
+LEAD(a, 7,'abc') OVER w1	LAG(a) OVER w1
+abc	NULL
+abc	NULL
+abc	NULL
+abc	NULL
+SELECT  a, LEAD(a, 7, 'abc') over w1,
+LEAD(a, 2, 'abc') over w1
+FROM t1 WINDOW w1 AS (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING);
+a	LEAD(a, 7, 'abc') over w1	LEAD(a, 2, 'abc') over w1
+NULL	abc	1
+NULL	abc	2
+1	abc	abc
+2	abc	abc
+SELECT  a, LEAD(a, 1, 'abc') OVER w1,
+LEAD(a, 2, 'abc') over w1
+FROM t1 WINDOW w1 AS (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING);
+a	LEAD(a, 1, 'abc') OVER w1	LEAD(a, 2, 'abc') over w1
+NULL	NULL	1
+NULL	1	2
+1	2	abc
+2	abc	abc
+DROP TABLE t1;
+Coverage for LEAD/LAG ::get_time, get_date
+SELECT ADDTIME(LEAD(time'18:00:00', 0) OVER (ORDER BY NULL), '01:00:00');
+ADDTIME(LEAD(time'18:00:00', 0) OVER (ORDER BY NULL), '01:00:00')
+19:00:00
+SELECT ADDTIME(LEAD(NULL, 1, time'18:00:00') OVER (ORDER BY NULL), '01:00:00');
+ADDTIME(LEAD(NULL, 1, time'18:00:00') OVER (ORDER BY NULL), '01:00:00')
+19:00:00
+SELECT ADDDATE(LEAD(NULL, 1, date'1955-05-15') OVER (ORDER BY NULL), 1);
+ADDDATE(LEAD(NULL, 1, date'1955-05-15') OVER (ORDER BY NULL), 1)
+1955-05-16
+SELECT ADDDATE(LEAD(date'1955-05-15', 0) OVER (ORDER BY NULL), 1);
+ADDDATE(LEAD(date'1955-05-15', 0) OVER (ORDER BY NULL), 1)
+1955-05-16
+#
+# Bug#26100985 WL9603: LEAD IN VIEW GIVES WRONG RESULT
+#
+CREATE VIEW v AS
+SELECT LEAD(d, 2) OVER () FROM
+(SELECT 1 AS d UNION SELECT 2 UNION SELECT 3) dt;
+SELECT * FROM v;
+LEAD(d, 2) OVER ()
+3
+NULL
+NULL
+DROP VIEW v;
+#
+# Bug#26178042 WL#9603: LEAD(<>,0) RESET RESULTS OF OTHER WF'S ON SAME WINDOW
+#
+CREATE TABLE t1e(a int);
+INSERT INTO t1e VALUES(1),(2),(3),(3),(NULL);
+OK
+SELECT LEAD(a,2) over w1, LEAD(a,1) OVER w1 FROM t1e WINDOW w1 as ();
+LEAD(a,2) over w1	LEAD(a,1) OVER w1
+3	2
+3	3
+NULL	3
+NULL	NULL
+NULL	NULL
+Used to give wrong results for (a,2) and (a,1)
+SELECT LEAD(a,2) over w1, LEAD(a,0) OVER w1, LEAD(a,1) OVER w1 FROM t1e WINDOW w1 as ();
+LEAD(a,2) over w1	LEAD(a,0) OVER w1	LEAD(a,1) OVER w1
+3	1	2
+3	2	3
+NULL	3	3
+NULL	3	NULL
+NULL	NULL	NULL
+DROP TABLE t1e;
+#
+# Bug#26703246 ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP >= 0
+# Also solves Bug#26703156.
+Assertion used to fail: delsum+(int) y/4-temp >= 0
+DO TO_SECONDS(LAG(POINT(2.804466E+307,-2032),75) OVER());
+DO IS_IPV4(TIMESTAMP(LAG(-19131 ,188) OVER(),@F));
+DO WEEKOFYEAR(LAG(-16726 ,247)RESPECT NULLS OVER());
+DO DAYOFYEAR(LEAD(-6653420797178186265 ,29)OVER());
+DO YEARWEEK(LEAD(FOUND_ROWS(),250)OVER());
+DO DAYOFYEAR(LAG('] .| /= ',63) OVER());
+DO IFNULL((DAYNAME(LEAD(STDDEV(@F),162) OVER())),(0xD73E));
+DO TO_DAYS(LEAD(((LOCATE(0xA812,0xE8DE))OR(@G)),148)OVER());
+DO WEEKOFYEAR(LEAD(('5183-10-18 06:15:35.076079')SOUNDS LIKE(0x9E335D89),68)OVER());
+DO DAYOFYEAR(LEAD(ROW_COUNT(),177)OVER());
+DO MONTHNAME(LAG(' =',74) OVER());
+DO SHA(BIN(MONTHNAME(LEAD(UNCOMPRESSED_LENGTH(SHA1("")),224)OVER())));
+DO (((NOT(1)))^(HOUR(MONTHNAME(LEAD(DATABASE(),89)OVER()))));
+DO MONTHNAME(LEAD(CHARSET(CONVERT((MOD(CURTIME(4),STDDEV(NULL)))USING CP850)),12) OVER());
+DO LAST_DAY(LAG(NULL,113) OVER());
+DO LAST_DAY(LEAD(-2201 ,98)RESPECT NULLS OVER());
+DO OCTET_LENGTH(((LAST_DAY(LEAD(-28178,163)OVER()))OR(COLLATION(@E))));
+DO LAST_DAY(LAG('*',36)RESPECT NULLS OVER());
+DO LAST_DAY(LEAD( _CP932 '',241)OVER(RANGE UNBOUNDED PRECEDING));
+Assertion used to fail: !check_time_mmssff_range(ltime)
+DO ((CAST((LEAD(NULL,152) OVER()) AS TIME))*(1));
+DO CAST((LAG(SHA(STDDEV('-0E%_')),224) OVER()) AS TIME);
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '-0E%_'
+DO CAST((LAG(_UJIS '8CA} ',144) OVER()) AS TIME);
+DO CAST((LAG(-16520,156) OVER()) AS TIME);
+DO CAST((LEAD(-6011,202) OVER()) AS TIME);
+DO CAST((LEAD(0x45,104) OVER())AS TIME);
+DO CAST((LAG(POLYGON( LINESTRING( POINT(4099,17421),
+POINT(22259,-5875.0796),
+POINT(30179,6542),
+POINT(12331,-18840)),
+LINESTRING( POINT( 8162.2539,-29332),
+POINT(24157,-23393),
+POINT(268435459,-26835),
+POINT(3.933871E+307,-25808)),
+LINESTRING( POINT(30360,-1049),
+POINT(15405,5.816757E+307),
+POINT( 3717.3555,1.599730E+308),
+POINT(-23002,-19077))),
+70)
+OVER())
+AS DATETIME );
+DO UNIX_TIMESTAMP(
+LAG(ROUND(((UTC_TIME()) OR
+((NOT (INET6_ATON(IS_IPV4(((MAKETIME(-10966,
+233,
+2795.439453))
+OR(MAKEDATE(-3030,19)))))))))),
+140) OVER());
+DO LAST_DAY(SQRT(CAST((LAG(REPEAT('B',64),91)OVER())AS DATETIME)));
+We Must disable warning for next statement because we get two instead of
+one with -ps protocol vs plain protocol.
+DO CAST((LEAD(-197994311,60)OVER())AS DATETIME);
+DO IFNULL((NULL ),(UNIX_TIMESTAMP(LEAD(NULL,12)RESPECT NULLS OVER())));
+Assertion used to fail: !check_datetime_range(ltime)
+DO ((CONVERT((VARIANCE(-18951))USING CP866)) <=
+(JSON_ARRAY(LEAD(CAST((35184372088833)AS DATETIME),126)OVER())));
+DO ((LAG(LAST_DAY("]<$*_#[DB!^+ : 3"),89) OVER (RANGE UNBOUNDED PRECEDING)) >
+(CONVERT(("1985-10-19 03:36:29.304455" -
+INTERVAL(0x1446C5A2627FB06D88DC63D66B36DF) DAY_MICROSECOND)
+USING BIG5)));
+#
+# Bug#26740557: WINDOW FUNC + JSON: ASSERTION FAILED:
+#               FALSE IN ITEM::VAL_JSON
+#
+SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+(LAG(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+,7)OVER())),'9236-05-27',0xe2a7d4))^(0x1109));
+((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+(LAG(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+,7)OVER())),'9236-05-27',0xe2a7d4))^(0x1109))
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '| !*c>*{/'
+Warning	1292	Truncated incorrect INTEGER value: '9236-05-27'
+SELECT ((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1));
+((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1))
+NULL
+SELECT ((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),0)OVER())<=(1));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_merge_patch; a JSON string or JSON type is required.
+SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+162)OVER())))>=(CONNECTION_ID()));
+((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+162)OVER())))>=(CONNECTION_ID()))
+0
+SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+0)OVER())))>=(CONNECTION_ID()));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+SELECT JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),172)OVER());
+JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),172)OVER())
+NULL
+SELECT JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),0)OVER());
+JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),0)OVER())
+1
+# End of test for Bug#26740557

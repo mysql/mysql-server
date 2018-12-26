@@ -1,0 +1,110 @@
+include/group_replication.inc [rpl_server_count=5]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Check the version of member 1 is fully visible in the plugin table
+#
+include/assert.inc [The plugin major and minor versions are visible in the version column]
+include/assert.inc [The plugin total version can be seen in the description column]
+#
+# Setup a new member with version a higher patch version
+# Version= Base version + 1 patch version
+#
+server1
+SET @debug_saved_s1= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# Try to add a new member with a higher minor version
+# Version = Base version + 1 minor version
+# The member will join the group
+#
+server2
+SET @debug_saved_s2= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 1 elements]
+#
+# Try to add a new member with a base version.
+# Version = Base version
+# It will succeed since the major version is the same
+#
+server3
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group");
+SET session sql_log_bin=1;
+include/start_group_replication.inc
+#
+# Try to add a new member with a higher major version
+# Version = Base version + 1 major version
+# The member will join the group
+#
+include/stop_group_replication.inc
+SET @debug_saved_s3= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 1 elements]
+#
+# Try to add a new member with a major version equal to the base version,
+# but a higher minor version.
+# Version = Base version + 1 minor version
+# It will fail to join since a higher major version member is present
+#
+server4
+SET @debug_saved_s4= @@GLOBAL.DEBUG;
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group");
+SET session sql_log_bin=1;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
+SET GLOBAL group_replication_group_name= "8a1da670-05fa-11e5-b939-0800200c9a66";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+#
+# Make server 3 leave so every member has the same major version
+# Try to add server 4 again with a higher minor version than base
+# Version = Base version + 1 minor version
+# The member will join the group
+#
+server3
+include/stop_group_replication.inc
+server4
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 1 elements]
+#
+# Remove all servers with higher minor versions
+# Try to add a new member with a lower patch version than member 1
+# Version = Base version
+# The member will join the group
+#
+server2
+include/stop_group_replication.inc
+server4
+include/stop_group_replication.inc
+server5
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 1 elements]
+#
+# Clean up
+#
+server1
+SET @@GLOBAL.DEBUG= @debug_save_s1;
+include/stop_group_replication.inc
+include/start_group_replication.inc
+server2
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_restore_version';
+include/start_group_replication.inc
+SET @@GLOBAL.DEBUG= @debug_save_s2;
+server3
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_restore_version';
+include/start_group_replication.inc
+SET @@GLOBAL.DEBUG= @debug_save_s3;
+server4
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_restore_version';
+include/start_group_replication.inc
+SET @@GLOBAL.DEBUG= @debug_save_s4;
+DROP TABLE t1;
+include/group_replication_end.inc

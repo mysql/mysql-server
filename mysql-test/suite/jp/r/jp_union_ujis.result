@@ -1,0 +1,326 @@
+drop table if exists `£Τ£±`;
+drop table if exists `£Τ£²`;
+drop table if exists `£Τ£³`;
+drop table if exists `£Τ£΄`;
+drop table if exists `£Τ£µ`;
+drop table if exists `£Τ£¶`;
+drop table if exists `£Τ£·`;
+drop table if exists `£Τ£Έ`;
+drop table if exists `£Τ£Ή`;
+SET NAMES ujis;
+SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE `£Τ£±` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£Τ£³` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;
+INSERT INTO `£Τ£±` VALUES('±'),('±'),('¤Ά'),('¤Ά'),('νά'),('νά');
+INSERT INTO `£Τ£²` VALUES('²'),('²'),('¤¤'),('¤¤'),('νέ'),('νέ');
+INSERT INTO `£Τ£³` VALUES('³'),('³'),('¤¦'),('¤¦'),('νή'),('νή');
+SELECT * FROM `£Τ£±` UNION DISTINCT SELECT * FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+SELECT * FROM `£Τ£±` UNION ALL SELECT * FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+±
+²
+²
+νά
+νά
+νέ
+νέ
+¤Ά
+¤Ά
+¤¤
+¤¤
+(SELECT * FROM `£Τ£±`) UNION (SELECT * FROM `£Τ£²`) UNION (SELECT '¤¦') ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+¤¦
+(SELECT '¤¦' AS `£Γ£±`) UNION (SELECT * FROM `£Τ£±`) UNION (SELECT * FROM `£Τ£²`) ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+¤¦
+SELECT `£Γ£±`, COUNT(*) FROM `£Τ£±` GROUP BY `£Γ£±` UNION
+SELECT `£Γ£±`, COUNT(*) FROM `£Τ£²` GROUP BY `£Γ£±` ORDER BY `£Γ£±`;
+£Γ£±	COUNT(*)
+±	2
+²	2
+νά	2
+νέ	2
+¤Ά	2
+¤¤	2
+SELECT * FROM `£Τ£±` UNION DISTINCT
+SELECT * FROM `£Τ£²` UNION ALL
+SELECT * FROM `£Τ£³` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+³
+³
+νά
+νέ
+νή
+νή
+¤Ά
+¤¤
+¤¦
+¤¦
+SELECT * FROM `£Τ£±` UNION ALL
+SELECT * FROM `£Τ£²` UNION DISTINCT
+SELECT * FROM `£Τ£³` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+³
+νά
+νέ
+νή
+¤Ά
+¤¤
+¤¦
+SELECT * FROM `£Τ£±` UNION SELECT REPEAT(`£Γ£±`,5) FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²²²²²
+νά
+νένένένένέ
+¤Ά
+¤¤¤¤¤¤¤¤¤¤
+DROP TABLE `£Τ£±` ;
+DROP TABLE `£Τ£²` ;
+DROP TABLE `£Τ£³` ;
+CREATE TABLE `£Τ£±` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MYISAM;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MYISAM;
+CREATE TABLE `£Τ£³` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MYISAM;
+INSERT INTO `£Τ£±` VALUES('±'),('±'),('¤Ά'),('¤Ά'),('νά'),('νά');
+INSERT INTO `£Τ£²` VALUES('²'),('²'),('¤¤'),('¤¤'),('νέ'),('νέ');
+INSERT INTO `£Τ£³` VALUES('³'),('³'),('¤¦'),('¤¦'),('νή'),('νή');
+SELECT * FROM `£Τ£±` UNION DISTINCT SELECT * FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+SELECT * FROM `£Τ£±` UNION ALL SELECT * FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+±
+²
+²
+νά
+νά
+νέ
+νέ
+¤Ά
+¤Ά
+¤¤
+¤¤
+(SELECT * FROM `£Τ£±`) UNION (SELECT * FROM `£Τ£²`) UNION (SELECT '¤¦') ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+¤¦
+(SELECT '¤¦' AS `£Γ£±`) UNION (SELECT * FROM `£Τ£±`) UNION (SELECT * FROM `£Τ£²`) ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+¤¦
+SELECT `£Γ£±`, COUNT(*) FROM `£Τ£±` GROUP BY `£Γ£±` UNION
+SELECT `£Γ£±`, COUNT(*) FROM `£Τ£²` GROUP BY `£Γ£±` ORDER BY `£Γ£±`;
+£Γ£±	COUNT(*)
+±	2
+²	2
+νά	2
+νέ	2
+¤Ά	2
+¤¤	2
+SELECT * FROM `£Τ£±` UNION DISTINCT
+SELECT * FROM `£Τ£²` UNION ALL
+SELECT * FROM `£Τ£³` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+³
+³
+νά
+νέ
+νή
+νή
+¤Ά
+¤¤
+¤¦
+¤¦
+SELECT * FROM `£Τ£±` UNION ALL
+SELECT * FROM `£Τ£²` UNION DISTINCT
+SELECT * FROM `£Τ£³` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+³
+νά
+νέ
+νή
+¤Ά
+¤¤
+¤¦
+SELECT * FROM `£Τ£±` UNION SELECT REPEAT(`£Γ£±`,5) FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²²²²²
+νά
+νένένένένέ
+¤Ά
+¤¤¤¤¤¤¤¤¤¤
+DROP TABLE `£Τ£±` ;
+DROP TABLE `£Τ£²` ;
+DROP TABLE `£Τ£³` ;
+CREATE TABLE `£Τ£±` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£³` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+INSERT INTO `£Τ£±` VALUES('±'),('±'),('¤Ά'),('¤Ά'),('νά'),('νά');
+INSERT INTO `£Τ£²` VALUES('²'),('²'),('¤¤'),('¤¤'),('νέ'),('νέ');
+INSERT INTO `£Τ£³` VALUES('³'),('³'),('¤¦'),('¤¦'),('νή'),('νή');
+SELECT * FROM `£Τ£±` UNION DISTINCT SELECT * FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+SELECT * FROM `£Τ£±` UNION ALL SELECT * FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+±
+²
+²
+νά
+νά
+νέ
+νέ
+¤Ά
+¤Ά
+¤¤
+¤¤
+(SELECT * FROM `£Τ£±`) UNION (SELECT * FROM `£Τ£²`) UNION (SELECT '¤¦') ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+¤¦
+(SELECT '¤¦' AS `£Γ£±`) UNION (SELECT * FROM `£Τ£±`) UNION (SELECT * FROM `£Τ£²`) ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+¤¦
+SELECT `£Γ£±`, COUNT(*) FROM `£Τ£±` GROUP BY `£Γ£±` UNION
+SELECT `£Γ£±`, COUNT(*) FROM `£Τ£²` GROUP BY `£Γ£±` ORDER BY `£Γ£±`;
+£Γ£±	COUNT(*)
+±	2
+²	2
+νά	2
+νέ	2
+¤Ά	2
+¤¤	2
+SELECT * FROM `£Τ£±` UNION DISTINCT
+SELECT * FROM `£Τ£²` UNION ALL
+SELECT * FROM `£Τ£³` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+³
+³
+νά
+νέ
+νή
+νή
+¤Ά
+¤¤
+¤¦
+¤¦
+SELECT * FROM `£Τ£±` UNION ALL
+SELECT * FROM `£Τ£²` UNION DISTINCT
+SELECT * FROM `£Τ£³` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+³
+νά
+νέ
+νή
+¤Ά
+¤¤
+¤¦
+SELECT * FROM `£Τ£±` UNION SELECT REPEAT(`£Γ£±`,5) FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²²²²²
+νά
+νένένένένέ
+¤Ά
+¤¤¤¤¤¤¤¤¤¤
+DROP TABLE `£Τ£±` ;
+DROP TABLE `£Τ£²` ;
+DROP TABLE `£Τ£³` ;
+CREATE TABLE `£Τ£±` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = InnoDB;
+CREATE TABLE `£Τ£²` (`£Γ£±` char(1), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MyISAM;
+INSERT INTO `£Τ£±` VALUES('±'),('±'),('¤Ά'),('¤Ά'),('νά'),('νά');
+INSERT INTO `£Τ£²` VALUES('²'),('²'),('¤¤'),('¤¤'),('νέ'),('νέ');
+SELECT * FROM `£Τ£±` UNION DISTINCT SELECT * FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+²
+νά
+νέ
+¤Ά
+¤¤
+SELECT * FROM `£Τ£±` UNION ALL SELECT * FROM `£Τ£²` ORDER BY `£Γ£±`;
+£Γ£±
+±
+±
+²
+²
+νά
+νά
+νέ
+νέ
+¤Ά
+¤Ά
+¤¤
+¤¤
+DROP TABLE `£Τ£±`;
+DROP TABLE `£Τ£²`;

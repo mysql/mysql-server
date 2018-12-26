@@ -1,0 +1,1 @@
+--max-allowed-packet=24M --key-buffer-size=1M --server-id=0

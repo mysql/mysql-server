@@ -1,0 +1,52 @@
+
+#
+# Tests for the performance_schema host_cache.
+#
+# Simulate failures from DNS full round trip (FCRDNS):
+# - IP --> HOST --> IP returns no match
+# - reported in COUNT_FCRDNS_ERRORS
+
+--source include/have_debug.inc
+
+# [Warning] Hostname 'santa.claus.ipv4.example.com' does not resolve to '192.0.2.4'.
+# [Note] Hostname 'santa.claus.ipv4.example.com' has the following IP addresses:
+# [Note]  - 192.0.2.126
+# [Note]  - 192.0.2.127
+call mtr.add_suppression("santa.claus.ipv4.example.com");
+
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+--source ../include/hostcache_set_state.inc
+
+create user 'root'@'192.0.2.4';
+grant select on test.* to 'root'@'192.0.2.4';
+
+connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+select "Con1 is alive";
+select current_user();
+disconnect con1;
+
+--connection default
+set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_bad_ipv4";
+
+connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+select "Con2 is alive";
+select current_user();
+disconnect con2;
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+select "Con3 is alive";
+select current_user();
+disconnect con3;
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+revoke select on test.* from 'root'@'192.0.2.4';
+drop user 'root'@'192.0.2.4';
+
+set global debug= default;
+

@@ -1,0 +1,92 @@
+use test;
+drop table if exists t1;
+create table t1 (s1 int, s2 int, s3 int);
+create procedure bug4934()
+begin
+insert into t1 values (1,0,1);
+end//
+use test;
+call bug4934();
+select * from t1;
+s1	s2	s3
+1	0	1
+drop table t1;
+create table t1 (s1 int, s2 int, s3 int);
+drop procedure bug4934;
+create procedure bug4934()
+begin
+end//
+select * from t1;
+s1	s2	s3
+call bug4934();
+select * from t1;
+s1	s2	s3
+drop table t1;
+drop procedure bug4934;
+drop procedure if exists bug9486;
+drop table if exists t1, t2;
+create table t1 (id1 int, val int);
+create table t2 (id2 int);
+create procedure bug9486()
+update t1, t2 set val= 1 where id1=id2;
+call bug9486();
+lock tables t2 write;
+call bug9486();
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	event_scheduler	localhost	NULL	Daemon	#	Waiting on empty queue	NULL
+#	root	localhost	test	Query	#	STATE	show processlist
+#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2
+#	root	localhost	test	Sleep	#		NULL
+#	root	localhost	test	Sleep	#		NULL
+unlock tables;
+drop procedure bug9486;
+drop table t1, t2;
+drop procedure if exists bug11158;
+create procedure bug11158() delete t1 from t1, t2 where t1.id = t2.id;
+create table t1 (id int, j int);
+insert into t1 values (1, 1), (2, 2);
+create table t2 (id int);
+insert into t2 values (1);
+call bug11158();
+select * from t1;
+id	j
+2	2
+lock tables t2 read;
+call bug11158();
+unlock tables;
+drop procedure bug11158;
+drop table t1, t2;
+drop function if exists bug11554;
+drop view if exists v1;
+create table t1 (i int);
+create function bug11554 () returns int return 1;
+create view v1 as select bug11554() as f;
+insert into t1 (select f from v1);
+drop function bug11554;
+drop table t1;
+drop view v1;
+drop procedure if exists p1;
+drop procedure if exists p2;
+create table t1 (s1 int)|
+create procedure p1() select * from t1|
+create procedure p2()
+begin
+insert into t1 values (1);
+call p1();
+select * from t1;
+end|
+use test;
+lock table t1 write;
+call p2();
+use test;
+drop procedure p1;
+create procedure p1() select * from t1;
+unlock tables;
+s1
+1
+s1
+1
+drop procedure p1;
+drop procedure p2;
+drop table t1;

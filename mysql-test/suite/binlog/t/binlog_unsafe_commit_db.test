@@ -1,0 +1,47 @@
+################################################################################
+# BUG#27165446 PARALLEL REPLICATION OF CREATE/ALTER/DROP DATABASE DEADLOCK,
+# EARLY MDL RELEASE
+#
+# This test verify INSERT's last_committed is always equal to the sequence_number
+# of admin statements. Thus INSERT statement is scheduled post admin statement.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+
+--connect(insert_conn, localhost, root)
+--connect(admin_conn, localhost, root)
+
+RESET MASTER;
+
+CREATE TABLE t1(c1 INT AUTO_INCREMENT PRIMARY KEY, c2 VARCHAR(200))
+  PARTITION BY HASH (c1) PARTITIONS 4;
+INSERT INTO t1 VALUES(1, ""), (2, ""), (3, ""),(4, "");
+
+--echo #
+--echo # Verify INSERT after CREATE DATABASE logs correct last_committed
+--echo #
+--let $admin_statement= CREATE DATABASE d1 CHARACTER SET UTF8MB4
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $binlog_file= binlog.000001
+--let $logical_timestamps= 3 4
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify INSERT after ALTER DATABASE logs correct last_committed
+--echo #
+--let $admin_statement= ALTER DATABASE d1 DEFAULT CHARACTER SET = 'latin1'
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $binlog_file= binlog.000001
+--let $logical_timestamps= 5 6
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Verify INSERT after DROP DATABASE logs correct last_committed
+--echo #
+--let $admin_statement= DROP DATABASE d1
+--source extra/binlog_tests/binlog_unsafe_commit_parent.inc
+--let $binlog_file= binlog.000001
+--let $logical_timestamps= 7 8
+--source include/assert_logical_timestamps.inc
+
+DROP TABLE t1;

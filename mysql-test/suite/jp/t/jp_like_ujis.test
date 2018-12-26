@@ -1,0 +1,132 @@
+--character_set ujis
+--disable_warnings
+drop table if exists `г╘г▒`;
+drop table if exists `г╘г▓`;
+drop table if exists `г╘г│`;
+drop table if exists `г╘г┤`;
+drop table if exists `г╘г╡`;
+drop table if exists `г╘г╢`;
+drop table if exists `г╘г╖`;
+drop table if exists `г╘г╕`;
+drop table if exists `г╘г╣`;
+--enable_warnings
+
+#
+# Test LIKE pattern matching using Japanese characters in ujis encoding
+#
+
+SET NAMES ujis;
+SET character_set_database = ujis;
+
+CREATE TABLE `г╘г▒` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `г╘г▓` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `г╘г│` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `г╘г┤` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `г╘г╡` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `г╘г╢` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `г╘г╖` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `г╘г╕` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `г╘г╣` (`г├г▒` char(20), INDEX(`г├г▒`)) DEFAULT CHARSET = ujis engine = MEMORY;
+
+#Load the following data in each table
+# jisx0201 hankaku-katakana data
+# jisx0208 data
+# jisx0212 supplemental character data
+
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `г╘г▒`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `г╘г▓`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `г╘г│`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `г╘г┤`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `г╘г╡`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `г╘г╢`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `г╘г╖`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `г╘г╕`;
+LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `г╘г╣`;
+
+#InnoDB
+SELECT * FROM `г╘г▒` WHERE `г├г▒` LIKE ' %';
+SELECT * FROM `г╘г▒` WHERE `г├г▒` LIKE '% %';
+SELECT * FROM `г╘г▒` WHERE `г├г▒` LIKE '% ';
+SELECT * FROM `г╘г▒` WHERE `г├г▒` LIKE 'О└%';
+SELECT * FROM `г╘г▒` WHERE `г├г▒` LIKE '%О╫О╪%';
+SELECT * FROM `г╘г▒` WHERE `г├г▒` LIKE '%О┐';
+SELECT * FROM `г╘г▒` WHERE `г├г▒` LIKE 'О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐%';
+SELECT * FROM `г╘г▒` WHERE `г├г▒` LIKE '%О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐%';
+SELECT * FROM `г╘г▒` WHERE `г├г▒` LIKE '%О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐';
+SELECT * FROM `г╘г▓` WHERE `г├г▒` LIKE 'бб%';
+SELECT * FROM `г╘г▓` WHERE `г├г▒` LIKE '%бб%';
+SELECT * FROM `г╘г▓` WHERE `г├г▒` LIKE '%бб';
+SELECT * FROM `г╘г▓` WHERE `г├г▒` LIKE 'д╚%';
+SELECT * FROM `г╘г▓` WHERE `г├г▒` LIKE '%дв%';
+SELECT * FROM `г╘г▓` WHERE `г├г▒` LIKE '%дя';
+SELECT * FROM `г╘г▓` WHERE `г├г▒` LIKE 'бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│%';
+SELECT * FROM `г╘г▓` WHERE `г├г▒` LIKE '%бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│%';
+SELECT * FROM `г╘г▓` WHERE `г├г▒` LIKE '%бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│';
+SELECT * FROM `г╘г│` WHERE `г├г▒` LIKE 'Пэ┤%';
+SELECT * FROM `г╘г│` WHERE `г├г▒` LIKE '%Пэ╗%';
+SELECT * FROM `г╘г│` WHERE `г├г▒` LIKE '%Пэ╟';
+SELECT * FROM `г╘г│` WHERE `г├г▒` LIKE 'Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟%';
+SELECT * FROM `г╘г│` WHERE `г├г▒` LIKE '%Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟%';
+SELECT * FROM `г╘г│` WHERE `г├г▒` LIKE '%Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟';
+
+#MyISAM
+SELECT * FROM `г╘г┤` WHERE `г├г▒` LIKE ' %';
+SELECT * FROM `г╘г┤` WHERE `г├г▒` LIKE '% %';
+SELECT * FROM `г╘г┤` WHERE `г├г▒` LIKE '% ';
+SELECT * FROM `г╘г┤` WHERE `г├г▒` LIKE 'О└%';
+SELECT * FROM `г╘г┤` WHERE `г├г▒` LIKE '%О╫О╪%';
+SELECT * FROM `г╘г┤` WHERE `г├г▒` LIKE '%О┐';
+SELECT * FROM `г╘г┤` WHERE `г├г▒` LIKE 'О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐%';
+SELECT * FROM `г╘г┤` WHERE `г├г▒` LIKE '%О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐%';
+SELECT * FROM `г╘г┤` WHERE `г├г▒` LIKE '%О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐';
+SELECT * FROM `г╘г╡` WHERE `г├г▒` LIKE 'бб%';
+SELECT * FROM `г╘г╡` WHERE `г├г▒` LIKE '%бб%';
+SELECT * FROM `г╘г╡` WHERE `г├г▒` LIKE '%бб';
+SELECT * FROM `г╘г╡` WHERE `г├г▒` LIKE 'д╚%';
+SELECT * FROM `г╘г╡` WHERE `г├г▒` LIKE '%дв%';
+SELECT * FROM `г╘г╡` WHERE `г├г▒` LIKE '%дя';
+SELECT * FROM `г╘г╡` WHERE `г├г▒` LIKE 'бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│%';
+SELECT * FROM `г╘г╡` WHERE `г├г▒` LIKE '%бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│%';
+SELECT * FROM `г╘г╡` WHERE `г├г▒` LIKE '%бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│';
+SELECT * FROM `г╘г╢` WHERE `г├г▒` LIKE 'Пэ┤%';
+SELECT * FROM `г╘г╢` WHERE `г├г▒` LIKE '%Пэ╗%';
+SELECT * FROM `г╘г╢` WHERE `г├г▒` LIKE '%Пэ╟';
+SELECT * FROM `г╘г╢` WHERE `г├г▒` LIKE 'Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟%';
+SELECT * FROM `г╘г╢` WHERE `г├г▒` LIKE '%Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟%';
+SELECT * FROM `г╘г╢` WHERE `г├г▒` LIKE '%Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟';
+
+#MEMORY
+SELECT * FROM `г╘г╖` WHERE `г├г▒` LIKE ' %';
+SELECT * FROM `г╘г╖` WHERE `г├г▒` LIKE '% %';
+SELECT * FROM `г╘г╖` WHERE `г├г▒` LIKE '% ';
+SELECT * FROM `г╘г╖` WHERE `г├г▒` LIKE 'О└%';
+SELECT * FROM `г╘г╖` WHERE `г├г▒` LIKE '%О╫О╪%';
+SELECT * FROM `г╘г╖` WHERE `г├г▒` LIKE '%О┐';
+SELECT * FROM `г╘г╖` WHERE `г├г▒` LIKE 'О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐%';
+SELECT * FROM `г╘г╖` WHERE `г├г▒` LIKE '%О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐%';
+SELECT * FROM `г╘г╖` WHERE `г├г▒` LIKE '%О░О▒О▓О│О┤О╡О╢О╖О╕О╣О║О╗О╝О╜О╛О┐';
+SELECT * FROM `г╘г╕` WHERE `г├г▒` LIKE 'бб%';
+SELECT * FROM `г╘г╕` WHERE `г├г▒` LIKE '%бб%';
+SELECT * FROM `г╘г╕` WHERE `г├г▒` LIKE '%бб';
+SELECT * FROM `г╘г╕` WHERE `г├г▒` LIKE 'д╚%';
+SELECT * FROM `г╘г╕` WHERE `г├г▒` LIKE '%дв%';
+SELECT * FROM `г╘г╕` WHERE `г├г▒` LIKE '%дя';
+SELECT * FROM `г╘г╕` WHERE `г├г▒` LIKE 'бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│%';
+SELECT * FROM `г╘г╕` WHERE `г├г▒` LIKE '%бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│%';
+SELECT * FROM `г╘г╕` WHERE `г├г▒` LIKE '%бждбдвдгдддедждздидйдкдлдмдндодпд░д▒д▓д│';
+SELECT * FROM `г╘г╣` WHERE `г├г▒` LIKE 'Пэ┤%';
+SELECT * FROM `г╘г╣` WHERE `г├г▒` LIKE '%Пэ╗%';
+SELECT * FROM `г╘г╣` WHERE `г├г▒` LIKE '%Пэ╟';
+SELECT * FROM `г╘г╣` WHERE `г├г▒` LIKE 'Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟%';
+SELECT * FROM `г╘г╣` WHERE `г├г▒` LIKE '%Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟%';
+SELECT * FROM `г╘г╣` WHERE `г├г▒` LIKE '%Пэ┤Пэ╡Пэ╢Пэ╖Пэ╕Пэ╣Пэ║Пэ╗Пэ╝Пэ╜Пэ╛Пэ┐Пэ└Пэ┴Пэ┬Пэ├Пэ─Пэ┼Пэ╞Пэ╟';
+
+DROP TABLE `г╘г▒`;
+DROP TABLE `г╘г▓`;
+DROP TABLE `г╘г│`;
+DROP TABLE `г╘г┤`;
+DROP TABLE `г╘г╡`;
+DROP TABLE `г╘г╢`;
+DROP TABLE `г╘г╖`;
+DROP TABLE `г╘г╕`;
+DROP TABLE `г╘г╣`;

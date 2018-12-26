@@ -1,0 +1,94 @@
+SET @start_value = @@global.slow_query_log;
+SELECT @start_value;
+@start_value
+1
+'#---------------------FN_DYNVARS_004_01-------------------------#'
+SET @@global.slow_query_log = DEFAULT;
+SELECT @@global.slow_query_log = 0;
+@@global.slow_query_log = 0
+1
+'#--------------------FN_DYNVARS_004_02------------------------#'
+SET @@global.slow_query_log = ON;
+SELECT @@global.slow_query_log;
+@@global.slow_query_log
+1
+SET @@global.slow_query_log = OFF;
+SELECT @@global.slow_query_log;
+@@global.slow_query_log
+0
+'#--------------------FN_DYNVARS_004_03-------------------------#'
+SET @@global.slow_query_log = 2;
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of '2'
+SET @@global.slow_query_log = -1;
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of '-1'
+SET @@global.slow_query_log = TRUEF;
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'TRUEF'
+SET @@global.slow_query_log = TRUE_F;
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'TRUE_F'
+SET @@global.slow_query_log = FALSE0;
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'FALSE0'
+SET @@global.slow_query_log = OON;
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'OON'
+SET @@global.slow_query_log = ONN;
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'ONN'
+SET @@global.slow_query_log = OOFF;
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'OOFF'
+SET @@global.slow_query_log = 0FF;
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of '0FF'
+SET @@global.slow_query_log = ' ';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of ' '
+SET @@global.slow_query_log = " ";
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of ' '
+SET @@global.slow_query_log = '';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of ''
+'#-------------------FN_DYNVARS_004_04----------------------------#'
+SET @@session.slow_query_log = OFF;
+ERROR HY000: Variable 'slow_query_log' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.slow_query_log;
+ERROR HY000: Variable 'slow_query_log' is a GLOBAL variable
+'#----------------------FN_DYNVARS_004_05------------------------#'
+SELECT IF(@@global.slow_query_log, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='slow_query_log';
+IF(@@global.slow_query_log, "ON", "OFF") = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_004_06----------------------#'
+SET @@global.slow_query_log = 0;
+SELECT @@global.slow_query_log;
+@@global.slow_query_log
+0
+SET @@global.slow_query_log = 1;
+SELECT @@global.slow_query_log;
+@@global.slow_query_log
+1
+'#---------------------FN_DYNVARS_004_07----------------------#'
+SET @@global.slow_query_log = TRUE;
+SELECT @@global.slow_query_log;
+@@global.slow_query_log
+1
+SET @@global.slow_query_log = FALSE;
+SELECT @@global.slow_query_log;
+@@global.slow_query_log
+0
+'#---------------------FN_DYNVARS_004_08----------------------#'
+SET @@global.slow_query_log = ON;
+SELECT @@slow_query_log = @@global.slow_query_log;
+@@slow_query_log = @@global.slow_query_log
+1
+'#---------------------FN_DYNVARS_004_09----------------------#'
+SET slow_query_log = ON;
+ERROR HY000: Variable 'slow_query_log' is a GLOBAL variable and should be set with SET GLOBAL
+SET local.slow_query_log = OFF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.slow_query_log = OFF' at line 1
+SELECT local.slow_query_log;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.slow_query_log = ON;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.slow_query_log = ON' at line 1
+SELECT global.slow_query_log;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT slow_query_log = @@session.slow_query_log;
+ERROR 42S22: Unknown column 'slow_query_log' in 'field list'
+SET @@global.slow_query_log = @start_value;
+SELECT @@global.slow_query_log;
+@@global.slow_query_log
+1

@@ -1,0 +1,9 @@
+# Test of explicit partition selection in dml statements (wl5217)
+# Creation date: 01-07-10
+# Author: Horst Hunger
+
+let $ENGINE=InnoDB;
+SET GLOBAL innodb_strict_mode=OFF;
+SET innodb_strict_mode=OFF;
+--source suite/parts/inc/partition-dml-1-11.inc
+SET GLOBAL innodb_strict_mode=default;

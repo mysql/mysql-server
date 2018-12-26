@@ -1,0 +1,83 @@
+
+#
+# Tests for the performance_schema host_cache.
+#
+# Simulate failures from user authentication:
+# - reported in COUNT_AUTHENTICATION_ERRORS
+
+--source include/have_debug.inc
+
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+--source ../include/hostcache_set_state.inc
+
+create user 'user_without'@'santa.claus.ipv4.example.com';
+create user 'user_with'@'santa.claus.ipv4.example.com'
+  identified by 'good_password';
+grant select on test.* to 'user_without'@'santa.claus.ipv4.example.com';
+grant select on test.* to 'user_with'@'santa.claus.ipv4.example.com';
+
+connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+select "Con1 is alive";
+select current_user();
+disconnect con1;
+
+--connection default
+set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (con2a,"127.0.0.1",user_without,extra_password,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (con2b,"127.0.0.1",user_without,extra_password,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (con2c,"127.0.0.1",user_with,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (con2d,"127.0.0.1",user_with,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (con2e,"127.0.0.1",user_with,wrong_password,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (con2f,"127.0.0.1",user_with,wrong_password,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+drop user 'user_with'@'santa.claus.ipv4.example.com';
+drop user 'user_without'@'santa.claus.ipv4.example.com';
+
+set global debug= default;
+

@@ -1,0 +1,164 @@
+select hex(@a);
+hex(@a)
+NULL
+select hex(@a);
+hex(@a)
+610063
+set global init_connect="set @a=2;set @b=3";
+select @a, @b;
+@a	@b
+2	3
+set GLOBAL init_connect=DEFAULT;
+select @a;
+@a
+NULL
+set global init_connect="drop table if exists t1; create table t1(a char(10));\
+insert into t1 values ('\0');insert into t1 values('abc')";
+select hex(a) from t1;
+hex(a)
+00
+616263
+set GLOBAL init_connect="adsfsdfsdfs";
+select @a;
+ERROR 08S01: Aborted connection to db: 'test' user: 'user_1' host: 'localhost' (init_connect command failed)
+select @a;
+Got one of the listed errors
+drop table t1;
+End of 4.1 tests
+create table t1 (x int);
+insert into t1 values (3), (5), (7);
+create table t2 (y int);
+create user mysqltest1@localhost;
+grant all privileges on test.* to mysqltest1@localhost;
+set global init_connect="create procedure p1() select * from t1";
+call p1();
+x
+3
+5
+7
+drop procedure p1;
+set global init_connect="create procedure p1(x int)\
+begin\
+  select count(*) from t1;\
+  select * from t1;\
+  set @x = x;
+end";
+call p1(42);
+count(*)
+3
+x
+3
+5
+7
+select @x;
+@x
+42
+set global init_connect="call p1(4711)";
+select @x;
+@x
+4711
+set global init_connect="drop procedure if exists p1";
+call p1();
+ERROR 42000: PROCEDURE test.p1 does not exist
+create procedure p1(out sum int)
+begin
+declare n int default 0;
+declare c cursor for select * from t1;
+declare exit handler for not found
+begin
+close c;
+set sum = n;
+end;
+open c;
+loop
+begin
+declare x int;
+fetch c into x;
+if x > 3 then
+set n = n + x;
+end if;
+end;
+end loop;
+end|
+set global init_connect="call p1(@sum)";
+select @sum;
+@sum
+12
+drop procedure p1;
+create procedure p1(tbl char(10), v int)
+begin
+set @s = concat('insert into ', tbl, ' values (?)');
+set @v = v;
+prepare stmt1 from @s;
+execute stmt1 using @v;
+deallocate prepare stmt1;
+end|
+set global init_connect="call p1('t1', 11)";
+select * from t1;
+x
+3
+5
+7
+11
+drop procedure p1;
+create function f1() returns int
+begin
+declare n int;
+select count(*) into n from t1;
+return n;
+end|
+set global init_connect="set @x = f1()";
+select @x;
+@x
+4
+set global init_connect="create view v1 as select f1()";
+select * from v1;
+f1()
+4
+set global init_connect="drop view v1";
+select * from v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+drop function f1;
+create trigger trg1
+after insert on t2
+for each row
+insert into t1 values (new.y);
+set global init_connect="insert into t2 values (13), (17), (19)";
+select * from t1;
+x
+3
+5
+7
+11
+13
+17
+19
+drop trigger trg1;
+revoke all privileges, grant option from mysqltest1@localhost;
+drop user mysqltest1@localhost;
+drop table t1, t2;
+###
+### Bug#25968185: INIT_CONNECT PREVENTS CONNECTIONS IF PASSWORD EXPIRED
+###
+call mtr.add_suppression("\\[Warning\\] \\[.*\\] init_connect variable is ignored for user:.* host: localhost due to expired password.");
+CREATE USER user1@localhost PASSWORD EXPIRE;
+CREATE USER ''@localhost;
+UPDATE mysql.user SET password_expired='Y' WHERE user='' AND host='localhost';
+SELECT user, password_expired FROM mysql.user WHERE user='' AND host='localhost';
+user	password_expired
+	Y
+FLUSH PRIVILEGES;
+SET GLOBAL init_connect="set @a=2;";
+Pattern "\[Warning\] \[.*\] init_connect variable is ignored for user: user1 host: localhost due to expired password." found
+SELECT @a;
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+SET PASSWORD = 'abc';
+SELECT @a;
+@a
+NULL
+Pattern "\[Warning\] \[.*\] init_connect variable is ignored for user:  host: localhost due to expired password." found
+SELECT @a;
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+DROP USER user1@localhost;
+DROP USER ''@localhost;
+set global init_connect="set @a='a\\0c'";

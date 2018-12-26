@@ -1,0 +1,26 @@
+--source include/windows.inc
+#
+# only global
+#
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select @@global.shared_memory_base_name;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.shared_memory_base_name;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+show global variables like 'shared_memory_base_name';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+show session variables like 'shared_memory_base_name';
+--disable_warnings
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select * from performance_schema.global_variables where variable_name='shared_memory_base_name';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select * from performance_schema.session_variables where variable_name='shared_memory_base_name';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global shared_memory_base_name=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session shared_memory_base_name=1;

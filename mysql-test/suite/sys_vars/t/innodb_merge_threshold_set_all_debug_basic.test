@@ -1,0 +1,29 @@
+--echo #
+--echo # Basic test for innodb_merge_threshold_set_all_debug
+--echo #
+
+
+# The config variable is a debug variable
+-- source include/have_debug.inc
+
+SELECT @@global.innodb_merge_threshold_set_all_debug;
+
+set global innodb_merge_threshold_set_all_debug = 1;
+
+SELECT @@global.innodb_merge_threshold_set_all_debug;
+
+set global innodb_merge_threshold_set_all_debug = 51;
+
+SELECT @@global.innodb_merge_threshold_set_all_debug;
+
+set global innodb_merge_threshold_set_all_debug = 0;
+
+SELECT @@global.innodb_merge_threshold_set_all_debug;
+
+--error ER_GLOBAL_VARIABLE
+set innodb_merge_threshold_set_all_debug = 50;
+
+set global innodb_merge_threshold_set_all_debug = 50;
+
+SELECT @@global.innodb_merge_threshold_set_all_debug;
+

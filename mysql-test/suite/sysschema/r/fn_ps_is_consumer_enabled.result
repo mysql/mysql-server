@@ -1,0 +1,44 @@
+UPDATE performance_schema.setup_consumers SET enabled = 'NO' WHERE name = 'events_stages_history';
+SELECT sys.ps_is_consumer_enabled('events_stages_history');
+sys.ps_is_consumer_enabled('events_stages_history')
+NO
+SELECT sys.ps_is_consumer_enabled('global_instrumentation');
+sys.ps_is_consumer_enabled('global_instrumentation')
+YES
+SELECT sys.ps_is_consumer_enabled('events_stages_histONg');
+ERROR HY000: Invalid argument error: events_stages_histONg in function sys.ps_is_consumer_enabled.
+UPDATE performance_schema.setup_consumers SET enabled = 'NO' WHERE name = 'events_stages_current';
+UPDATE performance_schema.setup_consumers SET enabled = 'YES' WHERE name = 'events_stages_history';
+SELECT sys.ps_is_consumer_enabled('events_stages_history');
+sys.ps_is_consumer_enabled('events_stages_history')
+NO
+UPDATE performance_schema.setup_consumers SET enabled = 'YES' WHERE name = 'events_stages_current';
+SELECT sys.ps_is_consumer_enabled('events_stages_history');
+sys.ps_is_consumer_enabled('events_stages_history')
+YES
+UPDATE performance_schema.setup_consumers SET enabled = 'NO' WHERE name = 'global_instrumentation';
+SELECT sys.ps_is_consumer_enabled('thread_instrumentation');
+sys.ps_is_consumer_enabled('thread_instrumentation')
+NO
+SELECT sys.ps_is_consumer_enabled('statements_digest');
+sys.ps_is_consumer_enabled('statements_digest')
+NO
+SELECT sys.ps_is_consumer_enabled('events_stages_current');
+sys.ps_is_consumer_enabled('events_stages_current')
+NO
+SELECT sys.ps_is_consumer_enabled('events_stages_history');
+sys.ps_is_consumer_enabled('events_stages_history')
+NO
+SELECT sys.ps_is_consumer_enabled('events_stages_history_long');
+sys.ps_is_consumer_enabled('events_stages_history_long')
+NO
+SELECT sys.ps_is_consumer_enabled('events_statements_current');
+sys.ps_is_consumer_enabled('events_statements_current')
+NO
+SELECT sys.ps_is_consumer_enabled('events_statements_history');
+sys.ps_is_consumer_enabled('events_statements_history')
+NO
+SELECT sys.ps_is_consumer_enabled('events_statements_history_long');
+sys.ps_is_consumer_enabled('events_statements_history_long')
+NO
+UPDATE performance_schema.setup_consumers SET enabled = 'YES';

@@ -1,0 +1,334 @@
+## Using Mysqlx::Expr::OBJECT in collection
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/crud_doc_expr_object.tmp
+
+## Test data
+-->sql
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+-->endsql
+
+-->stmtadmin create_collection	{"schema":"xtest", "name":"xcoll"}
+-->recvresult
+
+
+-->echo Inserting object into collection
+Mysqlx.Crud.Insert {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: OBJECT object {
+        fld {
+          key: "_id"
+          value {
+            type: LITERAL literal { type: V_OCTETS v_octets {value:"1"} }
+          }
+        }
+        fld {
+          key: "first_name"
+          value {
+            type: LITERAL literal { type: V_OCTETS v_octets {value:"John"} }
+          }
+        }
+        fld {
+          key: "last_name"
+          value {
+            type: LITERAL literal { type: V_OCTETS v_octets {value:"Snow"} }
+          }
+        }
+      }
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xcoll;
+-->endsql
+
+-->echo Selecting object from collection
+Mysqlx.Crud.Find {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: OBJECT object {
+        fld {
+          key: "name"
+          value {
+            type: FUNC_CALL function_call {
+              name {
+                name: "concat"
+              }
+              param {
+                type: IDENT identifier {
+                document_path {
+                    type: MEMBER
+                    value: "first_name"
+                  }
+                }
+              }
+              param {
+                type: LITERAL literal { type: V_OCTETS v_octets {value:" "} }
+              }
+              param {
+                type: IDENT identifier {
+                  document_path {
+                    type: MEMBER value: "last_name"
+                  }
+                }
+              }
+            }
+          }
+        }
+        fld {
+          key: "number"
+          value {
+            type: OPERATOR operator {
+              name: "+"
+              param {
+                type: LITERAL literal {type: V_SINT v_signed_int: 1}
+              }
+              param {
+                type: LITERAL literal { type: V_SINT v_signed_int: 1}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+  
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+
+-->echo Selecting object from collection with alias
+Mysqlx.Crud.Find {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    alias: "hero"
+    source {
+      type: OBJECT object {
+        fld {
+          key: "name"
+          value {
+            type: FUNC_CALL function_call {
+              name {
+                name: "concat"
+              }
+              param {
+                type: IDENT identifier {
+                document_path {
+                    type: MEMBER
+                    value: "first_name"
+                  }
+                }
+              }
+              param {
+                type: LITERAL literal { type: V_OCTETS v_octets {value:" "} }
+              }
+              param {
+                type: IDENT identifier {
+                document_path {
+                    type: MEMBER
+                    value: "last_name"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+  
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+
+-->echo Selecting object with sub-object from collection
+Mysqlx.Crud.Find {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: OBJECT object {
+        fld {
+          key: "name"
+          value {
+            type: FUNC_CALL function_call {
+              name {
+                name: "concat"
+              }
+              param {
+                type: IDENT identifier {
+                document_path {
+                    type: MEMBER
+                    value: "first_name"
+                  }
+                }
+              }
+              param {
+                type: LITERAL literal { type: V_OCTETS v_octets {value:" "} }
+              }
+              param {
+                type: IDENT identifier {
+                document_path {
+                    type: MEMBER
+                    value: "last_name"
+                  }
+                }
+              }
+            }
+          }
+        }
+        fld {
+          key: "detail"
+          value {
+            type: OBJECT object {
+              fld {
+                key: "first"
+                value {
+                  type: IDENT identifier {
+                    document_path { type: MEMBER value: "first_name" }
+                  }
+                }
+              }
+              fld {
+                key: "last"
+                value {
+                  type: IDENT identifier {
+                    document_path { type: MEMBER value: "last_name" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+
+-->echo Updating collection by object
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  operation {
+    source {
+      document_path { type: MEMBER value: "occupation" }
+    }
+    operation: ITEM_SET
+    value {
+      type: OBJECT object {
+        fld {
+          key: "location"
+          value {
+            type: LITERAL literal { type: V_OCTETS v_octets {value:"the wall"} }
+          }
+        }
+        fld {
+          key: "title"
+          value {
+            type: LITERAL literal { type: V_OCTETS v_octets {value:"lord commander"} }
+          }
+        }
+      }
+    }
+  }
+}
+  
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xcoll;
+-->endsql
+
+
+-->echo NOT Error: empty object
+Mysqlx.Crud.Find {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: OBJECT object {
+      }
+    }
+  }
+}
+
+-->recvresult
+
+
+-->echo Error: empty object key
+Mysqlx.Crud.Find {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: OBJECT object {
+        fld {
+          key: ""
+          value {
+            type: IDENT identifier {
+              document_path { type: MEMBER value: "first_name" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+  
+-->recverror 5154
+
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_doc_expr_object.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/crud_doc_expr_object.tmp
+--source include/xplugin_drop_user.inc
+

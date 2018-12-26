@@ -1,0 +1,100 @@
+## Modify view
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/create_view.tmp
+--write_file $xtest_file
+-->quiet
+
+-->macro Modify_view	%FIELD% %FIELD_ALIAS% %OPTION% %ERROR%
+Mysqlx.Crud.ModifyView {
+  collection { name: "xview" schema: "xtest" }
+  %OPTION%
+  stmt: {
+    collection { name: "xtable" schema: "xtest"}
+    projection {
+      alias: "%FIELD_ALIAS%"
+      source { type: IDENT identifier { name: "%FIELD%" } }
+    }
+    data_model: TABLE
+  }
+}
+-->recvuntil %ERROR%
+-->sql
+SHOW CREATE VIEW xtest.xview
+-->endsql
+-->endmacro
+
+-->title -Modify view (missing stmt)
+Mysqlx.Crud.ModifyView {
+  collection { name: "xview" schema: "xtest" }
+  algorithm: TEMPTABLE
+}
+-->recverror ER_X_INVALID_ARGUMENT
+
+-->title -Modify view (stmt)
+-->callmacro Modify_view	second	doc	#	Mysqlx.Ok
+
+
+-->title -Modify view (algorithm=temptable)
+-->callmacro Modify_view	second	doc	algorithm: TEMPTABLE	Mysqlx.Ok
+
+
+-->title -Modify view (algorithm=merge)
+-->callmacro Modify_view	second	doc	algorithm: MERGE	Mysqlx.Ok
+
+
+-->title -Modify view (definer=xuser)
+-->callmacro Modify_view	second	doc	definer: "xuser@localhost"	Mysqlx.Ok
+
+
+-->title -Modify view (security=invoker)
+-->callmacro Modify_view	second	doc	security: INVOKER	Mysqlx.Ok
+
+
+-->title -Modify view (security=definer)
+-->callmacro Modify_view	second	doc	security: DEFINER	Mysqlx.Ok
+
+
+-->title -Modify view (check=local)
+-->callmacro Modify_view	second	doc	check: LOCAL	Mysqlx.Ok
+
+
+-->title -Modify view (check=cascaded)
+-->callmacro Modify_view	second	doc	check: CASCADED	Mysqlx.Ok
+
+
+-->title -Modify view (column)
+-->callmacro Modify_view	second	doc	column: "third"	Mysqlx.Ok
+
+
+-->title -Modify view (too many columns)
+-->callmacro Modify_view	second	doc	column: "third" column: "fourth"	Mysqlx.Error
+
+
+-->stmtsql SHOW STATUS LIKE 'Mysqlx_crud_modify_view'
+-->recvresult
+EOF
+
+
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (first INT, second JSON);
+CREATE USER xuser@localhost;
+CREATE VIEW xtest.xview AS SELECT first FROM xtest.xtable;
+SHOW CREATE VIEW xtest.xview;
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+--let $assert_text= Global status of 'Mysqlx_crud_modify_view'
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE \'Mysqlx_crud_modify_view\', Value, 1] = 11
+--source include/assert.inc
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+DROP USER xuser@localhost;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

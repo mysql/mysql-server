@@ -1,0 +1,68 @@
+drop table if exists t1;
+## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+'#--------------------FN_DYNVARS_051_01-------------------------#'
+## Setting value of variable to 100 ## 
+SET @@session.insert_id = 100;
+SELECT @@session.insert_id;
+@@session.insert_id
+100
+## Inserting some rows in table ##
+INSERT into t1(name) values('Record_1');
+INSERT into t1(name) values('Record_2');
+## Verifying rows in table ##
+SELECT * from t1 order by name;
+id	name
+100	Record_1
+101	Record_2
+SELECT @@session.insert_id;
+@@session.insert_id
+0
+INSERT into t1(name) values('Record_3');
+'#--------------------FN_DYNVARS_051_02-------------------------#'
+## Creating & Connecting new connection test_con1 ##
+## Setting value of insert_id to 50 ## 
+SET @@session.insert_id = 50;
+SELECT @@session.insert_id;
+@@session.insert_id
+50
+## Inserting rows in table t1 ## 
+INSERT into t1(name) values('Record_4');
+INSERT into t1(name) values('Record_5');
+INSERT into t1(name) values('Record_6');
+SELECT * from t1 order by name;
+id	name
+100	Record_1
+101	Record_2
+102	Record_3
+50	Record_4
+103	Record_5
+104	Record_6
+'Bug#35376	Value of insert_id automatically resets to 0 after inserting
+' 1st row'
+'#--------------------FN_DYNVARS_051_03-------------------------#'
+## Creating and switching to new connection test_con2 ##
+## Setting session value of variable to 25 ##
+SET @@session.insert_id = 25;
+## Inserting some rows in table ##
+INSERT into t1(name) values('Record_7');
+INSERT into t1(name) values('Record_8');
+## Verifying data in table t1 ##
+SELECT * from t1 order by name;
+id	name
+100	Record_1
+101	Record_2
+102	Record_3
+50	Record_4
+103	Record_5
+104	Record_6
+25	Record_7
+105	Record_8
+## Dropping table t1 ##
+drop table t1;
+## Disconnecting connections ##

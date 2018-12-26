@@ -1,0 +1,789 @@
+# 
+# Test coverage for changes performed by the fix
+# for Bug#30977 "Concurrent statement using stored function
+# and DROP FUNCTION breaks SBR.
+#
+#
+# 1) Verify that the preceding transaction is
+# (implicitly) committed  before CREATE/ALTER/DROP
+# PROCEDURE. Note, that this is already tested
+# in implicit_commit.test, but here we use an alternative
+# approach.
+#
+# Start a transaction, create a savepoint, 
+# then call a DDL operation on a procedure, and then check
+# that the savepoint is no longer present.
+drop table if exists t1;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop procedure if exists p3;
+drop procedure if exists p4;
+drop function if exists f1;
+create table t1 (a int);
+#
+# Test 'CREATE PROCEDURE'.
+#
+begin;
+savepoint sv;
+create procedure p1() begin end;
+rollback to savepoint sv;
+ERROR 42000: SAVEPOINT sv does not exist
+#
+# Test 'ALTER PROCEDURE'.
+#
+begin;
+savepoint sv;
+alter procedure p1 comment 'changed comment';
+rollback to savepoint sv;
+ERROR 42000: SAVEPOINT sv does not exist
+#
+# Test 'DROP PROCEDURE'.
+#
+begin;
+savepoint sv;
+drop procedure p1;
+rollback to savepoint sv;
+ERROR 42000: SAVEPOINT sv does not exist
+#
+# Test 'CREATE FUNCTION'.
+#
+begin;
+savepoint sv;
+create function f1() returns int return 1;
+rollback to savepoint sv;
+ERROR 42000: SAVEPOINT sv does not exist
+#
+# Test 'ALTER FUNCTION'.
+#
+begin;
+savepoint sv;
+alter function f1 comment 'new comment';
+rollback to savepoint sv;
+ERROR 42000: SAVEPOINT sv does not exist
+#
+# Test 'DROP FUNCTION'.
+#
+begin;
+savepoint sv;
+drop function f1;
+rollback to savepoint sv;
+ERROR 42000: SAVEPOINT sv does not exist
+#
+# 2) Verify that procedure DDL operations fail
+# under lock tables. 
+#
+# Auxiliary routines to test ALTER.
+create procedure p1() begin end;
+create function f1() returns int return 1;
+lock table t1 write;
+create procedure p2() begin end;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter procedure p1 comment 'changed comment';
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+drop procedure p1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+create function f2() returns int return 1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter function f1 comment 'changed comment';
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+lock table t1 read;
+create procedure p2() begin end;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter procedure p1 comment 'changed comment';
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+drop procedure p1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+create function f2() returns int return 1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter function f1 comment 'changed comment';
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+#
+# Even if we locked a temporary table.
+# Todo: this is a restriction we could possibly lift.
+#
+drop table t1;
+create temporary table t1 (a int);
+lock table t1 read;
+create procedure p2() begin end;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter procedure p1 comment 'changed comment';
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+drop procedure p1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+create function f2() returns int return 1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+alter function f1 comment 'changed comment';
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+drop function f1;
+drop procedure p1;
+drop temporary table t1;
+#
+# 3) Verify that CREATE/ALTER/DROP routine grab an
+# exclusive lock.
+#
+# For that, start a transaction, use a routine. In a concurrent
+# connection, try to drop or alter the routine. It should place
+# a pending or exclusive lock and block. In another concurrnet
+# connection, try to use the routine.
+# That should block on the pending exclusive lock.
+#
+# Establish helper connections.
+#
+# Test DROP PROCEDURE.
+#
+# --> connection default
+create procedure p1() begin end;
+create function f1() returns int 
+begin
+call p1();
+return 1;
+end|
+begin;
+select f1();
+f1()
+1
+# --> connection con1
+# Sending 'drop procedure p1'...
+drop procedure p1;
+# --> connection con2 
+# Waiting for 'drop procedure t1' to get blocked on MDL lock...
+# Demonstrate that there is a pending exclusive lock.
+# Sending 'select f1()'...
+select f1();
+# --> connection con3
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
+# --> connection default
+commit;
+# --> connection con1
+# Reaping 'drop procedure p1'...
+# --> connection con2
+# Reaping 'select f1()'
+ERROR 42000: PROCEDURE test.p1 does not exist
+# --> connection default
+#
+# Test CREATE PROCEDURE.
+#
+create procedure p1() begin end;
+begin;
+select f1();
+f1()
+1
+# --> connection con1
+# Sending 'create procedure p1'...
+create procedure p1() begin end;
+# --> connection con2 
+# Waiting for 'create procedure t1' to get blocked on MDL lock...
+# Demonstrate that there is a pending exclusive lock.
+# Sending 'select f1()'...
+select f1();
+# --> connection con3
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
+# --> connection default
+commit;
+# --> connection con1
+# Reaping 'create procedure p1'...
+ERROR 42000: PROCEDURE p1 already exists
+# --> connection con2
+# Reaping 'select f1()'
+f1()
+1
+# 
+# Test ALTER PROCEDURE.
+#
+begin;
+select f1();
+f1()
+1
+# --> connection con1
+# Sending 'alter procedure p1'...
+alter procedure p1 contains sql;
+# --> connection con2 
+# Waiting for 'alter procedure t1' to get blocked on MDL lock...
+# Demonstrate that there is a pending exclusive lock.
+# Sending 'select f1()'...
+select f1();
+# --> connection con3
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
+# --> connection default
+commit;
+# --> connection con1
+# Reaping 'alter procedure p1'...
+# --> connection con2
+# Reaping 'select f1()'
+f1()
+1
+# --> connection default
+#
+# Test DROP FUNCTION.
+#
+begin;
+select f1();
+f1()
+1
+# --> connection con1
+# Sending 'drop function f1'...
+drop function f1;
+# --> connection con2 
+# Waiting for 'drop function f1' to get blocked on MDL lock...
+# Demonstrate that there is a pending exclusive lock.
+# Sending 'select f1()'...
+select f1();
+# --> connection con3
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
+# --> connection default
+commit;
+# --> connection con1
+# Reaping 'drop function f1'...
+# --> connection con2
+# Reaping 'select f1()'
+ERROR 42000: FUNCTION test.f1 does not exist
+# --> connection default
+#
+# Test CREATE FUNCTION.
+#
+create function f1() returns int return 1;
+begin;
+select f1();
+f1()
+1
+# --> connection con1
+# Sending 'create function f1'...
+create function f1() returns int return 2;
+# --> connection con2 
+# Waiting for 'create function f1' to get blocked on MDL lock...
+# Demonstrate that there is a pending exclusive lock.
+# Sending 'select f1()'...
+select f1();
+# --> connection con3
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
+# --> connection default
+commit;
+# --> connection con1
+# Reaping 'create function f1'...
+ERROR 42000: FUNCTION f1 already exists
+# --> connection con2
+# Reaping 'select f1()'
+f1()
+1
+# --> connection default
+# 
+# Test ALTER FUNCTION.
+# 
+begin;
+select f1();
+f1()
+1
+# --> connection con1
+# Sending 'alter function f1'...
+alter function f1 contains sql;
+# --> connection con2 
+# Waiting for 'alter function f1' to get blocked on MDL lock...
+# Demonstrate that there is a pending exclusive lock.
+# Sending 'select f1()'...
+select f1();
+# --> connection con3
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
+# --> connection default
+commit;
+# --> connection con1
+# Reaping 'alter function f1'...
+# --> connection con2
+# Reaping 'select f1()'
+f1()
+1
+# --> connection default
+drop function f1;
+drop procedure p1;
+#
+# 5) Locks should be taken on routines
+# used indirectly by views or triggers.
+#
+#
+# A function is used from a trigger.
+#
+create function f1() returns int return 1;
+create table t1 (a int);
+create table t2 (a int, b int);
+create trigger t1_ai after insert on t1 for each row
+insert into t2 (a, b) values (new.a, f1());
+begin;
+insert into t1 (a) values (1);
+# --> connection con1
+# Sending 'drop function f1'
+drop function f1;
+# --> connection con2 
+# Waiting for 'drop function f1' to get blocked on MDL lock...
+# --> connnection default
+commit;
+# --> connection con1
+# Reaping 'drop function f1'...
+# --> connection default
+#
+# A function is used from a view.
+#
+create function f1() returns int return 1;
+create view v1 as select f1() as a;
+begin;
+select * from v1;
+a
+1
+# --> connection con1
+# Sending 'drop function f1'
+drop function f1;
+# --> connection con2 
+# Waiting for 'drop function f1' to get blocked on MDL lock...
+# --> connnection default
+commit;
+# --> connection con1
+# Reaping 'drop function f1'...
+# --> connection default
+#
+# A procedure is used from a function.
+#
+create function f1() returns int
+begin
+declare v_out int;
+call p1(v_out);
+return v_out;
+end|
+create procedure p1(out v_out int) set v_out=3;
+begin;
+select * from v1;
+a
+3
+# --> connection con1
+# Sending 'drop procedure p1'
+drop procedure p1;
+# --> connection con2 
+# Waiting for 'drop procedure p1' to get blocked on MDL lock...
+# --> connnection default
+commit;
+# --> connection con1
+# Reaping 'drop procedure p1'...
+# --> connection default
+#
+# Deep nesting: a function is used from a procedure used
+# from a function used from a view used in a trigger.
+#
+create function f2() returns int return 4;
+create procedure p1(out v_out int) set v_out=f2();
+drop trigger t1_ai;
+create trigger t1_ai after insert on t1 for each row
+insert into t2 (a, b) values (new.a, (select max(a) from v1));
+begin;
+insert into t1 (a) values (3);
+# --> connection con1
+# Sending 'drop function f2'
+drop function f2;
+# --> connection con2 
+# Waiting for 'drop function f2' to get blocked on MDL lock...
+# --> connnection default
+commit;
+# --> connection con1
+# Reaping 'drop function f2'...
+# --> connection default
+drop view v1;
+drop function f1;
+drop procedure p1;
+drop table t1, t2;
+#
+# 6) Check that ER_LOCK_DEADLOCK is reported if 
+# acquisition of a shared lock fails during a transaction or
+# we need to back off to flush the sp cache.
+#
+# Sic: now this situation does not require a back off since we
+# flush the cache on the fly.
+#
+create function f1() returns int return 7;
+create table t1 (a int);
+begin;
+select * from t1;
+a
+select f1();
+f1()
+7
+commit;
+drop table t1;
+drop function f1;
+#
+# 7) Demonstrate that under LOCK TABLES we accumulate locks
+# on stored routines, and release metadata locks in 
+# ROLLBACK TO SAVEPOINT. That is done only for those stored
+# routines that are not part of LOCK TABLES prelocking list.
+# Those stored routines that are part of LOCK TABLES
+# prelocking list are implicitly locked when entering
+# LOCK TABLES, and ROLLBACK TO SAVEPOINT has no effect on
+# them.
+#
+create function f1() returns varchar(20) return "f1()";
+create function f2() returns varchar(20) return "f2()";
+create view v1 as select f1() as a;
+set @@session.autocommit=0;
+lock table v1 read;
+select * from v1;
+a
+f1()
+savepoint sv;
+select f2();
+f2()
+f2()
+# --> connection con1
+# Sending 'drop function f1'...
+drop function f1;
+# --> connection con2
+# Waiting for 'drop function f1' to get blocked on MDL lock...
+# Sending 'drop function f2'...
+drop function f2;
+# --> connection default
+# Waiting for 'drop function f2' to get blocked on MDL lock...
+rollback to savepoint sv;
+# --> connection con2
+# Reaping 'drop function f2'...
+# --> connection default
+unlock tables;
+# --> connection con1
+# Reaping 'drop function f1'...
+# --> connection default
+drop function f1;
+ERROR 42000: FUNCTION test.f1 does not exist
+drop function f2;
+ERROR 42000: FUNCTION test.f2 does not exist
+drop view v1;
+set @@session.autocommit=default;
+# 
+# 8) Check the situation when we're preparing or executing a
+# prepared statement, and as part of that try to flush the
+# session sp cache. However, one of the procedures that
+# needs a flush is in use. Verify that there is no infinite
+# reprepare loop and no crash. 
+#
+create function f1() returns int return 1;
+# 
+# We just mention p1() in the body of f2() to make
+# sure that p1() metadata is validated when validating
+# 'select f2()'.
+# Recursion is not allowed in stored functions, so 
+# an attempt to just invoke p1() from f2() which is in turn
+# called from p1() would have given a run-time error.
+#
+create function f2() returns int
+begin
+if @var is null then
+call p1();
+end if;
+return 1;
+end|
+create procedure p1()
+begin
+select f1() into @var;
+execute stmt;
+end|
+# --> connection con2
+prepare stmt from "select f2()";
+# --> connection default
+begin;
+select f1();
+f1()
+1
+# --> connection con1
+# Sending 'alter function f1 ...'...
+alter function f1 comment "comment";
+# --> connection con2
+# Waiting for 'alter function f1 ...' to get blocked on MDL lock...
+# Sending 'call p1()'...
+call p1();
+# Waiting for 'call p1()' to get blocked on MDL lock on f1...
+# Let 'alter function f1 ...' go through...
+commit;
+# --> connection con1
+# Reaping 'alter function f1 ...'
+# --> connection con2
+# Reaping 'call p1()'...
+f2()
+1
+deallocate prepare stmt;
+# --> connection default
+drop function f1;
+drop function f2;
+drop procedure p1;
+# 
+# 9) Check the situation when a stored function is invoked
+# from a stored procedure, and recursively invokes the
+# stored procedure that is in use. But for the second
+# invocation, a cache flush is requested. We can't
+# flush the procedure that's in use, and are forced
+# to use an old version. It is not a violation of
+# consistency, since we unroll top-level calls.
+# Just verify the code works.
+#
+create function f1() returns int return 1;
+begin;
+select f1();
+f1()
+1
+# --> connection con1
+# Sending 'alter function f1 ...'...
+alter function f1 comment "comment";
+# --> connection con2
+# Waiting for 'alter function f1 ...' to get blocked on MDL lock...
+# 
+# We just mention p1() in the body of f2() to make
+# sure that p1() is prelocked for f2().
+# Recursion is not allowed in stored functions, so 
+# an attempt to just invoke p1() from f2() which is in turn
+# called from p1() would have given a run-time error.
+#
+create function f2() returns int
+begin
+if @var is null then
+call p1();
+end if;
+return 1;
+end|
+create procedure p1()
+begin
+select f1() into @var;
+select f2() into @var;
+end|
+# Sending 'call p1()'...
+call p1();
+# Waiting for 'call p1()' to get blocked on MDL lock on f1...
+# Let 'alter function f1 ...' go through...
+commit;
+# --> connection con1
+# Reaping 'alter function f1 ...'
+# --> connection con2
+# Reaping 'call p1()'...
+# --> connection default
+drop function f1;
+drop function f2;
+drop procedure p1;
+#
+# 10) A select from information_schema.routines now
+# flushes the stored routines caches. Test that this
+# does not remove from the cache a stored routine
+# that is already prelocked.
+#
+create function f1() returns int return get_lock("30977", 100000);
+create function f2() returns int return 2;
+create function f3() returns varchar(255) 
+begin
+declare res varchar(255);
+declare c cursor for select routine_name from
+information_schema.routines where routine_name='f1';
+select f1() into @var;
+open c;
+fetch c into res;
+close c;
+select f2() into @var;
+return res;
+end|
+# --> connection con1
+select get_lock("30977", 0);
+get_lock("30977", 0)
+1
+# --> connection default
+# Sending 'select f3()'...
+select f3();
+# --> connection con1 
+# Waiting for 'select f3()' to get blocked on the user level lock...
+# Do something to change the cache version.
+create function f4() returns int return  4;
+drop function f4;
+select release_lock("30977");
+release_lock("30977")
+1
+# --> connection default 
+# Reaping 'select f3()'...
+# Routine 'f2()' should exist and get executed successfully.
+f3()
+f1
+select @var;
+@var
+2
+drop function f1;
+drop function f2;
+drop function f3;
+# 11) Check the situation when the connection is flushing the
+# SP cache which contains a procedure that is being executed.
+#
+# Function f1() calls p1(). Procedure p1() has a DROP
+# VIEW statement, which, we know, invalidates the routines cache.
+# During cache flush p1() must not be flushed since it's in
+# use.
+#
+create function f1() returns int
+begin
+call p1();
+return 1;
+end|
+create procedure p1() 
+begin
+create view v1 as select 1;
+drop view v1;
+select f1() into @var;
+set @exec_count=@exec_count+1;
+end|
+set @exec_count=0;
+call p1();
+ERROR HY000: Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine p1
+select @exec_count;
+@exec_count
+0
+set @@session.max_sp_recursion_depth=5;
+set @exec_count=0;
+call p1();
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+select @exec_count;
+@exec_count
+0
+drop procedure p1;
+drop function f1;
+set @@session.max_sp_recursion_depth=default;
+# --> connection con1
+# --> connection con2
+# --> connection con3
+# --> connection default
+#
+# SHOW CREATE PROCEDURE p1 called from p1, after p1 was altered
+#
+# We are just covering the existing behaviour with tests. The
+# results are not necessarily correct."
+#
+CREATE PROCEDURE p1()
+BEGIN
+SHOW CREATE PROCEDURE p1;
+SELECT get_lock("test", 100000);
+SHOW CREATE PROCEDURE p1;
+END|
+# Connection default
+SELECT get_lock("test", 10);
+get_lock("test", 10)
+1
+# Connection 2
+# Will halt before executing SHOW CREATE PROCEDURE p1
+# Sending:
+CALL p1();
+# Connection 3
+# Alter p1
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1() BEGIN END;
+# Connection default
+# Resume CALL p1, now with new p1
+SELECT release_lock("test");
+release_lock("test")
+1
+# Connection 2
+# Reaping: CALL p1()
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+BEGIN
+SHOW CREATE PROCEDURE p1;
+SELECT get_lock("test", 100000);
+SHOW CREATE PROCEDURE p1;
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+get_lock("test", 100000)
+1
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+# Connection 3
+# Connection 2
+# Connection default;
+DROP PROCEDURE p1;
+#
+# Bug#57663 Concurrent statement using stored function and DROP DATABASE
+#           breaks SBR
+#
+DROP DATABASE IF EXISTS db1;
+DROP FUNCTION IF EXISTS f1;
+# Test 1: Check that DROP DATABASE block if a function is used
+#         by an active transaction.
+# Connection default
+CREATE DATABASE db1;
+CREATE FUNCTION db1.f1() RETURNS INTEGER RETURN 1;
+START TRANSACTION;
+SELECT db1.f1();
+db1.f1()
+1
+# Connection con1
+# Sending:
+DROP DATABASE db1;
+# Connection default
+# Waiting for DROP DATABASE to be blocked by the lock on f1()
+COMMIT;
+# Connection con1
+# Reaping: DROP DATABASE db1
+# Test 2: Check that DROP DATABASE blocks if a procedure is
+#         used by an active transaction.
+# Connection default
+CREATE DATABASE db1;
+CREATE PROCEDURE db1.p1() BEGIN END;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+CALL db1.p1();
+RETURN 1;
+END|
+START TRANSACTION;
+SELECT f1();
+f1()
+1
+# Connection con1
+# Sending:
+DROP DATABASE db1;
+# Connection default
+# Waiting for DROP DATABASE to be blocked by the lock on p1()
+COMMIT;
+# Connection con1
+# Reaping: DROP DATABASE db1
+# Test 3: Check that DROP DATABASE is not selected as a victim if a
+#         deadlock is discovered with DML statements.
+# Connection default
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+CREATE FUNCTION db1.f1() RETURNS INTEGER RETURN 1;
+START TRANSACTION;
+SELECT db1.f1();
+db1.f1()
+1
+# Connection con1
+# Sending:
+DROP DATABASE db1;
+# Connection default
+# Waiting for DROP DATABASE to be blocked by the lock on f1()
+SELECT * FROM db1.t1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+COMMIT;
+# Connection con1
+# Reaping: DROP DATABASE db1
+# Test 4: Check that active DROP DATABASE blocks stored routine DDL.
+# Connection default
+CREATE DATABASE db1;
+CREATE FUNCTION db1.f1() RETURNS INTEGER RETURN 1;
+CREATE FUNCTION db1.f2() RETURNS INTEGER RETURN 2;
+START TRANSACTION;
+SELECT db1.f2();
+db1.f2()
+2
+# Connection con1
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+# Waiting for DROP DATABASE to be blocked by the lock on f2()
+# Sending:
+ALTER FUNCTION db1.f1 COMMENT "test";
+# Connection default
+# Waiting for ALTER FUNCTION to be blocked by the schema lock on db1
+COMMIT;
+# Connection con1
+# Reaping: DROP DATABASE db1
+# Connection con2
+# Reaping: ALTER FUNCTION f1 COMMENT 'test'
+ERROR 42000: FUNCTION db1.f1 does not exist
+# Connection default
+DROP FUNCTION f1;
+#
+# End of 5.5 tests
+#

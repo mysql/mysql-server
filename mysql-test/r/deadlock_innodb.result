@@ -1,0 +1,125 @@
+# Establish connection con1 (user=root)
+# Establish connection con2 (user=root)
+drop table if exists t1,t2;
+# Switch to connection con1
+create table t1 (id integer, x integer) engine = InnoDB;
+insert into t1 values(0, 0);
+set autocommit=0;
+SELECT * from t1 where id = 0 FOR UPDATE;
+id	x
+0	0
+# Switch to connection con2
+set autocommit=0;
+update t1 set x=2 where id = 0;
+# Switch to connection con1
+update t1 set x=1 where id = 0;
+select * from t1;
+id	x
+0	1
+commit;
+# Switch to connection con2
+commit;
+# Switch to connection con1
+select * from t1;
+id	x
+0	2
+commit;
+drop table t1;
+# Switch to connection con1
+create table t1 (id integer, x integer) engine = InnoDB;
+create table t2 (b integer, a integer) engine = InnoDB;
+insert into t1 values(0, 0), (300, 300);
+insert into t2 values(0, 10), (1, 20), (2, 30);
+commit;
+set autocommit=0;
+select * from t2;
+b	a
+0	10
+1	20
+2	30
+update t2 set a=100 where b=(SELECT x from t1 where id = b FOR UPDATE);
+select * from t2;
+b	a
+0	100
+1	20
+2	30
+select * from t1;
+id	x
+0	0
+300	300
+# Switch to connection con2
+set autocommit=0;
+update t1 set x=2 where id = 0;
+# Switch to connection con1
+update t1 set x=1 where id = 0;
+select * from t1;
+id	x
+0	1
+300	300
+commit;
+# Switch to connection con2
+commit;
+# Switch to connection con1
+select * from t1;
+id	x
+0	2
+300	300
+commit;
+drop table t1, t2;
+create table t1 (id integer, x integer) engine = InnoDB;
+create table t2 (b integer, a integer) engine = InnoDB;
+insert into t1 values(0, 0), (300, 300);
+insert into t2 values(0, 0), (1, 20), (2, 30);
+commit;
+# Switch to connection con1
+select a,b from t2 UNION SELECT id, x from t1 FOR UPDATE;
+a	b
+0	0
+20	1
+30	2
+300	300
+select * from t2;
+b	a
+0	0
+1	20
+2	30
+select * from t1;
+id	x
+0	0
+300	300
+# Switch to connection con2
+update t2 set a=2 where b = 0;
+select * from t2;
+b	a
+0	2
+1	20
+2	30
+update t1 set x=2 where id = 0;
+# Switch to connection con1
+update t1 set x=1 where id = 0;
+select * from t1;
+id	x
+0	1
+300	300
+commit;
+# Switch to connection con2
+commit;
+# Switch to connection con1
+select * from t1;
+id	x
+0	2
+300	300
+commit;
+# Switch to connection default + disconnect con1 and con2
+drop table t1, t2;
+End of 4.1 tests
+set default_storage_engine=innodb;
+drop table if exists a;
+drop table if exists A;
+create table A (c int);
+insert into A (c) values (0);
+create table a as select * from A;
+drop table A;
+drop table if exists a;
+set default_storage_engine=default;
+End of 5.0 tests.

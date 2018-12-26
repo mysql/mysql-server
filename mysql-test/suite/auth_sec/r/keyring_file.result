@@ -1,0 +1,13 @@
+SELECT @@global.keyring_file;
+@@global.keyring_file
+mysecret_keyring
+SET @@global.keyring_file= 'new_keyring_file';
+SELECT @@global.keyring_file;
+@@global.keyring_file
+new_keyring_file
+SET @@global.keyring_file= '../../../../../bad_dir/bad_keyring_file';
+ERROR 42000: Variable 'keyring_file' can't be set to the value of '../../../../../bad_dir/bad_keyring_file'
+SELECT @@global.keyring_file;
+@@global.keyring_file
+new_keyring_file
+SET @@global.keyring_file= 'mysecret_keyring';

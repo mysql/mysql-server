@@ -1,0 +1,21 @@
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.schema_table_statistics_with_buffer view
+
+# Ensure structure changes don't slip in
+DESC sys.schema_table_statistics_with_buffer;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.schema_table_statistics_with_buffer;
+--enable_result_log
+
+
+# Ensure structure changes don't slip in
+DESC sys.x$schema_table_statistics_with_buffer;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$schema_table_statistics_with_buffer;
+--enable_result_log
+

@@ -1,0 +1,3 @@
+--skip-slave-start=0
+--replicate-ignore-table=:db1.t1
+--replicate-ignore-table=channel_3_2:db3.t1

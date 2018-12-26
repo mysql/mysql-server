@@ -1,0 +1,226 @@
+################################################################################
+# This test verifies that events which does not obey GR requirements:
+# - tables having no primary keys
+# - tables using non-innodb storage engine
+# - tables with foreign key with cascade clause
+# are not allowed to be applied on the server.
+#
+# ==== Usage ====
+#
+# --let $gr_test_name= NAME
+# [--let $rpl_binlog_format= [ROW|STATEMENT]]
+# [--let $rpl_mysqlbinlog= 1]
+# --source ../extra/gr_binlog_events_verifications.test
+#
+# Parameters:
+#
+#   $gr_test_name
+#     The current test name getting executed
+#
+#   $rpl_binlog_format
+#      The binlog format either ROW or STATEMENT.
+#      If not set, the default value is set to ROW.
+#
+#   $rpl_mysqlbinlog
+#     If not set the binlog events are applied through asynchronous
+#     replication otherwise through mysqlbinlog.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Initialization.
+# 2. Bootstrap start group replication on M1.
+# 3. If $rpl_mysqlbinlog is disabled,
+#    create new channel:
+#      ch2_1: server1(slave), server2(master).
+# 4. Set binlog format from $rpl_binlog_format on server2.
+# 5. Create a table t1 without PK on server2(master) and add data to it.
+# 6. Verify insert doesn't gets executed as table doesn't have a primary key.
+# 7. Create a table t2 with MYISAM storage engine on
+#    server2(master) and add data to it.
+# 8. Verify insert doesn't gets executed as table
+#    doesn't have the innodb storage engine.
+# 9. Create a table tc3 with foreign key with delete CASCADE clause
+#    on server2(master) and add data to it.
+# 10. Verify insert doesn't gets executed as table
+#    has a foreign key with CASCADE clause.
+# 11. Clean-up
+################################################################################
+
+if (!$gr_test_name)
+{
+  --die ERROR IN TEST: You must set $gr_test_name before sourcing gr_binlog_events_verifications.inc
+}
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # Initialization
+
+--let $rpl_start_binlog_pos= 1
+--let $rpl_gr_grep_primary_error= 0
+--let $rpl_gr_grep_innodb_error= 0
+--let $rpl_gr_grep_foreign_cascade_error= 0
+
+if ($rpl_mysqlbinlog)
+{
+  --let $rpl_out_binlog= $MYSQLTEST_VARDIR/tmp/$gr_test_name.binlog
+}
+
+--echo
+--echo # Bootstrap start Group Replication on server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+if (!$rpl_mysqlbinlog)
+{
+  --echo
+  --echo # Create new channel ch2_1: server1(slave), server2(master).
+  --let $rpl_connection_name= server1
+  --source include/rpl_connection.inc
+
+  --replace_result $SERVER_MYPORT_2 SERVER_2_PORT
+  --eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_2, MASTER_AUTO_POSITION=1 for channel 'ch2_1'
+
+  --let $rpl_channel_name='ch2_1'
+  --source include/start_slave.inc
+}
+
+--echo
+--echo # Set binlog format on server2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+if (!$rpl_binlog_format)
+{
+  --let $rpl_binlog_format=ROW
+}
+
+--eval SET SESSION BINLOG_FORMAT= "$rpl_binlog_format"
+
+--echo
+--echo # Create a table t1 without PK on server2(master)
+--echo # and add data to it.
+
+CREATE TABLE t1 (c1 INT);
+--source include/rpl_sync.inc
+
+--let $rpl_curr_gtid= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1'
+--eval SET GTID_NEXT= $rpl_curr_gtid
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT= AUTOMATIC;
+
+--echo
+--echo # Verify insert doesn't gets executed as table
+--echo # doesn't have a primary key.
+
+--let $rpl_slave_connection_name= server1
+--let $rpl_gr_grep_primary_error= 1
+--let $rpl_gr_grep_primary_error_message= Table t1 does not have any PRIMARY KEY. This is not compatible with Group Replication
+--source ../include/gr_binlog_events_assert_error.inc
+
+
+--echo
+--echo # Create a table t2 with MYISAM storage engine on
+--echo # server2(master) and add data to it.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+CREATE TABLE t2 (c1 INT) engine MyIsam;
+--source include/rpl_sync.inc
+
+--let $rpl_curr_gtid= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:2'
+--eval SET GTID_NEXT= $rpl_curr_gtid
+INSERT INTO t2 VALUES (1);
+SET GTID_NEXT= AUTOMATIC;
+
+--echo
+--echo # Verify insert doesn't gets executed as table
+--echo # doesn't have the innodb storage engine.
+
+--let $rpl_slave_connection_name= server1
+--let $rpl_gr_grep_primary_error= 1
+--let $rpl_gr_grep_primary_error_message= Table t2 does not have any PRIMARY KEY. This is not compatible with Group Replication
+--let $rpl_gr_grep_innodb_error= 1
+--let $rpl_gr_grep_innodb_error_message= Table t2 does not use the InnoDB storage engine. This is not compatible with Group Replication
+--source ../include/gr_binlog_events_assert_error.inc
+
+
+--echo
+--echo # Create a table tc3 with foreign key with delete CASCADE clause
+--echo # on server2(master) and add data to it.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+CREATE TABLE tp3 (c1 INT PRIMARY KEY);
+CREATE TABLE tc3 (c1 INT PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tp3(c1) ON DELETE CASCADE);
+INSERT INTO tp3 VALUES(1);
+--source include/rpl_sync.inc
+
+--let $rpl_curr_gtid= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:3'
+--eval SET GTID_NEXT= $rpl_curr_gtid
+INSERT INTO tc3 VALUES (1);
+SET GTID_NEXT= AUTOMATIC;
+
+--echo
+--echo # Verify insert doesn't gets executed as table
+--echo # has a foreign key with CASCADE clause.
+
+--let $rpl_slave_connection_name= server1
+--let $rpl_gr_grep_foreign_cascade_error= 1
+--let $rpl_gr_grep_foreign_cascade_error_message= Table tc3 has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication
+--source ../include/gr_binlog_events_assert_error.inc
+
+
+--echo
+--echo # Clean-up
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+drop table t1;
+drop table t2;
+drop table tc3;
+drop table tp3;
+
+SET SESSION BINLOG_FORMAT= DEFAULT;
+
+# stop slave channel if present
+if (!$rpl_mysqlbinlog)
+{
+  # Sync slave(server1) with master(server2)
+  --let $sync_slave_connection=server_1
+  --source include/sync_slave_sql_with_master.inc
+
+  --let $rpl_connection_name= server1
+  --source include/rpl_connection.inc
+
+  --let $rpl_channel_name='ch2_1'
+  --source include/stop_slave.inc
+
+  RESET SLAVE ALL FOR CHANNEL 'ch2_1';
+
+  --let $rpl_channel_name=
+}
+
+# remove binlog file and tables
+if ($rpl_mysqlbinlog)
+{
+  --remove_file $rpl_out_binlog
+
+  --let $rpl_connection_name= server1
+  --source include/rpl_connection.inc
+
+  drop table t1;
+  drop table t2;
+  drop table tc3;
+  drop table tp3;
+}
+
+--source include/group_replication_end.inc

@@ -1,0 +1,53 @@
+SET @start_global_value = @@global.flush_time;
+select @@global.flush_time;
+@@global.flush_time
+0
+select @@session.flush_time;
+ERROR HY000: Variable 'flush_time' is a GLOBAL variable
+show global variables like 'flush_time';
+Variable_name	Value
+flush_time	0
+show session variables like 'flush_time';
+Variable_name	Value
+flush_time	0
+select * from performance_schema.global_variables where variable_name='flush_time';
+VARIABLE_NAME	VARIABLE_VALUE
+flush_time	0
+select * from performance_schema.session_variables where variable_name='flush_time';
+VARIABLE_NAME	VARIABLE_VALUE
+flush_time	0
+set global flush_time=1;
+select @@global.flush_time;
+@@global.flush_time
+1
+set session flush_time=1;
+ERROR HY000: Variable 'flush_time' is a GLOBAL variable and should be set with SET GLOBAL
+SET global flush_time = DEFAULT;
+SELECT @@global.flush_time;
+@@global.flush_time
+0
+SET @@global.flush_time = -1024;
+Warnings:
+Warning	1292	Truncated incorrect flush_time value: '-1024'
+SELECT @@global.flush_time;
+@@global.flush_time
+0
+set global flush_time=1.1;
+ERROR 42000: Incorrect argument type to variable 'flush_time'
+set global flush_time=1e1;
+ERROR 42000: Incorrect argument type to variable 'flush_time'
+set global flush_time="foo";
+ERROR 42000: Incorrect argument type to variable 'flush_time'
+set global flush_time=" ";
+ERROR 42000: Incorrect argument type to variable 'flush_time'
+set global flush_time=0;
+select @@global.flush_time;
+@@global.flush_time
+0
+set global flush_time=cast(-1 as unsigned int);
+Warnings:
+Warning	1292	Truncated incorrect flush_time value: '18446744073709551615'
+select @@global.flush_time;
+@@global.flush_time
+31536000
+SET @@global.flush_time = @start_global_value;

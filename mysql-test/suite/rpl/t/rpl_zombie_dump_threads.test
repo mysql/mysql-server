@@ -1,0 +1,59 @@
+###############################################################################
+# Bug#21179199 ZOMBIE DUMP THREADS ARE NOT DISCONNECTED,
+#              CAN ALSO LEAD TO A CRASH
+#
+#  Problem: Zombie dump threads on Master (>= MySQL-5.6 version)
+#           that are created to server slaves which are on lower
+#           versions than MySQL-5.6 version are not getting killed.
+#  Steps to reproduce:
+#
+#  1) A simulation point on slave to fake that server MySQL version is lower
+#     than MySQL-5.6 (i.e., no slave_uuid set in initial replication protocol)
+#
+#  2) Start IO thread on Slave which will start a dump thread on Master.
+#
+#  3) Restart the IO thread (Master should kill existing dump thread before
+#     starting a new dump thread)
+#
+#  4) Now count the number of dump threads on Master, it should be only '1'.
+#
+###############################################################################
+--source include/have_debug.inc
+--source include/have_binlog_format_statement.inc
+--let rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# When this test script is running in combination with other tests,
+# it is possible that dump threads from those tests are not killed.
+# (rpl_end.inc does not kill dump threads).
+# Hence doing the cleanup here as this test depends on counting the
+# active dump threads.
+--source include/stop_dump_threads.inc
+
+# Step-1) A simulation point on slave to fake that server MySQL version
+#         is lower than MySQL-5.6 (i.e., no slave_uuid set in initial replication
+#         protocol).
+--source include/rpl_connection_slave.inc
+SET @save_debug = @@GLOBAL.debug;
+SET GLOBAL debug="d,fake_5_5_version_slave";
+
+# Step-2) Start IO thread on Slave which will start a dump thread on Master.
+--source include/start_slave_io.inc
+
+# Step-3) Restart the IO thread (Master should kill existing dump thread before
+#         starting a new dump thread)
+--source include/stop_slave_io.inc
+--source include/start_slave_io.inc
+
+# Step-4) Count the number of dump threads on Master, it should be eventually
+# become '1'.
+--source include/rpl_connection_master.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE COMMAND LIKE 'Binlog Dump%'
+--source include/wait_condition.inc
+
+# Cleanup
+--source include/rpl_connection_slave.inc
+SET GLOBAL debug=@save_debug;
+# We do not care about SQL thread for this test scenario
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

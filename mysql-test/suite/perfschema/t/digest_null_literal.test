@@ -1,0 +1,31 @@
+# ----------------------------------------------------
+# Tests for the performance schema statement Digests.
+# ----------------------------------------------------
+
+# Test case to show behavior of statements digest when
+# parsing a NULL literal
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+
+--disable_query_log
+
+select NULL;
+select NULL FROM DUAL;
+select NULL, NULL;
+select NULL, NULL, NULL, 1, 2, 3, NULL, NULL;
+
+select 1 IS NULL;
+select 2 IS NOT NULL;
+select 1 IS NULL, 2 IS NULL, 3 IS NOT NULL, 4 IS NOT NULL;
+
+create table foo (a int DEFAULT NULL, b int NOT NULL DEFAULT 1, c int NOT NULL);
+drop table foo;
+
+--enable_query_log
+
+SELECT SCHEMA_NAME, DIGEST_TEXT, COUNT_STAR
+  FROM performance_schema.events_statements_summary_by_digest;
+

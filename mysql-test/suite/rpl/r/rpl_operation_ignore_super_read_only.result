@@ -1,0 +1,138 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+SET @saved_value_super= @@GLOBAL.super_read_only;
+SET @saved_value= @@GLOBAL.read_only;
+SET @saved_autocommit= @@GLOBAL.autocommit;
+SET GLOBAL super_read_only= 1;
+SET AUTOCOMMIT= ON;
+SHOW VARIABLES like '%autocommit%';
+Variable_name	Value
+autocommit	ON
+####################################################################
+# Test Case1: STOP SLAVE command
+####################################################################
+include/stop_slave.inc
+####################################################################
+# Test Case2: CHANGE REPLICATION FILTER command
+####################################################################
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
+####################################################################
+# Test Case3: CHANGE MASTER command
+####################################################################
+CHANGE MASTER TO MASTER_CONNECT_RETRY=20;
+CHANGE MASTER TO MASTER_HOST='dummy' FOR CHANNEL 'aaa';
+####################################################################
+# Test Case4: RESET SLAVE FOR CHANNEL/RESET SLAVE ALL/RESET SLAVE
+# commands
+####################################################################
+RESET SLAVE FOR CHANNEL 'aaa';
+RESET SLAVE ALL FOR CHANNEL 'aaa';
+RESET SLAVE;
+####################################################################
+# Test Case5: START SLAVE command
+####################################################################
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.gtid_executed table must have zero records]
+####################################################################
+# Test Case6: FLUSH BINARY LOGS command
+####################################################################
+FLUSH BINARY LOGS;
+####################################################################
+# Test Case7: RESET MASTER command
+####################################################################
+RESET MASTER;
+####################################################################
+# Test Case8: SET GLOBAL GTID_PURGED command
+####################################################################
+SET GLOBAL gtid_purged= 'MASTER_UUID:1';
+"Clean up"
+SET AUTOCOMMIT= @saved_autocommit;
+SET GLOBAL super_read_only= @saved_value_super;
+SET GLOBAL read_only= @saved_value;
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/rpl_reset.inc
+[connection master]
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+SET @saved_value_super= @@GLOBAL.super_read_only;
+SET @saved_value= @@GLOBAL.read_only;
+SET @saved_autocommit= @@GLOBAL.autocommit;
+SET GLOBAL super_read_only= 1;
+SET AUTOCOMMIT= OFF;
+SHOW VARIABLES like '%autocommit%';
+Variable_name	Value
+autocommit	OFF
+####################################################################
+# Test Case1: STOP SLAVE command
+####################################################################
+include/stop_slave.inc
+####################################################################
+# Test Case2: CHANGE REPLICATION FILTER command
+####################################################################
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
+####################################################################
+# Test Case3: CHANGE MASTER command
+####################################################################
+CHANGE MASTER TO MASTER_CONNECT_RETRY=20;
+CHANGE MASTER TO MASTER_HOST='dummy' FOR CHANNEL 'aaa';
+####################################################################
+# Test Case4: RESET SLAVE FOR CHANNEL/RESET SLAVE ALL/RESET SLAVE
+# commands
+####################################################################
+RESET SLAVE FOR CHANNEL 'aaa';
+RESET SLAVE ALL FOR CHANNEL 'aaa';
+RESET SLAVE;
+####################################################################
+# Test Case5: START SLAVE command
+####################################################################
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [mysql.gtid_executed table must have zero records]
+####################################################################
+# Test Case6: FLUSH BINARY LOGS command
+####################################################################
+FLUSH BINARY LOGS;
+####################################################################
+# Test Case7: RESET MASTER command
+####################################################################
+RESET MASTER;
+####################################################################
+# Test Case8: SET GLOBAL GTID_PURGED command
+####################################################################
+SET GLOBAL gtid_purged= 'MASTER_UUID:1';
+"Clean up"
+SET AUTOCOMMIT= @saved_autocommit;
+SET GLOBAL super_read_only= @saved_value_super;
+SET GLOBAL read_only= @saved_value;
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/rpl_reset.inc
+include/rpl_end.inc

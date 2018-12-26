@@ -1,0 +1,84 @@
+# Scenario:
+#  T1= ({R(Z), R(B)})
+#  T2= ({R(C), R(B), W(B)})
+#  T3= ({R(B), W(B), C}, HIGH_PRIORITY)
+#
+# Outcome: T1 must commit, T3 must commit, T2 must commit
+#          after T3 (no data change).
+
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 0, 0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+--connect(con3,localhost,root,,test)
+
+--echo
+--echo # On connection 1
+--connection con1
+START TRANSACTION READ ONLY;
+SELECT c1, c2 FROM t1 WHERE c1=0 LOCK IN SHARE MODE;
+
+--echo
+--echo # On connection 2
+--connection con2
+let $con2_id=`SELECT CONNECTION_ID()`;
+START TRANSACTION;
+--send UPDATE t1 SET c1=2 WHERE c1=0 AND c2=0
+
+--echo
+--echo # On connection 3
+--connection con3
+--source include/start_transaction_high_prio.inc
+--replace_result $con2_id <con2_id>
+eval SET @con2_id = $con2_id;
+let $wait_timeout = 10;
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @con2_id AND INFO = 'update t1 set c1=2 where c1=0 and c2=0'
+AND STATE = 'updating';
+--source include/wait_condition.inc
+--sleep 1
+SET DEBUG_SYNC='rec_lock_add_to_waitq SIGNAL signal1 WAIT_FOR waiting1';
+--send UPDATE t1 SET c1=3 WHERE c1=0;
+
+--echo
+--echo # On connection 1
+--connection con1
+SET DEBUG_SYNC='now WAIT_FOR signal1';
+SET DEBUG_SYNC='now SIGNAL waiting1';
+COMMIT;
+--disconnect con1
+
+--echo
+--echo # On connection 3
+--connection con3
+--reap
+COMMIT;
+--disconnect con3
+
+--echo
+--echo # On connection 2
+--connection con2
+--reap
+COMMIT;
+--disconnect con2
+
+--connection default
+--let $assert_text= 'There is a 3.0.0 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3 AND t1.c2 = 0 AND t1.c3 = 0, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is no 0.0.0 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 0 AND t1.c2 = 0 AND t1.c3 = 0, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no 2 in t1.c1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 0
+--source include/assert.inc
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

@@ -1,0 +1,55 @@
+show variables like '%binlog_format%';
+Variable_name	Value
+binlog_format	ROW
+use test;
+create table test.t1 (a int primary key, b int) engine=myisam;
+create table test.notes (a varchar(1000)) engine=myisam;
+reset master;
+insert into test.notes values ("Scattered single statement transactions");
+insert into test.t1 values (1,1);
+insert into test.t1 values (2,2);
+update test.t1 set b=20 where a=2;
+delete from test.t1 where a=1;
+insert into test.notes values ("Some composite transactions, starting with diff ops");
+begin;
+insert into t1 values (10,10);
+update t1 set b=11 where a=10;
+commit;
+begin;
+update t1 set b=20 where a=10;
+insert into t1 values (21,21);
+commit;
+begin;
+delete from t1 where a=10;
+update t1 set b=22 where a=21;
+commit;
+insert into test.notes values ("Some composite transactions with multiple ops");
+begin;
+insert into t1 values (30,30);
+insert into t1 values (31,31);
+insert into t1 values (32,32);
+insert into t1 values (33,33);
+insert into t1 values (34,34);
+insert into t1 values (35,35);
+insert into t1 values (36,36);
+insert into t1 values (37,37);
+insert into t1 values (38,38);
+insert into t1 values (39,39);
+commit;
+begin;
+update t1 set b=b+10 where a >= 30;
+commit;
+begin;
+delete from t1 where a >= 30;
+commit;
+flush logs;
+drop table test.t1;
+drop table test.notes;
+create table test.t1 (a int primary key, b int) engine=ndb;
+create table test.notes (a varchar(1000)) engine=ndb;
+select * from test.t1;
+a	b
+2	20
+21	22
+drop table test.t1;
+drop table test.notes;

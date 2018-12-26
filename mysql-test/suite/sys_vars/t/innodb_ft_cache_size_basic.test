@@ -1,0 +1,27 @@
+
+#
+#  2011-11-17 - Added 
+#
+
+
+#
+# show the global and session values;
+#
+select @@global.innodb_ft_cache_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_ft_cache_size;
+show global variables like 'innodb_ft_cache_size';
+show session variables like 'innodb_ft_cache_size';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_ft_cache_size';
+select * from performance_schema.session_variables where variable_name='innodb_ft_cache_size';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_ft_cache_size=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_ft_cache_size=1;
+

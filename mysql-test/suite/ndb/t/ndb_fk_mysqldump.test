@@ -1,0 +1,59 @@
+-- source include/have_ndb.inc
+
+
+create table product (
+  category int not null,
+  id int not null,
+  price decimal,
+  primary key(category, id))
+engine=ndb;
+
+create table customer (
+  id int not null,
+  primary key (id))
+engine=ndb;
+
+create table product_order (
+  no int not null auto_increment,
+  product_category int not null,
+  product_id int not null,
+  customer_id int not null,
+  primary key(no),
+  index (product_category, product_id),
+  constraint fk1
+  foreign key (product_category, product_id) references product(category, id)
+    on update restrict on delete cascade,
+  index (customer_id),
+  constraint fk2
+  foreign key (customer_id) references customer(id))
+engine=ndb;
+
+--disable_warnings
+show create table product;
+show create table customer;
+show create table product_order;
+--enable_warnings
+
+insert into product values (1,1,5);
+insert into customer value (1);
+insert into product_order value (1,1,1,1);
+
+let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_fk_dump.sql;
+--exec $MYSQL_DUMP --databases test > $dump_file
+
+# bug#16286164: the fix exposes DROP order problem
+if (1)
+{
+drop table product_order, customer, product;
+}
+
+--exec $MYSQL test < $dump_file
+
+--disable_warnings
+show create table product;
+show create table customer;
+show create table product_order;
+--enable_warnings
+
+drop table product_order, customer, product;
+--remove_file $dump_file

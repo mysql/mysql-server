@@ -1,0 +1,79 @@
+use test;
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP VIEW IF EXISTS v3;
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+CREATE TABLE t1(c INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET @a = 1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE PROCEDURE p1()
+SELECT 1;
+CREATE FUNCTION f1() RETURNS INT
+RETURN 1;
+CREATE DEFINER=a@b TRIGGER ti_ai AFTER INSERT ON t1
+FOR EACH ROW
+SET @b = 1;
+CREATE DEFINER=a@b VIEW v2 AS SELECT * FROM t1;
+CREATE DEFINER=a@b PROCEDURE p2()
+SELECT 2;
+CREATE DEFINER=a@b FUNCTION f2() RETURNS INT
+RETURN 2;
+CREATE DEFINER=a@'' TRIGGER ti_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET @c = 1;
+CREATE DEFINER=a@'' VIEW v3 AS SELECT * FROM t1;
+CREATE DEFINER=a@'' PROCEDURE p3()
+SELECT 3;
+CREATE DEFINER=a@'' FUNCTION f3() RETURNS INT
+RETURN 3;
+SHOW CREATE VIEW v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`a`@`` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`c` AS `c` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE p3;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` PROCEDURE `p3`()
+SELECT 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION f3;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` FUNCTION `f3`() RETURNS int(11)
+RETURN 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP TRIGGER t1_bi;
+DROP TRIGGER ti_ai;
+DROP TRIGGER ti_bu;
+DROP VIEW v1;
+DROP VIEW v2;
+DROP VIEW v3;
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+set global event_scheduler=1;
+ERROR HY000: The MySQL server is running with the --event-scheduler=DISABLED or --skip-grant-tables option so it cannot execute this statement
+select count(*) from information_schema.COLUMN_PRIVILEGES;
+count(*)
+0
+select count(*) from information_schema.SCHEMA_PRIVILEGES;
+count(*)
+0
+select count(*) from information_schema.TABLE_PRIVILEGES;
+count(*)
+0
+select count(*) from information_schema.USER_PRIVILEGES;
+count(*)
+0
+End of 5.0 tests
+SET PERSIST max_connections = 18;
+SET PERSIST_ONLY max_connections = 18;
+SET GLOBAL max_connections = DEFAULT;
+RESET PERSIST;

@@ -1,0 +1,82 @@
+###############################################################################
+#
+# When the group is in **single-primary** mode and the user causes a
+# change to **multi-primary** mode the group must:
+# - 1: Update everywhere checks must be set to True on all members.
+# - 2: All members must be writable, so read_only mode should be False
+# - 3: When all members are writable, any transactional conflict must abort
+#
+# Test:
+#   0. This test requires two servers in single primary mode
+#   1. Create table to test the transaction conflict
+#   2. Execute action to switch to multi primary mode
+#   3. Assert on server2 that super_read_only is disabled and
+#      group_replication_enforce_update_everywhere_checks is enabled
+#   4. Assert on server1 that super_read_only is disabled and
+#      group_replication_enforce_update_everywhere_checks is enabled
+#   5. Execute two transactions in parallel and confirm that will trigger
+#      a conflict
+#   6. Cleanup
+#
+###############################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 1. Create table to test the transaction conflict
+
+CREATE TABLE t1(a int primary key);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Execute action to switch to multi primary mode
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 3. Assert on server2 that super_read_only is disabled and
+--echo #   group_replication_enforce_update_everywhere_checks is enabled
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--echo
+--echo # 4. Assert on server1 that super_read_only is disabled and
+--echo #   group_replication_enforce_update_everywhere_checks is enabled
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--echo
+--echo # 5. Execute two transactions in parallel and confirm that will trigger
+--echo #    a conflict
+
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES(3)
+--let $remote_transaction=INSERT INTO t1 VALUES (3)
+--let $conflict_test=1
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo # 6. Cleanup
+
+DROP TABLE t1;
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

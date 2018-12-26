@@ -1,0 +1,422 @@
+# suite/funcs_1/t/is_user_privileges.test
+#
+# Check the layout of information_schema.user_privileges, permissions and
+# the impact of CREATE/ALTER/DROP SCHEMA on it.
+#
+# Note:
+#    This test is not intended
+#    - to show information about the all time existing tables
+#      within the databases information_schema and mysql
+#    - for checking storage engine properties
+#      Therefore please do not alter $engine_type and $other_engine_type.
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
+
+let $is_table = USER_PRIVILEGES;
+
+# The table INFORMATION_SCHEMA.USER_PRIVILEGES must exist
+eval SHOW TABLES FROM information_schema LIKE '$is_table';
+
+--echo #######################################################################
+--echo # Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+--echo #######################################################################
+# Ensure that every INFORMATION_SCHEMA table can be queried with a SELECT
+# statement, just as if it were an ordinary user-defined table.
+#
+--source suite/funcs_1/datadict/is_table_query.inc
+
+
+--echo #########################################################################
+--echo # Testcase 3.2.16.1: INFORMATION_SCHEMA.USER_PRIVILEGES layout
+--echo #########################################################################
+# Ensure that the INFORMATION_SCHEMA.USER_PRIVILEGES table has the following columns,
+# in the following order:
+#
+# GRANTEE (shows a user to whom a user privilege has been granted),
+# TABLE_CATALOG (always shows NULL),
+# PRIVILEGE_TYPE (shows the granted privilege),
+# IS_GRANTABLE (shows whether the privilege was granted WITH GRANT OPTION).
+#
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval DESCRIBE          information_schema.$is_table;
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval SHOW CREATE TABLE information_schema.$is_table;
+--source suite/funcs_1/datadict/datadict_bug_12777.inc
+eval SHOW COLUMNS FROM information_schema.$is_table;
+
+# Note: Retrieval of information within information_schema.columns about
+#       information_schema.user_privileges is in is_columns_is.test.
+
+# Show that TABLE_CATALOG is always 'def'.
+SELECT grantee, table_catalog, privilege_type
+FROM information_schema.user_privileges
+WHERE table_catalog IS NULL OR table_catalog <> 'def';
+
+
+--echo ##########################################################################
+--echo # Testcases 3.2.16.2+3.2.16.3+3.2.16.4: INFORMATION_SCHEMA.USER_PRIVILEGES
+--echo #           accessible information
+--echo ##########################################################################
+# 3.2.16.2: Ensure that the table shows the relevant information on every user
+#           privilege which has been granted to the current user or to PUBLIC,
+#           or has been granted by the current user.
+# 3.2.16.3: Ensure that the table does not show any information on any user
+#           privileges which have been granted to users other than the current
+#           user or  have been granted by any user other than the current user.
+# 3.2.16.4: Ensure that the table does not show any information on any
+#           privileges that are not user privileges for the current user.
+#
+--disable_warnings
+DROP DATABASE IF EXISTS db_datadict;
+--enable_warnings
+CREATE DATABASE db_datadict;
+
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser2'@'localhost';
+CREATE USER 'testuser2'@'localhost';
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser3'@'localhost';
+CREATE USER 'testuser3'@'localhost';
+
+GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
+GRANT SELECT ON mysql.user TO 'testuser1'@'localhost';
+
+GRANT INSERT ON *.* TO 'testuser2'@'localhost';
+GRANT UPDATE ON *.* TO 'testuser2'@'localhost';
+
+let $my_select1= SELECT * FROM information_schema.user_privileges
+WHERE grantee LIKE '''testuser%'''
+ORDER BY grantee, table_catalog, privilege_type;
+let $my_select2= SELECT * FROM mysql.user
+WHERE user LIKE 'testuser%' ORDER BY host, user;
+let $my_show= SHOW GRANTS;
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+
+--echo #
+--echo # Add GRANT OPTION db_datadict.* to testuser1;
+GRANT UPDATE ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+
+--echo # Establish connection testuser1 (user=testuser1)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser1, localhost, testuser1, , db_datadict);
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+eval $my_show;
+
+--echo
+--echo # Now add SELECT on *.* to testuser1;
+
+--echo # Switch to connection default
+connection default;
+GRANT SELECT ON *.* TO 'testuser1'@'localhost';
+--echo #
+--echo # Here <SELECT NO> is shown correctly for testuser1;
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+
+GRANT SELECT ON *.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
+--echo #
+--echo # Here <SELECT YES> is shown correctly for testuser1;
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+
+--echo # Switch to connection testuser1
+# check that this appears
+connection testuser1;
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+eval $my_show;
+
+--echo # Establish connection testuser2 (user=testuser2)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser2, localhost, testuser2, , db_datadict);
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_select2;
+--horizontal_results
+eval $my_show;
+
+--echo # Establish connection testuser3 (user=testuser3)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (testuser3, localhost, testuser3, , test);
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_select2;
+--horizontal_results
+eval $my_show;
+
+--echo
+--echo # Revoke privileges from testuser1;
+--echo # Switch to connection default
+connection default;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'testuser1'@'localhost';
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+
+--echo # Switch to connection testuser1
+# check for changes
+connection testuser1;
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_select2;
+--horizontal_results
+eval $my_show;
+
+# OK, testuser1 has no privs here
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TABLE db_datadict.tb_55 ( c1 TEXT );
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_select2;
+--horizontal_results
+eval $my_show;
+# OK, testuser1 has no privs here
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TABLE db_datadict.tb_66 ( c1 TEXT );
+
+--echo
+--echo # Add ALL on db_datadict.* (and select on mysql.user) to testuser1;
+--echo # Switch to connection default
+connection default;
+GRANT ALL ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
+GRANT SELECT ON mysql.user TO 'testuser1'@'localhost';
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+
+--echo # Switch to connection testuser1
+connection testuser1;
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+eval $my_show;
+
+# OK, testuser1 has no privs here
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TABLE db_datadict.tb_56 ( c1 TEXT );
+
+# using 'USE' lets the server read the privileges new, so now the CREATE works
+USE db_datadict;
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+eval $my_show;
+--replace_result $other_engine_type <other_engine_type>
+eval
+CREATE TABLE tb_57 ( c1 TEXT )
+ENGINE = $other_engine_type;
+
+--echo
+--echo # Revoke privileges from testuser1;
+--echo # Switch to connection default
+connection default;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'testuser1'@'localhost';
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select2;
+--horizontal_results
+
+--echo # Switch to connection testuser1
+# check for changes
+connection testuser1;
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+--error ER_TABLEACCESS_DENIED_ERROR
+eval $my_select2;
+--horizontal_results
+eval $my_show;
+# WORKS, as the existing old privileges are used!
+--replace_result $other_engine_type <other_engine_type>
+eval
+CREATE TABLE db_datadict.tb_58 ( c1 TEXT )
+ENGINE = $other_engine_type;
+# existing privileges are "read" new when USE is called, user has no privileges
+--error ER_DBACCESS_DENIED_ERROR
+USE db_datadict;
+#FIXME 3.2.16: check that it is correct that this now 'works': --error ER_TABLEACCESS_DENIED_ERROR
+--replace_result $other_engine_type <other_engine_type>
+eval
+CREATE TABLE db_datadict.tb_59 ( c1 TEXT )
+ENGINE = $other_engine_type;
+
+# Cleanup
+--echo # Switch to connection default and close connections testuser1,testuser2,testuser3
+connection default;
+disconnect testuser1;
+disconnect testuser2;
+disconnect testuser3;
+DROP USER 'testuser1'@'localhost';
+DROP USER 'testuser2'@'localhost';
+DROP USER 'testuser3'@'localhost';
+DROP DATABASE IF EXISTS db_datadict;
+
+
+--echo ########################################################################################
+--echo # Testcases 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.USER_PRIVILEGES modifications
+--echo ########################################################################################
+# 3.2.1.13: Ensure that the creation of any new database object (e.g. table or
+#           column) automatically inserts all relevant information on that
+#           object into every appropriate INFORMATION_SCHEMA table.
+# 3.2.1.14: Ensure that the alteration of any existing database object
+#           automatically updates all relevant information on that object in
+#           every appropriate INFORMATION_SCHEMA table.
+# 3.2.1.15: Ensure that the dropping of any existing database object
+#           automatically deletes all relevant information on that object from
+#           every appropriate INFORMATION_SCHEMA table.
+#
+let $my_select = SELECT * FROM information_schema.user_privileges
+WHERE grantee = '''testuser1''@''localhost''';
+let $my_show = SHOW GRANTS FOR 'testuser1'@'localhost';
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select;
+--horizontal_results
+--error ER_NONEXISTING_GRANT
+eval $my_show;
+--error 0,ER_CANNOT_USER
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select;
+--horizontal_results
+eval $my_show;
+GRANT SELECT, FILE ON *.* TO 'testuser1'@'localhost';
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select;
+--horizontal_results
+eval $my_show;
+DROP USER   'testuser1'@'localhost';
+--vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+eval $my_select;
+--horizontal_results
+--error ER_NONEXISTING_GRANT
+eval $my_show;
+
+
+--echo ########################################################################
+--echo # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+--echo #           DDL on INFORMATION_SCHEMA tables are not supported
+--echo ########################################################################
+# 3.2.1.3:  Ensure that no user may execute an INSERT statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.4:  Ensure that no user may execute an UPDATE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.5:  Ensure that no user may execute a DELETE statement on any
+#           INFORMATION_SCHEMA table.
+# 3.2.1.8:  Ensure that no user may create an index on an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.9:  Ensure that no user may alter the definition of an
+#           INFORMATION_SCHEMA table.
+# 3.2.1.10: Ensure that no user may drop an INFORMATION_SCHEMA table.
+# 3.2.1.11: Ensure that no user may move an INFORMATION_SCHEMA table to any
+#           other database.
+# 3.2.1.12: Ensure that no user may directly add to, alter, or delete any data
+#           in an INFORMATION_SCHEMA table.
+#
+--error 0,ER_CANNOT_USER
+DROP   USER   'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+
+--error ER_DBACCESS_DENIED_ERROR
+INSERT INTO information_schema.user_privileges
+SELECT * FROM information_schema.user_privileges;
+
+--error ER_DBACCESS_DENIED_ERROR
+UPDATE information_schema.user_privileges
+SET PRIVILEGE_TYPE = 'gaming';
+
+--error ER_DBACCESS_DENIED_ERROR
+DELETE FROM information_schema.user_privileges
+WHERE grantee = '''testuser1''@''localhost''';
+--error ER_DBACCESS_DENIED_ERROR
+TRUNCATE information_schema.user_privileges;
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE INDEX i1 ON information_schema.user_privileges(grantee);
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.user_privileges ADD f1 INT;
+
+--error ER_DBACCESS_DENIED_ERROR
+DROP TABLE information_schema.user_privileges;
+
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.user_privileges
+RENAME db_datadict.user_privileges;
+--error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE information_schema.user_privileges
+RENAME information_schema.xuser_privileges;
+
+# Cleanup
+DROP USER   'testuser1'@'localhost';
+

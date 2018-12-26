@@ -1,0 +1,76 @@
+# ==== Purpose ====
+#
+# When @@SESSION.GTID_NEXT == 'UUID:NUMBER', verify that the command
+# 'BEGIN' causes an error
+# 'ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET' inside
+# an empty/a non-empty transaction, since it causes an implicit
+# commit. We do not save the gtid specified by GTID_NEXT into
+# GLOBAL@gtid_executed in the case.
+#
+# ==== Implementation ====
+#
+# 1) Set @@SESSION.GTID_NEXT == 'UUID:NUMBER'
+# 2) Execute a 'BEGIN' command to start a transaction.
+# 3) Execute another 'BEGIN' command to check if it causes an error
+#    'ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET'
+#    inside an empty transaction, and we do not save the gtid
+#    specified by GTID_NEXT into GLOBAL@gtid_executed.
+# 4) Execute an 'INSERT' statement.
+# 5) Execute the third 'BEGIN' command to check if it causes an error
+#    'ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET'
+#    inside a non-empty transaction, and we do not save the gtid
+#    specified by GTID_NEXT into GLOBAL@gtid_executed.
+# 6) Check that we save the gtid specified by GTID_NEXT into
+#    GLOBAL@gtid_executed when committing the transaction.
+#
+# ==== References ====
+#
+# Bug#22130929  GTID_NEXT AND BEGIN BEHAVIOR IS DIFFERENT B/W BINLOG AND BINLOG-LESS SERVER
+# Caller: suite/binlog/t/binlog_gtid_next_begin_caused_trx.test
+# Caller: t/no_binlog_gtid_next_begin_caused_trx.test
+#
+
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+CREATE TABLE t1 (c1 INT);
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+BEGIN;
+
+--echo #
+--echo # Check that the command 'BEGIN' causes an error
+--echo # 'ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET' inside
+--echo # an empty transaction, since it causes an implicit commit. And we
+--echo # do not save the gtid specified by GTID_NEXT into
+--echo # GLOBAL@gtid_executed in the case.
+--echo #
+--error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
+BEGIN;
+--let $assert_text= Dose not commit gtid aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1"
+--source include/assert.inc
+
+INSERT INTO t1 VALUES (1);
+--echo #
+--echo # Check that the command 'BEGIN' causes an error
+--echo # 'ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET' inside
+--echo # a non-empty transaction, since it causes an implicit commit. And
+--echo # we do not save the gtid specified by GTID_NEXT into
+--echo # GLOBAL@gtid_executed in the case.
+--echo #
+--error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
+BEGIN;
+--let $assert_text= Dose not commit gtid aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1"
+--source include/assert.inc
+
+--echo #
+--echo # Check that we save the gtid specified by GTID_NEXT into
+--echo # GLOBAL@gtid_executed when committing the transaction.
+--echo #
+COMMIT;
+--let $assert_text= Committed gtid aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2"
+--source include/assert.inc
+
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+DROP TABLE t1;
+

@@ -1,0 +1,356 @@
+##############################################################
+# Purpose: To test DICTionary changes while executing 
+#          SPJ (Pushed join) operations.
+#          SPJ block should take part in the dictionary update
+#          loop controlled by DICT. Alter /dropping a table
+#          while there are ongoing SPJ operations should cause
+#          these operations to be terminated.
+#
+##############################################################
+##############################################################
+# NOTE ABOUT TESTING BELOW:
+#
+# Test cases are expected to terminate query execution on SPJ
+# when a (SPJ-) dictionary change are detected. The error codes
+# 20019-20021 are returned from SPJ, which are mapped to either
+# ER_NO_SUCH_TABLE, or ER_TABLE_DEF_CHANGED.
+#
+# To allow for possible race between DML and DDL queries, 
+# (Didn't start, or completed before the other), 'error 0'
+# is also allowed as an outcome from these tests.
+#
+# '--replace_column 10 ### 11 ###' is used for explains throughout
+# the test as experience has shown that 'rows' estimates
+# may vary depending on OS, compiler and .. phase of moon.
+#
+# Note that the 'Table ... does not exist' error message
+# will incorrectly refer 'parent' instead of 'child'.
+# This is an artifact of NDB to mysqld error translation
+# as the pushed join is sent for execution when accessing the
+# 'root' table. Thus any failure of finding any tables when
+# executing the pushed join, will be reported as the 'parent'
+# table not found.
+#
+##############################################################
+--source include/have_multi_ndb.inc
+
+connect (ddl,localhost,root,,test);
+
+connection ddl;
+
+use test;
+
+## Initially create as MyISAM to avoid 'Out of operation records'
+## ... Later alter to 'engine=ndb'
+
+create table parent(a int primary key, b int not null, key(b)) engine=myisam;
+create table child(a int, b int, primary key(a,b), key(b)) engine=myisam;
+
+insert into parent values (1,1), (2,2), (3,3), (4,4);
+insert into parent select a+4, b+4 from parent;
+insert into parent select a+8, b+8 from parent;
+insert into parent select a+16, b+16 from parent;
+insert into parent select a+32, b+32 from parent;
+insert into parent select a+64, b+64 from parent;
+insert into parent select a+128, b+128 from parent;
+insert into parent select a+256, b+256 from parent;
+insert into parent select a+512, b+512 from parent;
+insert into parent select a+1024, b+1024 from parent;
+insert into parent select a+(2*1024), b+(2*1024) from parent;
+insert into parent select a+(4*1024), b+(4*1024) from parent;
+insert into parent select a+(8*1024), b+(8*1024) from parent;
+insert into parent select a+(16*1024), b+(16*1024) from parent;
+
+insert into child select * from parent;
+
+alter table parent engine=ndb;
+alter table child engine=ndb;
+
+
+connection server1;
+show variables like 'server_id';
+
+let $query1 =
+  select straight_join count(*) 
+  from parent join child
+  on child.a = parent.a and child.b = parent.b
+  where parent.b > 5;
+
+let $query2 =
+  select straight_join count(*) 
+  from parent join child
+  on child.a = parent.a 
+  where parent.b > 5;
+
+let $query3 =
+  select straight_join count(*) 
+  from parent join child
+  on child.b = parent.a 
+  where parent.b > 5;
+
+set ndb_join_pushdown = true;
+
+
+# This test provokes failure to lock metadata  
+connection server1;
+--disable_query_log
+call mtr.add_suppression("Failed to acquire metadata lock");
+call mtr.add_suppression(".*NDB_SHARE.*Moving away for safety, but possible memleak");
+--enable_query_log
+
+connection server2;
+--disable_query_log
+call mtr.add_suppression("Failed to acquire metadata lock");
+call mtr.add_suppression(".*NDB_SHARE.*Moving away for safety, but possible memleak");
+--enable_query_log
+
+
+--echo ============================================
+--echo Early 'online' drop of REF'ed child's KEY b.
+--echo ============================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query3;
+--disable_query_log
+send_eval $query3;
+--enable_query_log
+
+connection server2;
+alter table child algorithm=inplace, drop key b;
+commit;
+
+connection server1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+alter table child add key(b);
+
+--echo ============================================
+--echo Late 'online' drop of REF'ed child's KEY b.
+--echo ============================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query3;
+--disable_query_log
+send_eval $query3;
+--enable_query_log
+
+connection server2;
+sleep 0.1;
+alter table child algorithm=inplace, drop key b;
+commit;
+
+connection server1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+alter table child add key(b);
+
+
+--echo ============================================
+--echo Early drop of EQ_REF'ed child's PRIMARY KEY.
+--echo ============================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query1;
+--disable_query_log
+send_eval $query1;
+--enable_query_log
+
+connection server2;
+alter table child drop primary key;
+commit;
+
+connection server1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+alter table child add primary key(a,b);
+
+--echo =============================================================
+--echo Drop of EQ_REF'ed child's PRIMARY KEY after executed a while.
+--echo =============================================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query1;
+--disable_query_log
+send_eval $query1;
+--enable_query_log
+
+connection server2;
+#Takes a short sleep to let query start executing
+sleep 0.1;
+alter table child drop primary key;
+commit;
+
+connection server1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+alter table child add primary key(a,b);
+
+
+--echo ===========================================================
+--echo ONLINE ALTER: Rename table to make it go away - temporarily
+--echo ===========================================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query1;
+--disable_query_log
+send_eval $query1;
+--enable_query_log
+
+connection server2;
+sleep 0.1;
+alter table child algorithm=inplace, rename to child_orig;
+commit;
+
+connection server1;
+--disable_result_log
+--error 0,ER_TABLE_DEF_CHANGED
+reap;
+--enable_result_log
+alter table child_orig rename to child;
+
+--echo ============================================================
+--echo OFFLINE ALTER: Rename table to make it go away - temporarily
+--echo ============================================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query1;
+--disable_query_log
+send_eval $query1;
+--enable_query_log
+
+connection server2;
+sleep 0.1;
+alter table child algorithm=copy, rename to child_orig;
+commit;
+
+connection server1;
+--disable_result_log
+--error 0,ER_TABLE_DEF_CHANGED,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+alter table child_orig rename to child;
+
+
+--echo =================================================================
+--echo ONLINE ALTER: drop + recreate table 'child' key b in use by query
+--echo =================================================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query3;
+--disable_query_log
+send_eval $query3;
+--enable_query_log
+
+connection server2;
+sleep 0.1;
+alter table child algorithm=inplace, drop key b;
+
+connection server1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+alter table child add key(b);
+
+
+--echo ==================================================================
+--echo ONLINE ALTER: drop + recreate table 'parent' key b in use by query
+--echo ==================================================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query1;
+--disable_query_log
+send_eval $query1;
+--enable_query_log
+
+connection server2;
+sleep 0.1;
+alter table parent algorithm=inplace, drop key b;
+
+connection server1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+alter table parent add key(b);
+
+
+--echo ===============================================
+--echo OFFLINE ALTER: add + drop column c from 'child'
+--echo ===============================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query1;
+--disable_query_log
+send_eval $query1;
+--enable_query_log
+
+connection server2;
+sleep 0.1;
+alter table child algorithm=copy, add column c int;
+
+connection server1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+alter table child drop column c;
+
+
+--echo ==========================================================
+--echo OFFLINE ALTER: drop + recreate primary key(a,b) for 'child'
+--echo ==========================================================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query2;
+--disable_query_log
+send_eval $query2;
+--enable_query_log
+
+connection server2;
+sleep 0.01;
+alter table child algorithm=copy, drop primary key;
+
+connection server1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+alter table child add primary key(a,b);
+
+
+--echo ==================
+--echo DROP TABLE 'child'
+--echo ==================
+connection server1;
+--replace_column 10 ### 11 ###
+eval explain $query1;
+--disable_query_log
+send_eval $query1;
+--enable_query_log
+
+connection server2;
+sleep 0.01;
+drop table child;
+
+connection server1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE
+reap;
+--enable_result_log
+
+--echo ===========
+--echo Cleaning up
+--echo ===========
+connection ddl;
+
+drop table if exists parent;
+

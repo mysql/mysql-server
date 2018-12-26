@@ -1,0 +1,198 @@
+SET @global_auto_increment_increment = @@global.auto_increment_increment;
+SET @session_auto_increment_increment = @@session.auto_increment_increment;
+SET @global_auto_increment_offset = @@global.auto_increment_offset;
+SET @session_auto_increment_offset = @@session.auto_increment_offset;
+drop table if exists t1;
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+'#--------------------FN_DYNVARS_001_01-------------------------#'
+## Setting initial value of auto_increment_increment to 5 ##
+SET @@auto_increment_increment = 5;
+'#--------------------FN_DYNVARS_001_02-------------------------#'
+## Inserting first record in table to check behavior of the variable ##
+INSERT into t1(name) values('Record_1');
+SELECT * from t1;
+id	name
+1	Record_1
+## Changing value of variable to 10 ##
+SET @@global.auto_increment_increment = 10;
+## Inserting record and verifying value of column id ##
+INSERT into t1(name) values('Record_2');
+SELECT * from t1;
+id	name
+1	Record_1
+6	Record_2
+## Test behavior of variable after assigning some larger value to it ##
+SELECT @@auto_increment_increment;
+@@auto_increment_increment
+5
+SET @@auto_increment_increment = 100;
+INSERT into t1(name) values('Record_5');
+SELECT * from t1;
+id	name
+1	Record_1
+6	Record_2
+101	Record_5
+'#--------------------FN_DYNVARS_001_03-------------------------#'
+## Creating new connection test_con1 ##
+## Value of session & global vairable here should be 10 ##
+SELECT @@global.auto_increment_increment = 10;
+@@global.auto_increment_increment = 10
+1
+SELECT @@session.auto_increment_increment = 10;
+@@session.auto_increment_increment = 10
+1
+## Setting global value of variable and inserting data in table ##
+SET @@global.auto_increment_increment = 20;
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+20
+INSERT into t1(name) values('Record_6');
+SELECT * from t1;
+id	name
+1	Record_1
+6	Record_2
+101	Record_5
+111	Record_6
+## Setting session value of variable and inserting data in table ##
+SET @@session.auto_increment_increment = 2;
+SELECT @@session.auto_increment_increment;
+@@session.auto_increment_increment
+2
+INSERT into t1(name) values('Record_8');
+INSERT into t1(name) values('Record_9');
+SELECT * from t1;
+id	name
+1	Record_1
+6	Record_2
+101	Record_5
+111	Record_6
+113	Record_8
+115	Record_9
+'#--------------------FN_DYNVARS_001_04-------------------------#'
+## Creating another new connection test_con2 ##
+## Verifying initial values of variable in global & session scope ##
+## global & session initial value should be 20 ##
+SELECT @@global.auto_increment_increment = 20;
+@@global.auto_increment_increment = 20
+1
+SELECT @@session.auto_increment_increment = 20;
+@@session.auto_increment_increment = 20
+1
+## Setting value of session variable to 5 and verifying its behavior ##
+SET @@session.auto_increment_increment = 5;
+INSERT into t1(name) values('Record_10');
+SELECT * from t1;
+id	name
+1	Record_1
+6	Record_2
+101	Record_5
+111	Record_6
+113	Record_8
+115	Record_9
+116	Record_10
+SET @@session.auto_increment_increment = 1;
+SELECT @@auto_increment_increment;
+@@auto_increment_increment
+1
+SELECT @@global.auto_increment_increment;
+@@global.auto_increment_increment
+20
+'#--------------------FN_DYNVARS_001_05-------------------------#'
+## Switching to test_con1 ##
+## Verifying values of global & session value of variable ##
+## global value should be 20 ##
+SELECT @@global.auto_increment_increment = 20;
+@@global.auto_increment_increment = 20
+1
+## session value should be 2 ##
+SELECT @@session.auto_increment_increment = 2;
+@@session.auto_increment_increment = 2
+1
+INSERT into t1(name) values('Record_11');
+INSERT into t1(name) values('Record_12');
+SELECT * from t1;
+id	name
+1	Record_1
+6	Record_2
+101	Record_5
+111	Record_6
+113	Record_8
+115	Record_9
+116	Record_10
+117	Record_11
+119	Record_12
+'#--------------------FN_DYNVARS_001_06-------------------------#'
+## Changing column's datatype to SmallInt and verifying variable's behavior ##
+ALTER table t1 MODIFY id SMALLINT NOT NULL auto_increment;
+INSERT into t1(name) values('Record_13');
+INSERT into t1(name) values('Record_14');
+SELECT * from t1;
+id	name
+1	Record_1
+6	Record_2
+101	Record_5
+111	Record_6
+113	Record_8
+115	Record_9
+116	Record_10
+117	Record_11
+119	Record_12
+121	Record_13
+123	Record_14
+## Changing column's datatype to BigInt and verifying variable's behavior ##
+ALTER table t1 MODIFY id BIGINT NOT NULL auto_increment;
+INSERT into t1(name) values('Record_15');
+INSERT into t1(name) values('Record_16');
+SELECT * from t1;
+id	name
+1	Record_1
+6	Record_2
+101	Record_5
+111	Record_6
+113	Record_8
+115	Record_9
+116	Record_10
+117	Record_11
+119	Record_12
+121	Record_13
+123	Record_14
+125	Record_15
+127	Record_16
+'#--------------------FN_DYNVARS_001_07-------------------------#'
+## Verifying behavior of variable with negative value ##
+SET @@auto_increment_increment = -10;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_increment value: '-10'
+INSERT into t1(name) values('Record_17');
+INSERT into t1(name) values('Record_18');
+SELECT * from t1;
+id	name
+1	Record_1
+6	Record_2
+101	Record_5
+111	Record_6
+113	Record_8
+115	Record_9
+116	Record_10
+117	Record_11
+119	Record_12
+121	Record_13
+123	Record_14
+125	Record_15
+127	Record_16
+128	Record_17
+129	Record_18
+## Disconnecting test_con2 ##
+## Dropping table t1 ##
+DROP table if exists t1;
+## Disconnecting test_con1 ##
+## switching to default connection ##
+SET @@global.auto_increment_increment = @global_auto_increment_increment;
+SET @@session.auto_increment_increment = @session_auto_increment_increment;
+SET @@global.auto_increment_offset = @global_auto_increment_offset;
+SET @@session.auto_increment_offset = @session_auto_increment_offset;

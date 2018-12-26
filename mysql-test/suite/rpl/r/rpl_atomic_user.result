@@ -1,0 +1,138 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression('Following users were specified in CREATE USER');
+# CREATE USER statement test where user does not exist
+CREATE USER u1 IDENTIFIED WITH 'sha256_password' BY 'pwd1', u2 IDENTIFIED WITH
+'mysql_native_password' BY 'pwd2', u3, u4, u5, u6 REQUIRE SSL;
+# CREATE USER statement test where few user exist and few does not
+CREATE USER u_ne1, u1 IDENTIFIED WITH 'sha256_password' BY 'auth_string',
+u_ne2 IDENTIFIED WITH 'sha256_password' REQUIRE SSL;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
+CREATE USER u_ne1, u1 IDENTIFIED WITH 'sha256_password' BY 'auth_string',
+u_ne2 IDENTIFIED WITH 'invalid_plugin' REQUIRE SSL;
+ERROR HY000: Plugin 'invalid_plugin' is not loaded
+CREATE ROLE r1, r2;
+# ALTER USER statement test
+ALTER USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'pwd1', u2 IDENTIFIED
+WITH 'sha256_password' BY 'pwd2' WITH MAX_USER_CONNECTIONS 11 ;
+ALTER USER u3 IDENTIFIED WITH 'mysql_native_password' BY 'pwd3', u4 IDENTIFIED
+WITH 'mysql_native_password' BY 'pwd4' WITH MAX_USER_CONNECTIONS 12;
+# RENAME USER statement test
+RENAME USER u3 TO u33, u5 TO u55, u4 TO u44;
+RENAME USER u3 TO u33, u4 TO u44;
+ERROR HY000: Operation RENAME USER failed for 'u3'@'%','u4'@'%'
+RENAME USER u33 TO uu, u44 TO uu;
+ERROR HY000: Operation RENAME USER failed for 'u44'@'%'
+# GRANT USER test for all grant types
+use mysql;
+CREATE DEFINER=u1 PROCEDURE p() SELECT host, user FROM mysql.user;
+GRANT SELECT ON *.* to u1;
+GRANT SELECT ON mysql.user to u2;
+GRANT SELECT ON mysql.* TO u33;
+GRANT SELECT (user, host) ON mysql.user TO u44;
+GRANT EXECUTE ON PROCEDURE mysql.p TO u55;
+GRANT proxy ON u1 TO u2;
+GRANT ALL ON *.* TO u6;
+include/sync_slave_sql_with_master.inc
+# check that mysql.user table has same values in both servers
+include/diff_tables.inc [master:mysql.user, slave:mysql.user]
+# REVOKE FROM USER statement test
+[connection master]
+REVOKE SELECT ON *.* FROM u1;
+REVOKE SELECT ON mysql.user FROM u2;
+REVOKE SELECT ON mysql.* FROM u33;
+REVOKE SELECT (user, host) ON mysql.user FROM u44;
+REVOKE EXECUTE ON PROCEDURE mysql.p FROM u55;
+REVOKE PROXY ON u1 FROM u2;
+REVOKE ALL ON *.* FROM u6;
+DROP PROCEDURE p;
+# CREATE USER IF NOT EXISTS statement test
+CREATE USER IF NOT EXISTS u7, u_ne3 IDENTIFIED WITH  'sha256_password';
+CREATE USER IF NOT EXISTS u7, u_ne4, u_ne5 IDENTIFIED WITH 'sha256_password'
+by 'pwd_u_ne5';
+Warnings:
+Note	3163	Authorization ID 'u7'@'%' already exists.
+CREATE USER IF NOT EXISTS u5, u_failed1 IDENTIFIED WITH 'invalid_plugin',
+u_failed2;
+ERROR HY000: Plugin 'invalid_plugin' is not loaded
+CREATE ROLE IF NOT EXISTS r33, r44;
+CREATE ROLE IF NOT EXISTS r44, r55;
+Warnings:
+Note	3163	Authorization ID 'r44'@'%' already exists.
+CREATE ROLE IF NOT EXISTS r44, r55;
+Warnings:
+Note	3163	Authorization ID 'r44'@'%' already exists.
+Note	3163	Authorization ID 'r55'@'%' already exists.
+CREATE USER IF NOT EXISTS u6, u6, r1, r2 IDENTIFIED WITH  'sha256_password', r6;
+Warnings:
+Note	3163	Authorization ID 'u6'@'%' already exists.
+Note	3163	Authorization ID 'u6'@'%' already exists.
+Note	3163	Authorization ID 'r1'@'%' already exists.
+Note	3163	Authorization ID 'r2'@'%' already exists.
+# ALTER USER IF EXISTS statement test
+ALTER USER IF EXISTS u_failed1, u_failed2 IDENTIFIED WITH  'sha256_password';
+Warnings:
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed2'@'%' does not exist.
+ALTER USER IF EXISTS u7 IDENTIFIED WITH 'sha256_password', u_failed1, u_failed2,
+u8 WITH MAX_USER_CONNECTIONS 4;
+Warnings:
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed2'@'%' does not exist.
+Note	3162	Authorization ID 'u8'@'%' does not exist.
+ALTER USER IF EXISTS u7, u_failed1, u_failed2 IDENTIFIED  WITH
+'sha256_password' by 'pwd_failed' WITH MAX_USER_CONNECTIONS 5;
+Warnings:
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed2'@'%' does not exist.
+ALTER USER IF EXISTS u7, u7 IDENTIFIED WITH  'sha256_password',
+u8 WITH MAX_USER_CONNECTIONS 6;
+Warnings:
+Note	3162	Authorization ID 'u8'@'%' does not exist.
+ALTER USER IF EXISTS u6 IDENTIFIED WITH  'sha256_password',
+u7 IDENTIFIED WITH 'invalid_plugin', u8 WITH MAX_USER_CONNECTIONS 17;
+ERROR HY000: Plugin 'invalid_plugin' is not loaded
+ALTER USER IF EXISTS u6 IDENTIFIED WITH  'sha256_password',
+u_failed1, r6, r7, u9 WITH MAX_USER_CONNECTIONS 7;
+Warnings:
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'r7'@'%' does not exist.
+Note	3162	Authorization ID 'u9'@'%' does not exist.
+# Search warnings in the server log
+Pattern "Following users were specified in CREATE USER" found
+# DROP USER IF EXISTS statement test
+DROP USER IF EXISTS u7, u8, u_failed;
+Warnings:
+Note	3162	Authorization ID 'u8'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed'@'%' does not exist.
+DROP USER IF EXISTS u7, u8;
+Warnings:
+Note	3162	Authorization ID 'u7'@'%' does not exist.
+Note	3162	Authorization ID 'u8'@'%' does not exist.
+DROP USER IF EXISTS u_ne3, u_ne4, r55;
+DROP USER IF EXISTS u_ne5, u_failed1, r6, u_failed2, r7;
+Warnings:
+Note	3162	Authorization ID 'u_failed1'@'%' does not exist.
+Note	3162	Authorization ID 'u_failed2'@'%' does not exist.
+Note	3162	Authorization ID 'r7'@'%' does not exist.
+# DROP USER statement test
+DROP USER u1, u2, u_ne1, u_ne2;
+ERROR HY000: Operation DROP USER failed for 'u_ne1'@'%','u_ne2'@'%'
+DROP ROLE r1, r2, u1, u_ne1;
+ERROR HY000: Operation DROP ROLE failed for 'u_ne1'@'%'
+DROP ROLE r1, r2, u5, u6, u1_failed;
+ERROR HY000: Operation DROP ROLE failed for 'u5'@'%','u1_failed'@'%'
+include/sync_slave_sql_with_master.inc
+# check that mysql.user table has same values in both servers
+include/diff_tables.inc [master:mysql.user, slave:mysql.user]
+# Try connecting with users created to ensure that connection successful
+# Try connecting with user without ssl where user require ssl
+# Connection will be denied
+ERROR 28000: Access denied for user 'u44'@'localhost' (using password: YES)
+# Cleanup
+[connection master]
+DROP ROLE IF EXISTS r1, r2, r33, r44, u1, u2, u33, u44, u55, u6;
+include/rpl_end.inc

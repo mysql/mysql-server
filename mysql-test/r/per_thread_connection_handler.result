@@ -1,0 +1,44 @@
+call mtr.add_suppression("Can't create thread to");
+SET @old_debug= @@GLOBAL.debug;
+SET @orig_max_connections= @@global.max_connections;
+connect  con1, localhost, root,,mysql;
+SELECT 1;
+1
+1
+connect  con2, localhost, root,,mysql;
+SELECT 1;
+1
+1
+connect  con3, localhost, root,,mysql;
+SELECT 1;
+1
+1
+SET GLOBAL debug= '+d,fail_thread_create';
+connect(localhost,root,,mysql,MYSQL_PORT,MYSQL_SOCK);
+connect  con4, localhost, root,,mysql;
+ERROR HY000: Can't create a new thread (errno 1); if you are not out of available memory, you can consult the manual for a possible OS-dependent bug
+connection default;
+SET GLOBAL debug="-d,fail_thread_create";
+disconnect con1;
+disconnect con2;
+disconnect con3;
+SET GLOBAL max_connections= 3;
+connect  con1, localhost, root,,mysql;
+connect  con2, localhost, root,,mysql;
+connect  con3, localhost, root,,mysql;
+connect(localhost,root,,mysql,MYSQL_PORT,MYSQL_SOCK);
+connect  con4, localhost, root,,mysql;
+ERROR HY000: Too many connections
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+SET GLOBAL debug= '+d,simulate_resource_failure';
+call mtr.add_suppression("Out of memory");
+connect(localhost,root,,mysql,MYSQL_PORT,MYSQL_SOCK);
+connect  con1, localhost, root,,mysql;
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connection default;
+SET GLOBAL debug= '-d,simulate_resource_failure';
+SET GLOBAL debug= @old_debug;
+SET GLOBAL max_connections= @orig_max_connections;

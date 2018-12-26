@@ -1,0 +1,76 @@
+#
+# Check that events have been created in NDB for the tables
+# that can be binlogged or otherwise need an event created
+#
+
+--source setup.inc
+
+# Use 'ndb_show_tables' to dump all events in NDB to a file, then
+# load the file into a table
+let $dump_file = $MYSQLTEST_VARDIR/tmp/event_list.txt;
+
+# Build the string used for executing ndb_show_tables
+let $show_cmd = $NDB_SHOW_TABLES --no-defaults;
+let $show_cmd = $show_cmd -p;  # parsable format
+let $show_cmd = $show_cmd --type=11; # Only show events
+#echo show_cmd: $show_cmd;
+
+# Run ndb_show_tables and dump output to file
+--exec $show_cmd > $dump_file
+
+--disable_query_log
+CREATE TEMPORARY TABLE event_list (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  event_name VARCHAR(255)
+);
+
+eval LOAD DATA INFILE '$dump_file' INTO TABLE event_list;
+--remove_file $dump_file
+
+# Clean the column "event_name" from any windows line endings
+UPDATE event_list SET event_name = TRIM(TRAILING '\r' FROM event_name);
+# Trim surrounding quotation marks from event_name
+UPDATE event_list SET event_name = TRIM(BOTH '\'' FROM event_name);
+--enable_query_log
+
+# Check that event have been created for mysql.ndb_apply_status
+let $check_event_dbname = mysql;
+let $check_event_tabname = ndb_apply_status;
+--source check_event_for_table.inc
+
+# Check that event have been created for mysql.ndb_schema
+let $check_event_dbname = mysql;
+let $check_event_tabname = ndb_schema;
+--source check_event_for_table.inc
+
+# Check events for the standard test tables
+let $counter = 1;
+while ($counter <= $num_tables)
+{
+  # Default table name is t$counter, ie. t1, t2, etc
+  let $tx=t$counter;
+
+  if ($counter == 9)
+  {
+    # Table t9 have hidden pk and blobs, binlogging of such
+    # table is not supported -> no event exist
+	echo NOTE! t9 have hidden pk and blobs -> no event;
+  }
+
+  #
+  # Check that table have event
+  #
+  let $check_event_dbname = ndb_ddl_test;
+  let $check_event_tabname = $tx;
+  --source check_event_for_table.inc
+
+  inc $counter;
+}
+
+--source cleanup.inc
+

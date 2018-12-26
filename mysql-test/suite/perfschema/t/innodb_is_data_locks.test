@@ -1,0 +1,109 @@
+--echo #Test for Intention Shared lock
+
+-- connect (con1,localhost,root,,)
+-- connect (con2,localhost,root,,)
+-- connect (con3,localhost,root,,)
+
+--disable_warnings
+drop table if exists t1_is;
+--enable_warnings
+
+--connection con1
+use test;
+create table t1_is (id integer, x integer, PRIMARY KEY (id)) engine=INNODB;
+insert into t1_is values (0,0),(1,1);
+SET autocommit=0;
+begin;
+select * from t1_is where id=0 FOR SHARE;
+
+--connection con2
+begin;
+select * from t1_is;
+--send
+update t1_is set x = 2 where id = 0;
+
+--connection con3
+
+#
+# WARNING
+# =======
+#
+# Spurious failures possible on column LOCK_DATA
+#
+# One one hand, for the innodb storage engine,
+# the server returns the LOCK_DATA column using
+# 'best effort', without guarantees.
+# See in innodb:
+# - Innodb_data_lock_iterator::scan_trx()
+# - p_s_fill_lock_data()
+# - buf_page_try_get()
+#
+# In short, if the page is in the buffer pool,
+# LOCK_DATA for the record is returned.
+# However, if the page is not in the buffer pool,
+# the code just returns LOCK_DATA = NULL
+# instead of re-loading the page from disk just
+# to read LOCK_DATA.
+#
+# On the other hand, the point of this test
+# is to inspect LOCK_DATA returned in the
+# performance schema, to make sure the proper
+# record lock is printed.
+#
+# Note that a NULL is a valid result, not a failure.
+#
+# Due to connection con2 doing a select,
+# the hope is that this test produces predictable results.
+
+# Wait for con2 to block
+let $wait_condition= SELECT COUNT(*) = 1  FROM performance_schema.data_locks
+  where object_name="t1_is" and lock_type = "RECORD"
+  and lock_mode = "X" and lock_status = "WAITING";
+--source include/wait_condition.inc
+
+begin;
+
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+  from performance_schema.data_locks
+  where object_name="t1_is"
+  order by lock_type, lock_mode, lock_status, lock_data;
+
+# Repeat
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+  from performance_schema.data_locks
+  where object_name="t1_is"
+  order by lock_type, lock_mode, lock_status, lock_data;
+
+select count(*) into @health_check
+  from performance_schema.data_locks where object_name="t1_is";
+
+commit;
+
+#
+# Somehow Intention Shared / Shared locks
+# are not always reported, causing spurious test failures.
+# Dumping debug data to help diagnosis.
+#
+
+if (`select @health_check != 4`)
+{
+  --echo "TEST FAILED, DUMPING DATA TO DEBUG"
+  select @health_check;
+  select * from performance_schema.data_locks;
+  select * from performance_schema.data_lock_waits;
+}
+
+--connection con1
+commit;
+
+--connection con2
+--reap
+commit;
+
+--connection default
+drop table t1_is;
+
+--disconnect con1
+--disconnect con2
+--disconnect con3
+

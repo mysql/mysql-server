@@ -1,0 +1,144 @@
+
+########################################################
+# Test mysqlbinlog command with Ndb produced Binlog
+# variants
+#
+# WHAT
+# ====
+#  This test aims to check that the mysqlbinlog --verbose
+#  command can output binlogs in 4 format variants, currently
+#  used by Ndb
+#
+#  1) Updates logged as write_row events
+#     Only primary key and updated columns included in the 
+#     event
+#  2) Updates logged as write_row_events
+#     All columns included in the event
+#  3) Updates logged as update_row events
+#     Only primary key and updated columns included in the
+#     event
+#  4) Updates logged as update_row events
+#     All columns included in the event
+#
+# Format variant (1) is the Ndb default.
+# Bug#47323 resulted in binlogs generated in format (1) 
+# being incorrectly parsed by the mysqlbinlog --verbose
+# option
+#
+# HOW
+# ===
+#  Row-based binlog files in each format have been 
+#  captured from an Ndb cluster
+#  These are output using the mysqlbinlog --verbose
+#  tool and the output is checked.
+#
+########################################################
+-- source include/have_binlog_format_row.inc
+
+--disable_query_log
+--let $binlog_file=write-partial-row.binlog
+--exec $MYSQL_BINLOG --verbose suite/binlog/std_data/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+create table raw_binlog_rows (txt varchar(1000));
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql' into table raw_binlog_rows columns terminated by '\n';
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+--enable_query_log
+--echo Verbose statements from : $binlog_file
+# Output --verbose lines, with extra Windows CR's trimmed
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+drop table raw_binlog_rows;
+
+--disable_query_log
+--let $binlog_file=write-full-row.binlog
+--exec $MYSQL_BINLOG --verbose suite/binlog/std_data/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+create table raw_binlog_rows (txt varchar(1000));
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql' into table raw_binlog_rows columns terminated by '\n';
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+--enable_query_log
+--echo Verbose statements from : $binlog_file
+# Output --verbose lines, with extra Windows CR's trimmed
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+drop table raw_binlog_rows;
+
+--disable_query_log
+--let $binlog_file=update-partial-row.binlog
+--exec $MYSQL_BINLOG --verbose suite/binlog/std_data/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+create table raw_binlog_rows (txt varchar(1000));
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql' into table raw_binlog_rows columns terminated by '\n';
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+--enable_query_log
+--echo Verbose statements from : $binlog_file
+# Output --verbose lines, with extra Windows CR's trimmed
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+drop table raw_binlog_rows;
+
+--disable_query_log
+--let $binlog_file=update-full-row.binlog
+--exec $MYSQL_BINLOG --verbose suite/binlog/std_data/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+create table raw_binlog_rows (txt varchar(1000));
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql' into table raw_binlog_rows columns terminated by '\n';
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+--enable_query_log
+--echo Verbose statements from : $binlog_file
+# Output --verbose lines, with extra Windows CR's trimmed
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+drop table raw_binlog_rows;
+
+
+#######################################################################
+# BUG#13799555: ROWS_QUERY_LOG_EVENTS DOES NOT ESCAPE MULTI-LINE QUERIES PROPERLY
+#
+# Check that when mysqlbinlog is given the option --verbose --verbose,
+# the multi-line original statement are properly escaped to prevent from
+# being executed.
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS = 1;
+CREATE TABLE t1 (a VARCHAR(50));
+--let $binlog_start_position= query_get_value("SHOW MASTER STATUS", Position, 1)
+
+--delimiter |
+INSERT INTO t1 VALUES ("
+  GRANT ALL ON *.* TO 'batman'/*!*/;
+  ")|
+--delimiter ;
+
+--let $binlog_stop_position= query_get_value("SHOW MASTER STATUS", Position, 1)
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $datadir= `SELECT @@datadir`
+
+--let $_prefix= `SELECT UUID()`
+--let $TMP_FILE= $MYSQLTEST_VARDIR/tmp/$_prefix.tmp
+--exec $MYSQL_BINLOG --force-if-open --verbose --verbose --start-position=$binlog_start_position --stop-position=$binlog_stop_position $datadir/$binlog_file > $TMP_FILE
+
+--let TMP_FILE= $TMP_FILE
+--perl END_OF_FILE
+my $tmp_file= $ENV{'TMP_FILE'};
+
+my $escaped_query = <<END;
+# INSERT INTO t1 VALUES ("
+#   GRANT ALL ON *.* TO 'batman'/*!*/;
+#   ")
+END
+
+open(FILE, $tmp_file) or die("Unable to open $tmp_file: $!\n");
+my $contents = do { local $/; <FILE> };
+close(FILE) or die("Unable to close file.");
+
+$match= index($contents, $escaped_query) > -1;
+if (!$match)
+{
+  print "\n====================================================\n";
+  print "ESCAPED STRING DID NOT MATCH:\n";
+  print "====================================================\n";
+  print "$escaped_query";
+  print "====================================================\n";
+
+  print "\n====================================================\n";
+  print "BINLOG CONTENTS\n";
+  print "====================================================\n";
+  print "$contents";
+  print "====================================================\n";
+}
+END_OF_FILE
+
+# Clean up
+DROP TABLE t1;
+--remove_file $TMP_FILE

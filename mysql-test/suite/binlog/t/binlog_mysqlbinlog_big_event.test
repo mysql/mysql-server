@@ -1,0 +1,65 @@
+# ==== Purpose ====
+# Test mysqlbinlog with a binlog event larger than 128kb.
+# using have_binlog_format_statement to create a statement
+# based binlog event greater than 128kb. The idea is to insert
+# a big string in a table having a BLOB column.
+#
+# === Implementaion ===
+-- source include/have_binlog_format_statement.inc
+
+# Reset master to cleanup binlog
+RESET MASTER;
+
+# we need this for getting fixed timestamps inside of this test
+SET timestamp=1000000000;
+
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+let $MYSQLD_DATADIR=`select @@datadir`;
+CREATE TABLE t2 (word LONGBLOB);
+let $i = 53000;
+--disable_query_log
+SET @string = 'testing ';
+while($i > 0)
+{
+  SET @string = CONCAT(@string, 'testing ');
+  dec $i;
+}
+
+INSERT INTO t2 VALUES(@string);
+--enable_query_log
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+FLUSH LOGS;
+
+--replace_regex /SQL_LOAD_MB-[a-f0-9]-[a-f0-9]/SQL_LOAD_MB-#-#/
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+
+--let _BINLOG_FILE= $MYSQLD_DATADIR/$binlog_file
+--let _MYSQLBINLOG= $MYSQL_BINLOG
+# use this to find out which command to use 'cat' or 'type'
+--let _IS_WINDOWS = 0
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
+{
+  --let _IS_WINDOWS= 1
+}
+--perl
+  use strict;
+  use warnings;
+  my $binlog_file_perl = $ENV{'_BINLOG_FILE'};
+  my $mysqlbinlog = $ENV{'_MYSQLBINLOG'};
+  my $is_windows = $ENV{'_IS_WINDOWS'};
+
+  if ($is_windows)
+  {
+    $binlog_file_perl =~ tr{/}{\\};
+    my $result = `type  $binlog_file_perl | $mysqlbinlog --short-form -`;
+  }
+  else
+  {
+    my $result = `cat  $binlog_file_perl | $mysqlbinlog  --short-form - `;
+  }
+EOF
+
+DROP TABLE t2;

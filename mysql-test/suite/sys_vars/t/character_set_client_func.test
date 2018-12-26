@@ -1,0 +1,82 @@
+############## mysql-test\t\character_set_client_func.test  ###################
+#                                                                             #
+# Variable Name: character_set_client                                         #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value: utf8 (session), latin1 (global)                              #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable character_set_client     #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#--------------------FN_DYNVARS_010_01-------------------------#'
+######################################################################
+# Check if setting character_set_client is changed in new connection # 
+######################################################################
+
+# save
+SET @global_character_set_client = @@global.character_set_client;
+SET @session_character_set_client = @@session.character_set_client;
+
+
+SET @@global.character_set_client = utf8;
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+--echo 'connection con1'
+connection con1;
+SELECT @@global.character_set_client;
+SELECT @@session.character_set_client;
+disconnect con1;
+
+--echo '#--------------------FN_DYNVARS_010_02-------------------------#'
+#############################################################
+# Begin the functionality Testing of character_set_client   #
+#############################################################
+
+--echo 'connection default'
+connection default;
+
+SHOW VARIABLES like 'character_set_client';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a CHAR(3) character set utf8);
+
+#==============================================================================
+--echo '---verifying character_set_client with a utf8 character----'
+#==============================================================================
+--echo 'For latin1 characterset';
+SET @@session.character_set_client = latin1;
+INSERT INTO t1 values('è');
+SELECT hex(a),CHAR_LENGTH(a) FROM t1;
+DELETE FROM t1;
+
+--echo 'For utf8 characterset';
+SET @@session.character_set_client = utf8;
+INSERT INTO t1 values('è');
+SELECT hex(a),CHAR_LENGTH(a) FROM t1;
+DELETE FROM t1;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# restore
+SET @@global.character_set_client = @global_character_set_client;
+SET @@session.character_set_client = @session_character_set_client;
+
+############################################################
+# End of functionality Testing for character_set_client    #
+############################################################

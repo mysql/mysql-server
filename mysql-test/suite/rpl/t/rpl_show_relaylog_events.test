@@ -1,0 +1,72 @@
+# ==== Purpose ====
+#
+# Test that SHOW RELAYLOG EVENTS works with different options for the
+# LIMIT clause, as well as with and without FROM clause, and with and
+# without IN clause.
+#
+# ==== Implementation ====
+#
+# This test issues SHOW RELAYLOG EVENTS on slave after
+# some statements have been issued.
+#
+# ==== References ====
+#
+# BUG#28777 SHOW BINLOG EVENTS does not work on relay log files
+# - test created in this wl
+# WL#7592 GTIDS: generate gtid_log_event always
+# - unified all the different files that were part of this test
+
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+--echo ==== Initialize ====
+
+CREATE TABLE t1 (a INT);
+FLUSH LOGS;
+CREATE TABLE t2 (a INT);
+DROP TABLE t1;
+DROP TABLE t2;
+--source include/sync_slave_sql_with_master.inc
+
+--echo ==== Test ====
+
+# Show relay log
+--let $is_relay_log= 1
+
+# Unify query_log_event(COMMIT) and Xid_log_event so that result file
+# becomes independent of whether transactional or nontransactional
+# engine is used.
+--let $mask_binlog_commit_events= 1
+
+# Do not mask away gtid events
+--let $keep_gtid_events= 0
+
+# Skip Previous_gtid, Rotate, and Format_desc
+--let $binlog_skip_all_header_events= 1
+
+# Echo the SHOW statement (with nondeterministic fields masked)
+--let $show_binlog_events_verbose= 1
+
+# Get the last relay log file
+--let $binlog_file= LAST
+
+# 1. Test with no LIMIT clause
+--let $binlog_limit=
+--source include/show_relaylog_events.inc
+
+# 2. Test with LIMIT COUNT clause
+--let $binlog_limit= 1
+--source include/show_relaylog_events.inc
+
+# 3. Test with LIMIT OFFSET, COUNT clause
+--let $binlog_limit= 1,3
+--source include/show_relaylog_events.inc
+
+# 4. Test showing default relay log file
+--let $binlog_file=
+--let $binlog_limit=
+--source include/show_relaylog_events.inc
+
+--echo ==== Cleanup ====
+
+--source include/rpl_end.inc

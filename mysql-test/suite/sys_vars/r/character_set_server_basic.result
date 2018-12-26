@@ -1,0 +1,541 @@
+SET @global_start_value = @@global.character_set_server;
+SELECT @global_start_value;
+@global_start_value
+utf8mb4
+SET @session_start_value = @@character_set_server;
+SELECT @session_start_value;
+@session_start_value
+utf8mb4
+SET @session_start_value = @@local.character_set_server;
+SELECT @session_start_value;
+@session_start_value
+utf8mb4
+SET @session_start_value = @@session.character_set_server;
+SELECT @session_start_value;
+@session_start_value
+utf8mb4
+'#--------------------FN_DYNVARS_009_01------------------#'
+SELECT character_set_server;
+ERROR 42S22: Unknown column 'character_set_server' in 'field list'
+SET character_set_server=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT @@session.character_set_server;
+@@session.character_set_server
+utf8
+SET global.character_set_server=utf8;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_server=utf8' at line 1
+SET session character_set_server=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT session character_set_server;
+ERROR 42S22: Unknown column 'session' in 'field list'
+SET global character_set_server=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT global character_set_server;
+ERROR 42S22: Unknown column 'global' in 'field list'
+SET @@character_set_server = null;
+ERROR 42000: Variable 'character_set_server' can't be set to the value of 'NULL'
+'#--------------------FN_DYNVARS_009_02-------------------------#'
+SET @@character_set_server = latin5;
+SET @@character_set_server = DEFAULT;
+SELECT @@character_set_server AS DEFAULT_VALUE;
+DEFAULT_VALUE
+utf8
+SET @@global.character_set_server = latin5;
+SET @@global.character_set_server = DEFAULT;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+utf8mb4
+'#--------------------FN_DYNVARS_009_03-------------------------#'
+SET @@session.character_set_server = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT @@session.character_set_server;
+@@session.character_set_server
+utf8
+SET @@global.character_set_server = latin2;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+latin2
+SELECT @@session.character_set_server AS res_is_utf8;
+res_is_utf8
+utf8
+SET @@session.character_set_server = latin5;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+latin5
+SELECT @@global.character_set_server AS res_is_latin2;
+res_is_latin2
+latin2
+SELECT @@global.character_set_server=@@session.character_set_server
+AS res_is_false;
+res_is_false
+0
+'#--------------------FN_DYNVARS_009_04-------------------------#'
+SELECT @@character_set_server = @@session.character_set_server AS res;
+res
+1
+SELECT @@character_set_server = @@local.character_set_server AS res;
+res
+1
+'#--------------------FN_DYNVARS_009_05-------------------------#'
+SET @@character_set_server = utf8 + latin2;
+ERROR 42S22: Unknown column 'utf8' in 'field list'
+'#--------------------FN_DYNVARS_009_06-------------------------#'
+SET @@session.character_set_server = big5;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+big5
+SET @@session.character_set_server = dec8;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+dec8
+SET @@session.character_set_server = cp850;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+cp850
+SET @@session.character_set_server = hp8;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+hp8
+SET @@session.character_set_server = koi8r;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+koi8r
+SET @@session.character_set_server = latin1;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+latin1
+SET @@session.character_set_server = latin2;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+latin2
+SET @@session.character_set_server = swe7;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+swe7
+SET @@session.character_set_server = ascii;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+ascii
+SET @@session.character_set_server = ujis;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+ujis
+SET @@session.character_set_server = sjis;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+sjis
+SET @@session.character_set_server = hebrew;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+hebrew
+SET @@session.character_set_server = tis620;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+tis620
+SET @@session.character_set_server = euckr;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+euckr
+SET @@session.character_set_server = koi8u;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+koi8u
+SET @@session.character_set_server = gb2312;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+gb2312
+SET @@session.character_set_server = greek;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+greek
+SET @@session.character_set_server = cp1250;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+cp1250
+SET @@session.character_set_server = gbk;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+gbk
+SET @@session.character_set_server = gb18030;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+gb18030
+SET @@session.character_set_server = latin5;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+latin5
+SET @@session.character_set_server = armscii8;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+armscii8
+SET @@session.character_set_server = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT @@session.character_set_server;
+@@session.character_set_server
+utf8
+SET @@session.character_set_server = utf8mb4;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+utf8mb4
+SET @@session.character_set_server = ucs2;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+ucs2
+SET @@session.character_set_server = cp866;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+cp866
+SET @@session.character_set_server = keybcs2;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+keybcs2
+SET @@session.character_set_server = macce;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+macce
+SET @@session.character_set_server = macroman;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+macroman
+SET @@session.character_set_server = cp852;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+cp852
+SET @@session.character_set_server = latin7;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+latin7
+SET @@session.character_set_server = cp1251;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+cp1251
+SET @@session.character_set_server = cp1256;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+cp1256
+SET @@session.character_set_server = cp1257;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+cp1257
+SET @@session.character_set_server = binary;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+binary
+SET @@session.character_set_server = geostd8;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+geostd8
+SET @@session.character_set_server = cp932;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+cp932
+SET @@session.character_set_server = eucjpms;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+eucjpms
+'#--------------------FN_DYNVARS_009_07-------------------------#'
+SET @@global.character_set_server = big5;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+big5
+SET @@global.character_set_server = dec8;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+dec8
+SET @@global.character_set_server = cp850;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp850
+SET @@global.character_set_server = hp8;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+hp8
+SET @@global.character_set_server = koi8r;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+koi8r
+SET @@global.character_set_server = latin1;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+latin1
+SET @@global.character_set_server = latin2;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+latin2
+SET @@global.character_set_server = swe7;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+swe7
+SET @@global.character_set_server = ascii;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+ascii
+SET @@global.character_set_server = ujis;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+ujis
+SET @@global.character_set_server = sjis;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+sjis
+SET @@global.character_set_server = hebrew;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+hebrew
+SET @@global.character_set_server = tis620;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+tis620
+SET @@global.character_set_server = euckr;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+euckr
+SET @@global.character_set_server = koi8u;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+koi8u
+SET @@global.character_set_server = gb2312;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+gb2312
+SET @@global.character_set_server = greek;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+greek
+SET @@global.character_set_server = cp1250;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp1250
+SET @@global.character_set_server = gbk;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+gbk
+SET @@global.character_set_server = gb18030;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+gb18030
+SET @@global.character_set_server = latin5;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+latin5
+SET @@global.character_set_server = armscii8;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+armscii8
+SET @@global.character_set_server = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT @@global.character_set_server;
+@@global.character_set_server
+utf8
+SET @@global.character_set_server = utf8mb4;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+utf8mb4
+SET @@global.character_set_server = ucs2;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+ucs2
+SET @@global.character_set_server = cp866;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp866
+SET @@global.character_set_server = keybcs2;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+keybcs2
+SET @@global.character_set_server = macce;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+macce
+SET @@global.character_set_server = macroman;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+macroman
+SET @@global.character_set_server = cp852;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp852
+SET @@global.character_set_server = latin7;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+latin7
+SET @@global.character_set_server = cp1251;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp1251
+SET @@global.character_set_server = cp1256;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp1256
+SET @@global.character_set_server = cp1257;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp1257
+SET @@global.character_set_server = binary;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+binary
+SET @@global.character_set_server = geostd8;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+geostd8
+SET @@global.character_set_server = cp932;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp932
+SET @@global.character_set_server = eucjpms;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+eucjpms
+'#--------------------FN_DYNVARS_009_08-------------------------#'
+SET @@character_set_server = UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT @@character_set_server;
+@@character_set_server
+utf8
+SET @@character_set_server = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT @@character_set_server;
+@@character_set_server
+utf8
+SET @@global.character_set_server = uTf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT @@global.character_set_server;
+@@global.character_set_server
+utf8
+'#--------------------FN_DYNVARS_009_09-------------------------#'
+SET @@character_set_server = 1;
+SELECT @@character_set_server;
+@@character_set_server
+big5
+SET @@character_set_server = 2;
+SELECT @@character_set_server;
+@@character_set_server
+latin2
+SET @@character_set_server = 3;
+SELECT @@character_set_server;
+@@character_set_server
+dec8
+SET @@character_set_server = 36;
+SELECT @@character_set_server;
+@@character_set_server
+cp866
+SET @@character_set_server = 99;
+SELECT @@character_set_server;
+@@character_set_server
+cp1250
+SET @@character_set_server = 100;
+ERROR 42000: Unknown character set: '100'
+SET @@global.character_set_server = 1;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+big5
+SET @@global.character_set_server = 2;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+latin2
+SET @@global.character_set_server = 36;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp866
+SET @@global.character_set_server = 99;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+cp1250
+SET @@global.character_set_server = 100;
+ERROR 42000: Unknown character set: '100'
+'#--------------------FN_DYNVARS_009_10-------------------------#'
+SET @@character_set_server = abc;
+ERROR 42000: Unknown character set: 'abc'
+SET @@character_set_server = 1utf8;
+ERROR 42000: Unknown character set: '1utf8'
+SET @@character_set_server = 0;
+ERROR 42000: Unknown character set: '0'
+SET @@character_set_server = 1.1;
+ERROR 42000: Incorrect argument type to variable 'character_set_server'
+SET @@character_set_server = -1;
+ERROR 42000: Unknown character set: '-1'
+SET @@character_set_server = '';
+ERROR 42000: Unknown character set: ''
+SET @@character_set_server = 'utf';
+ERROR 42000: Unknown character set: 'utf'
+SET @@character_set_server = true;
+SELECT @@character_set_server AS res_with_true;
+res_with_true
+big5
+SET @@character_set_server = ON;
+ERROR 42000: Unknown character set: 'ON'
+SET @@character_set_server = repeat('e', 256);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@character_set_server = repeat('e', 1024);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+'#--------------------FN_DYNVARS_009_11-------------------------#'
+SET @@global.character_set_server = abc;
+ERROR 42000: Unknown character set: 'abc'
+SET @@global.character_set_server = 1utf8;
+ERROR 42000: Unknown character set: '1utf8'
+SET @@global.character_set_server = 0;
+ERROR 42000: Unknown character set: '0'
+SET @@global.character_set_server = 1.1;
+ERROR 42000: Incorrect argument type to variable 'character_set_server'
+SET @@global.character_set_server = -1;
+ERROR 42000: Unknown character set: '-1'
+SET @@global.character_set_server = '';
+ERROR 42000: Unknown character set: ''
+SET @@global.character_set_server = 'utf';
+ERROR 42000: Unknown character set: 'utf'
+SET @@global.character_set_server = true;
+SET @@global.character_set_server = ON;
+ERROR 42000: Unknown character set: 'ON'
+SET @@global.character_set_server = repeat('e', 256);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@global.character_set_server = repeat('e', 1024);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+'#--------------------FN_DYNVARS_009_12-------------------------#'
+SELECT @@global.character_set_server =
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='character_set_server') AS res;
+res
+1
+SET @@global.character_set_server = 1;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+big5
+SELECT @@global.character_set_server =
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='character_set_server') AS res;
+res
+1
+'#--------------------FN_DYNVARS_009_13-------------------------#'
+SELECT @@character_set_server =
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='character_set_server') AS res;
+res
+1
+SELECT @@local.character_set_server =
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='character_set_server') AS res;
+res
+1
+SELECT @@session.character_set_server =
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='character_set_server') AS res;
+res
+1
+SET @@global.character_set_server = @global_start_value;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+utf8mb4
+SET @@session.character_set_server = @session_start_value;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+utf8mb4

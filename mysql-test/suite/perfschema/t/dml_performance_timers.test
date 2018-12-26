@@ -1,0 +1,33 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--replace_column 2 <frequency> 3 <resolution> 4 <overhead>
+select * from performance_schema.performance_timers;
+
+--replace_column 2 <frequency> 3 <resolution> 4 <overhead>
+select * from performance_schema.performance_timers
+  where timer_name='CYCLE';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.performance_timers
+  set timer_name='FOO', timer_frequency=1,
+  timer_resolution=2, timer_overhead=3;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.performance_timers
+  set timer_frequency=12 where timer_name='CYCLE';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.performance_timers;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.performance_timers
+  where timer_name='CYCLE';
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.performance_timers READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.performance_timers WRITE;
+UNLOCK TABLES;
+

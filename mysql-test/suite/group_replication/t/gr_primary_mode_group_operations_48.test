@@ -1,0 +1,119 @@
+###############################################################################
+#
+# When a primary election is running, executing an action it will fail
+#
+# Test:
+#   0. This test requires three servers
+#   1. Start server1 and bootstrap group
+#   2. Configure server2 with weight to be next primary
+#   3. Lock table to block primary election
+#   4. Start server3
+#   5. Insert data to prevent server2 set read only and block on primary
+#      election
+#   6. Stop server1 and run primary election
+#   7. Executing an action will fail, a primary election is running
+#   8. Unlock table to primary election finish
+#   9. Assert server2 is the new primary
+#  10. Cleanup
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start server1 and bootstrap group
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+--echo
+--echo # 2. Configure server2 with weight to be next primary
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL group_replication_member_weight= 90;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 3. Lock table to block primary election
+
+LOCK TABLE t1 READ;
+
+--echo
+--echo # 4. Start server3
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. A primary election is occurring in the group. Wait for it to end.");
+set session sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 5. Insert data to prevent server2 set read only and block on primary
+--echo #    election
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+
+--echo
+--echo # 6. Stop server1 and run primary election
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 7. Executing an action will fail, a primary election is running
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl/Primary Election: waiting on current primary transaction execution%"
+--source include/wait_condition.inc
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 8. Unlock table to primary election finish
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+UNLOCK TABLES;
+
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
+--source include/wait_condition.inc
+
+--echo
+--echo # 9. Assert server2 is the new primary
+
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 10. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+SET GLOBAL group_replication_member_weight= DEFAULT;
+
+--source include/group_replication_end.inc

@@ -1,0 +1,177 @@
+
+########### implicit_char_to_num_conversion.test #######################
+#                                                                      #
+# This test aims at using string/char literal in comparison operators  #
+# without explicit type-cast. This is a bug test for Bug#11766521      #
+# - Incorrect result is returned if string/char literal is used with   #
+# comparision operator and bit data type column. Test is extended to   #
+# include numeric data type comparison with string/char literal        #
+#                                                                      #
+#                                                                      #
+# Creation:                                                            #
+# 2011-05-10 vfisrekar Implement this test as part of Bug#11766521     #
+#                                                                      #
+########################################################################
+
+--disable_warnings
+DROP TABLE IF EXISTS t5;
+--enable_warnings
+
+let $default_engine = `select @@SESSION.default_storage_engine`;
+
+# Bug#11766521 - BIT Datatype comparison in where clause return incorrect
+# result for '=' , '<=>' operators
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1  BIT(2) PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (0), (1), (2);
+SELECT HEX(c1) FROM t5 ORDER BY c1;
+# Enable Following two select after Bug#11766521 fix
+# SELECT HEX(c1) FROM t5 WHERE c1 = '1' ORDER BY c1;
+# SELECT HEX(c1) FROM t5 WHERE c1 <=> '1' ORDER BY c1;
+SELECT HEX(c1) FROM t5 WHERE c1 = b'1' ORDER BY c1;
+SELECT HEX(c1) FROM t5 WHERE c1 <=> b'1' ORDER BY c1;
+SELECT HEX(c1) FROM t5 WHERE c1 != b'1' ORDER BY c1;
+--echo # In the following queries the string is compared as ASCII when
+--echo # range access is used. See BUG#13727586.
+SELECT HEX(c1) FROM t5 WHERE c1 >= '1' ORDER BY c1;
+SELECT HEX(c1) FROM t5 WHERE c1 <= '1' ORDER BY c1;
+SELECT HEX(c1) FROM t5 WHERE c1 < '1' ORDER BY c1;
+SELECT HEX(c1) FROM t5 WHERE c1 > '0' ORDER BY c1;
+DROP TABLE t5;
+
+# FLOAT Data-type
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1 FLOAT(5,2) PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (95.95), (-10.10), (1), (0);
+SELECT c1 FROM t5 ORDER BY c1;
+# Compare with string literal
+# Following two queries does not return result may be due to Bug#11766521. 
+# Enable them after Bug#11766521 fix.
+# SELECT c1 FROM t5 WHERE c1 = '10.10' ORDER BY c1;
+# SELECT c1 FROM t5 WHERE c2 <=> '11.11' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 >= '95' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <= '10.10' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 != '1' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 < '1' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 > '0' ORDER BY c1;
+DROP TABLE t5;
+
+# TINYINT Datatype
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1 TINYINT PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (95), (10),(11),(-8);
+SELECT c1 FROM t5 ORDER BY c1;
+# Compare with string literal
+SELECT c1 FROM t5 WHERE c1 = '10' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <=> '10' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 >= '95' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <= '11' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 != '-8' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 < '11' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 > '10' ORDER BY c1;
+DROP TABLE t5;
+
+# SMALLINT Datatype
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1 SMALLINT PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (395), (-200), (100), (111);
+SELECT c1 FROM t5 ORDER BY c1;
+# Compare with string literal
+SELECT c1 FROM t5 WHERE c1 = '100' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <=> '100' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 >= '395' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <= '-200' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 != '100' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 < '111' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 > '111' ORDER BY c1;
+DROP TABLE t5;
+
+# MEDIUMINT Datatype
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1 MEDIUMINT PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (-8388607), (311),(215),(88608);
+SELECT c1 FROM t5 ORDER BY c1;
+# Compare with string literal
+SELECT c1 FROM t5 WHERE c1 = '311' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <=> '311' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 >= '215' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <= '88608' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 != '-8388607' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 < '215' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 > '215' ORDER BY c1;
+DROP TABLE t5;
+
+# INT Datatype
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1 INT PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (-2147483647), (1011),(15),(9388607);
+SELECT c1 FROM t5 ORDER BY c1;
+# Compare with string literal
+SELECT c1 FROM t5 WHERE c1 = '9388607' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <=> '9388607' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 >= '15' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <= '1011' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 != '-2147483647' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 < '15' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 > '15' ORDER BY c1;
+DROP TABLE t5;
+
+# BIGINT Data-type
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1 BIGINT PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (-9223372036854775807), (12011),(500),(3372036854775808);
+SELECT c1 FROM t5 ORDER BY c1;
+# Compare with string literal
+SELECT c1 FROM t5 WHERE c1 = '-9223372036854775807' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <=> '-9223372036854775807' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 >= '12011' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <= '500' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 != '3372036854775808' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 < '12011' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 > '12011' ORDER BY c1;
+DROP TABLE t5;
+
+# DOUBLE Datatype
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1 DOUBLE(5,2) PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (95.95), (11.11),(5),(-908.92);
+SELECT c1 FROM t5 ORDER BY c1;
+# Compare with string literal
+SELECT c1 FROM t5 WHERE c1 = '11.11' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <=> '11.11' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 >= '5' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <= '95.95' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 != '-908.92' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 < '95.95' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 > '-908.92' ORDER BY c1;
+DROP TABLE t5;
+
+# NUMERIC Datatype
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1 NUMERIC(5,2) PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (95.95), (11.11),(5),(-908.92);
+SELECT c1 FROM t5 ORDER BY c1;
+# Compare with string literal
+SELECT c1 FROM t5 WHERE c1 = '11.11' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <=> '11.11' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 >= '5' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <= '95.95' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 != '-908.92' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 < '95.95' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 > '-908.92' ORDER BY c1;
+DROP TABLE t5;
+
+# DECIMAL Datatype
+--replace_result $default_engine <default_engine>
+eval CREATE TABLE t5(c1 DECIMAL(5,2)  PRIMARY KEY) ENGINE = $default_engine;
+INSERT INTO t5 VALUES (95.95), (11.11),(5),(-908.92);
+SELECT c1 FROM t5 ORDER BY c1;
+# Compare with string literal
+SELECT c1 FROM t5 WHERE c1 = '11.11' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <=> '11.11' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 >= '5' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 <= '95.95' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 != '-908.92' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 < '95.95' ORDER BY c1;
+SELECT c1 FROM t5 WHERE c1 > '-908.92' ORDER BY c1;
+DROP TABLE t5;

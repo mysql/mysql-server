@@ -1,0 +1,180 @@
+################# mysql-test\t\innodb_concurrency_tickets_basic.test ##########
+#                                                                             #
+# Variable Name: innodb_concurrency_tickets                                   #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: Numeric                                                          #
+# Default Value: 5000                                                         #
+# Range: 1-4294967295                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+#Description:Test Cases of Dynamic System Variable innodb_concurrency_tickets #
+#             that checks the behavior of this variable in the following ways #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#                    START OF innodb_concurrency_tickets TESTS         #
+########################################################################
+
+
+################################################################################
+# Saving initial value of innodb_concurrency_tickets in a temporary variable   #
+################################################################################
+
+SET @global_start_value = @@global.innodb_concurrency_tickets;
+SELECT @global_start_value;
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+######################################################################## 
+#           Display the DEFAULT value of innodb_concurrency_tickets    #
+######################################################################## 
+
+SET @@global.innodb_concurrency_tickets = 0;
+SET @@global.innodb_concurrency_tickets = DEFAULT;
+SELECT @@global.innodb_concurrency_tickets;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+################################################################################
+# Check if innodb_concurrency_tickets can be accessed with and without @@ sign #
+################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET innodb_concurrency_tickets = 1;
+SELECT @@innodb_concurrency_tickets;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_concurrency_tickets;
+
+SET global innodb_concurrency_tickets = 0;
+SELECT @@global.innodb_concurrency_tickets;
+
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+########################################################################## 
+#      change the value of innodb_concurrency_tickets to a valid value   #
+########################################################################## 
+
+SET @@global.innodb_concurrency_tickets = 1;
+SELECT @@global.innodb_concurrency_tickets;
+
+SET @@global.innodb_concurrency_tickets = 1000;
+SELECT @@global.innodb_concurrency_tickets;
+
+SET @@global.innodb_concurrency_tickets = 4294967295;
+SELECT @@global.innodb_concurrency_tickets;
+
+--echo '#--------------------FN_DYNVARS_046_04-------------------------#'
+########################################################################### 
+#  Check the value of innodb_concurrency_tickets for out of bounds        #
+###########################################################################
+
+# With a 64 bit mysqld:18446744073709551615,with a 32 bit mysqld: 4294967295
+--disable_warnings
+SET @@global.innodb_concurrency_tickets = 4294967296;
+--enable_warnings
+SELECT @@global.innodb_concurrency_tickets IN (4294967296,4294967295);
+
+--disable_warnings
+SET @@global.innodb_concurrency_tickets = 12345678901;
+--enable_warnings
+SELECT @@global.innodb_concurrency_tickets IN (12345678901,4294967295);
+
+--disable_warnings
+SET @@global.innodb_concurrency_tickets = 18446744073709551615;
+--enable_warnings
+SELECT @@global.innodb_concurrency_tickets IN (18446744073709551615,4294967295);
+
+--echo '#--------------------FN_DYNVARS_046_05-------------------------#'
+########################################################################### 
+#  Change the value of innodb_concurrency_tickets to invalid value        #
+###########################################################################
+
+SET @@global.innodb_concurrency_tickets = -1;
+SELECT @@global.innodb_concurrency_tickets;
+
+SET @@global.innodb_concurrency_tickets = -1024;
+SELECT @@global.innodb_concurrency_tickets;
+
+--Error ER_WRONG_TYPE_FOR_VAR  
+SET @@global.innodb_concurrency_tickets = "T";
+SELECT @@global.innodb_concurrency_tickets;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_concurrency_tickets = "Y";
+SELECT @@global.innodb_concurrency_tickets;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_concurrency_tickets = 1.1;
+SELECT @@global.innodb_concurrency_tickets;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_concurrency_tickets = " ";
+SELECT @@global.innodb_concurrency_tickets;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_concurrency_tickets = ' ';
+SELECT @@global.innodb_concurrency_tickets;
+
+--echo '#----------------------FN_DYNVARS_046_06------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT @@global.innodb_concurrency_tickets =
+ VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME='innodb_concurrency_tickets';
+--enable_warnings
+SELECT @@global.innodb_concurrency_tickets;
+--disable_warnings
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+ WHERE VARIABLE_NAME='innodb_concurrency_tickets';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_046_07-------------------------#'
+###################################################################
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_concurrency_tickets = OFF;
+SELECT @@global.innodb_concurrency_tickets;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_concurrency_tickets = ON;
+SELECT @@global.innodb_concurrency_tickets;
+
+--echo '#---------------------FN_DYNVARS_046_08----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@global.innodb_concurrency_tickets = TRUE;
+SELECT @@global.innodb_concurrency_tickets;
+SET @@global.innodb_concurrency_tickets = FALSE;
+SELECT @@global.innodb_concurrency_tickets;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.innodb_concurrency_tickets = @global_start_value;
+SELECT @@global.innodb_concurrency_tickets;
+
+###############################################################
+#           END OF innodb_concurrency_tickets TESTS           #
+###############################################################
+

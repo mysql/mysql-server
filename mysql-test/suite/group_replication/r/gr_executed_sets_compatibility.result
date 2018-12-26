@@ -1,0 +1,79 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression(".*This member has more executed transactions *.*");
+call mtr.add_suppression(".*The member contains transactions not present *.*");
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression(".*This member has more executed transactions *.*");
+call mtr.add_suppression(".*The member contains transactions not present *.*");
+SET SESSION sql_log_bin= 1;
+#
+# Setup the first member
+#
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/assert.inc [The first member has 3 transaction belonging to the group]
+#
+# Test case 1: Try to add a member with local data on it.
+# The start group replication command shall fail
+#
+[connection server2]
+SET GTID_NEXT= "aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa:1";
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET GTID_NEXT= "AUTOMATIC";
+include/assert.inc [The member shall contain a local transaction]
+SET GLOBAL group_replication_group_name= "b2b6cdc0-eb94-11e5-a837-0800200c9a66";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+# Test case 1 cleanup
+# Remove data on server 2
+DROP TABLE t2;
+RESET MASTER;
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+#
+# Test case 2: Try to add a member with more group transactions
+# The start group replication command shall fail
+#
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [The first member to join has only one transaction]
+[connection server1]
+include/assert.inc [The second member to join has 4 transactions]
+SET GLOBAL group_replication_group_name= "b2b6cdc0-eb94-11e5-a837-0800200c9a66";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+# Test case 2 cleanup
+# Put server 1 back in the group
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+include/stop_group_replication.inc
+RESET MASTER;
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+#
+# Verify all is fine
+#
+[connection server1]
+INSERT INTO t1 VALUES (2);
+include/rpl_sync.inc
+include/assert.inc ['There are two values in table t1']
+[connection server2]
+include/assert.inc ['There are two values in table t1']
+#
+# Cleaning up
+#
+DROP TABLE t1;
+include/group_replication_end.inc

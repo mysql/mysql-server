@@ -1,0 +1,9 @@
+--source include/no_valgrind_without_big.inc
+--let $variable= default_storage_engine
+--source include/begin_replace_gtid_combination.inc
+
+--let $test_file= extra/binlog_tests/enforce_gtid_consistency_create_select_violation.test
+--source extra/binlog_tests/enforce_gtid_consistency.test
+
+--let $variable= default_storage_engine
+--source include/end_replace_gtid_combination.inc

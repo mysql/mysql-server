@@ -1,0 +1,27 @@
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+NULL
+NULL
+NULL
+NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL	NULL	1	2	3	NULL	NULL
+NULL	NULL	NULL	1	2	3	NULL	NULL
+1 IS NULL
+0
+2 IS NOT NULL
+1
+1 IS NULL	2 IS NULL	3 IS NOT NULL	4 IS NOT NULL
+0	0	1	1
+SELECT SCHEMA_NAME, DIGEST_TEXT, COUNT_STAR
+FROM performance_schema.events_statements_summary_by_digest;
+SCHEMA_NAME	DIGEST_TEXT	COUNT_STAR
+test	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`	1
+test	SELECT ?	1
+test	SELECT ? FROM DUAL	1
+test	SELECT ?, ...	2
+test	SELECT ? IS NULL	1
+test	SELECT ? IS NOT NULL	1
+test	SELECT ? IS NULL , ? IS NULL , ? IS NOT NULL , ? IS NOT NULL	1
+test	CREATE TABLE `foo` ( `a` INTEGER DEFAULT ? , `b` INTEGER NOT NULL DEFAULT ? , `c` INTEGER NOT NULL )	1
+test	DROP TABLE `foo`	1

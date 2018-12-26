@@ -1,0 +1,446 @@
+DROP TABLE IF EXISTS `£Τ£±a`;
+DROP TABLE IF EXISTS `£Τ£±b`;
+DROP TABLE IF EXISTS `£Τ£²a`;
+DROP TABLE IF EXISTS `£Τ£²b`;
+DROP TABLE IF EXISTS `£Τ£³a`;
+DROP TABLE IF EXISTS `£Τ£³b`;
+DROP TABLE IF EXISTS `£Τ£΄a`;
+DROP TABLE IF EXISTS `£Τ£΄b`;
+DROP TABLE IF EXISTS `£Τ£µa`;
+DROP TABLE IF EXISTS `£Τ£µb`;
+DROP TABLE IF EXISTS `£Τ£¶a`;
+DROP TABLE IF EXISTS `£Τ£¶b`;
+DROP TABLE IF EXISTS `£Τ£·a`;
+DROP TABLE IF EXISTS `£Τ£·b`;
+DROP TABLE IF EXISTS `£Τ£Έa`;
+DROP TABLE IF EXISTS `£Τ£Έb`;
+DROP TABLE IF EXISTS `£Τ£Ήa`;
+DROP TABLE IF EXISTS `£Τ£Ήb`;
+SET NAMES ujis;
+SET character_set_database = ucs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET collation_connection = ucs2_general_ci;
+CREATE TABLE `£Τ£±a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£±b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£²a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£²b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£³a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£³b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Τ£΄a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MyISAM;
+CREATE TABLE `£Τ£΄b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MyISAM;
+CREATE TABLE `£Τ£µa` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MyISAM;
+CREATE TABLE `£Τ£µb` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MyISAM;
+CREATE TABLE `£Τ£¶a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MyISAM;
+CREATE TABLE `£Τ£¶b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MyISAM;
+CREATE TABLE `£Τ£·a` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£·b` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έa` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έb` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ήa` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ήb` (`£Γ£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+INSERT INTO `£Τ£±a` VALUES ('±'),('¶'),('»');
+INSERT INTO `£Τ£±b` VALUES ('±');
+INSERT INTO `£Τ£²a` VALUES ('¤Ά'),('¤«'),('¤µ');
+INSERT INTO `£Τ£²b` VALUES ('¤Ά');
+INSERT INTO `£Τ£³a` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£³b` VALUES ('νά');
+INSERT INTO `£Τ£΄a` VALUES ('±'),('¶'),('»');
+INSERT INTO `£Τ£΄b` VALUES ('±');
+INSERT INTO `£Τ£µa` VALUES ('¤Ά'),('¤«'),('¤µ');
+INSERT INTO `£Τ£µb` VALUES ('¤Ά');
+INSERT INTO `£Τ£¶a` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£¶b` VALUES ('νά');
+INSERT INTO `£Τ£·a` VALUES ('±'),('¶'),('»');
+INSERT INTO `£Τ£·b` VALUES ('±');
+INSERT INTO `£Τ£Έa` VALUES ('¤Ά'),('¤«'),('¤µ');
+INSERT INTO `£Τ£Έb` VALUES ('¤Ά');
+INSERT INTO `£Τ£Ήa` VALUES ('νά'),('νέ'),('νή');
+INSERT INTO `£Τ£Ήb` VALUES ('νά');
+SELECT * FROM `£Τ£±a` JOIN `£Τ£±b`;
+£Γ£±	£Γ£±
+±	±
+¶	±
+»	±
+SELECT * FROM `£Τ£±a` INNER JOIN `£Τ£±b`;
+£Γ£±	£Γ£±
+±	±
+¶	±
+»	±
+SELECT * FROM `£Τ£±a` JOIN `£Τ£±b` USING (`£Γ£±`);
+£Γ£±
+±
+SELECT * FROM `£Τ£±a` INNER JOIN `£Τ£±b` USING (`£Γ£±`);
+£Γ£±
+±
+SELECT * FROM `£Τ£±a` CROSS JOIN `£Τ£±b`;
+£Γ£±	£Γ£±
+±	±
+¶	±
+»	±
+SELECT * FROM `£Τ£±a` LEFT JOIN `£Τ£±b` USING (`£Γ£±`);
+£Γ£±
+±
+¶
+»
+SELECT * FROM `£Τ£±a` LEFT JOIN `£Τ£±b` ON (`£Τ£±a`.`£Γ£±` = `£Τ£±b`.`£Γ£±`);
+£Γ£±	£Γ£±
+±	±
+¶	NULL
+»	NULL
+SELECT * FROM `£Τ£±b` RIGHT JOIN `£Τ£±a` USING (`£Γ£±`);
+£Γ£±
+±
+¶
+»
+SELECT * FROM `£Τ£±b` RIGHT JOIN `£Τ£±a` ON (`£Τ£±a`.`£Γ£±` = `£Τ£±b`.`£Γ£±`);
+£Γ£±	£Γ£±
+±	±
+NULL	¶
+NULL	»
+SELECT * FROM `£Τ£²a` JOIN `£Τ£²b`;
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	¤Ά
+¤µ	¤Ά
+SELECT * FROM `£Τ£²a` INNER JOIN `£Τ£²b`;
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	¤Ά
+¤µ	¤Ά
+SELECT * FROM `£Τ£²a` JOIN `£Τ£²b` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+SELECT * FROM `£Τ£²a` INNER JOIN `£Τ£²b` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+SELECT * FROM `£Τ£²a` CROSS JOIN `£Τ£²b`;
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	¤Ά
+¤µ	¤Ά
+SELECT * FROM `£Τ£²a` LEFT JOIN `£Τ£²b` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+¤«
+¤µ
+SELECT * FROM `£Τ£²a` LEFT JOIN `£Τ£²b` ON (`£Τ£²a`.`£Γ£±` = `£Τ£²b`.`£Γ£±`);
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	NULL
+¤µ	NULL
+SELECT * FROM `£Τ£²b` RIGHT JOIN `£Τ£²a` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+¤«
+¤µ
+SELECT * FROM `£Τ£²b` RIGHT JOIN `£Τ£²a` ON (`£Τ£²a`.`£Γ£±` = `£Τ£²b`.`£Γ£±`);
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+NULL	¤«
+NULL	¤µ
+SELECT * FROM `£Τ£³a` JOIN `£Τ£³b`;
+£Γ£±	£Γ£±
+νά	νά
+νέ	νά
+νή	νά
+SELECT * FROM `£Τ£³a` INNER JOIN `£Τ£³b`;
+£Γ£±	£Γ£±
+νά	νά
+νέ	νά
+νή	νά
+SELECT * FROM `£Τ£³a` JOIN `£Τ£³b` USING (`£Γ£±`);
+£Γ£±
+νά
+SELECT * FROM `£Τ£³a` INNER JOIN `£Τ£³b` USING (`£Γ£±`);
+£Γ£±
+νά
+SELECT * FROM `£Τ£³a` CROSS JOIN `£Τ£³b`;
+£Γ£±	£Γ£±
+νά	νά
+νέ	νά
+νή	νά
+SELECT * FROM `£Τ£³a` LEFT JOIN `£Τ£³b` USING (`£Γ£±`);
+£Γ£±
+νά
+νέ
+νή
+SELECT * FROM `£Τ£³a` LEFT JOIN `£Τ£³b` ON (`£Τ£³a`.`£Γ£±` = `£Τ£³b`.`£Γ£±`);
+£Γ£±	£Γ£±
+νά	νά
+νέ	NULL
+νή	NULL
+SELECT * FROM `£Τ£³b` RIGHT JOIN `£Τ£³a` USING (`£Γ£±`);
+£Γ£±
+νά
+νέ
+νή
+SELECT * FROM `£Τ£³b` RIGHT JOIN `£Τ£³a` ON (`£Τ£³a`.`£Γ£±` = `£Τ£³b`.`£Γ£±`);
+£Γ£±	£Γ£±
+νά	νά
+NULL	νέ
+NULL	νή
+SELECT * FROM `£Τ£΄a` JOIN `£Τ£΄b`;
+£Γ£±	£Γ£±
+±	±
+¶	±
+»	±
+SELECT * FROM `£Τ£΄a` INNER JOIN `£Τ£΄b`;
+£Γ£±	£Γ£±
+±	±
+¶	±
+»	±
+SELECT * FROM `£Τ£΄a` JOIN `£Τ£΄b` USING (`£Γ£±`);
+£Γ£±
+±
+SELECT * FROM `£Τ£΄a` INNER JOIN `£Τ£΄b` USING (`£Γ£±`);
+£Γ£±
+±
+SELECT * FROM `£Τ£΄a` CROSS JOIN `£Τ£΄b`;
+£Γ£±	£Γ£±
+±	±
+¶	±
+»	±
+SELECT * FROM `£Τ£΄a` LEFT JOIN `£Τ£΄b` USING (`£Γ£±`);
+£Γ£±
+±
+¶
+»
+SELECT * FROM `£Τ£΄a` LEFT JOIN `£Τ£΄b` ON (`£Τ£΄a`.`£Γ£±` = `£Τ£΄b`.`£Γ£±`);
+£Γ£±	£Γ£±
+±	±
+¶	NULL
+»	NULL
+SELECT * FROM `£Τ£΄b` RIGHT JOIN `£Τ£΄a` USING (`£Γ£±`);
+£Γ£±
+±
+¶
+»
+SELECT * FROM `£Τ£΄b` RIGHT JOIN `£Τ£΄a` ON (`£Τ£΄a`.`£Γ£±` = `£Τ£΄b`.`£Γ£±`);
+£Γ£±	£Γ£±
+±	±
+NULL	¶
+NULL	»
+SELECT * FROM `£Τ£µa` JOIN `£Τ£µb`;
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	¤Ά
+¤µ	¤Ά
+SELECT * FROM `£Τ£µa` INNER JOIN `£Τ£µb`;
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	¤Ά
+¤µ	¤Ά
+SELECT * FROM `£Τ£µa` JOIN `£Τ£µb` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+SELECT * FROM `£Τ£µa` INNER JOIN `£Τ£µb` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+SELECT * FROM `£Τ£µa` CROSS JOIN `£Τ£µb`;
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	¤Ά
+¤µ	¤Ά
+SELECT * FROM `£Τ£µa` LEFT JOIN `£Τ£µb` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+¤«
+¤µ
+SELECT * FROM `£Τ£µa` LEFT JOIN `£Τ£µb` ON (`£Τ£µa`.`£Γ£±` = `£Τ£µb`.`£Γ£±`);
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	NULL
+¤µ	NULL
+SELECT * FROM `£Τ£µb` RIGHT JOIN `£Τ£µa` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+¤«
+¤µ
+SELECT * FROM `£Τ£µb` RIGHT JOIN `£Τ£µa` ON (`£Τ£µa`.`£Γ£±` = `£Τ£µb`.`£Γ£±`);
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+NULL	¤«
+NULL	¤µ
+SELECT * FROM `£Τ£¶a` JOIN `£Τ£¶b`;
+£Γ£±	£Γ£±
+νά	νά
+νέ	νά
+νή	νά
+SELECT * FROM `£Τ£¶a` INNER JOIN `£Τ£¶b`;
+£Γ£±	£Γ£±
+νά	νά
+νέ	νά
+νή	νά
+SELECT * FROM `£Τ£¶a` JOIN `£Τ£¶b` USING (`£Γ£±`);
+£Γ£±
+νά
+SELECT * FROM `£Τ£¶a` INNER JOIN `£Τ£¶b` USING (`£Γ£±`);
+£Γ£±
+νά
+SELECT * FROM `£Τ£¶a` CROSS JOIN `£Τ£¶b`;
+£Γ£±	£Γ£±
+νά	νά
+νέ	νά
+νή	νά
+SELECT * FROM `£Τ£¶a` LEFT JOIN `£Τ£¶b` USING (`£Γ£±`);
+£Γ£±
+νά
+νέ
+νή
+SELECT * FROM `£Τ£¶a` LEFT JOIN `£Τ£¶b` ON (`£Τ£¶a`.`£Γ£±` = `£Τ£¶b`.`£Γ£±`);
+£Γ£±	£Γ£±
+νά	νά
+νέ	NULL
+νή	NULL
+SELECT * FROM `£Τ£¶b` RIGHT JOIN `£Τ£¶a` USING (`£Γ£±`);
+£Γ£±
+νά
+νέ
+νή
+SELECT * FROM `£Τ£¶b` RIGHT JOIN `£Τ£¶a` ON (`£Τ£¶a`.`£Γ£±` = `£Τ£¶b`.`£Γ£±`);
+£Γ£±	£Γ£±
+νά	νά
+NULL	νέ
+NULL	νή
+SELECT * FROM `£Τ£·a` JOIN `£Τ£·b`;
+£Γ£±	£Γ£±
+±	±
+¶	±
+»	±
+SELECT * FROM `£Τ£·a` INNER JOIN `£Τ£·b`;
+£Γ£±	£Γ£±
+±	±
+¶	±
+»	±
+SELECT * FROM `£Τ£·a` JOIN `£Τ£·b` USING (`£Γ£±`);
+£Γ£±
+±
+SELECT * FROM `£Τ£·a` INNER JOIN `£Τ£·b` USING (`£Γ£±`);
+£Γ£±
+±
+SELECT * FROM `£Τ£·a` CROSS JOIN `£Τ£·b`;
+£Γ£±	£Γ£±
+±	±
+¶	±
+»	±
+SELECT * FROM `£Τ£·a` LEFT JOIN `£Τ£·b` USING (`£Γ£±`);
+£Γ£±
+±
+¶
+»
+SELECT * FROM `£Τ£·a` LEFT JOIN `£Τ£·b` ON (`£Τ£·a`.`£Γ£±` = `£Τ£·b`.`£Γ£±`);
+£Γ£±	£Γ£±
+±	±
+¶	NULL
+»	NULL
+SELECT * FROM `£Τ£·b` RIGHT JOIN `£Τ£·a` USING (`£Γ£±`);
+£Γ£±
+±
+¶
+»
+SELECT * FROM `£Τ£·b` RIGHT JOIN `£Τ£·a` ON (`£Τ£·a`.`£Γ£±` = `£Τ£·b`.`£Γ£±`);
+£Γ£±	£Γ£±
+±	±
+NULL	¶
+NULL	»
+SELECT * FROM `£Τ£Έa` JOIN `£Τ£Έb`;
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	¤Ά
+¤µ	¤Ά
+SELECT * FROM `£Τ£Έa` INNER JOIN `£Τ£Έb`;
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	¤Ά
+¤µ	¤Ά
+SELECT * FROM `£Τ£Έa` JOIN `£Τ£Έb` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+SELECT * FROM `£Τ£Έa` INNER JOIN `£Τ£Έb` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+SELECT * FROM `£Τ£Έa` CROSS JOIN `£Τ£Έb`;
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	¤Ά
+¤µ	¤Ά
+SELECT * FROM `£Τ£Έa` LEFT JOIN `£Τ£Έb` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+¤«
+¤µ
+SELECT * FROM `£Τ£Έa` LEFT JOIN `£Τ£Έb` ON (`£Τ£Έa`.`£Γ£±` = `£Τ£Έb`.`£Γ£±`);
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+¤«	NULL
+¤µ	NULL
+SELECT * FROM `£Τ£Έb` RIGHT JOIN `£Τ£Έa` USING (`£Γ£±`);
+£Γ£±
+¤Ά
+¤«
+¤µ
+SELECT * FROM `£Τ£Έb` RIGHT JOIN `£Τ£Έa` ON (`£Τ£Έa`.`£Γ£±` = `£Τ£Έb`.`£Γ£±`);
+£Γ£±	£Γ£±
+¤Ά	¤Ά
+NULL	¤«
+NULL	¤µ
+SELECT * FROM `£Τ£Ήa` JOIN `£Τ£Ήb`;
+£Γ£±	£Γ£±
+νά	νά
+νέ	νά
+νή	νά
+SELECT * FROM `£Τ£Ήa` INNER JOIN `£Τ£Ήb`;
+£Γ£±	£Γ£±
+νά	νά
+νέ	νά
+νή	νά
+SELECT * FROM `£Τ£Ήa` JOIN `£Τ£Ήb` USING (`£Γ£±`);
+£Γ£±
+νά
+SELECT * FROM `£Τ£Ήa` INNER JOIN `£Τ£Ήb` USING (`£Γ£±`);
+£Γ£±
+νά
+SELECT * FROM `£Τ£Ήa` CROSS JOIN `£Τ£Ήb`;
+£Γ£±	£Γ£±
+νά	νά
+νέ	νά
+νή	νά
+SELECT * FROM `£Τ£Ήa` LEFT JOIN `£Τ£Ήb` USING (`£Γ£±`);
+£Γ£±
+νά
+νέ
+νή
+SELECT * FROM `£Τ£Ήa` LEFT JOIN `£Τ£Ήb` ON (`£Τ£Ήa`.`£Γ£±` = `£Τ£Ήb`.`£Γ£±`);
+£Γ£±	£Γ£±
+νά	νά
+νέ	NULL
+νή	NULL
+SELECT * FROM `£Τ£Ήb` RIGHT JOIN `£Τ£Ήa` USING (`£Γ£±`);
+£Γ£±
+νά
+νέ
+νή
+SELECT * FROM `£Τ£Ήb` RIGHT JOIN `£Τ£Ήa` ON (`£Τ£Ήa`.`£Γ£±` = `£Τ£Ήb`.`£Γ£±`);
+£Γ£±	£Γ£±
+νά	νά
+NULL	νέ
+NULL	νή
+DROP TABLE `£Τ£±a`;
+DROP TABLE `£Τ£±b`;
+DROP TABLE `£Τ£²a`;
+DROP TABLE `£Τ£²b`;
+DROP TABLE `£Τ£³a`;
+DROP TABLE `£Τ£³b`;
+DROP TABLE `£Τ£΄a`;
+DROP TABLE `£Τ£΄b`;
+DROP TABLE `£Τ£µa`;
+DROP TABLE `£Τ£µb`;
+DROP TABLE `£Τ£¶a`;
+DROP TABLE `£Τ£¶b`;
+DROP TABLE `£Τ£·a`;
+DROP TABLE `£Τ£·b`;
+DROP TABLE `£Τ£Έa`;
+DROP TABLE `£Τ£Έb`;
+DROP TABLE `£Τ£Ήa`;
+DROP TABLE `£Τ£Ήb`;

@@ -1,0 +1,1122 @@
+###############################################################################
+#                                                                             #
+# This test is aimed to focus on a mixtur of operators and testing functions. #
+#                                                                             #
+# Creation Date: 2014-02-25                                                   #
+# Author : Horst Hunger                                                       #
+#                                                                             #
+###############################################################################
+
+
+############################################################################################
+# Creating the spatial objects                                                             #
+############################################################################################
+
+--echo #Creating the spatial Geometry object
+USE test;
+
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+
+############################################################################################
+# Inserting the values specific to the spatial objects                                     #
+############################################################################################
+
+# Geometric elements constructing a star and some of its elememts as base
+SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center= 'POINT(15 10)';
+SET @star_top= 'POINT(15 25)';
+SET @star_bottom_left= 'POINT(5 0)';
+SET @star_bottom_right= 'POINT(25 0)';
+SET @star_bottom_points= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+
+# Star identical to the base star 
+SET @star_elem_vertical_1= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_1= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center_1= 'POINT(15 10)';
+SET @star_top_1= 'POINT(15 25)';
+SET @star_bottom_left_1= 'POINT(5 0)';
+SET @star_bottom_right_1= 'POINT(25 0)';
+SET @star_bottom_points_1= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points_1= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal_1= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical_1= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center_1= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal_1= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical_1= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star_1= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val_1= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val_1= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems_1='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+
+# Star like the base star, but shifted to right by 10 on X to overlap base star
+SET @star_elem_vertical_2= 'POLYGON((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_2= 'POLYGON((35 0,10 15,40 15,32 10,35 0))';
+SET @star_center_2= 'POINT(25 10)';
+SET @star_top_2= 'POINT(25 25)';
+SET @star_bottom_left_2= 'POINT(15 0)';
+SET @star_bottom_right_2= 'POINT(35 0)';
+SET @star_bottom_points_2= 'MULTIPOINT(15 0,35 0)';
+SET @star_all_points_2= 'MULTIPOINT(15 0,35 0,35 10,25 25)';
+SET @star_line_horizontal_2= 'LINESTRING(20 15,30 15)';
+SET @star_line_vertical_2= 'LINESTRING(25 5,25 25)';
+SET @star_top_to_center_2= 'LINESTRING(25 25,25 10)';
+SET @star_lines_near_horizontal_2= 'MULTILINESTRING((35 0,10 15,25 30,10 5))';
+SET @star_lines_near_vertical_2= 'MULTILINESTRING((10 5,25 25,10 25))';
+SET @star_2= 'POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0))';
+SET @star_elem_vertical_val_2= '((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_val_2= '((35 0,10 15,40 15,32 10,35 0))';
+SET @star_of_elems_2='MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0)))';
+
+# Star like the base star, but shifted to right by 60 on X to be completly separate
+SET @star_elem_vertical_3= 'POLYGON((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_3= 'POLYGON((85 0,60 15,90 15,82 10,85 0))';
+SET @star_center_3= 'POINT(75 10)';
+SET @star_top_3= 'POINT(75 25)';
+SET @star_bottom_left_3= 'POINT(65 0)';
+SET @star_bottom_right_3= 'POINT(85 0)';
+SET @star_bottom_points_3= 'MULTIPOINT(65 0,85 0)';
+SET @star_all_points_3= 'MULTIPOINT(65 0,85 0,75 10,75 25)';
+SET @star_line_horizontal_3= 'LINESTRING(70 15,80 15)';
+SET @star_line_vertical_3= 'LINESTRING(75 5,75 25)';
+SET @star_top_to_center_3= 'LINESTRING(75 25,75 10)';
+SET @star_lines_near_horizontal_3= 'MULTILINESTRING((85 0,60 15,85 30,60 5))';
+SET @star_lines_near_vertical_3= 'MULTILINESTRING((60 5,75 25,60 25))';
+SET @star_3= 'POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0))';
+SET @star_elem_vertical_val_3= '((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_val_3= '((85 0,60 15,90 15,82 10,85 0))';
+SET @star_of_elems_3='MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0)))';
+
+--echo #INSERT base star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (100,ST_GEOMFROMTEXT(@star)),
+ (101,ST_GEOMFROMTEXT(@star_elem_vertical)),
+ (102,ST_GEOMFROMTEXT(@star_elem_horizontal)),
+ (103,ST_GEOMFROMTEXT(@star_of_elems)),
+ (104,ST_GEOMFROMTEXT(@star_top)),
+ (105,ST_GEOMFROMTEXT(@star_center)),
+ (106,ST_GEOMFROMTEXT(@star_bottom_left)),
+ (107,ST_GEOMFROMTEXT(@star_bottom_right)),
+ (108,ST_GEOMFROMTEXT(@star_bottom_points)),
+ (109,ST_GEOMFROMTEXT(@star_all_points)),
+ (110,ST_GEOMFROMTEXT(@star_line_horizontal)),
+ (111,ST_GEOMFROMTEXT(@star_line_vertical)),
+ (112,ST_GEOMFROMTEXT(@star_top_to_center)),
+ (113,ST_GEOMFROMTEXT(@star_lines_near_horizontal)),
+ (114,ST_GEOMFROMTEXT(@star_lines_near_vertical));
+--enable_warnings
+
+--echo #INSERT identical (to base) star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (200,ST_GEOMFROMTEXT(@star_1)),
+ (201,ST_GEOMFROMTEXT(@star_elem_vertical_1)),
+ (202,ST_GEOMFROMTEXT(@star_elem_horizontal_1)),
+ (203,ST_GEOMFROMTEXT(@star_of_elems_1)),
+ (204,ST_GEOMFROMTEXT(@star_top_1)),
+ (205,ST_GEOMFROMTEXT(@star_center_1)),
+ (206,ST_GEOMFROMTEXT(@star_bottom_left_1)),
+ (207,ST_GEOMFROMTEXT(@star_bottom_right_1)),
+ (208,ST_GEOMFROMTEXT(@star_bottom_points_1)),
+ (209,ST_GEOMFROMTEXT(@star_all_points_1)),
+ (210,ST_GEOMFROMTEXT(@star_line_horizontal_1)),
+ (211,ST_GEOMFROMTEXT(@star_line_vertical_1)),
+ (212,ST_GEOMFROMTEXT(@star_top_to_center_1)),
+ (213,ST_GEOMFROMTEXT(@star_lines_near_horizontal_1)),
+ (214,ST_GEOMFROMTEXT(@star_lines_near_vertical_1));
+--enable_warnings
+
+--echo #INSERT overlapping star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (300,ST_GEOMFROMTEXT(@star_2)),
+ (301,ST_GEOMFROMTEXT(@star_elem_vertical_2)),
+ (302,ST_GEOMFROMTEXT(@star_elem_horizontal_2)),
+ (303,ST_GEOMFROMTEXT(@star_of_elems_2)),
+ (304,ST_GEOMFROMTEXT(@star_top_2)),
+ (305,ST_GEOMFROMTEXT(@star_center_2)),
+ (306,ST_GEOMFROMTEXT(@star_bottom_left_2)),
+ (307,ST_GEOMFROMTEXT(@star_bottom_right_2)),
+ (308,ST_GEOMFROMTEXT(@star_bottom_points_2)),
+ (309,ST_GEOMFROMTEXT(@star_all_points_2)),
+ (310,ST_GEOMFROMTEXT(@star_line_horizontal_2)),
+ (311,ST_GEOMFROMTEXT(@star_line_vertical_2)),
+ (312,ST_GEOMFROMTEXT(@star_top_to_center_2)),
+ (313,ST_GEOMFROMTEXT(@star_lines_near_horizontal_2)),
+ (314,ST_GEOMFROMTEXT(@star_lines_near_vertical_2));
+--enable_warnings
+
+--echo #INSERT seperate star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (400,ST_GEOMFROMTEXT(@star_3)),
+ (401,ST_GEOMFROMTEXT(@star_elem_vertical_3)),
+ (402,ST_GEOMFROMTEXT(@star_elem_horizontal_3)),
+ (403,ST_GEOMFROMTEXT(@star_of_elems_3)),
+ (404,ST_GEOMFROMTEXT(@star_top_3)),
+ (405,ST_GEOMFROMTEXT(@star_center_3)),
+ (406,ST_GEOMFROMTEXT(@star_bottom_left_3)),
+ (407,ST_GEOMFROMTEXT(@star_bottom_right_3)),
+ (408,ST_GEOMFROMTEXT(@star_bottom_points_3)),
+ (409,ST_GEOMFROMTEXT(@star_all_points_3)),
+ (410,ST_GEOMFROMTEXT(@star_line_horizontal_3)),
+ (411,ST_GEOMFROMTEXT(@star_line_vertical_3)),
+ (412,ST_GEOMFROMTEXT(@star_top_to_center_3)),
+ (413,ST_GEOMFROMTEXT(@star_lines_near_horizontal_3)),
+ (414,ST_GEOMFROMTEXT(@star_lines_near_vertical_3));
+--enable_warnings
+
+CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
+
+--echo #Checking the integrity of the above create/insert statements 
+
+--echo #60 rows. 
+SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
+--echo #60 rows. 
+SELECT count(ST_ASTEXT(g2) != 'NULL') FROM gis_geometrycollection_2;
+
+############################################################################################
+# Checking the spatial testing functions and operator combinations                         #
+############################################################################################
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(@star));
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_ASTEXT(ST_UNION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_UNION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)));
+
+SELECT ST_EQUALS(g,ST_UNION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)))
+       FROM gis_geometrycollection WHERE fid=100;
+
+SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_UNION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)));
+
+SELECT ST_DISJOINT(g,ST_UNION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)))
+       FROM gis_geometrycollection WHERE fid=100;
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_ASTEXT(ST_UNION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_UNION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)));
+
+SELECT ST_EQUALS(g,ST_UNION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)))
+       FROM gis_geometrycollection WHERE fid=100;
+
+SELECT ST_INTERSECTS(ST_GEOMFROMTEXT(@star),ST_UNION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)));
+
+SELECT ST_INTERSECTS(g,ST_UNION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)))
+       FROM gis_geometrycollection WHERE fid=100;
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_ASTEXT(ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)));
+
+SELECT ST_EQUALS(g,ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)))
+       FROM gis_geometrycollection WHERE fid=100;
+
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star),ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)));
+
+SELECT ST_CONTAINS(g,ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star)))
+       FROM gis_geometrycollection WHERE fid=100;
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(@star));
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_WITHIN(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_1));
+
+SELECT ST_OVERLAPS(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_1));
+
+SELECT ST_CROSSES(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_1));
+
+SELECT ST_CROSSES(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_top_to_center_1));
+
+SELECT ST_CROSSES(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_top_to_center_2));
+
+SELECT ST_TOUCHES(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_top_1));
+
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_WITHIN(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_1));
+
+SELECT ST_OVERLAPS(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_1));
+
+SELECT ST_CROSSES(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_1));
+
+SELECT ST_CROSSES(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_top_to_center_1));
+
+SELECT ST_CROSSES(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_top_to_center_2));
+
+SELECT ST_TOUCHES(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),ST_GEOMFROMTEXT(@star_2)),
+       ST_GEOMFROMTEXT(@star_top_1));
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(@star));
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT(@star_elem_horizontal));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with ST_UNION()
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_EQUALS(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_DISJOINT(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_INTERSECTS(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_CROSSES(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_TOUCHES(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_WITHIN(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_OVERLAPS(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with ST_DIFFERENCE()
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_EQUALS(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_DISJOINT(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_INTERSECTS(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_CROSSES(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_TOUCHES(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_WITHIN(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_OVERLAPS(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with ST_SYMDIFFERENCE()
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_EQUALS(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_DISJOINT(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_CROSSES(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_TOUCHES(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_WITHIN(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_OVERLAPS(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with ST_INTERSECTION()
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_EQUALS(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_DISJOINT(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_INTERSECTS(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_CROSSES(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_TOUCHES(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_WITHIN(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+SELECT ST_OVERLAPS(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Operators with ST_UNION()
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_UNION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Operators with ST_DIFFERENCE()
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Operators with ST_SYMDIFFERENCE()
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Operators with ST_INTERSECTION()
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_GEOMFROMTEXT(@star_2)),ST_INTERSECTION(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))));
+
+--echo #=======================================================================================
+--echo # Testing with combinations of 3 functions
+--echo #=======================================================================================
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_UNION() and ST_DIFFERENCE
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_UNION() and ST_SYMDIFFERENCE
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_UNION() and ST_INTERSECTION
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_DIFFERENCE() and ST_UNION
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_DIFFERENCE() and ST_SYMDIFFERENCE
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_DIFFERENCE() and ST_INTERSECTION
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_SYMDIFFERENCE() and ST_UNION
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_SYMDIFFERENCE() and ST_DIFFERENCE
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #----------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_SYMDIFFERENCE() and ST_INTERSECTION
+--echo #----------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_INTERSECTION() and ST_UNION
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_INTERSECTION() and ST_DIFFERENCE
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Testing functions with combination of ST_INTERSECTION() and ST_SYMDIFFERENCE
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_CONTAINS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_EQUALS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_DISJOINT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_INTERSECTS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_CROSSES(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_OVERLAPS(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_TOUCHES(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+SELECT ST_WITHIN(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_UNION() and ST_DIFFERENCE
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_UNION() and ST_SYMDIFFERENCE
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_UNION() and ST_INTERSECTION
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_DIFFERENCE() and ST_UNION
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_DIFFERENCE() and ST_SYMDIFFERENCE
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_DIFFERENCE() and ST_INTERSECTION
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_SYMDIFFERENCE() and ST_UNION
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_SYMDIFFERENCE() and ST_DIFFERENCE
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_SYMDIFFERENCE() and ST_INTERSECTION
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_INTERSECTION() and ST_UNION
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_INTERSECTION() and ST_DIFFERENCE
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Spatial Operators with combination of ST_INTERSECTION() and ST_SYMDIFFERENCE
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)),
+       ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))));
+
+--echo #=======================================================================================
+--echo # Spatial set operations involving empty geometry collections.
+--echo #=======================================================================================
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty collection and empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty collection and non-empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_DIFFERENCE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Non-empty collection and empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)'),ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)'),ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)'),ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)'),ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty intermediate or final result
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0, 4 4)')));
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0, 4 4)')));
+
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')));
+
+--echo #=======================================================================================
+--echo # Spatial relation check operations involving empty geometry collections.
+--echo #=======================================================================================
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty collection and empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_INTERSECTS(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_DISJOINT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_EQUALS(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_CONTAINS(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_WITHIN(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_TOUCHES(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_OVERLAPS(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_CROSSES(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty collection and non-empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_INTERSECTS(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_DISJOINT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_EQUALS(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_CONTAINS(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_WITHIN(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_TOUCHES(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_OVERLAPS(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_CROSSES(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Non-empty collection and empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_INTERSECTS(ST_UNION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_DISJOINT(ST_UNION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_EQUALS(ST_UNION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_CONTAINS(ST_UNION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_WITHIN(ST_UNION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_TOUCHES(ST_UNION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_OVERLAPS(ST_UNION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+SELECT ST_CROSSES(ST_UNION(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOINT(2 2, 3 3)')),
+       ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)')));
+
+--echo #clean up
+DROP TABLE gis_geometrycollection;
+DROP TABLE gis_geometrycollection_2;

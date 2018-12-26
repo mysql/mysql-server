@@ -1,0 +1,256 @@
+-- source include/have_ndb.inc
+
+--result_format 2
+--enable_connect_log
+
+connect (j1,localhost,root,,test);
+connect (j2,localhost,root,,test);
+connect (j3,localhost,root,,test);
+connect (j4,localhost,root,,test);
+
+connect (ddl,localhost,root,,test,$MASTER_MYPORT1,);
+
+connection ddl;
+
+CREATE LOGFILE GROUP lg_1
+    ADD UNDOFILE 'undo_1.dat'
+    INITIAL_SIZE 4M
+    UNDO_BUFFER_SIZE 2M
+    ENGINE NDB;
+
+CREATE TABLESPACE ts_1
+    ADD DATAFILE 'data_1.dat'
+    USE LOGFILE GROUP lg_1
+    INITIAL_SIZE 16M
+    ENGINE NDB;
+
+create table t1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table t2(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK engine=ndb;
+create table t5(id int NOT NULL PRIMARY KEY, data char(8)) max_rows=50000000 engine=ndb;
+create table t6(id int not null primary key, val int unique key, dat blob, txt text) engine=ndb;
+
+# Get blob tables table test.t6
+let ndb_database= test;
+let ndb_table= t6;
+--source suite/ndb/include/ndb_get_blob_tables.inc
+
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t5 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t6 fields terminated by ' ' lines terminated by '\n' ignore 9000 lines (@id, @data) set id = (@id - 9000)*10 - 9, val = (@id - 9000)*10 - 9, dat = repeat(@data, 10000), txt = repeat(@data,10000);
+
+select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
+select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
+select @init_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
+select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
+
+connection default;
+# connection j1;
+
+--replace_column 9 ###
+explain
+  select count(*)
+  from t6 join t1
+  on (t6.val = t1.id)
+  where t6.val < 25;
+
+--disable_query_log
+delimiter %;
+create procedure queryload (seconds int, o int)
+begin
+  set @laps := 0;
+  set @x=time_to_sec(current_time()) + seconds;
+  set @off = o;
+  repeat
+    select count(*)
+    from t6 join t1
+    on (t6.val = t1.id)
+    where t6.val between @off and @off + 24;
+    set @off := o + ((@off + 25) mod 1000);
+  until @x <= time_to_sec(current_time())
+  end repeat;
+end%
+create procedure updateload (seconds int, o int)
+begin
+  set @laps := 0;
+  set @x=time_to_sec(current_time()) + seconds;
+  set @off = o;
+  repeat
+    select count(*)
+    from t6 join t1
+    on (t6.val = t1.id)
+    where t6.val between @off and @off + 24;
+    set @blob := repeat(@off mod 1000,10000);
+    update t6 set dat = @blob, txt = @blob where val between @off and @off + 24;
+    update t6 set id = -id where id mod 2 and val between @off and @off + 24;
+    set @off := o + ((@off + 25) mod 1000);
+  until @x <= time_to_sec(current_time())
+  end repeat;
+end%
+
+delimiter ;%
+--enable_query_log
+
+--echo Starting engines...
+
+connection j1;
+send call updateload(300,0);
+
+connection j2;
+send call queryload(300,2000);
+
+connection j3;
+send call updateload(300,4000);
+
+connection j4;
+send call queryload(300,6000);
+
+connection default;
+sleep 10;
+
+connection ddl;
+
+sleep 3;
+
+## Check details of t5 partitioning
+--replace_regex /FragmentCount:/FragmentCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*//
+--exec $NDB_DESC -dtest -n t5
+
+## Check details of t6 partitioning
+--replace_regex /FragmentCount:/FragmentCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*//
+--exec $NDB_DESC -dtest -n t6 '$bt_test_t6_dat' '$bt_test_t6_txt'
+
+## Create nodegroup for "new" nodes
+--replace_regex /Connected to Management Server at: .*//
+--exec $NDB_MGM -e "create nodegroup 3,4"
+
+## Drop
+--replace_regex /Connected to Management Server at: .*//
+--exec $NDB_MGM -e "drop nodegroup 1"
+## and create
+--replace_regex /Connected to Management Server at: .*//
+--exec $NDB_MGM -e "create nodegroup 3,4"
+
+# Cluster running after adding two ndbd nodes
+
+create table t3(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table t4(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK engine=ndb;
+
+insert into t3(id, data) VALUES 
+(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
+(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+insert into t4(id, data) VALUES
+(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
+(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+
+connection ddl;
+
+alter table t1 algorithm=inplace, reorganize partition;
+alter online table t2 algorithm=inplace, reorganize partition;
+alter online table t5 algorithm=inplace, max_rows=300000000;
+#alter online table t6 algorithm=inplace, reorganize partition;
+send alter online table t6 algorithm=inplace, reorganize partition;
+
+connection default;
+#send call updateload(300,0);
+
+connection ddl;
+reap;
+select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
+select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
+select count(1) as t3_part_count from information_schema.partitions where table_schema='test' and table_name='t3';
+select count(1) as t4_part_count from information_schema.partitions where table_schema='test' and table_name='t4';
+select @reorg_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
+select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
+
+## Check details of t5 partitioning
+--replace_regex /FragmentCount:/FragmentCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*//
+--exec $NDB_DESC -dtest -n t5
+
+--let $t5_part_diff=query_get_value('select @reorg_t5_part_count-@init_t5_part_count as Value',Value,1)
+
+if (!$t5_part_diff)
+{
+  --die Table t5 was not reorganised
+}
+
+## Simple blob usage of t6
+select count(0) as row_count, min(abs(id)) as id_min, max(id) as id_max, sum(length(dat)) as data_length, sum(length(txt)) as text_length from t6;
+select count(0) from t6 where val = abs(id) and (id between -4991 and -4001 or id between -991 and 9991);
+let $count= `select count(0) from t6 where abs(id) <> val or (left(dat,if(val mod 1000 < 100, 2, 3)) div 25 <> (val mod 1000) div 25 and left(dat,3) <> 'old') or length(dat) <> length(txt)` ;
+if ($count)
+{
+  select id, val, length(dat), left(dat,12), length(txt), left(txt,12) from t6 where abs(id) <> val or (left(dat,if(val mod 1000 < 100, 2, 3)) div 25 <> (val mod 1000) div 25 and left(dat,3) <> 'old') or length(dat) <> length(txt);
+#  die Inconsistent data in t6;
+}
+
+## Check details of t6 partitioning
+--replace_regex /FragmentCount:/FragmentCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*//
+--exec $NDB_DESC -dtest -n t6 '$bt_test_t6_dat' '$bt_test_t6_txt'
+
+# Check that main table and blob tables have same hashmap.
+let ndb_database= test;
+let ndb_table= t6;
+let ndb_die_on_error= 1;
+--replace_regex /FragmentCount:/FragmentCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*//
+--source suite/ndb/include/ndb_check_blob_tables.inc
+
+send drop table t1,t2,t3,t4,t5,t6;
+
+connection default;
+#--error 0,ER_NO_SUCH_TABLE,ER_TABLE_DEF_CHANGED
+#reap;
+
+connection j1;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE,ER_TABLE_DEF_CHANGED
+reap;
+--enable_result_log
+
+connection j2;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE,ER_TABLE_DEF_CHANGED
+reap;
+--enable_result_log
+
+connection j3;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE,ER_TABLE_DEF_CHANGED
+reap;
+--enable_result_log
+
+connection j4;
+--disable_result_log
+--error 0,ER_NO_SUCH_TABLE,ER_TABLE_DEF_CHANGED
+reap;
+--enable_result_log
+
+connection ddl;
+reap;
+
+connection default;
+
+disconnect j1;
+disconnect j2;
+disconnect j3;
+disconnect j4;
+
+connection default;
+
+drop procedure queryload;
+drop procedure updateload;
+
+connection ddl;
+## Drop nodegroup with "new" nodes
+--replace_regex /Connected to Management Server at: .*//
+--exec $NDB_MGM -e "drop nodegroup 1"
+
+# Cleanup
+ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat';
+DROP TABLESPACE ts_1;
+DROP LOGFILE GROUP lg_1 ENGINE NDB;
+disconnect ddl;
+
+connection default;

@@ -1,0 +1,99 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start GR on server1 & 2
+[connection server2]
+include/start_and_bootstrap_group_replication.inc
+[connection server1]
+SET @@GLOBAL.DEBUG= @debug_save;
+include/start_group_replication.inc
+
+# 2. Start slave for channel 'ch3_1' between server1(slave) and server3(master)
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch3_1']
+
+# 3. Add some data to server3 & server2
+[connection server3]
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (1);
+[connection server2]
+CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t2 VALUES (1);
+
+# 4. Verify servers are in sync and data is replicated to server1
+[connection server3]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch3_1']
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc [Verify two tables (t1 & t2) are present in test database]
+include/assert.inc [Verify test.t2 is synced]
+
+# 5. Restart server1 with missing group_replication_group_name variable value
+[connection server1]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1 --skip-slave-start=1 --log_error_verbosity=3 --log-error=MYSQLTEST_VARDIR/tmp/gr_start_slave_gr_on_boot_on_rejoining_node_error.err
+include/rpl_reconnect.inc
+
+# 6. Verify that server1 is OFFLINE
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 7. Verify that channel ch3_1 can be started
+include/start_slave.inc [FOR CHANNEL 'ch3_1']
+
+# 8. Start Group Replication on server1
+include/start_group_replication.inc
+
+# 9. Insert a row on server 1 with log to the binlog disabled
+SET SESSION sql_log_bin= 0;
+INSERT INTO t2 VALUES (2);
+SET SESSION sql_log_bin= 1;
+
+# 10. Write the same query in server 2
+#     On server 1 the duplicated key will make the applier fail.
+#     Server 1 will leave
+[connection server2]
+INSERT INTO t2 VALUES (2);
+[connection server1]
+# Expect ERROR state.
+include/gr_wait_for_member_state.inc
+
+# 11. Restart server1 with group replication start on boot
+[connection server1]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --skip-slave-start=0 --log_error_verbosity=3 --log-error=MYSQLTEST_VARDIR/tmp/gr_start_slave_gr_on_boot_on_rejoining_node_error.err
+include/rpl_reconnect.inc
+
+# 12. Verify that server1 errors out
+include/gr_wait_for_member_state.inc
+SET GLOBAL read_only= OFF;
+
+# 13. Verify that channel ch3_1 is not running
+include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_1']
+Pattern found.
+
+# 14. Clean Up
+[connection server2]
+include/stop_group_replication.inc
+DROP TABLE test.t2;
+DROP TABLE test.t1;
+[connection server1]
+RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+DROP TABLE test.t1;
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check *.*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table");
+call mtr.add_suppression("There was a previous plugin error while the member joined the group. The member will now exit the group.");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going");
+SET SESSION sql_log_bin= 1;
+[connection server3]
+DROP TABLE test.t1;
+include/group_replication_end.inc

@@ -1,0 +1,106 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+CREATE TABLE t1 (a INT, b INT, c INT);
+CREATE TABLE t2 (a INT, b INT, c INT);
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=BLACKHOLE;
+INSERT INTO t2 VALUES (1,9,1), (2,9,2), (3,9,3), (4,9,4);
+include/sync_slave_sql_with_master.inc
+[on master]
+INSERT INTO t1 VALUES (1,1,1),(2,1,2),(3,1,3),(4,1,4);
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+[on master]
+UPDATE t1 SET c = 2*c WHERE a % 2 = 0 AND b = 1;
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+[on master]
+DELETE FROM t1 WHERE a % 2 = 0 AND b = 1;
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+[on master]
+INSERT INTO t1 SELECT * FROM t2;
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+ALTER TABLE t1 ADD PRIMARY KEY pk_t1 (a,b);
+[on master]
+INSERT INTO t1 VALUES (1,2,1),(2,2,2),(3,2,3),(4,2,4);
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+[on master]
+UPDATE t1 SET c = 2*c WHERE a % 2 = 0 AND b = 2;
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+[on master]
+DELETE FROM t1 WHERE a % 2 = 0 AND b = 2;
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+ALTER TABLE t1 DROP PRIMARY KEY, ADD KEY key_t1 (a);
+[on master]
+INSERT INTO t1 VALUES (1,3,1),(2,3,2),(3,3,3),(4,3,4);
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+[on master]
+UPDATE t1 SET c = 2*c WHERE a % 2 = 0 AND b = 3;
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+[on master]
+DELETE FROM t1 WHERE a % 2 = 0 AND b = 3;
+[on slave]
+include/sync_slave_sql_with_master.inc
+# Expect 0
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+>>> Something was written to binary log <<<
+DROP TABLE t1,t2;
+include/rpl_end.inc

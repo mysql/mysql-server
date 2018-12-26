@@ -1,0 +1,84 @@
+--disable_query_log
+--disable_result_log
+--let $n= 11
+--let $i= 1
+while ($i < $n)
+{
+  --eval CREATE TABLE t$i(c1 INT) ENGINE= InnoDB;
+  --inc $i
+}
+--enable_result_log
+--enable_query_log
+
+--sync_slave_with_master
+
+--connection master
+SET GLOBAL debug= 'd,semi_sync_3-way_deadlock';
+SET GLOBAL debug= '+d,dump_thread_before_read_event';
+SET DEBUG_SYNC= "before_process_commit_stage_queue WAIT_FOR signal.continue no_clear_event";
+
+--echo # Build 10 connections to master server
+--disable_query_log
+--disable_result_log
+--let $i= 1
+while ($i < $n)
+{
+  --connect(con$i,127.0.0.1,root,,test,$MASTER_MYPORT,)
+  --inc $i
+}
+--enable_result_log
+--enable_query_log
+
+--echo # Execute INSERT statement on these 10 connections in parallel
+--disable_query_log
+--disable_result_log
+
+--let $i= 1
+while ($i < $n)
+{
+  --connection con$i
+  --send
+  --eval INSERT INTO t$i VALUES(2)
+  --inc $i
+}
+--enable_result_log
+--enable_query_log
+
+--connection master1
+SET DEBUG_SYNC= "before_rotate_binlog SIGNAL signal.continue";
+--real_sleep 3
+--echo # Rotate binlog file
+FLUSH LOGS;
+
+--disable_query_log
+--disable_result_log
+--let $i= 1
+while ($i < $n)
+{
+  --connection con$i
+  --reap
+  --inc $i
+}
+--enable_result_log
+--enable_query_log
+
+# clean up
+--connection master
+--disable_query_log
+--disable_result_log
+# disconnect connections
+--let $i= 1
+while ($i < $n)
+{
+  --disconnect con$i
+  --inc $i
+}
+# drop tables
+--let $i= 1
+while ($i < $n)
+{
+  --eval DROP TABLE t$i
+  --inc $i
+}
+--enable_result_log
+--enable_query_log

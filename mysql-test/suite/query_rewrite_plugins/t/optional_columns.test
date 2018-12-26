@@ -1,0 +1,38 @@
+--echo #
+--echo # Tests that the optional column columns work both of they are present
+--echo # and absent. PATTERN_DIGEST and NORMALIZED_PATTERN are optional write-
+--echo # only columns that are not present by default. The MESSAGE column is
+--echo # optional, but included in the install script by default.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
+
+--echo #
+--echo # Testing with PATTERN_DIGEST and NORMALIZED_PATTERN columns.
+--echo #
+--source suite/query_rewrite_plugins/include/basic.inc
+DELETE FROM query_rewrite.rewrite_rules;
+
+--echo #
+--echo # Testing with a NORMALIZED_PATTERN column.
+--echo #
+ALTER TABLE query_rewrite.rewrite_rules DROP COLUMN pattern_digest;
+--source suite/query_rewrite_plugins/include/basic.inc
+DELETE FROM query_rewrite.rewrite_rules;
+
+--echo #
+--echo # Testing with a NORMALIZED_PATTERN column but no MESSAGE column.
+--echo #
+ALTER TABLE query_rewrite.rewrite_rules DROP COLUMN message;
+--source suite/query_rewrite_plugins/include/basic.inc
+DELETE FROM query_rewrite.rewrite_rules;
+
+--echo #
+--echo # Testing with no optional columns.
+--echo #
+ALTER TABLE query_rewrite.rewrite_rules DROP COLUMN normalized_pattern;
+--source suite/query_rewrite_plugins/include/basic.inc
+DELETE FROM query_rewrite.rewrite_rules;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

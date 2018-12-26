@@ -1,0 +1,21 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
+# 
+# Run subquery_sj_all.test with BKA_UNIQUE enabled 
+#
+--source include/have_debug.inc
+SET debug= '+d,test_bka_unique';
+
+set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
+
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+--source t/subquery_sj_all.test
+
+set optimizer_switch=default;
+
+SET sql_mode = default;
+

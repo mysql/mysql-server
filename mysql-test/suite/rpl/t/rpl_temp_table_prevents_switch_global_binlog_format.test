@@ -1,0 +1,85 @@
+# ==== Purpose ====
+#
+# Verify that SET @@global.binlog_format and SET @@persist.binlog_format
+# must be disallowed if any replication channel has open temporary table(s).
+#
+# ==== Implementation ====
+#
+# 1. Start replication with one master and one slave.
+# 2. Connect to slave server.
+# 3. Stop slave applier.
+# 4. Verify that SET @@global.binlog_format is allowed if none
+#    of all replication channels have open temporary table(s).
+# 5. Set binlog format to statement for replicating
+#    CREATE TEMPORARY TABLE temp1 on master.
+# 6. Start slave applier, so that SET @@global.binlog_format=STATEMENT
+#    takes effect on the default slave channel.
+# 7. Replicate the 'CREATE TEMPORARY TABLE temp1' to slave, so that
+#    the default slave channel has an open temporary table.
+# 8. Connect to slave and stop slave threads on the default slave channel.
+# 9. Verify that SET @@global.binlog_format must be disallowed if
+#    any replication channel has open temporary table(s).
+# 10. Verify that SET @@persist.binlog_format must be disallowed if
+#     any replication channel has open temporary table(s).
+#
+# ==== References ====
+#
+# Wl#8872 Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+# Use statement binlog format for replicating CREATE/DROP TEMPORARY TABLE
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+# Connect to slave
+--source include/rpl_connection_slave.inc
+# Stop slave applier.
+--source include/stop_slave_sql.inc
+--echo #
+--echo # Verify that SET @@global.binlog_format is allowed if none
+--echo # of all replication channels have open temporary table(s).
+--echo #
+SET @@global.binlog_format=ROW;
+--echo #
+--echo # Set binlog format to statement for replicating
+--echo # CREATE TEMPORARY TABLE temp1 on master.
+--echo #
+SET @@global.binlog_format=STATEMENT;
+--echo #
+--echo # Start slave applier, so that SET @@global.binlog_format=STATEMENT
+--echo # takes effect on the default slave channel.
+--echo #
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Replicate the 'CREATE TEMPORARY TABLE temp1' to  slave, so that
+--echo # the default slave channel has an open temporary table.
+--echo #
+CREATE TEMPORARY TABLE temp1(a INT);
+--source include/sync_slave_sql_with_master.inc
+
+# Connect to slave
+--source include/rpl_connection_slave.inc
+# Stop slave threads on the default slave channel.
+--source include/stop_slave.inc
+--echo #
+--echo # Verify that SET @@global.binlog_format must be disallowed if
+--echo # any replication channel has open temporary table(s).
+--echo #
+--error ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
+SET @@global.binlog_format=ROW;
+--echo #
+--echo # Verify that SET @@persist.binlog_format must be disallowed if
+--echo # any replication channel has open temporary table(s).
+--echo #
+--error ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
+SET @@persist.binlog_format=ROW;
+
+--source include/start_slave.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TEMPORARY TABLE temp1;
+--source include/rpl_end.inc

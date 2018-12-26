@@ -1,0 +1,235 @@
+################################################################################
+# BUG#21045848 XA+MEMORY TABLE: POST SERVER RESTART 'XA COMMIT'
+#              IS OVERRIDDEN BY 'DELETE' CMD
+#
+# Memory table's data will be lost after server restarts. To keep the data
+# consistency between master and slave, it just binlogs
+# 'DELETE FROM `db`.`table_name`' when the memory table is locked first time.
+# So DELETE statement could be binlogged in many statements.
+#
+# Because it was not handled correctly, it caused below problems:
+## - COM_FIELD_LIST
+#   it didn't flush binlog cache to binlog file. So the DELETEs were not
+#   binlogged in COM_FIELD_LIST, it was binlogged with next statement together.
+#
+# - CREATE TABLE ... LIKE memory_table
+# - CREATE TABLE ... SELECT memory_table
+#   They were binlogged like:
+#   GTID_log_event | Anonymous_gtid_log_event
+#   DELETE FROM memory_table
+#   CREATE TABLE ... LIKE memory_table | CREATE TABLE ... SELECT memory_table
+#
+#   Both statements shared the same gtid event. That was not correct.
+#
+# - DELETE was binlogged without BEGIN and COMMIT
+#   It caused some DML binlogged without BEGIN and COMMIT.  For example:
+#   INSERT INTO myisam_t1 SELECT * FROM memory_table
+#   it was binlogged as:
+#   GTID_log_event | Anonymous_gtid_log_event
+#   DELETE FROM memory_table
+#   INSERT INTO myisam_t1 SELECT * FROM memory_table
+#
+# The test cases verify above statements can binlog 'DELETE' statement
+# correctly. A few extra test cases were added to verify some special
+# situations that updating or modifying a memory table.
+################################################################################
+--source include/not_group_replication_plugin.inc
+--source include/mysql_have_debug.inc
+
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+CALL mtr.add_suppression("Statement accesses nontransactional table as well as transactional or temporary table");
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2(c1 INT);
+CREATE TABLE mem_t1(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+CREATE TABLE mem_t2(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+CREATE TABLE db1.mem_t1(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+CREATE TABLE db1.mem_t2(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+CREATE TABLE db2.mem_t1(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+CREATE TABLE db2.mem_t2(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+CREATE TABLE db2.mem_t3(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+CREATE TABLE db2.mem_t4(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+CREATE TABLE db2.mem_t5(c1 INT PRIMARY KEY) ENGINE = MEMORY;
+
+--delimiter |
+CREATE TRIGGER tr1 AFTER INSERT ON t2 FOR EACH ROW
+BEGIN
+  INSERT INTO t1 SELECT * FROM db2.mem_t3;
+END |
+--delimiter ;
+
+INSERT INTO mem_t1 VALUES(1),(2),(3);
+INSERT INTO mem_t2 VALUES(1),(2),(3);
+INSERT INTO db1.mem_t1 VALUES(1),(2),(3);
+INSERT INTO db1.mem_t2 VALUES(1),(2),(3);
+INSERT INTO db2.mem_t1 VALUES(1),(2),(3);
+INSERT INTO db2.mem_t2 VALUES(1),(2),(3);
+INSERT INTO db2.mem_t3 VALUES(1),(2),(3);
+INSERT INTO db2.mem_t4 VALUES(1),(2),(3);
+INSERT INTO db2.mem_t5 VALUES(1),(2),(3);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_io.inc
+--source include/rpl_connection_master.inc
+
+XA START 'xa1';
+--disable_warnings
+INSERT INTO t1 VALUES(1);
+--enable_warnings
+XA END 'xa1';
+XA PREPARE 'xa1';
+--source include/save_master_pos.inc
+
+--let $rpl_server_number=1
+--source include/rpl_restart_server.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+--source include/sync_slave_sql.inc
+
+--echo #
+--echo # Test case 1: verify XA COMMIT can be binlogged correctly.
+--echo #
+--source include/rpl_connection_master.inc
+--source include/gtid_step_reset.inc
+--source include/save_binlog_position.inc
+
+--exec echo "use test; XA COMMIT 'xa1';" > $MYSQLTEST_VARDIR/tmp/my.sql
+
+# When build-completion-hash is on, mysql client will fetch table name
+# and field name from mysql server automatically just after connecting
+# to the server correctly. it fetches the field by using COM_FIELD_LIST
+# which is expected by this test.
+--exec $MYSQL --build-completion-hash  < $MYSQLTEST_VARDIR/tmp/my.sql 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/my.sql
+
+--let $gtid_step_count= 3
+--source include/gtid_step_assert.inc
+
+--let $limit= 0,8
+--let $event_sequence= Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT
+--let $event_sequence= $event_sequence # $event_sequence
+--source include/assert_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $rpl_diff_statement= SELECT * FROM t1
+--source include/rpl_diff.inc
+
+--echo #
+--echo # Test case 2: verify COM_FIELD_LIST can binlog DELETE FROM mem_xx
+--echo #              correctly
+--echo #
+--source include/rpl_connection_master.inc
+--source include/gtid_step_reset.inc
+
+--exec echo "use db1;" > $MYSQLTEST_VARDIR/tmp/my.sql
+--exec $MYSQL --build-completion-hash  < $MYSQLTEST_VARDIR/tmp/my.sql 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/my.sql
+
+--let $gtid_step_count= 2
+--source include/gtid_step_assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+# DELETE FROM mem_xx have been applied the tables should be empty.
+SELECT * FROM mem_t1;
+SELECT * FROM mem_t2;
+
+--echo #
+--echo # Test case 3: verify DELETE FROM mem_xx can be binlogged correctly
+--echo #              in CREATE TABLE ... LIKE
+--source include/rpl_connection_master.inc
+--source include/gtid_step_reset.inc
+--source include/save_binlog_position.inc
+
+CREATE TABLE t3 LIKE db2.mem_t1;
+
+--let $gtid_step_count= 2
+--source include/gtid_step_assert.inc
+
+--let $limit= 0,4
+--let $event_sequence= Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT
+--source include/assert_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+# DELETE FROM mem_xx have been applied the tables should be empty.
+SELECT * FROM db2.mem_t1;
+
+--echo #
+--echo # Test case 4: verify DELETE FROM mem_xx can be binlogged correctly
+--echo #              in DML
+--source include/rpl_connection_master.inc
+--source include/gtid_step_reset.inc
+--source include/save_binlog_position.inc
+
+# mem_t3 is empty, the UNION makes sure that a row event is binlogged.
+INSERT INTO t3 SELECT * FROM db2.mem_t2 UNION SELECT 10;
+
+--let $gtid_step_count= 2
+--source include/gtid_step_assert.inc
+
+#--let $limit= 0,4
+#--let $event_sequence= Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT
+--source include/assert_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+# DELETE FROM mem_xx have been applied the tables should be empty.
+SELECT * FROM db2.mem_t2;
+
+--echo #
+--echo # Test case 5: verify DELETE FROM mem_xx can be binlogged correctly
+--echo #              in a trigger
+
+--source include/rpl_connection_master.inc
+--source include/gtid_step_reset.inc
+--source include/save_binlog_position.inc
+
+INSERT INTO t2 VALUES(11);
+
+--let $gtid_step_count= 2
+--source include/gtid_step_assert.inc
+
+--source include/assert_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+# DELETE FROM mem_xx have been applied the tables should be empty.
+SELECT * FROM db2.mem_t3;
+
+--echo #
+--echo # Test case 6: Verify DELETE FROM mem_xx can be binlog correctly
+--echo #              when ALTER the memory table.
+--source include/rpl_connection_master.inc
+--source include/gtid_step_reset.inc
+--source include/save_binlog_position.inc
+
+ALTER TABLE db2.mem_t4 ADD COLUMN c2 INT;
+
+--let $gtid_step_count= 2
+--source include/gtid_step_assert.inc
+--source include/assert_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+# DELETE FROM mem_xx have been applied the tables should be empty.
+SELECT * FROM db2.mem_t4;
+
+--echo #
+--echo # Test case 7: Verify DELETE FROM mem_xx can be binlog correctly
+--echo #              when DROP the memory table.
+--source include/rpl_connection_master.inc
+--source include/gtid_step_reset.inc
+DROP TABLE db2.mem_t5;
+
+--let $gtid_step_count= 1
+--source include/gtid_step_assert.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1, t2, t3, mem_t1, mem_t2;
+DROP DATABASE db1;
+DROP DATABASE db2;
+
+--source include/rpl_end.inc

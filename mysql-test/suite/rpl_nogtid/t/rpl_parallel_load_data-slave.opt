@@ -1,0 +1,2 @@
+--slave-transaction-retries=0
+--local-infile=true

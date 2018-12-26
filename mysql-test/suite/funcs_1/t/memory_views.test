@@ -1,0 +1,25 @@
+#### suite/funcs_1/t/memory_views.test
+
+# Memory tables should be used
+#
+# Set $engine_type
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+let $engine_type= memory;
+# --source include/have_memory.inc
+--source suite/funcs_1/include/bug28309_skip.inc
+
+# Create some objects needed in many testcases
+USE test;
+--source suite/funcs_1/include/memory_tb2.inc
+--disable_warnings
+DROP DATABASE IF EXISTS test1;
+--enable_warnings
+CREATE DATABASE test1;
+USE test1;
+--source suite/funcs_1/include/memory_tb2.inc
+USE test;
+
+--source suite/funcs_1/views/views_master.inc
+DROP DATABASE test1;
+DROP TABLE test.tb2;
+

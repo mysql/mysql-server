@@ -1,0 +1,228 @@
+SET SESSION innodb_lock_wait_timeout=1;
+SET SESSION innodb_lock_wait_timeout=1;
+# Case 1: Test primary index
+CREATE TABLE t1(
+seat_id    INT,
+state      INT,
+PRIMARY KEY(seat_id)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1,0), (2,0), (3,0), (4,0);
+BEGIN;
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE;
+seat_id	state
+1	0
+2	0
+BEGIN;
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 LOCK IN SHARE MODE;
+seat_id	state
+1	0
+2	0
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE;
+seat_id	state
+1	0
+2	0
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE NOWAIT;
+seat_id	state
+1	0
+2	0
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE SKIP LOCKED;
+seat_id	state
+1	0
+2	0
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE SKIP LOCKED;
+seat_id	state
+3	0
+4	0
+SELECT * FROM t1 WHERE seat_id > 0 LIMIT 2 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE seat_id > 0 LIMIT 2 FOR UPDATE SKIP LOCKED;
+seat_id	state
+3	0
+4	0
+COMMIT;
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE;
+seat_id	state
+1	0
+2	0
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 LOCK IN SHARE MODE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE SKIP LOCKED;
+seat_id	state
+3	0
+4	0
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE SKIP LOCKED;
+seat_id	state
+3	0
+4	0
+SELECT * FROM t1 WHERE seat_id > 0 LIMIT 2 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE seat_id > 0 LIMIT 2 FOR UPDATE SKIP LOCKED;
+seat_id	state
+3	0
+4	0
+COMMIT;
+COMMIT;
+DROP TABLE t1;
+# Case 2: Test primary index & secondary index
+CREATE TABLE t1(
+seat_id    INT,
+row_id     INT,
+state      INT,
+PRIMARY KEY(seat_id),
+KEY(row_id)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1,1,0), (2,1,0), (3,2,0), (4,2,0);
+# Test secondary key
+BEGIN;
+SELECT * FROM t1 WHERE state = 0 AND row_id = 1 LIMIT 1 FOR UPDATE NOWAIT;
+seat_id	row_id	state
+1	1	0
+BEGIN;
+SELECT * FROM t1 WHERE state = 0 AND row_id = 1 LIMIT 1 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE state = 0 AND row_id = 1 LIMIT 1 FOR UPDATE SKIP LOCKED;
+seat_id	row_id	state
+2	1	0
+SELECT * FROM t1 WHERE state = 0 AND row_id > 0 LIMIT 1 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE state = 0 AND row_id > 0 LIMIT 1 FOR UPDATE SKIP LOCKED;
+seat_id	row_id	state
+2	1	0
+SELECT * FROM t1 WHERE state = 0 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE state = 0 FOR UPDATE SKIP LOCKED;
+seat_id	row_id	state
+2	1	0
+3	2	0
+4	2	0
+COMMIT;
+COMMIT;
+BEGIN;
+SELECT * FROM t1 WHERE seat_id = 1 FOR UPDATE NOWAIT;
+seat_id	row_id	state
+1	1	0
+BEGIN;
+SELECT * FROM t1 WHERE state = 0 AND row_id = 1 LIMIT 1 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE state = 0 AND row_id = 1 LIMIT 1 FOR UPDATE SKIP LOCKED;
+seat_id	row_id	state
+2	1	0
+SELECT * FROM t1 WHERE state = 0 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM t1 WHERE state = 0 FOR UPDATE SKIP LOCKED;
+seat_id	row_id	state
+2	1	0
+3	2	0
+4	2	0
+COMMIT;
+COMMIT;
+DROP TABLE t1;
+# Case 3: Test primary index & spatial index
+CREATE TABLE t1(
+seat_id    INT,
+pos        POINT NOT NULL SRID 0,
+state      INT,
+PRIMARY KEY(seat_id),
+SPATIAL KEY(pos)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(1,ST_PointFromText('POINT(1 0)'),0),
+(2,ST_PointFromText('POINT(1 1)'),0),
+(3,ST_PointFromText('POINT(2 0)'),0),
+(4,ST_PointFromText('POINT(2 1)'),0),
+(5,ST_PointFromText('POINT(3 0)'),0),
+(6,ST_PointFromText('POINT(3 1)'),0);
+BEGIN;
+SET @g = ST_GeomFromText('POLYGON((0 0,0 2,2 2,0 2,0 0))');
+SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
+WHERE state = 0 AND MBRWithin(pos, @g) FOR UPDATE NOWAIT;
+seat_id	state	ST_AsText(pos)
+2	0	POINT(1 1)
+BEGIN;
+SET @g = ST_GeomFromText('POLYGON((0 0,0 4,4 4,0 4,0 0))');
+SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
+WHERE state = 0 AND MBRWithin(pos, @g) FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
+WHERE state = 0 AND MBRWithin(pos, @g)  FOR UPDATE SKIP LOCKED;
+seat_id	state	ST_AsText(pos)
+6	0	POINT(3 1)
+SELECT seat_id, state, ST_AsText(pos) FROM t1
+WHERE state = 0 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT seat_id, state, ST_AsText(pos) FROM t1
+WHERE state = 0 FOR UPDATE SKIP LOCKED;
+seat_id	state	ST_AsText(pos)
+5	0	POINT(3 0)
+6	0	POINT(3 1)
+COMMIT;
+COMMIT;
+SET @g = ST_GeomFromText('POLYGON((0 0,0 3,3 3,0 3,0 0))');
+SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
+WHERE state = 0 AND MBRWithin(pos, @g) FOR UPDATE;
+seat_id	state	ST_AsText(pos)
+4	0	POINT(2 1)
+2	0	POINT(1 1)
+BEGIN;
+SELECT seat_id, state, ST_AsText(pos) FROM t1
+WHERE seat_id = 4 FOR UPDATE NOWAIT;
+seat_id	state	ST_AsText(pos)
+4	0	POINT(2 1)
+SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
+WHERE state = 0 AND MBRWithin(pos, @g) FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
+WHERE state = 0 AND MBRWithin(pos, @g) FOR UPDATE SKIP LOCKED;
+seat_id	state	ST_AsText(pos)
+2	0	POINT(1 1)
+SELECT seat_id, state, ST_AsText(pos) FROM t1
+WHERE state = 0 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT seat_id, state, ST_AsText(pos) FROM t1
+WHERE state = 0 FOR UPDATE SKIP LOCKED;
+seat_id	state	ST_AsText(pos)
+1	0	POINT(1 0)
+2	0	POINT(1 1)
+3	0	POINT(2 0)
+5	0	POINT(3 0)
+6	0	POINT(3 1)
+COMMIT;
+DROP TABLE t1;
+# Case 4: Test high priority transaction
+CREATE TABLE t1(
+seat_id    INT,
+state      INT,
+PRIMARY KEY(seat_id)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1,0), (2,0), (3,0), (4,0);
+BEGIN;
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE;
+seat_id	state
+1	0
+2	0
+include/start_transaction_high_prio.inc
+START TRANSACTION /* HIGH PRIORITY */;
+SELECT * FROM t1 WHERE seat_id = 1 AND state = 0 FOR UPDATE NOWAIT;
+seat_id	state
+1	0
+SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE SKIP LOCKED;
+seat_id	state
+1	0
+2	0
+COMMIT;
+COMMIT;
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
+ROLLBACK;
+DROP TABLE t1;

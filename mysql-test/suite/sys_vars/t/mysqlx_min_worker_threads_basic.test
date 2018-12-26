@@ -1,0 +1,39 @@
+# Variable: mysqlx_min_worker_threads
+# Default : 10
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+SET @mysqlx_min_worker_threads_sav= @@global.mysqlx_min_worker_threads;
+
+## Valid cases
+#minimum number of worker threads the X plugin will use for handling client requests.
+#The maximum is limited implicitly by Mysqlx_max_connections.
+# Truncated incorrect mysqlx_min_worker_threads value: '150'
+SET GLOBAL mysqlx_min_worker_threads=150;
+SET @@global.mysqlx_min_worker_threads=15;
+show variables like 'mysqlx_min_worker_threads';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_min_worker_threads=15;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_min_worker_threads=15;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_min_worker_threads=15;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_min_worker_threads=15;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_min_worker_threads=15;
+
+SET @@global.mysqlx_min_worker_threads=0;
+SET @@global.mysqlx_min_worker_threads=-4324;
+
+# It will set value to 100
+SET GLOBAL mysqlx_min_worker_threads=+23766;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_min_worker_threads='USDSI75u';
+
+show variables like 'mysqlx_min_worker_threads';
+SET GLOBAL mysqlx_min_worker_threads=10;
+
+SET @@global.mysqlx_min_worker_threads= @mysqlx_min_worker_threads_sav;

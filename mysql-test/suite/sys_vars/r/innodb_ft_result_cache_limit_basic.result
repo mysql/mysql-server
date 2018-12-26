@@ -1,0 +1,38 @@
+select @@global.innodb_ft_result_cache_limit;
+@@global.innodb_ft_result_cache_limit
+2000000000
+select @@session.innodb_ft_result_cache_limit;
+ERROR HY000: Variable 'innodb_ft_result_cache_limit' is a GLOBAL variable
+show global variables like 'innodb_ft_result_cache_limit';
+Variable_name	Value
+innodb_ft_result_cache_limit	2000000000
+show session variables like 'innodb_ft_result_cache_limit';
+Variable_name	Value
+innodb_ft_result_cache_limit	2000000000
+select * from performance_schema.global_variables where variable_name='innodb_ft_result_cache_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_ft_result_cache_limit	2000000000
+select * from performance_schema.session_variables where variable_name='innodb_ft_result_cache_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_ft_result_cache_limit	2000000000
+set global innodb_ft_result_cache_limit=900000;
+Warnings:
+Warning	1292	Truncated incorrect innodb_ft_result_cache_limit value: '900000'
+select @@innodb_ft_result_cache_limit;
+@@innodb_ft_result_cache_limit
+1000000
+set global innodb_ft_result_cache_limit=1000000;
+select @@innodb_ft_result_cache_limit;
+@@innodb_ft_result_cache_limit
+1000000
+set global innodb_ft_result_cache_limit=4294967295;
+select @@innodb_ft_result_cache_limit;
+@@innodb_ft_result_cache_limit
+4294967295
+set global innodb_ft_result_cache_limit=4*1024*1024*1024;
+Warnings:
+Warning	1292	Truncated incorrect innodb_ft_result_cache_limit value: '4294967296'
+select @@innodb_ft_result_cache_limit;
+@@innodb_ft_result_cache_limit
+4294967295
+set global innodb_ft_result_cache_limit=2000000000;

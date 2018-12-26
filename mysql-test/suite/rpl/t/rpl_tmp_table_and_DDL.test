@@ -1,0 +1,222 @@
+#
+# Bug#49132 
+# This test verifies if executing DDL statement before trying to manipulate
+# a temporary table causes row-based replication to break with error 'table
+# does not exist' base on myisam engine.
+#
+
+--source include/not_group_replication_plugin.inc
+source include/have_binlog_format_row.inc;
+source include/have_myisam.inc;
+source include/master-slave.inc;
+
+LET $ENGINE_TYPE= MyISAM;
+source extra/rpl_tests/rpl_tmp_table_and_DDL.test;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# BUG #51839
+# The test makes sure the binlog format is not changed 
+# after a execution of DDL with a table locked, so that
+# the following DML statements will not cause the slave 
+# to stop.
+#
+
+--connection master
+--disable_abort_on_error
+
+CREATE TABLE t1 (a CHAR(30));
+CREATE TEMPORARY TABLE t2 (b CHAR(60));
+
+# CREATE FUNCTION when a table is locked.
+LOCK TABLE t1 WRITE;
+CREATE FUNCTION f1 () RETURNS TINYINT RETURN 13;
+INSERT INTO t2 VALUES ("CREATE FUNCTION f1 with table locked");
+
+UNLOCK TABLE;
+CREATE FUNCTION f2 () RETURNS TINYINT RETURN 13;
+
+# ALTER FUNCTION when a table is locked.
+LOCK TABLE t1 WRITE;
+ALTER FUNCTION f2 SQL SECURITY INVOKER;
+INSERT INTO t2 VALUES ("ALTER FUNCTION f2 with table locked");
+
+# DROP FUNCTION when a table is locked.
+LOCK TABLE t1 WRITE;
+DROP FUNCTION f2;
+INSERT INTO t2 VALUES ("DROP FUNCTION f2 with table locked");
+
+
+# CREATE PROCEDURE when a table is locked.
+CREATE PROCEDURE p1() SELECT 1;
+INSERT INTO t2 VALUES ("CREATE PROCEDURE p1 with table locked");
+
+UNLOCK TABLE;
+CREATE PROCEDURE p2() SELECT 1;
+
+# ALTER PROCEDURE when a table is locked.
+LOCK TABLE t1 WRITE;
+ALTER PROCEDURE p2 SQL SECURITY INVOKER;
+INSERT INTO t2 VALUES ("ALTER PROCEDURE P2 with table locked");
+
+# DROP PROCEDURE when a table is locked.
+DROP PROCEDURE p2;
+INSERT INTO t2 VALUES ("DROP PROCEDURE p2 with table locked");
+
+
+# CREATE EVENT when a table is locked.
+CREATE EVENT e1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+INSERT INTO t2 VALUES ("CREATE EVENT e1 with table locked");
+
+UNLOCK TABLE;
+CREATE EVENT e2 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+
+# ALTER EVENT when a table is locked.
+LOCK TABLE t1 WRITE;
+ALTER EVENT e2 ON SCHEDULE EVERY 20 HOUR DO SELECT 1;
+INSERT INTO t2 VALUES ("ALTER EVENT e2 with table locked");
+
+# DROP EVENT when a table is locked.
+DROP EVENT e2;
+INSERT INTO t2 VALUES ("DROP EVENT e2 with table locked");
+
+
+# CREATE DATABASE when a table is locked.
+CREATE DATABASE mysqltest1;
+INSERT INTO t2 VALUES ("CREATE DATABASE mysqltest1 with table locked");
+
+UNLOCK TABLE;
+CREATE DATABASE mysqltest2;
+
+# DROP DATABASE when a table is locked.
+LOCK TABLE t1 WRITE;
+DROP DATABASE mysqltest2;
+INSERT INTO t2 VALUES ("DROP DATABASE mysqltest2 with table locked");
+
+UNLOCK TABLE;
+DROP DATABASE mysqltest2;
+
+# CREATE USER when a table is locked.
+LOCK TABLE t1 WRITE;
+CREATE USER test_1@localhost;
+INSERT INTO t2 VALUES ("CREATE USER test_1@localhost with table locked");
+
+UNLOCK TABLE;
+CREATE USER test_2@localhost;
+
+# GRANT select on table to user when a table is locked.
+LOCK TABLE t1 WRITE;
+GRANT SELECT ON t1 TO test_2@localhost;
+INSERT INTO t2 VALUES ("GRANT select on table to user with table locked");
+
+# GRANT all on function to user when a table is locked.
+GRANT ALL ON f2 TO test_2@localhost;
+INSERT INTO t2 VALUES ("GRANT ALL ON f2 TO test_2 with table locked");
+
+# GRANT all on procdure to user when a table is locked.
+GRANT ALL ON p2 TO test_2@localhost;
+INSERT INTO t2 VALUES ("GRANT ALL ON p2 TO test_2 with table locked");
+
+# GRANT USAGE ON *.* to user when a table is locked.
+GRANT USAGE ON *.* TO test_2@localhost;
+INSERT INTO t2 VALUES ("GRANT USAGE ON *.* TO test_2 with table locked");
+
+
+# REVOKE ALL PRIVILEGES on function to user when a table is locked.
+REVOKE ALL PRIVILEGES ON f2 FROM test_2@localhost;
+INSERT INTO t2 VALUES ("REVOKE ALL PRIVILEGES on function to user with table locked");
+
+# REVOKE ALL PRIVILEGES on procedure to user when a table is locked.
+REVOKE ALL PRIVILEGES ON p2 FROM test_2@localhost;
+INSERT INTO t2 VALUES ("REVOKE ALL PRIVILEGES on procedure to user with table locked");
+
+# REVOKE ALL PRIVILEGES on table to user when a table is locked.
+REVOKE ALL PRIVILEGES ON t1 FROM test_2@localhost;
+INSERT INTO t2 VALUES ("REVOKE ALL PRIVILEGES on table to user with table locked");
+
+# REVOKE USAGE ON *.* to user when a table is locked.
+REVOKE USAGE ON *.* FROM test_2@localhost;
+INSERT INTO t2 VALUES ("REVOKE USAGE ON *.* TO test_2 with table locked");
+
+
+# RENAME USER when a table is locked.
+RENAME USER test_2@localhost TO test_3@localhost;
+INSERT INTO t2 VALUES ("RENAME USER test_2 TO test_3 with table locked");
+
+UNLOCK TABLE;
+RENAME USER test_2@localhost TO test_3@localhost;
+
+# DROP USER when a table is locked.
+LOCK TABLE t1 WRITE;
+DROP USER test_3@localhost;
+INSERT INTO t2 VALUES ("DROP USER test_3@localhost with table locked");
+
+UNLOCK TABLE;
+
+# Bug #20439913 CREATE TABLE DB.TABLE LIKE TMPTABLE IS
+# BINLOGGED INCORRECTLY - BREAKS A SLAVE
+CREATE DATABASE db;
+CREATE TABLE db.t1 LIKE t2;
+CREATE TABLE t3 LIKE t2;
+DROP TABLE t3;
+DROP DATABASE db;
+# end of Bug #20439913 test
+
+DROP USER test_3@localhost;
+DROP FUNCTION f2;
+DROP PROCEDURE p2;
+DROP EVENT e2;
+DROP TABLE t1, t2;
+
+--sync_slave_with_master
+#
+# BUG#20574550
+# CREATE TABLE LIKE <TEMP_TABLE> does not preserve original table storage
+# engine when using row based replication
+#
+--connection master
+
+# Define temp_t1 and temp_t2 storage engines
+--let $engine_temp_t1= InnoDB
+--let $engine_temp_t2= MyISAM
+
+# Create the two temporary tables
+--eval CREATE TEMPORARY TABLE temp_t1 (c1 INT) ENGINE=$engine_temp_t1
+--eval CREATE TEMPORARY TABLE temp_t2 (c1 INT) ENGINE=$engine_temp_t2
+
+# Create t1 and t2 based on temporary tables
+CREATE TABLE t1 LIKE temp_t1;
+CREATE TABLE t2 LIKE temp_t2;
+--sync_slave_with_master
+
+# On master
+--connection master
+# Assert that t1 and t2 have the same storage engines as temp_t1 and temp_t2
+--let $engine_t1= query_get_value(SHOW TABLE STATUS WHERE Name='t1', Engine, 1)
+--let $assert_cond= "$engine_t1" = "$engine_temp_t1"
+--let $assert_text= "t1 on master and temp_t1 have the same storage engine"
+--source include/assert.inc
+
+--let $engine_t2= query_get_value(SHOW TABLE STATUS WHERE Name='t2', Engine, 1)
+--let $assert_cond= "$engine_t2" = "$engine_temp_t2"
+--let $assert_text= "t2 on master and temp_t2 have the same storage engine"
+--source include/assert.inc
+
+# On slave
+--connection slave
+# Assert that t1 and t2 have the same storage engines as temp_t1 and temp_t2
+--let $engine_t1= query_get_value(SHOW TABLE STATUS WHERE Name='t1', Engine, 1)
+--let $assert_cond= "$engine_t1" = "$engine_temp_t1"
+--let $assert_text= "t1 on slave and temp_t1 have the same storage engine"
+--source include/assert.inc
+
+--let $engine_t2= query_get_value(SHOW TABLE STATUS WHERE Name='t2', Engine, 1)
+--let $assert_cond= "$engine_t2" = "$engine_temp_t2"
+--let $assert_text= "t2 on slave and temp_t2 have the same storage engine"
+--source include/assert.inc
+
+# Cleanup
+--connection master
+DROP TEMPORARY TABLE temp_t1, temp_t2;
+DROP TABLE t1, t2;
+--source include/rpl_end.inc

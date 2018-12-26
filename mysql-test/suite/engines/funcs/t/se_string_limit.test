@@ -1,0 +1,762 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' LIMIT 1;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' LIMIT 1;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' LIMIT 1;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' LIMIT 1;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' LIMIT 1;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' LIMIT 1;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' LIMIT 1;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' LIMIT 5;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' LIMIT 5;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' LIMIT 5;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' LIMIT 5;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' LIMIT 5;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' LIMIT 5;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' LIMIT 5;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 5;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' LIMIT 100;
+SELECT * FROM t1 WHERE c1='a' AND c2 = 'a' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' LIMIT 100;
+SELECT * FROM t1 WHERE c1='b' AND c2 = 'b' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' LIMIT 100;
+SELECT * FROM t1 WHERE c1='c' AND c2 = 'c' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' LIMIT 100;
+SELECT * FROM t1 WHERE c1='d' AND c2 = 'd' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' LIMIT 100;
+SELECT * FROM t1 WHERE c1='e' AND c2 = 'e' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' LIMIT 100;
+SELECT * FROM t1 WHERE c1='f' AND c2 = 'f' LIMIT 100;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
+--source suite/engines/funcs/t/data1.inc
+SELECT * FROM t1 LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' LIMIT 100;
+SELECT * FROM t1 WHERE c1='y' AND c2 = 'y' LIMIT 100;
+DROP TABLE t1;
+

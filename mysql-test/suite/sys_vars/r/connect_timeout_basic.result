@@ -1,0 +1,103 @@
+SET @start_value = @@global.connect_timeout;
+SELECT @start_value;
+@start_value
+60
+'#--------------------FN_DYNVARS_019_01------------------------#'
+SET @@global.connect_timeout = 100;
+SET @@global.connect_timeout = DEFAULT;
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+10
+'#---------------------FN_DYNVARS_019_02-------------------------#'
+SET @@global.connect_timeout = @start_value;
+SELECT @@global.connect_timeout = 5;
+@@global.connect_timeout = 5
+0
+'#--------------------FN_DYNVARS_019_03------------------------#'
+SET @@global.connect_timeout = 2;
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+2
+SET @@global.connect_timeout = 10000;
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+10000
+SET @@global.connect_timeout = 21221204;
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+21221204
+SET @@global.connect_timeout = 31536000;
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+31536000
+'#--------------------FN_DYNVARS_019_04-------------------------#'
+SET @@global.connect_timeout = 1;
+Warnings:
+Warning	1292	Truncated incorrect connect_timeout value: '1'
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+2
+SET @@global.connect_timeout = -1024;
+Warnings:
+Warning	1292	Truncated incorrect connect_timeout value: '-1024'
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+2
+SET @@global.connect_timeout = 31536001;
+Warnings:
+Warning	1292	Truncated incorrect connect_timeout value: '31536001'
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+31536000
+SET @@global.connect_timeout = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect connect_timeout value: '42949672950'
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+31536000
+SET @@global.connect_timeout = 21221204.10;
+ERROR 42000: Incorrect argument type to variable 'connect_timeout'
+SET @@global.connect_timeout = ON;
+ERROR 42000: Incorrect argument type to variable 'connect_timeout'
+'#-------------------FN_DYNVARS_019_05----------------------------#'
+SET @@session.connect_timeout = 0;
+ERROR HY000: Variable 'connect_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.connect_timeout;
+ERROR HY000: Variable 'connect_timeout' is a GLOBAL variable
+'#----------------------FN_DYNVARS_019_06------------------------#'
+SELECT @@global.connect_timeout = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='connect_timeout';
+@@global.connect_timeout = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_019_07----------------------#'
+SET @@global.connect_timeout = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect connect_timeout value: '1'
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+2
+SET @@global.connect_timeout = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect connect_timeout value: '0'
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+2
+'#---------------------FN_DYNVARS_019_08----------------------#'
+SET @@global.connect_timeout = 5;
+SELECT @@connect_timeout = @@global.connect_timeout;
+@@connect_timeout = @@global.connect_timeout
+1
+'#---------------------FN_DYNVARS_019_09----------------------#'
+SET connect_timeout = 1;
+ERROR HY000: Variable 'connect_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET global.connect_timeout = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.connect_timeout = 1' at line 1
+SELECT global.connect_timeout;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT connect_timeout = @@session.connect_timeout;
+ERROR 42S22: Unknown column 'connect_timeout' in 'field list'
+SET @@global.connect_timeout = @start_value;
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+60

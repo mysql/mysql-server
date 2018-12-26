@@ -1,0 +1,120 @@
+################### mysql-test\t\key_buffer_size_func.test ####################
+#                                                                             #
+# Variable Name: key_buffer_size                                              #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: 131072                                                       #
+# Range:8-4294967295                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-07                                                   #
+# Author:  Salman Rawala                                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable key_buffer_size          #
+#              that checks the functionality of this variable                 #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+
+--echo ## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (id),
+rollno INT NOT NULL,
+name VARCHAR(30)
+);
+
+SET @start_value= @@global.key_buffer_size;
+
+FLUSH STATUS;
+
+--echo '#--------------------FN_DYNVARS_055_01-------------------------#'
+########################################################################
+#    Setting initial value of key_buffer_size, inserting some rows
+#    & creating 2 new connections
+########################################################################
+
+--echo ## Setting initial value of variable to 131072 ##
+SET @@global.key_buffer_size = 131072;
+
+
+--echo ## Creating two new connections ##
+CONNECT (test_con1,localhost,root,,);
+CONNECT (test_con2,localhost,root,,);
+
+
+--echo '#--------------------FN_DYNVARS_055_02-------------------------#'
+###############################################################################
+# Verifying initial behavior of variable by concatinating values greater than 4
+###############################################################################
+
+--echo ## Connecting with connection test_con1 ##
+CONNECTION test_con1;
+SELECT @@global.key_buffer_size;
+
+
+--echo ## Inserting some rows in table ##
+INSERT INTO t1(rollno, name) VALUES(1, 'Record_1');
+INSERT INTO t1(rollno, name) VALUES(2, 'Record_2');
+INSERT INTO t1(rollno, name) VALUES(1, 'Record_3');
+INSERT INTO t1(rollno, name) VALUES(3, 'Record_4');
+INSERT INTO t1(rollno, name) VALUES(1, 'Record_5');
+INSERT INTO t1(rollno, name) VALUES(3, 'Record_6');
+INSERT INTO t1(rollno, name) VALUES(4, 'Record_7');
+INSERT INTO t1(rollno, name) VALUES(4, 'Record_8');
+INSERT INTO t1(rollno, name) VALUES(4, 'Record_9');
+INSERT INTO t1(rollno, name) VALUES(4, 'Record_10');
+
+--echo ## Key_reads must be zero (no disk access) ##
+show status like 'Key_reads';
+
+--echo ## Switching to connection test_con2 ##
+connection test_con2;
+
+--echo ## Key_reads must be zero (no disk access) ##
+show status like 'Key_reads';
+
+--echo ## Connecting with connection test_con1 ##
+CONNECTION test_con1;
+
+--echo ## Inserting some rows in table ##
+INSERT INTO t1(rollno, name) VALUES(5, 'Record_11');
+INSERT INTO t1(rollno, name) VALUES(6, 'Record_12');
+INSERT INTO t1(rollno, name) VALUES(5, 'Record_13');
+INSERT INTO t1(rollno, name) VALUES(7, 'Record_14');
+INSERT INTO t1(rollno, name) VALUES(5, 'Record_15');
+INSERT INTO t1(rollno, name) VALUES(7, 'Record_16');
+INSERT INTO t1(rollno, name) VALUES(8, 'Record_17');
+INSERT INTO t1(rollno, name) VALUES(8, 'Record_18');
+INSERT INTO t1(rollno, name) VALUES(8, 'Record_19');
+INSERT INTO t1(rollno, name) VALUES(8, 'Record_20');
+
+--echo ## Key_reads must be zero (no disk access) ##
+show status like 'Key_reads';
+
+############################################################
+#    Disconnecting all connection & dropping table         #
+############################################################
+
+--echo ## Dropping table ##
+DROP TABLE IF EXISTS t1;
+
+--echo ## Disconnecting both the connections ##
+DISCONNECT test_con2;
+DISCONNECT test_con1;
+
+connection default;
+SET @@global.key_buffer_size= @start_value;
+

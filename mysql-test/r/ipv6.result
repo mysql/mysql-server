@@ -1,0 +1,483 @@
+=============Test of '::1' ========================================
+mysqld is alive
+CREATE USER testuser@'::1' identified by '1234';
+GRANT ALL ON test.* TO testuser@'::1';
+SHOW GRANTS FOR testuser@'::1';
+Grants for testuser@::1
+GRANT USAGE ON *.* TO `testuser`@`::1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`::1`
+SELECT USER();
+USER()
+root@localhost
+SELECT current_user();
+current_user()
+root@localhost
+SHOW PROCESSLIST;
+REVOKE ALL ON test.* FROM testuser@'::1';
+RENAME USER testuser@'::1' to testuser1@'::1';
+SET PASSWORD FOR testuser1@'::1' = '9876';
+SELECT USER();
+USER()
+root@localhost
+DROP USER testuser1@'::1';
+SET @nip= inet_aton('::1');
+Warnings:
+Warning	1411	Incorrect string value: ''::1'' for function inet_aton
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
+INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
+SELECT inet_ntoa(c1) FROM t1;
+inet_ntoa(c1)
+NULL
+SELECT inet_ntoa(CAST(c1 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c1 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c2) FROM t1;
+inet_ntoa(c2)
+NULL
+SELECT inet_ntoa(CAST(c2 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c2 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c3) FROM t1;
+inet_ntoa(c3)
+NULL
+SELECT inet_ntoa(CAST(c3 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c3 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c4) FROM t1;
+inet_ntoa(c4)
+NULL
+SELECT inet_ntoa(CAST(c4 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c4 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c5) FROM t1;
+inet_ntoa(c5)
+NULL
+SELECT inet_ntoa(CAST(c5 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c5 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c6) FROM t1;
+inet_ntoa(c6)
+NULL
+DROP TABLE IF EXISTS t1;
+SELECT @nip;
+@nip
+NULL
+SELECT inet_ntoa(@nip);
+inet_ntoa(@nip)
+NULL
+SET @nip6= inet6_aton('::1');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
+INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
+Warnings:
+Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01' for column 'c6' at row 1
+SELECT inet6_ntoa(c1) FROM t1;
+inet6_ntoa(c1)
+::1
+SELECT inet6_ntoa(CAST(c1 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c1 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c2) FROM t1;
+inet6_ntoa(c2)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c2`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c2 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c3) FROM t1;
+inet6_ntoa(c3)
+::1
+SELECT inet6_ntoa(CAST(c3 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c3 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c4) FROM t1;
+inet6_ntoa(c4)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c4`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c4 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c5) FROM t1;
+inet6_ntoa(c5)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c5`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c5 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c6) FROM t1;
+inet6_ntoa(c6)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c6`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c6 AS BINARY(16)))
+3000::
+DROP TABLE IF EXISTS t1;
+SELECT inet6_ntoa(@nip6);
+inet6_ntoa(@nip6)
+::1
+=============Test of '127.0.0.1' (IPv4) ===========================
+mysqld is alive
+CREATE USER testuser@'127.0.0.1' identified by '1234';
+GRANT ALL ON test.* TO testuser@'127.0.0.1';
+SHOW GRANTS FOR testuser@'127.0.0.1';
+Grants for testuser@127.0.0.1
+GRANT USAGE ON *.* TO `testuser`@`127.0.0.1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`127.0.0.1`
+SELECT USER();
+USER()
+root@localhost
+SELECT current_user();
+current_user()
+root@localhost
+SHOW PROCESSLIST;
+REVOKE ALL ON test.* FROM testuser@'127.0.0.1';
+RENAME USER testuser@'127.0.0.1' to testuser1@'127.0.0.1';
+SET PASSWORD FOR testuser1@'127.0.0.1' = '9876';
+SELECT USER();
+USER()
+root@localhost
+DROP USER testuser1@'127.0.0.1';
+SET @nip= inet_aton('127.0.0.1');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
+INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
+SELECT inet_ntoa(c1) FROM t1;
+inet_ntoa(c1)
+127.0.0.1
+SELECT inet_ntoa(CAST(c1 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c1 AS UNSIGNED))
+127.0.0.1
+SELECT inet_ntoa(c2) FROM t1;
+inet_ntoa(c2)
+127.0.0.1
+SELECT inet_ntoa(CAST(c2 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c2 AS UNSIGNED))
+127.0.0.1
+SELECT inet_ntoa(c3) FROM t1;
+inet_ntoa(c3)
+127.0.0.1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '2130706433\x00\x00\x00\x00\x00\x00'
+SELECT inet_ntoa(CAST(c3 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c3 AS UNSIGNED))
+127.0.0.1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '2130706433\x00\x00\x00\x00\x00\x00'
+SELECT inet_ntoa(c4) FROM t1;
+inet_ntoa(c4)
+127.0.0.1
+SELECT inet_ntoa(CAST(c4 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c4 AS UNSIGNED))
+127.0.0.1
+SELECT inet_ntoa(c5) FROM t1;
+inet_ntoa(c5)
+127.0.0.1
+SELECT inet_ntoa(CAST(c5 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c5 AS UNSIGNED))
+127.0.0.1
+SELECT inet_ntoa(c6) FROM t1;
+inet_ntoa(c6)
+127.0.0.1
+DROP TABLE IF EXISTS t1;
+SELECT @nip;
+@nip
+2130706433
+SELECT inet_ntoa(@nip);
+inet_ntoa(@nip)
+127.0.0.1
+SET @nip6= inet6_aton('127.0.0.1');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
+INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
+Warnings:
+Warning	1366	Incorrect integer value: '\x7F\x00\x00\x01' for column 'c6' at row 1
+SELECT inet6_ntoa(c1) FROM t1;
+inet6_ntoa(c1)
+127.0.0.1
+SELECT inet6_ntoa(CAST(c1 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c1 AS BINARY(16)))
+7f00:1::
+SELECT inet6_ntoa(c2) FROM t1;
+inet6_ntoa(c2)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c2`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c2 AS BINARY(16)))
+7f00:1::
+SELECT inet6_ntoa(c3) FROM t1;
+inet6_ntoa(c3)
+7f00:1::
+SELECT inet6_ntoa(CAST(c3 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c3 AS BINARY(16)))
+7f00:1::
+SELECT inet6_ntoa(c4) FROM t1;
+inet6_ntoa(c4)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c4`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c4 AS BINARY(16)))
+7f00:1::
+SELECT inet6_ntoa(c5) FROM t1;
+inet6_ntoa(c5)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c5`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c5 AS BINARY(16)))
+7f00:1::
+SELECT inet6_ntoa(c6) FROM t1;
+inet6_ntoa(c6)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c6`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c6 AS BINARY(16)))
+3000::
+DROP TABLE IF EXISTS t1;
+SELECT inet6_ntoa(@nip6);
+inet6_ntoa(@nip6)
+127.0.0.1
+=============Test of '::1/128' ====================================
+=============Test of '0000:0000:0000:0000:0000:0000:0000:0001' ====
+mysqld is alive
+CREATE USER testuser@'0000:0000:0000:0000:0000:0000:0000:0001' identified by '1234';
+GRANT ALL ON test.* TO testuser@'0000:0000:0000:0000:0000:0000:0000:0001';
+SHOW GRANTS FOR testuser@'0000:0000:0000:0000:0000:0000:0000:0001';
+Grants for testuser@0000:0000:0000:0000:0000:0000:0000:0001
+GRANT USAGE ON *.* TO `testuser`@`0000:0000:0000:0000:0000:0000:0000:0001`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`0000:0000:0000:0000:0000:0000:0000:0001`
+SELECT USER();
+USER()
+root@localhost
+SELECT current_user();
+current_user()
+root@localhost
+SHOW PROCESSLIST;
+REVOKE ALL ON test.* FROM testuser@'0000:0000:0000:0000:0000:0000:0000:0001';
+RENAME USER testuser@'0000:0000:0000:0000:0000:0000:0000:0001' to testuser1@'0000:0000:0000:0000:0000:0000:0000:0001';
+SET PASSWORD FOR testuser1@'0000:0000:0000:0000:0000:0000:0000:0001' = '9876';
+SELECT USER();
+USER()
+root@localhost
+DROP USER testuser1@'0000:0000:0000:0000:0000:0000:0000:0001';
+SET @nip= inet_aton('0000:0000:0000:0000:0000:0000:0000:0001');
+Warnings:
+Warning	1411	Incorrect string value: ''0000:0000:0000:0000:0000:0000:0000:0001'' for function inet_aton
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
+INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
+SELECT inet_ntoa(c1) FROM t1;
+inet_ntoa(c1)
+NULL
+SELECT inet_ntoa(CAST(c1 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c1 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c2) FROM t1;
+inet_ntoa(c2)
+NULL
+SELECT inet_ntoa(CAST(c2 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c2 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c3) FROM t1;
+inet_ntoa(c3)
+NULL
+SELECT inet_ntoa(CAST(c3 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c3 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c4) FROM t1;
+inet_ntoa(c4)
+NULL
+SELECT inet_ntoa(CAST(c4 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c4 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c5) FROM t1;
+inet_ntoa(c5)
+NULL
+SELECT inet_ntoa(CAST(c5 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c5 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c6) FROM t1;
+inet_ntoa(c6)
+NULL
+DROP TABLE IF EXISTS t1;
+SELECT @nip;
+@nip
+NULL
+SELECT inet_ntoa(@nip);
+inet_ntoa(@nip)
+NULL
+SET @nip6= inet6_aton('0000:0000:0000:0000:0000:0000:0000:0001');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
+INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
+Warnings:
+Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01' for column 'c6' at row 1
+SELECT inet6_ntoa(c1) FROM t1;
+inet6_ntoa(c1)
+::1
+SELECT inet6_ntoa(CAST(c1 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c1 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c2) FROM t1;
+inet6_ntoa(c2)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c2`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c2 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c3) FROM t1;
+inet6_ntoa(c3)
+::1
+SELECT inet6_ntoa(CAST(c3 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c3 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c4) FROM t1;
+inet6_ntoa(c4)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c4`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c4 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c5) FROM t1;
+inet6_ntoa(c5)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c5`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c5 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c6) FROM t1;
+inet6_ntoa(c6)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c6`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c6 AS BINARY(16)))
+3000::
+DROP TABLE IF EXISTS t1;
+SELECT inet6_ntoa(@nip6);
+inet6_ntoa(@nip6)
+::1
+=============Test of '0:0:0:0:0:0:0:1' ============================
+mysqld is alive
+CREATE USER testuser@'0:0:0:0:0:0:0:1' identified by '1234';
+GRANT ALL ON test.* TO testuser@'0:0:0:0:0:0:0:1';
+SHOW GRANTS FOR testuser@'0:0:0:0:0:0:0:1';
+Grants for testuser@0:0:0:0:0:0:0:1
+GRANT USAGE ON *.* TO `testuser`@`0:0:0:0:0:0:0:1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`0:0:0:0:0:0:0:1`
+SELECT USER();
+USER()
+root@localhost
+SELECT current_user();
+current_user()
+root@localhost
+SHOW PROCESSLIST;
+REVOKE ALL ON test.* FROM testuser@'0:0:0:0:0:0:0:1';
+RENAME USER testuser@'0:0:0:0:0:0:0:1' to testuser1@'0:0:0:0:0:0:0:1';
+SET PASSWORD FOR testuser1@'0:0:0:0:0:0:0:1' = '9876';
+SELECT USER();
+USER()
+root@localhost
+DROP USER testuser1@'0:0:0:0:0:0:0:1';
+SET @nip= inet_aton('0:0:0:0:0:0:0:1');
+Warnings:
+Warning	1411	Incorrect string value: ''0:0:0:0:0:0:0:1'' for function inet_aton
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
+INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
+SELECT inet_ntoa(c1) FROM t1;
+inet_ntoa(c1)
+NULL
+SELECT inet_ntoa(CAST(c1 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c1 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c2) FROM t1;
+inet_ntoa(c2)
+NULL
+SELECT inet_ntoa(CAST(c2 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c2 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c3) FROM t1;
+inet_ntoa(c3)
+NULL
+SELECT inet_ntoa(CAST(c3 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c3 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c4) FROM t1;
+inet_ntoa(c4)
+NULL
+SELECT inet_ntoa(CAST(c4 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c4 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c5) FROM t1;
+inet_ntoa(c5)
+NULL
+SELECT inet_ntoa(CAST(c5 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c5 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c6) FROM t1;
+inet_ntoa(c6)
+NULL
+DROP TABLE IF EXISTS t1;
+SELECT @nip;
+@nip
+NULL
+SELECT inet_ntoa(@nip);
+inet_ntoa(@nip)
+NULL
+SET @nip6= inet6_aton('0:0:0:0:0:0:0:1');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
+INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
+Warnings:
+Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01' for column 'c6' at row 1
+SELECT inet6_ntoa(c1) FROM t1;
+inet6_ntoa(c1)
+::1
+SELECT inet6_ntoa(CAST(c1 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c1 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c2) FROM t1;
+inet6_ntoa(c2)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c2`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c2 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c3) FROM t1;
+inet6_ntoa(c3)
+::1
+SELECT inet6_ntoa(CAST(c3 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c3 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c4) FROM t1;
+inet6_ntoa(c4)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c4`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c4 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c5) FROM t1;
+inet6_ntoa(c5)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c5`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c5 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c6) FROM t1;
+inet6_ntoa(c6)
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '`test`.`t1`.`c6`' for function inet6_ntoa
+SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c6 AS BINARY(16)))
+3000::
+DROP TABLE IF EXISTS t1;
+SELECT inet6_ntoa(@nip6);
+inet6_ntoa(@nip6)
+::1

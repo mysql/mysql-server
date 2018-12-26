@@ -1,0 +1,671 @@
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+SET NAMES sjis;
+SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+CREATE TABLE t1(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = InnoDB;
+CREATE TABLE t2(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = InnoDB;
+CREATE TABLE t3(
+`ｱ`  char(1),
+`あ` char(1),
+`表` char(1)
+)DEFAULT CHARSET = sjis ENGINE = InnoDB;
+CREATE TABLE t4(c1 char(1)) DEFAULT CHARSET = sjis ENGINE = InnoDB;
+INSERT INTO t1 VALUES ('xxx');
+INSERT INTO t2 VALUES ('ｱあ表');
+INSERT INTO t3 VALUES ('x','x','x'),('x','x','x'),('y','y','y'),('y','y','y'),('z','z','z'),('z','z','z');
+INSERT INTO t4 VALUES ('ｱ'),('あ'),('表');
+PREPARE stmt1 FROM 'SELECT ? FROM t3';
+PREPARE stmt2 FROM 'SELECT * FROM t3 ORDER BY ?';
+PREPARE stmt3 FROM 'SELECT COUNT(*) FROM t3 GROUP BY ?';
+PREPARE stmt4 FROM 'SELECT CHAR_LENGTH(?)';
+PREPARE stmt5 FROM 'SELECT CHARSET(?)';
+PREPARE stmt6 FROM 'SELECT INSERT(c1,1,1,?) FROM t1';
+PREPARE stmt7 FROM 'SELECT INSTR(c1,?) FROM t2';
+PREPARE stmt8 FROM 'SELECT LOCATE(?,c1) FROM t2';
+PREPARE stmt9 FROM 'SELECT LPAD(c1,10,?) FROM t1';
+PREPARE stmt10 FROM 'SELECT REPLACE(c1,?,\'x\') FROM t2';
+PREPARE stmt11 FROM 'SELECT REPLACE(c1,\'x\',?) FROM t1';
+PREPARE stmt12 FROM 'SELECT RPAD(c1,10,?) FROM t1';
+PREPARE stmt13 FROM 'UPDATE t4 SET c1=\'x\' WHERE c1=?';
+PREPARE stmt14 FROM 'UPDATE t4 SET c1=? WHERE c1=\'x\'';
+SET @arg = 'ｱ';
+EXECUTE stmt1 USING @arg;
+?
+ｱ
+ｱ
+ｱ
+ｱ
+ｱ
+ｱ
+EXECUTE stmt2 USING @arg;
+ｱ	あ	表
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+sjis
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+ｱxx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+1
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+1
+EXECUTE stmt9 USING @arg;
+LPAD(c1,10,?)
+ｱｱｱｱｱｱｱxxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+xあ表
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+ｱｱｱ
+EXECUTE stmt12 USING @arg;
+RPAD(c1,10,?)
+xxxｱｱｱｱｱｱｱ
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+x
+あ
+表
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+表
+SET @arg = 'あ';
+EXECUTE stmt1 USING @arg;
+?
+あ
+あ
+あ
+あ
+あ
+あ
+EXECUTE stmt2 USING @arg;
+ｱ	あ	表
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+sjis
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+あxx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+2
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+2
+EXECUTE stmt9 USING @arg;
+LPAD(c1,10,?)
+あああああああxxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+ｱx表
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+あああ
+EXECUTE stmt12 USING @arg;
+RPAD(c1,10,?)
+xxxあああああああ
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+x
+表
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+表
+SET @arg = '表';
+EXECUTE stmt1 USING @arg;
+?
+表
+表
+表
+表
+表
+表
+EXECUTE stmt2 USING @arg;
+ｱ	あ	表
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+sjis
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+表xx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+3
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+3
+EXECUTE stmt9 USING @arg;
+LPAD(c1,10,?)
+表表表表表表表xxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+ｱあx
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+表表表
+EXECUTE stmt12 USING @arg;
+RPAD(c1,10,?)
+xxx表表表表表表表
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+x
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+表
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+DEALLOCATE PREPARE stmt4;
+DEALLOCATE PREPARE stmt5;
+DEALLOCATE PREPARE stmt6;
+DEALLOCATE PREPARE stmt7;
+DEALLOCATE PREPARE stmt8;
+DEALLOCATE PREPARE stmt9;
+DEALLOCATE PREPARE stmt10;
+DEALLOCATE PREPARE stmt11;
+DEALLOCATE PREPARE stmt12;
+DEALLOCATE PREPARE stmt13;
+DEALLOCATE PREPARE stmt14;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+CREATE TABLE t1(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = MyISAM;
+CREATE TABLE t2(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = MyISAM;
+CREATE TABLE t3(
+`ｱ` char(1),
+`あ` char(1),
+`表` char(1)
+)DEFAULT CHARSET = sjis ENGINE = MyISAM;
+CREATE TABLE t4(c1 char(1)) DEFAULT CHARSET = sjis ENGINE = MyISAM;
+INSERT INTO t1 VALUES ('xxx');
+INSERT INTO t2 VALUES ('ｱあ表');
+INSERT INTO t3 VALUES ('x','x','x'),('x','x','x'),('y','y','y'),('y','y','y'),('z','z','z'),('z','z','z');
+INSERT INTO t4 VALUES ('ｱ'),('あ'),('表' );
+PREPARE stmt1 FROM 'SELECT ? FROM t3';
+PREPARE stmt2 FROM 'SELECT * FROM t3 ORDER BY ?';
+PREPARE stmt3 FROM 'SELECT COUNT(*) FROM t3 GROUP BY ?';
+PREPARE stmt4 FROM 'SELECT CHAR_LENGTH(?)';
+PREPARE stmt5 FROM 'SELECT CHARSET(?)';
+PREPARE stmt6 FROM 'SELECT INSERT(c1,1,1,?) FROM t1';
+PREPARE stmt7 FROM 'SELECT INSTR(c1,?) FROM t2';
+PREPARE stmt8 FROM 'SELECT LOCATE(?,c1) FROM t2';
+PREPARE stmt9 FROM 'SELECT LPAD(c1,10,?) FROM t1';
+PREPARE stmt10 FROM 'SELECT REPLACE(c1,?,\'x\') FROM t2';
+PREPARE stmt11 FROM 'SELECT REPLACE(c1,\'x\',?) FROM t1';
+PREPARE stmt12 FROM 'SELECT RPAD(c1,10,?) FROM t1';
+PREPARE stmt13 FROM 'UPDATE t4 SET c1=\'x\' WHERE c1=?';
+PREPARE stmt14 FROM 'UPDATE t4 SET c1=? WHERE c1=\'x\'';
+SET @arg = 'ｱ';
+EXECUTE stmt1 USING @arg;
+?
+ｱ
+ｱ
+ｱ
+ｱ
+ｱ
+ｱ
+EXECUTE stmt2 USING @arg;
+ｱ	あ	表
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+sjis
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+ｱxx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+1
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+1
+EXECUTE stmt9 USING @arg;
+LPAD(c1,10,?)
+ｱｱｱｱｱｱｱxxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+xあ表
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+ｱｱｱ
+EXECUTE stmt12 USING @arg;
+RPAD(c1,10,?)
+xxxｱｱｱｱｱｱｱ
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+x
+あ
+表
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+表
+SET @arg = 'あ';
+EXECUTE stmt1 USING @arg;
+?
+あ
+あ
+あ
+あ
+あ
+あ
+EXECUTE stmt2 USING @arg;
+ｱ	あ	表
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+sjis
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+あxx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+2
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+2
+EXECUTE stmt9 USING @arg;
+LPAD(c1,10,?)
+あああああああxxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+ｱx表
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+あああ
+EXECUTE stmt12 USING @arg;
+RPAD(c1,10,?)
+xxxあああああああ
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+x
+表
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+表
+SET @arg = '表';
+EXECUTE stmt1 USING @arg;
+?
+表
+表
+表
+表
+表
+表
+EXECUTE stmt2 USING @arg;
+ｱ	あ	表
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+sjis
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+表xx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+3
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+3
+EXECUTE stmt9 USING @arg;
+LPAD(c1,10,?)
+表表表表表表表xxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+ｱあx
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+表表表
+EXECUTE stmt12 USING @arg;
+RPAD(c1,10,?)
+xxx表表表表表表表
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+x
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+表
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+DEALLOCATE PREPARE stmt4;
+DEALLOCATE PREPARE stmt5;
+DEALLOCATE PREPARE stmt6;
+DEALLOCATE PREPARE stmt7;
+DEALLOCATE PREPARE stmt8;
+DEALLOCATE PREPARE stmt9;
+DEALLOCATE PREPARE stmt10;
+DEALLOCATE PREPARE stmt11;
+DEALLOCATE PREPARE stmt12;
+DEALLOCATE PREPARE stmt13;
+DEALLOCATE PREPARE stmt14;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+CREATE TABLE t1(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = MEMORY;
+CREATE TABLE t2(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = MEMORY;
+CREATE TABLE t3(
+`ｱ` char(1),
+`あ` char(1),
+`表` char(1)
+)DEFAULT CHARSET = sjis ENGINE = MEMORY;
+CREATE TABLE t4(c1 char(1)) DEFAULT CHARSET = sjis ENGINE =MEMORY;
+INSERT INTO t1 VALUES ('xxx');
+INSERT INTO t2 VALUES ('ｱあ表');
+INSERT INTO t3 VALUES ('x','x','x'),('x','x','x'),('y','y','y'),('y','y','y'),('z','z','z'),('z','z','z');
+INSERT INTO t4 VALUES ('ｱ'),('あ'),('表' );
+PREPARE stmt1 FROM 'SELECT ? FROM t3';
+PREPARE stmt2 FROM 'SELECT * FROM t3 ORDER BY ?';
+PREPARE stmt3 FROM 'SELECT COUNT(*) FROM t3 GROUP BY ?';
+PREPARE stmt4 FROM 'SELECT CHAR_LENGTH(?)';
+PREPARE stmt5 FROM 'SELECT CHARSET(?)';
+PREPARE stmt6 FROM 'SELECT INSERT(c1,1,1,?) FROM t1';
+PREPARE stmt7 FROM 'SELECT INSTR(c1,?) FROM t2';
+PREPARE stmt8 FROM 'SELECT LOCATE(?,c1) FROM t2';
+PREPARE stmt9 FROM 'SELECT LPAD(c1,10,?) FROM t1';
+PREPARE stmt10 FROM 'SELECT REPLACE(c1,?,\'x\') FROM t2';
+PREPARE stmt11 FROM 'SELECT REPLACE(c1,\'x\',?) FROM t1';
+PREPARE stmt12 FROM 'SELECT RPAD(c1,10,?) FROM t1';
+PREPARE stmt13 FROM 'UPDATE t4 SET c1=\'x\' WHERE c1=?';
+PREPARE stmt14 FROM 'UPDATE t4 SET c1=? WHERE c1=\'x\'';
+SET @arg = 'ｱ';
+EXECUTE stmt1 USING @arg;
+?
+ｱ
+ｱ
+ｱ
+ｱ
+ｱ
+ｱ
+EXECUTE stmt2 USING @arg;
+ｱ	あ	表
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+sjis
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+ｱxx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+1
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+1
+EXECUTE stmt9 USING @arg;
+LPAD(c1,10,?)
+ｱｱｱｱｱｱｱxxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+xあ表
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+ｱｱｱ
+EXECUTE stmt12 USING @arg;
+RPAD(c1,10,?)
+xxxｱｱｱｱｱｱｱ
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+x
+あ
+表
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+表
+SET @arg = 'あ';
+EXECUTE stmt1 USING @arg;
+?
+あ
+あ
+あ
+あ
+あ
+あ
+EXECUTE stmt2 USING @arg;
+ｱ	あ	表
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+sjis
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+あxx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+2
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+2
+EXECUTE stmt9 USING @arg;
+LPAD(c1,10,?)
+あああああああxxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+ｱx表
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+あああ
+EXECUTE stmt12 USING @arg;
+RPAD(c1,10,?)
+xxxあああああああ
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+x
+表
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+表
+SET @arg = '表';
+EXECUTE stmt1 USING @arg;
+?
+表
+表
+表
+表
+表
+表
+EXECUTE stmt2 USING @arg;
+ｱ	あ	表
+x	x	x
+x	x	x
+y	y	y
+y	y	y
+z	z	z
+z	z	z
+EXECUTE stmt3 USING @arg;
+COUNT(*)
+6
+EXECUTE stmt4 USING @arg;
+CHAR_LENGTH(?)
+1
+EXECUTE stmt5 USING @arg;
+CHARSET(?)
+sjis
+EXECUTE stmt6 USING @arg;
+INSERT(c1,1,1,?)
+表xx
+EXECUTE stmt7 USING @arg;
+INSTR(c1,?)
+3
+EXECUTE stmt8 USING @arg;
+LOCATE(?,c1)
+3
+EXECUTE stmt9 USING @arg;
+LPAD(c1,10,?)
+表表表表表表表xxx
+EXECUTE stmt10 USING @arg;
+REPLACE(c1,?,'x')
+ｱあx
+EXECUTE stmt11 USING @arg;
+REPLACE(c1,'x',?)
+表表表
+EXECUTE stmt12 USING @arg;
+RPAD(c1,10,?)
+xxx表表表表表表表
+EXECUTE stmt13 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+x
+EXECUTE stmt14 USING @arg;
+SELECT * FROM t4;
+c1
+ｱ
+あ
+表
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+DEALLOCATE PREPARE stmt4;
+DEALLOCATE PREPARE stmt5;
+DEALLOCATE PREPARE stmt6;
+DEALLOCATE PREPARE stmt7;
+DEALLOCATE PREPARE stmt8;
+DEALLOCATE PREPARE stmt9;
+DEALLOCATE PREPARE stmt10;
+DEALLOCATE PREPARE stmt11;
+DEALLOCATE PREPARE stmt12;
+DEALLOCATE PREPARE stmt13;
+DEALLOCATE PREPARE stmt14;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;

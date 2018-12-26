@@ -1,0 +1,558 @@
+#
+# WL#7364 tests
+#
+# This test validates all the functional requirements listed
+# in the worklog.
+#
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--source include/master-slave.inc
+
+########################################################
+# Setup
+
+--let $db=db_wl7364
+
+--source include/rpl_connection_master.inc
+
+--let $old_binlog_rows_query_log_events=`SELECT @@binlog_rows_query_log_events`
+
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
+--eval CREATE DATABASE $db
+--eval use $db
+CREATE TABLE t1 (c1 INT);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+# ---------------------------------------------
+# Validate Functional Requirement 1, 2, 3 and 4
+# ---------------------------------------------
+
+# Tests with Rows_query_log_event ON
+
+--source include/rpl_connection_master.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1= 2;
+DELETE FROM t1 WHERE c1=2;
+COMMIT;
+
+--source include/rpl_connection_slave.inc
+
+# set debug sync points
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/add_debug_point.inc
+
+--source include/start_slave_sql.inc
+
+# SIDE NOTE: When using DEBUG_SYNC, information_schema.processlist.state
+# and SHOW PROCESSLIST state shows DEBUG SYNC thread state instead of the
+# thread stage. However in performance_schema tables the stage shows its
+# description correctly
+
+--let $i=3
+while($i)
+{
+  if ($i == 3)
+  {
+    --let $state_progress= Applying batch of row changes (write)
+    --let $info= INSERT INTO t1 VALUES (1)
+  }
+
+  if ($i == 2)
+  {
+    --let $state_progress= Applying batch of row changes (update)
+    --let $info= UPDATE t1 SET c1= 2
+  }
+
+  if ($i == 1)
+  {
+    --let $state_progress= Applying batch of row changes (delete)
+    --let $info= DELETE FROM t1 WHERE c1=2
+  }
+
+  # this session waits for the progress to be updated
+  SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+
+  # applying
+
+  --let $state_stage= $state_progress
+  --let $state_db= $db
+  --let $state_command= Query
+  --let $state_info= $info
+  --source ../include/rpl_row_stages_validate.inc
+
+  # this session signals that applier can proceed to next row
+  SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+
+  --dec $i
+}
+
+# Tests with Rows_query_log_event OFF ------------------
+
+--source include/rpl_connection_master.inc
+
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
+TRUNCATE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+# clean up sync points
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/remove_debug_point.inc
+
+--source include/rpl_connection_master.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1= 2;
+DELETE FROM t1 WHERE c1=2;
+COMMIT;
+
+--source include/rpl_connection_slave.inc
+
+# set debug sync points
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/add_debug_point.inc
+
+--source include/start_slave_sql.inc
+
+# SIDE NOTE: When using DEBUG_SYNC, information_schema.processlist.state
+# and SHOW PROCESSLIST state shows DEBUG SYNC thread state instead of the
+# thread stage. However in performance_schema tables the stage shows its
+# description correctly
+
+--let $i=3
+while($i)
+{
+  --let $info=
+
+  if ($i == 3)
+  {
+    --let $state_progress= Applying batch of row changes (write)
+  }
+
+  if ($i == 2)
+  {
+    --let $state_progress= Applying batch of row changes (update)
+  }
+
+  if ($i == 1)
+  {
+    --let $state_progress= Applying batch of row changes (delete)
+  }
+
+  SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+
+  # applying
+
+  --let $state_stage= $state_progress
+  --let $state_db= $db
+  --let $state_command= Query
+  --let $state_info= $info
+  --source ../include/rpl_row_stages_validate.inc
+
+  SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+
+  --dec $i
+}
+
+
+# clean up sync points
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/remove_debug_point.inc
+
+
+#######################################################
+
+# ---------------------------------
+# Validate Functional Requirement 7
+# ---------------------------------
+
+# simulate that on connection X we are replaying output from mysqlbinlog
+
+--source include/rpl_connection_master.inc
+
+SET SESSION SQL_LOG_BIN=0;
+
+TRUNCATE t1;
+--source include/rpl_connection_master1.inc
+
+SET SESSION SQL_LOG_BIN=0;
+
+# set debug sync points
+--let $debug_type= SESSION
+
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/add_debug_point.inc
+
+BEGIN;
+
+# Format description event
+BINLOG '
+mSKWVg8BAAAAdwAAAHsAAAAAAAQANS44LjAtbTE3LWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACZIpZWEzgNAAgAEgAEBAQEEgAAXwAEGggAAAAICAgCAAAACgoKKioAEjQA
+AYzz6oU=
+'/*!*/;
+
+# INSERT
+--send BINLOG 'mSKWVhMBAAAAMgAAAOYCAAAAAPAAAAAAAAEACWRiX3dsNzM2NAACdDEAAQMAAfg9wnk=mSKWVh4BAAAAKAAAAA4DAAAAAPAAAAAAAAEAAgAB//4BAAAAnirPSw=='
+
+# skip show processlist since comparison of info field is bogus with BINLOG statement
+--let $state_skip_show_processlist=1
+--let $state_thd_name= thread/sql/one_connection
+--let $state_command= Query
+--let $state_info= BINLOG %
+--let $state_db= $db
+
+--source include/rpl_connection_master.inc
+
+# applying
+
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+
+--let $state_stage= Applying batch of row changes (write)
+--source ../include/rpl_row_stages_validate.inc
+
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+
+--source include/rpl_connection_master1.inc
+
+--reap
+
+# UPDATE
+--send BINLOG 'mSKWVhMBAAAAMgAAAGsDAAAAAPAAAAAAAAEACWRiX3dsNzM2NAACdDEAAQMAAWFoKHE=mSKWVh8BAAAALgAAAJkDAAAAAPAAAAAAAAEAAgAB///+AQAAAP4CAAAAuiHqhw=='
+
+--source include/rpl_connection_master.inc
+
+# applying
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+
+--let $state_stage= Applying batch of row changes (update)
+--source ../include/rpl_row_stages_validate.inc
+
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+
+--source include/rpl_connection_master1.inc
+
+--reap
+
+# DELETE
+--send BINLOG 'mSKWVhMBAAAAMgAAAPwDAAAAAPAAAAAAAAEACWRiX3dsNzM2NAACdDEAAQMAAd+b01A=mSKWViABAAAAKAAAACQEAAAAAPAAAAAAAAEAAgAB//4CAAAAN7fZXg== '
+
+--source include/rpl_connection_master.inc
+
+# applying
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+
+--let $state_stage= Applying batch of row changes (delete)
+--source ../include/rpl_row_stages_validate.inc
+
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+
+--source include/rpl_connection_master1.inc
+
+--reap
+
+COMMIT;
+
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/remove_debug_point.inc
+
+--let $debug_type=
+
+SET SESSION SQL_LOG_BIN=1;
+
+--source include/rpl_connection_master.inc
+
+--let $state_thd_name=
+--let $state_skip_show_processlist=0
+--let $state_thd_name=
+--let $state_command=
+--let $state_info=
+--let $state_db=
+
+
+SET SESSION SQL_LOG_BIN=1;
+--let $state_skip_processlist=0
+
+#########################################################
+
+# clean up
+
+--source include/rpl_connection_master.inc
+
+--eval DROP DATABASE $db
+
+#######################################################
+
+# ---------------------------------
+# Validate Functional Requirement 5
+# ---------------------------------
+
+--source include/rpl_connection_master.inc
+
+use test;
+CREATE TABLE t1 (c1 INT);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/add_debug_point.inc
+
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+
+USE test;
+BEGIN;
+INSERT INTO t1 VALUES (1), (2), (3);
+UPDATE t1 SET c1= 1000;
+DELETE FROM t1 WHERE c1=1000;
+COMMIT;
+
+--source include/rpl_connection_slave.inc
+
+--let $j=3
+while($j)
+{
+  # statement: insert, update, delete
+
+  --let $i= 3
+  while ($i)
+  {
+    # row: 1, 2 or 3
+
+    if ($j == 3)
+    {
+      --let $state= Applying batch of row changes (write)
+    }
+
+    if ($j == 2)
+    {
+      --let $state= Applying batch of row changes (update)
+    }
+
+    if ($j == 1)
+    {
+      --let $state= Applying batch of row changes (delete)
+    }
+
+    # begin event
+    SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+    --let $work_estimated= `SELECT WORK_ESTIMATED FROM performance_schema.events_stages_current WHERE EVENT_NAME LIKE 'stage/sql/$state%'`
+    --let $work_completed= `SELECT WORK_COMPLETED FROM performance_schema.events_stages_current WHERE EVENT_NAME LIKE 'stage/sql/$state%'`
+    --let $assert_text= Assert that progress reports $work_completed row processed
+    --let $assert_cond= $work_estimated - $i + 1 = $work_completed
+    --source include/assert.inc
+    SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+
+    --dec $i
+  }
+
+  --dec $j
+}
+
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/remove_debug_point.inc
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+## Test with instrumentation disabled
+
+--source include/rpl_connection_master.inc
+
+use test;
+CREATE TABLE t1 (c1 INT);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+UPDATE performance_schema.setup_instruments SET ENABLED = 'NO' WHERE NAME LIKE 'stage/sql/Applying batch of row changes%';
+
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/add_debug_point.inc
+
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+
+USE test;
+BEGIN;
+INSERT INTO t1 VALUES (1), (2), (3);
+UPDATE t1 SET c1= 1000;
+DELETE FROM t1 WHERE c1=1000;
+COMMIT;
+
+--source include/rpl_connection_slave.inc
+
+--let $j=3
+while($j)
+{
+  # statement: insert, update, delete
+
+  --let $i= 3
+  while ($i)
+  {
+    # row: 1, 2 or 3
+
+    if ($j == 3)
+    {
+      --let $state= Applying batch of row changes (write)
+    }
+
+    if ($j == 2)
+    {
+      --let $state= Applying batch of row changes (update)
+    }
+
+    if ($j == 1)
+    {
+      --let $state= Applying batch of row changes (delete)
+    }
+
+    # begin event
+    SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+    --let $assert_text= Assert that there is no progress report with the instrument disabled
+    --let $assert_cond= COUNT(WORK_COMPLETED) = 0, COUNT(WORK_ESTIMATED) = 0 FROM performance_schema.events_stages_current WHERE EVENT_NAME LIKE "stage/sql/$stage%";
+    --source include/assert.inc
+    SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+
+    --dec $i
+  }
+
+  --dec $j
+}
+
+# reenable the stages
+UPDATE performance_schema.setup_instruments SET ENABLED = 'YES' WHERE NAME LIKE 'stage/sql/Applying batch of row changes%';
+
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/remove_debug_point.inc
+
+#######################################################
+
+# ---------------------------------
+# Check with Replicate_Rewrite_DB
+# ---------------------------------
+
+# Setup
+--source include/rpl_connection_slave.inc
+CREATE DATABASE db2;
+use db2;
+--source include/stop_slave_sql.inc
+
+# set replication filter
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
+
+--source include/start_slave_sql.inc
+--source include/rpl_connection_master.inc
+
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
+set sql_log_bin=0;
+CREATE DATABASE db1;
+use db1;
+set sql_log_bin=1;
+
+CREATE TABLE t1 (c1 INT);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+# ---------------------------------------------
+# Validate Functional Requirement 1, 2, 3 and 4
+# ---------------------------------------------
+
+--source include/rpl_connection_master.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1= 2;
+DELETE FROM t1 WHERE c1=2;
+COMMIT;
+
+--source include/rpl_connection_slave.inc
+
+# set debug sync points
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/add_debug_point.inc
+
+--source include/start_slave_sql.inc
+
+--let $db=db2
+--let $i=3
+while($i)
+{
+  if ($i == 3)
+  {
+    --let $state_progress= Applying batch of row changes (write)
+    --let $info= INSERT INTO t1 VALUES (1)
+  }
+
+  if ($i == 2)
+  {
+    --let $state_progress= Applying batch of row changes (update)
+    --let $info= UPDATE t1 SET c1= 2
+  }
+
+  if ($i == 1)
+  {
+    --let $state_progress= Applying batch of row changes (delete)
+    --let $info= DELETE FROM t1 WHERE c1=2
+  }
+
+  # this session waits for the progress to be updated
+  SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+
+  # applying
+
+  --let $state_stage= $state_progress
+  --let $state_db= $db
+  --let $state_command= Query
+  --let $state_info= $info
+  --source ../include/rpl_row_stages_validate.inc
+
+  # this session signals that applier can proceed to next row
+  SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+  --dec $i
+}
+
+# Clean up
+
+--source include/rpl_connection_slave.inc
+--let $debug_point=dbug.rpl_apply_sync_barrier
+--source include/remove_debug_point.inc
+
+--source include/stop_slave_sql.inc
+# Remove replication filter
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=();
+--source include/start_slave_sql.inc
+DROP DATABASE db2;
+
+--source include/rpl_connection_master.inc
+set sql_log_bin=0;
+DROP DATABASE db1;
+set sql_log_bin=1;
+
+##########################################################
+# Tear down
+
+--let $db=
+
+--source include/rpl_connection_master.inc
+
+USE test;
+DROP TABLE t1;
+
+--eval SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=$old_binlog_rows_query_log_events
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

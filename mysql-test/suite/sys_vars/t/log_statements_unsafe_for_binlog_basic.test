@@ -1,0 +1,110 @@
+################## mysql-test\t\log_statements_unsafe_for_binlog.test #########
+#                                                                             #
+# Variable Name: log_statements_unsafe_for_binlog                             #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: Boolean                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2015-11-19                                                   #
+# Author : Mark Leith                                                         #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_statements_unsafe_for_binlog                                #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+SET @start_value= @@global.log_statements_unsafe_for_binlog;
+
+####################################################################
+#   Valid values for boolean                                       #
+####################################################################
+SET @@global.log_statements_unsafe_for_binlog= DEFAULT;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+SET @@global.log_statements_unsafe_for_binlog= TRUE;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+SET @@global.log_statements_unsafe_for_binlog= true;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+SET @@global.log_statements_unsafe_for_binlog= 0;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+SET @@global.log_statements_unsafe_for_binlog= 1;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+SET @goodvar= TRUE;
+SET @@global.log_statements_unsafe_for_binlog= @goodvar;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+SET GLOBAL log_statements_unsafe_for_binlog= DEFAULT;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+SET GLOBAL log_statements_unsafe_for_binlog= ON;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+SET GLOBAL log_statements_unsafe_for_binlog= OFF;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+SET GLOBAL log_statements_unsafe_for_binlog= -0;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_statements_unsafe_for_binlog= 0.00;
+
+SET GLOBAL log_statements_unsafe_for_binlog= +0;
+SELECT @@global.log_statements_unsafe_for_binlog;
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_statements_unsafe_for_binlog= 'DEFAULT';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_statements_unsafe_for_binlog= 'true';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_statements_unsafe_for_binlog= BLABLA;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_statements_unsafe_for_binlog= 25;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_statements_unsafe_for_binlog= -1;
+
+SET @badvar= 'true';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_statements_unsafe_for_binlog= @badvar;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_statements_unsafe_for_binlog= 'DEFAULT';
+
+--error ER_GLOBAL_VARIABLE
+SET log_statements_unsafe_for_binlog= TRUE;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_statements_unsafe_for_binlog= TRUE;
+
+--error ER_GLOBAL_VARIABLE
+SET @@session.log_statements_unsafe_for_binlog= TRUE;
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_statements_unsafe_for_binlog= TRUE;
+
+--error ER_PARSE_ERROR
+SET @@global log_statements_unsafe_for_binlog= TRUE;
+
+--error ER_PARSE_ERROR
+SET @@SESSION log_statements_unsafe_for_binlog= TRUE;
+
+SET @@global.log_statements_unsafe_for_binlog= @start_value;
+

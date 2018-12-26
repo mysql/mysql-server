@@ -1,0 +1,267 @@
+# Test evaluation of replication table filter rules
+#
+# ==== Purpose ====
+#
+# Test if replication table filter rules are properly evaluated when
+# some of the tables referenced by the multiple-table update do not
+# exist on slave.
+#
+# ==== Method ====
+#
+# Master creates tables t1, t2, t3, t4, t5, t6, t7, t8, t9 and the
+# slave is started with the following replication table filter rules:
+#
+# --replicate-do-table=t1
+# --replicate-do-table=t2
+# --replicate-do-table=t3
+#
+# and
+#
+# --replicate-ignore-table=t4
+# --replicate-ignore-table=t5
+# --replicate-ignore-table=t6
+#
+# So the slave only replicate changes to tables t1, t2 and t3 and only
+# these tables exist on slave.
+#
+# From now on, tables t1, t2, and t3 are referenced as do tables,
+# tables t4, t5, t6 are referenced as ignore tables, and tables t7,
+# t8, t9 are referenced as other tables.
+#
+# All multi-table update tests reference tables that are not do
+# tables, which do not exist on slave. And the following situations
+# of multi-table update will be tested:
+#
+# 1. Do tables are not referenced at all
+# 2. Do tables are not referenced for update
+# 3. Ignore tables are referenced for update before do tables
+# 4. Only do tables are referenced for update
+# 5. Do tables and other tables are referenced for update
+# 6. Do tables are referenced for update before ignore tables
+#
+# For 1, 2 and 3, the statement should be ignored by slave, for 4, 5
+# and 6 the statement should be accepted by slave and cause an error
+# because of non-exist tables.
+#
+# ==== Related bugs ====
+#
+# BUG#37051 Replication rules not evaluated correctly
+
+--source include/not_group_replication_plugin.inc
+source include/have_binlog_format_statement.inc;
+source include/master-slave.inc;
+
+# These tables are mentioned in do-table rules
+CREATE TABLE t1 (id int, a int);
+CREATE TABLE t2 (id int, b int);
+CREATE TABLE t3 (id int, c int);
+
+# These tables are mentioned in ignore-table rules
+CREATE TABLE t4 (id int, d int);
+CREATE TABLE t5 (id int, e int);
+CREATE TABLE t6 (id int, f int);
+
+# These tables are not mentioned in do-table or ignore-table rules
+CREATE TABLE t7 (id int, g int);
+CREATE TABLE t8 (id int, h int);
+CREATE TABLE t9 (id int, i int);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t3 VALUES (1, 1), (2, 2), (3, 3);
+
+INSERT INTO t4 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t5 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t6 VALUES (1, 1), (2, 2), (3, 3);
+
+INSERT INTO t7 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t8 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t9 VALUES (1, 1), (2, 2), (3, 3);
+
+# Only t1, t2, t3 should be replicated to slave
+--source include/sync_slave_sql_with_master.inc
+echo [on slave];
+SHOW TABLES LIKE 't%';
+
+connection master;
+echo [on master];
+
+#
+# Do tables are not referenced, these statements should be ignored by
+# slave.
+#
+UPDATE t7 LEFT JOIN t4 ON (t4.id=t7.id) SET d=0, g=0 where t7.id=1;
+UPDATE t7 LEFT JOIN (t4, t5, t6) ON (t7.id=t4.id and t7.id=t5.id and t7.id=t6.id) SET d=0, e=0, f=0, g=0 where t7.id=1;
+UPDATE t4 LEFT JOIN (t7, t8, t9) ON (t4.id=t7.id and t4.id=t8.id and t4.id=t9.id) SET d=0, g=0, h=0, i=0 where t4.id=1;
+UPDATE t7 LEFT JOIN (t8, t9) ON (t7.id=t8.id and t7.id=t9.id) SET g=0, h=0, i=0 where t7.id=1;
+
+#
+# Do tables are not referenced for update, these statements should be
+# ignored by slave.
+#
+UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET d=0 where t1.id=1;
+UPDATE t1 LEFT JOIN t7 ON (t1.id=t7.id) SET g=0 where t1.id=1;
+UPDATE t1 LEFT JOIN (t4, t5, t6) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t6.id) SET d=0, e=0, f=0 where t1.id=1;
+UPDATE t1 LEFT JOIN (t4, t5, t8) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t8.id) SET d=0, e=0, h=0 where t1.id=1;
+UPDATE t1 LEFT JOIN (t7, t8, t5) ON (t1.id=t7.id and t1.id=t8.id and t1.id=t5.id) SET g=0, h=0, e=0 where t1.id=1;
+UPDATE t1 LEFT JOIN (t2, t3, t5) ON (t1.id=t2.id and t1.id=t3.id and t1.id=t5.id) SET e=0 where t1.id=1;
+
+#
+# Ignore tables are referenced for update before do tables, these
+# statements should be ignore by slave.
+#
+UPDATE t4 LEFT JOIN t1 ON (t1.id=t4.id) SET a=0, d=0 where t4.id=1;
+UPDATE t4 LEFT JOIN (t1, t7) ON (t4.id=t1.id and t7.id=t4.id) SET a = 0, d=0, g=0 where t4.id=1;
+UPDATE t4 LEFT JOIN (t1, t2, t3) ON (t1.id=t4.id and t2.id=t4.id and t3.id=t4.id) SET a=0, b=0, c=0, d=0 where t4.id=1;
+UPDATE t4 LEFT JOIN (t1, t2, t5) ON (t1.id=t4.id and t2.id=t4.id and t5.id=t4.id) SET a=0, b=0, e=0, d=0 where t4.id=1;
+UPDATE t4 LEFT JOIN (t1, t6, t7) ON (t4.id=t1.id and t4.id=t6.id and t4.id=t7.id) SET a=0, d=0, f=0, g=0 where t4.id=1;
+UPDATE t7 LEFT JOIN (t4, t1, t2) ON (t7.id=t4.id and t7.id=t1.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1;
+UPDATE t7 LEFT JOIN (t8, t4, t1) ON (t7.id=t8.id and t7.id=t4.id and t7.id=t1.id) SET a=0, d=0, g=0, h=0 where t7.id=1;
+
+# Sync slave to make sure all above statements are correctly ignored,
+# if any of the above statement are not ignored, it would cause error
+# and stop slave sql thread.
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+call mtr.add_suppression("Slave SQL.*Error .Table .test.t[47]. doesn.t exist. on query.* Error_code: MY-001146");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+connection master;
+
+--let $slave_sql_errno= convert_error(ER_NO_SUCH_TABLE) # 1146
+#
+# Only do tables are referenced for update, these statements should
+# cause error on slave
+#
+UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t1 LEFT JOIN (t4, t7) ON (t1.id=t4.id and t1.id=t7.id) SET a=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t1 LEFT JOIN (t2, t4, t7) ON (t1.id=t2.id and t1.id=t4.id and t1.id=t7.id) SET a=0, b=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t1 LEFT JOIN (t2, t3, t7) ON (t1.id=t2.id and t1.id=t3.id and t1.id=t7.id) SET a=0, b=0, c=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+#
+# Do tables and other tables are referenced for update, these
+# statements should cause error on slave
+#
+UPDATE t1 LEFT JOIN t7 ON (t1.id=t7.id) SET a=0, g=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t7 LEFT JOIN t1 ON (t1.id=t7.id) SET a=0, g=0 where t7.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t1 LEFT JOIN (t4, t5, t7) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t7.id) SET a=0, g=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t1 LEFT JOIN (t4, t7, t8) ON (t1.id=t4.id and t1.id=t7.id and t1.id=t8.id) SET a=0, g=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t1 LEFT JOIN (t7, t8, t9) ON (t1.id=t7.id and t1.id=t8.id and t1.id=t9.id) SET a=0, g=0, h=0, i=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t7 LEFT JOIN (t1, t2, t3) ON (t7.id=t1.id and t7.id=t2.id and t7.id=t3.id) SET g=0, a=0, b=0, c=0 where t7.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t7 LEFT JOIN (t4, t5, t3) ON (t7.id=t4.id and t7.id=t5.id and t7.id=t3.id) SET g=0, c=0 where t7.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t7 LEFT JOIN (t8, t9, t3) ON (t7.id=t8.id and t7.id=t9.id and t7.id=t3.id) SET g=0, h=0, i=0, c=0 where t7.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+#
+# Do tables are referenced for update before ignore tables
+#
+UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0, d=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t1 LEFT JOIN (t4, t5, t6) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t6.id) SET a=0, d=0, e=0, f=0 where t1.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t4 LEFT JOIN (t1, t5, t6) ON (t4.id=t1.id and t4.id=t5.id and t4.id=t6.id) SET a=0, e=0, f=0 where t4.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+UPDATE t7 LEFT JOIN (t1, t4, t2) ON (t7.id=t1.id and t7.id=t4.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1;
+source include/wait_for_slave_sql_error_and_skip.inc;
+
+--source include/sync_slave_sql_with_master.inc
+echo [on slave];
+
+# We should only have tables t1, t2, t3 on slave
+show tables like 't%';
+
+# The rows in these tables should remain untouched
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+
+# Clean up
+connection master;
+echo [on master];
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+
+--source include/sync_slave_sql_with_master.inc
+
+#
+# BUG#11754117 - 45670: INTVAR_EVENTS FOR FILTERED-OUT QUERY_LOG_EVENTS ARE EXECUTED
+# Int-, Rand- and User- var events accompaning a filtered out Query-log-event should
+# be filtered as well.
+#
+connection master;
+# Although RAND() is from 0 to 1.0, DECIMAL(M,D), requires that M must be >= D.
+CREATE TABLE test.t5 (a INT AUTO_INCREMENT PRIMARY KEY, b DECIMAL(20,20), c INT); # ignored on slave
+CREATE TABLE test.t1 (a INT); # accepted on slave
+INSERT INTO test.t1 VALUES(1);
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+--source include/sync_slave_sql_with_master.inc
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+# Although RAND() is from 0 to 1.0, DECIMAL(M,D), requires that M must be >= D.
+CREATE TABLE test.t_slave (a INT AUTO_INCREMENT PRIMARY KEY, b DECIMAL(20,20), c INT);
+CREATE TRIGGER t1_update AFTER UPDATE ON test.t1 FOR EACH ROW
+                               INSERT INTO test.t_slave VALUES(NULL, RAND(), @c);
+
+connection master;
+SET INSERT_ID=2;
+SET @c=2;
+SET @@rand_seed1=10000000, @@rand_seed2=1000000;
+INSERT INTO t5 VALUES (NULL, RAND(), @c); # to be ignored
+SELECT b into @b FROM test.t5;
+--let $b_master=`select @b`
+UPDATE test.t1 SET a=2; # to run trigger on slave
+
+--source include/sync_slave_sql_with_master.inc
+
+# The proof:
+SELECT a AS 'ONE' into @a FROM test.t_slave;
+SELECT c AS 'NULL' into @c FROM test.t_slave;
+
+let $count= 1;
+let $table= test.t_slave;
+source include/wait_until_rows_count.inc;
+
+if (`SELECT @a != 2 and @c != NULL`)
+{
+    SELECT * FROM test.t_slave;
+    --die Intvar or user var from replication events unexpetedly escaped out to screw a following query applying context.
+}
+
+SELECT b into @b FROM test.t_slave;
+--let $b_slave=`select @b`
+
+--let $assert_text= Random values from master and slave must be different
+--let $assert_cond= $b_master != $b_slave
+--source include/assert.inc
+
+# cleanup BUG#11754117
+connection master;
+drop table test.t5;
+drop table test.t1;
+
+--source include/sync_slave_sql_with_master.inc
+drop table test.t_slave;
+
+--source include/rpl_end.inc

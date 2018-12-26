@@ -1,0 +1,60 @@
+
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con1;
+dirty_close con1;
+connection con2;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (n INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+connection default;
+disconnect con2;
+
+# End of 4.1 tests
+
+#
+# Bug#10374 GET_LOCK does not let connection to close on the server side if it's aborted
+#
+
+connection default;
+SELECT GET_LOCK("dangling", 0);
+connect(con1, localhost, root,,);
+connection con1;
+--send SELECT GET_LOCK('dangling', 3600);
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE = "User lock"
+  AND INFO = "SELECT GET_LOCK('dangling', 3600)";
+--source include/wait_condition.inc
+dirty_close con1;
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE = "User lock"
+  AND INFO = "SELECT GET_LOCK('dangling', 3600)";
+--source include/wait_condition.inc
+connect(con1, localhost, root,,);
+--send SELECT GET_LOCK('dangling', 3600);
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE = "User lock"
+  AND INFO = "SELECT GET_LOCK('dangling', 3600)";
+--source include/wait_condition.inc
+SELECT RELEASE_LOCK('dangling');
+connection con1;
+--reap
+connection default;
+disconnect con1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

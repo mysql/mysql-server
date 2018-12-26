@@ -1,0 +1,138 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+set @my_time_zone= @@global.time_zone;
+set timestamp=100000000;
+create table t1 (t timestamp, n int not null auto_increment, PRIMARY KEY(n));
+create table t2 (t char(32), n int not null auto_increment, PRIMARY KEY(n));
+select @@time_zone;
+@@time_zone
+Japan
+select @@time_zone;
+@@time_zone
+Europe/Moscow
+insert into t1 values ('20050101000000', NULL), ('20050611093902',NULL);
+insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
+SELECT * FROM t1 ORDER BY n;
+t	n
+2005-01-01 00:00:00	1
+2005-06-11 09:39:02	2
+2004-01-01 00:00:00	3
+2004-06-11 09:39:02	4
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1 ORDER BY n;
+t	n
+2005-01-01 06:00:00	1
+2005-06-11 14:39:02	2
+2004-01-01 06:00:00	3
+2004-06-11 14:39:02	4
+delete from t1;
+set time_zone='Europe/Moscow';
+insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
+SELECT * FROM t1 ORDER BY n;
+t	n
+2004-01-01 00:00:00	5
+2004-06-11 09:39:02	6
+include/sync_slave_sql_with_master.inc
+set time_zone='Europe/Moscow';
+SELECT * FROM t1 ORDER BY n;
+t	n
+2004-01-01 00:00:00	5
+2004-06-11 09:39:02	6
+delete from t1;
+set time_zone='UTC';
+load data infile '../../std_data/rpl_timezone2.dat' ignore into table t1;
+Warnings:
+Warning	1265	Data truncated for column 't' at row 1
+Warning	1261	Row 1 doesn't contain data for all columns
+Warning	1265	Data truncated for column 't' at row 2
+Warning	1261	Row 2 doesn't contain data for all columns
+SELECT * FROM t1 ORDER BY n;
+t	n
+0000-00-00 00:00:00	7
+0000-00-00 00:00:00	8
+include/sync_slave_sql_with_master.inc
+set time_zone='UTC';
+SELECT * FROM t1 ORDER BY n;
+t	n
+0000-00-00 00:00:00	7
+0000-00-00 00:00:00	8
+set time_zone='Europe/Moscow';
+set time_zone='Europe/Moscow';
+delete from t1;
+insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
+set time_zone='MET';
+insert into t2 (select * from t1);
+SELECT * FROM t1 ORDER BY n;
+t	n
+2003-12-31 22:00:00	10
+2004-06-11 07:39:02	11
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY n;
+t	n
+2003-12-31 22:00:00	10
+2004-06-11 07:39:02	11
+delete from t2;
+set timestamp=1000072000;
+insert into t2 values (current_timestamp,NULL), (current_date,NULL), (current_time,NULL);
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY n;
+t	n
+2001-09-09 23:46:40	12
+2001-09-09	13
+23:46:40	14
+delete from t2;
+insert into t2 values (from_unixtime(1000000000),NULL),
+(unix_timestamp('2001-09-09 03:46:40'),NULL);
+SELECT * FROM t2 ORDER BY n;
+t	n
+2001-09-09 03:46:40	15
+1000000000	16
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY n;
+t	n
+2001-09-09 03:46:40	15
+1000000000	16
+set global time_zone='MET';
+delete from t2;
+set time_zone='UTC';
+insert into t2 values(convert_tz('2004-01-01 00:00:00','MET',@@time_zone),NULL);
+insert into t2 values(convert_tz('2005-01-01 00:00:00','MET','Japan'),NULL);
+SELECT * FROM t2 ORDER BY n;
+t	n
+2003-12-31 23:00:00	17
+2005-01-01 08:00:00	18
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY n;
+t	n
+2003-12-31 23:00:00	17
+2005-01-01 08:00:00	18
+drop table t1, t2;
+include/sync_slave_sql_with_master.inc
+set global time_zone= @my_time_zone;
+End of 4.1 tests
+CREATE TABLE t1 (a INT, b TIMESTAMP);
+INSERT INTO t1 VALUES (1, NOW());
+SET @@session.time_zone='Japan';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+UPDATE t1 SET b= '1970-01-01 08:59:59' WHERE a= 1;
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SET sql_mode = default;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0000-00-00 00:00:00
+include/sync_slave_sql_with_master.inc
+SET @@session.time_zone='Japan';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0000-00-00 00:00:00
+SET @@session.time_zone = default;
+DROP TABLE t1;
+SET @@session.time_zone = default;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/rpl_end.inc
+End of 5.0 tests

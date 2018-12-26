@@ -1,0 +1,214 @@
+call mtr.add_suppression("Can't set mandatory_role.*");
+SHOW VARIABLES LIKE 'mandatory_roles';
+CREATE ROLE PUBLIC;
+CREATE DATABASE test2;
+GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP ON test2.* TO PUBLIC@`%`;
+SHOW GRANTS FOR PUBLIC;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+SET DEFAULT ROLE PUBLIC TO u1@localhost;
+SHOW GRANTS FOR u1@localhost USING PUBLIC;
+connect(con1,localhost,u1,foo,test2,,,);
+connection con1;
+--echo # Current default role should be the mandatory role PUBLIC
+SELECT current_role();
+--echo # SHOW GRANTS should show the granted roles
+SHOW GRANTS;
+use test2;
+CREATE TABLE t1 (c1 INT);
+SET ROLE PUBLIC;
+DROP TABLE t1;
+--echo # Make sure we're actually checking for privileges
+--error ER_DBACCESS_DENIED_ERROR
+CREATE DATABASE test3;
+connection default;
+CREATE ROLE team_share;
+SET GLOBAL mandatory_roles='PUBLIC@%,team_share';
+disconnect con1;
+--source include/restart_mysqld.inc
+--echo # Restarting the server will reset the mandatory_roles variable
+SHOW VARIABLES LIKE 'mandatory_roles';
+SET global mandatory_roles='PUBLIC@%,team_share';
+connect(con1,localhost,u1,foo,test2,,,);
+connection con1;
+--echo # Active role is still PUBLIC; this is determined by default role
+--echo # settings.
+SELECT CURRENT_ROLE();
+--echo # But u1 is also granted team_share
+SHOW GRANTS;
+use test2;
+CREATE TABLE t1 (c1 INT);
+SET ROLE PUBLIC;
+DROP TABLE t1;
+connection default;
+disconnect con1;
+--error ER_MANDATORY_ROLE
+REVOKE PUBLIC FROM u1@localhost;
+--error ER_MANDATORY_ROLE
+DROP ROLE PUBLIC;
+DROP USER u1@localhost;
+SET GLOBAL mandatory_roles= '';
+DROP ROLE team_share;
+DROP DATABASE test2;
+SET GLOBAL mandatory_roles= 'PUBLIC';
+--echo #
+--echo # Tests for activate_all_roles_on_login
+--echo #
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+GRANT r1 TO u1@localhost;
+GRANT SELECT ON *.* TO r1;
+SET GLOBAL activate_all_roles_on_login= 'ON';
+connect(con1,localhost,u1,foo,test,,,);
+connection con1;
+--echo # Active role are PUBLIC, r1
+SELECT CURRENT_ROLE();
+SHOW GRANTS;
+connection default;
+CREATE ROLE r2,r3,r4,r5;
+GRANT r2,r3,r4,r5 TO u1@localhost;
+disconnect con1;
+connect(con1,localhost,u1,foo,test,,,);
+connection con1;
+--echo # Grants for u1@localhost should include PUBLIC.
+SELECT CURRENT_ROLE();
+SHOW GRANTS;
+SET ROLE NONE;
+SHOW GRANTS;
+connection default;
+--echo # SHOW GRANTS FOR won't show mandatory roles (PUBLIC in this case)
+--echo # because we need to avoid breaking the mysqlpump protocol which rely
+--echo # on SHOW GRANTS FOR to dump user privileges.
+SHOW GRANTS FOR u1@localhost;
+SHOW GRANTS FOR u1@localhost USING `PUBLIC`@`%`,`r1`@`%`,`r2`@`%`,`r3`@`%`,`r4`@`%`,`r5`@`%`;
+SET GLOBAL mandatory_roles= '';
+DROP ROLE PUBLIC;
+SET GLOBAL mandatory_roles= 'PUBLIC';
+SET GLOBAL activate_all_roles_on_login= 'OFF';
+connection default;
+REVOKE ALL ON *.* from r1,r2;
+GRANT SELECT ON *.* TO r1;
+GRANT INSERT ON *.* TO r2;
+GRANT r2 TO u1@localhost;
+SET GLOBAL mandatory_roles='r1';
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1@localhost USING r1;
+SHOW GRANTS FOR u1@localhost USING r2;
+SHOW GRANTS FOR u1@localhost USING r1,r2;
+--echo # We need to disconnect here to be sure that the u1 session has correct
+--echo # values for activate_all_roles_on_login and mandatory_roles.
+disconnect con1;
+connect(con1,localhost,u1,foo,test,,,);
+--echo # Current role should be None because ther are no activate roles per
+--echo # default even though r1 is granted as a mandatory role.
+SELECT CURRENT_ROLE();
+SHOW GRANTS;
+SET ROLE r1;
+SHOW GRANTS;
+SET ROLE r2;
+SHOW GRANTS;
+SET ROLE r1,r2;
+SHOW GRANTS;
+SET ROLE ALL;
+SHOW GRANTS;
+connection default;
+--echo #
+--echo # Reparse the mandatory role after each CREATE/DROP USER/ROLE
+--echo #
+CREATE USER u2@localhost IDENTIFIED BY 'foo';
+SET GLOBAL mandatory_roles="rr1";
+FLUSH PRIVILEGES;
+--error ER_CANNOT_USER
+DROP ROLE rr1;
+--echo # Creating the role will cause mandatory_roles to be reparsed
+CREATE ROLE rr1;
+GRANT SELECT ON test.* TO rr1;
+SET GLOBAL activate_all_roles_on_login = 'ON';
+connect(con2,localhost,u2,foo,test,,,);
+SELECT CURRENT_USER();
+--echo # SHOW GRANTS should show that rr1 is granted and effective privileges
+--echo # should contain SELECT ON test.*
+SHOW GRANTS;
+connection default;
+SET GLOBAL activate_all_roles_on_login = 'OFF';
+--echo # Don't show the same role twice.
+SET GLOBAL mandatory_roles="r1, r1";
+SHOW GRANTS;
+disconnect con1;
+disconnect con2;
+
+DROP USER u1@localhost;
+DROP USER u2@localhost;
+SET GLOBAL mandatory_roles='PUBLIC';
+DROP ROLE r1,r2,r3,r4,r5,rr1;
+
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+CREATE ROLE r1, r2, r3;
+SET GLOBAL mandatory_roles="aa ; bb : r3, r1, (r2), *r2,";
+connect(con1,localhost,u1,foo,test,,,);
+SHOW GRANTS;
+connection default;
+SET GLOBAL mandatory_roles="PUBLIC";
+DROP USER u1@localhost, r1, r2, r3;
+
+--echo
+--echo # Anonymous roles aren't allowed
+SET GLOBAL mandatory_roles='';
+CREATE USER ''@'localhost';
+GRANT ALL ON sys.* TO ''@'localhost';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mandatory_roles='``@`localhost`';
+SHOW GRANTS;
+CREATE USER u1@localhost identified by 'foo';
+GRANT SELECT ON *.* To u1@localhost;
+connect(con2,localhost,u1,foo,test,,,);
+SELECT CURRENT_USER();
+--echo # Should not show any anonymous mandatory role
+SHOW GRANTS;
+connection default;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con2;
+SELECT CURRENT_USER();
+SHOW GRANTS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL mandatory_roles='';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL mandatory_roles='foo@localhost';
+connection default;
+disconnect con2;
+--error ER_FAILED_ROLE_GRANT
+GRANT ''@'localhost' TO u1@localhost;
+SET GLOBAL mandatory_roles='';
+DROP USER u1@localhost, ''@'localhost';
+
+--echo # SET ROLE DEFAULT ALL should include mandatory roles
+CREATE ROLE r1, r2, r3;
+GRANT SELECT ON *.* TO r1;
+CREATE USER paul@localhost IDENTIFIED BY 'foo';
+GRANT r3 TO paul@localhost;
+GRANT INSERT ON test.* TO r3;
+SET GLOBAL mandatory_roles='r1,r2,r3';
+SET DEFAULT ROLE ALL TO paul@localhost;
+connect(con3,localhost,paul,foo,test,,,);
+--echo # Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+SET ROLE ALL;
+--echo # Should still show all mandatory roles
+SELECT CURRENT_ROLE();
+connection default;
+ALTER USER paul@localhost DEFAULT ROLE ALL;
+connection con3;
+SET ROLE DEFAULT;
+--echo # Should show mandatory roles
+SELECT CURRENT_ROLE();
+SET ROLE ALL;
+--echo # Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+--echo # no duplicates
+SET ROLE r1,r1,r1,r1,r1,r2,r2,r2,r2,r3,r3,r3,r3;
+SELECT CURRENT_ROLE();
+connection default;
+SET GLOBAL mandatory_roles="PUBLIC";
+DROP USER paul@localhost;
+DROP ROLE r1,r2,r3;
+disconnect con3;
+

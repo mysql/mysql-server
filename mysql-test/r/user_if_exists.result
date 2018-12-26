@@ -1,0 +1,271 @@
+CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT EXISTS but they already exist');
+CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS but they do not exist');
+DELETE FROM mysql.user WHERE user = 'wl8540';
+FLUSH PRIVILEGES;
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+0
+CREATE USER wl8540@host1;
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+1
+CREATE USER wl8540@host1;
+ERROR HY000: Operation CREATE USER failed for 'wl8540'@'host1'
+CREATE USER IF NOT EXISTS wl8540@host1;
+Warnings:
+Note	3163	Authorization ID 'wl8540'@'host1' already exists.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3163	Authorization ID 'wl8540'@'host1' already exists.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+1
+CREATE USER IF NOT EXISTS wl8540@host1, wl8540@host2;
+Warnings:
+Note	3163	Authorization ID 'wl8540'@'host1' already exists.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3163	Authorization ID 'wl8540'@'host1' already exists.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+2
+CREATE USER IF NOT EXISTS wl8540@host1, wl8540@host2;
+Warnings:
+Note	3163	Authorization ID 'wl8540'@'host1' already exists.
+Note	3163	Authorization ID 'wl8540'@'host2' already exists.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3163	Authorization ID 'wl8540'@'host1' already exists.
+Note	3163	Authorization ID 'wl8540'@'host2' already exists.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+2
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540' AND account_locked = 'Y';
+COUNT(*)
+0
+ALTER USER wl8540@host3 ACCOUNT LOCK;
+ERROR HY000: Operation ALTER USER failed for 'wl8540'@'host3'
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540' AND account_locked = 'Y';
+COUNT(*)
+0
+ALTER USER IF EXISTS wl8540@host3, wl8540@host4, wl8540@host1 ACCOUNT LOCK;
+Warnings:
+Note	3162	Authorization ID 'wl8540'@'host3' does not exist.
+Note	3162	Authorization ID 'wl8540'@'host4' does not exist.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3162	Authorization ID 'wl8540'@'host3' does not exist.
+Note	3162	Authorization ID 'wl8540'@'host4' does not exist.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540' AND account_locked = 'Y';
+COUNT(*)
+1
+ALTER USER IF EXISTS wl8540@host2 ACCOUNT LOCK;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540' AND account_locked = 'Y';
+COUNT(*)
+2
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+2
+DROP USER wl8540@host3;
+ERROR HY000: Operation DROP USER failed for 'wl8540'@'host3'
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+2
+DROP USER IF EXISTS wl8540@host3;
+Warnings:
+Note	3162	Authorization ID 'wl8540'@'host3' does not exist.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3162	Authorization ID 'wl8540'@'host3' does not exist.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+2
+DROP USER IF EXISTS wl8540@host3,wl8540@host2,wl8540@host4;
+Warnings:
+Note	3162	Authorization ID 'wl8540'@'host3' does not exist.
+Note	3162	Authorization ID 'wl8540'@'host4' does not exist.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3162	Authorization ID 'wl8540'@'host3' does not exist.
+Note	3162	Authorization ID 'wl8540'@'host4' does not exist.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+1
+DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
+Warnings:
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+1
+ALTER USER IF EXISTS wl8540@nohost1, wl8540@nohost2 ACCOUNT LOCK;
+Warnings:
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+1
+CREATE USER IF NOT EXISTS wl8540@nohost1, wl8540@nohost2;
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+3
+ALTER USER IF EXISTS wl8540@nohost1, wl8540@nohost2 ACCOUNT LOCK;
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+3
+CREATE USER IF NOT EXISTS wl8540@nohost1, wl8540@nohost2;
+Warnings:
+Note	3163	Authorization ID 'wl8540'@'nohost1' already exists.
+Note	3163	Authorization ID 'wl8540'@'nohost2' already exists.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3163	Authorization ID 'wl8540'@'nohost1' already exists.
+Note	3163	Authorization ID 'wl8540'@'nohost2' already exists.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+3
+DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+1
+CREATE USER wl8540@nohost1;
+DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
+Warnings:
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+1
+ALTER USER IF EXISTS wl8540@nohost1, wl8540@nohost2 ACCOUNT LOCK;
+Warnings:
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
+SHOW WARNINGS;
+Level	Code	Message
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+1
+CREATE USER IF NOT EXISTS wl8540@nohost1, wl8540@nohost2;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
+COUNT(*)
+3
+DELETE FROM mysql.user WHERE user = 'wl8540';
+FLUSH PRIVILEGES;
+
+
+CREATE USER user1@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+CREATE USER IF NOT EXISTS user2@localhost
+IDENTIFIED WITH 'mysql_native_password'
+            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+SELECT User,plugin,authentication_string,ssl_type,
+password_expired,password_lifetime FROM mysql.user WHERE USER='user2';
+User	user2
+plugin	mysql_native_password
+authentication_string	*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF
+ssl_type	
+password_expired	N
+password_lifetime	NULL
+CREATE USER IF NOT EXISTS user2@localhost
+IDENTIFIED WITH 'sha256_password';
+Warnings:
+Note	3163	Authorization ID 'user2'@'localhost' already exists.
+SELECT User,plugin,authentication_string,ssl_type,
+password_expired,password_lifetime FROM mysql.user WHERE USER='user2';
+User	user2
+plugin	mysql_native_password
+authentication_string	*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF
+ssl_type	
+password_expired	N
+password_lifetime	NULL
+ALTER USER IF EXISTS user2@localhost
+IDENTIFIED WITH 'mysql_native_password'
+            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+SELECT User,plugin,authentication_string,ssl_type,
+password_expired,password_lifetime FROM mysql.user WHERE USER='user2';
+User	user2
+plugin	mysql_native_password
+authentication_string	*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF
+ssl_type	
+password_expired	N
+password_lifetime	NULL
+CREATE USER IF NOT EXISTS user1@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+Warnings:
+Note	3163	Authorization ID 'user1'@'localhost' already exists.
+CREATE USER IF NOT EXISTS ne_user1@localhost,user1@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+Warnings:
+Note	3163	Authorization ID 'user1'@'localhost' already exists.
+ALTER USER IF EXISTS ne_user2@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+Warnings:
+Note	3162	Authorization ID 'ne_user2'@'localhost' does not exist.
+ALTER USER IF EXISTS user1@localhost,ne_user3@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+Warnings:
+Note	3162	Authorization ID 'ne_user3'@'localhost' does not exist.
+DROP USER IF EXISTS user1@localhost,user2@localhost,ne_user1@localhost,
+ne_user2@localhost,ne_user3@localhost;
+Warnings:
+Note	3162	Authorization ID 'ne_user2'@'localhost' does not exist.
+Note	3162	Authorization ID 'ne_user3'@'localhost' does not exist.
+
+# Restarting the server with --log-row ON
+# Restart server.
+CREATE USER user1@localhost
+IDENTIFIED WITH 'mysql_native_password';
+CREATE USER IF NOT EXISTS user2@localhost
+IDENTIFIED WITH 'mysql_native_password'
+            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+CREATE USER IF NOT EXISTS user1@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+Warnings:
+Note	3163	Authorization ID 'user1'@'localhost' already exists.
+CREATE USER IF NOT EXISTS ne_user1@localhost,user1@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+Warnings:
+Note	3163	Authorization ID 'user1'@'localhost' already exists.
+ALTER USER IF EXISTS ne_user2@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+Warnings:
+Note	3162	Authorization ID 'ne_user2'@'localhost' does not exist.
+ALTER USER IF EXISTS user1@localhost,ne_user3@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+Warnings:
+Note	3162	Authorization ID 'ne_user3'@'localhost' does not exist.
+DROP USER IF EXISTS user1@localhost,user2@localhost,ne_user1@localhost,
+ne_user2@localhost,ne_user3@localhost;
+Warnings:
+Note	3162	Authorization ID 'ne_user2'@'localhost' does not exist.
+Note	3162	Authorization ID 'ne_user3'@'localhost' does not exist.
+#
+# Bug #21807286: "CREATE USER IF NOT EXISTS" REPORTS AN ERROR
+#
+CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'xyz';
+# Must not fail but return a warning
+CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'xyz';
+Warnings:
+Note	3163	Authorization ID 'b21807286'@'localhost' already exists.
+DROP USER b21807286@localhost;
+# Must not fail but return a warning
+ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'xyz';
+Warnings:
+Note	3162	Authorization ID 'b21807286'@'localhost' does not exist.
+# End of 5.7 tests

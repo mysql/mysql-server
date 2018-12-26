@@ -1,0 +1,82 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "mutex_instances";
+let $name_column = NAME;
+let $target_name = wait/synch/mutex/sql/MDL_wait::LOCK_wait_status;
+let $id_column = LOCKED_BY_THREAD_ID;
+
+--echo TABLE: $table
+--echo INDEXES: PK (OBJECT_INSTANCE_BEGIN), KEY (NAME), KEY (LOCKED_BY_THREAD_ID)
+
+--source ../include/idx_compare_setup.inc
+
+--disable_query_log
+
+# Get an object_instance_begin, mutex_name and locked_by_thread_id
+
+--connection con1
+# Get MDL read lock
+LOCK TABLE t1 READ;
+
+--connection con2
+
+# User1 has a READ LOCK
+# User2 waiting for WRITE LOCK
+--send LOCK TABLE t1 write;
+
+--connection default
+
+# Wait for the LOCK TABLE t1 write to block
+let $wait_condition=
+  select count(*) = 1 from performance_schema.events_waits_current
+  where event_name = 'wait/lock/metadata/sql/mdl'
+  and object_name = 't1';
+--source include/wait_condition.inc
+
+--connection default
+
+eval SELECT object_instance_begin, locked_by_thread_id
+  INTO @object_instance_begin, @target_id
+  FROM performance_schema.mutex_instances
+  WHERE name = 'wait/synch/mutex/sql/MDL_wait::LOCK_wait_status'
+  AND locked_by_thread_id IS NOT NULL LIMIT 1;
+
+UPDATE performance_schema.threads SET instrumented = 'NO';
+
+--enable_query_log
+
+#DEBUG SELECT @object_instance_begin, @target_thread_id;
+
+--echo
+--echo ## Test OBJECT_INSTANCE_BEGIN
+let $key_group = 12;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test NAME
+let $key_group = 13;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test LOCKED_BY_THREAD_ID
+let $key_group = 14;
+--source ../include/idx_compare_load.inc
+
+--connection con1
+
+# User1 releases a READ LOCK
+# User2 granted a WRITE LOCK
+UNLOCK TABLES;
+
+--connection con2
+
+# Complete LOCK TABLE t1 write
+--reap
+UNLOCK TABLES;
+
+--connection default
+
+--source ../include/idx_compare_cleanup.inc

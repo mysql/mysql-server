@@ -1,0 +1,167 @@
+# ==== Purpose ====
+#
+# This test case will generate a big workload on master, making the I/O thread
+# to suffer disk space issues (using debug instrumentation) and killing it while
+# it is working (either waiting for disk space or not).
+#
+# Both the workload and the killing points are randomly chosen.
+#
+# The test case will also randomly rotate the master binary log to make possible
+# to the slave to fail leaving the relay log in bad shape (killing the I/O thread
+# while waiting for disk space when rotating the relay log).
+#
+# ==== References ====
+#
+# WL#10406: Improve usability when receiver thread is waiting for disk space
+# Bug#21753696: MAKE SHOW SLAVE STATUS NON BLOCKING IF IO THREAD WAITS FOR
+#               DISK SPACE
+#
+###############################################################################
+--source include/have_debug.inc
+--source include/big_test.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (c1 INT, c2 TEXT);
+--source include/sync_slave_sql_with_master.inc
+
+# Those errors will only happen in the slave
+CALL mtr.add_suppression("Disk is full writing");
+CALL mtr.add_suppression("Retry in 60 secs");
+CALL mtr.add_suppression("Relay log write failure");
+CALL mtr.add_suppression("Could not parse relay log event entry.");
+CALL mtr.add_suppression("Turning logging off for the whole duration of the MySQL server process");
+CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Error reading relay log event for channel");
+CALL mtr.add_suppression("next log error");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Error writing master configuration");
+CALL mtr.add_suppression("Failed to flush master info file");
+
+--let $sleep_freq= 10
+--let $sleep_time= `SELECT 1.0 / $sleep_freq`
+
+# Set the debug option that simulates disk full for relay log files only
+--let $debug_point=simulate_random_io_thd_wait_for_disk_space
+--source include/add_debug_point.inc
+
+--echo # Generating events to be replicated to the slave
+--source include/rpl_connection_master.inc
+--let $inserts= 8000
+--disable_query_log
+while ($inserts)
+{
+  --let $str= `SELECT REPEAT("a", FLOOR(1 + (RAND() * 2048)))`
+  --eval INSERT INTO t1 VALUES($inserts, "$str")
+  # Decide if rotating the binary log or not
+  --let $should_rotate= `SELECT FLOOR(RAND() * 200)`
+  if ($should_rotate >= 199)
+  {
+    FLUSH LOGS;
+  }
+  --dec $inserts
+}
+--enable_query_log
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--echo # Waiting until slave I/O thread synced with master
+--source include/rpl_connection_slave.inc
+if (!$rpl_debug)
+{
+  --disable_query_log
+  --let $debug_point_silent= 1
+  --let $include_silent= 1
+}
+--let $done= 0
+--let $kills= 0
+--let $restarts= 0
+while (!$done)
+{
+  --let io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/slave_io'`
+
+  # Wait until IO thread is waiting for disk space or the workload has finished
+  --let $need_to_wait= 1
+  while ($need_to_wait)
+  {
+    --let $io_thread_state= query_get_value(SHOW SLAVE STATUS, Slave_IO_State, 1)
+    if ($io_thread_state == Waiting for disk space)
+    {
+      --let $need_to_wait= 0
+    }
+    if ($io_thread_state != Waiting for disk space)
+    {
+      --let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+      if ($read_pos == $master_pos)
+      {
+        --let $need_to_wait= 0
+        --let $done= 1
+      }
+      if ($read_pos < $master_pos)
+      {
+        --sleep $sleep_time
+      }
+    }
+  }
+
+  # If not synced yet, kill the I/O thread while waiting for disk space
+  if (!$done)
+  {
+    --inc $kills
+    --replace_result $io_id IO_THREAD
+    --eval KILL $io_id
+    --source include/wait_for_slave_io_to_stop.inc
+    # Remove the disk space restriction
+    --source include/remove_debug_point.inc
+
+    # When the I/O is killed while rotating the relay log, it is possible to
+    # reach an unrecoverable relay log state. The relay log will be closed in
+    # this case because of the "--binlog_error_action=IGNORE_ERROR" option on
+    # the slave. We will then restart the slave using "--relay_log_recovery".
+    --let $events= query_get_value(SHOW RELAYLOG EVENTS LIMIT 1, Pos, 1)
+    if ($events == No such row)
+    {
+      --inc $restarts
+      # Restarting while having MTS in the middle of an incomplete trx might fail
+      --disable_warnings
+      STOP SLAVE SQL_THREAD;
+      --enable_warnings
+      --source include/wait_for_slave_sql_to_stop.inc
+      # Relay log is in bad shape
+      --let $rpl_server_number= 2
+      --let $rpl_server_parameters= --relay_log_recovery
+      --source include/rpl_restart_server.inc
+      --source include/start_slave.inc
+      --let io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/slave_io'`
+    }
+    if ($events != No such row)
+    {
+      # Start the I/O thread again to continue with the test case
+      --source include/start_slave_io.inc
+    }
+    # Simulate space restriction again
+    --source include/add_debug_point.inc
+  }
+}
+# Restore the debug options to "simulate" freed space on disk
+if (!$rpl_debug)
+{
+  --let $debug_point_silent=
+  --let $include_silent=
+  --enable_query_log
+}
+--source include/remove_debug_point.inc
+
+# Assert that everything was replicated
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+if ($rpl_debug)
+{
+  --echo # Kills= $kills, Restarts= $restarts
+}
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

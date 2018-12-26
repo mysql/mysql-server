@@ -1,0 +1,5 @@
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+# The main testing script
+--source suite/opt_trace/include/security.inc

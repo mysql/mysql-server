@@ -1,0 +1,49 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t2 (n int, PRIMARY KEY(n));
+create temporary table t1 (n int);
+create temporary table t3 (n int not null);
+insert into t1 values(1),(2),(3),(100),(25),(26),(200),(300);
+insert into t2 select * from t1;
+alter table t3 add primary key(n);
+flush logs;
+insert into t3 values (1010);
+insert into t2 select * from t3;
+drop table if exists t3;
+insert into t2 values (1012);
+create temporary table t1 (n int);
+insert into t1 values (4),(5);
+insert into t2 select * from t1;
+insert into t2 values(61);
+select * from t2;
+n
+1
+2
+3
+4
+5
+25
+26
+61
+100
+200
+300
+1010
+1012
+select count(*) from t2;
+count(*)
+13
+select sum(n) from t2;
+sum(n)
+2749
+show status like 'Slave_open_temp_tables';
+Variable_name	Value
+Slave_open_temp_tables	0
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

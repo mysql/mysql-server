@@ -1,0 +1,277 @@
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+CREATE TABLE t1 (id int, name varchar(64));
+INSERT INTO t1 VALUES (1, 'This is a test');
+select * from t1;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+set default_storage_engine=`heap`;
+CREATE TABLE t1 (id int, name varchar(64));
+create table t2(foo1 varchar(32), foo2 varchar(32));
+INSERT INTO t1 VALUES (1, 'This is a test');
+insert into t2 values ('test', 'test2');
+select * from t1;
+select * from t2;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+set default_storage_engine=`myisam`;
+CREATE TABLE t1 (id int, name varchar(64));
+create table t2(foo1 varchar(32), foo2 varchar(32));
+INSERT INTO t1 VALUES (1, 'This is a test');
+insert into t2 values ('test', 'test2');
+select * from t1;
+select * from t2;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+set default_storage_engine=`heap`;
+CREATE TABLE t1 (id int, name varchar(64));
+create table t2(foo1 varchar(32), foo2 varchar(32));
+INSERT INTO t1 VALUES (1, 'This is a test');
+insert into t2 values ('test', 'test2');
+SHOW TABLES;
+select * from t1;
+select * from t2;
+SHOW TABLES;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+set default_storage_engine=`myisam`;
+CREATE TABLE t1 (id int, name varchar(64));
+create table t2(foo1 varchar(32), foo2 varchar(32));
+INSERT INTO t1 VALUES (1, 'This is a test');
+insert into t2 values ('test', 'test2');
+SHOW TABLES;
+select * from t1;
+select * from t2;
+SHOW TABLES;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+set default_storage_engine=`heap`;
+CREATE TABLE t1 (id int, name varchar(64));
+create table t2(foo1 varchar(32), foo2 varchar(32));
+INSERT INTO t1 VALUES (1, 'This is a test');
+insert into t2 values ('test', 'test2');
+SET AUTOCOMMIT=0;
+SHOW TABLES;
+SET AUTOCOMMIT=0;
+select * from t1;
+COMMIT;
+select * from t2;
+COMMIT;
+select * from t1;
+COMMIT;
+select * from t2;
+COMMIT;
+select * from t1;
+COMMIT;
+select * from t2;
+COMMIT;
+COMMIT;
+SHOW TABLES;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+CREATE SCHEMA `mysqlslap`;
+use mysqlslap;
+set default_storage_engine=`myisam`;
+CREATE TABLE t1 (id int, name varchar(64));
+create table t2(foo1 varchar(32), foo2 varchar(32));
+INSERT INTO t1 VALUES (1, 'This is a test');
+insert into t2 values ('test', 'test2');
+SET AUTOCOMMIT=0;
+SHOW TABLES;
+SET AUTOCOMMIT=0;
+select * from t1;
+COMMIT;
+select * from t2;
+COMMIT;
+select * from t1;
+COMMIT;
+select * from t2;
+COMMIT;
+select * from t1;
+COMMIT;
+select * from t2;
+COMMIT;
+COMMIT;
+SHOW TABLES;
+DROP SCHEMA IF EXISTS `mysqlslap`;
+#
+# Bug #29985: mysqlslap -- improper handling of resultsets in SPROCs
+#
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1() SELECT 1;
+DROP PROCEDURE p1;
+#
+# Bug #11765157 - 58090: mysqlslap drops schema specified in
+#                 create_schema if auto-generate-sql also set.
+#
+# 'bug58090' database should not be present.
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+# 'bug58090' database should be present.
+SHOW DATABASES;
+Database
+bug58090
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+DROP DATABASE bug58090;
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+Executing mysqlslap with password.
+mysqlslap: [Warning] Using a password on the command line interface can be insecure.
+
+#
+# Bug#18430704 : MYSQLSLAP CRASHES BY FLOATING POINT EXCEPTION
+#
+mysqlslap: [Warning] option 'iterations': unsigned value 0 adjusted to 1.
+
+#WL7764 : Make STRICT mode for transactional SEs default in 5.7
+#Adding negative test for added option --sql_mode
+End of tests
+#
+# Bug #11762644: MYSQLSLAP OPTION --AUTO-GENERATE-SQL-SECONDARY-INDEXES DOESNT WORK
+#
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+#
+# End of 5.7 tests
+#

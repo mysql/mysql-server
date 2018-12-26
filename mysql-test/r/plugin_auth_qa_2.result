@@ -1,0 +1,147 @@
+CREATE DATABASE test_user_db;
+========== test 1.1.3.2 ====================================
+=== check contens of components of info ====================
+CREATE USER qa_test_1_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_1_dest';
+CREATE USER qa_test_1_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest;
+GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_user;
+SELECT user,plugin FROM mysql.user WHERE user != 'root';
+user	plugin
+mysql.infoschema	caching_sha2_password
+mysql.session	caching_sha2_password
+mysql.sys	caching_sha2_password
+qa_test_1_dest	caching_sha2_password
+qa_test_1_user	qa_auth_interface
+SELECT @@proxy_user;
+@@proxy_user
+NULL
+SELECT @@external_user;
+@@external_user
+NULL
+exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_1_user --password=qa_test_1_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+current_user()	user()	@@local.proxy_user	@@local.external_user
+qa_test_1_user@%	qa_test_1_user@localhost	NULL	NULL
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+qa_test_1_dest	caching_sha2_password
+qa_test_1_user	qa_auth_interface
+DROP USER qa_test_1_user;
+DROP USER qa_test_1_dest;
+=== Assign values to components of info ====================
+CREATE USER qa_test_2_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_2_dest';
+CREATE USER qa_test_2_dest IDENTIFIED BY 'dest_passwd';
+CREATE USER authenticated_as IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_2_dest;
+GRANT ALL PRIVILEGES ON test_user_db.* TO authenticated_as;
+GRANT PROXY ON qa_test_2_dest TO qa_test_2_user;
+GRANT PROXY ON authenticated_as TO qa_test_2_user;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+authenticated_as	caching_sha2_password
+qa_test_2_dest	caching_sha2_password
+qa_test_2_user	qa_auth_interface
+SELECT @@proxy_user;
+@@proxy_user
+NULL
+SELECT @@external_user;
+@@external_user
+NULL
+exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_2_user --password=qa_test_2_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+current_user()	user()	@@local.proxy_user	@@local.external_user
+authenticated_as@%	user_name@localhost	'qa_test_2_user'@'%'	externaluser
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+authenticated_as	caching_sha2_password
+qa_test_2_dest	caching_sha2_password
+qa_test_2_user	qa_auth_interface
+DROP USER qa_test_2_user;
+DROP USER qa_test_2_dest;
+DROP USER authenticated_as;
+=== Assign too high values for *length, which should have no effect ====
+CREATE USER qa_test_3_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_3_dest';
+CREATE USER qa_test_3_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_3_dest;
+GRANT PROXY ON qa_test_3_dest TO qa_test_3_user;
+exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_3_user --password=qa_test_3_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+current_user()	user()	@@local.proxy_user	@@local.external_user
+qa_test_3_dest@%	qa_test_3_user@localhost	'qa_test_3_user'@'%'	qa_test_3_dest
+DROP USER qa_test_3_user;
+DROP USER qa_test_3_dest;
+=== Assign too low values for *length, which should have no effect ====
+CREATE USER qa_test_4_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_4_dest';
+CREATE USER qa_test_4_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_4_dest;
+GRANT PROXY ON qa_test_4_dest TO qa_test_4_user;
+exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_4_user --password=qa_test_4_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+current_user()	user()	@@local.proxy_user	@@local.external_user
+qa_test_4_dest@%	qa_test_4_user@localhost	'qa_test_4_user'@'%'	qa_test_4_dest
+DROP USER qa_test_4_user;
+DROP USER qa_test_4_dest;
+=== Assign empty string especially to authenticated_as (in plugin) ====
+CREATE USER qa_test_5_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_5_dest';
+CREATE USER qa_test_5_dest IDENTIFIED BY 'dest_passwd';
+CREATE USER ''@'localhost' IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_5_dest;
+GRANT ALL PRIVILEGES ON test_user_db.* TO ''@'localhost';
+GRANT PROXY ON qa_test_5_dest TO qa_test_5_user;
+GRANT PROXY ON qa_test_5_dest TO ''@'localhost';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+	caching_sha2_password
+qa_test_5_dest	caching_sha2_password
+qa_test_5_user	qa_auth_interface
+exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_5_user  --password=qa_test_5_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000): Access denied for user 'qa_test_5_user'@'localhost' (using password: YES)
+DROP USER qa_test_5_user;
+DROP USER qa_test_5_dest;
+DROP USER ''@'localhost';
+=== Assign 'root' especially to authenticated_as (in plugin) ====
+CREATE USER qa_test_6_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
+CREATE USER qa_test_6_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_6_dest;
+GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+qa_test_6_dest	caching_sha2_password
+qa_test_6_user	qa_auth_interface
+exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_6_user  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000): Access denied for user 'qa_test_6_user'@'localhost' (using password: YES)
+CREATE USER root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
+GRANT PROXY ON qa_test_6_dest TO root;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+qa_test_6_dest	caching_sha2_password
+qa_test_6_user	qa_auth_interface
+exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
+REVOKE PROXY ON qa_test_6_dest FROM root;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+qa_test_6_dest	caching_sha2_password
+qa_test_6_user	qa_auth_interface
+exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
+DROP USER qa_test_6_user;
+DROP USER qa_test_6_dest;
+DROP USER 'root'@'%';
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+=== Test of the --default_auth option for clients ====
+CREATE USER qa_test_11_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_11_dest';
+CREATE USER qa_test_11_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_11_dest;
+GRANT PROXY ON qa_test_11_dest TO qa_test_11_user;
+exec MYSQL PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P MASTER_MYPORT -u qa_test_11_user --password=qa_test_11_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000): Access denied for user 'qa_test_11_user'@'localhost' (using password: YES)
+DROP USER qa_test_11_user, qa_test_11_dest;
+DROP DATABASE test_user_db;

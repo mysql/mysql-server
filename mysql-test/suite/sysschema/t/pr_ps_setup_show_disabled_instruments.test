@@ -1,0 +1,12 @@
+
+# Disable a few instruments
+UPDATE performance_schema.setup_instruments
+   SET ENABLED = 'NO'
+ WHERE NAME LIKE 'stage/innodb/%'
+       OR NAME LIKE 'statement/com/%'
+       OR NAME = 'idle';
+
+CALL sys.ps_setup_show_disabled_instruments();
+
+# Clean up
+-- source ../include/ps_setup_reset_to_default_cleanup.inc

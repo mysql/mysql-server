@@ -1,0 +1,22 @@
+[^.+master\-slave\.inc.*$]
+source suite/rpl_bhs/extension/bhs/master-slave.inc;
+
+[source extra]
+source suite/rpl_bhs/extra
+
+[^(\s|\-)*sync_slave_with_master.*$]
+connection master;
+sync_slave_with_master blackhole_slave;
+sync_slave_with_master;
+
+[^(\s|\-)*sync_with_master.*$]
+connection blackhole_slave;
+sync_with_master;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+[^(\s|\-)*save_master_pos.*$]
+connection master;
+sync_slave_with_master blackhole_slave;
+save_master_pos;

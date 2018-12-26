@@ -1,0 +1,417 @@
+# Testcase for worklog #5743: Lift the limit of index key prefixes
+
+SET default_storage_engine=InnoDB;
+
+--disable_query_log
+call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
+--enable_query_log
+
+let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+set global innodb_file_per_table=1;
+
+-- echo ### Test 1 ###
+# Create a table of DYNAMIC format, with a primary index of 1000 bytes in
+# size
+create table worklog5743(a TEXT not null, primary key (a(1000))) charset latin1 ROW_FORMAT=DYNAMIC;
+show warnings;
+
+# Do some insertion and update to excercise the external cache
+# code path
+insert into worklog5743 values(repeat("a", 20000));
+
+# default session, update the table
+update worklog5743 set a = (repeat("b", 16000));
+
+# Create a secondary index
+create index idx on worklog5743(a(2000));
+show warnings;
+
+# Start a few sessions to do selections on table being updated in default
+# session, so it would rebuild the previous version from undo log.
+# 1) Default session:   Initiate an update on the externally stored column
+# 2) Session con1:      Select from table with repeated read
+# 3) Session con2:      Select from table with read uncommitted
+# 4) Default session:   rollback updates
+
+begin;
+update worklog5743 set a = (repeat("x", 17000));
+
+# Start a new session to select the column to force it build
+# an earlier version of the clustered index through undo log. So it should
+# just see the result of repeat("b", 16000)
+select @@session.transaction_isolation;
+--connect (con1,localhost,root,,)
+select a = repeat("x", 17000) from worklog5743;
+select a = repeat("b", 16000) from worklog5743;
+
+# Start another session doing "read uncommitted" query, it
+# should see the uncommitted update
+--connect (con2,localhost,root,,)
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+select a = repeat("x", 17000) from worklog5743;
+
+# Roll back the transaction
+--connection default
+rollback;
+
+drop table worklog5743;
+
+-- echo ### Test 2 ###
+# Create a table with only a secondary index has large prefix column
+create table worklog5743(a1 int, a2 TEXT not null) charset latin1 ROW_FORMAT=DYNAMIC;
+show warnings;
+create index idx on worklog5743(a1, a2(2000));
+show warnings;
+
+insert into worklog5743 values(9, repeat("a", 10000));
+
+begin;
+
+update worklog5743 set a1 = 1000;
+
+# Do a select from another connection that would use the secondary index
+--connection con1
+select @@session.transaction_isolation;
+explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+
+# Do read uncommitted in another session, it would show there is no
+# row with a1 = 9
+--connection con2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+
+--connection default
+rollback;
+
+drop table worklog5743;
+
+-- echo ### Test 3 ###
+# Create a table with a secondary index has small (50 bytes) prefix column
+create table worklog5743(a1 int, a2 TEXT not null) ROW_FORMAT=DYNAMIC;
+
+create index idx on worklog5743(a1, a2(50));
+
+insert into worklog5743 values(9, repeat("a", 10000));
+
+begin;
+
+update worklog5743 set a1 = 1000;
+
+# Do a select from another connection that would use the secondary index
+--connection con1
+select @@session.transaction_isolation;
+explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+
+# Do read uncommitted in another session, it would show there is no
+# row with a1 = 9
+--connection con2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
+
+--connection default
+rollback;
+
+drop table worklog5743;
+
+-- echo ### Test 4 ###
+# Create compressed tables with each KEY_BLOCK_SIZE.
+create table worklog5743_1(a1 int, a2 TEXT not null) charset latin1 KEY_BLOCK_SIZE=1;
+create table worklog5743_2(a1 int, a2 TEXT not null) charset latin1 KEY_BLOCK_SIZE=2;
+create table worklog5743_4(a1 int, a2 TEXT not null) charset latin1 KEY_BLOCK_SIZE=4;
+create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) charset latin1 KEY_BLOCK_SIZE=8;
+create table worklog5743_16(a1 int, a2 TEXT, a3 TEXT) charset latin1 KEY_BLOCK_SIZE=16;
+
+# The maximum overall index record (not prefix) length of a
+# compressed table is dependent on innodb-page-size (IPS),
+# key_block_size (KBS) and the number of fields (NF).
+# "Too big row" error (HA_ERR_TOO_BIG_ROW) will be returned if this
+# limit is exceeded.
+# See page_zip_empty_size() and Bug #47495 for more detail.
+
+# Test edge cases for indexes using key_block_size=1
+-- error ER_TOO_LONG_KEY
+create index idx2 on worklog5743_1(a2(4000));
+show warnings;
+-- error ER_TOO_BIG_ROWSIZE
+create index idx3 on worklog5743_1(a2(436));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx4 on worklog5743_1(a2(434));
+show warnings;
+-- error ER_TOO_BIG_ROWSIZE
+create index idx5 on worklog5743_1(a1, a2(430));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx6 on worklog5743_1(a1, a2(428));
+show warnings;
+
+# Test edge cases for indexes using key_block_size=2
+# Check index creation behavior without STRICT mode
+SET sql_mode= '';
+-- error ER_TOO_BIG_ROWSIZE
+create index idx2 on worklog5743_2(a2(4000));
+show warnings;
+-- error ER_TOO_BIG_ROWSIZE
+create index idx3 on worklog5743_2(a2(948));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx4 on worklog5743_2(a2(946));
+show warnings;
+-- error ER_TOO_BIG_ROWSIZE
+create index idx5 on worklog5743_2(a1, a2(942));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx6 on worklog5743_2(a1, a2(940));
+show warnings;
+
+# Test edge cases for indexes using key_block_size=4
+-- error ER_TOO_BIG_ROWSIZE
+create index idx2 on worklog5743_4(a2(4000));
+show warnings;
+-- error ER_TOO_BIG_ROWSIZE
+create index idx3 on worklog5743_4(a2(1972));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx4 on worklog5743_4(a2(1970));
+show warnings;
+-- error ER_TOO_BIG_ROWSIZE
+create index idx5 on worklog5743_4(a1, a2(1966));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx6 on worklog5743_4(a1, a2(1964));
+show warnings;
+
+# Test edge cases for indexes using key_block_size=8
+create index idx2 on worklog5743_8(a2(3073));
+show warnings;
+create index idx3 on worklog5743_8(a2(3072));
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx4 on worklog5743_8(a1, a2(3069));
+show warnings;
+create index idx5 on worklog5743_8(a1, a2(3068));
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx6 on worklog5743_8(a1, a2(2000), a3(1069));
+show warnings;
+create index idx7 on worklog5743_8(a1, a2(2000), a3(1068));
+show warnings;
+
+# Test edge cases for indexes using key_block_size=16
+create index idx2 on worklog5743_16(a2(3073));
+show warnings;
+create index idx3 on worklog5743_16(a2(3072));
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx4 on worklog5743_16(a1, a2(3069));
+show warnings;
+create index idx5 on worklog5743_16(a1, a2(3068));
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx6 on worklog5743_16(a1, a2(2000), a3(1069));
+show warnings;
+create index idx7 on worklog5743_16(a1, a2(2000), a3(1068));
+show warnings;
+set sql_mode= default;
+
+# Insert a large record into each of these tables.
+insert into worklog5743_1 values(9, repeat("a", 10000));
+insert into worklog5743_2 values(9, repeat("a", 10000));
+insert into worklog5743_4 values(9, repeat("a", 10000));
+insert into worklog5743_8 values(9, repeat("a", 10000), repeat("a", 10000));
+insert into worklog5743_16 values(9, repeat("a", 10000), repeat("a", 10000));
+
+insert into worklog5743_1 values(2, repeat("b", 10000));
+insert into worklog5743_2 values(2, repeat("b", 10000));
+insert into worklog5743_4 values(2, repeat("b", 10000));
+insert into worklog5743_8 values(2, repeat("b", 10000), repeat("b", 10000));
+insert into worklog5743_16 values(2, repeat("b", 10000), repeat("b", 10000));
+
+select a1, left(a2, 20) from worklog5743_1;
+select a1, left(a2, 20) from worklog5743_2;
+select a1, left(a2, 20) from worklog5743_4;
+select a1, left(a2, 20) from worklog5743_8;
+select a1, left(a2, 20) from worklog5743_16;
+
+begin;
+
+update worklog5743_1 set a1 = 1000;
+update worklog5743_2 set a1 = 1000;
+update worklog5743_4 set a1 = 1000;
+update worklog5743_8 set a1 = 1000;
+update worklog5743_16 set a1 = 1000;
+select a1, left(a2, 20) from worklog5743_1;
+select a1, left(a2, 20) from worklog5743_2;
+select a1, left(a2, 20) from worklog5743_4;
+select a1, left(a2, 20) from worklog5743_8;
+select a1, left(a2, 20) from worklog5743_16;
+
+
+# Do a select from another connection that would use the secondary index
+--connection con1
+select @@session.transaction_isolation;
+explain select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
+explain select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
+explain select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
+explain select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
+explain select a1, left(a2, 20) from worklog5743_16 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_16 where a1 = 9;
+
+# Do read uncommitted in another session, it would show there is no
+# row with a1 = 9
+--connection con2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_16 where a1 = 9;
+
+--connection default
+rollback;
+
+drop table worklog5743_1;
+drop table worklog5743_2;
+drop table worklog5743_4;
+drop table worklog5743_8;
+drop table worklog5743_16;
+
+-- echo ### Test 5 ###
+# Create a table with large varchar columns and create indexes
+# directly on these large columns to show that prefix limit is
+# automatically applied and to show that limit.
+create table worklog5743(a1 int,
+   a2 varchar(20000),
+   a3 varchar(3073),
+   a4 varchar(3072),
+   a5 varchar(3069),
+   a6 varchar(3068))
+   charset latin1
+   ROW_FORMAT=DYNAMIC;
+# Check index creation behavior without STRICT mode
+SET sql_mode='';
+create index idx1 on worklog5743(a2);
+create index idx2 on worklog5743(a3);
+create index idx3 on worklog5743(a4);
+show warnings;
+SET sql_mode= default;
+-- error ER_TOO_LONG_KEY
+create index idx4 on worklog5743(a1, a2);
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx5 on worklog5743(a1, a5);
+show warnings;
+create index idx6 on worklog5743(a1, a6);
+show warnings;
+show create table worklog5743;
+
+insert into worklog5743 values(9,
+   repeat("a", 20000), repeat("a", 3073),
+   repeat("a", 3072), repeat("a", 3069),
+   repeat("a", 3068));
+
+begin;
+
+update worklog5743 set a1 = 1000;
+
+# Do a select from another connection that would use the secondary index
+--connection con1
+select @@session.transaction_isolation;
+explain select a1 from worklog5743 where a1 = 9;
+select a1 from worklog5743 where a1 = 9;
+
+# Do read uncommitted, it would show there is no row with a1 = 9
+--connection con2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+select a1 from worklog5743 where a1 = 9;
+
+--connection default
+rollback;
+
+drop table worklog5743;
+
+-- echo ### Test 6 ###
+# Create a table with old format, and the limit is 768 bytes.
+-- error ER_TOO_LONG_KEY
+create table worklog5743(a TEXT not null, primary key (a(1000)))
+charset latin1
+row_format=compact;
+
+create table worklog5743(a TEXT)
+charset latin1
+row_format=compact;
+
+# Excercise the column length check in ha_innobase::add_index()
+-- error ER_TOO_LONG_KEY
+create index idx on worklog5743(a(768));
+
+# This should be successful
+create index idx on worklog5743(a(767));
+
+# Perform some DMLs
+insert into worklog5743 values(repeat("a", 20000));
+
+begin;
+insert into worklog5743 values(repeat("b", 20000));
+update worklog5743 set a = (repeat("x", 25000));
+
+# Start a new session to select the table to force it build
+# an earlier version of the cluster index through undo log
+select @@session.transaction_isolation;
+--connection con1
+select a = repeat("a", 20000) from worklog5743;
+--disconnect con1
+
+--connection con2
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+select @@session.transaction_isolation;
+select a = repeat("x", 25000) from worklog5743;
+--disconnect con2
+
+--connection default
+rollback;
+
+drop table worklog5743;
+
+-- echo ### Test 7 ###
+# Some border line tests on the column length.
+# We have a limit of 3072 bytes for Barracuda table
+create table worklog5743(a TEXT not null) ROW_FORMAT=DYNAMIC;
+
+# Length exceeds maximum supported key length
+# It will be auto-truncated to 3072
+# Check index creation behavior without STRICT mode
+SET sql_mode='';
+create index idx1 on worklog5743(a(3073));
+create index idx2 on worklog5743(a(3072));
+show create table worklog5743;
+drop table worklog5743;
+SET sql_mode= default;
+
+# We have a limit of 767 bytes for Antelope tables
+create table worklog5743(a TEXT not null) charset latin1 ROW_FORMAT=REDUNDANT;
+-- error ER_TOO_LONG_KEY
+create index idx on worklog5743(a(768));
+create index idx2 on worklog5743(a(767));
+drop table worklog5743;
+
+create table worklog5743(a TEXT not null) charset latin1 ROW_FORMAT=COMPACT;
+-- error ER_TOO_LONG_KEY
+create index idx on worklog5743(a(768));
+create index idx2 on worklog5743(a(767));
+drop table worklog5743;
+
+
+eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;

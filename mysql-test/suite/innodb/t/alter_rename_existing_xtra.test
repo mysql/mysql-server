@@ -1,0 +1,154 @@
+--echo #
+--echo # Show what happens during ALTER TABLE when an existing file
+--echo # exists in the target location.
+--echo #
+--echo # Bug #19218794: IF TABLESPACE EXISTS, CAN'T CREATE TABLE,
+--echo #                BUT CAN ALTER ENGINE=INNODB
+--echo #
+
+
+# Using chmod to remove write permission excludes Windows.
+--source include/not_windows.inc
+
+--disable_query_log
+LET $MYSQLD_DATADIR = `select @@datadir`;
+SET @old_innodb_file_per_table = @@innodb_file_per_table;
+--enable_query_log
+
+CREATE TABLE t1 (a SERIAL, b CHAR(10)) ENGINE=Memory;
+INSERT INTO t1(b) VALUES('one'), ('two'), ('three');
+
+--echo #
+--echo # Create a read-only file called MYSQLD_DATADIR/test/t1.ibd
+--exec echo "This is not t1.ibd" > $MYSQLD_DATADIR/test/t1.ibd
+--exec chmod a-w $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Directory listing of test/*.ibd
+--echo #
+--list_files $MYSQLD_DATADIR/test/ *.ibd
+
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t1 ENGINE = InnoDB;
+
+--exec chmod a-w $MYSQLD_DATADIR/test
+--replace_regex  /create table '.*' \(errno: .*\)/create table 'TEMP_FILE_NAME' (errno: NN)/
+--error ER_GET_ERRNO
+ALTER TABLE t1 ENGINE = InnoDB;
+--exec chmod a+w $MYSQLD_DATADIR/test
+
+--echo #
+--echo # Move the file to InnoDB as t2
+--echo #
+ALTER TABLE t1 RENAME TO t2, ENGINE = INNODB;
+SHOW CREATE TABLE t2;
+SELECT * from t2;
+
+--echo #
+--echo # Try to rename t2 to t1 with an existing read-only t1 in the way.
+--echo #
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t2 RENAME TO t1;
+
+--echo #
+--echo # Try again but now with a read-only 'test' directory.
+--echo #
+--exec chmod a-w $MYSQLD_DATADIR/test
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t2 RENAME TO t1;
+--exec chmod a+w $MYSQLD_DATADIR/test
+
+--echo #
+--echo # Create another t1, but in the system tablespace.
+--echo #
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TABLE t1 (a SERIAL, b CHAR(20)) ENGINE=InnoDB;
+INSERT INTO t1(b) VALUES('one'), ('two'), ('three');
+SHOW CREATE TABLE t1;
+SELECT name, space=0 FROM information_schema.innodb_tables WHERE name = 'test/t1';
+
+--echo #
+--echo # Try to move t1 from the system tablespace to a file-per-table
+--echo # while a blocking read-only t1.ibd file exists.
+--echo #
+--echo # Move using innodb_file_per_table=ON
+--echo #
+SET GLOBAL innodb_file_per_table=ON;
+
+--echo #
+--echo # Move using using innodb_file_per_table=ON and a read-only directory
+--echo #
+--exec chmod a-w $MYSQLD_DATADIR/test
+ALTER TABLE t1 ADD COLUMN e1 INT, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN e2 INT, ALGORITHM=COPY;
+--exec chmod a-w $MYSQLD_DATADIR/test
+
+--echo #
+--echo # Move using TABLESPACE=innodb_file_per_table
+--echo #
+SET GLOBAL innodb_file_per_table=OFF;
+--replace_regex  /create table '.*' \(errno: .*\)/create table 'TEMP_FILE_NAME' (errno: NN)/
+--error ER_GET_ERRNO
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
+--replace_regex  /create table '.*' \(errno: .*\)/create table 'TEMP_FILE_NAME' (errno: NN)/
+--error ER_GET_ERRNO
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
+
+--echo #
+--echo # Move using TABLESPACE=innodb_file_per_table with a read-only directory
+--echo #
+--exec chmod a-w $MYSQLD_DATADIR/test
+--replace_regex  /create table '.*' \(errno: .*\)/create table 'TEMP_FILE_NAME' (errno: NN)/
+--error ER_GET_ERRNO
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
+--replace_regex  /create table '.*' \(errno: .*\)/create table 'TEMP_FILE_NAME' (errno: NN)/
+--error ER_GET_ERRNO
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
+--exec chmod a+w $MYSQLD_DATADIR/test
+
+--echo #
+--echo # ALTER TABLE t1 from system tablespace to general tablespace
+--echo #
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
+ALTER TABLE t1 TABLESPACE s1;
+
+--echo #
+--echo # Try to move t1 from a general tablespace to a file-per-table
+--echo # while a blocking read-only t1.ibd file exists.
+--echo #
+--replace_regex /$MYSQLD_DATADIR/MYSQLD_DATADIR/
+--error ER_TABLESPACE_EXISTS
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
+
+--echo #
+--echo # Try again with a read-only 'test' directory.
+--echo #
+--exec chmod a-w $MYSQLD_DATADIR/test
+--replace_regex  /create table '.*' \(errno: .*\)/create table 'TEMP_FILE_NAME' (errno: NN)/
+--error ER_GET_ERRNO
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
+--replace_regex  /create table '.*' \(errno: .*\)/create table 'TEMP_FILE_NAME' (errno: NN)/
+--error ER_GET_ERRNO
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
+--exec chmod a+w $MYSQLD_DATADIR/test
+
+--echo #
+--echo # Cleanup
+--echo #
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+
+DROP TABLE t1, t2;
+DROP TABLESPACE s1;
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot rename '.*' to '.*' for space ID .* because the target file exists. Remove the target file and try again");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 13 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means mysqld does not have the access rights to the directory.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot create file '.*'");
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+--enable_query_log

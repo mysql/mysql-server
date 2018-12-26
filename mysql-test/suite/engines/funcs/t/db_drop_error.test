@@ -1,0 +1,10 @@
+--disable_warnings
+DROP DATABASE IF EXISTS d5;
+--enable_warnings
+CREATE DATABASE d5;
+SHOW DATABASES;
+--error 1008
+DROP DATABASE nond5;
+DROP DATABASE d5;
+SHOW DATABASES;
+

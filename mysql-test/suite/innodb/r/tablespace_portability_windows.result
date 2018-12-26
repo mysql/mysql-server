@@ -1,0 +1,164 @@
+#
+# Windows version of Tablespace Portability test.
+#
+# This testcase is related to WL#5980 & WL#6205.
+# It tests whether datafiles can be copied from one location
+# to another, and still be opened. In order to make this testcase run
+# on any OS, we create the tablespaces here.
+#
+SET DEFAULT_STORAGE_ENGINE=InnoDB;
+#
+# Try a series of invalid relative ADD DATAFILE entries.
+# General tablespace files can be in the datadir but they cannot be under the datadir.
+#
+CREATE TABLESPACE bad ADD DATAFILE '';
+ERROR HY000: Incorrect File Name ''.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name ''.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE '.ibd';
+ERROR HY000: Incorrect File Name '.ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name '.ibd'.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE './ibd';
+ERROR HY000: Incorrect File Name './ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name './ibd'.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE './.ibd';
+ERROR HY000: Incorrect File Name './.ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name './.ibd'.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE '../spaces/';
+ERROR HY000: Incorrect File Name '../spaces/'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name '../spaces/'.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE 'test/bad.ibd';
+ERROR HY000: Incorrect File Name 'test/bad.ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name 'test/bad.ibd'.
+Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE './test/bad.ibd';
+ERROR HY000: Incorrect File Name './test/bad.ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name './test/bad.ibd'.
+Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE './test//bad.ibd';
+ERROR HY000: Incorrect File Name './test//bad.ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name './test//bad.ibd'.
+Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE '../data/test/bad.ibd';
+ERROR HY000: Incorrect File Name '../data/test/bad.ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name '../data/test/bad.ibd'.
+Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE '../data/../data/test/bad.ibd';
+ERROR HY000: Incorrect File Name '../data/../data/test/bad.ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name '../data/../data/test/bad.ibd'.
+Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+CREATE TABLESPACE bad ADD DATAFILE '../does_not_exist/bad.ibd';
+ERROR HY000: Incorrect File Name '../does_not_exist/bad.ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name '../does_not_exist/bad.ibd'.
+Error	3121	The directory does not exist.
+Error	1528	Failed to create TABLESPACE bad
+Error	1031	Table storage engine for 'bad' doesn't have this option
+#
+# Try a series of valid relative ADD DATAFILE entries.
+# General tablespace files can be in the datadir but they cannot be under the datadir.
+#
+CREATE TABLESPACE ibport_s01 ADD DATAFILE 'ibport_s01.ibd';
+CREATE TABLESPACE ibport_s02 ADD DATAFILE './ibport_s02.ibd';
+CREATE TABLESPACE ibport_s03 ADD DATAFILE '../data/ibport_s03.ibd';
+CREATE TABLESPACE ibport_s04 ADD DATAFILE 'test/../ibport_s04.ibd';
+CREATE TABLESPACE ibport_s05 ADD DATAFILE './test/../ibport_s05.ibd';
+CREATE TABLESPACE ibport_s06 ADD DATAFILE '..///data//test///..//ibport_s06.ibd';
+CREATE TABLESPACE ibport_s12 ADD DATAFILE './/ibport_s12.ibd';
+CREATE TABLESPACE ibport_s13 ADD DATAFILE '..//data//ibport_s13.ibd';
+CREATE TABLESPACE ibport_s14 ADD DATAFILE 'test//..//ibport_s14.ibd';
+CREATE TABLESPACE ibport_s15 ADD DATAFILE './/test//..//ibport_s15.ibd';
+CREATE TABLESPACE ibport_s16 ADD DATAFILE '..//////data////test//////..////ibport_s16.ibd';
+# Directory listing of MYSQLD_DATADIR/ ibport*
+ibport_s01.ibd
+ibport_s02.ibd
+ibport_s03.ibd
+ibport_s04.ibd
+ibport_s05.ibd
+ibport_s06.ibd
+ibport_s12.ibd
+ibport_s13.ibd
+ibport_s14.ibd
+ibport_s15.ibd
+ibport_s16.ibd
+SELECT s.space_type 'Type', s.name 'Space Name', d.path 'Path'
+	FROM information_schema.innodb_tablespaces s, information_schema.innodb_datafiles d
+WHERE s.name like '%ibport%' AND s.space = d.space ORDER BY s.space;
+Type	Space Name	Path
+General	ibport_s01	ibport_s01.ibd
+General	ibport_s02	./ibport_s02.ibd
+General	ibport_s03	../data/ibport_s03.ibd
+General	ibport_s04	test/../ibport_s04.ibd
+General	ibport_s05	./test/../ibport_s05.ibd
+General	ibport_s06	..///data//test///..//ibport_s06.ibd
+General	ibport_s12	.//ibport_s12.ibd
+General	ibport_s13	..//data//ibport_s13.ibd
+General	ibport_s14	test//..//ibport_s14.ibd
+General	ibport_s15	.//test//..//ibport_s15.ibd
+General	ibport_s16	..//////data////test//////..////ibport_s16.ibd
+SELECT s.space_type 'Type', s.name 'Space Name', f.file_name 'Path'
+	FROM information_schema.innodb_tablespaces s, information_schema.files f
+WHERE s.name like '%ibport%' AND s.space = f.file_id ORDER BY s.space;
+Type	Space Name	Path
+General	ibport_s01	./ibport_s01.ibd
+General	ibport_s02	./ibport_s02.ibd
+General	ibport_s03	../data/ibport_s03.ibd
+General	ibport_s04	./test/../ibport_s04.ibd
+General	ibport_s05	./test/../ibport_s05.ibd
+General	ibport_s06	..///data//test///..//ibport_s06.ibd
+General	ibport_s12	.//ibport_s12.ibd
+General	ibport_s13	..//data//ibport_s13.ibd
+General	ibport_s14	./test//..//ibport_s14.ibd
+General	ibport_s15	.//test//..//ibport_s15.ibd
+General	ibport_s16	..//////data////test//////..////ibport_s16.ibd
+DROP TABLESPACE ibport_s01;
+DROP TABLESPACE ibport_s02;
+DROP TABLESPACE ibport_s03;
+DROP TABLESPACE ibport_s04;
+DROP TABLESPACE ibport_s05;
+DROP TABLESPACE ibport_s06;
+DROP TABLESPACE ibport_s12;
+DROP TABLESPACE ibport_s13;
+DROP TABLESPACE ibport_s14;
+DROP TABLESPACE ibport_s15;
+DROP TABLESPACE ibport_s16;

@@ -1,0 +1,44 @@
+--echo #
+--echo # Test of rewrites of update statements.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+use test;
+CREATE TABLE t1 (a INT NOT NULL, b int, PRIMARY KEY (a));
+CREATE TABLE t2 (a int);
+INSERT INTO t1 VALUES (1, 10), (2, 20), (3, 30);
+INSERT INTO t2 SELECT a FROM t1;
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, pattern_database, replacement )
+VALUES ( 'UPDATE test.t1 SET a = ? WHERE b = ? ORDER BY ? LIMIT ?', 'test',
+         'UPDATE test.t1 SET b = ? WHERE b = ? ORDER BY a LIMIT 4'),
+       ( 'UPDATE test.t1, test.t2 SET t1.a = ?, t2.a = ? WHERE t1.b = ?', 'test',
+         'UPDATE test.t1, test.t2 SET t1.a = ?, t1.b = ? WHERE t1.a = ?' ),
+       ('UPDATE t1 LEFT JOIN t2 ON t1.a = ? SET t1.b = 20 WHERE t1.b > 25', 'test',
+        'UPDATE t1 LEFT JOIN t2 ON t2.a = ? SET t1.b = 20 WHERE t1.b > 25') ;
+
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+
+# Tests the following in accept_update for single update: walk_item(value,
+# visitor), ORDER BY and LIMIT
+UPDATE test.t1 SET a = 0 WHERE b = 2 ORDER BY 3 LIMIT 2;
+
+# This isn't re-written.
+UPDATE test.t1 SET a = 0 WHERE b = 2 ORDER BY a LIMIT 2;
+SELECT * FROM t1;
+
+# Tests the following in accept_update for multi update: walk_item(value,
+# visitor)
+UPDATE test.t1, test.t2 SET t1.a = 2, t2.a = 25 WHERE t1.b = 21;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# Tests the following in accept_update for multi update: accept_join
+UPDATE t1 LEFT JOIN t2 ON t1.a = 25 SET t1.b = 20 WHERE t1.b > 25;
+
+DROP TABLE t1, t2;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

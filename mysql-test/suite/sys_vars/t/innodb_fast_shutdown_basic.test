@@ -1,0 +1,200 @@
+############## mysql-test\t\innodb_fast_shutdown_basic.test ###################
+#                                                                             #
+# Variable Name: innodb_fast_shutdown                                         #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: 1                                                            #
+# Valid Values: 0,1,2                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-20                                                   #
+# Author:  Sharique Abdullah                                                  #
+#                                                                             #
+# Description:                                                                #
+#    Test Cases of Dynamic System Variable innodb_fast_shutdown that checks   #
+#    the behavior of this variable in the following ways                      #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#                    START OF innodb_fast_shutdown TESTS               #
+########################################################################
+
+
+##############################################################################
+#      Saving initial value of innodb_fast_shutdown in a temporary variable  #
+##############################################################################
+
+SET @global_start_value = @@global.innodb_fast_shutdown;
+SELECT @@global.innodb_fast_shutdown;
+
+
+--echo '#--------------------FN_DYNVARS_042_01------------------------#'
+########################################################################
+#           Display the DEFAULT value of innodb_fast_shutdown          #
+########################################################################
+
+SET @@global.innodb_fast_shutdown = 0;
+SET @@global.innodb_fast_shutdown = DEFAULT;
+SELECT @@global.innodb_fast_shutdown;
+
+
+--echo '#---------------------FN_DYNVARS_042_02-------------------------#'
+#############################################################################
+#   Check if innodb_fast_shutdown can be accessed with and without @@ sign  #
+#############################################################################
+
+--ERROR ER_GLOBAL_VARIABLE
+SET innodb_fast_shutdown = 1;
+SELECT @@innodb_fast_shutdown;
+
+--Error ER_UNKNOWN_TABLE
+SELECT global.innodb_fast_shutdown;
+
+SET global innodb_fast_shutdown = 1;
+SELECT @@global.innodb_fast_shutdown;
+
+
+--echo '#--------------------FN_DYNVARS_042_03------------------------#'
+##########################################################################
+#              Change the value of innodb_fast_shutdown to a valid value #
+##########################################################################
+
+SET @@global.innodb_fast_shutdown = 0;
+SELECT @@global.innodb_fast_shutdown;
+
+SET @@global.innodb_fast_shutdown = 1;
+SELECT @@global.innodb_fast_shutdown;
+## A value of 2 is used to just flush logs and then shutdown cold.
+
+SET @@global.innodb_fast_shutdown = 2;
+SELECT @@global.innodb_fast_shutdown;
+
+
+--echo '#--------------------FN_DYNVARS_042_04-------------------------#'
+###########################################################################
+#               Change the value of innodb_fast_shutdown to invalid value #
+###########################################################################
+
+SET @@global.innodb_fast_shutdown = -1;
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = TRU;
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = TRUE_F;
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = FALS;
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = OON;
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = ONN;
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = OOFF;
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = 0FF;
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = '1';
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = "0";
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = 1.1;
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = ' ';
+SELECT @@global.innodb_fast_shutdown;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = " ";
+SELECT @@global.innodb_fast_shutdown;
+
+--echo '#-------------------FN_DYNVARS_042_05----------------------------#'
+###########################################################################
+#           Test if accessing session innodb_fast_shutdown gives error    #
+###########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.innodb_fast_shutdown = 0;
+
+--Error ER_GLOBAL_VARIABLE
+SET @@innodb_fast_shutdown = 0;
+--Error ER_GLOBAL_VARIABLE
+SET @@local.innodb_fast_shutdown = 0;
+
+
+--echo '#----------------------FN_DYNVARS_042_06------------------------#'
+#########################################################################
+#     Check if the value in SESSION Table contains variable value       #
+#########################################################################
+
+--disable_warnings
+SELECT count(VARIABLE_VALUE) AS res_is_0
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='innodb_fast_shutdown';
+--enable_warnings
+
+
+--echo '#----------------------FN_DYNVARS_042_07------------------------#'
+#########################################################################
+#      Check if the value in GLOBAL Table matches value in variable     #
+#########################################################################
+
+--disable_warnings
+SELECT @@global.innodb_fast_shutdown =
+VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_fast_shutdown';
+--enable_warnings
+
+
+--echo '#---------------------FN_DYNVARS_042_08-------------------------#'
+###################################################################
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = OFF;
+SELECT @@global.innodb_fast_shutdown;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_fast_shutdown = ON;
+SELECT @@global.innodb_fast_shutdown;
+
+
+--echo '#---------------------FN_DYNVARS_042_09----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@global.innodb_fast_shutdown = TRUE;
+SELECT @@global.innodb_fast_shutdown;
+SET @@global.innodb_fast_shutdown = FALSE;
+SELECT @@global.innodb_fast_shutdown;
+
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.innodb_fast_shutdown = @global_start_value;
+SELECT @@global.innodb_fast_shutdown;
+
+########################################################################
+#                    END OF innodb_fast_shutdown TESTS                 #
+########################################################################

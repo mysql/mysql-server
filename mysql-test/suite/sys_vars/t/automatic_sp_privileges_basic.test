@@ -1,0 +1,180 @@
+############## mysql-test\t\automatic_sp_privileges_basic.test #################
+#                                                                              #
+# Variable Name: automatic_sp_privileges                                       #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: Boolean                                                           #
+# Default Value: TRUE                                                          #
+# Range: NA                                                                    #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "automatic_sp_privileges" #
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#    server-system-variables.html#option_mysqld_automatic_sp_privileges        #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+#######################################################################
+#           START OF automatic_sp_privileges TESTS                    #
+#######################################################################
+
+
+###############################################################################
+#   Saving initial value of automatic_sp_privileges in a temporary variable   #
+###############################################################################
+
+SET @start_value = @@global.automatic_sp_privileges;
+SELECT @start_value;
+
+--echo '#--------------------FN_DYNVARS_004_01------------------------#'
+###############################################################################
+#              Display the DEFAULT value of automatic_sp_privileges           #
+###############################################################################
+
+SET @@global.automatic_sp_privileges = 0;
+SET @@global.automatic_sp_privileges = DEFAULT;
+SELECT @@global.automatic_sp_privileges;
+
+
+--echo '#---------------------FN_DYNVARS_004_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.automatic_sp_privileges = @start_value;
+SELECT @@global.automatic_sp_privileges = TRUE;
+
+
+--echo '#--------------------FN_DYNVARS_004_03------------------------#'
+###############################################################################
+#        Change the value of automatic_sp_privileges to a valid value         #
+###############################################################################
+
+SET @@global.automatic_sp_privileges = 0;
+SELECT @@global.automatic_sp_privileges;
+SET @@global.automatic_sp_privileges = 1;
+SELECT @@global.automatic_sp_privileges;
+
+--echo '#--------------------FN_DYNVARS_004_04-------------------------#'
+############################################################################### 
+#        Change the value of automatic_sp_privileges to invalid value         #
+############################################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = TRUEF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = TRUE_F;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = FALSE0;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = OON;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = ONN;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = OOFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = 0FF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = ' ';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = " ";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.automatic_sp_privileges = '';
+
+
+--echo '#-------------------FN_DYNVARS_004_05----------------------------#'
+########################################################################### 
+#         Test if accessing session automatic_sp_privileges gives error   #
+########################################################################### 
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.automatic_sp_privileges = 1;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.automatic_sp_privileges;
+
+
+--echo '#----------------------FN_DYNVARS_004_06------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL Tables matches values in variable             #
+##############################################################################
+
+--disable_warnings
+SELECT IF(@@global.automatic_sp_privileges, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='automatic_sp_privileges';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_004_07----------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+################################################################### 
+
+SET @@global.automatic_sp_privileges = OFF;
+SELECT @@global.automatic_sp_privileges;
+SET @@global.automatic_sp_privileges = ON;
+SELECT @@global.automatic_sp_privileges;
+
+--echo '#---------------------FN_DYNVARS_004_08----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.automatic_sp_privileges = TRUE;
+SELECT @@global.automatic_sp_privileges;
+SET @@global.automatic_sp_privileges = FALSE;
+SELECT @@global.automatic_sp_privileges;
+
+--echo '#---------------------FN_DYNVARS_004_09----------------------#'
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+#    to same session variable                                                #
+##############################################################################
+
+SET @@global.automatic_sp_privileges = 1;
+SELECT @@automatic_sp_privileges = @@global.automatic_sp_privileges;
+
+--echo '#---------------------FN_DYNVARS_004_10----------------------#'
+###############################################################################
+#   Check if automatic_sp_privileges can be accessed with and without @@ sign #
+###############################################################################
+--Error ER_GLOBAL_VARIABLE
+SET automatic_sp_privileges = 1;
+--Error ER_PARSE_ERROR
+SET local.automatic_sp_privileges = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT local.automatic_sp_privileges;
+--Error ER_PARSE_ERROR
+SET global.automatic_sp_privileges = 1;
+--Error ER_UNKNOWN_TABLE
+SELECT global.automatic_sp_privileges;
+--Error ER_BAD_FIELD_ERROR
+SELECT automatic_sp_privileges = @@session.automatic_sp_privileges;
+
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.automatic_sp_privileges = @start_value;
+SELECT @@global.automatic_sp_privileges;
+
+
+#############################################################
+#       END OF automatic_sp_privileges TESTS                #
+#############################################################

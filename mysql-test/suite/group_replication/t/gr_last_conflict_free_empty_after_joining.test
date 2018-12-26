@@ -1,0 +1,309 @@
+################################################################################
+#
+# Upon starting group replication, the joining node should not have any
+# transaction on the LAST_CONFLICT_FREE_TRANSACTION field of the group member
+# stats table.
+#
+# This test verifies that the LAST_CONFLICT_FREENTRANSACTION field  is empty and
+# that that empty value is correctly broadcast to the rest of the group,
+# upon entering.
+#
+# Test:
+# 0) This test will use initially 2 servers and later on will add one more.
+# 1) Configure a replication group with 2 members
+# 2) Execute a transaction on the first member
+# 3) Verify that the LAST_CONFLICT_FREE_TRANSACTION field of the
+#    performance_schema.replication_group_members table has the same value
+#    between members
+# 4) Restart group replication on member 2
+# 5) Verify that the LAST_CONFLICT_FREE_TRANSACTION field of the second member
+#    is empty (due to restart of the plugin) on both members
+# 6) Add new member
+# 7) Verify that this new member has an empty LAST_CONFLICT_FREE_TRANSACTION
+#    on himself and in the rest of the group
+# 8) Execute a new transaction
+# 9) Verify that everyone has a conflict free transaction executed
+# 10) Restart group replication on member 1 (primary)
+# 11) Verify that member 1 has no conflict free transaction on the group
+# 12) Cleanup
+#
+################################################################################
+
+--source include/big_test.inc
+--let $group_replication_group_name= c9f7fc80-034a-45c9-be2b-d738604be275
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 1) Configure a replication group with 2 members
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--source include/start_and_bootstrap_group_replication.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--let $server2_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+--echo
+--echo #########################################################################
+--echo # 2) Execute a transaction on the first member
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (a INT PRIMARY KEY);
+--source include/rpl_sync.inc
+## Wait for member 2 to report a conflict free transaction to member 1
+--let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
+--source include/wait_condition.inc
+
+--echo
+--echo #########################################################################
+--echo # 3) Verify that the LAST_CONFLICT_FREE_TRANSACTION field of the
+--echo # performance_schema.replication_group_members table has the same value
+--echo # between members
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+## Wait for member 2 to report a conflict free transaction
+--let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+
+--echo
+--echo #########################################################################
+--echo # 4) Restart group replication on member 2
+--echo #########################################################################
+--echo
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 5) Verify that the LAST_CONFLICT_FREE_TRANSACTION field of the second
+--echo # member is empty (due to restart of the plugin) on both members
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+## Wait for member 2 to have an empty conflict free transaction
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server2_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
+--source include/wait_condition.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+## Wait for member 2 to have an empty conflict free transaction
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server2_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
+--source include/wait_condition.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server1_uuid' AND LAST_CONFLICT_FREE_TRANSACTION <> ''
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+
+--echo
+--echo #########################################################################
+--echo # 6) Add a new member
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 7) Verify that this new member has an empty
+--echo # LAST_CONFLICT_FREE_TRANSACTION on himself and in the rest of the
+--echo # group
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
+--source include/wait_condition.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
+--source include/wait_condition.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
+--source include/wait_condition.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+
+--echo
+--echo #########################################################################
+--echo # 8) Execute a new transaction
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+--echo
+--echo #########################################################################
+--echo # 9) Verify that everyone has a conflict free transaction executed
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+## Wait for every member to report a conflict free transaction
+--let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:6'
+--source include/wait_condition.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+## Wait for every member to report a conflict free transaction
+--let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:6'
+--source include/wait_condition.inc
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+## Wait for every member to report a conflict free transaction
+--let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:6'
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+
+--echo
+--echo #########################################################################
+--echo # 10) Restart group replication on member 1
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 11) Verify that member 1 has no conflict free transaction on the group
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+## Wait for member 1 to report an empty conflict free transaction
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server1_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
+--source include/wait_condition.inc
+--let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION <> ''
+--source include/wait_condition.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+## Wait for member 1 to report an empty conflict free transaction
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server1_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
+--source include/wait_condition.inc
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+## Wait for member 1 to report an empty conflict free transaction
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID = '$server1_uuid' AND LAST_CONFLICT_FREE_TRANSACTION = ''
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER1 $SERVER_MYPORT_2 SERVER2 $SERVER_MYPORT_3 SERVER3
+SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
+ FROM performance_schema.replication_group_member_stats gms
+  JOIN performance_schema.replication_group_members gm
+  ON gms.MEMBER_ID=gm.MEMBER_ID
+  ORDER BY gm.MEMBER_PORT ASC;
+
+--echo
+--echo #########################################################################
+--echo # 12) Cleanup
+--echo #########################################################################
+--echo
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--source include/group_replication_end.inc

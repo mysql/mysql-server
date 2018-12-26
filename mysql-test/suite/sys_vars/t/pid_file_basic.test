@@ -1,0 +1,25 @@
+#
+# only global
+#
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select @@global.pid_file;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.pid_file;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like 'pid_file';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show session variables like 'pid_file';
+--disable_warnings
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select * from performance_schema.global_variables where variable_name='pid_file';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select * from performance_schema.session_variables where variable_name='pid_file';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global pid_file=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session pid_file=1;

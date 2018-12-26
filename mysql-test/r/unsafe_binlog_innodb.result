@@ -1,0 +1,136 @@
+SET @old_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout=1;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+create table t1 (id int not null, f_id int not null, f int not null,
+primary key(f_id, id)) engine = InnoDB;
+create table t2 (id int not null,s_id int not null,s varchar(200),
+primary key(id)) engine = InnoDB;
+INSERT INTO t1 VALUES (8, 1, 3);
+INSERT INTO t1 VALUES (1, 2, 1);
+INSERT INTO t2 VALUES (1, 0, '');
+INSERT INTO t2 VALUES (8, 1, '');
+commit;
+DELETE ml.* FROM t1 AS ml LEFT JOIN t2 AS mm ON (mm.id=ml.id)
+WHERE mm.id IS NULL;
+select ml.* from t1 as ml left join t2 as mm on (mm.id=ml.id)
+where mm.id is null lock in share mode;
+id	f_id	f
+drop table t1,t2;
+create table t1(a int not null, b int, primary key(a)) engine = InnoDB;
+insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
+commit;
+set autocommit = 0;
+select * from t1 lock in share mode;
+a	b
+1	1
+2	2
+3	1
+4	2
+5	1
+6	2
+7	3
+update t1 set b = 5 where b = 1;
+set autocommit = 0;
+select * from t1 where a = 2 and b = 2 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+drop table t1;
+create table t1(a int not null, b int, primary key(a)) engine = InnoDB;
+insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
+commit;
+set autocommit = 0;
+set transaction isolation level read committed;
+start transaction;
+update t1 set b = 5 where b = 1;
+set transaction isolation level read committed;
+start transaction;
+select * from t1 where a = 7 and b = 3 for update;
+a	b
+7	3
+commit;
+commit;
+drop table t1;
+create table t1(a int not null, b int, primary key(a)) engine = InnoDB;
+insert into t1 values (1,2),(5,3),(4,2);
+create table t2(d int not null, e int, primary key(d)) engine = InnoDB;
+insert into t2 values (8,6),(12,1),(3,1);
+commit;
+set transaction isolation level read committed;
+start transaction;
+select * from t2 for update;
+d	e
+3	1
+8	6
+12	1
+# Connection b:
+set transaction isolation level read committed;
+start transaction;
+insert into t1 select * from t2;
+update t1 set b = (select e from t2 where a = d);
+create table t3(d int not null, e int, primary key(d)) engine = InnoDB;
+select * from t2;
+d	e
+3	1
+8	6
+12	1
+commit;
+commit;
+drop table t1, t2, t3;
+SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
+SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
+SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
+create table t1(a int not null, b int, primary key(a)) engine = InnoDB;
+insert into t1 values (1,2),(5,3),(4,2);
+create table t2(a int not null, b int, primary key(a)) engine = InnoDB;
+insert into t2 values (8,6),(12,1),(3,1);
+create table t3(d int not null, b int, primary key(d)) engine = InnoDB;
+insert into t3 values (8,6),(12,1),(3,1);
+create table t5(a int not null, b int, primary key(a)) engine = InnoDB;
+insert into t5 values (1,2),(5,3),(4,2);
+create table t6(d int not null, e int, primary key(d)) engine = InnoDB;
+insert into t6 values (8,6),(12,1),(3,1);
+create table t8(a int not null, b int, primary key(a)) engine = InnoDB;
+insert into t8 values (1,2),(5,3),(4,2);
+create table t9(d int not null, e int, primary key(d)) engine = InnoDB;
+insert into t9 values (8,6),(12,1),(3,1);
+commit;
+set autocommit = 0;
+select * from t2 for update;
+a	b
+3	1
+8	6
+12	1
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+insert into t1 select * from t2;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+update t3 set b = (select b from t2 where a = d);
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+create table t4(a int not null, b int, primary key(a)) select * from t2;
+set autocommit = 0;
+insert into t5 (select * from t2 lock in share mode);
+set autocommit = 0;
+update t6 set e = (select b from t2 where a = d lock in share mode);
+set autocommit = 0;
+create table t7(a int not null, b int, primary key(a)) select * from t2 lock in share mode;
+set autocommit = 0;
+insert into t8 (select * from t2 for update);
+set autocommit = 0;
+update t9 set e = (select b from t2 where a = d for update);
+set autocommit = 0;
+create table t10(a int not null, b int, primary key(a)) select * from t2 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: Can't update table 't2' while 't10' is being created.
+commit;
+drop table t1, t2, t3, t5, t6, t8, t9;
+SET GLOBAL innodb_lock_wait_timeout= @old_lock_wait_timeout;

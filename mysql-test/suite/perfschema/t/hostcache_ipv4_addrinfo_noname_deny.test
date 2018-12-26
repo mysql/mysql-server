@@ -1,0 +1,44 @@
+
+#
+# Tests for the performance_schema host_cache.
+#
+# Simulate failures from DNS:
+# - getaddrinfo() fails with NONAME
+# - reported in COUNT_ADDRINFO_PERMANENT_ERRORS
+
+--source include/have_debug.inc
+
+# [Warning] Host name 'santa.claus.ipv4.example.com' could not be resolved:
+# Name or service not known
+call mtr.add_suppression("santa.claus.ipv4.example.com");
+
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+--source ../include/hostcache_set_state.inc
+
+connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+select "Con1 is alive";
+select current_user();
+disconnect con1;
+
+--connection default
+set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_error_noname";
+
+--disable_query_log
+--error ER_HOST_NOT_PRIVILEGED
+connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_HOST_NOT_PRIVILEGED
+connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+set global debug= default;
+

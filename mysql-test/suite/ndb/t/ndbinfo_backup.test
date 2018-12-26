@@ -1,0 +1,74 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+create table t1(id int primary key, val blob) engine=ndb;
+
+--disable_query_log
+let $i= 100;
+while ($i)
+{
+  eval INSERT INTO t1 values ($i, REPEAT('$i', 1000));
+  dec $i;
+}
+--enable_query_log
+
+--echo "Backup not started, ndbinfo should show zero backup buffer usage"
+select count(*) from ndbinfo.logbuffers where log_type like "BACKUP%" and used > 0;
+
+--exec $NDB_MGM -e "ALL ERROR 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
+
+--echo "Backup started, ndbinfo should show backup buffer usage"
+select count(*) from ndbinfo.logbuffers where log_type like "BACKUP%";
+
+let $data_buf_usage_before =
+    `select used from ndbinfo.logbuffers
+     where node_id = 1 and log_type like 'BACKUP-DATA'`;
+let $log_buf_usage_before =
+    `select used from ndbinfo.logbuffers
+     where node_id = 1 and log_type like 'BACKUP-LOG'`;
+
+--echo "Backup data buffer and backup log buffer should not be empty"
+if (!$data_buf_usage_before)
+{
+  die The backup data buffer usage should not be zero;
+}
+if (!$log_buf_usage_before)
+{
+  die The backup log buffer usage should not be zero;
+}
+
+update t1 set val = REPEAT('x', 1000) where id < 25;
+
+let $log_buf_usage_after =
+    `select used from ndbinfo.logbuffers
+     where node_id = 1 and log_type like 'BACKUP-LOG'`;
+
+--echo "Backup log buffer usage should increase due to UPDATE ops during backup"
+if ($log_buf_usage_after == $log_buf_usage_before)
+{
+  die The backup log buffer usage failed to increase when UPDATES were executed;
+}
+
+# Resume backup
+--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+
+# Drop table won't go through until the backup is completed.
+# Retry DROP TABLE in a loop with a gap of one second between
+# successive attempts until backup completes, at which point
+# the DROP TABLE will succeed.
+
+--disable_query_log
+let $mysql_errno = ER_GET_ERRMSG;
+while($mysql_errno)
+{
+  sleep 1;
+  --error 0,1306
+  drop table t1;
+}
+--enable_query_log
+
+--echo "Backup complete, backup buffer usage should return to zero"
+select count(*) from ndbinfo.logbuffers where log_type like "BACKUP%" and used > 0;
+--source suite/ndb/include/backup_restore_cleanup.inc

@@ -1,0 +1,93 @@
+###############################################################################
+#
+# When changing to single primary mode, if more than one member
+# contains running slave channels, the configuration change shall
+# abort.
+#
+# Test:
+#
+#   0. This test requires 4 servers
+#   1. server1 start group replication and server2 join
+#   2. server1 have a slave connection to server3
+#   3. server2 have a slave connection to server4
+#   4. Execute action to single primary mode. It shall fail as more than
+#      one server has slave connections
+#   5. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--source include/group_replication.inc
+
+--echo
+--echo # 1. server1 start group replication and server2 join
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. server1 have a slave connection to server3
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
+
+--let $rpl_channel_name='ch3_1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--echo #
+--echo # 3. server2 have a slave connection to server4
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_4 SERVER_4_PORT
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_4 for channel 'ch4_2'
+
+--let $rpl_channel_name='ch4_2'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--echo
+--echo # 4. Execute action to single primary mode. It shall fail as more than
+--echo #    one server has slave connections
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_switch_to_single_primary_mode();
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--echo
+--echo # 5. Cleanup
+
+STOP SLAVE FOR CHANNEL 'ch3_1';
+RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: There is more than a member in the group with running slave channels*");
+set session sql_log_bin=1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+STOP SLAVE FOR CHANNEL 'ch4_2';
+RESET SLAVE ALL FOR CHANNEL 'ch4_2';
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. There is more than a member in the group with running slave channels*");
+set session sql_log_bin=1;
+
+--source include/group_replication_end.inc

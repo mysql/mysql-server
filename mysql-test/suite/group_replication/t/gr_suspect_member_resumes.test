@@ -1,0 +1,171 @@
+#######################################################################################
+# WL11570 - GR: options to defer member eviction after a suspicion
+#
+# In a group of 3 servers, we suspend one of them for 10 seconds and test if the
+# non-responding server remains in the group and for the configured waiting time,
+# instead of being immediately expelled.
+# Test :
+# 0. This test requires a group with 3 servers
+# 1. Set the group_replication_member_expel_timeout parameter to 300 seconds
+# 2. Create table t1 and insert some data, checking that it is replicated to all
+#    servers.
+# 3. Suspend server 3 by sending a signal SIGSTOP to it.
+#    This will make server 3 not answer to "I am alive" GCS messages and it will
+#    eventually be considered faulty.
+# 4. Check that all members are still in the group on servers 1 and 2, which should
+#    both be ONLINE.
+#    Server 3 should still be in the group but UNREACHABLE.
+# 5. Insert data into table t1 on server 2 and check that it is replicated to server 1.
+# 6. After 10 seconds, resume server 3 by sending a signal SIGCONT to it.
+#    After some time, its state should change to ONLINE.
+# 7. Check that server 3 retrieves the data inserted by server 2 while it was
+#    suspended.
+#    Then, insert new data into table t1 which should be replicated to servers 1 and 2.
+# 8. Clean up.
+#######################################################################################
+
+
+# Test involves sending SIGSTOP and SIGCONT signals using kill Linux command.
+--source include/not_valgrind.inc
+--source include/linux.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Set group_replication_member_expel_timeout to
+--echo #    300 seconds.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+
+--echo
+--echo ############################################################
+--echo # 2. Create a table and insert some data. Check that
+--echo #    it is replicated to all servers.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Suspend server 3 by sending signal SIGSTOP to it.
+--echo #    This will make server 3 not answer to "I am alive"
+--echo #    GCS messages and it will eventually be considered
+--echo #    faulty.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--echo # Get server 3 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+--let $pid_file= `SELECT @@GLOBAL.pid_file`
+--replace_result $pid_file pid_file
+--eval LOAD DATA LOCAL INFILE '$pid_file' INTO TABLE pid_table
+--let $server_pid=`SELECT pid_no FROM pid_table`
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+
+--echo # Suspending server 3...
+--exec kill -19 $server_pid
+
+
+--echo
+--echo ############################################################
+--echo # 4. Check that all members are still in the group on
+--echo #    servers 1 and 2, which should both be ONLINE.
+--echo #    Server 3 should still be in the group but UNREACHABLE.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Insert data into table t1 on server 2 and check that
+--echo #    it is replicated to server 1.
+INSERT INTO t1 VALUES (2);
+let $wait_condition=SELECT COUNT(*)=2 FROM t1;
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM t1;
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Resume server 3 by sending a signal SIGCONT to it.
+--echo #    Server should change to ONLINE state.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--echo # Send signal SIGCONT to server 3.
+--exec kill -18 $server_pid
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Check that server 3 retrieves the data inserted while
+--echo #    it was suspended. Then, insert new data into table t1
+--echo #    which should be replicated to servers 1 and 2.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM t1;
+--source include/wait_condition.inc
+INSERT INTO t1 VALUES (3);
+--source include/rpl_sync.inc
+--let $diff_tables=server1:t1, server2:t1, server3:t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Clean up.
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

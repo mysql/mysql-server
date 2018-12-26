@@ -1,0 +1,19 @@
+*******************************
+* basic concurent online alter test
+*******************************
+* With Commit
+*******************************
+CREATE TABLE t1 (a INT UNSIGNED, 
+b INT UNSIGNED not null, 
+primary key(a)) ENGINE NDB;
+begin;
+update t1 set b = b + 1 where a = 1;
+ALTER TABLE t1 algorithm=copy, ADD c CHAR(19);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+ALTER TABLE t1 algorithm=copy, ADD c CHAR(19);
+create unique index b_unq on t1(b) using hash;
+ERROR 23000: Can't write, because of unique constraint, to table 't1'
+update t1 set b = b - 1 where a = 1;
+create unique index b_unq on t1(b) using hash;
+DROP TABLE t1;

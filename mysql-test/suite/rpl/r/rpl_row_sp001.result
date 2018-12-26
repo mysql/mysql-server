@@ -1,0 +1,90 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+<Begin test section 1 (non deterministic SP)>
+---------------------------------------------
+create table test.t1 (n MEDIUMINT NOT NULL AUTO_INCREMENT, f FLOAT, d DATETIME, PRIMARY KEY(n));
+create procedure test.p1()
+begin
+INSERT INTO test.t1 (f,d) VALUES (RAND(),NOW());
+end//
+
+<End test section 1 (non deterministic SP)>
+-------------------------------------------
+CREATE TABLE test.t2 (a INT NOT NULL AUTO_INCREMENT, t CHAR(4), PRIMARY KEY(a));
+CREATE PROCEDURE test.p2(n int)
+begin
+CASE n
+WHEN 1 THEN
+UPDATE test.t2 set t ='Tex';
+WHEN 2 THEN
+UPDATE test.t2 set t ='SQL';
+ELSE
+UPDATE test.t2 set t ='NONE';
+END CASE;
+end//
+INSERT INTO test.t2 VALUES(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW');
+SELECT * FROM t2 ORDER BY a;
+a	t
+1	NEW
+2	NEW
+3	NEW
+4	NEW
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY a;
+a	t
+1	NEW
+2	NEW
+3	NEW
+4	NEW
+call test.p2(1);
+SELECT * FROM t2 ORDER BY a;
+a	t
+1	Tex
+2	Tex
+3	Tex
+4	Tex
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY a;
+a	t
+1	Tex
+2	Tex
+3	Tex
+4	Tex
+call test.p2(2);
+SELECT * FROM t2 ORDER BY a;
+a	t
+1	SQL
+2	SQL
+3	SQL
+4	SQL
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY a;
+a	t
+1	SQL
+2	SQL
+3	SQL
+4	SQL
+call test.p2(3);
+SELECT * FROM t2 ORDER BY a;
+a	t
+1	NONE
+2	NONE
+3	NONE
+4	NONE
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t2 ORDER BY a;
+a	t
+1	NONE
+2	NONE
+3	NONE
+4	NONE
+DROP PROCEDURE test.p1;
+DROP PROCEDURE test.p2;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

@@ -1,0 +1,62 @@
+set @orig_sql_mode_session= @@SESSION.sql_mode;
+set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+CREATE USER 'kristofer';
+ALTER USER 'kristofer' IDENTIFIED BY 'secret';
+SELECT user, plugin FROM mysql.user ORDER BY user;
+user	plugin
+kristofer	sha256_password
+mysql.infoschema	caching_sha2_password
+mysql.session	caching_sha2_password
+mysql.sys	caching_sha2_password
+root	caching_sha2_password
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer@localhost	kristofer@%
+DROP USER 'kristofer';
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password';
+ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
+ALTER USER 'kristofer2'@'localhost' IDENTIFIED BY 'secret2';
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer@localhost	kristofer@localhost
+SHOW GRANTS FOR 'kristofer'@'localhost';
+Grants for kristofer@localhost
+GRANT USAGE ON *.* TO `kristofer`@`localhost`
+Change user (should succeed)
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer2@localhost	kristofer2@localhost
+**** Client default_auth=sha_256_password and server default auth=sha256_password
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+**** Client default_auth=native and server default auth=sha256_password
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+DROP USER 'kristofer'@'localhost';
+DROP USER 'kristofer2'@'localhost';
+CREATE USER 'kristofer'@'localhost';
+ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer@localhost	kristofer@localhost
+SHOW GRANTS FOR 'kristofer'@'localhost';
+Grants for kristofer@localhost
+GRANT USAGE ON *.* TO `kristofer`@`localhost`
+DROP USER 'kristofer'@'localhost';
+CREATE USER 'kristofer'@'33.33.33.33';
+ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
+Connection should fail for localhost
+ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
+DROP USER 'kristofer'@'33.33.33.33';
+CREATE USER 'kristofer'@'localhost' IDENTIFIED BY 'awesomeness';
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer@localhost	kristofer@localhost
+SHOW GRANTS FOR 'kristofer'@'localhost';
+Grants for kristofer@localhost
+GRANT USAGE ON *.* TO `kristofer`@`localhost`
+ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
+DROP USER 'kristofer'@'localhost';
+set GLOBAL sql_mode= @orig_sql_mode_global;
+set SESSION sql_mode= @orig_sql_mode_session;

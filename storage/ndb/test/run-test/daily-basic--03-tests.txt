@@ -1,0 +1,148 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: test_event
+args: -n Bug44915 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n ExecuteAsynch T1
+max-time: 180
+
+cmd: testBasic
+args: -n InsertError T1
+max-time: 180
+
+cmd: testScan
+args: -n Bug36124 T1
+max-time: 180
+
+cmd: testScan
+args: -l 100 -n Scan-bug8262 T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n RollbackUpdate T1 T6 D1 D2
+max-time: 180
+
+cmd: testBlobs
+args: -bug 27018 -skip p
+max-time: 180
+
+cmd: testScan
+args: -n Bug24447 T1
+max-time: 180
+
+cmd: testInterpreter
+args: T1
+max-time: 180
+
+cmd: testBitfield
+args:
+max-time: 180
+
+cmd: test_event
+args: -n BackwardCompatiblePollLongWait T1
+max-time: 180
+
+cmd: testBasic
+args: -n DeleteRead
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug36246 T1
+max-time: 540
+
+cmd: flexBench
+args: -c 25 -t 10
+max-time: 180
+
+cmd: testIndex
+args: -n DeferredMixedLoad T1 T6 T13
+max-time: 180
+
+cmd: testDict
+args: -n FK_Bug18069680 T1
+max-time: 360
+
+cmd: testNodeRestart
+args: -n Bug58453 T1
+max-time: 900
+
+cmd: testBasic
+args: -n PkDirtyRead
+max-time: 360
+
+cmd: atrt-testBackup
+args: -n FailMasterAsSlave T1
+max-time: 180
+
+cmd: testDict
+args: -n Bug29501 T1
+max-time: 360
+
+cmd: testDict
+args: -n TableAddAttrsDuringError
+max-time: 540
+
+cmd: testNdbinfo
+args:
+max-time: 900
+
+cmd: testBasic
+args: --forceshortreqs -n PkUpdate
+max-time: 720
+
+cmd: testNodeRestart
+args: -n Bug18414 T1
+max-time: 720
+
+cmd: testScan
+args: -n CheckGetValue T6 D1 D2
+max-time: 900
+
+cmd: testRedo
+args: -nRedoFull T1
+max-time: 1440
+
+cmd: testScan
+args: -n ScanVariants
+max-time: 1080
+
+cmd: testBasic
+args: -n NoCommitSleep T6 D1 D2
+max-time: 900
+
+cmd: testIndex
+args: -n NF_DeferredMixed T1 T6 T13
+max-time: 1980
+
+cmd: testDict
+args: -n Restart_NR2 T1 I3
+max-time: 4140
+
+cmd: testPartitioning
+args:
+max-time: 4500
+

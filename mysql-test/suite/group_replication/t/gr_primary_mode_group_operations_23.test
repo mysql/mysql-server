@@ -1,0 +1,101 @@
+###############################################################################
+#
+# When changing to single primary mode with no appointed primary,
+# the new primary member shall be elected using weights or
+# lexicographic order when all weights are equal.
+#
+# Test:
+#   0. This test needs two servers
+#   1. Store uuid from server1 and set election weight to 50
+#   2. Store uuid from server2 and set election weight to 90
+#   3. Execute action switch to single primary mode and confirm server2 is
+#      the primary
+#   4. Execute action switch to multiple primary mode
+#   5. Set election weight on server2 to 50
+#   6. Execute action switch to single primary mode
+#   7. Confirm server with lower lexical uuid is the new primary server
+#   8. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Store uuid from server1 and set election weight to 50
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+SET @@GLOBAL.group_replication_member_weight= 50;
+
+--echo
+--echo # 2. Store uuid from server2 and set election weight to 90
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+SET @@GLOBAL.group_replication_member_weight= 90;
+
+--echo
+--echo # 3. Execute action switch to single primary mode and confirm server2 is
+--echo #    the primary
+
+SELECT group_replication_switch_to_single_primary_mode();
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo # 4. Execute action switch to multiple primary mode
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--echo
+--echo # 5. Set election weight on server2 to 50
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Wait for the action to be declared as not running on server2
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--source include/wait_condition.inc
+
+SET @@GLOBAL.group_replication_member_weight= 50;
+
+--echo
+--echo # 6. Execute action switch to single primary mode
+
+SELECT group_replication_switch_to_single_primary_mode();
+
+--echo
+--echo # 7. Confirm server with lower lexical uuid is the new primary server
+
+--let $server_conn= server1
+--let $server_conn2= server2
+
+if(`SELECT "$server1_uuid" > "$server2_uuid"`)
+{
+  --let $server_conn= server2
+  --let $server_conn2= server1
+}
+
+--connection $server_conn
+
+--source include/gr_assert_primary_member.inc
+
+--connection $server_conn2
+
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo # 8. Cleanup
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

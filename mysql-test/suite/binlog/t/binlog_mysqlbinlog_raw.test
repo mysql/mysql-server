@@ -1,0 +1,75 @@
+###############################################################################
+# Bug#24609402 MYSQLBINLOG --RAW DOES NOT GET ALL LATEST EVENTS
+#
+# Problem: When mysqlbinlog is used with --raw option, output file
+#          is not getting flushed till the process is completed.
+#          With --stop-never option (mysqlbinlog process never completes),
+#          output file will never contain any event.
+#
+# Steps to reproduce:
+#          1) Execute some dummy statements(a create and an insert).
+#          2) Execute MYSQL_BINLOG with --stop-never and --raw option
+#             and backup the binlog content.
+#          3) Wait till server dump thread transfers all the data.
+#          4) Copy binary log file that is downloaded till now before
+#             stopping dump thread that is serving mysqlbinlog
+#             --stop-never process.
+#          5) kill the dump thread (serving the mysqlbinlog process).
+#          6) Clean up the data on the server (a drop and a reset).
+#          7) Apply binlog content (binlog from Step-2).
+#          8) Check that table and the data in it exists (data from step-1).
+#          9) Cleanup the server.
+###############################################################################
+
+# Running MYSQL_BINLOG in a separate shell does not work properly in windows
+# due to MTR limitation.
+--source include/not_windows.inc
+
+# Test is not specific to any binlog format. Hence Running only for 'row'.
+--source include/have_binlog_format_row.inc
+
+# binlog file name is needed in the test. To use binlog.000001,
+# RESET MASTER is needed.
+RESET MASTER;
+# kill the dump threads if there any dump threads (may be from previous test)
+--source include/stop_dump_threads.inc
+
+--echo # Step-1: Execute some dummy statements.
+CREATE TABLE t1(i int);
+INSERT INTO t1 values (1);
+
+--echo # Step-2: Execute MYSQL_BINLOG with --stop-never and --raw option.
+--write_file $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
+(`$MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQL_TMP_DIR/ binlog.000001`) < /dev/null > /dev/null 2>&1 &
+EOF
+--exec /bin/bash $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
+
+--echo # Step-3: Wait till dump thread transfer is completed.
+let $wait_condition= SELECT id from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Master has sent%';
+--source include/wait_condition.inc
+
+--echo # Step-4: copy binary log file that is downloaded till now before
+--echo #         stopping dump thread that is serving mysqlbinlog
+--echo #         --stop-never process.
+--copy_file $MYSQL_TMP_DIR/binlog.000001 $MYSQL_TMP_DIR/binlog-back_up_file.000001
+
+--echo # Step-5: kill the dump thread serving the mysqlbinlog --stop-never process
+--source include/stop_dump_threads.inc
+
+--echo # Step-6: Cleanup the data, so that it is ready for reapply.
+DROP TABLE t1;
+RESET MASTER;
+
+--echo # Step-7: Apply the data that we got from --stop-never process.
+--exec $MYSQL_BINLOG $MYSQL_TMP_DIR/binlog-back_up_file.000001 | $MYSQL --user=root --protocol=tcp --host=127.0.0.1 --port=$MASTER_MYPORT
+
+--echo # Step-8: Check that the data is there.
+--let $assert_text= Check the table t1 exists and contains one tuple with value 1.
+--let $assert_cond= [SELECT COUNT(*) AS Val FROM t1 WHERE i = 1, Val, 1] = 1
+--source include/assert.inc
+
+--echo # Step-9: Cleanup
+DROP TABLE t1;
+--remove_file $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
+--remove_file $MYSQL_TMP_DIR/binlog.000001
+--remove_file $MYSQL_TMP_DIR/binlog-back_up_file.000001

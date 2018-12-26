@@ -1,0 +1,140 @@
+SET GLOBAL innodb_compression_level=0;
+SELECT @@innodb_compression_level;
+@@innodb_compression_level
+0
+CREATE TABLE t1 (j LONGBLOB) ENGINE = InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+INSERT INTO t1 VALUES (repeat('abcdefghijklmnopqrstuvwxyz',200));
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+# stop the server
+[1]:# check the both short and long options for "help"
+[2]:# Run the innochecksum when file isn't provided.
+# It will print the innochecksum usage similar to --help option.
+innochecksum Ver #.#.#
+Copyright (c) YEAR, YEAR , Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+InnoDB offline file checksum utility.
+Usage: innochecksum [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v]  [-a <allow mismatches>] [-n] [-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] [-l <log>] <filename or [-]>
+  -?, --help          Displays this help and exits.
+  -I, --info          Synonym for --help.
+  -V, --version       Displays version information and exits.
+  -v, --verbose       Verbose (prints progress every 5 seconds).
+  -c, --count         Print the count of pages in the file and exits.
+  -s, --start-page=#  Start on this page number (0 based).
+  -e, --end-page=#    End at this page number (0 based).
+  -p, --page=#        Check only this page (0 based).
+  -C, --strict-check=name 
+                      Specify the strict checksum algorithm by the user.
+  -n, --no-check      Ignore the checksum verification.
+  -a, --allow-mismatches=# 
+                      Maximum checksum mismatch allowed.
+  -w, --write=name    Rewrite the checksum algorithm by the user.
+  -S, --page-type-summary 
+                      Display a count of each page type in a tablespace.
+  -D, --page-type-dump=name 
+                      Dump the page type info for each page in a tablespace.
+  -l, --log=name      log output.
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           FALSE
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+log                               (No default value)
+[3]:# check the both short and long options for "count" and exit
+Number of pages:#
+Number of pages:#
+[4]:# Print the version of innochecksum and exit
+innochecksum Ver #.#.## Restart the DB server
+# restart
+DROP TABLE t1;
+[5]:# Check the innochecksum for compressed table t1 with different key_block_size
+# Test for KEY_BLOCK_SIZE=1
+===> Testing  size=1
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+# Test for KEY_BLOCK_SIZE=2
+===> Testing  size=2
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+# Test for for KEY_BLOCK_SIZE=4
+===> Testing  size=4
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+set innodb_strict_mode=off;
+# Test for for KEY_BLOCK_SIZE=8
+===> Testing  size=8
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+set innodb_strict_mode=off;
+# Test for KEY_BLOCK_SIZE=16
+===> Testing  size=16
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+# Test[5] completed

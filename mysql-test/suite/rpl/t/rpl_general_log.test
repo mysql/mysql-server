@@ -1,0 +1,34 @@
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+#
+# BUG#12987771: REPLICATED STATEMENTS ARE DUPLICATED IN THE SLAVE GENERAL LOG
+#
+--connection slave
+
+--source include/stop_slave.inc
+
+SET @old_log_output= @@log_output;
+SET GLOBAL log_output= 'TABLE';
+TRUNCATE mysql.general_log;
+
+--source include/start_slave.inc
+
+--connection master
+CREATE TABLE t1 (i int NOT NULL PRIMARY KEY);
+
+--source include/sync_slave_sql_with_master.inc
+--let $wait_condition=SELECT count(*)=1 FROM mysql.general_log WHERE argument="CREATE TABLE t1 (i int NOT NULL PRIMARY KEY)"
+--source include/wait_condition_or_abort.inc
+
+--connection master
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+
+SET GLOBAL log_output= @old_log_output;
+TRUNCATE mysql.general_log;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

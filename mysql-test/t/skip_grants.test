@@ -1,0 +1,132 @@
+use test;
+
+#
+# BUG#16777: Can not create trigger nor view w/o definer if --skip-grant-tables
+# specified
+#
+# Also, the following test cases have been moved here:
+#   - test that we can create VIEW if privileges check switched off has been
+#     moved here;
+#   - test that we can create and drop procedure without warnings (BUG#9993);
+#   - BUG#17595: "DROP FUNCTION IF EXISTS" crashes server;
+#   - BUG#13504: creation view with DEFINER clause if --skip-grant-tables
+#
+
+# Prepare.
+
+--disable_warnings
+
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP VIEW IF EXISTS v3;
+
+DROP TABLE IF EXISTS t1;
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+
+--enable_warnings
+
+# Test case.
+
+CREATE TABLE t1(c INT);
+
+# - try to create with implicit definer (definer would be ''@'');
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @a = 1;
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CREATE PROCEDURE p1()
+  SELECT 1;
+
+CREATE FUNCTION f1() RETURNS INT
+  RETURN 1;
+
+# - try to create with explicit definer;
+
+CREATE DEFINER=a@b TRIGGER ti_ai AFTER INSERT ON t1
+  FOR EACH ROW
+    SET @b = 1;
+
+CREATE DEFINER=a@b VIEW v2 AS SELECT * FROM t1;
+
+CREATE DEFINER=a@b PROCEDURE p2()
+  SELECT 2;
+
+CREATE DEFINER=a@b FUNCTION f2() RETURNS INT
+  RETURN 2;
+
+# - try to create with explicit definer with empty host;
+
+CREATE DEFINER=a@'' TRIGGER ti_bu BEFORE UPDATE ON t1
+  FOR EACH ROW
+    SET @c = 1;
+
+CREATE DEFINER=a@'' VIEW v3 AS SELECT * FROM t1;
+
+CREATE DEFINER=a@'' PROCEDURE p3()
+  SELECT 3;
+
+CREATE DEFINER=a@'' FUNCTION f3() RETURNS INT
+  RETURN 3;
+
+# - check that empty host name is treated correctly;
+
+SHOW CREATE VIEW v3;
+
+SHOW CREATE PROCEDURE p3;
+
+SHOW CREATE FUNCTION f3;
+
+# Cleanup.
+
+DROP TRIGGER t1_bi;
+DROP TRIGGER ti_ai;
+DROP TRIGGER ti_bu;
+
+DROP VIEW v1;
+DROP VIEW v2;
+DROP VIEW v3;
+
+DROP TABLE t1;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+
+#
+# Bug #26807 "set global event_scheduler=1" and --skip-grant-tables crashes server
+#
+--error ER_OPTION_PREVENTS_STATEMENT
+set global event_scheduler=1;
+
+#
+# Bug#26285 Selecting information_schema crahes server
+#
+select count(*) from information_schema.COLUMN_PRIVILEGES;
+select count(*) from information_schema.SCHEMA_PRIVILEGES;
+select count(*) from information_schema.TABLE_PRIVILEGES;
+select count(*) from information_schema.USER_PRIVILEGES;
+--echo End of 5.0 tests
+
+#
+# Bug #89457: SET PERSIST_ONLY ignore skip-grant-tables
+#
+
+SET PERSIST max_connections = 18;
+SET PERSIST_ONLY max_connections = 18;
+## set to default
+SET GLOBAL max_connections = DEFAULT;
+RESET PERSIST;

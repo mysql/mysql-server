@@ -1,0 +1,61 @@
+				
+DIH				DICT			  CNTR
+----------------------		----------------------	  ---------------------
+							  <- DIHRESTARTREQ 
+Check for sysfile
+DIH_RESTARTCONF ->
+
+NDB_STTORY -> DICT (sp=1)
+				Read schema file
+
+******************************************************************************
+* Elect master
+******************************************************************************
+
+-- Master DIH --
+
+Read sysfile
+
+COPY_GCIREQ -> all DIHs
+				
+DICTSTARTREQ -> local DICT (master)
+
+				master
+                                ======
+		                For each table (that should be started)
+				  1) ReadTableFile
+				  2) DI_ADD_TAB_REQ -> local DIH
+
+1) ReadTableFile (DIH)
+2) COPY_TABREQ -> all DIH (but self)
+3) For each local frag
+   ADD_FRAG_REQ -> local DICT
+4) DI_ADD_TAB_CONF 				
+
+				SCHEMA_INFO -> all DICTs
+				   Info = schema file
+
+				Participant
+				===========
+				1) For each table
+				   1) If TableStatus match
+				        ReadTableFile
+                                      else
+			                GET_TABINFOREQ
+				   2) WriteTableFile
+                                   3) Parse Table Data
+                                   4) DI_ADD_TAB_REQ -> local DIH
+     
+                                <- SCHEMA_INFOCONF
+
+
+               <- DICTSTARTCONF
+						  
+For each fragment 
+  IF Fragment is logged
+     START_FRAGREQ -> LQH x
+
+  START_RECREQ -> all LQH
+     Note does not wait for START_FRAGCONF
+
+NDB_STARTCONF ->	   

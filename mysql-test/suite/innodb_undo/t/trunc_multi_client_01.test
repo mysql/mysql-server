@@ -1,0 +1,13 @@
+#
+# WL#6965: Truncate UNDO logs.
+#
+
+################################################################################
+# Test-case will test following scenarios.
+#
+# 1. Perform DML action using multiple clients and multiple undo tablespace.
+#    Use innodb_undo_tablespaces=2 & innodb_rollback_segments=1 in master.opt file.
+#
+################################################################################
+
+--source suite/innodb_undo/include/undo_trunc_multi_client.inc

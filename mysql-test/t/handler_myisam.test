@@ -1,0 +1,192 @@
+# Need MyISAM to support assign_to_keycache
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+# t/handler_myisam.test
+#
+# test of HANDLER ...
+#
+# Last update:
+# 2006-07-31 ML test refactored (MySQL 5.1)
+#               code of t/handler.test and t/innodb_handler.test united
+#               main testing code put into include/handler.inc
+#               rename t/handler.test to t/handler_myisam.test
+#
+
+let $engine_type= MyISAM;
+let $other_engine_type= MEMORY;
+# There is unfortunately no other all time available storage engine
+# which supports the handler interface
+let $other_handler_engine_type= MyISAM;
+
+--source include/handler.inc
+
+--echo #
+--echo # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
+--echo #
+CREATE TABLE t1 AS SELECT 1 AS f1; 
+HANDLER t1 OPEN;
+TRUNCATE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1 AS SELECT 1 AS f1; 
+HANDLER t1 OPEN;
+TRUNCATE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#51877 - HANDLER interface causes invalid memory read
+--echo #
+CREATE TABLE t1(a INT, KEY(a));
+HANDLER t1 OPEN;
+HANDLER t1 READ a FIRST;
+INSERT INTO t1 VALUES(1);
+HANDLER t1 READ a NEXT;
+HANDLER t1 CLOSE;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #54007: assert in ha_myisam::index_next , HANDLER
+--echo #
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a), KEY b(b), KEY ab(a, b));
+
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ ab NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 CLOSE;
+
+INSERT INTO t1 VALUES (2, 20), (1, 10), (4, 40), (3, 30);
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+HANDLER t1 READ NEXT;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ ab NEXT;
+HANDLER t1 READ ab NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 CLOSE;
+
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+HANDLER t1 READ `PRIMARY` PREV;
+HANDLER t1 READ `PRIMARY` PREV;
+HANDLER t1 READ b PREV;
+HANDLER t1 READ b PREV;
+HANDLER t1 CLOSE;
+
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+HANDLER t1 READ `PRIMARY` PREV LIMIT 3;
+HANDLER t1 READ b NEXT LIMIT 5;
+HANDLER t1 CLOSE;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Additional coverage for refactoring which is made as part
+--echo # of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+--echo # to allow temp table operations".
+--echo #
+--echo # Check that DDL on temporary table properly closes HANDLER cursors
+--echo # for this table belonging to the same connection.
+
+CREATE TEMPORARY TABLE t1 AS SELECT 1 AS f1; 
+
+--echo # -- CREATE TABLE
+HANDLER t1 OPEN;
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 SELECT 1 AS f1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- REPAIR TABLE
+HANDLER t1 OPEN;
+REPAIR TABLE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- ANALYZE TABLE
+HANDLER t1 OPEN;
+ANALYZE TABLE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- OPTIMIZE TABLE
+HANDLER t1 OPEN;
+OPTIMIZE TABLE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- CHECK TABLE
+HANDLER t1 OPEN;
+CHECK TABLE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- ALTER TABLE
+HANDLER t1 OPEN;
+ALTER TABLE t1 ADD COLUMN b INT;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- CREATE INDEX
+HANDLER t1 OPEN;
+CREATE INDEX b ON t1 (b);
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- DROP INDEX
+HANDLER t1 OPEN;
+DROP INDEX b ON t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- TRUNCATE TABLE
+HANDLER t1 OPEN;
+TRUNCATE TABLE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- DROP TABLE
+HANDLER t1 OPEN;
+DROP TABLE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+CREATE TEMPORARY TABLE t1(a INT, b INT, INDEX i(a));
+
+set global keycache1.key_cache_block_size=2048;
+set global keycache1.key_buffer_size=1*1024*1024;
+set global keycache1.key_buffer_size=1024*1024;
+
+--echo # -- CACHE INDEX
+HANDLER t1 OPEN;
+CACHE INDEX t1 IN keycache1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+--echo # -- LOAD INDEX
+HANDLER t1 OPEN;
+LOAD INDEX INTO CACHE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+
+--echo End of 5.1 tests

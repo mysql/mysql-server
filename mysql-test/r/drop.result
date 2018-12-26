@@ -1,0 +1,213 @@
+drop table if exists t1;
+drop database if exists mysqltest;
+drop database if exists client_test_db;
+drop table t1;
+ERROR 42S02: Unknown table 'test.t1'
+create table t1(n int);
+insert into t1 values(1);
+create temporary table t1( n int);
+insert into t1 values(2);
+create table t1(n int);
+ERROR 42S01: Table 't1' already exists
+drop table t1;
+select * from t1;
+n
+1
+create database mysqltest;
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.mysqltest (n int);
+insert into mysqltest.mysqltest values (4);
+select * from mysqltest.mysqltest;
+n
+4
+drop database if exists mysqltest;
+affected rows: 1
+create database mysqltest;
+use mysqltest;
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28;
+ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table6,mysqltest.table7,mysqltest.'
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28, table29, table30;
+ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table6,mysqltest.table7,mysqltest.'
+use test;
+drop database mysqltest;
+flush tables with read lock;
+create database mysqltest;
+Got one of the listed errors
+unlock tables;
+create database mysqltest;
+select schema_name from information_schema.schemata order by schema_name;
+SCHEMA_NAME
+information_schema
+mtr
+mysql
+mysqltest
+performance_schema
+sys
+test
+flush tables with read lock;
+drop database mysqltest;
+Got one of the listed errors
+unlock tables;
+drop database mysqltest;
+select schema_name from information_schema.schemata order by schema_name;
+SCHEMA_NAME
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+drop database mysqltest;
+ERROR HY000: Can't drop database 'mysqltest'; database doesn't exist
+drop table t1;
+flush tables with read lock;
+create table t1(n int);
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+create table t1(n int);
+show tables;
+Tables_in_test
+t1
+drop table t1;
+drop database if exists mysqltest;
+drop table if exists t1;
+create table t1 (i int);
+create database mysqltest;
+lock tables t1 read;
+drop table t1;
+show open tables;
+drop database mysqltest;
+select 1;
+1
+1
+unlock tables;
+drop table if exists t1,t2;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 read;
+drop table t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+drop table t1;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+unlock tables;
+drop table t1,t2;
+create table t1 (i int);
+create table t2 (i int);
+lock tables t1 read;
+lock tables t2 read;
+drop table t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+drop table t1,t2;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+unlock tables;
+drop table t1,t2;
+End of 5.0 tests
+
+create database mysqltestbug26703;
+use mysqltestbug26703;
+create table `#mysql50#abc``def` ( id int );
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+ERROR 42000: Identifier name '#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+use test;
+drop database mysqltestbug26703;
+End of 5.1 tests
+
+# --
+# -- Bug#37431 (DROP TABLE does not report errors correctly).
+# --
+DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
+ERROR 42S02: Unknown table 'test.t1'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1051	Unknown table 'test.t1'
+
+# --
+# -- End of Bug#37431.
+# --
+#
+# Bug#54282 Crash in MDL_context::upgrade_shared_lock_to_exclusive
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+LOCK TABLE t1 WRITE;
+DROP TABLE t1, t1;
+ERROR 42000: Not unique table/alias: 't1'
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# BUG#34750: Print database name in Unknown Table error message
+#
+
+# Test error message when droping table/view
+DROP TABLE table1;
+ERROR 42S02: Unknown table 'test.table1'
+DROP TABLE table1,table2;
+ERROR 42S02: Unknown table 'test.table1,test.table2'
+DROP VIEW view1,view2,view3,view4;
+ERROR 42S02: Unknown table 'test.view1,test.view2,test.view3,test.view4'
+
+DROP TABLE IF EXISTS table1;
+Warnings:
+Note	1051	Unknown table 'test.table1'
+DROP TABLE IF EXISTS table1,table2;
+Warnings:
+Note	1051	Unknown table 'test.table1'
+Note	1051	Unknown table 'test.table2'
+DROP VIEW IF EXISTS view1,view2,view3,view4;
+Warnings:
+Note	1051	Unknown table 'test.view1'
+Note	1051	Unknown table 'test.view2'
+Note	1051	Unknown table 'test.view3'
+Note	1051	Unknown table 'test.view4'
+
+# Test error message when trigger does not find table
+CREATE TABLE table1(a int);
+CREATE TABLE table2(b int);
+CREATE TRIGGER trg1 AFTER INSERT ON table1
+FOR EACH ROW
+INSERT INTO table2 SELECT t.notable.*;
+INSERT INTO table1 VALUES (1);
+ERROR 42S02: Unknown table 't.notable'
+DROP TABLE table1,table2;
+# End BUG#34750
+
+# Test Bug#19573998 DATABASE CAN NOT BE DROPPED IF IT CONTAINS .CFG FILES
+CREATE DATABASE bug19573998;
+USE bug19573998;
+CREATE TABLE t1(i int);
+# Start FLUSH TABLES command which will create .cfg files
+# and block DROP DATABASE
+FLUSH TABLES t1 FOR EXPORT;
+connect con1, localhost, root, '', bug19573998;
+# Non-blocking (--send):
+DROP DATABASE bug19573998;
+connection default;
+# Wait until DROP DATABASE becomes blocked on table metadata lock
+UNLOCK TABLES;
+connection con1;
+# Wait for DROP DATABASE to complete (--reap)
+# DROP DATABASE completed
+disconnect con1;
+# Connection con1 has disconnected
+connection default;
+# Try to manually inject a .cfg file into the database directory
+CREATE DATABASE bug19573998;
+# Write a dummy file into the database directory
+# Verify that it is possible to drop the database
+DROP DATABASE bug19573998;
+USE test;
+# End Bug#19573998

@@ -1,0 +1,293 @@
+# This test aims to rewrite queries with parameters in many
+# different places.
+CREATE TABLE t1 ( c1 INTEGER, c2 CHAR(1), c3 CHAR(1) );
+INSERT INTO t1 VALUES ( 1, 'd', 'a' ),
+( 3, 'c', 'b' ),
+( 2, 'b', 'c' ),
+( 4, 'a', 'a' ),
+( 6, 'd', 'b' ),
+( 5, 'f', 'c' ),
+( 8, 'd', 'a' ),
+( 7, 'e', 'b' );
+# Query rewrite plugin was installed.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1, c2 FROM test.t1 ORDER BY ?',
+'SELECT c1, c2 FROM test.t1 ORDER BY 2, ? DESC' );
+CALL query_rewrite.flush_rewrite_rules();
+# Should be rewritten.
+SELECT c1, c2 FROM test.t1 ORDER BY 1;
+c1	c2
+4	a
+2	b
+3	c
+8	d
+6	d
+1	d
+7	e
+5	f
+Warnings:
+Note	1105	Query 'SELECT c1, c2 FROM test.t1 ORDER BY 1' rewritten to 'SELECT c1, c2 FROM test.t1 ORDER BY 2, 1 DESC' by a query rewrite plugin
+# Should not be rewritten.
+SELECT c1, c2 FROM test.t1 ORDER BY c1;
+c1	c2
+1	d
+2	b
+3	c
+4	a
+5	f
+6	d
+7	e
+8	d
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1, c2 FROM test.t1 LIMIT ?',
+'SELECT c1, c2 FROM test.t1 ORDER BY 1 LIMIT 1, ?' );
+CALL query_rewrite.flush_rewrite_rules();
+# Should be rewritten.
+SELECT c1, c2 FROM test.t1 LIMIT 2;
+c1	c2
+2	b
+3	c
+Warnings:
+Note	1105	Query 'SELECT c1, c2 FROM test.t1 LIMIT 2' rewritten to 'SELECT c1, c2 FROM test.t1 ORDER BY 1 LIMIT 1, 2' by a query rewrite plugin
+# Should be rewritten.
+SELECT c1, c2 FROM test.t1 LIMIT 4;
+c1	c2
+2	b
+3	c
+4	a
+5	f
+Warnings:
+Note	1105	Query 'SELECT c1, c2 FROM test.t1 LIMIT 4' rewritten to 'SELECT c1, c2 FROM test.t1 ORDER BY 1 LIMIT 1, 4' by a query rewrite plugin
+# Should not be rewritten.
+SELECT c1, c2 FROM test.t1 LIMIT 2, 1;
+c1	c2
+2	b
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1 + ? AS c FROM test.t1',
+'SELECT c1 + ? * 2 AS c FROM test.t1 ORDER BY c' );
+CALL query_rewrite.flush_rewrite_rules();
+# Should be rewritten.
+SELECT c1 + 3 AS c FROM test.t1;
+c
+7
+8
+9
+10
+11
+12
+13
+14
+Warnings:
+Note	1105	Query 'SELECT c1 + 3 AS c FROM test.t1' rewritten to 'SELECT c1 + 3 * 2 AS c FROM test.t1 ORDER BY c' by a query rewrite plugin
+# Should be rewritten.
+SELECT c1 + 20 AS c FROM test.t1;
+c
+41
+42
+43
+44
+45
+46
+47
+48
+Warnings:
+Note	1105	Query 'SELECT c1 + 20 AS c FROM test.t1' rewritten to 'SELECT c1 + 20 * 2 AS c FROM test.t1 ORDER BY c' by a query rewrite plugin
+# Should not be rewritten.
+SELECT c1 + 3 * 2 AS c FROM test.t1;
+c
+7
+9
+8
+10
+12
+11
+14
+13
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES  (  'SELECT c1 * ? FROM test.t1', 'SELECT c1 + ? FROM test.t1'  );
+CALL query_rewrite.flush_rewrite_rules();
+# Should be rewritten.
+SELECT c1 * 3 FROM test.t1;
+c1 + 3
+4
+6
+5
+7
+9
+8
+11
+10
+Warnings:
+Note	1105	Query 'SELECT c1 * 3 FROM test.t1' rewritten to 'SELECT c1 + 3 FROM test.t1' by a query rewrite plugin
+# Should not be rewritten.
+SELECT c1 + 3 FROM test.t1;
+c1 + 3
+4
+6
+5
+7
+9
+8
+11
+10
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY ?, ?',
+'SELECT SUM( c1 ), c2, c3 FROM test.t1 GROUP BY ?, ?' );
+CALL query_rewrite.flush_rewrite_rules();
+# Should be rewritten.
+SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3;
+SUM( c1 )	c2	c3
+9	d	a
+3	c	b
+2	b	c
+4	a	a
+6	d	b
+5	f	c
+7	e	b
+Warnings:
+Note	1105	Query 'SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3' rewritten to 'SELECT SUM( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3' by a query rewrite plugin
+# Should be rewritten.
+SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2;
+SUM( c1 )	c2	c3
+9	d	a
+3	c	b
+2	b	c
+4	a	a
+6	d	b
+5	f	c
+7	e	b
+Warnings:
+Note	1105	Query 'SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2' rewritten to 'SELECT SUM( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2' by a query rewrite plugin
+# Should not be rewritten.
+SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY c2, c3;
+COUNT( c1 )	c2	c3
+2	d	a
+1	c	b
+1	b	c
+1	a	a
+1	d	b
+1	f	c
+1	e	b
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c > ?',
+'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c < ?'
+         );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c > 2;
+c	c2	c3
+1	c	b
+1	b	c
+1	a	a
+1	d	b
+1	f	c
+1	e	b
+Warnings:
+Note	1105	Query 'SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c > 2' rewritten to 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c < 2' by a query rewrite plugin
+SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c > 3;
+c	c2	c3
+2	d	a
+1	c	b
+1	b	c
+1	a	a
+1	d	b
+1	f	c
+1	e	b
+Warnings:
+Note	1105	Query 'SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c > 3' rewritten to 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c < 3' by a query rewrite plugin
+CREATE TABLE t2 ( c1 INTEGER, c2 CHAR ( 1 ), c3 CHAR ( 1 ) );
+INSERT INTO t2 VALUES ( 1, 'd', 'a' ),
+( 2, 'b', 'c' ),
+( 6, 'd', 'b' ),
+( 5, 'f', 'c' );
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c.c1, c.c2 FROM test.t1 AS c JOIN test.t2 AS d ON(c.c1=d.c1)WHERE c.c1=1',
+'SELECT c.c1, c.c2 FROM test.t1 AS c JOIN test.t2 AS d ON ( c.c1=d.c1 )' );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT c.c1, c.c2 FROM test.t1 AS c JOIN test.t2 AS d ON ( c.c1=d.c1 ) WHERE c.c1=1;
+c1	c2
+1	d
+2	b
+6	d
+5	f
+Warnings:
+Note	1105	Query 'SELECT c.c1, c.c2 FROM test.t1 AS c JOIN test.t2 AS d ON ( c.c1=d.c1 ) WHERE c.c1=1' rewritten to 'SELECT c.c1, c.c2 FROM test.t1 AS c JOIN test.t2 AS d ON ( c.c1=d.c1 )' by a query rewrite plugin
+SELECT c.c1, c.c2 FROM test.t1 AS d JOIN test.t2 AS c ON ( c.c1=d.c1 ) WHERE c.c1=1;
+c1	c2
+1	d
+# Finish extraction in the from clause.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c.c1 FROM ( SELECT c1 FROM test.t1 WHERE c1=? ) c',
+'SELECT c1 FROM test.t1 WHERE c1=?' );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT c.c1 FROM ( SELECT c1 FROM test.t1 WHERE c1=3 ) c;
+c1
+3
+Warnings:
+Note	1105	Query 'SELECT c.c1 FROM ( SELECT c1 FROM test.t1 WHERE c1=3 ) c' rewritten to 'SELECT c1 FROM test.t1 WHERE c1=3' by a query rewrite plugin
+SET sql_mode = 'PIPES_AS_CONCAT';
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1,c2,c3 FROM test.t1 WHERE c1=? ' ||
+'UNION ' ||
+'SELECT c1 FROM test.t1 WHERE c1=? ORDER BY ?',
+'SELECT c1,c2, c3 FROM test.t1 WHERE c1 IN ( ?,? ) ORDER BY ?' );
+CALL query_rewrite.flush_rewrite_rules();
+# That's right, query does not compile unless rewritten.
+SELECT c1, c2, c3 FROM test.t1 WHERE c1 = 1
+UNION
+SELECT c1 FROM test.t1 WHERE c1 = 2 ORDER BY 2;
+c1	c2	c3
+2	b	c
+1	d	a
+Warnings:
+Note	1105	Query 'SELECT c1, c2, c3 FROM test.t1 WHERE c1 = 1
+UNION
+SELECT c1 FROM test.t1 WHERE c1 = 2 ORDER BY 2' rewritten to 'SELECT c1,c2, c3 FROM test.t1 WHERE c1 IN ( 1,2 ) ORDER BY 2' by a query rewrite plugin
+# Test with many parameters.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1, c2 FROM test.t1 WHERE c1 IN ' ||
+'( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )',
+'SELECT c1, c2 FROM test.t1 WHERE c1 NOT IN ' ||
+'( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )' );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT c1, c2
+FROM test.t1
+WHERE c1 IN ( 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14 );
+c1	c2
+6	d
+Warnings:
+Note	1105	Query 'SELECT c1, c2
+FROM test.t1
+WHERE c1 IN ( 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14 )' rewritten to 'SELECT c1, c2 FROM test.t1 WHERE c1 NOT IN ( 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14 )' by a query rewrite plugin
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT test.t1.c1,  ( SELECT c1 FROM test.t2 WHERE c1=? ) t'
+         ' FROM test.t1, '
+         '      ( SELECT * FROM ( SELECT * FROM test.t2 WHERE c1=? ) tb ) tc'
+         ' WHERE test.t1.c2=tc.c2 AND tc.c1 < ?',
+'SELECT test.t1.c1, test.t2.c1, test.t2.c2, test.t1.c2'
+          ' FROM test.t1 JOIN test.t2 ON ( test.t1.c1=t2.c1 AND test.t2.c1 IN ( ?, ? ) )'
+          ' WHERE test.t1.c1 > ?' );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT test.t1.c1,  ( SELECT c1 FROM test.t2 WHERE c1=2 ) t
+FROM test.t1,
+( SELECT * FROM ( SELECT * FROM test.t2 WHERE c1=1 ) tb ) tc
+WHERE test.t1.c2=tc.c2 AND tc.c1 < 0;
+c1	c1	c2	c2
+1	1	d	d
+2	2	b	b
+Warnings:
+Note	1105	Query 'SELECT test.t1.c1,  ( SELECT c1 FROM test.t2 WHERE c1=2 ) t
+FROM test.t1,
+( SELECT * FROM ( SELECT * FROM test.t2 WHERE c1=1 ) tb ) tc
+WHERE test.t1.c2=tc.c2 AND tc.c1 < 0' rewritten to 'SELECT test.t1.c1, test.t2.c1, test.t2.c2, test.t1.c2 FROM test.t1 JOIN test.t2 ON ( test.t1.c1=t2.c1 AND test.t2.c1 IN ( 2, 1 ) ) WHERE test.t1.c1 > 0' by a query rewrite plugin
+# Check our status variables:.
+SHOW STATUS LIKE 'Rewriter%';
+Variable_name	Value
+Rewriter_number_loaded_rules	11
+Rewriter_number_reloads	12
+Rewriter_number_rewritten_queries	15
+Rewriter_reload_error	OFF
+DROP TABLE t1, t2;
+SET sql_mode = DEFAULT;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

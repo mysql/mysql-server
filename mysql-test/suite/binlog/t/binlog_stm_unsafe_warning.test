@@ -1,0 +1,180 @@
+
+# BUG#42851: Spurious "Statement is not safe to log in statement
+#            format." warnings
+#
+# WHY
+# ===
+#   
+#   This test aims at checking that the fix that removes spurious
+#   entries in the error log when the statement is filtered out from
+#   binlog, is working.
+#
+# HOW
+# ===
+#
+#   The test case is split into three assertions when issuing statements
+#   containing LIMIT and ORDER BY:
+#
+#     i) issue statements in database that is not filtered => check
+#        that warnings ARE shown;
+#
+#    ii) issue statements in database that is not filtered, but with
+#        binlog disabled => check that warnings ARE NOT shown;
+#
+#   iii) issue statements in database that is filtered => check that
+#        warnings ARE NOT shown.
+
+-- source include/have_log_bin.inc
+-- source include/have_binlog_format_statement.inc
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
+-- echo ### NOT filtered database => assertion: warnings ARE shown
+
+-- disable_warnings
+DROP TABLE IF EXISTS t1;
+-- enable_warnings
+
+CREATE TABLE t1 (a int, b int, primary key (a));
+INSERT INTO t1 VALUES (1,2), (2,3);
+UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
+UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
+DROP TABLE t1;
+
+-- echo ### NOT filtered database => assertion: binlog disabled and warnings ARE NOT shown
+
+SET SQL_LOG_BIN= 0;
+
+-- disable_warnings
+DROP TABLE IF EXISTS t1;
+-- enable_warnings
+
+CREATE TABLE t1 (a int, b int, primary key (a));
+INSERT INTO t1 VALUES (1,2), (2,3);
+UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
+UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
+DROP TABLE t1;
+
+SET SQL_LOG_BIN= 1;
+
+-- echo ### FILTERED database => assertion: warnings ARE NOT shown
+
+let $old_db= `SELECT DATABASE()`;
+
+CREATE DATABASE b42851;
+USE b42851;
+
+-- disable_warnings
+DROP TABLE IF EXISTS t1;
+-- enable_warnings
+
+CREATE TABLE t1 (a int, b int, primary key (a));
+INSERT INTO t1 VALUES (1,2), (2,3);
+UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
+UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
+DROP TABLE t1;
+
+
+CREATE TABLE t1 (a VARCHAR(1000));
+INSERT INTO t1 VALUES (CURRENT_USER());       #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (FOUND_ROWS());         #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));   #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat')); #marked unsafe in BUG#39701
+INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (ROW_COUNT());          #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (SESSION_USER());       #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (SLEEP(1));             #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (SYSDATE());            #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (SYSTEM_USER());        #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (USER());               #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (UUID());               #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (UUID_SHORT());         #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (VERSION());            #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (RAND());               #marked unsafe in BUG#49222
+
+# clean up
+DROP DATABASE b42851;
+
+eval USE $old_db;
+
+--echo #
+--echo # Bug#46265: Can not disable warning about unsafe statements for binary logging
+--echo #
+
+let BINLOG_COUNTER1= `select CONVERT(NOW(),UNSIGNED) as timestmap from dual`;
+
+SET @old_log_error_verbosity = @@log_error_verbosity;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(15));
+
+SET GLOBAL log_error_verbosity = 1;
+# Replacing the result file content here.
+# Instead of writing $BINLOG_COUNTER1 value to result file, 
+# writing a fixed string timestamp to it.
+--replace_result $BINLOG_COUNTER1 timestamp
+eval INSERT INTO t1 VALUES(UUID(), '$BINLOG_COUNTER1');
+SET GLOBAL log_error_verbosity = 2;
+--replace_result $BINLOG_COUNTER1 timestamp
+eval INSERT INTO t1 VALUES(UUID(), '$BINLOG_COUNTER1');
+DROP TABLE t1;
+
+SET GLOBAL log_error_verbosity = @old_log_error_verbosity;
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if(!$log_error_)
+{
+  # MySQL Server on windows is started with --console and thus
+  # does not know the location of its .err log, use default location
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+# Assign env variable LOG_ERROR
+let LOG_ERROR=$log_error_;
+
+--echo # Count the number of times the "Unsafe" message was printed
+--echo # to the error log.
+
+perl;
+  use strict;
+  my $log_error= $ENV{'LOG_ERROR'} or die "LOG_ERROR not set";
+  open(FILE, "$log_error") or die("Unable to open $log_error: $!\n");
+  my $binlog_counter= $ENV{'BINLOG_COUNTER1'} or die "BINLOG_COUNTER1 not set";
+  my $count = () = grep(/$binlog_counter/g,<FILE>); 
+  # Grep the timestamp value from the error file.
+  print "Occurrences: $count\n";
+  close(FILE);
+EOF
+
+# bug#50192: diplaying the unsafe warning comes out to the user warning stack
+-- disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+-- enable_warnings
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int auto_increment primary key, b int);
+CREATE TRIGGER tr_bug50192 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t2 (b) VALUES (1);
+
+DELIMITER |;
+
+CREATE FUNCTION sf_bug50192() RETURNS INTEGER
+BEGIN
+   INSERT INTO t2(b) VALUES(2);
+   RETURN 1;
+END |
+
+DELIMITER ;|
+
+INSERT INTO t1 VALUES (0);
+SHOW WARNINGS;
+SELECT sf_bug50192();
+SHOW WARNINGS;
+
+# cleanup
+
+DROP FUNCTION sf_bug50192;
+DROP TRIGGER tr_bug50192;
+DROP TABLE t1, t2;

@@ -1,0 +1,46 @@
+Start of 5.4 tests
+CREATE TABLE t1(f1 INT);
+SET lc_messages=ru_RU;
+SHOW VARIABLES LIKE 'lc_messages';
+Variable_name	Value
+lc_messages	ru_RU
+CREATE TABLE t1(f1 INT);
+ERROR 42S01: Таблица 't1' уже существует
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1(f1 INT);
+ERROR 42S01: Таблица 't1' уже существует
+SHOW VARIABLES LIKE 'lc_messages';
+Variable_name	Value
+lc_messages	en_US
+CREATE TABLE t1(f1 INT);
+ERROR 42S01: Table 't1' already exists
+SHOW GLOBAL VARIABLES LIKE 'lc_messages';
+Variable_name	Value
+lc_messages	en_US
+SET GLOBAL lc_messages=ru_RU;
+SHOW GLOBAL VARIABLES LIKE 'lc_messages';
+Variable_name	Value
+lc_messages	ru_RU
+SET GLOBAL lc_messages=en_US;
+DROP TABLE t1;
+drop table `ק`;
+ERROR 42S02: Unknown table 'test.ק'
+SET lc_messages=cs_CZ;
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+USE nonexistant;
+ERROR 42000: Neznámá databáze 'nonexistant'
+#
+# Bug#12736295: Buffer overflow for variable converted_err
+#               with non-latin1 server error message
+#
+# Connection con1
+SET lc_messages=ru_RU;
+SET NAMES latin1;
+SELECT '01234567890123456789012345678901234\';
+ERROR 42000: \0423 \0432\0430\0441 \043E\0448\0438\0431\043A\0430 \0432 \0437\0430\043F\0440\043E\0441\0435. \0418\0437\0443\0447\0438\0442\0435 \0434\043E\043A\0443\043C\0435\043D\0442\0430\0446\0438\044E \043F\043E \0438\0441\043F\043E\043B\044C\0437\0443\0435\043C\043E\0439 \0432\0435\0440\0441\0438\0438 MySQL \043D\0430 \043F\0440\0435\0434\043C\0435\0442 \043A\043E\0440\0440\0435\043A\0442\043D\043E\0433\043E \0441\0438\043D\0442\0430\043A\0441\0438\0441\0430 \043E\043A\043E\043B\043E ''012345678901234567890123456
+# Connection default
+End of 5.5 tests
