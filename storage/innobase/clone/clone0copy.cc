@@ -146,7 +146,7 @@ int Clone_Snapshot::init_file_copy() {
   } else if (m_snapshot_type == HA_CLONE_HYBRID ||
              m_snapshot_type == HA_CLONE_PAGE) {
     /* Start modified Page ID Archiving */
-    err = m_page_ctx.start();
+    err = m_page_ctx.start(false, nullptr);
   } else {
     ut_ad(m_snapshot_type == HA_CLONE_BLOCKING);
   }
@@ -203,7 +203,9 @@ int Clone_Snapshot::init_page_copy(byte *page_buffer, uint page_buffer_len) {
   }
 
   /* Stop modified page archiving. */
-  err = m_page_ctx.stop();
+  err = m_page_ctx.stop(nullptr);
+
+  DEBUG_SYNC_C("clone_stop_page_archiving_without_releasing");
 
   if (err != 0) {
     goto func_end;

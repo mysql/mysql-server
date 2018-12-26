@@ -35,10 +35,12 @@
 #include <algorithm>
 #include <bitset>
 #include <functional>
+#include <map>
 #include <random>  // std::mt19937
 #include <set>
 #include <string>
 
+#include <mysql/components/services/page_track_service.h>
 #include "ft_global.h"  // ft_hints
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -2034,6 +2036,111 @@ typedef void (*se_after_commit_t)(void *arg);
 // before_rollback hook. Remove after WL#11320 has been completed.
 typedef void (*se_before_rollback_t)(void *arg);
 
+/*
+  Page Tracking : interfaces to handlerton functions which starts/stops page
+  tracking, and purges/fetches page tracking information.
+*/
+
+/**
+  Start page tracking.
+
+  @param[out]    start_id      SE specific sequence number [LSN for InnoDB]
+  indicating when the tracking was started
+
+  @return Operation status.
+    @retval 0 Success
+    @retval other ER_* mysql error. Get error details from THD.
+*/
+using page_track_start_t = int (*)(uint64_t *start_id);
+
+/**
+  Stop page tracking.
+
+  @param[out]    stop_id      SE specific sequence number [LSN for InnoDB]
+  indicating when the tracking was stopped
+
+  @return Operation status.
+    @retval 0 Success
+    @retval other ER_* mysql error. Get error details from THD.
+*/
+using page_track_stop_t = int (*)(uint64_t *stop_id);
+
+/**
+  Purge page tracking data.
+
+  @param[in,out] purge_id     SE specific sequence number [LSN for InnoDB]
+  initially indicating till where the data needs to be purged and finally
+  updated to until where it was actually purged
+
+  @return Operation status.
+    @retval 0 Success
+    @retval other ER_* mysql error. Get error details from THD.
+*/
+using page_track_purge_t = int (*)(uint64_t *purge_id);
+
+/**
+  Fetch tracked pages.
+
+  @param[in]     cbk_func     callback function return page IDs
+  @param[in]     cbk_ctx      caller's context for callback
+  @param[in,out] start_id     SE specific sequence number [LSN for InnoDB] from
+  where the pages tracked would be returned.
+  @note The range might get expanded and the actual start_id used for the
+  querying will be updated.
+  @param[in,out] stop_id      SE specific sequence number [LSN for InnoDB]
+  until where the pages tracked would be returned.
+  @note The range might get expanded and the actual stop_id used for the
+  querying will be updated.
+  @param[out]    buffer       allocated buffer to copy page IDs
+  @param[in]     buffer_len   length of buffer in bytes
+
+  @return Operation status.
+    @retval 0 Success
+    @retval other ER_* mysql error. Get error details from THD.
+*/
+using page_track_get_page_ids_t = int (*)(Page_Track_Callback cbk_func,
+                                          void *cbk_ctx, uint64_t *start_id,
+                                          uint64_t *stop_id,
+                                          unsigned char *buffer,
+                                          size_t buffer_len);
+
+/**
+  Fetch approximate number of tracked pages in the given range.
+
+  @param[in,out] start_id     SE specific sequence number [LSN for InnoDB] from
+  where the pages tracked would be returned.
+  @note the range might get expanded and the actual start_id used for the
+  querying will be updated.
+  @param[in,out] stop_id      SE specific sequence number [LSN for InnoDB]
+  until where the pages tracked would be returned.
+  @note the range might get expanded and the actual stop_id used for the
+  querying will be updated.
+  @param[out]	 num_pages    number of pages tracked
+
+  @return Operation status.
+    @retval 0 Success
+    @retval other ER_* mysql error. Get error details from THD.
+*/
+using page_track_get_num_page_ids_t = int (*)(uint64_t *start_id,
+                                              uint64_t *stop_id,
+                                              uint64_t *num_pages);
+
+/** Fetch the status of the page tracking system.
+@param[out]	status	vector of a pair of (ID, bool) where ID is the
+start/stop point and bool is true if the ID is a start point else false */
+using page_track_get_status_t =
+    void (*)(std::vector<std::pair<uint64_t, bool>> &status);
+
+/** Page track interface */
+struct Page_track_t {
+  page_track_start_t start;
+  page_track_stop_t stop;
+  page_track_purge_t purge;
+  page_track_get_page_ids_t get_page_ids;
+  page_track_get_num_page_ids_t get_num_page_ids;
+  page_track_get_status_t get_status;
+};
+
 /**
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
@@ -2214,6 +2321,9 @@ struct handlerton {
   se_before_commit_t se_before_commit;
   se_after_commit_t se_after_commit;
   se_before_rollback_t se_before_rollback;
+
+  /** Page tracking interface */
+  Page_track_t page_track;
 };
 
 /* Possible flags of a handlerton (there can be 32 of them) */

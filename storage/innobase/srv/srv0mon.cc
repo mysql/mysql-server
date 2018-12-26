@@ -1349,6 +1349,26 @@ static monitor_info_t innodb_counter_info[] = {
     {"cpu_n", "cpu", "Number of cpus", MONITOR_NONE, MONITOR_DEFAULT_START,
      MONITOR_CPU_N},
 
+    /* ========== Page track usage ========== */
+    {"module_page_track", "page_track", "Counters related to page tracking",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_MODULE_PAGE_TRACK},
+
+    {"page_track_resets", "page_track", "Number of resets", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_PAGE_TRACK_RESETS},
+
+    {"page_track_partial_block_writes", "page_track",
+     "Number of partial block writes", MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_PAGE_TRACK_PARTIAL_BLOCK_WRITES},
+
+    {"page_track_full_block_writes", "page_track",
+     "Number of full block writes", MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_PAGE_TRACK_FULL_BLOCK_WRITES},
+
+    {"page_track_checkpoint_partial_flush_request", "page_track",
+     "Number of partial flush requests made during checkpointing", MONITOR_NONE,
+     MONITOR_DEFAULT_START,
+     MONITOR_PAGE_TRACK_CHECKPOINT_PARTIAL_FLUSH_REQUEST},
+
     /* ========== To turn on/off reset all counters ========== */
     {"all", "All Counters", "Turn on/off and reset all counters",
      MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_ALL_COUNTER},

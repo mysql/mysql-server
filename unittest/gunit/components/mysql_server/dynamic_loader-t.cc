@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <audit_api_message_service_imp.h>
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <components/mysql_server/mysql_page_track.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
 #include <mysql.h>
@@ -35,6 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/mysql_socket_bits.h>
+#include <mysql/components/services/page_track_service.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <mysql/components/services/psi_statement_bits.h>
 #include <mysql/components/services/psi_thread_bits.h>
@@ -251,6 +253,37 @@ DEFINE_BOOL_METHOD(
      mysql_event_message_key_value_t *key_value_map MY_ATTRIBUTE((unused)),
      size_t key_value_map_length MY_ATTRIBUTE((unused)))) {
   return true;
+}
+
+DEFINE_METHOD(int, Page_track_implementation::start,
+              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::stop,
+              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::get_page_ids,
+              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *,
+               unsigned char *, size_t, Page_Track_Callback, void *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::get_num_page_ids,
+              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::purge,
+              (MYSQL_THD, Page_Track_SE, uint64_t *)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, Page_track_implementation::get_status,
+              (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *)) {
+  return (0);
 }
 
 /* TODO following code resembles symbols used in sql library, these should be

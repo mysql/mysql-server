@@ -295,6 +295,11 @@ cpu_stime_abs	disabled
 cpu_utime_pct	disabled
 cpu_stime_pct	disabled
 cpu_n	disabled
+module_page_track	disabled
+page_track_resets	disabled
+page_track_partial_block_writes	disabled
+page_track_full_block_writes	disabled
+page_track_checkpoint_partial_flush_request	disabled
 set global innodb_monitor_enable = all;
 create table monitor_test(col int) engine = innodb;
 drop table monitor_test;
@@ -343,6 +348,8 @@ innodb_rwlock_sx_spin_rounds	disabled
 innodb_rwlock_s_os_waits	disabled
 innodb_rwlock_x_os_waits	disabled
 innodb_rwlock_sx_os_waits	disabled
+page_track_partial_block_writes	disabled
+page_track_full_block_writes	disabled
 set global innodb_monitor_enable = "%lock*";
 ERROR 42000: Variable 'innodb_monitor_enable' can't be set to the value of '%lock*'
 set global innodb_monitor_enable="%%%%%%%%%%%%%%%%%%%%%%%%%%%";

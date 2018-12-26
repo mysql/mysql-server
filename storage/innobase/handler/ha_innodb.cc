@@ -77,6 +77,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 #include "api0api.h"
 #include "api0misc.h"
+#include "arch0arch.h"
+#include "arch0page.h"
 #include "auth_acls.h"
 #include "btr0btr.h"
 #include "btr0bulk.h"
@@ -619,6 +621,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(mutex_list_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(page_sys_arch_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(page_sys_arch_oper_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(page_sys_arch_client_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -697,7 +700,8 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info all_innodb_threads[] = {
-    PSI_KEY(archiver_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_archiver_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(page_archiver_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(buf_dump_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(dict_stats_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(io_handler_thread, 0, 0, PSI_DOCUMENT_ME),
@@ -3674,6 +3678,120 @@ static bool innobase_dict_set_server_version() {
   return (upgrade_space_version(dict_sys_t::s_space_id, true));
 }
 
+/** Start page tracking.
+@param[out]    start_id      LSN indicating when the tracking was started
+@return Operation status.
+  @retval 0 Success
+  @retval other ER_* mysql error. Get error details from THD. */
+static int innobase_page_track_start(uint64_t *start_id) {
+  ut_ad(arch_page_sys);
+
+  Page_Arch_Client_Ctx *ctx = arch_page_sys->get_sys_client();
+
+  int err = ctx->start(false, start_id);
+
+  return (err);
+}
+
+/** Stop page tracking.
+@param[out]    stop_id      Stop LSN indicating when the tracking was stopped
+@return Operation status.
+@retval 0 Success
+@retval other ER_* mysql error. Get error details from THD. */
+static int innobase_page_track_stop(uint64_t *stop_id) {
+  ut_ad(arch_page_sys);
+
+  Page_Arch_Client_Ctx *ctx = arch_page_sys->get_sys_client();
+
+  int err = ctx->stop(stop_id);
+
+  return (err);
+}
+
+/** Purge page tracking data.
+@param[in,out] purge_id     Purge LSN initially indicating till where the data
+needs to be purged and finally updated to until where it was actually purged
+@return Operation status.
+@retval 0 Success
+@retval other ER_* mysql error. Get error details from THD. */
+static int innobase_page_track_purge(uint64_t *purge_id) {
+  ut_ad(arch_page_sys);
+
+  auto err = arch_page_sys->purge(purge_id);
+
+  return (err);
+}
+
+/** Fetch tracked pages.
+@param[in]     cbk_func     callback function return page IDs
+@param[in]     cbk_ctx      caller's context for callback
+@param[in,out] start_id     SE specific sequence number [LSN for Innodb] from
+where the pages tracked would be returned.
+@note The range might get expanded and the actual start_id used for the
+querying will be updated.
+@param[in,out] stop_id      SE specific sequence number [LSN for Innodb]
+until where the pages tracked would be returned.
+@note The range might get expanded and the actual stop_id used for the
+querying will be updated.
+@param[out]    buffer       allocated buffer to copy page IDs
+@param[in]     buffer_len   length of buffer in bytes
+@return Operation status.
+  @retval 0 Success
+  @retval other ER_* mysql error. Get error details from THD. */
+static int innobase_page_track_get_page_ids(Page_Track_Callback cbk_func,
+                                            void *cbk_ctx, uint64_t *start_id,
+                                            uint64_t *stop_id,
+                                            unsigned char *buffer,
+                                            size_t buffer_len) {
+  auto err = arch_page_sys->get_pages(nullptr, cbk_func, cbk_ctx, *start_id,
+                                      *stop_id, buffer, buffer_len);
+
+  if (err != 0) {
+    DBUG_PRINT("page_archiver", ("Fetch Pages"));
+    DBUG_PRINT("page_archiver", ("Can't fetch pages"));
+  }
+
+  return (err);
+}
+
+/** Fetch approximate number of tracked pages in the given range.
+@param[in,out] start_id     SE specific sequence number [LSN for Innodb] from
+where the pages tracked would be returned.
+@note the range might get expanded and the actual start_id used for the
+querying will be updated.
+@param[in,out] stop_id      SE specific sequence number [LSN for Innodb]
+until where the pages tracked would be returned.
+@note the range might get expanded and the actual stop_id used for the
+querying will be updated.
+@param[out]    num_pages    number of pages tracked
+@return Operation status.
+  @retval 0 Success
+  @retval other ER_* mysql error. Get error details from THD. */
+static int innobase_page_track_get_num_page_ids(uint64_t *start_id,
+                                                uint64_t *stop_id,
+                                                uint64_t *num_pages) {
+  auto err = arch_page_sys->get_num_pages(*start_id, *stop_id, num_pages);
+
+  if (err != 0) {
+    DBUG_PRINT("page_archiver", ("Fetch Pages"));
+    DBUG_PRINT("page_archiver", ("Can't fetch pages"));
+  }
+
+  return (err);
+}
+
+/** Fetch the page tracking status.
+@param[out]	status	vector of a pair of (ID, bool) where ID is the
+start/stop point and bool is true if the ID is a start point else false */
+static void innobase_page_track_get_status(
+    std::vector<std::pair<lsn_t, bool>> &status) {
+  if (arch_page_sys == nullptr) {
+    return;
+  }
+
+  arch_page_sys->get_status(status);
+}
+
 /** Check if InnoDB is in a mode where the data dictionary is read-only.
 @return true if srv_read_only_mode is true or if srv_force_recovery > 0 */
 static bool innobase_is_dict_readonly() {
@@ -4561,6 +4679,14 @@ static int innodb_init(void *p) {
 
   innobase_hton->check_fk_column_compat = innodb_check_fk_column_compat;
   innobase_hton->is_reserved_db_name = innobase_check_reserved_file_name;
+
+  innobase_hton->page_track.start = innobase_page_track_start;
+  innobase_hton->page_track.stop = innobase_page_track_stop;
+  innobase_hton->page_track.purge = innobase_page_track_purge;
+  innobase_hton->page_track.get_page_ids = innobase_page_track_get_page_ids;
+  innobase_hton->page_track.get_num_page_ids =
+      innobase_page_track_get_num_page_ids;
+  innobase_hton->page_track.get_status = innobase_page_track_get_status;
 
   ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 

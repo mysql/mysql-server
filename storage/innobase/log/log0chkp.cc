@@ -50,6 +50,7 @@ the file COPYING.Google.
 #include <debug_sync.h>
 #endif /* !UNIV_HOTBACKUP */
 
+#include "arch0arch.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "dict0boot.h"
@@ -475,6 +476,10 @@ static void log_checkpoint(log_t &log) {
 
   const lsn_t checkpoint_lsn = log_determine_checkpoint_lsn(log);
 
+  if (arch_page_sys != nullptr) {
+    arch_page_sys->flush_at_checkpoint(checkpoint_lsn);
+  }
+
   LOG_SYNC_POINT("log_before_checkpoint_data_flush");
 
 #ifdef _WIN32
@@ -870,6 +875,7 @@ static bool log_consider_checkpoint(log_t &log) {
   }
 
   log_checkpoint(log);
+
   return (true);
 }
 

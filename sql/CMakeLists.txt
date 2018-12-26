@@ -283,6 +283,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/security_context_imp.cc
   server_component/host_application_signal_imp.cc
   server_component/audit_api_message_service_imp.cc
+  server_component/page_track_service.cc
   )
 
 SET(SQL_SHARED_SOURCES

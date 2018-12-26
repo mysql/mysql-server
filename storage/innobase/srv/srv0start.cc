@@ -89,6 +89,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 
 #include "arch0arch.h"
+#include "arch0recv.h"
 #include "btr0pcur.h"
 #include "btr0sea.h"
 #include "buf0flu.h"
@@ -174,7 +175,8 @@ static char *srv_monitor_file_name;
 
 /* Keys to register InnoDB threads with performance schema */
 #ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t archiver_thread_key;
+mysql_pfs_key_t log_archiver_thread_key;
+mysql_pfs_key_t page_archiver_thread_key;
 mysql_pfs_key_t buf_dump_thread_key;
 mysql_pfs_key_t buf_resize_thread_key;
 mysql_pfs_key_t dict_stats_thread_key;
@@ -1699,9 +1701,14 @@ void srv_shutdown_all_bg_threads() {
     logs_empty_and_mark_files_at_shutdown() and should have
     already quit or is quitting right now. */
 
-    /* Stop archiver thread. */
-    if (archiver_is_active) {
-      os_event_set(archiver_thread_event);
+    /* Stop log archiver thread. */
+    if (log_archiver_is_active) {
+      os_event_set(log_archiver_thread_event);
+    }
+
+    /* Stop dirty page ID archiver thread. */
+    if (page_archiver_is_active) {
+      os_event_set(page_archiver_thread_event);
     }
 
     bool active = os_thread_any_active();
@@ -2077,7 +2084,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
   if (err != DB_SUCCESS) {
     return (srv_init_abort(err));
   }
-  arch_init();
+
   recv_sys_create();
   recv_sys_init(buf_pool_get_curr_size());
   trx_sys_create();
@@ -2299,6 +2306,8 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
 files_checked:
 
+  arch_init();
+
   if (create_new_db) {
     ut_a(!srv_read_only_mode);
 
@@ -2379,6 +2388,8 @@ files_checked:
     been shut down normally: this is the normal startup path */
 
     err = recv_recovery_from_checkpoint_start(*log_sys, flushed_lsn);
+
+    arch_page_sys->post_recovery_init();
 
     recv_sys->dblwr.pages.clear();
 
@@ -3046,9 +3057,14 @@ void srv_pre_dd_shutdown() {
 static void srv_shutdown_arch() {
   int count = 0;
 
-  while (archiver_is_active) {
+  while (log_archiver_is_active || page_archiver_is_active) {
     ++count;
-    os_event_set(archiver_thread_event);
+
+    if (log_archiver_is_active) {
+      os_event_set(log_archiver_thread_event);
+    } else if (page_archiver_is_active) {
+      os_event_set(page_archiver_thread_event);
+    }
 
     os_thread_sleep(100000);
 

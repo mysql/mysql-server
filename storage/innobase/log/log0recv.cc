@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <string>
 #include <vector>
 
+#include "arch0arch.h"
 #include "log0recv.h"
 
 #include "btr0btr.h"
@@ -2400,6 +2401,25 @@ void recv_recover_page_func(
 
     return;
   }
+
+#ifndef UNIV_HOTBACKUP
+  buf_page_t bpage = block->page;
+
+  if (!fsp_is_system_temporary(bpage.id.space()) &&
+      (arch_page_sys != nullptr && arch_page_sys->is_active())) {
+    page_t *frame;
+    lsn_t frame_lsn;
+
+    frame = bpage.zip.data;
+
+    if (!frame) {
+      frame = block->frame;
+    }
+    frame_lsn = mach_read_from_8(frame + FIL_PAGE_LSN);
+
+    arch_page_sys->track_page(&bpage, LSN_MAX, frame_lsn, true);
+  }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
   /* this is explicitly false in case of meb, skip the assert */

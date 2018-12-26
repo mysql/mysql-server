@@ -1797,7 +1797,7 @@ static void log_writer_wait_on_archiver(log_t &log, lsn_t last_write_lsn,
       break;
     }
 
-    os_event_set(archiver_thread_event);
+    os_event_set(log_archiver_thread_event);
 
     log_writer_mutex_exit(log);
 
@@ -1908,7 +1908,7 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
   }
 
   if (arch_log_sys && arch_log_sys->is_active()) {
-    os_event_set(archiver_thread_event);
+    os_event_set(log_archiver_thread_event);
   }
 }
 

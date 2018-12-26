@@ -56,7 +56,7 @@ Clone_Snapshot::Clone_Snapshot(Clone_Handle_Type hdl_type,
       m_max_file_name_len(),
       m_num_data_files(),
       m_num_data_chunks(),
-      m_page_ctx(),
+      m_page_ctx(false),
       m_num_pages(),
       m_num_duplicate_pages(),
       m_redo_ctx(),
@@ -80,6 +80,10 @@ Clone_Snapshot::Clone_Snapshot(Clone_Handle_Type hdl_type,
 
 Clone_Snapshot::~Clone_Snapshot() {
   m_redo_ctx.release();
+
+  if (m_page_ctx.is_active()) {
+    m_page_ctx.stop(nullptr);
+  }
   m_page_ctx.release();
 
   mem_heap_free(m_snapshot_heap);
@@ -575,6 +579,8 @@ int Clone_Snapshot::init_state(Clone_Desc_State *state_desc, byte *temp_buffer,
       m_monitor.init_state(srv_stage_clone_file_copy.m_key, m_enable_pfs);
       err = init_file_copy();
       m_monitor.change_phase();
+      DEBUG_SYNC_C("clone_start_page_archiving");
+      DBUG_EXECUTE_IF("clone_crash_during_page_archiving", DBUG_SUICIDE(););
       break;
 
     case CLONE_SNAPSHOT_PAGE_COPY:
@@ -583,6 +589,7 @@ int Clone_Snapshot::init_state(Clone_Desc_State *state_desc, byte *temp_buffer,
       m_monitor.init_state(srv_stage_clone_page_copy.m_key, m_enable_pfs);
       err = init_page_copy(temp_buffer, temp_buffer_len);
       m_monitor.change_phase();
+      DEBUG_SYNC_C("clone_start_redo_archiving");
       break;
 
     case CLONE_SNAPSHOT_REDO_COPY:

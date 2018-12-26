@@ -438,6 +438,7 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_LOG_ARCH);
   LEVEL_MAP_INSERT(SYNC_PAGE_ARCH);
   LEVEL_MAP_INSERT(SYNC_PAGE_ARCH_OPER);
+  LEVEL_MAP_INSERT(SYNC_PAGE_ARCH_CLIENT);
   LEVEL_MAP_INSERT(SYNC_PAGE_CLEANER);
   LEVEL_MAP_INSERT(SYNC_PURGE_QUEUE);
   LEVEL_MAP_INSERT(SYNC_TRX_SYS_HEADER);
@@ -698,6 +699,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_LOG_ARCH:
     case SYNC_PAGE_ARCH:
     case SYNC_PAGE_ARCH_OPER:
+    case SYNC_PAGE_ARCH_CLIENT:
     case SYNC_DOUBLEWRITE:
     case SYNC_SEARCH_SYS:
     case SYNC_THREADS:
@@ -1304,6 +1306,9 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(PAGE_ARCH_OPER, SYNC_PAGE_ARCH_OPER,
                   page_sys_arch_oper_mutex_key);
+
+  LATCH_ADD_MUTEX(PAGE_ARCH_CLIENT, SYNC_PAGE_ARCH_CLIENT,
+                  page_sys_arch_client_mutex_key);
 
   LATCH_ADD_MUTEX(PAGE_CLEANER, SYNC_PAGE_CLEANER, page_cleaner_mutex_key);
 

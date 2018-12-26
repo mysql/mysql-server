@@ -8739,6 +8739,15 @@ ER_FUNCTIONAL_INDEX_ROW_VALUE_IS_NOT_ALLOWED
 ER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT
   eng "Failed to encrypt content to write into binlog file: %s."
 
+ER_PAGE_TRACKING_NOT_STARTED
+  eng "Page Tracking is not started yet."
+
+ER_PAGE_TRACKING_RANGE_NOT_TRACKED
+  eng "Tracking was not enabled for the LSN range specified"
+
+ER_PAGE_TRACKING_CANNOT_PURGE
+  eng "Cannot purge data when concurrent clone is in progress. Try later."
+
 #
 #  End of 8.0 error messages.
 #

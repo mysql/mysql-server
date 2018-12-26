@@ -64,6 +64,8 @@ void mysql_audit_api_service_init();
 void clone_protocol_service_init();
 void host_application_signal_imp_init();
 
+void page_track_service_init();
+
 /* implementation of the built-in components */
 
 /**

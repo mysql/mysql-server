@@ -263,28 +263,15 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
 
   /* Start archiver task, if needed. */
   if (m_state == ARCH_STATE_INIT) {
-    bool start_archiver = true;
+    auto err = start_log_archiver_background();
 
-    if (arch_page_sys) {
-      arch_page_sys->arch_mutex_enter();
+    if (err != 0) {
+      mutex_exit(&m_mutex);
 
-      /* Check if background is started by Page Archiver. */
-      start_archiver = arch_page_sys->is_init();
+      ib::error(ER_IB_MSG_17) << "Could not start Archiver"
+                              << " background task";
 
-      arch_page_sys->arch_mutex_exit();
-    }
-
-    if (start_archiver) {
-      auto err = start_archiver_background();
-
-      if (err != 0) {
-        mutex_exit(&m_mutex);
-
-        ib::error(ER_IB_MSG_17) << "Could not start Archiver"
-                                << " background task";
-
-        return (err);
-      }
+      return (err);
     }
   }
 
@@ -317,7 +304,7 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
   /* Set archiver state to active. */
   if (m_state != ARCH_STATE_ACTIVE) {
     m_state = ARCH_STATE_ACTIVE;
-    os_event_set(archiver_thread_event);
+    os_event_set(log_archiver_thread_event);
   }
 
   log_writer_mutex_exit(*log_sys);
@@ -358,7 +345,7 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
   }
 
   /* Attach to the current group. */
-  m_current_group->attach(LSN_MAX, 0, is_durable);
+  m_current_group->attach(is_durable);
 
   group = m_current_group;
 
@@ -416,7 +403,7 @@ int Arch_Log_Sys::stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
     mutex_enter(&m_mutex);
   }
 
-  auto count_active = group->detach(stop_lsn);
+  auto count_active = group->detach(stop_lsn, nullptr);
 
   if (count_active == 0) {
     /* No other active client. Prepare to get idle. */
@@ -425,7 +412,7 @@ int Arch_Log_Sys::stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
     if (m_state != ARCH_STATE_ABORT) {
       ut_ad(m_state == ARCH_STATE_ACTIVE);
       m_state = ARCH_STATE_PREPARE_IDLE;
-      os_event_set(archiver_thread_event);
+      os_event_set(log_archiver_thread_event);
     }
 
     log_writer_mutex_exit(*log_sys);
@@ -448,17 +435,19 @@ void Arch_Log_Sys::force_abort() {
 @param[in]	is_durable	if client needs durable archiving */
 void Arch_Log_Sys::release(Arch_Group *group, bool is_durable) {
   mutex_enter(&m_mutex);
-  auto ref_count = group->release(is_durable);
+
+  group->release(is_durable);
 
   /* Check if there are other references or archiving is still
   in progress. */
-  if (ref_count != 0 || group->is_active()) {
+  if (group->is_referenced() || group->is_active()) {
     mutex_exit(&m_mutex);
     return;
   }
 
   /* Cleanup the group. */
   ut_ad(group != m_current_group);
+
   m_group_list.remove(group);
 
   UT_DELETE(group);
@@ -519,10 +508,10 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
     case ARCH_STATE_PREPARE_IDLE: {
       /* No active clients. Mark the group inactive and move
       to idle state. */
-      auto ref_count = m_current_group->disable(m_archived_lsn.load(), 0);
+      m_current_group->disable(m_archived_lsn.load());
 
       /* If no client reference, free the group. */
-      if (ref_count == 0) {
+      if (!m_current_group->is_referenced()) {
         m_group_list.remove(m_current_group);
 
         UT_DELETE(m_current_group);
@@ -608,7 +597,8 @@ dberr_t Arch_Log_Sys::copy_log(Arch_File_Ctx *file_ctx, uint length) {
       write_size = length;
     }
 
-    err = curr_group->write_to_file(file_ctx, nullptr, write_size);
+    err =
+        curr_group->write_to_file(file_ctx, nullptr, write_size, false, false);
 
     if (err != DB_SUCCESS) {
       return (err);
@@ -630,7 +620,7 @@ int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
 
   /* Check and wait for archiver thread if needed. */
   if (m_archived_lsn.load() < target_lsn) {
-    os_event_set(archiver_thread_event);
+    os_event_set(log_archiver_thread_event);
 
     bool is_timeout = false;
     int alert_count = 0;
@@ -658,7 +648,7 @@ int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
 
           } else if (result) {
             /* More data needs to be archived. */
-            os_event_set(archiver_thread_event);
+            os_event_set(log_archiver_thread_event);
 
             /* Write system redo log if needed. */
             if (flush) {
@@ -694,7 +684,8 @@ int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
 /** Archive accumulated redo log in current group.
 This interface is for archiver background task to archive redo log
 data by calling it repeatedly over time.
-@param[in]	init		true, if called for first time
+@param[in, out]	init		true when called the first time; it will then
+                                be set to false
 @param[in]	curr_ctx	system redo logs to copy data from
 @param[out]	arch_lsn	LSN up to which archiving is completed
 @param[out]	wait		true, if no more redo to archive

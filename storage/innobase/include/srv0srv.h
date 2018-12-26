@@ -613,7 +613,8 @@ extern srv_stats_t srv_stats;
 /* Keys to register InnoDB threads with performance schema */
 
 #ifdef UNIV_PFS_THREAD
-extern mysql_pfs_key_t archiver_thread_key;
+extern mysql_pfs_key_t log_archiver_thread_key;
+extern mysql_pfs_key_t page_archiver_thread_key;
 extern mysql_pfs_key_t buf_dump_thread_key;
 extern mysql_pfs_key_t buf_resize_thread_key;
 extern mysql_pfs_key_t dict_stats_thread_key;

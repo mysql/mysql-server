@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <new>
 #include <stdexcept>  // std::exception subclasses
 
+#include <components/mysql_server/mysql_page_track.h>
 #include "audit_api_message_service_imp.h"
 #include "component_status_var_service.h"
 #include "component_sys_var_service.h"
@@ -293,6 +294,12 @@ END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_audit_api_message)
 mysql_audit_api_message_imp::emit END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_page_track)
+Page_track_implementation::start, Page_track_implementation::stop,
+    Page_track_implementation::purge, Page_track_implementation::get_page_ids,
+    Page_track_implementation::get_num_page_ids,
+    Page_track_implementation::get_status END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, registry_registration),
@@ -340,7 +347,7 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, mysql_ongoing_transactions_query),
     PROVIDES_SERVICE(mysql_server, host_application_signal),
     PROVIDES_SERVICE(mysql_server, mysql_audit_api_message),
-    END_COMPONENT_PROVIDES();
+    PROVIDES_SERVICE(mysql_server, mysql_page_track), END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 

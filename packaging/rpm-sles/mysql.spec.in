@@ -979,6 +979,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_page_track_component.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
@@ -991,6 +992,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_page_track_component.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so

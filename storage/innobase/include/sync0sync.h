@@ -123,6 +123,7 @@ extern mysql_pfs_key_t log_sn_lock_key;
 extern mysql_pfs_key_t log_sys_arch_mutex_key;
 extern mysql_pfs_key_t page_sys_arch_mutex_key;
 extern mysql_pfs_key_t page_sys_arch_oper_mutex_key;
+extern mysql_pfs_key_t page_sys_arch_client_mutex_key;
 extern mysql_pfs_key_t mutex_list_mutex_key;
 extern mysql_pfs_key_t recalc_pool_mutex_key;
 extern mysql_pfs_key_t page_cleaner_mutex_key;
