@@ -159,6 +159,7 @@
 
   - WL#12261 adds new mysql.schemata.default_encryption DD column.
 
+  - Bug#29053560 Increases DD column mysql.tablespaces.name length to 268.
 
   80017: Next DD version number after the previous is public.
   ----------------------------------------------------------------------------

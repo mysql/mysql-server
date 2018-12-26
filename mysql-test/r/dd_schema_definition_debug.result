@@ -655,7 +655,7 @@ tablespace_files	CREATE TABLE `tablespace_files` (
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 tablespaces	CREATE TABLE `tablespaces` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(259) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `name` varchar(268) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,

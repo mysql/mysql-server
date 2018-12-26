@@ -3038,7 +3038,7 @@ tablespaces=
       elem2=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem3=def=name VARCHAR(259) NOT NULL COLLATE utf8_bin
+      elem3=def=name VARCHAR(268) NOT NULL COLLATE utf8_bin
             lbl=FIELD_NAME
             pos=1
       elem4=def=options MEDIUMTEXT
