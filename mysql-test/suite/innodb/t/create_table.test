@@ -54,3 +54,7 @@ SET GLOBAL innodb_trx_rseg_n_slots_debug=default;
 
 # Reset STRICT mode to default
 SET innodb_strict_mode = default;
+
+--disable_query_log
+call mtr.add_suppression("Cannot find a free slot for an undo log");
+--enable_query_log
