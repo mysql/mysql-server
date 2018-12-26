@@ -1,1 +1,0 @@
-"--replicate-rewrite-db=test->rewrite" "--replicate-rewrite-db=mysqltest1->test"  "--replicate-rewrite-db=database_master_temp_01->database_slave_temp_01" "--replicate-rewrite-db=database_master_temp_02->database_slave_temp_02" "--replicate-rewrite-db=database_master_temp_03->database_slave_temp_03"

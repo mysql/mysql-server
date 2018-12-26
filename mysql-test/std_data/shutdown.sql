@@ -1,2 +1,0 @@
-show databases;
-shutdown;

@@ -1,2 +1,0 @@
---no-console
---log-error=$MYSQLTEST_VARDIR/tmp/master_log.err

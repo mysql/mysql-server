@@ -1,4 +1,0 @@
-steps = FindVersion, ChangeVersion, CheckChangeLog, DistTest, Commit, Tag, MakeDist, AddToSVNDir
-
-AddToSVNDir.dir = ../website/dist
-svn.tagpattern = %v

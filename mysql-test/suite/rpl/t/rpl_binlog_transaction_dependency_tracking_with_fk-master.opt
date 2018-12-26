@@ -1,2 +1,0 @@
---binlog_transaction_dependency_tracking=COMMIT_ORDER
---transaction_write_set_extraction=XXHASH64

@@ -1,6 +1,0 @@
-binlog.binlog_variables_relay_log_index        : No need to test. Binary log off.
-binlog.binlog_variables_relay_log              : No need to test. Binary log off.
-binlog.binlog_base64_flag                      : No need to test. Binary log off.
-binlog.binlog_hexdump                          : No need to test. Binary log off.
-binlog.binlog_old_versions                     : No need to test. Binary log off.
-rpl.rpl_server_uuid                            : No need to test. Non-transactional tables involved.

@@ -1,6 +1,0 @@
-!include ../rpl_1slave_base.cnf
-
-[mysqld.1]
-max_binlog_size=4096
-
-

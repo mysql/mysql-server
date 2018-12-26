@@ -1,5 +1,0 @@
-!include suite/ndb/my.cnf
-
-[cluster_config.1]
-DataMemory=300M
-IndexMemory=700M

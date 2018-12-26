@@ -1,1 +1,0 @@
---slave-parallel-workers=4 --slave-transaction-retries=0

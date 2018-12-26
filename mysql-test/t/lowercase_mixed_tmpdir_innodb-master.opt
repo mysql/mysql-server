@@ -1,2 +1,0 @@
---lower-case-table-names=2
---tmpdir=$MYSQLTEST_VARDIR/tmp/MixedCase

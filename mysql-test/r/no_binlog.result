@@ -1,2 +1,0 @@
-SHOW BINARY LOGS;
-ERROR HY000: You are not using binary logging

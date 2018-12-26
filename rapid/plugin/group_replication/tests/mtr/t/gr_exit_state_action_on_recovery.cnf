@@ -1,6 +1,0 @@
-!include ../my.cnf
-
-[mysqld.1]
-loose-group_replication_recovery_retry_count= 1
-
-[mysqld.2]

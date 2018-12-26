@@ -1,1 +1,0 @@
---ndbcluster --replicate-ignore-table=mysql.ndb_apply_status

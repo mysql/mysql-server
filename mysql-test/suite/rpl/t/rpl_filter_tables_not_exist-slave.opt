@@ -1,1 +1,0 @@
---replicate-do-table=test.t1 --replicate-do-table=test.t2 --replicate-do-table=test.t3 --replicate-ignore-table=test.t4 --replicate-ignore-table=test.t5 --replicate-ignore-table=test.t6

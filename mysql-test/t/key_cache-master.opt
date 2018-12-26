@@ -1,2 +1,0 @@
---key_buffer_size=2M --small.key_buffer_size=256K --small.key_buffer_size=128K
---force-restart

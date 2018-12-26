@@ -1,8 +1,0 @@
-SELECT * FROM information_schema.engines
-WHERE ENGINE = 'BLACKHOLE';
-ENGINE	BLACKHOLE
-SUPPORT	YES
-COMMENT	/dev/null storage engine (anything you write to it disappears)
-TRANSACTIONS	NO
-XA	NO
-SAVEPOINTS	NO

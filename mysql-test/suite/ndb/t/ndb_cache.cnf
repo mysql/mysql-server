@@ -1,8 +1,0 @@
-!include ../my.cnf 
-
-[mysqld]
-# Enable query cache support but set size to 0 in order
-# to allow the query cache to be dynamically configured
-# also in the future
-query_cache_type=1
-query_cache_size=0

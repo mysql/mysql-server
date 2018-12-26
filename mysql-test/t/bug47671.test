@@ -1,9 +1,0 @@
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
-
---echo #
---echo # Bug#47671 - wrong character-set after upgrade from 5.1.34 to 5.1.39
---echo #
---echo # Extract only charset information from 'status' command output using regex
---replace_regex /.*mysql.*// /Connection.*// /Current.*//  /SSL.*// /Using.*// /Server version.*// /Protocol.*// /UNIX.*// /Uptime.*// /Threads.*// /TCP.*//
---exec $MYSQL -e "status";

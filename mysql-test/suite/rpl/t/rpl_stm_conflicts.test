@@ -1,6 +1,0 @@
-source include/have_binlog_format_mixed_or_statement.inc;
-source include/master-slave.inc;
-
-source extra/rpl_tests/rpl_conflicts.test;
-
---source include/rpl_end.inc

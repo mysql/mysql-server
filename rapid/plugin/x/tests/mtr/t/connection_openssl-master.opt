@@ -1,5 +1,0 @@
---plugin_dir=$MYSQLXPLUGIN_DIR
---loose-mysqlx-ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem
---loose-mysqlx-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem
---loose-mysqlx-ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem
---loose-mysqlx-ssl-cipher=DHE-RSA-AES256-SHA:AES256-SHA

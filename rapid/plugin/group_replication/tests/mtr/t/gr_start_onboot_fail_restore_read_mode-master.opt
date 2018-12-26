@@ -1,2 +1,0 @@
---log_error=$MYSQLTEST_VARDIR/tmp/gr_start_onboot_fail_restore_read_mode.1.err
---no-console

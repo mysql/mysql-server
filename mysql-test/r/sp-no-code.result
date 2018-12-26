@@ -1,4 +1,0 @@
-show procedure code foo;
-ERROR HY000: The 'SHOW PROCEDURE|FUNCTION CODE' feature is disabled; you need MySQL built with '--with-debug' to have it working
-show function code foo;
-ERROR HY000: The 'SHOW PROCEDURE|FUNCTION CODE' feature is disabled; you need MySQL built with '--with-debug' to have it working

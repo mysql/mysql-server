@@ -1,1 +1,0 @@
---innodb-sort-buffer-size=64k --innodb-online-alter-log-max-size=64k --innodb-buffer-pool-size=8M --innodb-log-buffer-size=1M

@@ -1,5 +1,0 @@
-!include suite/ndb/my.cnf
-
-[cluster.config]
-MaxNoOfLocalScans=64
-MaxNoOfConcurrentScans=64

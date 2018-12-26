@@ -1,4 +1,0 @@
-!include suite/ndb_binlog/my.cnf
-
-[mysqld]
-binlog-format=ROW

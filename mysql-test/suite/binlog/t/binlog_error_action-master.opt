@@ -1,1 +1,0 @@
---no-console --skip-core-file --log-error=$MYSQLTEST_VARDIR/tmp/binlog_error_action.err

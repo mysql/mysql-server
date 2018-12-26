@@ -1,2 +1,0 @@
---innodb-doublewrite=false
---innodb_buffer_pool_load_at_startup=OFF

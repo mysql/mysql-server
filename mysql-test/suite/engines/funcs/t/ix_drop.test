@@ -1,8 +1,0 @@
---disable_warnings
-DROP TABLE IF EXISTS t8;
---enable_warnings
-CREATE TABLE t8(c1 INTEGER NOT NULL);
-CREATE INDEX i1 ON t8(c1);
-DROP INDEX i1 ON t8;
-DROP TABLE t8; SHOW TABLES;
-

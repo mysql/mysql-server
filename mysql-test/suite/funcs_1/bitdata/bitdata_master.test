@@ -1,6 +1,0 @@
-#### suite/funcs_1/bitdata/bitdata_master.test
-
-let $message= NOT YET IMPLEMENTED: bitdata tests;
---source include/show_msg80.inc
-
-exit;

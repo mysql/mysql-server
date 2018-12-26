@@ -1,1 +1,0 @@
---log-output=TABLE,FILE --general-log=0 --slow-query-log=0

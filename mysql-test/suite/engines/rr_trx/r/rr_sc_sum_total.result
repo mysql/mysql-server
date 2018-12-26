@@ -1,6 +1,0 @@
-SELECT @sum:=SUM(`int1` + `int1_key` + `int1_unique`
-               + `int2` + `int2_key` + `int2_unique`) 
-AS TotalSum 
-FROM t1;
-TotalSum
-0

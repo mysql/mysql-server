@@ -1,1 +1,0 @@
---no-console --log_error=$MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode.1.err

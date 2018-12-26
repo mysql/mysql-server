@@ -1,5 +1,0 @@
-include/assert.inc [The value of channel name should be empty]
-include/assert.inc [The value of member_id should be empty]
-include/assert.inc [The value of member_host should be empty]
-include/assert.inc [The value of member_port should be empty]
-include/assert.inc [The value of member_state should be empty]

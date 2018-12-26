@@ -1,8 +1,0 @@
---disable_warnings
-DROP TABLE IF EXISTS t9;
---enable_warnings
-CREATE TABLE t9(c1 INTEGER NOT NULL);
---error 1091
-DROP INDEX i1 ON t9;
-DROP TABLE t9; SHOW TABLES;
-

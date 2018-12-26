@@ -1,5 +1,0 @@
-# We want to check the number of deadlocks, lock wait timeouts, etc. that have
-# been counted so far.
-#
-
-SELECT * FROM statistics;

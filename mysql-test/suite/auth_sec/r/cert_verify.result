@@ -1,5 +1,0 @@
-#T1: Host name (/CN=localhost/) as OU name in the server certificate, server certificate verification should fail.
-#T2: Host name (localhost) as common name in the server certificate, server certificate verification should pass.
-Variable_name	Value
-Ssl_version	TLS_VERSION
-# restart server using restart

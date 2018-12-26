@@ -1,1 +1,0 @@
---relay-log-space-limit=8192 --relay-log-purge --max-relay-log-size=4096

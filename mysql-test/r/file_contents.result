@@ -1,6 +1,0 @@
-
-Checking 'INFO_SRC' and 'INFO_BIN'
-INFO_SRC: Found MySQL version number / Found GIT revision id
-INFO_BIN: Found 'Compiler ... used' line / Found 'Feature flags' line
-
-End of tests

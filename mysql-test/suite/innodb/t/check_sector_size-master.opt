@@ -1,3 +1,0 @@
---innodb_flush_method=O_DIRECT
-$KEYRING_PLUGIN_OPT
-$KEYRING_PLUGIN_LOAD

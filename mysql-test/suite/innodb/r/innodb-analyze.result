@@ -1,2 +1,0 @@
-Variable_name	Value
-innodb_stats_transient_sample_pages	1

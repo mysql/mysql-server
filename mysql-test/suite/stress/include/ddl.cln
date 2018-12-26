@@ -1,4 +1,0 @@
-######## include/ddl.cln ########
-disconnect con2;
-DEALLOCATE PREPARE stmt_start;
-DEALLOCATE PREPARE stmt_break;

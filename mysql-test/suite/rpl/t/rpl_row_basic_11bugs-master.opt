@@ -1,2 +1,0 @@
---binlog_ignore_db=test_ignore --default-storage-engine=MyISAM
-

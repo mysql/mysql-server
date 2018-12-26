@@ -1,6 +1,0 @@
-For boost::geometry, we usually have a set of patches
-(bugfixes that will be included in some upcoming release of boost)
-
-We have copied some source files from boost:chrono and boost:system.
-These are used to build certain of our executables.
-They are *not* used if building with the natively installed boost library.

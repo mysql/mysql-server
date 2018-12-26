@@ -1,1 +1,0 @@
---ndb-log-transaction-id --log-bin-use-v1-row-events=false

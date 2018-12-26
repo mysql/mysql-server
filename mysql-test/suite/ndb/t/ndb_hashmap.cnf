@@ -1,4 +1,0 @@
-!include ../my.cnf
-
-[cluster_config]
-DefaultHashmapSize= 116

@@ -1,7 +1,0 @@
-# Test sets gtid_mode explicitly so doesn't make sense to run in
-# multiple combinations.
---source include/no_valgrind_without_big.inc
---source include/not_gtid_enabled.inc
-
---let $test_file= extra/binlog_tests/enforce_gtid_consistency_tmp_consistent.test
---source extra/binlog_tests/enforce_gtid_consistency.test

@@ -1,5 +1,0 @@
-SET autocommit = 0;
-START TRANSACTION;
-INSERT INTO t1 (`id`, `int1`, `connection_id`, `is_uncommitted`)
-VALUES (3, 3, CONNECTION_ID(), 1);
-COMMIT;

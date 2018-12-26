@@ -1,1 +1,0 @@
---secure_file_priv=$MYSQL_TMP_DIR

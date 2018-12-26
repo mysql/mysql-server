@@ -1,1 +1,0 @@
---log-error=$MYSQLTEST_VARDIR/tmp/binlog_purge_stall.err --no-console

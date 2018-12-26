@@ -1,4 +1,0 @@
-!include ../my.cnf
-
-[cluster_config.1]
-Checksum=1

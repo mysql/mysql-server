@@ -1,4 +1,0 @@
-How to run.
-===========
-
-./mysql-test-run.pl --suite=rpl --mysqld=--binlog-format=mixed 

@@ -1,1 +1,0 @@
---gtid-mode=on --enforce-gtid-consistency --log-slave-updates --default-storage-engine=innodb --debug=d,+allow_gtid_unsafe_non_transactional_updates

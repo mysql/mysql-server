@@ -1,9 +1,0 @@
-#########################################
-# Purpose: testing the replication in mixed mode
-# Requirements: define binlog format for mysqld as in example below:
-# ./mysql-test-run.pl --mysqld=--binlog-format=mixed
-#########################################
---source include/have_binlog_format_mixed.inc
---source include/have_innodb.inc
-let $engine_type= innodb;
---source suite/rpl/include/rpl_mixed_ddl.inc

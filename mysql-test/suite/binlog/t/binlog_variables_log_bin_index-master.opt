@@ -1,2 +1,0 @@
---log-bin=other
---log-bin-index=$MYSQLTEST_VARDIR/tmp/something.index

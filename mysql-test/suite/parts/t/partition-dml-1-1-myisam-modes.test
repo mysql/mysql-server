@@ -1,9 +1,0 @@
-# Test of explicit partition selection in dml statements (wl5217)
-# Creation date: 01-07-10
-# Author: Horst Hunger
-
-set @save_sqlmode= @@global.sql_mode;
-let $ENGINE=MyISAM;
---source suite/parts/inc/partition-dml-1-1-modes.inc
-set @@global.sql_mode= @save_sqlmode;
-

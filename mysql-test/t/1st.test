@@ -1,6 +1,0 @@
-#
-# Check that we haven't any strange new tables or databases
-# But ignore sys / performance_schema, as these are not included in embedded
-#
-select schema_name from information_schema.schemata where schema_name not in ('sys', 'performance_schema');
-show tables in mysql;

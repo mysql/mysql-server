@@ -1,4 +1,0 @@
---loose-gtid-mode=on
---loose-enforce-gtid-consistency
---log-bin
---log-slave-updates

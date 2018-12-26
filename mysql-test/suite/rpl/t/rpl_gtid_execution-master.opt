@@ -1,1 +1,0 @@
---default-storage-engine=innodb --debug=d,+allow_gtid_unsafe_non_transactional_updates

@@ -1,1 +1,0 @@
-$TEST_SQL_ERRORS_OPT  --loose-test-sql-errors-nb-sessions=5
