@@ -30,6 +30,7 @@
 #include "http_auth_backend.h"
 #include "http_auth_method_basic.h"
 #include "matcher.h"
+#include "mysqlrouter/http_server_component.h"
 
 std::string HttpQuotedString::quote(const std::string &str) {
   std::string out;
