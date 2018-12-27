@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1464,8 +1464,8 @@ Thrman::calculate_send_thread_load_last_second(Uint32 send_instance,
       measure->m_exec_time += sendThreadMeasurementPtr.p->m_exec_time;
       measure->m_sleep_time += sendThreadMeasurementPtr.p->m_sleep_time;
       measure->m_spin_time += sendThreadMeasurementPtr.p->m_spin_time;
-      measure->m_elapsed_time += (measure->m_exec_time +
-                                  measure->m_sleep_time);
+      measure->m_elapsed_time += (sendThreadMeasurementPtr.p->m_exec_time +
+                                  sendThreadMeasurementPtr.p->m_sleep_time);
       measure->m_user_time_os += sendThreadMeasurementPtr.p->m_user_time_os;
       measure->m_kernel_time_os += sendThreadMeasurementPtr.p->m_kernel_time_os;
       measure->m_elapsed_time_os += sendThreadMeasurementPtr.p->m_elapsed_time_os;
