@@ -2,7 +2,7 @@
 # Get the mysqlbinlog tool --verbose mode to dump the Binlog contents with
 # extra row data included, e.g.
 #
-#### Extra row data format: 0, len: 8 :0x0007200006000000
+#### Extra row ndb info: data_format: 0, len: 8 :0x0007200006000000
 #
 # Then process this input to get the number of distinct values, and hence
 # distinct transaction ids in the binlog
@@ -17,7 +17,7 @@ create table diff_extra_data (txt varchar(1000));
 
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
-insert into diff_extra_data select distinct(txt) from raw_binlog_rows where txt like '### Extra row data %';
+insert into diff_extra_data select distinct(txt) from raw_binlog_rows where txt like '### Extra row ndb info: data_format:%';
 --enable_query_log
 
 --echo Number of different transaction ids in Binlog
