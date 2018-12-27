@@ -30,11 +30,9 @@
 #include <thread>
 #include <vector>
 
-#include <event2/buffer.h>
-#include <event2/event.h>
-#include <event2/http.h>
-#include <event2/listener.h>
-#include <event2/util.h>
+#include <event2/event.h>  // event_base
+#include <event2/http.h>   // evhttp_new
+#include <event2/util.h>   // evutil_socket_t
 
 #include "mysqlrouter/http_server_component.h"
 #include "posix_re.h"
@@ -136,20 +134,6 @@ class HttpServer {
   HttpRequestRouter request_router_;
 
   std::vector<std::thread> sys_threads_;
-};
-
-class HttpStaticFolderHandler : public BaseRequestHandler {
- public:
-  explicit HttpStaticFolderHandler(std::string static_basedir,
-                                   std::string require_realm)
-      : static_basedir_(std::move(static_basedir)),
-        require_realm_{std::move(require_realm)} {}
-
-  void handle_request(HttpRequest &req) override;
-
- private:
-  std::string static_basedir_;
-  std::string require_realm_;
 };
 
 #endif

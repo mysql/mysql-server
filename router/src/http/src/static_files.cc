@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "static_files.h"
+
 #include <map>
 #include <memory>
 #include <string>
@@ -35,9 +37,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "http_auth.h"
-#include "http_server_plugin.h"
-#include "mysql/harness/utility/string.h"
+#include <event2/http.h>  // evhttp_uridecide
+
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_server_component.h"
 

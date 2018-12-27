@@ -57,6 +57,7 @@
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/plugin_config.h"
 #include "posix_re.h"
+#include "static_files.h"
 #include "tls_server_context.h"
 
 IMPORT_LOG_FUNCTIONS()
