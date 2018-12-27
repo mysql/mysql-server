@@ -2685,10 +2685,13 @@ static int check_single_primary_mode(MYSQL_THD, SYS_VAR *, void *save,
 
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&plugin_running_mutex);
-    my_message(ER_GROUP_REPLICATION_RUNNING,
-               "Cannot change into or from single primary mode while "
-               "Group Replication is running.",
-               MYF(0));
+    my_message(
+        ER_GROUP_REPLICATION_RUNNING,
+        "Cannot modify group replication mode by changing system variable. "
+        "Please use the "
+        "group_replication_switch_to_single_primary_mode([member_uuid]) OR "
+        "group_replication_switch_to_multi_primary_mode() UDF.",
+        MYF(0));
     DBUG_RETURN(1);
   }
 
