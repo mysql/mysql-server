@@ -21,9 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/sql_parse.h"
-#include "sql/sql_plugin.h"
-#include "../include/mysql/plugin_sqlshim.h"
-#include "protocol_classic.h"
+
 #include "my_config.h"
 
 #include <limits.h>
@@ -1070,6 +1068,7 @@ static bool sqlcom_needs_autocommit_off(const LEX *lex) {
 
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_lock) {
+  Protocol_classic *protocol = thd->get_protocol_classic();
   Vio *save_vio;
   ulong save_client_capabilities;
   COM_DATA com_data;
@@ -1095,18 +1094,18 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
 #endif
 
   THD_STAGE_INFO(thd, stage_execution_of_init_command);
-  save_client_capabilities = thd->get_protocol_classic()->get_client_capabilities();
-  thd->get_protocol_classic()->add_client_capability(CLIENT_MULTI_QUERIES);
+  save_client_capabilities = protocol->get_client_capabilities();
+  protocol->add_client_capability(CLIENT_MULTI_QUERIES);
   /*
     We don't need return result of execution to client side.
     To forbid this we should set thd->net.vio to 0.
   */
-  save_vio = thd->get_protocol_classic()->get_vio();
-  thd->get_protocol_classic()->set_vio(NULL);
-  thd->get_protocol_classic()->create_command(&com_data, COM_QUERY, (uchar *)buf, len);
+  save_vio = protocol->get_vio();
+  protocol->set_vio(NULL);
+  protocol->create_command(&com_data, COM_QUERY, (uchar *)buf, len);
   dispatch_command(thd, &com_data, COM_QUERY);
-  thd->get_protocol_classic()->set_client_capabilities(save_client_capabilities);
-  thd->get_protocol_classic()->set_vio(save_vio);
+  protocol->set_client_capabilities(save_client_capabilities);
+  protocol->set_vio(save_vio);
 
 #if defined(ENABLED_PROFILING)
   thd->profiling->finish_current_query();
@@ -1153,8 +1152,6 @@ bool do_command(THD *thd) {
   NET *net = NULL;
   enum enum_server_command command;
   COM_DATA com_data;
-  COM_DATA *use_com_data= NULL;
-  COM_DATA new_com_data;
   DBUG_ENTER("do_command");
   DBUG_ASSERT(thd->is_classic_protocol());
 
@@ -1236,15 +1233,11 @@ bool do_command(THD *thd) {
 
     if (rc < 0) {
       return_value = true;  // We have to close it.
-      DBUG_ASSERT(thd->m_digest == NULL);
-      DBUG_ASSERT(thd->m_statement_psi == NULL);
-      DBUG_RETURN(return_value);
+      goto out;
     }
     net->error = 0;
     return_value = false;
-    DBUG_ASSERT(thd->m_digest == NULL);
-    DBUG_ASSERT(thd->m_statement_psi == NULL);
-    DBUG_RETURN(return_value);
+    goto out;
   }
 
   char desc[VIO_DESCRIPTION_SIZE];
@@ -1264,38 +1257,7 @@ bool do_command(THD *thd) {
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
-  
-  /* This is the entry point for the SQL shim plugin.  It sits in front
-   * of all MySQL commands and is free to run any queries it
-   * likes before (optionally) sending a replacement command to 
-   * MySQL. Only one SQL shim plugin may be in the server at once, so
-   * the plugin reserves the name "sql_shim".
-   */
-  use_com_data = &com_data;
-  plugin_ref ref = plugin_get_sql_shim();
-
-  if(ref != NULL) 
-  {
-    enum enum_server_command new_command;
-    plugin_lock(thd, &ref);
-    st_mysql_sqlshim* plugin = (st_mysql_sqlshim*)ref->plugin->info;
-    use_com_data = &com_data;
-    if( plugin->shim_function(thd, &com_data, command, &new_com_data, &new_command) ) 
-    { 
-      printf("got a rewrite from the plugin\n");
-      use_com_data= &new_com_data;
-      command= new_command;
-    } 
-    printf("after check for rewrites\n");
-    plugin_unlock(thd, ref);
-  } 
-
-  return_value= dispatch_command(thd, use_com_data, command);
-  if(use_com_data != &com_data) 
-  {
-    if(new_com_data.com_query.query != NULL) 
-    { printf("freeing query\n");free((void*)use_com_data->com_query.query); }
-  }
+  return_value = dispatch_command(thd, &com_data, command);
   thd->get_protocol_classic()->get_output_packet()->shrink(
       thd->variables.net_buffer_length);
 

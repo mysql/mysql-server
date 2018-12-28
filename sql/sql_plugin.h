@@ -57,8 +57,6 @@ extern mysql_mutex_t LOCK_plugin_delete;
 #define plugin_int_to_ref(A) &(A)
 #endif
 
-extern "C" st_plugin_int* plugin_get_sql_shim();
-
 /*
   the following flags are valid for plugin_init()
 */
