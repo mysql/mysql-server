@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
+#include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/components/services/registry.h>
 #include <mysqld_error.h>
 #include <stddef.h>
@@ -273,6 +274,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @attention Plugins are dynamically loadable bits of the
   @ref sect_components_layering_server_component
 */
+
+/**
+  This place holder is required for the mysql_runtime_error service.
+  The service is used in mysql_error_service_printf() api, which is the
+  replacement for my_error() server api.
+*/
+REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
+my_h_service h_err_service;
 
 static PSI_rwlock_key key_rwlock_LOCK_dynamic_loader;
 
@@ -644,7 +653,7 @@ bool mysql_dynamic_loader_imp::load_do_load_component_by_scheme(
       terminated list of components. */
     mysql_component_t *loaded_component_raw;
     if (scheme_service->load(urn.c_str(), &loaded_component_raw)) {
-      my_error(ER_COMPONENTS_CANT_LOAD, MYF(0), urn.c_str());
+      mysql_error_service_printf(ER_COMPONENTS_CANT_LOAD, MYF(0), urn.c_str());
       return true;
     }
     /* Here we assume loaded_component_raw will be list with only one item. */
@@ -732,8 +741,9 @@ bool mysql_dynamic_loader_imp::load_do_check_dependencies(
       }
 
       /* None service matches requirement, we shall fail. */
-      my_error(ER_COMPONENTS_CANT_SATISFY_DEPENDENCY, MYF(0),
-               service_required->name, loaded_component->name_c_str());
+      mysql_error_service_printf(ER_COMPONENTS_CANT_SATISFY_DEPENDENCY, MYF(0),
+                                 service_required->name,
+                                 loaded_component->name_c_str());
       return true;
     }
   }
@@ -771,9 +781,9 @@ bool mysql_dynamic_loader_imp::load_do_register_services(
               implementation_it->name,
               reinterpret_cast<my_h_service>(
                   implementation_it->implementation))) {
-        my_error(ER_COMPONENTS_LOAD_CANT_REGISTER_SERVICE_IMPLEMENTATION,
-                 MYF(0), implementation_it->name,
-                 loaded_component->name_c_str());
+        mysql_error_service_printf(
+            ER_COMPONENTS_LOAD_CANT_REGISTER_SERVICE_IMPLEMENTATION, MYF(0),
+            implementation_it->name, loaded_component->name_c_str());
         return true;
       }
       registered_services.push_back(implementation_it->name);
@@ -818,8 +828,9 @@ bool mysql_dynamic_loader_imp::load_do_resolve_dependencies(
       if (mysql_registry_imp::acquire(implementation_it->name,
                                       reinterpret_cast<my_h_service *>(
                                           implementation_it->implementation))) {
-        my_error(ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION, MYF(0),
-                 implementation_it->name);
+        mysql_error_service_printf(
+            ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION, MYF(0),
+            implementation_it->name);
         return true;
       }
       acquired_services.push_back(
@@ -866,8 +877,8 @@ bool mysql_dynamic_loader_imp::load_do_initialize_components(
       unregister them on failure. */
     if (loaded_component->get_data()->init != NULL &&
         loaded_component->get_data()->init()) {
-      my_error(ER_COMPONENTS_LOAD_CANT_INITIALIZE, MYF(0),
-               loaded_component->name_c_str());
+      mysql_error_service_printf(ER_COMPONENTS_LOAD_CANT_INITIALIZE, MYF(0),
+                                 loaded_component->name_c_str());
       return true;
     }
 
@@ -924,12 +935,14 @@ bool mysql_dynamic_loader_imp::unload_do_list_components(const char *urns[],
         mysql_dynamic_loader_imp::components_list.find(urn.c_str());
     /* Return error if any component is not loaded. */
     if (component_it == mysql_dynamic_loader_imp::components_list.end()) {
-      my_error(ER_COMPONENTS_UNLOAD_NOT_LOADED, MYF(0), urn.c_str());
+      mysql_error_service_printf(ER_COMPONENTS_UNLOAD_NOT_LOADED, MYF(0),
+                                 urn.c_str());
       return true;
     }
     components_to_unload.push_back(component_it->second.get());
     if (!components_in_group.insert(component_it->second.get()).second) {
-      my_error(ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP, MYF(0), urn.c_str());
+      mysql_error_service_printf(ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP,
+                                 MYF(0), urn.c_str());
       return true;
     }
   }
@@ -1120,8 +1133,9 @@ bool mysql_dynamic_loader_imp ::
             it = dependency_graph.find(service->implementation);
         if (it == dependency_graph.end() ||
             reference_count != it->second.size()) {
-          my_error(ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE, MYF(0),
-                   service->name, component->name_c_str());
+          mysql_error_service_printf(
+              ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE, MYF(0),
+              service->name, component->name_c_str());
           return true;
         }
       }
@@ -1156,8 +1170,8 @@ bool mysql_dynamic_loader_imp::unload_do_deinitialize_components(
           This is arbitrary decision, rollback of this operation is possible,
           but it's not sure if components will be able to initialize again
           properly, causing state to be inconsistent. */
-        my_error(ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE, MYF(0),
-                 component->name_c_str());
+        mysql_error_service_printf(ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE,
+                                   MYF(0), component->name_c_str());
         deinit_result = true;
       }
     }
@@ -1195,7 +1209,7 @@ bool mysql_dynamic_loader_imp::unload_do_unload_dependencies(
           This is arbitrary decision, rollback of this operation is possible,
           but it's not sure if components will be able to initialize again
           properly, causing state to be inconsistent. */
-        my_error(ER_COMPONENTS_CANT_RELEASE_SERVICE, MYF(0));
+        mysql_error_service_printf(ER_COMPONENTS_CANT_RELEASE_SERVICE, MYF(0));
         unload_depends_result = true;
       }
     }
@@ -1231,8 +1245,9 @@ bool mysql_dynamic_loader_imp::unload_do_unregister_services(
           This is arbitrary decision, rollback of this operation is possible,
           but it's not sure if components will be able to initialize again
           properly, causing state to be inconsistent. */
-        my_error(ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE, MYF(0),
-                 service_provided->name, component->name_c_str());
+        mysql_error_service_printf(ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE,
+                                   MYF(0), service_provided->name,
+                                   component->name_c_str());
         unregister_result = true;
       }
     }
@@ -1288,7 +1303,8 @@ bool mysql_dynamic_loader_imp::unload_do_unload_components(
         This is arbitrary decision, rollback of this operation is possible,
         but it's not sure if components will be able to initialize again
         properly, causing state to be inconsistent. */
-      my_error(ER_COMPONENTS_CANT_UNLOAD, MYF(0), component_urn.c_str());
+      mysql_error_service_printf(ER_COMPONENTS_CANT_UNLOAD, MYF(0),
+                                 component_urn.c_str());
       unload_result = true;
     }
   }
@@ -1330,7 +1346,7 @@ bool mysql_dynamic_loader_imp::get_scheme_service_from_urn(
   /* Find scheme prefix. */
   size_t scheme_end = urn.find("://");
   if (scheme_end == my_string::npos) {
-    my_error(ER_COMPONENTS_NO_SCHEME, MYF(0), urn.c_str());
+    mysql_error_service_printf(ER_COMPONENTS_NO_SCHEME, MYF(0), urn.c_str());
     return true;
   }
   my_string scheme(urn.begin(), urn.begin() + scheme_end, urn.get_allocator());
@@ -1346,8 +1362,8 @@ bool mysql_dynamic_loader_imp::get_scheme_service_from_urn(
         &imp_mysql_server_registry);
 
     if (service) {
-      my_error(ER_COMPONENTS_NO_SCHEME_SERVICE, MYF(0), scheme.c_str(),
-               urn.c_str());
+      mysql_error_service_printf(ER_COMPONENTS_NO_SCHEME_SERVICE, MYF(0),
+                                 scheme.c_str(), urn.c_str());
       return true;
     }
     *out_scheme_service = service;
@@ -1383,6 +1399,12 @@ void dynamic_loader_init() {
   init_dynamic_loader_psi_keys();
 #endif
   mysql_dynamic_loader_imp::init();
+  imp_mysql_server_registry.acquire("mysql_runtime_error", &h_err_service);
+  mysql_service_mysql_runtime_error =
+      reinterpret_cast<SERVICE_TYPE(mysql_runtime_error) *>(h_err_service);
 }
 
-void dynamic_loader_deinit() { mysql_dynamic_loader_imp::deinit(); }
+void dynamic_loader_deinit() {
+  mysql_dynamic_loader_imp::deinit();
+  imp_mysql_server_registry.release(h_err_service);
+}

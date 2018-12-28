@@ -1,0 +1,62 @@
+--echo # Test mysql_runtime_error service, similar signature
+INSTALL COMPONENT "file://component_test_mysql_runtime_error";
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if($log_error_ == "stderr")
+{
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+let SEARCH_FILE=$log_error_;
+
+--echo # Test mysql_runtime_error utility function
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+SELECT test_mysql_runtime_error(0);
+
+--echo # Test mysql_runtime_error service, similar signature
+--echo # as my_error function
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+SELECT test_mysql_runtime_error(1);
+
+--echo # Test mysql_runtime_error service, similar signature
+--echo # as my_error function
+--error ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
+SELECT test_mysql_runtime_error(3);
+
+--echo # Test mysql_runtime_error service, similar signature
+--echo # as my_error function
+--error ER_INVALID_THREAD_PRIORITY
+SELECT test_mysql_runtime_error(4);
+
+--echo # Test mysql_runtime_error service, similar signature
+--echo # as my_error function
+--error ER_REGEXP_TIME_OUT
+SELECT test_mysql_runtime_error(5);
+
+--echo # Test mysql_runtime_error service, similar signature
+--echo # as my_error function
+--error ER_TOO_LONG_KEY
+SELECT test_mysql_runtime_error(6);
+
+--echo # Test mysql_runtime_error service, similar signature
+--echo # as my_error function
+--error ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
+SELECT test_mysql_runtime_error(7);
+
+--echo # Test mysql_runtime_error service, similar signature
+--echo # as my_error function
+--error ER_INVALID_THREAD_PRIORITY
+SELECT test_mysql_runtime_error(8);
+
+--echo # Test mysql_runtime_error service, similar signature
+--echo # as my_error function
+--error ER_REGEXP_TIME_OUT
+SELECT test_mysql_runtime_error(9);
+
+--echo # Test mysql_runtime_error service, similar signature
+--echo # as my_error function
+--error ER_TOO_LONG_KEY
+SELECT test_mysql_runtime_error(10);
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err ;
+
+UNINSTALL COMPONENT "file://component_test_mysql_runtime_error";

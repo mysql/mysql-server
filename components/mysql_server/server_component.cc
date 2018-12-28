@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_mutex_service.h>
+#include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/components/services/mysql_rwlock_service.h>
 #include <stddef.h>
 #include <new>
@@ -40,10 +41,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "my_inttypes.h"
-#include "my_sys.h"  // my_error
 #include "mysql_backup_lock.h"
 #include "mysql_clone_protocol.h"
 #include "mysql_ongoing_transaction_query.h"
+#include "mysql_runtime_error_imp.h"
 #include "mysql_string_service.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
@@ -300,6 +301,9 @@ Page_track_implementation::start, Page_track_implementation::stop,
     Page_track_implementation::get_num_page_ids,
     Page_track_implementation::get_status END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_runtime_error)
+mysql_server_runtime_error_imp::emit END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, registry_registration),
@@ -347,7 +351,9 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, mysql_ongoing_transactions_query),
     PROVIDES_SERVICE(mysql_server, host_application_signal),
     PROVIDES_SERVICE(mysql_server, mysql_audit_api_message),
-    PROVIDES_SERVICE(mysql_server, mysql_page_track), END_COMPONENT_PROVIDES();
+    PROVIDES_SERVICE(mysql_server, mysql_page_track),
+    PROVIDES_SERVICE(mysql_server, mysql_runtime_error),
+    END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 
@@ -449,28 +455,35 @@ void mysql_components_handle_std_exception(const char *funcname) {
   try {
     throw;
   } catch (const std::bad_alloc &e) {
-    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::domain_error &e) {
-    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::length_error &e) {
-    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_LENGTH_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::invalid_argument &e) {
-    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(),
+                               funcname);
   } catch (const std::out_of_range &e) {
-    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::overflow_error &e) {
-    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::range_error &e) {
-    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_RANGE_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::underflow_error &e) {
-    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::logic_error &e) {
-    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_LOGIC_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::runtime_error &e) {
-    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_RUNTIME_ERROR, MYF(0), e.what(),
+                               funcname);
   } catch (const std::exception &e) {
-    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), funcname);
+    mysql_error_service_printf(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(),
+                               funcname);
   } catch (...) {
-    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    mysql_error_service_printf(ER_UNKNOWN_ERROR, MYF(0));
   }
 }

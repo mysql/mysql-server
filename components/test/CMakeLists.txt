@@ -110,3 +110,7 @@ MYSQL_ADD_COMPONENT(test_audit_api_message
   test_audit_api_message.cc
   TEST MODULE)
 
+MYSQL_ADD_COMPONENT(test_mysql_runtime_error
+  test_mysql_runtime_error.cc
+  TEST MODULE)
+

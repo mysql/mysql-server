@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_mutex_service.cc
   mysql_rwlock_service.cc
   mysql_cond_service.cc
+  mysql_runtime_error.cc
 )
 
 MYSQL_ADD_COMPONENT(mysql_server
