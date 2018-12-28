@@ -320,7 +320,11 @@ bool SQLClient::query(std::string columns, std::string query, SQLCursor** cursor
   }
   if(sql_result == "RS") 
   { if(resultset.length() > 0) 
-    { *cursor = new SQLCursor(columns.c_str(), columns.length(), resultset.c_str(), resultset.length()); 
+    { *cursor = new SQLCursor(columns.c_str(), columns.length(), resultset.c_str(), resultset.length());
+    if(resultset.length() > 0) 
+    { std::cout << "HERE2\n";
+      std::cout << "columns:" << columns << "resultset:" << resultset << "\n";
+      *cursor = new SQLCursor(columns.c_str(), columns.length(), resultset.c_str(), resultset.length()); 
 
       /* free up the resultset in the user variable using the SET command */
       marshal_sql = std::string("SET @sql_resultset=NULL");
