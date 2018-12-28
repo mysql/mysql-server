@@ -1214,8 +1214,6 @@ bool do_command(THD *thd) {
   rc = thd->get_protocol()->get_command(&com_data, &command);
   thd->m_server_idle = false;
 
-  plugin_ref ref = plugin_get_sql_shim();
-
   if (rc) {
     char desc[VIO_DESCRIPTION_SIZE];
     vio_description(net->vio, desc);
@@ -1238,11 +1236,15 @@ bool do_command(THD *thd) {
 
     if (rc < 0) {
       return_value = true;  // We have to close it.
-      goto out;
+      DBUG_ASSERT(thd->m_digest == NULL);
+      DBUG_ASSERT(thd->m_statement_psi == NULL);
+      DBUG_RETURN(return_value);
     }
     net->error = 0;
     return_value = false;
-    goto out;
+    DBUG_ASSERT(thd->m_digest == NULL);
+    DBUG_ASSERT(thd->m_statement_psi == NULL);
+    DBUG_RETURN(return_value);
   }
 
   char desc[VIO_DESCRIPTION_SIZE];
@@ -1270,6 +1272,7 @@ bool do_command(THD *thd) {
    * the plugin reserves the name "sql_shim".
    */
   use_com_data = &com_data;
+  plugin_ref ref = plugin_get_sql_shim();
 
   if(ref != NULL) 
   {
@@ -1279,9 +1282,11 @@ bool do_command(THD *thd) {
     use_com_data = &com_data;
     if( plugin->shim_function(thd, &com_data, command, &new_com_data, &new_command) ) 
     { 
+      printf("got a rewrite from the plugin\n");
       use_com_data= &new_com_data;
       command= new_command;
     } 
+    printf("after check for rewrites\n");
     plugin_unlock(thd, ref);
   } 
 
@@ -1289,7 +1294,7 @@ bool do_command(THD *thd) {
   if(use_com_data != &com_data) 
   {
     if(new_com_data.com_query.query != NULL) 
-    { free((void*)use_com_data->com_query.query); }
+    { printf("freeing query\n");free((void*)use_com_data->com_query.query); }
   }
   thd->get_protocol_classic()->get_output_packet()->shrink(
       thd->variables.net_buffer_length);
