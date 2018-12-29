@@ -18,6 +18,10 @@
 # Verify binary log rotation, master key ID and encryption of new binary log
 # files on master and slave servers.
 #
+# Verify that 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' rotates
+# the maskter key, which is used to encrypt new created relay
+# logs and re-encrypt previous encrypted relay logs.
+#
 # Part 3: Start the slave to replicate from the master.
 #
 # Ensure that the slave can replicate content from the master.
@@ -30,6 +34,13 @@
 # The slave shall be able to work again after a CHANGE MASTER that discards
 # the existing relay log files.
 #
+# Part 5: Verify that 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' rotates
+# the maskter key, which is used to encrypt new created binary
+# logs and re-encrypt previous encrypted binary logs.
+#
+# Verify that we can not rotate binlog master key when
+# 'binlog-encryption' is off.
+#
 # ==== Related Bugs and Worklogs ====
 #
 # WL#10957: Binary log encryption at rest
@@ -41,6 +52,7 @@
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
+--source include/have_debug.inc
 
 # Suppression of error messages
 CALL mtr.add_suppression('Failed to store key');
@@ -239,6 +251,28 @@ SET GLOBAL binlog_encryption = ON;
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
 
+# Verify that 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' rotates
+# the maskter key, which is used to encrypt new created relay
+# logs and re-encrypt previous encrypted relay logs.
+--let $debug_point=verify_unusable_encryption_keys_are_purged
+--source include/add_debug_point.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+--let $relay_log_suffix=.000003
+--let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=The third relay log is re-encrypted using second master key
+--let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_2"
+--source include/assert.inc
+
+--let $relay_log_suffix=.000004
+--let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=The after relay log is encrypted using second master key
+--let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_2"
+--source include/assert.inc
+
 --echo # Part 3
 --source include/rpl_connection_master.inc
 # Slave can replicate from encrypted binary log file
@@ -268,17 +302,17 @@ UNINSTALL PLUGIN keyring_file;
 # Make SQL thread to read next relay log file
 FLUSH LOGS;
 # The binary log shall rotate and is still encrypted
---let $assert_text= 4th binary log is encrypted on slave
---let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 4]" = "Yes"
+--let $assert_text= 5th binary log is encrypted on slave
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 5]" = "Yes"
 --source include/assert.inc
 --let $encrypted_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
 --let $assert_text=Binary log rotated as expected by the FLUSH LOGS
---let $assert_cond=RIGHT("$encrypted_master_file", 6) = "000004"
+--let $assert_cond=RIGHT("$encrypted_master_file", 6) = "000005"
 --source include/assert.inc
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_master_file
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=New binary log is still encrypted
---let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_1"
+--let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
 --let $slave_sql_errno= convert_error(ER_SLAVE_RELAY_LOG_READ_FAILURE)
 --source include/wait_for_slave_sql_error.inc
@@ -290,7 +324,7 @@ RESET SLAVE ALL;
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=New relay log is still encrypted
---let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_1"
+--let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
 
 # The server is still able to encrypt new relay log files
@@ -300,8 +334,9 @@ RESET SLAVE ALL;
 --let $rpl_log_file=$SLAVE_DATADIR$encrypted_relay_file
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=New relay log is still encrypted
---let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_1"
+--let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
+
 # SQL thread is still not able to read encrypted relay log files
 START SLAVE SQL_THREAD;
 --let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
@@ -310,12 +345,12 @@ START SLAVE SQL_THREAD;
 # Disable the option to not rely on keyring anymore
 SET GLOBAL binlog_encryption = OFF;
 # The binary log shall rotate and no more be encrypted
---let $assert_text= 5th binary log is not encrypted on slave
---let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 5]" = "No"
+--let $assert_text= 6th binary log is not encrypted on slave
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 6]" = "No"
 --source include/assert.inc
 --let $disabled_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
 --let $assert_text=Binary log rotated as expected when disabling the option
---let $assert_cond=RIGHT("$disabled_master_file", 6) = "000005"
+--let $assert_cond=RIGHT("$disabled_master_file", 6) = "000006"
 --source include/assert.inc
 --let $rpl_log_file=$SLAVE_DATADIR$disabled_master_file
 --source include/rpl_get_log_encryption_key_id.inc
@@ -351,12 +386,50 @@ if (!$AUTO_POSITION) {
 }
 --source include/start_slave.inc
 
-# Cleanup
+
 --source include/rpl_connection_master.inc
-SET PERSIST binlog_encryption = OFF;
---let $assert_text= 4th binary log is not encrypted on master
---let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 4]" = "No"
+
+--let $third_binary_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--echo third_binary_log: $third_binary_log
+--let $rpl_log_file=$MASTER_DATADIR$third_binary_log
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=the third binary log is encrypted using first master key
+--let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
+
+--echo # Part 5
+--let $debug_point=verify_unusable_encryption_keys_are_purged
+--source include/add_debug_point.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+--let $assert_text=the fourth binary log is encrypted on master
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 4]" = "Yes"
+--source include/assert.inc
+
+--let $rpl_log_file=$MASTER_DATADIR$third_binary_log
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=the third binary log is re-encrypted using second master key
+--let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_2"
+--source include/assert.inc
+
+--let $fourth_binary_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $rpl_log_file=$MASTER_DATADIR$fourth_binary_log
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=the fourth binary log is encrypted using second master key
+--let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_2"
+--source include/assert.inc
+
+SET PERSIST binlog_encryption = OFF;
+--let $assert_text= 5th binary log is not encrypted on master
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 5]" = "No"
+--source include/assert.inc
+
+# Verify that we can not rotate binlog master key when
+# 'binlog-encryption' is off.
+--error ER_RPL_ENCRYPTION_CANNOT_ROTATE_BINLOG_MASTER_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+
+# Cleanup
 UNINSTALL PLUGIN keyring_file;
 --remove_file $keyring_master
 DROP TABLE t1;

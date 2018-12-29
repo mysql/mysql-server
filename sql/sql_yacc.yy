@@ -14788,6 +14788,10 @@ alter_instance_action:
             {
               $$= ROTATE_INNODB_MASTER_KEY;
             }
+            else if (is_identifier($2, "BINLOG"))
+            {
+              $$= ROTATE_BINLOG_MASTER_KEY;
+            }
             else
             {
               YYTHD->syntax_error_at(@2);

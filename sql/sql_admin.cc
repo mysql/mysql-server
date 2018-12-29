@@ -1642,6 +1642,9 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
     case ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR:
       alter_instance = new Alter_instance_reload_tls(thd);
       break;
+    case ROTATE_BINLOG_MASTER_KEY:
+      alter_instance = new Rotate_binlog_master_key(thd);
+      break;
     default:
       DBUG_ASSERT(false);
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER INSTANCE");

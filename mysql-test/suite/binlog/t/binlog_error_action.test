@@ -520,3 +520,29 @@ UNINSTALL PLUGIN keyring_file;
 --remove_file $keyring_data
 --let $restart_parameters=
 --source include/restart_mysqld.inc
+
+############################
+--echo Test case18
+############################
+
+# Failed to generate new file password
+
+--let $keyring_data= $MYSQLTEST_VARDIR/tmp/keyring_data
+--source include/shutdown_mysqld.inc
+--let $restart_parameters=restart: $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_data --binlog_encryption=ON
+--replace_result $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD KEYRING_PLUGIN_LOAD $keyring_data keyring_data
+--source include/start_mysqld.inc
+--let $debug_point=fail_to_generate_new_file_password
+--source include/add_debug_point.inc
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+FLUSH LOGS;
+--exec echo "$restart_parameters" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+SET @@GLOBAL.binlog_encryption=OFF;
+RESET MASTER;
+UNINSTALL PLUGIN keyring_file;
+--remove_file $keyring_data
+--let $restart_parameters=
+--source include/restart_mysqld.inc

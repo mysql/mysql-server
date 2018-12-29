@@ -66,49 +66,33 @@
 --connection slave
 --remove_file $master_error_log
 
---let $point=2
-while ($point < 4)
-{
-  --inc $point
-  --let $debug_point=rpl_encryption_first_time_enable_$point
-  if ($point == 3)
-  {
-    # The 1st master key will be generated in this point
-    --echo # Force the server to fail storing master key index
-    --let $error_message=Failed to store key
-  }
-  if ($point == 4)
-  {
-    --echo # Force the server to fail removing new master key index
-    --let $error_message=Failed to rotate binlog encryption master key at startup
-  }
-  --let $rpl_server_number= 1
-  --let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --loose-keyring_file_data=$keyring_master --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --debug=d,$debug_point --log-error=$MYSQL_TMP_DIR/master.err
-  --echo Try to restart the master enabling the options with debug instrumentation
-  --error 0,1
-  --exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=.$rpl_server_number $rpl_server_parameters
-  --let $assert_file= $master_error_log
-  --let $assert_text= Server reported: $error_message
-  --let $assert_select= $error_message
-  --let $assert_count= 1
-  --source include/assert_grep.inc
-  --let $assert_text= Server failed to initialize binlog encryption
-  --let $assert_select= Failed to initialize binlog encryption
-  --let $assert_count= 1
-  --source include/assert_grep.inc
-  if ($point == 3)
-  {
-    --let $assert_text= Server did not failed to rotate binlog encryption master key at startup
-    --let $assert_select= Failed to rotate binlog encryption master key at startup
-    --let $assert_count= 0
-    --source include/assert_grep.inc
-  }
-  --let $assert_text= Server aborted to start
-  --let $assert_select= Server.*Aborting
-  --let $assert_count= 1
-  --source include/assert_grep.inc
-  --remove_file $master_error_log
-}
+--let $debug_point=rpl_encryption_first_time_enable_3
+# The 1st master key will be generated in this point
+--echo # Force the server to fail storing master key index
+--let $error_message=Failed to store key
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --loose-keyring_file_data=$keyring_master --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --debug=d,$debug_point --log-error=$MYSQL_TMP_DIR/master.err
+--echo Try to restart the master enabling the options with debug instrumentation
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=.$rpl_server_number $rpl_server_parameters
+--let $assert_file= $master_error_log
+--let $assert_text= Server reported: $error_message
+--let $assert_select= $error_message
+--let $assert_count= 1
+--source include/assert_grep.inc
+--let $assert_text= Server failed to initialize binlog encryption
+--let $assert_select= Failed to initialize binlog encryption
+--let $assert_count= 1
+--source include/assert_grep.inc
+--let $assert_text= Server did not failed to rotate binlog encryption master key at startup
+--let $assert_select= Failed to rotate binlog encryption master key at startup
+--let $assert_count= 0
+--source include/assert_grep.inc
+--let $assert_text= Server aborted to start
+--let $assert_select= Server.*Aborting
+--let $assert_count= 1
+--source include/assert_grep.inc
+--remove_file $master_error_log
 
 --echo Restart the master enabling the options
 --let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --loose-keyring_file_data=$keyring_master --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --log-error=$MYSQL_TMP_DIR/master.err
@@ -184,7 +168,7 @@ while ($point < 4)
 --source include/assert.inc
 --let $rpl_log_file=$MASTER_DATADIR$binlog_file
 --source include/rpl_get_log_encryption_key_id.inc
---let $assert_text=Binary log is encrypted with 3rd key
+--let $assert_text=Binary log is encrypted with 3th key
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_3"
 --source include/assert.inc
 

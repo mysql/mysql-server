@@ -54,7 +54,8 @@
 #include "debug_vars.h"
 #include "dur_prop.h"
 #include "m_ctype.h"
-#include "mf_wcomp.h"  // wild_one, wild_many
+#include "mf_wcomp.h"    // wild_one, wild_many
+#include "mutex_lock.h"  // Mutex_lock
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
@@ -360,6 +361,7 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
       encrypted_ostream->open(std::move(ret_ofile->m_pipeline_head),
                               std::move(header));
       ret_ofile->m_pipeline_head = std::move(encrypted_ostream);
+      ret_ofile->set_encrypted();
     }
     DBUG_RETURN(ret_ofile);
   }
@@ -444,40 +446,31 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
     @return The real file size considering the encryption header.
   */
   my_off_t get_real_file_size() { return m_position + m_encrypted_header_size; }
+  /**
+    Get the pipeline head.
+
+    @retval  Returns the pipeline head or nullptr.
+  */
+  std::unique_ptr<Truncatable_ostream> get_pipeline_head() {
+    return std::move(m_pipeline_head);
+  }
+  /**
+    Check if the log file is encrypted.
+
+    @retval  True if the log file is encrypted.
+    @retval  False if the log file is not encrypted.
+  */
+  bool is_encrypted() { return m_encrypted; }
+  /**
+    Set that the log file is encrypted.
+  */
+  void set_encrypted() { m_encrypted = true; }
 
  private:
   my_off_t m_position = 0;
   int m_encrypted_header_size = 0;
   std::unique_ptr<Truncatable_ostream> m_pipeline_head;
-};
-
-/**
-  Helper class to hold a mutex for the duration of the
-  block.
-
-  Eliminates the need for explicit unlocking of mutexes on, e.g.,
-  error returns.  On passing a null pointer, the sentry will not do
-  anything.
- */
-class Mutex_sentry {
- public:
-  Mutex_sentry(mysql_mutex_t *mutex) : m_mutex(mutex) {
-    if (m_mutex) mysql_mutex_lock(mutex);
-  }
-
-  ~Mutex_sentry() {
-    if (m_mutex) mysql_mutex_unlock(m_mutex);
-#ifndef DBUG_OFF
-    m_mutex = 0;
-#endif
-  }
-
- private:
-  mysql_mutex_t *m_mutex;
-
-  // It's not allowed to copy this object in any way
-  Mutex_sentry(Mutex_sentry const &);
-  void operator=(Mutex_sentry const &);
+  bool m_encrypted = false;
 };
 
 /**
@@ -1684,6 +1677,104 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd) {
   }
 
   DBUG_RETURN(0);
+}
+
+bool MYSQL_BIN_LOG::reencrypt_logs() {
+  DBUG_ENTER("MYSQL_BIN_LOG::reencrypt_logs");
+
+  if (!is_open()) DBUG_RETURN(false);
+
+  std::string error_message;
+  /* Gather the set of files to be accessed. */
+  list<string> filename_list;
+  LOG_INFO linfo;
+  int error = 0;
+  list<string>::reverse_iterator rit;
+
+  /* Read binary/relay log file names from index file. */
+  mysql_mutex_lock(&LOCK_index);
+  for (error = find_log_pos(&linfo, nullptr, false); !error;
+       error = find_next_log(&linfo, false)) {
+    filename_list.push_back(string(linfo.log_file_name));
+  }
+  mysql_mutex_unlock(&LOCK_index);
+  if (error != LOG_INFO_EOF ||
+      DBUG_EVALUATE_IF("fail_to_open_index_file", true, false)) {
+    error_message.assign("I/O error reading index file '");
+    error_message.append(index_file_name);
+    error_message.append("'");
+    goto err;
+  }
+
+  rit = filename_list.rbegin();
+  /* Skip the last binary/relay log. */
+  if (rit != filename_list.rend()) rit++;
+  /* Iterate backwards through binary/relay logs. */
+  while (rit != filename_list.rend()) {
+    const char *filename = rit->c_str();
+    DBUG_EXECUTE_IF("purge_logs_during_reencryption", {
+      purge_logs(filename, true, true /*need_lock_index=true*/,
+                 true /*need_update_threads=true*/, nullptr, false);
+    });
+    MUTEX_LOCK(lock, &LOCK_index);
+    std::unique_ptr<Binlog_ofile> ofile(
+        Binlog_ofile::open_existing(key_file_binlog, filename, MYF(MY_WME)));
+
+    if (ofile == nullptr ||
+        DBUG_EVALUATE_IF("fail_to_open_log_file", true, false) ||
+        DBUG_EVALUATE_IF("fail_to_read_index_file", true, false)) {
+      /* If we can not open the log file, check if it exists in index file. */
+      error = find_log_pos(&linfo, filename, false);
+      DBUG_EXECUTE_IF("fail_to_read_index_file", error = LOG_INFO_IO;);
+      if (error == LOG_INFO_EOF) {
+        /* If it does not exist in index file, re-encryption has finished. */
+        if (current_thd->is_error()) current_thd->clear_error();
+        break;
+      } else if (error == 0) {
+        /* If it exists in index file, failed to open the log file. */
+        error_message.assign("Failed to open log file '");
+        error_message.append(filename);
+        error_message.append("'");
+        goto err;
+      } else if (error == LOG_INFO_IO) {
+        /* Failed to read index file. */
+        error_message.assign("I/O error reading index file '");
+        error_message.append(index_file_name);
+        error_message.append("'");
+        goto err;
+      }
+    }
+
+    if (ofile->is_encrypted()) {
+      std::unique_ptr<Truncatable_ostream> pipeline_head =
+          ofile->get_pipeline_head();
+      std::unique_ptr<Binlog_encryption_ostream> binlog_encryption_ostream(
+          down_cast<Binlog_encryption_ostream *>(pipeline_head.release()));
+
+      auto ret_value = binlog_encryption_ostream->reencrypt();
+      if (ret_value.first) {
+        error_message.assign("Failed to re-encrypt log file '");
+        error_message.append(filename);
+        error_message.append("': ");
+        error_message.append(ret_value.second.c_str());
+        goto err;
+      }
+    }
+
+    rit++;
+  }
+
+  filename_list.clear();
+
+  DBUG_RETURN(false);
+
+err:
+  if (current_thd->is_error()) current_thd->clear_error();
+  my_error(ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG, MYF(0),
+           error_message.c_str());
+  filename_list.clear();
+
+  DBUG_RETURN(true);
 }
 
 /**

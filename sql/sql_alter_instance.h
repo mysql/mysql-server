@@ -46,4 +46,18 @@ class Rotate_innodb_master_key : public Alter_instance {
   ~Rotate_innodb_master_key() {}
 };
 
+class Rotate_binlog_master_key : public Alter_instance {
+ public:
+  explicit Rotate_binlog_master_key(THD *thd) : Alter_instance(thd) {}
+
+  /**
+    Executes master key rotation by calling Rpl_encryption api.
+
+    @retval False on success
+    @retval True on error
+  */
+  bool execute();
+  virtual ~Rotate_binlog_master_key() = default;
+};
+
 #endif /* SQL_ALTER_INSTANCE_INCLUDED */

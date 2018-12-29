@@ -163,6 +163,7 @@ bool Binlog_encryption_ostream::open(
   DBUG_ASSERT(down_ostream != nullptr);
   m_header = Rpl_encryption_header::get_new_default_header();
   const Key_string password_str = m_header->generate_new_file_password();
+  if (password_str.empty()) return true;
   m_encryptor.reset(nullptr);
   m_encryptor = m_header->get_encryptor();
   if (m_encryptor->open(password_str, m_header->get_header_size())) {
@@ -191,6 +192,53 @@ bool Binlog_encryption_ostream::open(
   }
 
   return seek(0);
+}
+
+std::pair<bool, std::string> Binlog_encryption_ostream::reencrypt() {
+  DBUG_ENTER("Binlog_encryption_ostream::reencrypt");
+  DBUG_ASSERT(m_header != nullptr);
+  DBUG_ASSERT(m_down_ostream != nullptr);
+  std::string error_message;
+
+  /* Get the file password */
+  Key_string password_str = m_header->decrypt_file_password();
+  if (password_str.empty() ||
+      DBUG_EVALUATE_IF("fail_to_decrypt_file_password", true, false)) {
+    error_message.assign("failed to decrypt the file password");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  if (m_down_ostream->seek(0) ||
+      DBUG_EVALUATE_IF("fail_to_reset_file_stream", true, false)) {
+    error_message.assign("failed to reset the file out stream");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  m_header.reset(nullptr);
+  m_header = Rpl_encryption_header::get_new_default_header();
+  if (m_header->encrypt_file_password(password_str) ||
+      DBUG_EVALUATE_IF("fail_to_encrypt_file_password", true, false)) {
+    error_message.assign(
+        "failed to encrypt the file password with current encryption key");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  if (m_header->serialize(m_down_ostream.get()) ||
+      DBUG_EVALUATE_IF("fail_to_write_reencrypted_header", true, false)) {
+    error_message.assign("failed to write the new reencrypted file header");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  if (flush() ||
+      DBUG_EVALUATE_IF("fail_to_flush_reencrypted_header", true, false)) {
+    error_message.assign("failed to flush the new reencrypted file header");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  if (sync() ||
+      DBUG_EVALUATE_IF("fail_to_sync_reencrypted_header", true, false)) {
+    error_message.assign(
+        "failed to synchronize the new reencrypted file header");
+    DBUG_RETURN(std::make_pair(true, error_message));
+  }
+  close();
+
+  DBUG_RETURN(std::make_pair(false, error_message));
 }
 
 void Binlog_encryption_ostream::close() {

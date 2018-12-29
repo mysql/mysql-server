@@ -26,14 +26,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "lex_string.h"
 #include "m_string.h"
+#include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h" /* my_error */
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/derror.h"          /* ER_THD */
-#include "sql/handler.h"         /* ha_resolve_by_legacy_type */
+#include "sql/derror.h"  /* ER_THD */
+#include "sql/handler.h" /* ha_resolve_by_legacy_type */
+#include "sql/mysqld.h"
+#include "sql/rpl_log_encryption.h"
 #include "sql/sql_backup_lock.h" /* acquire_shared_backup_lock */
 #include "sql/sql_class.h"       /* THD */
 #include "sql/sql_error.h"
@@ -126,4 +129,31 @@ bool Rotate_innodb_master_key::execute() {
 
   my_ok(m_thd);
   return false;
+}
+
+bool Rotate_binlog_master_key::execute() {
+  DBUG_ENTER("Rotate_binlog_master_key::execute");
+
+  MUTEX_LOCK(lock, &LOCK_rotate_binlog_master_key);
+
+  Security_context *sctx = m_thd->security_context();
+  if (!sctx->check_access(SUPER_ACL) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ENCRYPTION_ADMIN"))
+           .first) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or BINLOG_ENCRYPTION_ADMIN");
+    DBUG_RETURN(true);
+  }
+
+  if (!rpl_encryption.is_enabled()) {
+    my_error(ER_RPL_ENCRYPTION_CANNOT_ROTATE_BINLOG_MASTER_KEY, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  if (rpl_encryption.remove_remaining_seqnos_from_keyring()) DBUG_RETURN(true);
+
+  if (rpl_encryption.rotate_master_key()) DBUG_RETURN(true);
+
+  my_ok(m_thd);
+  DBUG_RETURN(false);
 }

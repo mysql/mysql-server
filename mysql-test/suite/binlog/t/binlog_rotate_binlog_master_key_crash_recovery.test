@@ -1,0 +1,295 @@
+# ==== Purpose ====
+#
+# To verify that rotating master key are recovered correctly after crashes at
+# different points when executing the command 'ALTER INSTANCE ROTATE BINLOG
+# MASTER KEY' on enabling binlog_encryption.
+#
+# ==== Implementation ====
+#
+# 1. Set a debug point.
+# 2. Verify that an expected crash happened at the debug point when executing
+#    the command 'ALTER INSTANCE ROTATE BINLOG MASTER KEY'.
+# 3. Recover the server with disabling the binlog_encryption.
+# 4. Verify that 'binlog_encryption' is off after above crash recovery
+# 5. Verify that an error is emitted to the client side if needed when
+#    executing the command 'SET @@GLOBAL.binlog_encryption=ON' if there
+#    is an error.
+# 6. Verify that 'binlog_encryption' can be enabled and rotating master key
+#    is recovered after above crash recovery on enabling binlog_encryption.
+# 7. Verify that 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' works after
+#    above crash recovery.
+#
+# ==== References ====
+#
+# Wl#12080 Add support to binary log encryption key rotation and cleanup
+
+--source include/have_binlog_format_row.inc
+--source include/not_valgrind.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $MASTER_DATADIR= `select @@datadir`
+--let $default_binlog_encryption = `SELECT @@GLOBAL.binlog_encryption`
+
+SET @@GLOBAL.binlog_encryption=ON;
+
+--let $first_encrypted_binary_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $rpl_log_file=$MASTER_DATADIR$first_encrypted_binary_log
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=the first encrypted binary log is encrypted using first master key
+--let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
+--source include/assert.inc
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+INSERT INTO t1 VALUES(2);
+
+
+--echo # Part 1: crash_before_set_old_master_key_seqno_on_keyring
+--let $debug_point=crash_before_set_old_master_key_seqno_on_keyring
+--let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text= 'binlog_encryption' is off after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+--echo #
+--echo # Verify that an error 'ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED'
+--echo # is emitted to the client side when executing the command
+--echo # 'SET @@GLOBAL.binlog_encryption=ON' if there is an error
+--echo # when fetching master key seqno from keyring.
+--echo #
+--let $debug_point=fail_to_fetch_master_key_seqno_from_keyring
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
+SET @@GLOBAL.binlog_encryption=ON;
+--source include/remove_debug_point.inc
+
+--echo #
+--echo # Verify that an error 'ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED'
+--echo # is emitted to the client side when executing the command
+--echo # 'SET @@GLOBAL.binlog_encryption=ON' if there is an error
+--echo # when fetching old master key seqno from keyring.
+--echo #
+--let $debug_point=fail_to_fetch_old_master_key_seqno_from_keyring
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
+SET @@GLOBAL.binlog_encryption=ON;
+--source include/remove_debug_point.inc
+
+SET @@GLOBAL.binlog_encryption=ON;
+--let $assert_text= Verify that 'binlog_encryption' can be enabled after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+--let $current_master_key_id=2
+--let $current_comparison_digit=2
+--let $rotated_master_key_id=3
+--let $rotated_comparison_digit=2
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+--echo # Part 2: crash_after_set_old_master_key_seqno_on_keyring
+--let $debug_point=crash_after_set_old_master_key_seqno_on_keyring
+--let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text= 'binlog_encryption' is off after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+--echo #
+--echo # Verify that an error 'ER_binlog_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION'
+--echo # is emitted to the client side when executing the command
+--echo # 'SET @@GLOBAL.binlog_encryption=ON' if the combination of
+--echo # values of new_master_key_seqno, master_key_seqno and
+--echo # old_master_key_seqno are wrong when recovering binlog master key.
+--echo #
+--let $debug_point=simulate_master_key_recovery_out_of_combination
+--source include/add_debug_point.inc
+--error ER_BINLOG_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION
+SET @@GLOBAL.binlog_encryption=ON;
+--source include/remove_debug_point.inc
+
+SET @@GLOBAL.binlog_encryption=ON;
+--let $assert_text= Verify that 'binlog_encryption' can be enabled after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+--let $current_master_key_id=4
+--let $rotated_master_key_id=5
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+--echo # Part 3: crash_after_set_new_master_key_seqno_on_keyring
+--let $debug_point=crash_after_set_new_master_key_seqno_on_keyring
+--let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text= 'binlog_encryption' is off after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+--echo #
+--echo # Verify that an error 'ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED'
+--echo # is emitted to the client side when executing the command
+--echo # 'SET @@GLOBAL.binlog_encryption=ON' if there is an error
+--echo # when fetching new master key from keyring.
+--echo #
+--let $debug_point=fail_to_fetch_new_master_key_from_keyring
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
+SET @@GLOBAL.binlog_encryption=ON;
+--source include/remove_debug_point.inc
+
+SET @@GLOBAL.binlog_encryption=ON;
+--let $assert_text= Verify that 'binlog_encryption' can be enabled after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+--let $current_master_key_id=6
+--let $rotated_master_key_id=7
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+--echo # Part 4: crash_after_generate_new_master_key_on_keyring
+--let $debug_point=crash_after_generate_new_master_key_on_keyring
+--let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text= 'binlog_encryption' is off after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+--echo #
+--echo # Verify that an error 'ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED'
+--echo # is emitted to the client side when executing the command
+--echo # 'SET @@GLOBAL.binlog_encryption=ON' if there is an error
+--echo # when fetching new master key seqno from keyring.
+--echo #
+--let $debug_point=fail_to_fetch_new_master_key_seqno_from_keyring
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
+SET @@GLOBAL.binlog_encryption=ON;
+--source include/remove_debug_point.inc
+
+SET @@GLOBAL.binlog_encryption=ON;
+--let $assert_text= Verify that 'binlog_encryption' can be enabled after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+--let $current_master_key_id=8
+--let $rotated_master_key_id=9
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+--echo # Part 5: crash_after_remove_master_key_seqno_from_keyring 
+--let $debug_point=crash_after_remove_master_key_seqno_from_keyring
+--let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text= 'binlog_encryption' is off after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+SET @@GLOBAL.binlog_encryption=ON;
+--let $assert_text= Verify that 'binlog_encryption' can be enabled after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+--let $current_master_key_id=10
+--let $current_comparison_digit=3
+--let $rotated_master_key_id=11
+--let $rotated_comparison_digit=3
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+--echo # Part 6: crash_after_set_master_key_seqno_on_keyring
+--let $debug_point=crash_after_set_master_key_seqno_on_keyring
+--let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text= 'binlog_encryption' is off after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+SET @@GLOBAL.binlog_encryption=ON;
+--let $assert_text= Verify that 'binlog_encryption' can be enabled after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+--let $current_master_key_id=12
+--let $rotated_master_key_id=13
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+--echo # Part 7: crash_after_remove_old_master_key_seqno_from_keyring
+--let $debug_point=crash_after_remove_old_master_key_seqno_from_keyring
+--let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text= 'binlog_encryption' is off after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+SET @@GLOBAL.binlog_encryption=ON;
+--let $assert_text= Verify that 'binlog_encryption' can be enabled after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+--let $current_master_key_id=14
+--let $rotated_master_key_id=15
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+--echo # Part 8: crash_after_remove_new_master_key_seqno_from_keyring
+--let $debug_point=crash_after_remove_new_master_key_seqno_from_keyring
+--let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text= 'binlog_encryption' is off after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+SET @@GLOBAL.binlog_encryption=ON;
+--let $assert_text= Verify that 'binlog_encryption' can be enabled after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+--let $current_master_key_id=16
+--let $rotated_master_key_id=17
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+--echo # Part 9: crash_after_set_old_master_key_seqno_on_keyring
+--let $debug_point=crash_after_set_old_master_key_seqno_on_keyring
+--let $statement=ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text= 'binlog_encryption' is off after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "0"
+--source include/assert.inc
+
+--echo #
+--echo # Verify that an error 'ER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY'
+--echo # is emitted to the client side when executing the command
+--echo # 'SET @@GLOBAL.binlog_encryption=ON' if there is an error
+--echo # on setting new master key seqno on keyring when recovering
+--echo # binlog master key.
+--echo #
+--let $debug_point=fail_to_set_new_master_key_seqno_on_keyring
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
+SET @@GLOBAL.binlog_encryption=ON;
+--source include/remove_debug_point.inc
+
+SET @@GLOBAL.binlog_encryption=ON;
+--let $assert_text= Verify that 'binlog_encryption' can be enabled after above crash recovery.
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption]" = "1"
+--source include/assert.inc
+
+--let $current_master_key_id=18
+--let $rotated_master_key_id=19
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+# Cleanup
+DROP TABLE t1;
+--replace_result $default_binlog_encryption DEFAULT_BINLOG_ENCRYPTION
+--eval SET @@GLOBAL.binlog_encryption=$default_binlog_encryption
+

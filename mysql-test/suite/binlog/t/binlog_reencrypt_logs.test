@@ -1,0 +1,26 @@
+# ==== Purpose ====
+#
+# Verify that 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' succeeds with
+# a warning if it failed to open a binary log which is purged during
+# re-encryption.
+#
+# ==== Implementation ====
+#
+# 1. set a debug_point 'purge_logs_during_reencryption'.
+# 2. execute 'ALTER INSTANCE ROTATE BINLOG MASTER KEY'.
+#
+# ==== References ====
+#
+# Wl#12080 Add support to binary log encryption key rotation and cleanup
+
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+RESET MASTER;
+
+--let $debug_point=purge_logs_during_reencryption
+--source include/add_debug_point.inc
+--replace_result \\ /
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc

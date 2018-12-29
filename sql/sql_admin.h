@@ -373,6 +373,7 @@ enum alter_instance_action_enum {
   ROTATE_INNODB_MASTER_KEY,
   ALTER_INSTANCE_RELOAD_TLS,
   ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR,
+  ROTATE_BINLOG_MASTER_KEY,
   LAST_MASTER_KEY /* Add new master key type before this */
 };
 

@@ -40,12 +40,18 @@ SELECT @@global.binlog_encryption;
 CREATE USER user1;
 SET GLOBAL binlog_encryption=ON;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or BINLOG_ENCRYPTION_ADMIN privilege(s) for this operation
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO user1@'%';
 SET GLOBAL binlog_encryption=ON;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or BINLOG_ENCRYPTION_ADMIN privilege(s) for this operation
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or BINLOG_ENCRYPTION_ADMIN privilege(s) for this operation
 GRANT BINLOG_ENCRYPTION_ADMIN ON *.* TO user1@'%';
 SET GLOBAL binlog_encryption=ON;
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM user1@'%';
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 SET GLOBAL binlog_encryption=OFF;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 REVOKE BINLOG_ENCRYPTION_ADMIN ON *.* FROM user1@'%';

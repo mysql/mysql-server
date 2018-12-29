@@ -383,7 +383,13 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
 bool reset_slave_cmd(THD *thd);
 bool show_slave_status_cmd(THD *thd);
 bool flush_relay_logs_cmd(THD *thd);
+/**
+  Re-encrypt previous relay logs with current master key for all slave channels.
 
+  @retval false Success.
+  @retval true Error.
+*/
+bool reencrypt_relay_logs();
 bool flush_relay_logs(Master_info *mi);
 int reset_slave(THD *thd, Master_info *mi, bool reset_all);
 int reset_slave(THD *thd);

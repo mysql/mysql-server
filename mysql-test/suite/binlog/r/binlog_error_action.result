@@ -197,3 +197,12 @@ SET @@GLOBAL.binlog_encryption=OFF;
 RESET MASTER;
 UNINSTALL PLUGIN keyring_file;
 # restart
+Test case18
+# restart: KEYRING_PLUGIN_OPT KEYRING_PLUGIN_LOAD --keyring_file_data=keyring_data --binlog_encryption=ON
+# Adding debug point 'fail_to_generate_new_file_password' to @@GLOBAL.debug
+FLUSH LOGS;
+ERROR HY000: Binary logging not possible. Message: Either disk is full, file system is read only or there was an encryption error while opening the binlog. Aborting the server.
+SET @@GLOBAL.binlog_encryption=OFF;
+RESET MASTER;
+UNINSTALL PLUGIN keyring_file;
+# restart

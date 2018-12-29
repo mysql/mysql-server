@@ -8119,6 +8119,33 @@ bool flush_relay_logs_cmd(THD *thd) {
   DBUG_RETURN(error);
 }
 
+bool reencrypt_relay_logs() {
+  DBUG_ENTER("reencrypt_relay_logs");
+
+  Master_info *mi;
+  channel_map.rdlock();
+
+  enum_channel_type channel_types[] = {SLAVE_REPLICATION_CHANNEL,
+                                       GROUP_REPLICATION_CHANNEL};
+  for (auto channel_type : channel_types) {
+    for (mi_map::iterator it = channel_map.begin(channel_type);
+         it != channel_map.end(channel_type); it++) {
+      mi = it->second;
+      if (mi != nullptr) {
+        Relay_log_info *rli = mi->rli;
+        if (rli != nullptr && rli->inited && rli->relay_log.reencrypt_logs()) {
+          channel_map.unlock();
+          DBUG_RETURN(true);
+        }
+      }
+    }
+  }
+
+  channel_map.unlock();
+
+  DBUG_RETURN(false);
+}
+
 /**
    Detects, based on master's version (as found in the relay log), if master
    has a certain bug.

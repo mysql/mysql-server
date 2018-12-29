@@ -241,6 +241,17 @@ class Binlog_encryption_ostream : public Truncatable_ostream {
   bool open(std::unique_ptr<Truncatable_ostream> down_ostream,
             std::unique_ptr<Rpl_encryption_header> header);
 
+  /**
+    Re-encrypt the encrypted binary/relay log file header by replacing its
+    binlog encryption key id with the current one and its encrypted file
+    password with the new one, which is got by encrypting its file password
+    with the current binlog encryption key.
+
+    @retval false Success with an empty error message.
+    @retval true Error with an error message.
+  */
+  std::pair<bool, std::string> reencrypt();
+
   void close();
   bool write(const unsigned char *buffer, my_off_t length) override;
   bool truncate(my_off_t offset) override;

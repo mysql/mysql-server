@@ -19,22 +19,11 @@ Try to restart the master enabling the option with debug instrumentation
 include/assert_grep.inc [Server reported: Failed to store key]
 include/assert_grep.inc [Server failed to initialize binlog encryption]
 include/assert_grep.inc [Server aborted to start]
-# Force the server to fail removing new master key index
-Restart the master enabling the option with debug instrumentation
-include/rpl_start_server.inc [server_number=1]
-include/assert_grep.inc [Server warned about failing to remove a key, but succeeded to start]
-include/assert.inc [binlog_encryption option shall be ON]
-include/assert.inc [Binary log rotated]
-include/assert.inc [2nd binary log is encrypted on master]
-SET GLOBAL binlog_encryption = OFF;
-include/assert.inc [Binary log rotated]
-include/assert.inc [3rd binary log is not encrypted on master]
 Restart the master enabling the option
-include/rpl_stop_server.inc [server_number=1]
 include/rpl_start_server.inc [server_number=1]
 include/assert.inc [binlog_encryption option shall be ON]
 include/assert.inc [Binary log rotated]
-include/assert.inc [4th binary log is encrypted on master]
+include/assert.inc [2th binary log is encrypted on master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
 INSERT INTO t1 (c1) VALUES (1),(2),(3);
 INSERT INTO t1 (c1) VALUES (4),(5),(6);
@@ -59,16 +48,6 @@ SET GLOBAL binlog_encryption = ON;
 ERROR HY000: Failed to store key, please check if keyring plugin is loaded.
 include/assert.inc [binlog_encryption option shall be OFF]
 include/assert.inc [Binary log did not rotated]
-# Force the server to fail removing new master key index
-SET GLOBAL binlog_encryption = ON;
-Warnings:
-Warning	3792	Failed to remove key, please check if keyring plugin is loaded.
-include/assert.inc [binlog_encryption option shall be ON]
-include/assert.inc [Binary log rotated]
-include/assert.inc [3rd binary log is encrypted on slave]
-SET GLOBAL binlog_encryption = OFF;
-include/assert.inc [Binary log rotated]
-include/assert.inc [4th binary log is not encrypted on slave]
 SET GLOBAL binlog_encryption = ON;
 include/assert.inc [Binary log rotated]
 include/assert.inc [5th binary log is encrypted on slave]

@@ -36,7 +36,7 @@
 --remove_file $master_error_log
 
 --let $point=0
-while ($point < 4)
+while ($point < 3)
 {
   --inc $point
   --let $debug_point=rpl_encryption_first_time_enable_$point
@@ -61,81 +61,42 @@ while ($point < 4)
   }
   --let $rpl_server_number= 1
   --let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --loose-keyring_file_data=$keyring_master --binlog_encryption=ON --debug=d,$debug_point --log-error=$MYSQL_TMP_DIR/master.err
-  if ($point < 4)
-  {
-    --echo Try to restart the master enabling the option with debug instrumentation
-    --error 0,1
-    --exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=.$rpl_server_number $rpl_server_parameters
-    --let $assert_file= $master_error_log
-    --let $assert_text= Server reported: $error_message
-    --let $assert_select= $error_message
-    --let $assert_count= 1
-    --source include/assert_grep.inc
-    --let $assert_text= Server failed to initialize binlog encryption
-    --let $assert_select= Failed to initialize binlog encryption
-    --let $assert_count= 1
-    --source include/assert_grep.inc
-    --let $assert_text= Server aborted to start
-    --let $assert_select= Server.*Aborting
-    --let $assert_count= 1
-    --source include/assert_grep.inc
-    --remove_file $master_error_log
-  }
-  if ($point == 4)
-  {
-    --echo # Force the server to fail removing new master key index
-    --echo Restart the master enabling the option with debug instrumentation
-    --let $rpl_omit_print_server_parameters= 1
-    --source include/rpl_start_server.inc
-    --connection master
-    --let $assert_text= Server warned about failing to remove a key, but succeeded to start
-    --let $assert_file= $master_error_log
-    --let $assert_select= Warning.*Repl.*Failed to remove key
-    --let $assert_count= 1
-    --source include/assert_grep.inc
-    --disable_query_log
-    --eval SET @@GLOBAL.debug = "$master_debug"
-    --enable_query_log
-    --let $assert_text=binlog_encryption option shall be ON
-    --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
-    --let $assert_cond= "$option_value" = "ON"
-    --source include/assert.inc
-    --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
-    --let $assert_text=Binary log rotated
-    --let $assert_cond= RIGHT("$binlog_file", 6) = "000002"
-    --source include/assert.inc
-    --let $assert_text= 2nd binary log is encrypted on master
-    --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 2]" = "Yes"
-    --source include/assert.inc
-    SET GLOBAL binlog_encryption = OFF;
-    --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
-    --let $assert_text=Binary log rotated
-    --let $assert_cond= RIGHT("$binlog_file", 6) = "000003"
-    --source include/assert.inc
-    --let $assert_text= 3rd binary log is not encrypted on master
-    --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "No"
-    --source include/assert.inc
-  }
+  --echo Try to restart the master enabling the option with debug instrumentation
+  --error 0,1
+  --exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=.$rpl_server_number $rpl_server_parameters
+  --let $assert_file= $master_error_log
+  --let $assert_text= Server reported: $error_message
+  --let $assert_select= $error_message
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+  --let $assert_text= Server failed to initialize binlog encryption
+  --let $assert_select= Failed to initialize binlog encryption
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+  --let $assert_text= Server aborted to start
+  --let $assert_select= Server.*Aborting
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+  --remove_file $master_error_log
 }
 
 --echo Restart the master enabling the option
 --let $rpl_server_number= 1
---source include/rpl_stop_server.inc
---remove_file $master_error_log
 --let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_master --binlog_encryption=ON --log-error=$MYSQL_TMP_DIR/master.err
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_start_server.inc
+--connection master
 --let $assert_text=binlog_encryption option shall be ON
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
 --let $assert_cond= "$option_value" = "ON"
 --source include/assert.inc
 --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
 --let $assert_text=Binary log rotated
---let $assert_cond= RIGHT("$binlog_file", 6) = "000004"
+--let $assert_cond= RIGHT("$binlog_file", 6) = "000002"
 --source include/assert.inc
---let $assert_text= 4th binary log is encrypted on master
---let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 4]" = "Yes"
+--let $assert_text= 2th binary log is encrypted on master
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 2]" = "Yes"
 --source include/assert.inc
 # Generate some traffic for replication
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
@@ -168,7 +129,7 @@ INSERT INTO t1 (c1) VALUES (4),(5),(6);
 --source include/assert.inc
 
 --let $point=0
-while ($point < 4)
+while ($point < 3)
 {
   --inc $point
   --let $debug_point=rpl_encryption_first_time_enable_$point
@@ -190,46 +151,17 @@ while ($point < 4)
     --echo # Force the server to fail storing master key index
     --let $expected_error=ER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
   }
-  if ($point == 4)
-  {
-    --echo # Force the server to fail removing new master key index
-  }
   --error $expected_error
   SET GLOBAL binlog_encryption = ON;
   --source include/remove_debug_point.inc
-  if ($point < 4)
-  {
-    --let $assert_text=binlog_encryption option shall be OFF
-    --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
-    --let $assert_cond= "$option_value" = "OFF"
-    --source include/assert.inc
-    --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
-    --let $assert_text=Binary log did not rotated
-    --let $assert_cond= RIGHT("$binlog_file", 6) = "000002"
-    --source include/assert.inc
-  }
-  if ($point == 4)
-  {
-    --let $assert_text=binlog_encryption option shall be ON
-    --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
-    --let $assert_cond= "$option_value" = "ON"
-    --source include/assert.inc
-    --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
-    --let $assert_text=Binary log rotated
-    --let $assert_cond= RIGHT("$binlog_file", 6) = "000003"
-    --source include/assert.inc
-    --let $assert_text= 3rd binary log is encrypted on slave
-    --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "Yes"
-    --source include/assert.inc
-    SET GLOBAL binlog_encryption = OFF;
-    --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
-    --let $assert_text=Binary log rotated
-    --let $assert_cond= RIGHT("$binlog_file", 6) = "000004"
-    --source include/assert.inc
-    --let $assert_text= 4th binary log is not encrypted on slave
-    --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 4]" = "No"
-    --source include/assert.inc
-  }
+  --let $assert_text=binlog_encryption option shall be OFF
+  --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
+  --let $assert_cond= "$option_value" = "OFF"
+  --source include/assert.inc
+  --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $assert_text=Binary log did not rotated
+  --let $assert_cond= RIGHT("$binlog_file", 6) = "000002"
+  --source include/assert.inc
 }
 
 # Without warnings
@@ -239,10 +171,10 @@ SET GLOBAL binlog_encryption = ON;
 --let $assert_cond= "$option_value" = "ON"
 --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
 --let $assert_text=Binary log rotated
---let $assert_cond= RIGHT("$binlog_file", 6) = "000005"
+--let $assert_cond= RIGHT("$binlog_file", 6) = "000003"
 --source include/assert.inc
 --let $assert_text= 5th binary log is encrypted on slave
---let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 5]" = "Yes"
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "Yes"
 --source include/assert.inc
 
 # Cleanup

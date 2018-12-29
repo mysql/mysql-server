@@ -903,6 +903,7 @@ static PSI_mutex_key key_LOCK_server_started;
 static PSI_cond_key key_COND_server_started;
 static PSI_mutex_key key_LOCK_keyring_operations;
 static PSI_mutex_key key_LOCK_tls_ctx_options;
+static PSI_mutex_key key_LOCK_rotate_binlog_master_key;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -1327,6 +1328,11 @@ mysql_cond_t COND_start_signal_handler;
   keyring_operations.
 */
 mysql_mutex_t LOCK_keyring_operations;
+/*
+  The below lock protects to execute commands 'ALTER INSTANCE ROTATE BINLOG
+  MASTER KEY' and 'SET @@GLOBAL.binlog_encryption=ON/OFF' in parallel.
+*/
+mysql_mutex_t LOCK_rotate_binlog_master_key;
 
 bool mysqld_server_started = false;
 /**
@@ -2280,6 +2286,7 @@ static void clean_up_mutexes() {
 #endif
   mysql_mutex_destroy(&LOCK_keyring_operations);
   mysql_mutex_destroy(&LOCK_tls_ctx_options);
+  mysql_mutex_destroy(&LOCK_rotate_binlog_master_key);
 }
 
 /****************************************************************************
@@ -4440,6 +4447,8 @@ static int init_thread_environment() {
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_tls_ctx_options, &LOCK_tls_ctx_options,
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_rotate_binlog_master_key,
+                   &LOCK_rotate_binlog_master_key, MY_MUTEX_INIT_FAST);
   return 0;
 }
 
@@ -9939,7 +9948,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_reuse_interval, "LOCK_password_reuse_interval", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_tls_ctx_options, "LOCK_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options"}
+  { &key_LOCK_tls_ctx_options, "LOCK_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options"},
+  { &key_LOCK_rotate_binlog_master_key, "LOCK_rotate_binlog_master_key", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 

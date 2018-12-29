@@ -1,0 +1,394 @@
+# ==== Purpose ====
+#
+# To cover error branches when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' on a
+# server with binary log enabled.
+#
+# ==== Implementation ====
+#
+# Please see binlog_rotate_binlog_master_key_errors.inc
+#
+# ==== References ====
+#
+# Wl#12080 Add support to binary log encryption key rotation and cleanup
+
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $MASTER_DATADIR= `select @@datadir`
+
+CREATE TABLE t1 (c1 INT);
+
+--let $first_encrypted_binary_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $rpl_log_file=$MASTER_DATADIR$first_encrypted_binary_log
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=the first encrypted binary log is encrypted using first master key
+--let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
+--source include/assert.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when setting old master key seqno on keyring.
+--echo # Part 1: fail_to_set_old_master_key_seqno_on_keyring
+--let $debug_point=fail_to_set_old_master_key_seqno_on_keyring
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
+--let $current_master_key_id=1
+--let $current_comparison_digit=2
+--let $rotated_master_key_id=2
+--let $rotated_comparison_digit=2
+--let $rotate_binary_log=0
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# decrypting file password when re-encrypting a log file.
+--echo # Part 2: fail_to_decrypt_file_password
+--let $debug_point=fail_to_decrypt_file_password
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=3
+--let $rotated_master_key_id=4
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# resetting file stream when re-encrypting a log file.
+--echo # Part 3: fail_to_reset_file_stream
+--let $debug_point=fail_to_reset_file_stream
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=5
+--let $rotated_master_key_id=6
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# encrypting the file password with current encryption key when
+# re-encrypting a log file.
+--echo # Part 4: fail_to_encrypt_file_password
+--let $debug_point=fail_to_encrypt_file_password
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=7
+--let $rotated_master_key_id=8
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# writing the new reencrypted file header when re-encrypting a log file.
+--echo # Part 5: fail_to_write_reencrypted_header
+--let $debug_point=fail_to_write_reencrypted_header
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=9
+--let $rotated_master_key_id=10
+--let $rotated_comparison_digit=3
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# flushing the new reencrypted file header when re-encrypting a log file.
+--echo # Part 6: fail_to_flush_reencrypted_header
+--let $debug_point=fail_to_flush_reencrypted_header
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=11
+--let $current_comparison_digit=3
+--let $rotated_master_key_id=12
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# synchronizing the new reencrypted file header when re-encrypting
+# a log file.
+--echo # Part 7: fail_to_sync_reencrypted_header
+--let $debug_point=fail_to_sync_reencrypted_header
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=13
+--let $rotated_master_key_id=14
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when opening a log file for re-encryption.
+--echo # Part 8: fail_to_open_log_file
+--let $debug_point=fail_to_open_log_file
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=15
+--let $rotated_master_key_id=16
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when reading an index file.
+--echo # Part 9: fail_to_open_index_file
+--let $debug_point=fail_to_open_index_file
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=17
+--let $rotated_master_key_id=18
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_ROTATE_LOGS'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when rotating binary log.
+--echo # Part 10: fail_to_rotate_binary_log
+--let $debug_point=fail_to_rotate_binary_log
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_ROTATE_LOGS
+--let $current_master_key_id=19
+--let $rotated_master_key_id=20
+--let $rotate_binary_log=1
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when fetching key on keyring.
+--echo # Part 11: fail_to_fetch_key_from_keyring
+--let $debug_point=fail_to_fetch_key_from_keyring
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
+--let $current_master_key_id=20
+--let $rotated_master_key_id=21
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when setting new master key seqno on keyring.
+--echo # Part 12: fail_to_set_new_master_key_seqno_on_keyring
+
+--let $debug_point=fail_to_set_new_master_key_seqno_on_keyring
+--source include/add_debug_point.inc
+--replace_result \\ /
+--error ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+# Verify that an error 'ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# on removing old master key seqno from keyring. This happens if
+# a previous 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' statement
+# failed to set new master key seqno on keyring.
+--let $debug_point=fail_to_remove_old_master_key_seqno_from_keyring
+--source include/add_debug_point.inc
+--replace_result \\ /
+--error ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+# Verify that an error 'ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# on fetching master key seqno from keyring. This happens if a
+# previous 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' statement
+# failed to set new master key seqno on keyring.
+--let $debug_point=failed_to_fetch_master_key_seqno_from_keyring
+--source include/add_debug_point.inc
+--replace_result \\ /
+--error ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+# Verify that an error 'ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# on fetching old master key seqno from keyring. This happens if
+# a previous 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' statement
+# failed to set new master key seqno on keyring.
+--let $debug_point=failed_to_fetch_old_master_key_seqno_from_keyring
+--source include/add_debug_point.inc
+--replace_result \\ /
+--error ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+FLUSH BINARY LOGS;
+--let $current_master_key_id=21
+--let $rotated_master_key_id=22
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+--echo #
+--echo # Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
+--echo # is emitted to the client side when executing the command
+--echo # 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+--echo # error when generating key on keyring.
+--echo #
+--echo # Part 13: fail_to_generate_key_on_keyring
+--let $debug_point=fail_to_generate_key_on_keyring
+--source include/add_debug_point.inc
+--replace_result \\ /
+--error ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+# Verify that an error 'ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# on removing new master key seqno from keyring. This happens if
+# a previous 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' statement
+# failed to generate key on keyring.
+--let $debug_point=fail_to_remove_new_master_key_seqno_from_keyring
+--source include/add_debug_point.inc
+--replace_result \\ /
+--error ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+# Verify that an error 'ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# on fetching new master key seqno from keyring. This happens if
+# a previous 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' statement
+# failed to generate key on keyring.
+--let $debug_point=failed_to_fetch_new_master_key_seqno_from_keyring
+--source include/add_debug_point.inc
+--replace_result \\ /
+--error ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+FLUSH BINARY LOGS;
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
+--let $current_master_key_id=22
+--let $rotated_master_key_id=23
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when removing master key from keyring.
+--echo # Part 14: fail_to_remove_master_key_from_keyring
+--let $debug_point=fail_to_remove_master_key_from_keyring
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
+--let $current_master_key_id=24
+--let $rotated_master_key_id=25
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that a warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when getting last purged master key seqno from keyring.
+--echo # Part 15: fail_to_get_purged_seqno_from_keyring
+--let $debug_point=fail_to_get_purged_seqno_from_keyring
+--let $expected_error=0
+--let $current_master_key_id=26
+--let $rotated_master_key_id=27
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+# The following test cases do not need to rotate binary log.
+--let $rotate_binary_log=0
+
+# Verify that a warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when getting key from keyring.
+--echo # Part 16: fail_to_get_key_from_keyring
+--let $debug_point=fail_to_get_key_from_keyring
+--let $expected_error=0
+--let $current_master_key_id=28
+--let $rotated_master_key_id=29
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that a warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when removing unused key from keyring.
+--echo # Part 17: fail_to_remove_unused_key_from_keyring
+--let $debug_point=fail_to_remove_unused_key_from_keyring
+--let $expected_error=0
+--let $current_master_key_id=30
+--let $rotated_master_key_id=31
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that a warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when removing last purged seqno from keyring.
+--echo # Part 18: fail_to_remove_last_purged_seqno_from_keyring
+--let $debug_point=fail_to_remove_last_purged_seqno_from_keyring
+--let $expected_error=0
+--let $current_master_key_id=32
+--let $rotated_master_key_id=33
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when removing old master key seqno from keyring.
+--echo # Part 19: fail_to_remove_old_master_key_seqno_from_keyring
+--let $debug_point=fail_to_remove_old_master_key_seqno_from_keyring
+--let $expected_error=0
+--let $current_master_key_id=34
+--let $rotated_master_key_id=35
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when removing new master key seqno from keyring.
+--echo # Part 20: fail_to_remove_new_master_key_seqno_from_keyring
+--let $debug_point=fail_to_remove_new_master_key_seqno_from_keyring
+--let $expected_error=0
+--let $current_master_key_id=36
+--let $rotated_master_key_id=37
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that a warning 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when setting last purged master key seqno on keyring.
+--echo # Part 21: fail_to_set_last_purged_master_key_seqno_on_keyring
+--let $debug_point=fail_to_set_last_purged_master_key_seqno_on_keyring
+--let $expected_error=0
+--let $current_master_key_id=38
+--let $rotated_master_key_id=39
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when setting master key seqno on keyring.
+--echo # Part 22: fail_to_set_master_key_seqno_on_keyring
+--let $debug_point=fail_to_set_master_key_seqno_on_keyring
+--source include/add_debug_point.inc
+--replace_result \\ /
+--error ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+# Verify that an error 'ER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an error
+# on restoring master key seqno on keyring with its backup. This
+# happens if a previous 'ALTER INSTANCE ROTATE BINLOG MASTER KEY'
+# statement failed to store master key seqno on keyring after
+# removing it from keyring.
+--let $debug_point=fail_to_set_master_key_seqno_on_keyring
+--source include/add_debug_point.inc
+--replace_result \\ /
+--error ER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/remove_debug_point.inc
+
+--let $current_master_key_id=39
+--let $rotated_master_key_id=41
+--source suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
+
+
+# Verify that an error 'ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG'
+# is emitted to the client side when executing the command
+# 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' if there is an
+# error when reading an index file during re-encryption.
+--echo # Part 23: fail_to_read_index_file
+--let $debug_point=fail_to_read_index_file
+--let $expected_error=ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+--let $current_master_key_id=42
+--let $rotated_master_key_id=43
+--source suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
+
+DROP TABLE t1;
