@@ -1471,6 +1471,23 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1",
     "1" },
   
+  {
+    CFG_DB_ENABLE_MT_BACKUP,
+    "EnableMultithreadedBackup",
+    DB_TOKEN,
+    "Enable multi-threaded backup. If the cluster config permits, i.e. if"
+    " all nodes have at least 2 LDMs, all the LDM threads will participate"
+    " in backup. The backup will be written in the mt-backup file format,"
+    " which consists of one subdirectory per LDM thread, where"
+    " each subdirectory contains Ctl, Data and Log backup files.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "1",
+    "0",
+    "1"
+  },
+
   { 
     CFG_DB_BACKUP_DATADIR,
     "BackupDataDir",

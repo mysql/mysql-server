@@ -283,6 +283,24 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 			    &m_backup_report_frequency);
 
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
+
+ /* Check config parameter for ndmtd named EnableMultithreadedBackup. If
+  * set to 1, ndbmtd will attempt to execute backups as multithreaded backups.
+  * In a multithreaded backup, all the LDMs in a node perform backup work.
+  * The multithreaded backup directory structure is different from the existing
+  * backup directory structure.
+  *
+  * It is not guaranteed that a setting of EnableMultithreadedBackup=1 will
+  * result in a multithreaded backup, since multithreaded backups are only run
+  * if all the data nodes have more than one LDM.
+  *
+  * If EnableMultithreadedBackup=0, backup will always be single-threaded.
+  * The default is EnableMultithreadedBackup=1.
+  */
+  m_cfg_mt_backup = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_MT_BACKUP,
+                            &m_cfg_mt_backup);
+
   //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, &noFrags));

@@ -4163,7 +4163,6 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->masterRef = reference();
   ptr.p->nodes = c_aliveNodes;
 
-  m_cfg_mt_backup = 1;
   Uint32 node = ptr.p->nodes.find_first();
   Uint32 version = getNodeInfo(getOwnNodeId()).m_version;
   ptr.p->idleFragWorkerCount = 0;
