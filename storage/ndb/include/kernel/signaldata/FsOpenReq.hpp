@@ -157,11 +157,15 @@ private:
    */
   static Uint32 v2_getSequence(const Uint32 fileNumber[]);
   static Uint32 v2_getNodeId(const Uint32 fileNumber[]);
+  static Uint32 v2_getPartNum(const Uint32 fileNumber[]);
   static Uint32 v2_getCount(const Uint32 fileNumber[]);
+  static Uint32 v2_getTotalParts(const Uint32 fileNumber[]);
 
   static void v2_setSequence(Uint32 fileNumber[], Uint32 no);
   static void v2_setNodeId(Uint32 fileNumber[], Uint32 no);
+  static void v2_setPartNum(Uint32 fileNumber[], Uint32 no);
   static void v2_setCount(Uint32 fileNumber[], Uint32 no);
+  static void v2_setTotalParts(Uint32 fileNumber[], Uint32 no);
 
   /**
    * V4 - Specified filename
@@ -322,22 +326,46 @@ void FsOpenReq::v2_setSequence(Uint32 fileNumber[], Uint32 val){
 
 inline 
 Uint32 FsOpenReq::v2_getNodeId(const Uint32 fileNumber[]){
-  return fileNumber[1];
+  return (fileNumber[1] & 0x0000FFFF);
 }
 
 inline
 void FsOpenReq::v2_setNodeId(Uint32 fileNumber[], Uint32 val){
-  fileNumber[1] = val;
+  const Uint32 t = fileNumber[1];
+  fileNumber[1] = (t & 0xFFFF0000) | (((Uint32)val) & 0x0000FFFF);
 }
 
 inline 
+Uint32 FsOpenReq::v2_getPartNum(const Uint32 fileNumber[]){
+  return ((fileNumber[1] >> 16) & 0x0000FFFF);
+}
+
+inline
+void FsOpenReq::v2_setPartNum(Uint32 fileNumber[], Uint32 val){
+  Uint32 t = fileNumber[1] ;
+  fileNumber[1] = (t & 0x0000FFFF) | ((val << 16) & 0xFFFF0000);
+}
+
+inline
 Uint32 FsOpenReq::v2_getCount(const Uint32 fileNumber[]){
-  return fileNumber[2];
+  return (fileNumber[2] & 0x0000FFFF);
 }
 
 inline
 void FsOpenReq::v2_setCount(Uint32 fileNumber[], Uint32 val){
-  fileNumber[2] = val;
+  const Uint32 t = fileNumber[2];
+  fileNumber[2] = (t & 0xFFFF0000) | (((Uint32)val) & 0x0000FFFF);
+}
+
+inline
+Uint32 FsOpenReq::v2_getTotalParts(const Uint32 fileNumber[]){
+  return ((fileNumber[2] >> 16) & 0x0000FFFF);
+}
+
+inline
+void FsOpenReq::v2_setTotalParts(Uint32 fileNumber[], Uint32 val){
+  Uint32 t = fileNumber[2] ;
+  fileNumber[2] = (t & 0x0000FFFF) | ((val << 16) & 0xFFFF0000);
 }
 
 /****************/

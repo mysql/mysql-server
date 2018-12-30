@@ -6236,6 +6236,39 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
   FsOpenReq::v2_setSequence(req->fileNumber, ptr.p->backupId);
   FsOpenReq::v2_setNodeId(req->fileNumber, getOwnNodeId());
+  /*
+   * NDBFS supports 2 backup formats: single-threaded backup and
+   * multithreaded backup format.
+   *
+   * Example of st-backup directory structure in backup path (backup
+   * files present in BACKUP-<backupID> directory):
+   *
+   * mysql@psangam-T460:~$ ls data2/BACKUP/
+   * BACKUP-1  BACKUP-2
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   *
+   * Example of mt-backup directory structure (backup subfolders in
+   * BACKUP-<backupID>, subfolders contain backup files):
+   *
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/
+   * BACKUP-1-PART-1-OF-4  BACKUP-1-PART-2-OF-4  BACKUP-1-PART-3-OF-4  BACKUP-1-PART-4-OF-4
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/BACKUP-1-PART-1-OF-4/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/BACKUP-1-PART-2-OF-4/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/BACKUP-1-PART-3-OF-4/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   * mysql@psangam-T460:~$ ls data2/BACKUP/BACKUP-1/BACKUP-1-PART-4-OF-4/
+   * BACKUP-1-0.2.Data  BACKUP-1.2.ctl  BACKUP-1.2.log
+   *
+   * NDBFS is now aware of the backup part in the file-open operation, as
+   * well as the total number of backup parts. If a backup part number is set
+   * to 0, it creates files as per the single-threaded backup directory
+   * structure. If a non-zero part number is set, it creates files as per the
+   * mt-backup directory structure.
+   */
+  FsOpenReq::v2_setPartNum(req->fileNumber, 0);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 
   /**
@@ -6253,6 +6286,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_LOG);
   FsOpenReq::v2_setSequence(req->fileNumber, ptr.p->backupId);
   FsOpenReq::v2_setNodeId(req->fileNumber, getOwnNodeId());
+  FsOpenReq::v2_setPartNum(req->fileNumber, 0);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 
   /**
@@ -6270,6 +6304,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
   FsOpenReq::v2_setSequence(req->fileNumber, ptr.p->backupId);
   FsOpenReq::v2_setNodeId(req->fileNumber, getOwnNodeId());
+  FsOpenReq::v2_setPartNum(req->fileNumber, 0);
   FsOpenReq::v2_setCount(req->fileNumber, 0);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
