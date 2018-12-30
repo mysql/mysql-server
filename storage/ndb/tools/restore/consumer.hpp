@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 #include "Restore.hpp"
 #include "ndb_nodegroup_map.h"
 #include "sql/ha_ndbcluster_tables.h"
+#include <NdbThread.h>
+#include "../../../../sql/ha_ndbcluster_tables.h"
 
 class BackupConsumer {
 public:
@@ -67,6 +69,19 @@ public:
   virtual bool table_equal(const TableS &) { return true; }
   virtual bool table_compatible_check(TableS &) {return true;}
   virtual bool check_blobs(TableS &) {return true;}
+};
+
+class RestoreThreadData {
+public:
+  Uint32 m_part_id;
+  int m_result;
+  bool m_restore_meta;
+  NdbThread *m_thread;
+  Vector<BackupConsumer*> m_consumers;
+  RestoreThreadData(Uint32 part_id)
+                    : m_part_id(part_id), m_result(0), m_restore_meta(false),
+                      m_thread(NULL) {}
+  ~RestoreThreadData() {}
 };
 
 #endif

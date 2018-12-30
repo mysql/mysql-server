@@ -55,7 +55,6 @@ bool ga_dont_ignore_systab_0 = false;
 static bool ga_no_upgrade = false;
 static bool ga_promote_attributes = false;
 static bool ga_demote_attributes = false;
-static Vector<class BackupConsumer *> g_consumers;
 
 static const Uint32 BF_UNKNOWN = 0;
 static const Uint32 BF_SINGLE = 1;
@@ -821,7 +820,7 @@ o verify nodegroup mapping
   return true;
 }
 
-bool create_consumers(Uint32 part_id)
+bool create_consumers(RestoreThreadData *data)
 {
   BackupPrinter *printer = new BackupPrinter(opt_nodegroup_map,
                                 opt_nodegroup_map_len);
@@ -829,7 +828,7 @@ bool create_consumers(Uint32 part_id)
     return false;
 
   char threadname[20];
-  BaseString::snprintf(threadname, sizeof(threadname), "%d-%u", ga_nodeId, part_id);
+  BaseString::snprintf(threadname, sizeof(threadname), "%d-%u", ga_nodeId, data->m_part_id);
   BackupRestore* restore = new BackupRestore(g_cluster_connection,
                                              opt_nodegroup_map,
                                              opt_nodegroup_map_len,
@@ -894,10 +893,13 @@ bool create_consumers(Uint32 part_id)
     // do only the init work, and skip the ndbapi function calls to create or
     // delete the metadata objects.
     restore->m_metadata_work_requested = true;
-    if (part_id == 1)
+    if (data->m_part_id == 1)
     {
       // restore-thread 1 must perform actual work of restoring metadata
       restore->m_restore_meta = true;
+      // use thread-specific flag saved in RestoreThreadData to determine
+      // whether the thread should restore metadata objects
+      data->m_restore_meta = true;
     }
     if(ga_exclude_missing_tables)
     {
@@ -927,41 +929,41 @@ bool create_consumers(Uint32 part_id)
   if (ga_restore_epoch)
   {
     restore->m_restore_epoch_requested = true;
-    if (part_id == 1)
+    if (data->m_part_id == 1)
       restore->m_restore_epoch = true;
   }
 
   if (ga_disable_indexes)
   {
     restore->m_metadata_work_requested = true;
-    if (part_id == 1)
+    if (data->m_part_id == 1)
       restore->m_disable_indexes = true;
   }
 
   if (ga_rebuild_indexes)
   {
     restore->m_metadata_work_requested = true;
-    if (part_id == 1)
+    if (data->m_part_id == 1)
       restore->m_rebuild_indexes = true;
   }
 
   {
     BackupConsumer * c = printer;
-    g_consumers.push_back(c);
+    data->m_consumers.push_back(c);
   }
   {
     BackupConsumer * c = restore;
-    g_consumers.push_back(c);
+    data->m_consumers.push_back(c);
   }
   return true;
 }
 
 void
-clear_consumers()
+clear_consumers(RestoreThreadData *data)
 {
-  for(Uint32 i= 0; i<g_consumers.size(); i++)
-    delete g_consumers[i];
-  g_consumers.clear();
+  for(Uint32 i= 0; i<data->m_consumers.size(); i++)
+    delete data->m_consumers[i];
+  data->m_consumers.clear();
 }
 
 static inline bool
@@ -1215,7 +1217,7 @@ checkDbAndTableName(const TableS* table)
 }
 
 static void
-exclude_missing_tables(const RestoreMetaData& metaData)
+exclude_missing_tables(const RestoreMetaData& metaData, const Vector<BackupConsumer*> g_consumers)
 {
   Uint32 i, j;
   bool isMissing;
@@ -1247,10 +1249,14 @@ exclude_missing_tables(const RestoreMetaData& metaData)
 }
 
 static void
-free_data_callback()
+free_data_callback(void *ctx)
 {
-  for(Uint32 i= 0; i < g_consumers.size(); i++) 
-    g_consumers[i]->tuple_free();
+  // RestoreThreadData is passed as context object to in RestoreDataIterator
+  // ctor. RestoreDataIterator calls callback function with context object
+  // as parameter, so that callback can extract thread info from it.
+  RestoreThreadData *data = (RestoreThreadData*)ctx;
+  for(Uint32 i= 0; i < data->m_consumers.size(); i++)
+    data->m_consumers[i]->tuple_free();
 }
 
 static void
@@ -1355,19 +1361,19 @@ check_data_truncations(const TableS * table)
   }
 }
 
-int do_restore(const Uint32 partId)
+int do_restore(RestoreThreadData *thrdata)
 {
   init_progress();
 
   char timestamp[64];
-
+  Vector<BackupConsumer*> &g_consumers = thrdata->m_consumers;
   /**
    * we must always load meta data, even if we will only print it to stdout
    */
 
   debug << "Start restoring meta data" << endl;
 
-  RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId, partId, ga_part_count);
+  RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId, thrdata->m_part_id, ga_part_count);
 #ifdef ERROR_INSERT
   if(_error_insert > 0)
   {
@@ -1513,7 +1519,7 @@ int do_restore(const Uint32 partId)
   }
 
   if(ga_exclude_missing_tables)
-    exclude_missing_tables(metaData);
+    exclude_missing_tables(metaData, thrdata->m_consumers);
 
   /* report to clusterlog if applicable */
   for (i = 0; i < g_consumers.size(); i++)
@@ -1698,7 +1704,7 @@ int do_restore(const Uint32 partId)
         }
       }
         
-      RestoreDataIterator dataIter(metaData, &free_data_callback);
+      RestoreDataIterator dataIter(metaData, &free_data_callback, (void*)thrdata);
 
       if (!dataIter.validateBackupFile())
       {
@@ -2042,12 +2048,6 @@ main(int argc, char** argv)
   // serial restore, multithreading added in later commit
   for (int i=1; i<=ga_part_count; i++)
   {
-    if (!create_consumers(i))
-    {
-      err << "Failed to create consumers for part " << i << endl;
-      return NDBT_FAILED;
-    }
-
    /*
     * do_restore uses its parameter 'partId' to select the backup part.
     * Each restore thread is started with a unique part ID.
@@ -2072,9 +2072,17 @@ main(int argc, char** argv)
     * -OF-<total>/
     * E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1/BACKUP-1-PART-2-OF-4/
     */
-    result = do_restore(i);
 
-    clear_consumers();
+    RestoreThreadData thrdata(i);
+    if (!create_consumers(&thrdata))
+    {
+      err << "Failed to create consumers for part " << i << endl;
+      return NDBT_FAILED;
+    }
+
+    result = do_restore(&thrdata);
+
+    clear_consumers(&thrdata);
 
     if (result == NDBT_FAILED)
       break;

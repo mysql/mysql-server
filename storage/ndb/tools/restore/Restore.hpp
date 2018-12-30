@@ -357,7 +357,9 @@ protected:
   UtilBuffer m_twiddle_buffer;
 
   bool  m_is_undolog;
-  void (* free_data_callback)();
+  void (* free_data_callback)(void*);
+  void *m_ctx; // context for callback function
+
   virtual void reset_buffers() {}
 
   // In case of multiple backup parts, each backup part is
@@ -377,7 +379,7 @@ protected:
 
   void setName(const char * path, const char * name);
 
-  BackupFile(void (* free_data_callback)() = 0);
+  BackupFile(void (* free_data_callback)(void*) = 0, void *ctx = 0);
   virtual ~BackupFile();
 
 public:
@@ -470,7 +472,7 @@ public:
 
   // Constructor
   RestoreDataIterator(const RestoreMetaData &,
-                      void (* free_data_callback)());
+                      void (* free_data_callback)(void*), void*);
   virtual ~RestoreDataIterator();
   
   // Read data file fragment header

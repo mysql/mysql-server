@@ -866,8 +866,8 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 }
 
 // Constructor
-RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _free_data_callback)())
-  : BackupFile(_free_data_callback), m_metaData(md)
+RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _free_data_callback)(void*), void *ctx)
+  : BackupFile(_free_data_callback, ctx), m_metaData(md)
 {
   debug << "RestoreDataIterator constructor" << endl;
   setDataFile(md, 0);
@@ -1037,7 +1037,7 @@ RestoreDataIterator::getNextTuple(int  & res)
        * But I can't find a good/easy way to do this
        */
       if (free_data_callback)
-        (*free_data_callback)();
+        (*free_data_callback)(m_ctx);
       reset_bitfield_storage();
     }
   }
@@ -1402,8 +1402,8 @@ RestoreDataIterator::readVarData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
   return 0;
 }
 
-BackupFile::BackupFile(void (* _free_data_callback)()) 
-  : free_data_callback(_free_data_callback)
+BackupFile::BackupFile(void (* _free_data_callback)(void*), void *ctx)
+  : free_data_callback(_free_data_callback), m_ctx(ctx)
 {
   memset(&m_file,0,sizeof(m_file));
   m_path[0] = 0;
@@ -1478,7 +1478,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
   if (sz > m_buffer_data_left) {
 
     if (free_data_callback)
-      (*free_data_callback)();
+      (*free_data_callback)(m_ctx);
 
     reset_buffers();
 
