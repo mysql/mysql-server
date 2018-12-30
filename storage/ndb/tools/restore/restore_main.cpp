@@ -828,10 +828,12 @@ bool create_consumers(Uint32 part_id)
   if (printer == NULL)
     return false;
 
+  char threadname[20];
+  BaseString::snprintf(threadname, sizeof(threadname), "%d-%u", ga_nodeId, part_id);
   BackupRestore* restore = new BackupRestore(g_cluster_connection,
                                              opt_nodegroup_map,
                                              opt_nodegroup_map_len,
-                                             ga_nodeId,
+                                             threadname,
                                              ga_nParallelism);
 
   if (restore == NULL)

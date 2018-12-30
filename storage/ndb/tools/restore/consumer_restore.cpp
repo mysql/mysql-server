@@ -29,6 +29,7 @@
 #include <NdbTick.h>
 #include <Properties.hpp>
 #include <NdbTypesUtil.hpp>
+#include <ndb_rand.h>
 
 #include <ndb_internal.hpp>
 #include <ndb_logevent.h>
@@ -2556,9 +2557,12 @@ BackupRestore::table_compatible_check(TableS & tableS)
   if (tableS.m_staging)
   {
     // fully qualified name, dissected at createTable()
+    // For mt-restore, each thread creates its own staging table.
+    // To ensure that each thread has a unique staging table name,
+    // the tablename contains m_instance_name=nodeID.threadID
     BaseString& stagingName = tableS.m_stagingName;
-    stagingName.assfmt("%s%s%d", tableS.getTableName(),
-                       NDB_RESTORE_STAGING_SUFFIX, m_backup_nodeid);
+    stagingName.assfmt("%s%s%s", tableS.getTableName(),
+                       NDB_RESTORE_STAGING_SUFFIX, m_instance_name);
 
     NdbDictionary::Table* stagingTable = new NdbDictionary::Table;
 
@@ -2859,10 +2863,27 @@ BackupRestore::table(const TableS & table){
     info << "Successfully restored table `"
          << table.getTableName() << "`" << endl;
   }  
-  
-  const NdbDictionary::Table* tab = dict->getTable(table_name.c_str());
-  if(tab == 0){
-    err << "Unable to find table: `" << table_name << "`" 
+
+  // In mt-restore, many restore-threads may be querying DICT for the
+  // same table at one time, which could result in failures. Add retries.
+  const NdbDictionary::Table* tab = 0;
+  for (int retries = 0; retries < 10; retries++)
+  {
+    tab = dict->getTable(table_name.c_str());
+    if (tab)
+      break;
+    else
+    {
+      const NdbError& error = dict->getNdbError();
+      if (error.status != NdbError::TemporaryError)
+        NdbSleep_MilliSleep((ndb_rand() % 10) * 10);
+      else
+        break;
+    }
+  }
+  if(tab == 0)
+  {
+    err << "Unable to find table: `" << table_name << "`"
         << " error : " << dict->getNdbError().code << endl;
     return false;
   }

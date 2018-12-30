@@ -64,7 +64,7 @@ public:
   BackupRestore(Ndb_cluster_connection *conn,
                 NODE_GROUP_MAP *ng_map,
                 uint ng_map_len,
-                int backup_nodeid,
+                const char *instance_name,
                 Uint32 parallelism) :
     m_ndb(NULL),
     m_cluster_connection(conn)
@@ -84,7 +84,6 @@ public:
     m_no_restore_disk = false;
     m_restore_epoch_requested = false;
     m_restore_epoch = false;
-    m_backup_nodeid = backup_nodeid;
     m_parallelism = parallelism;
     m_callback = 0;
     m_free_callback = 0;
@@ -96,6 +95,7 @@ public:
     m_cache.m_old_table = 0;
     m_disable_indexes = false;
     m_rebuild_indexes = false;
+    snprintf(m_instance_name, BackupRestore::INSTANCE_ID_LEN, "%s", instance_name);
   }
   
   virtual ~BackupRestore();
@@ -242,7 +242,9 @@ public:
   Uint32 m_logCount;
   Uint32 m_dataCount;
 
-  int m_backup_nodeid;
+  static const Uint32 INSTANCE_ID_LEN = 10;
+  char m_instance_name[INSTANCE_ID_LEN];
+
   Uint32 m_parallelism;
   volatile Uint32 m_transactions;
 
