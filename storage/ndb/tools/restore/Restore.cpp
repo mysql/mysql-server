@@ -2367,6 +2367,16 @@ LogEntry::printSqlLog() const {
   ndbout << ";";
 }
 
+RestoreLogger::RestoreLogger()
+{
+  m_mutex = NdbMutex_Create();
+}
+
+RestoreLogger::~RestoreLogger()
+{
+  NdbMutex_Destroy(m_mutex);
+}
+
 void RestoreLogger::log_error(const char* fmt, ...)
 {
   va_list ap;
@@ -2375,7 +2385,9 @@ void RestoreLogger::log_error(const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+  NdbMutex_Lock(m_mutex);
   err << buf << endl;
+  NdbMutex_Unlock(m_mutex);
 }
 
 void RestoreLogger::log_info(const char* fmt, ...)
@@ -2386,7 +2398,9 @@ void RestoreLogger::log_info(const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+  NdbMutex_Lock(m_mutex);
   info << buf << endl;
+  NdbMutex_Unlock(m_mutex);
 }
 
 void RestoreLogger::log_debug(const char* fmt, ...)
@@ -2397,7 +2411,9 @@ void RestoreLogger::log_debug(const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+  NdbMutex_Lock(m_mutex);
   debug << buf << endl;
+  NdbMutex_Unlock(m_mutex);
 }
 
 #include <NDBT.hpp>

@@ -37,6 +37,7 @@
 
 #include <ndb_version.h>
 #include <version.h>
+#include <NdbMutex.h>
 
 #define NDB_RESTORE_STAGING_SUFFIX "$ST"
 #ifdef ERROR_INSERT
@@ -565,12 +566,16 @@ public:
 
 class RestoreLogger {
 public:
+  RestoreLogger();
+  ~RestoreLogger();
   void log_info(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
   void log_debug(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
   void log_error(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
+private:
+  NdbMutex *m_mutex;
 };
 
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);

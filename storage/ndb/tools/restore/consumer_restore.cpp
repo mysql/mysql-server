@@ -1146,7 +1146,7 @@ BackupRestore::finalize_staging(const TableS & tableS)
   if (md.init(source, target) != 0)
   {
     const Ndb_move_data::Error& error = md.get_error();
-    restoreLogger.log_error("Move data %s to %s : %u", stablename, ttablename, error.code);
+    restoreLogger.log_error("Move data %s to %s : %u %s", stablename, ttablename, error.code, error.message);
     return false;
   }
 
@@ -1170,11 +1170,11 @@ BackupRestore::finalize_staging(const TableS & tableS)
     {
       const Ndb_move_data::Error& error = md.get_error();
 
-      restoreLogger.log_error("Move data %s to %s %s at try %u at rows moved %llu total %llu error %u",
+      restoreLogger.log_error("Move data %s to %s %s at try %u at rows moved %llu total %llu error %u %s",
          stablename, ttablename,
          (error.is_temporary() ? "temporary error" : "permanent error"),
          tries, // default is no limit
-         stat.rows_moved, stat.rows_total, error.code);
+         stat.rows_moved, stat.rows_total, error.code, error.message);
 
       if (!error.is_temporary())
         return false;
@@ -3444,9 +3444,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     m_transactions++;
     return;
   }
-  restoreLogger.log_error("Retried transaction %u times.\nLast error %u"
+  restoreLogger.log_error("Retried transaction %u times.\nLast error %u %s"
       "...Unable to recover from errors. Exiting...",
-      cb->retries, m_ndb->getNdbError(cb->error_code).code);
+      cb->retries, m_ndb->getNdbError(cb->error_code).code, m_ndb->getNdbError(cb->error_code).message);
   exitHandler();
 }
 
@@ -3583,26 +3583,26 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
   switch(error.status)
   {
   case NdbError::Success:
-    restoreLogger.log_error("Success error: %u", error.code);
+    restoreLogger.log_error("Success error: %u %s", error.code, error.message);
     return false;
     // ERROR!
     
   case NdbError::TemporaryError:
-    restoreLogger.log_error("Temporary error: %u", error.code);
+    restoreLogger.log_error("Temporary error: %u %s", error.code, error.message);
     m_temp_error = true;
     NdbSleep_MilliSleep(sleepTime);
     return true;
     // RETRY
     
   case NdbError::UnknownResult:
-    restoreLogger.log_error("Unknown: %u", error.code);
+    restoreLogger.log_error("Unknown: %u %s", error.code, error.message);
     return false;
     // ERROR!
     
   default:
   case NdbError::PermanentError:
     //ERROR
-    restoreLogger.log_error("Permanent: %u", error.code);
+    restoreLogger.log_error("Permanent: %u %s", error.code, error.message);
     return false;
   }
   restoreLogger.log_error("No error status");
