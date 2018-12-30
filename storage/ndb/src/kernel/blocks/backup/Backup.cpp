@@ -3439,13 +3439,6 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
     ndbrequire(c_backups.first(ptr));
 
     jam();
-
-    if (isNdbMtLqh() && instance() != UserBackupInstanceKey)
-    {
-      // only LDM1 participates in backup, so other threads
-      // always have buffer usage = 0
-      break;
-    }
     Uint32 files[2] = { ptr.p->dataFilePtr[0], ptr.p->logFilePtr };
     for (Uint32 i=0; i<NDB_ARRAY_SIZE(files); i++)
     {
