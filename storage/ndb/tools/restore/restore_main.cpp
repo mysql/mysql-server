@@ -1532,6 +1532,33 @@ int do_restore(RestoreThreadData *thrdata)
   for (i = 0; i < g_consumers.size(); i++)
     g_consumers[i]->report_started(ga_backupId, ga_nodeId);
 
+  if (!thrdata->m_restore_meta)
+  {
+    /**
+     * Only thread 1 is allowed to restore metadata objects. restore_meta
+     * flag is set to true on thread 1, which causes consumer-restore to
+     * actually restore the metadata objects,
+     * e.g. g_consumer->object(tablespace) restores the tablespace
+     *
+     * Remaining threads have restore_meta = false, which causes
+     * consumer-restore to query metadata objects and save metadata for
+     * reference by later phases of restore
+     * e.g. g_consumer->object(tablespace) queries+saves tablespace metadata
+     *
+     * So thread 1 must finish restoring all metadata objects before any other
+     * thread is allowed to start metadata restore. Use CyclicBarrier to allow
+     * all threads except thread-1 to arrive at barrier. Barrier will not be
+     * opened until all threads arrive at it, so all threads will wait till
+     * thread 1 arrives at barrier. When thread 1 completes metadata restore,
+     * it arrives at barrier, opening barrier and allowing all threads to
+     * proceed to next restore-phase.
+     */
+    if (!thrdata->m_barrier->wait())
+    {
+      ga_error_thread = thrdata->m_part_id;
+      return NDBT_FAILED;
+    }
+  }
   debug << "Restore objects (tablespaces, ..)" << endl;
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
   info << timestamp << " [restore_metadata]" << " Restore objects (tablespaces, ..)" << endl;
@@ -1653,6 +1680,17 @@ int do_restore(RestoreThreadData *thrdata)
       } 
     }
   }
+
+  if (thrdata->m_restore_meta)
+  {
+    // thread 1 arrives at barrier -> barrier opens -> all threads continue
+    if (!thrdata->m_barrier->wait())
+    {
+      ga_error_thread = thrdata->m_part_id;
+      return NDBT_FAILED;
+    }
+  }
+
   /* report to clusterlog if applicable */
   for(i= 0; i < g_consumers.size(); i++)
   {
@@ -1917,6 +1955,18 @@ int do_restore(RestoreThreadData *thrdata)
 
   if (ga_rebuild_indexes)
   {
+    /**
+     * Index rebuild should not be allowed to start until all threads have
+     * finished restoring data. Wait until all threads have arrived at
+     * barrier, then allow all threads to continue. Thread 1 will then rebuild
+     * indices, while all other threads do nothing.
+     */
+    if (!thrdata->m_barrier->wait())
+    {
+      ga_error_thread = thrdata->m_part_id;
+      return NDBT_FAILED;
+    }
+
     debug << "Rebuilding indexes" << endl;
     Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
     info << timestamp << " [rebuild_indexes]" << " Rebuilding indexes" << endl;
@@ -2115,7 +2165,8 @@ main(int argc, char** argv)
       * -OF-<total>/
       * E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1/BACKUP-1-PART-2-OF-4/
       */
-      RestoreThreadData thrdata(i);
+      CyclicBarrier barrier(1);
+      RestoreThreadData thrdata(i, &barrier);
       if (!create_consumers(&thrdata))
       {
         err << "Failed to init restore thread" << endl;
@@ -2144,13 +2195,14 @@ main(int argc, char** argv)
   {
    // create one restore thread per backup part
     Vector<RestoreThreadData*> thrdata;
+    CyclicBarrier barrier(ga_part_count);
     for (int part_id=1; part_id<=ga_part_count; part_id++)
     {
       NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_MEAN;
       uint stack_size = 64*1024;
       char name[20];
       snprintf (name, sizeof(name), "restore%d", part_id);
-      RestoreThreadData *data = new RestoreThreadData(part_id);
+      RestoreThreadData *data = new RestoreThreadData(part_id, &barrier);
       if (!create_consumers(data))
       {
         err << "Failed to init restore thread for part BACKUP-"
@@ -2174,6 +2226,9 @@ main(int argc, char** argv)
     for (Uint32 i=0; i<thrdata.size(); i++)
     {
       void *status;
+      if (ga_error_thread > 0)
+        barrier.cancel();
+
       NdbThread_WaitFor(thrdata[i]->m_thread, &status);
       NdbThread_Destroy(&thrdata[i]->m_thread);
     }
