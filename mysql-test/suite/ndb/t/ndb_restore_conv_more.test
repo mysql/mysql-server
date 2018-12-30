@@ -524,12 +524,26 @@ create table text2text (pk int primary key,
 --echo # run restore
 --error 1
 --exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
---echo # ndb_restore fails with error 1
---exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST1 >> $NDB_TOOLS_OUTPUT
+--echo # ndb_restore fails with error 1, staging table suffixes 'ST1-<id>' depend upon total #ldms
+--error 0,1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST1-1 >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST1-2 >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST1-3 >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST1-4 >> $NDB_TOOLS_OUTPUT
 --error 1
 --exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
---echo # ndb_restore fails with error 1
---exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST2 >> $NDB_TOOLS_OUTPUT
+--echo # ndb_restore fails with error 1, staging table suffixes 'ST1-<id>' depend upon total #ldms
+--error 0,1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST2-1 >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST2-2 >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST2-3 >> $NDB_TOOLS_OUTPUT
+--error 0,1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST2-4 >> $NDB_TOOLS_OUTPUT
 
 --echo # restore to text column with different charset 
 drop table text2text;

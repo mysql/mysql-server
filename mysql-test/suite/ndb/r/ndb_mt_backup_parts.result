@@ -1,0 +1,99 @@
+create table all_data (id int primary key, val int) engine=ndb;
+create table part_data (id int primary key, val int) engine=ndb;
+create table all_logs (txt varchar(512)) engine=ndb;
+create table part_logs (txt varchar(512)) engine=ndb;
+create table txt (a varchar(512)) engine=ndb;
+insert into part_data values (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8);
+
+Starting backup
+Backup started
+update part_data set val = 0;
+
+Waiting for backup to complete
+Backup completed
+delete from part_data;
+Restore data of part 4 on node 2
+Check that part data does not overlap with already restored data
+select count(*) from part_data join all_data where part_data.id = all_data.id;
+count(*)
+0
+Capture backup logs of part 4 on node 2
+Check that part logs do not overlap with logs from other parts
+select count(*) from part_logs join all_logs where part_logs.txt = all_logs.txt;
+count(*)
+0
+Restore data of part 3 on node 2
+Check that part data does not overlap with already restored data
+select count(*) from part_data join all_data where part_data.id = all_data.id;
+count(*)
+0
+Capture backup logs of part 3 on node 2
+Check that part logs do not overlap with logs from other parts
+select count(*) from part_logs join all_logs where part_logs.txt = all_logs.txt;
+count(*)
+0
+Restore data of part 2 on node 2
+Check that part data does not overlap with already restored data
+select count(*) from part_data join all_data where part_data.id = all_data.id;
+count(*)
+0
+Capture backup logs of part 2 on node 2
+Check that part logs do not overlap with logs from other parts
+select count(*) from part_logs join all_logs where part_logs.txt = all_logs.txt;
+count(*)
+0
+Restore data of part 1 on node 2
+Check that part data does not overlap with already restored data
+select count(*) from part_data join all_data where part_data.id = all_data.id;
+count(*)
+0
+Capture backup logs of part 1 on node 2
+Check that part logs do not overlap with logs from other parts
+select count(*) from part_logs join all_logs where part_logs.txt = all_logs.txt;
+count(*)
+0
+Restore data of part 4 on node 1
+Check that part data does not overlap with already restored data
+select count(*) from part_data join all_data where part_data.id = all_data.id;
+count(*)
+0
+Capture backup logs of part 4 on node 1
+Check that part logs do not overlap with logs from other parts
+select count(*) from part_logs join all_logs where part_logs.txt = all_logs.txt;
+count(*)
+0
+Restore data of part 3 on node 1
+Check that part data does not overlap with already restored data
+select count(*) from part_data join all_data where part_data.id = all_data.id;
+count(*)
+0
+Capture backup logs of part 3 on node 1
+Check that part logs do not overlap with logs from other parts
+select count(*) from part_logs join all_logs where part_logs.txt = all_logs.txt;
+count(*)
+0
+Restore data of part 2 on node 1
+Check that part data does not overlap with already restored data
+select count(*) from part_data join all_data where part_data.id = all_data.id;
+count(*)
+0
+Capture backup logs of part 2 on node 1
+Check that part logs do not overlap with logs from other parts
+select count(*) from part_logs join all_logs where part_logs.txt = all_logs.txt;
+count(*)
+0
+Restore data of part 1 on node 1
+Check that part data does not overlap with already restored data
+select count(*) from part_data join all_data where part_data.id = all_data.id;
+count(*)
+0
+Capture backup logs of part 1 on node 1
+Check that part logs do not overlap with logs from other parts
+select count(*) from part_logs join all_logs where part_logs.txt = all_logs.txt;
+count(*)
+0
+drop table txt;
+drop table part_data;
+drop table part_logs;
+drop table all_data;
+drop table all_logs;

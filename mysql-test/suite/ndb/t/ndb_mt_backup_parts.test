@@ -1,0 +1,66 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+create table all_data (id int primary key, val int) engine=ndb;
+create table part_data (id int primary key, val int) engine=ndb;
+create table all_logs (txt varchar(512)) engine=ndb;
+create table part_logs (txt varchar(512)) engine=ndb;
+create table txt (a varchar(512)) engine=ndb;
+
+insert into part_data values (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8);
+
+--exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039"
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+update part_data set val = 0;
+
+--exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0"
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+delete from part_data;
+let $node = 2;
+
+while ($node)
+{
+  let $part = 4;
+  while ($part)
+  {
+    --echo Restore data of part $part on node $node
+    --exec $NDB_RESTORE -b $the_backup_id -n $node -r $NDB_BACKUPS-$the_backup_id/BACKUP-$the_backup_id-PART-$part-OF-4 >> $NDB_TOOLS_OUTPUT 2>&1
+    --echo Check that part data does not overlap with already restored data
+    select count(*) from part_data join all_data where part_data.id = all_data.id;
+
+    --echo Capture backup logs of part $part on node $node
+    --disable_query_log
+    --let $outfile = $MYSQLTEST_VARDIR/tmp/ndb_backup_log.txt
+    --exec $NDB_RESTORE -b $the_backup_id -n $node --print-log $NDB_BACKUPS-$the_backup_id/BACKUP-$the_backup_id-PART-$part-OF-4 > $outfile 2>&1
+    truncate table txt;
+    eval load data infile '$outfile' into table txt fields terminated by '\n';
+    --remove_file $outfile
+    update txt set a = TRIM(TRAILING "\r" FROM a);
+    insert into part_logs select * from txt where (a like 'INSERT %') or (a like 'UPDATE %') or (a like 'DELETE %');
+    --enable_query_log
+
+    --echo Check that part logs do not overlap with logs from other parts
+    select count(*) from part_logs join all_logs where part_logs.txt = all_logs.txt;
+
+    --disable_query_log
+    insert into all_data select * from part_data;
+    insert into all_logs select * from part_logs;
+    delete from part_data;
+    delete from part_logs;
+    --enable_query_log
+    dec $part;
+  }
+  dec $node;
+}
+
+drop table txt;
+drop table part_data;
+drop table part_logs;
+drop table all_data;
+drop table all_logs;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

@@ -502,8 +502,8 @@ t5 mediumtext not null, t6 longtext not null, t7 tinytext not null, t8 text not 
 t9 longtext not null, t10 tinytext not null, t11 text not null, t12 mediumtext not null,
 t13 text not null, t14 mediumtext not null, t15 longtext not null, t16 tinytext not null)engine=NDB;
 # run restore
-# ndb_restore fails with error 1
-# ndb_restore fails with error 1
+# ndb_restore fails with error 1, staging table suffixes 'ST1-<id>' depend upon total #ldms
+# ndb_restore fails with error 1, staging table suffixes 'ST1-<id>' depend upon total #ldms
 # restore to text column with different charset 
 drop table text2text;
 create table text2text (pk int primary key, 

@@ -218,47 +218,47 @@ drop table test.t1;
 --echo Test ndb_restore of backup containing unique index, should warn only for data restore
 
 --echo # print metadata+data+log : should not warn
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # print metadata : should not warn
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print-meta $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print-meta $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # metadata restore : should not warn
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # disable-indexes : should not warn
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --disable-indexes $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --disable-indexes $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # print data : should not warn
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print-data $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print-data $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # print log : should not warn
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print-log $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print-log $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # restore data, but exclude indexed table : should not warn since unique indexes excluded
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --exclude-tables=test.t1 $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --exclude-tables=test.t1 $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # restore data, but exclude database containing indexed table : should not warn since unique indexes excluded
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --exclude-databases=test $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --exclude-databases=test $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # restore data : should warn since unique indexes to be restored
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # restore epoch : should not warn
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -e $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -e $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # rebuild-indexes : should not warn
---exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --remove_file $dump_file
@@ -784,7 +784,7 @@ t512 bigint default 65535
 drop table grp_hssesmusersstoredbytenant;
 
 -- source suite/ndb/include/ndb_find_tools.inc
---exec $NDB_PRINT_BACKUP_FILE $NDB_BACKUPS-$the_backup_id/BACKUP-$the_backup_id.1.ctl >> $NDB_TOOLS_OUTPUT
+--exec $NDB_PRINT_BACKUP_FILE $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id/BACKUP-$the_backup_id-PART-1-OF-4/BACKUP-$the_backup_id.1.ctl >> $NDB_TOOLS_OUTPUT
 
 --exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -m  --print-log $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 

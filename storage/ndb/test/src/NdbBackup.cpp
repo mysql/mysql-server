@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -248,11 +248,9 @@ NdbBackup::execRestore(bool _restore_data,
    * Copy  backup files to local dir
    */ 
   BaseString tmp;
-  tmp.assfmt("scp %s:%s/BACKUP/BACKUP-%d/BACKUP-%d*.%d.* .",
+  tmp.assfmt("scp -r %s:%s/BACKUP/BACKUP-%d/* .",
              host, path,
-             _backup_id,
-             _backup_id,
-             _node_id);
+             _backup_id);
   
   ndbout << "buf: "<< tmp.c_str() <<endl;
   int res = system(tmp.c_str());  
