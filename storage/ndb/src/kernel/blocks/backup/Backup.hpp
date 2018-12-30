@@ -1428,7 +1428,7 @@ public:
             BackupProxyInstanceKey : UserBackupInstanceKey;
   }
 
-  /* assign a fragment to an LDM
+  /* map a fragment to an LDM
    * single-threaded backup: assign fragment to LDM1
    * multithreaded backup: assign fragment to LDM which owns it
    */
@@ -1451,6 +1451,15 @@ public:
   {
     return isNdbMtLqh() ? (instance() == UserBackupInstanceKey) :  true;
   }
+  /*
+   * Select master instance on any node: LDM1 for ndbmtd, LDM0 for ndbd
+   * Used in node-failure aborts when a participant node is promoted to master
+   */
+  Uint32 masterInstanceKey(BackupRecordPtr ptr) {
+     return isNdbMtLqh() ?
+            UserBackupInstanceKey : NdbdInstanceKey;
+  }
+
 
   /**
    * Ugly shared state to allow different worker instances

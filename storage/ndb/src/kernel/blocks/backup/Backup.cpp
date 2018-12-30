@@ -3932,8 +3932,12 @@ Backup::checkNodeFail(Signal* signal,
      * Master died...abort
      */
     ptr.p->masterRef = reference();
+    ptr.p->senderRef = reference();
+    // Each ldm on each node becomes master and sends signals only to self
     ptr.p->nodes.clear();
     ptr.p->nodes.set(getOwnNodeId());
+    ptr.p->fragWorkers[getOwnNodeId()].clear();
+    ptr.p->fragWorkers[getOwnNodeId()].set(instance());
     ptr.p->setErrorCode(AbortBackupOrd::BackupFailureDueToNodeFail);
     switch(ptr.p->m_gsn){
     case GSN_DEFINE_BACKUP_REQ:
@@ -3960,10 +3964,11 @@ Backup::checkNodeFail(Signal* signal,
       return;
     }
   }
-  else if (newCoord == getOwnNodeId())
+  else if (newCoord == getOwnNodeId() &&
+           instance() == masterInstanceKey(ptr))
   {
     /**
-     * I'm master for this backup
+     * I'm master for this backup: LDM1 on master node
      */
     jam();
     CRASH_INSERTION((10001));
@@ -4036,10 +4041,28 @@ Backup::checkNodeFail(Signal* signal,
     for(Uint32 i = 0; (i = mask.find(i+1)) != NdbNodeBitmask::NotFound; )
     {
       signal->theData[pos] = i;
-      sendSignal(reference(), gsn, signal, len, JBB);
+      if (gsn == GSN_BACKUP_FRAGMENT_REF)
+      {
+        // Handle mt-backup case where all LDMs process BACKUP_FRAGMENT_REQs
+        // simultaneously. If any node fails, master sends REFs to self on
+        // behalf of every failed node. Extend handling for BACKUP_FRAGMENT_REQ
+        // so that master sends BACKUP_FRAGMENT_REFs to self from every LDM
+        // on every failed node.
+        Uint32 workers = getNodeInfo(i).m_lqh_workers;
+        for (Uint32 j=0; j<workers; j++)
+        {
+          sendSignal(reference(), gsn, signal, len, JBB);
+        }
+      }
+      else
+      {
+        // master sends REQs only to one instance (BackupProxy) on each node
+        // send only one reply to self per node on behalf of BackupProxy
+        sendSignal(reference(), gsn, signal, len, JBB);
 #ifdef DEBUG_ABORT
-      ndbout_c("sending %d to self from %d", gsn, i);
+        ndbout_c("sending %d to self from %d", gsn, i);
 #endif
+      }
     }
     return;
   }//if
@@ -5541,7 +5564,17 @@ Backup::sendStopBackup(Signal* signal, BackupRecordPtr ptr)
 
   ptr.p->masterData.gsn = GSN_STOP_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
+  Uint32 receiverInstance = instanceKey(ptr);
+
+  if((ptr.p->fragWorkers[getOwnNodeId()].count() == 1)
+      && (ptr.p->fragWorkers[getOwnNodeId()].find_first() == instance()))
+  {
+    // All signal-sender functions in abort protocol detect
+    // send-to-self bitmask settings and send signals accordingly.
+    ptr.p->senderRef = reference();
+    receiverInstance = instance();
+  }
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, receiverInstance);
   NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
   sendSignal(rg, GSN_STOP_BACKUP_REQ, signal, 
 	     StopBackupReq::SignalLength, JBB);
@@ -5704,7 +5737,6 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
 #endif
 
   ndbassert(ptr.p->masterRef == reference());
-
   if(ptr.p->masterData.errorCode != 0)
   {
     jam();
@@ -5733,7 +5765,18 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
   ord->backupId = ptr.p->backupId;
   ord->backupPtr = ptr.i;
   ord->senderData= ptr.i;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
+  Uint32 receiverInstance = instanceKey(ptr); // = BackupProxy for mt-backup
+
+  if((ptr.p->fragWorkers[getOwnNodeId()].count() == 1)
+      && (ptr.p->fragWorkers[getOwnNodeId()].find_first() == instance()))
+  {
+    // All signal-sender functions in abort protocol detect
+    // send-to-self bitmask settings and send signals accordingly.
+    ptr.p->senderRef = reference();
+    receiverInstance = instance();
+  }
+
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, receiverInstance);
   NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
   
   switch(ptr.p->masterData.gsn){
@@ -10368,12 +10411,23 @@ Backup::sendAbortBackupOrd(Signal* signal, BackupRecordPtr ptr,
   ord->requestType = requestType;
   ord->senderData= ptr.i;
   NodePtr node;
+  Uint32 receiverInstance = instanceKey(ptr); // = BackupProxy for mt-backup
+
+  if((ptr.p->fragWorkers[getOwnNodeId()].count() == 1)
+      && (ptr.p->fragWorkers[getOwnNodeId()].find_first() == instance()))
+  {
+    // All signal-sender functions in abort protocol detect
+    // send-to-self bitmask settings and send signals accordingly.
+    ptr.p->senderRef = reference();
+    receiverInstance = instance();
+  }
+
   for(c_nodes.first(node); node.i != RNIL; c_nodes.next(node)) {
     jam();
     const Uint32 nodeId = node.p->nodeId;
     if(node.p->alive && ptr.p->nodes.get(nodeId)) {
       jam();
-      BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), nodeId);
+      BlockReference ref = numberToRef(BACKUP, receiverInstance, nodeId);
       sendSignal(ref, GSN_ABORT_BACKUP_ORD, signal, 
 		 AbortBackupOrd::SignalLength, JBB);
     }//if
@@ -10410,48 +10464,63 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
   c_backupPool.getPtr(ptr, ptrI);
 
   ptr.p->slaveState.setState(STOPPING);
+
   ptr.p->m_gsn = GSN_STOP_BACKUP_REQ;
   ptr.p->startGCP= startGCP;
   ptr.p->stopGCP= stopGCP;
 
-  /**
-   * Ensure that any in-flight changes are
-   * included in the backup log before
-   * dropping the triggers
-   *
-   * This is necessary as the trigger-drop
-   * signals are routed :
-   *
-   *   Backup Worker 1 <-> Proxy <-> TUP Worker 1..n
-   * 
-   * While the trigger firing signals are
-   * routed :
-   *
-   *   TUP Worker 1..n   -> Backup Worker 1
-   *
-   * So the arrival of signal-drop acks
-   * does not imply that all fired 
-   * triggers have been seen.
-   *
-   *  Backup Worker 1
-   *
-   *        |             SYNC_PATH_REQ
-   *        V
-   *     TUP Proxy
-   *    |  | ... |
-   *    V  V     V
-   *    1  2 ... n        (Workers)
-   *    |  |     |
-   *    |  |     |
-   *   
-   *   Backup Worker 1
-   */
-
-  Uint32 path[] = { DBTUP, 0 };
-  Callback cb = { safe_cast(&Backup::startDropTrig_synced), ptrI };
-  synchronize_path(signal,
-                   path,
-                   cb);
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    /**
+     * In multithreaded backup, each Backup Worker sends
+     * trigger-drop and trigger-firing signals only to its
+     * local TUP. No sync is needed to ensure ordering of
+     * trigger signals wrt STOP_BACKUP_REQ, since the
+     * signals are added in order to the signal queue.
+     */
+    Uint32 retVal = 0;
+    startDropTrig_synced(signal, ptrI, retVal);
+  }
+  else
+  {
+    /**
+     * Ensure that any in-flight changes are
+     * included in the backup log before
+     * dropping the triggers
+     *
+     * This is necessary as the trigger-drop
+     * signals are routed :
+     *
+     *   Backup Worker 1 <-> Proxy <-> TUP Worker 1..n
+     *
+     * While the trigger firing signals are
+     * routed :
+     *
+     *   TUP Worker 1..n   -> Backup Worker 1
+     *
+     * So the arrival of signal-drop acks
+     * does not imply that all fired
+     * triggers have been seen.
+     *
+     *  Backup Worker 1
+     *
+     *        |             SYNC_PATH_REQ
+     *        V
+     *     TUP Proxy
+     *    |  | ... |
+     *    V  V     V
+     *    1  2 ... n        (Workers)
+     *    |  |     |
+     *    |  |     |
+     *
+     *   Backup Worker 1
+     */
+    Uint32 path[] = { DBTUP, 0 };
+    Callback cb = { safe_cast(&Backup::startDropTrig_synced), ptrI };
+    synchronize_path(signal,
+                     path,
+                     cb);
+  }
 }
 
 void
@@ -10820,7 +10889,6 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
 {
   jamEntry();
   AbortBackupOrd* ord = (AbortBackupOrd*)signal->getDataPtr();
-
   const Uint32 backupId = ord->backupId;
   const AbortBackupOrd::RequestType requestType = 
     (AbortBackupOrd::RequestType)ord->requestType;
@@ -10836,18 +10904,6 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
 
   BackupRecordPtr ptr;
   if(requestType == AbortBackupOrd::ClientAbort) {
-    if (getOwnNodeId() != getMasterNodeId()) {
-      jam();
-      // forward to master
-#ifdef DEBUG_ABORT
-      ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
-#endif
-      BlockReference ref = numberToRef(BACKUP, UserBackupInstanceKey,
-                                       getMasterNodeId());
-      sendSignal(ref, GSN_ABORT_BACKUP_ORD, 
-		 signal, AbortBackupOrd::SignalLength, JBB);
-      return;
-    }
     jam();
     for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr)) {
       jam();
@@ -10860,6 +10916,17 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
       jam();
       return;
     }//if
+    if (ptr.p->masterRef != reference())
+    {
+      jam();
+      // forward to master
+#ifdef DEBUG_ABORT
+      ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
+#endif
+      sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD,
+		 signal, AbortBackupOrd::SignalLength, JBB);
+      return;
+    }
   } else {
     if (c_backupPool.findId(senderData)) {
       jam();
@@ -10931,7 +10998,20 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
   ptr.p->nodes.clear();
   ptr.p->nodes.set(getOwnNodeId());
 
-
+  // Backup aborts on node failure are handled as follows for st-backup:
+  // - each node declares itself master
+  // - each node modifies 'nodes' bitmask of signal receivers
+  // to disable sending to any nodes except self
+  // For mt-backup,
+  // - each instance declares itself master
+  // - each instance modifies 'nodes' bitmask of signal receivers
+  // to disable sending to any nodes except self
+  // - each instance modifies 'fragWorkers' bitmask of signal receivers
+  // to disable sending to any LDM on this node except self
+  ptr.p->fragWorkers[getOwnNodeId()].clear();
+  ptr.p->fragWorkers[getOwnNodeId()].set(instance());
+  ptr.p->masterRef = reference();
+  ptr.p->senderRef = reference();
   ptr.p->stopGCP= ptr.p->startGCP + 1;
   sendStopBackup(signal, ptr);
 }
