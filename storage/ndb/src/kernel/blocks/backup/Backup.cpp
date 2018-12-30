@@ -4150,13 +4150,22 @@ Backup::execBACKUP_REQ(Signal* signal)
   m_cfg_mt_backup = 1;
   Uint32 node = ptr.p->nodes.find_first();
   Uint32 version = getNodeInfo(getOwnNodeId()).m_version;
-
-
+  ptr.p->idleFragWorkerCount = 0;
   while(node != NdbNodeBitmask::NotFound)
   {
     const NodeInfo nodeInfo = getNodeInfo(node);
+    // setup fragWorkers[] for master to control BACKUP_FRAGMENT_REQs
+    ptr.p->fragWorkers[node].clear();
+    Uint32 ldmCount = nodeInfo.m_lqh_workers;
+    ldmCount += (nodeInfo.m_lqh_workers == 0); // set LDM1 as worker for ndbd
 
-    if (nodeInfo.m_lqh_workers <= 1)
+    for(Uint32 i=0; i<=ldmCount; i++)
+      ptr.p->fragWorkers[node].set(i);
+
+    ptr.p->idleFragWorkerCount += ldmCount;
+
+    // Only support multithreaded backup if all nodes have multiple LDMs
+    if (ldmCount <= 1)
     {
      /* The MT_BACKUP flag is set to false in these
       * cases:
@@ -5053,49 +5062,54 @@ Backup::nextFragment(Signal* signal, BackupRecordPtr ptr)
   req->backupPtr = ptr.i;
   req->backupId = ptr.p->backupId;
 
-  NdbNodeBitmask nodes = ptr.p->nodes;
-  Uint32 idleNodes = nodes.count();
-  Uint32 saveIdleNodes = idleNodes;
-  ndbrequire(idleNodes > 0);
-
   TablePtr tabPtr;
+  Uint32 unscanned_frag_count = 0;
   ptr.p->tables.first(tabPtr);
-  for(; tabPtr.i != RNIL && idleNodes > 0; ptr.p->tables.next(tabPtr))
+  for(; tabPtr.i != RNIL && ptr.p->idleFragWorkerCount > 0; ptr.p->tables.next(tabPtr))
   {
     jam();
     FragmentPtr fragPtr;
     Array<Fragment> & frags = tabPtr.p->fragments;
     const Uint32 fragCount = frags.getSize();
     
-    for(Uint32 i = 0; i<fragCount && idleNodes > 0; i++)
+    for(Uint32 i = 0; i<fragCount && ptr.p->idleFragWorkerCount > 0; i++)
     {
       jam();
       tabPtr.p->fragments.getPtr(fragPtr, i);
       const Uint32 nodeId = fragPtr.p->node;
-      if(fragPtr.p->scanning != 0) {
-        jam();
-	ndbrequire(nodes.get(nodeId));
-	nodes.clear(nodeId);
-	idleNodes--;
-      } else if(fragPtr.p->scanned == 0 && nodes.get(nodeId)){
-	jam();
-	fragPtr.p->scanning = 1;
-	nodes.clear(nodeId);
-	idleNodes--;
-	
-	req->tableId = tabPtr.p->tableId;
-	req->fragmentNo = i;
-	req->count = 0;
+      /* Each frag is owned by a specific LDM on a specific node.
+       * Master assigns each frag to an LDM on one of the nodes.
+       * Frags are always assigned to nodes which own them, but
+       * may be assigned to non-owner LDMs on owner nodes.
+       * single-threaded backup -> always assign frag to LDM1
+       * multithreaded backup -> assign frag to owner LDM
+       * mapFragToLdm() detects backup type and selects LDM.
+       */
+      Uint32 ldm = mapFragToLdm(ptr, nodeId, fragPtr.p->lqhInstanceKey);
+      req->tableId = tabPtr.p->tableId;
+      req->fragmentNo = i;
+      req->count = 0;
+      req->senderRef = reference();
+      if (fragPtr.p->scanned == 0)
+        unscanned_frag_count++;
 
-	ptr.p->masterData.sendCounter++;
-	BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), nodeId);
-	sendSignal(ref, GSN_BACKUP_FRAGMENT_REQ, signal,
-		   BackupFragmentReq::SignalLength, JBB);
-      }//if
+      if ((fragPtr.p->scanned == 0) && (fragPtr.p->scanning == 0) &&
+                                  (ptr.p->fragWorkers[nodeId].get(ldm)))
+      {
+        ptr.p->fragWorkers[nodeId].clear(ldm);
+        fragPtr.p->scanning = 1;
+        ptr.p->idleFragWorkerCount--;
+        ptr.p->masterData.sendCounter++;
+        BlockReference ref = numberToRef(BACKUP, ldm, nodeId);
+        sendSignal(ref, GSN_BACKUP_FRAGMENT_REQ, signal,
+                   BackupFragmentReq::SignalLength, JBB);
+
+       }//if
     }//for
   }//for
-  
-  if(idleNodes != saveIdleNodes){
+
+  if (unscanned_frag_count > 0)
+  {
     jam();
     return;
   }//if
@@ -5176,26 +5190,9 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
   else
   {
     jam();
-    NdbNodeBitmask nodes = ptr.p->nodes;
-    nodes.clear(getOwnNodeId());
-    if (!nodes.isclear())
-    {
-      jam();
-      BackupFragmentCompleteRep *rep =
-        (BackupFragmentCompleteRep*)signal->getDataPtrSend();
-      rep->backupId = ptr.p->backupId;
-      rep->backupPtr = ptr.i;
-      rep->tableId = tableId;
-      rep->fragmentNo = fragmentNo;
-      rep->noOfTableRowsLow = (Uint32)(tabPtr.p->noOfRecords & 0xFFFFFFFF);
-      rep->noOfTableRowsHigh = (Uint32)(tabPtr.p->noOfRecords >> 32);
-      rep->noOfFragmentRowsLow = (Uint32)(noOfRecords & 0xFFFFFFFF);
-      rep->noOfFragmentRowsHigh = (Uint32)(noOfRecords >> 32);
-      BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
-      NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
-      sendSignal(rg, GSN_BACKUP_FRAGMENT_COMPLETE_REP, signal,
-                 BackupFragmentCompleteRep::SignalLength, JBA);
-    }
+    Uint32 ldm = mapFragToLdm(ptr, nodeId, fragPtr.p->lqhInstanceKey);
+    ptr.p->fragWorkers[nodeId].set(ldm);
+    ptr.p->idleFragWorkerCount++;
     nextFragment(signal, ptr);
   }
 }
@@ -5747,8 +5744,8 @@ Backup::abort_scan(Signal * signal, BackupRecordPtr ptr)
       const Uint32 nodeId = fragPtr.p->node;
       if(fragPtr.p->scanning != 0 && ptr.p->nodes.get(nodeId)) {
         jam();
-	
-	BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), nodeId);
+        Uint32 ldm = mapFragToLdm(ptr, nodeId, fragPtr.p->lqhInstanceKey);
+        BlockReference ref = numberToRef(BACKUP, ldm, nodeId);
 	sendSignal(ref, GSN_ABORT_BACKUP_ORD, signal,
 		   AbortBackupOrd::SignalLength, JBB);
 	
@@ -9194,6 +9191,15 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
       loop_op.scanConfExtra();
     }
   }
+
+
+  {
+    const bool senderIsThreadLocal =
+      (signal->senderBlockRef() == calcInstanceBlockRef(DBLQH));
+    ndbrequire(senderIsThreadLocal ||
+               !MT_BACKUP_FLAG(ptr.p->flags));
+  }
+
   const Uint32 completed = conf.fragmentCompleted;
   if(completed != 2) {
     jam();
@@ -10797,7 +10803,7 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
 #ifdef DEBUG_ABORT
       ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
 #endif
-      BlockReference ref = numberToRef(BACKUP, UserBackupInstanceKey, 
+      BlockReference ref = numberToRef(BACKUP, UserBackupInstanceKey,
                                        getMasterNodeId());
       sendSignal(ref, GSN_ABORT_BACKUP_ORD, 
 		 signal, AbortBackupOrd::SignalLength, JBB);

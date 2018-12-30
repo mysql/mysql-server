@@ -611,6 +611,7 @@ public:
           dataFilePtr[i] = RNIL;
           prepareDataFilePtr[i] = RNIL;
         }
+        idleFragWorkerCount = 0;
       }
     
     /* prev time backup status was reported */
@@ -776,6 +777,8 @@ public:
     Uint32 masterRef;
     NdbNodeBitmask nodes;
 
+    Bitmask<(Uint32)(MAX_NDBMT_LQH_THREADS/sizeof(Uint32))> fragWorkers[MAX_NDB_NODES];
+    Uint32 idleFragWorkerCount;
 
     /**
      * Statistical variables for LCP and Backup, initialised when
@@ -1406,8 +1409,9 @@ public:
 
   /*
    * MT LQH.  LCP runs separately in each instance number.
-   * BACKUP uses instance key 1 (real instance 0 or 1).
+   * BACKUP uses instance key 1 (real instance 0 or 1) as master.
   */
+  STATIC_CONST( NdbdInstanceKey = 0 );
   STATIC_CONST( BackupProxyInstanceKey = 0 );
   STATIC_CONST( UserBackupInstanceKey = 1 );
   /*
@@ -1422,6 +1426,25 @@ public:
      return ptr.p->is_lcp() ?
             instance() : (ptr.p->flags & BackupReq::MT_BACKUP) ?
             BackupProxyInstanceKey : UserBackupInstanceKey;
+  }
+
+  /* assign a fragment to an LDM
+   * single-threaded backup: assign fragment to LDM1
+   * multithreaded backup: assign fragment to LDM which owns it
+   */
+  Uint32 mapFragToLdm(BackupRecordPtr ptr, Uint32 ownerNode, Uint32 ownerLdm)
+  {
+    // instance key is 1..n and may be larger than actual number of ldms.
+    // To ensure we only schedule one fragment per actual ldm at a time, we
+    // use node information to determine actual ldm which will process request.
+    int lqh_workers = getNodeInfo(ownerNode).m_lqh_workers;
+    // adjust values which would be 0 in ndbd
+    lqh_workers += (lqh_workers == 0);
+    ownerLdm += (ownerLdm == 0);
+    // calculate instance key
+    Uint32 key = 1 + ((ownerLdm - 1) % lqh_workers);
+    return (ptr.p->flags & BackupReq::MT_BACKUP) ?
+            key : UserBackupInstanceKey;
   }
 
   bool is_backup_worker()
