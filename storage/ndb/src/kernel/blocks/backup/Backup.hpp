@@ -45,6 +45,7 @@
 
 #include <signaldata/RedoStateRep.hpp>
 #include "../dblqh/Dblqh.hpp"
+#include <signaldata/BackupSignalData.hpp>
 
 #define JAM_FILE_ID 474
 
@@ -768,6 +769,7 @@ public:
  
     Uint32 clientRef;
     Uint32 clientData;
+    Uint32 senderRef;
     Uint32 senderData;
     Uint32 flags;
     Uint32 backupKey[2];
@@ -1406,9 +1408,20 @@ public:
    * MT LQH.  LCP runs separately in each instance number.
    * BACKUP uses instance key 1 (real instance 0 or 1).
   */
+  STATIC_CONST( BackupProxyInstanceKey = 0 );
   STATIC_CONST( UserBackupInstanceKey = 1 );
+  /*
+   * instanceKey() is used for routing backup control signals and has 3
+   * use cases:
+   * - LCP: return own instance ID, i.e route signal to self
+   * - multi-threaded backup: return instance of BackupProxy, which
+           forwards signal to all instances, i.e. route signal to all instances
+   * - single-threaded backup: return instance 1, i.e. route signal to LDM1
+   */
   Uint32 instanceKey(BackupRecordPtr ptr) {
-    return ptr.p->is_lcp() ? instance() : UserBackupInstanceKey;
+     return ptr.p->is_lcp() ?
+            instance() : (ptr.p->flags & BackupReq::MT_BACKUP) ?
+            BackupProxyInstanceKey : UserBackupInstanceKey;
   }
 
   bool is_backup_worker()
@@ -1422,7 +1435,7 @@ public:
    * not participating.
    * Modified by the instance performing backup
    */  
-  static bool g_is_backup_running;
+  static bool g_is_single_thr_backup_running;
 
   void get_page_info(BackupRecordPtr,
                      Uint32 part_id,

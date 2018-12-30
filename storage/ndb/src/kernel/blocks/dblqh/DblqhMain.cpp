@@ -953,6 +953,7 @@ Dblqh::define_backup(Signal* signal)
   req->clientRef = 0;
   req->clientData = 0;
   req->senderRef = reference();
+  req->masterRef = reference();
   req->backupPtr = 0;
   req->backupKey[0] = 0;
   req->backupKey[1] = 0;
@@ -18581,6 +18582,7 @@ void Dblqh::perform_fragment_checkpoint(Signal *signal)
   req->backupPtr = m_backup_ptr;
   req->backupId = lcpPtr.p->currentRunFragment.lcpFragOrd.lcpId;
   req->count = 0;
+  req->senderRef = reference();
    
 #ifdef NDB_DEBUG_FULL
   if(ERROR_INSERTED(5904))

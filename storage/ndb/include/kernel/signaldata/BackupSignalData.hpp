@@ -248,11 +248,12 @@ class AbortBackupOrd {
    * Sender / Reciver
    */
   friend class Backup;
+  friend class BackupProxy;
   friend class MgmtSrvr;
 
   friend bool printABORT_BACKUP_ORD(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
   enum RequestType {
     ClientAbort = 1321,
@@ -273,6 +274,7 @@ private:
     Uint32 backupPtr;
     Uint32 senderData;
   };
+  Uint32 senderRef;
 };
 
 

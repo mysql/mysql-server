@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,11 +41,12 @@ class DefineBackupReq {
    * Reciver(s)
    */
   friend class Backup;
+  friend class BackupProxy;
   friend class Dblqh;
 
   friend bool printDEFINE_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 9 + NdbNodeBitmask::Size);
+  STATIC_CONST( SignalLength = 11 + NdbNodeBitmask::Size);
 
 private:
   /**
@@ -80,6 +81,11 @@ private:
    * & 0x4 - Use undo log
    */
   Uint32 flags;
+  /**
+   * Reference of block which controls backup across all nodes
+   */
+  Uint32 masterRef;
+  Uint32 senderData;
 };
 
 class DefineBackupRef {
@@ -87,6 +93,7 @@ class DefineBackupRef {
    * Sender(s)
    */
   friend class Backup;
+  friend class BackupProxy;
   friend class Dblqh;
 
   /**
@@ -122,6 +129,7 @@ class DefineBackupConf {
    * Sender(s)
    */
   friend class Backup;
+  friend class BackupProxy;
   friend class Dblqh;
 
   /**
@@ -148,15 +156,18 @@ class StartBackupReq {
    * Reciver(s)
    */
   friend class Backup;
+  friend class BackupProxy;
 
   friend bool printSTART_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
 
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 4 );
 
 private:
   Uint32 backupId;
   Uint32 backupPtr;
+  Uint32 senderRef;
+  Uint32 senderData;
 };
 
 class StartBackupRef {
@@ -169,6 +180,7 @@ class StartBackupRef {
    * Reciver(s)
    */
   friend class BackupMaster;
+  friend class BackupProxy;
 
   friend bool printSTART_BACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
@@ -209,6 +221,7 @@ class BackupFragmentReq {
    * Sender(s)
    */
   friend class BackupMaster;
+  friend class BackupProxy;
   
   /**
    * Reciver(s)
@@ -218,7 +231,7 @@ class BackupFragmentReq {
 
   friend bool printBACKUP_FRAGMENT_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 7 );
 
 private:
   Uint32 backupId;
@@ -226,6 +239,8 @@ private:
   Uint32 tableId;
   Uint32 fragmentNo;
   Uint32 count;
+  Uint32 senderRef;
+  Uint32 senderData;
 };
 
 class BackupFragmentRef {
@@ -239,6 +254,7 @@ class BackupFragmentRef {
    * Reciver(s)
    */
   friend class BackupMaster;
+  friend class BackupProxy;
 
   friend bool printBACKUP_FRAGMENT_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
@@ -302,16 +318,19 @@ class StopBackupReq {
    * Reciver(s)
    */
   friend class Backup;
+  friend class BackupProxy;
 
   friend bool printSTOP_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 6 );
 
 private:
   Uint32 backupId;
   Uint32 backupPtr;
   Uint32 startGCP;
   Uint32 stopGCP;
+  Uint32 senderRef;
+  Uint32 senderData;
 };
 
 class StopBackupRef {
@@ -324,6 +343,7 @@ class StopBackupRef {
    * Reciver(s)
    */
   friend class BackupMaster;
+  friend class BackupProxy;
 
   friend bool printSTOP_BACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
