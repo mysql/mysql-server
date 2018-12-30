@@ -40,6 +40,8 @@ extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern bool ga_skip_unknown_objects;
 extern bool ga_skip_broken_objects;
 
+#define LOG_MSGLEN 1024
+
 Uint16 Twiddle16(Uint16 in); // Byte shift 16-bit data
 Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
 Uint64 Twiddle64(Uint64 in); // Byte shift 64-bit data
@@ -252,6 +254,7 @@ BackupFile::Twiddle(const AttributeDesc * const attr_desc,
 FilteredNdbOut err(* new FileOutputStream(stderr), 0, 0);
 FilteredNdbOut info(* new FileOutputStream(stdout), 1, 1);
 FilteredNdbOut debug(* new FileOutputStream(stdout), 2, 0);
+RestoreLogger restoreLogger;
 
 // To decide in what byte order data is
 const Uint32 magicByteOrder = 0x12345678;
@@ -373,7 +376,7 @@ RestoreMetaData::readMetaTableList() {
   Uint32 sectionInfo[2];
   
   if (buffer_read(&sectionInfo, sizeof(sectionInfo), 1) != 1){
-    err << "readMetaTableList read header error" << endl;
+    restoreLogger.log_error("readMetaTableList read header error");
     return 0;
   }
   sectionInfo[0] = ntohl(sectionInfo[0]);
@@ -390,7 +393,8 @@ RestoreMetaData::readMetaTableList() {
     tabsRead += count;
   }
   if (tabsRead != tabCount){
-    err << "readMetaTableList read tabCount error, expected count = " << tabCount << ", actual count =" << tabsRead << endl;
+    restoreLogger.log_error("readMetaTableList read tabCount error, "
+            "expected count = %u, actual count = %u", tabCount, tabsRead);
     return 0;
   }
 #ifdef ERROR_INSERT
@@ -418,7 +422,7 @@ RestoreMetaData::readMetaTableDesc() {
     sectionInfo[2] = htonl(DictTabInfo::UserTable);
   }
   if (buffer_read(&sectionInfo, 4*sz, 1) != 1){
-    err << "readMetaTableDesc read header error" << endl;
+    restoreLogger.log_error("readMetaTableDesc read header error");
     return false;
   } // if
   sectionInfo[0] = ntohl(sectionInfo[0]);
@@ -431,7 +435,7 @@ RestoreMetaData::readMetaTableDesc() {
   const Uint32 len = (sectionInfo[1] - sz);
   void *ptr;
   if (buffer_get_ptr(&ptr, 4, len) != len){
-    err << "readMetaTableDesc read error" << endl;
+    restoreLogger.log_error("readMetaTableDesc read error");
     return false;
   } // if
   
@@ -453,8 +457,7 @@ RestoreMetaData::readMetaTableDesc() {
     if (errcode)
       delete dst;
     obj.m_objPtr = dst;
-    debug << hex << obj.m_objPtr << " " 
-	   << dec << dst->getObjectId() << " " << dst->getName() << endl;
+    restoreLogger.log_debug("%p %u %s", obj.m_objPtr, dst->getObjectId(), dst->getName());
     break;
   }
   case DictTabInfo::LogfileGroup:
@@ -466,8 +469,7 @@ RestoreMetaData::readMetaTableDesc() {
     if (errcode)
       delete dst;
     obj.m_objPtr = dst;
-    debug << hex << obj.m_objPtr << " " 
-	   << dec << dst->getObjectId() << " " << dst->getName() << endl;
+    restoreLogger.log_debug("%p %u %s", obj.m_objPtr, dst->getObjectId(), dst->getName());
     break;
   }
   case DictTabInfo::Datafile:
@@ -479,8 +481,7 @@ RestoreMetaData::readMetaTableDesc() {
     if (errcode)
       delete dst;
     obj.m_objPtr = dst;
-    debug << hex << obj.m_objPtr << " "
-	   << dec << dst->getObjectId() << " " << dst->getPath() << endl;
+    restoreLogger.log_debug("%p %u %s", obj.m_objPtr, dst->getObjectId(), dst->getPath());
     break;
   }
   case DictTabInfo::Undofile:
@@ -492,8 +493,7 @@ RestoreMetaData::readMetaTableDesc() {
     if (errcode)
       delete dst;
     obj.m_objPtr = dst;
-    debug << hex << obj.m_objPtr << " " 
-	   << dec << dst->getObjectId() << " " << dst->getPath() << endl;
+    restoreLogger.log_debug("%p %u %s", obj.m_objPtr, dst->getObjectId(), dst->getPath());
     break;
   }
   case DictTabInfo::HashMap:
@@ -536,27 +536,26 @@ RestoreMetaData::readMetaTableDesc() {
     if (errcode)
       delete dst;
     obj.m_objPtr = dst;
-    debug << hex << obj.m_objPtr << " " 
-	   << dec << dst->getObjectId() << " " << dst->getName() << endl;
+    restoreLogger.log_debug("%p %u %s", obj.m_objPtr, dst->getObjectId(), dst->getName());
     break;
   }
   default:
     if (ga_skip_unknown_objects)
     {
-      info << "Skipping schema object with unknown table type "
-           << sectionInfo[2] << endl;
+      restoreLogger.log_info("Skipping schema object with unknown table type %u",
+                              sectionInfo[2]);
       return true;
     }
     else
     {
-      err << "Unsupported table type!! " << sectionInfo[2] << endl;
+      restoreLogger.log_error("Unsupported table type!! %u", sectionInfo[2]);
       return false;
     }
   }
   if (errcode)
   {
-    err << "Unable to parse dict info..." 
-	<< sectionInfo[2] << " " << errcode << endl;
+    restoreLogger.log_error("Unable to parse dict info...%u %u",
+       sectionInfo[2], errcode);
     return false;
   }
 
@@ -653,7 +652,7 @@ RestoreMetaData::markSysTables()
         }
       }
       if (j == getNoOfTables()) {
-        err << "Restore: Bad primary table id in " << blobTableName << endl;
+        restoreLogger.log_error("Restore: Bad primary table id in %s", blobTableName);
         return false;
       }
     }
@@ -697,11 +696,9 @@ RestoreMetaData::fixBlobs()
       {
         table->m_broken = true;
         /* Corrupt backup, has main table, but no blob table */
-        err << "Table " << table->m_dictTable->getName()
-            << " has blob column " << j << " (" 
-            << c->m_name.c_str()
-            << ") with missing parts table in backup."
-            << endl;
+        restoreLogger.log_error("Table %s has blob column %u (%s)"
+               " with missing parts table in backup.",
+               table->m_dictTable->getName(), j, c->m_name.c_str());
         if (ga_skip_broken_objects)
         {
           continue;
@@ -729,7 +726,7 @@ RestoreMetaData::readGCPEntry() {
   BackupFormat::CtlFile::GCPEntry dst;
   
   if(buffer_read(&dst, 1, sizeof(dst)) != sizeof(dst)){
-    err << "readGCPEntry read error" << endl;
+    restoreLogger.log_error("readGCPEntry read error");
     return false;
   }
   
@@ -737,7 +734,7 @@ RestoreMetaData::readGCPEntry() {
   dst.SectionLength = ntohl(dst.SectionLength);
   
   if(dst.SectionType != BackupFormat::GCP_ENTRY){
-    err << "readGCPEntry invalid format" << endl;
+    restoreLogger.log_error("readGCPEntry invalid format");
     return false;
   }
   
@@ -763,15 +760,15 @@ RestoreMetaData::readFragmentInfo()
 
     if (fragInfo.SectionType != BackupFormat::FRAGMENT_INFO)
     {
-      err << "readFragmentInfo invalid section type: " <<
-        fragInfo.SectionType << endl;
+      restoreLogger.log_error("readFragmentInfo invalid section type: %u",
+        fragInfo.SectionType);
       return false;
     }
 
     if (buffer_read(&fragInfo.TableId, (fragInfo.SectionLength-2)*4, 1) != 1)
     {
-      err << "readFragmentInfo invalid section length: " <<
-        fragInfo.SectionLength << endl;
+      restoreLogger.log_error("readFragmentInfo invalid section length: %u",
+        fragInfo.SectionLength);
       return false;
     }
 
@@ -841,24 +838,25 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
      m_fileHeader.NdbVersion);
   
   if (ret != 0) {
-    err << "parseTableInfo " << " failed" << endl;
+    restoreLogger.log_error("parseTableInfo failed");
     return false;
   }
   if(tableImpl == 0)
     return false;
 
-  debug << "parseTableInfo " << tableImpl->getName() << " done" << endl;
+  restoreLogger.log_debug("parseTableInfo %s done", tableImpl->getName());
   TableS * table = new TableS(m_fileHeader.NdbVersion, tableImpl);
   if(table == NULL) {
     return false;
   }
 
-  debug << "Parsed table id " << table->getTableId() << endl;
-  debug << "Parsed table #attr " << table->getNoOfAttributes() << endl;
-  debug << "Parsed table schema version not used " << endl;
+  restoreLogger.log_debug("Parsed table id %u\nParsed table #attr %u\n"
+        "Parsed table schema version not used",
+        table->getTableId(),
+        table->getNoOfAttributes());
 
-  debug << "Pushing table " << table->getTableName() << endl;
-  debug << "   with " << table->getNoOfAttributes() << " attributes" << endl;
+  restoreLogger.log_debug("Pushing table %s\n    with %u attributes",
+        table->getTableName(), table->getNoOfAttributes());
   
   allTables.push_back(table);
 
@@ -869,7 +867,7 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _free_data_callback)(void*), void *ctx)
   : BackupFile(_free_data_callback, ctx), m_metaData(md)
 {
-  debug << "RestoreDataIterator constructor" << endl;
+  restoreLogger.log_debug("RestoreDataIterator constructor");
   setDataFile(md, 0);
 
   m_bitfield_storage_len = 8192;
@@ -884,7 +882,7 @@ RestoreDataIterator::validateRestoreDataIterator()
 {
     if (!m_bitfield_storage_ptr)
     {
-        err << "m_bitfield_storage_ptr is NULL" << endl;
+        restoreLogger.log_error("m_bitfield_storage_ptr is NULL");
         return false;
     }
     return true;
@@ -1045,7 +1043,7 @@ RestoreDataIterator::getNextTuple(int  & res)
   Uint32  dataLength = 0;
   // Read record length
   if (buffer_read(&dataLength, sizeof(dataLength), 1) != 1){
-    err << "getNextTuple:Error reading length  of data part" << endl;
+    restoreLogger.log_error("getNextTuple:Error reading length of data part");
     res = -1;
     return NULL;
   } // if
@@ -1057,7 +1055,7 @@ RestoreDataIterator::getNextTuple(int  & res)
   if (dataLength == 0) {
     // Zero length for last tuple
     // End of this data fragment
-    debug << "End of fragment" << endl;
+    restoreLogger.log_debug("End of fragment");
     res = 0;
     return NULL;
   } // if
@@ -1065,7 +1063,7 @@ RestoreDataIterator::getNextTuple(int  & res)
   // Read tuple data
   void *_buf_ptr;
   if (buffer_get_ptr(&_buf_ptr, 1, dataLenBytes) != dataLenBytes) {
-    err << "getNextTuple:Read error: " << endl;
+    restoreLogger.log_error("getNextTuple:Read error: ");
     res = -1;
     return NULL;
   }
@@ -1429,7 +1427,7 @@ BackupFile::validateBackupFile()
 {
     if (!m_buffer)
     {
-        err << "m_buffer is NULL" << endl;
+        restoreLogger.log_error("m_buffer is NULL");
         return false;
     }
     return true;
@@ -1450,7 +1448,7 @@ BackupFile::openFile(){
   m_file_pos = 0;
 
   info.setLevel(254);
-  info << "Opening file '" << m_fileName << "'\n";
+  restoreLogger.log_info("Opening file '%s'", m_fileName);
   int r= ndbzopen(&m_file, m_fileName, O_RDONLY);
 
   if(r != 1)
@@ -1460,12 +1458,12 @@ BackupFile::openFile(){
   if (ndbz_file_size(&m_file, &size) == 0)
   {
     m_file_size = (Uint64)size;
-    info << "File size " << m_file_size << " bytes\n";
+    restoreLogger.log_info("File size %llu bytes", m_file_size);
   }
   else
   {
-    info << "Progress reporting degraded output since fstat failed,"
-         << "errno: " << errno << endl;
+    restoreLogger.log_info("Progress reporting degraded output since fstat failed,"
+         "errno: %u", errno);
     m_file_size = 0;
   }
 
@@ -1702,7 +1700,7 @@ BackupFile::setName(const char * p, const char * n){
   }
 
   BaseString::snprintf(m_fileName, sizeof(m_fileName), "%s%s", m_path, n);
-  debug << "Filename = " << m_fileName << endl;
+  restoreLogger.log_debug("Filename = %s", m_fileName);
 }
 
 bool
@@ -1713,7 +1711,7 @@ BackupFile::readHeader(){
   
   Uint32 oldsz = sizeof(BackupFormat::FileHeader_pre_backup_version);
   if(buffer_read(&m_fileHeader, oldsz, 1) != 1){
-    err << "readDataFileHeader: Error reading header" << endl;
+    restoreLogger.log_error("readDataFileHeader: Error reading header");
     return false;
   }
   
@@ -1738,7 +1736,7 @@ BackupFile::readHeader(){
     if (buffer_read(&m_fileHeader.NdbVersion, 
                     sizeof(m_fileHeader) - oldsz, 1) != 1)
     {
-      err << "readDataFileHeader: Error reading header" << endl;
+      restoreLogger.log_error("readDataFileHeader: Error reading header");
       return false;
     }
     
@@ -1751,18 +1749,19 @@ BackupFile::readHeader(){
     m_fileHeader.MySQLVersion = 0;
   }
   
-  debug << "FileHeader: " << m_fileHeader.Magic << " " <<
-    m_fileHeader.BackupVersion << " " <<
-    m_fileHeader.SectionType << " " <<
-    m_fileHeader.SectionLength << " " <<
-    m_fileHeader.FileType << " " <<
-    m_fileHeader.BackupId << " " <<
-    m_fileHeader.BackupKey_0 << " " <<
-    m_fileHeader.BackupKey_1 << " " <<
-    m_fileHeader.ByteOrder << endl;
-  
-  debug << "ByteOrder is " << m_fileHeader.ByteOrder << endl;
-  debug << "magicByteOrder is " << magicByteOrder << endl;
+  restoreLogger.log_debug("FileHeader: %s %u %u %u %u %u %u %u %u",
+                          m_fileHeader.Magic,
+                          m_fileHeader.BackupVersion,
+                          m_fileHeader.SectionType,
+                          m_fileHeader.SectionLength,
+                          m_fileHeader.FileType,
+                          m_fileHeader.BackupId,
+                          m_fileHeader.BackupKey_0,
+                          m_fileHeader.BackupKey_1,
+                          m_fileHeader.ByteOrder);
+
+  restoreLogger.log_debug("ByteOrder is %u", m_fileHeader.ByteOrder);
+  restoreLogger.log_debug("magicByteOrder is %u", magicByteOrder);
   
 
   if (m_fileHeader.FileType != m_expectedFileHeader.FileType &&
@@ -1823,7 +1822,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
 {
   BackupFormat::DataFile::FragmentHeader Header;
   
-  debug << "RestoreDataIterator::getNextFragment" << endl;
+  restoreLogger.log_debug("RestoreDataIterator::getNextFragment");
   
   while (1)
   {
@@ -1842,7 +1841,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
       void *tmp;
       if (Header.SectionLength < 2)
       {
-        err << "getFragmentFooter:Error reading fragment footer" << endl;
+        restoreLogger.log_error("getFragmentFooter:Error reading fragment footer");
         return false;
       }
       if (Header.SectionLength > 2)
@@ -1861,11 +1860,12 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
   Header.FragmentNo  = ntohl(Header.FragmentNo);
   Header.ChecksumType  = ntohl(Header.ChecksumType);
   
-  debug << "FragmentHeader: " << Header.SectionType 
-	<< " " << Header.SectionLength 
-	<< " " << Header.TableId 
-	<< " " << Header.FragmentNo 
-	<< " " << Header.ChecksumType << endl;
+  restoreLogger.log_debug("FragmentHeader: %u %u %u %u %u",
+                           Header.SectionType,
+                           Header.SectionLength,
+                           Header.TableId,
+                           Header.FragmentNo,
+                           Header.ChecksumType);
   
   m_currentTable = m_metaData.getTable(Header.TableId);
   if(m_currentTable == 0){
@@ -1880,12 +1880,11 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
   }
 
   init_bitfield_storage(m_currentTable->m_dictTable);
-
   info.setLevel(254);
-  info << "_____________________________________________________" << endl
-       << "Processing data in table: " << m_currentTable->getTableName() 
-       << "(" << Header.TableId << ") fragment " 
-       << Header.FragmentNo << endl;
+  restoreLogger.log_info("_____________________________________________________"
+                         "\nProcessing data in table: %s(%u) fragment %u",
+                           m_currentTable->getTableName(),
+                           Header.TableId, Header.FragmentNo);
   
   m_count = 0;
   ret = 0;
@@ -1899,7 +1898,7 @@ RestoreDataIterator::validateFragmentFooter() {
   BackupFormat::DataFile::FragmentFooter footer;
   
   if (buffer_read(&footer, sizeof(footer), 1) != 1){
-    err << "getFragmentFooter:Error reading fragment footer" << endl;
+    restoreLogger.log_error("getFragmentFooter:Error reading fragment footer");
     return false;
   } 
   
@@ -1929,7 +1928,7 @@ void TableS::createAttr(NdbDictionary::Column *column)
 {
   AttributeDesc * d = new AttributeDesc(column);
   if(d == NULL) {
-    ndbout_c("Restore: Failed to allocate memory");
+    restoreLogger.log_error("Restore: Failed to allocate memory");
     abort();
   }
   d->attrId = allAttributesDesc.size();
@@ -2035,7 +2034,7 @@ Uint64 Twiddle64(Uint64 in)
 RestoreLogIterator::RestoreLogIterator(const RestoreMetaData & md)
   : m_metaData(md) 
 {
-  debug << "RestoreLog constructor" << endl;
+  restoreLogger.log_debug("RestoreLog constructor");
   setLogFile(md, 0);
 
   m_count = 0;
@@ -2163,7 +2162,7 @@ RestoreLogIterator::getNextLogEntry(int & res) {
   while(ah < end){
     attr = m_logEntry.add_attr();
     if(attr == NULL) {
-      ndbout_c("Restore: Failed to allocate memory");
+      restoreLogger.log_error("Restore: Failed to allocate memory");
       res = -1;
       return 0;
     }
@@ -2366,6 +2365,39 @@ LogEntry::printSqlLog() const {
       ndbout << "Unknown log entry type (not insert, delete or update)" ;
   }
   ndbout << ";";
+}
+
+void RestoreLogger::log_error(const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  char buf[LOG_MSGLEN];
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+
+  err << buf << endl;
+}
+
+void RestoreLogger::log_info(const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  char buf[LOG_MSGLEN];
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+
+  info << buf << endl;
+}
+
+void RestoreLogger::log_debug(const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  char buf[LOG_MSGLEN];
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+
+  debug << buf << endl;
 }
 
 #include <NDBT.hpp>

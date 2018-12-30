@@ -563,6 +563,16 @@ public:
   const LogEntry * getNextLogEntry(int & res);
 };
 
+class RestoreLogger {
+public:
+  void log_info(const char* fmt, ...)
+         ATTRIBUTE_FORMAT(printf, 2, 3);
+  void log_debug(const char* fmt, ...)
+         ATTRIBUTE_FORMAT(printf, 2, 3);
+  void log_error(const char* fmt, ...)
+         ATTRIBUTE_FORMAT(printf, 2, 3);
+};
+
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);
 NdbOut& operator<<(NdbOut& ndbout, const TupleS&);
 NdbOut& operator<<(NdbOut& ndbout, const LogEntry&);
