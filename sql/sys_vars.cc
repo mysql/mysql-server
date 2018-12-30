@@ -2091,6 +2091,13 @@ static Sys_var_bool Sys_log_bin_use_v1_row_events(
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_log_bin_use_v1_row_events));
 
+static Sys_var_bool Sys_log_bin_implicit_delete(
+    "log_bin_implicit_delete",
+    "If equal to 1 then implicit delete's are written to the "
+    "binary log.  If equal to 0, then the implicit delete won't be "
+    "written to the binary log.",
+    GLOBAL_VAR(log_bin_implicit_delete), CMD_LINE(OPT_ARG), DEFAULT(true));
+
 static Sys_var_charptr Sys_log_error(
     "log_error", "Error log file",
     READ_ONLY NON_PERSIST GLOBAL_VAR(log_error_dest),

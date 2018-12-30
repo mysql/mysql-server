@@ -1085,6 +1085,7 @@ ulong binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0;
 ulong max_connections, max_connect_errors;
 ulong rpl_stop_slave_timeout = LONG_TIMEOUT;
 bool log_bin_use_v1_row_events = 0;
+bool log_bin_implicit_delete = 1;
 bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;

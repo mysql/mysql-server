@@ -3790,7 +3790,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
   if (unlikely(entry->file->implicit_emptied) &&
       (!thd->lex || !thd->lex->m_IS_table_stats.is_reading_stats_by_open())) {
     entry->file->implicit_emptied = 0;
-    if (mysql_bin_log.is_open()) {
+    if ((mysql_bin_log.is_open()) && (log_bin_implicit_delete)) {
       bool error = false;
       String temp_buf;
       error = temp_buf.append("DELETE FROM ");
@@ -3798,6 +3798,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
       error = temp_buf.append(".");
       append_identifier(thd, &temp_buf, share->table_name.str,
                         strlen(share->table_name.str));
+      error = temp_buf.append(" /* added by mysqld because of implicitly emptied table */");
       if (mysql_bin_log.write_dml_directly(thd, temp_buf.c_ptr_safe(),
                                            temp_buf.length()))
         return true;
