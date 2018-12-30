@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2018 Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -203,8 +203,8 @@ static Constant constants[] = {
       NdbDictionary::Object::/*_enum State_*/StateDropping },
     { "com.mysql.ndbjtie.ndbapi.NdbDictionary$Object$State.StateOnline",
       NdbDictionary::Object::/*_enum State_*/StateOnline },
-    { "com.mysql.ndbjtie.ndbapi.NdbDictionary$Object$State.StateBackup",
-      NdbDictionary::Object::/*_enum State_*/StateBackup },
+    { "com.mysql.ndbjtie.ndbapi.NdbDictionary$Object$State.ObsoleteStateBackup",
+      NdbDictionary::Object::/*_enum State_*/ObsoleteStateBackup },
     { "com.mysql.ndbjtie.ndbapi.NdbDictionary$Object$State.StateBroken",
       NdbDictionary::Object::/*_enum State_*/StateBroken },
     { "com.mysql.ndbjtie.ndbapi.NdbDictionary$Object$Store.StoreUndefined",

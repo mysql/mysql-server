@@ -237,7 +237,7 @@ bool ndb_get_table_names_in_schema(NdbDictionary::Dictionary* dict,
     }
 
     if (elmt.state == NdbDictionary::Object::StateOnline ||
-        elmt.state == NdbDictionary::Object::StateBackup ||
+        elmt.state == NdbDictionary::Object::ObsoleteStateBackup ||
         elmt.state == NdbDictionary::Object::StateBuilding)
     {
       // Only return the table if they're already usable i.e. StateOnline or

@@ -338,7 +338,7 @@ public:
     StateBuilding = 2,
     StateDropping = 3,
     StateOnline = 4,
-    StateBackup = 5,
+    ObsoleteStateBackup = 5,
     StateBroken = 9
   };
 

@@ -12553,16 +12553,12 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
           break;
         case SchemaFile::SF_IN_USE:
         {
-          if (tablePtr.p->m_read_locked)
-          {
-            jam();
-            conf->setTableState(pos, DictTabInfo::StateBackup);
-          }
-          else
-          {
-            jam();
-            conf->setTableState(pos, DictTabInfo::StateOnline);
-          }
+          jam();
+          // Remove unused state StateBackup from backup handling
+          // - Rename StateBackup to ObsoleteStateBackup
+          // - Modify DICT so that it never sets table state to StateBackup
+          // - Map ObsoleteStateBackup to StateOnline in ndbapi
+          conf->setTableState(pos, DictTabInfo::StateOnline);
 	  break;
         }
 	default:
@@ -12748,16 +12744,8 @@ bool Dbdict::buildListTablesData(const DictObject& dictObject,
         break;
       case SchemaFile::SF_IN_USE:
         {
-          if (tablePtr.p->m_read_locked)
-          {
-            jam();
-            ltd.setTableState(DictTabInfo::StateBackup);
-          }
-          else
-          {
-            jam();
-            ltd.setTableState(DictTabInfo::StateOnline);
-          }
+          jam();
+          ltd.setTableState(DictTabInfo::StateOnline);
 	  break;
         }
       default:

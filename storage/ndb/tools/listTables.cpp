@@ -205,7 +205,7 @@ list(const NdbDictionary::Dictionary* dict,
         case NdbDictionary::Object::StateOnline:
             strcpy(state, "Online");
             break;
-        case NdbDictionary::Object::StateBackup:
+        case NdbDictionary::Object::ObsoleteStateBackup:
 	    strcpy(state, "Backup");
             break;
         case NdbDictionary::Object::StateBroken:

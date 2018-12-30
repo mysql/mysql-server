@@ -3377,7 +3377,7 @@ objectStateMapping[] = {
   { DictTabInfo::StateBuilding,      NdbDictionary::Object::StateBuilding },
   { DictTabInfo::StateDropping,      NdbDictionary::Object::StateDropping },
   { DictTabInfo::StateOnline,        NdbDictionary::Object::StateOnline },
-  { DictTabInfo::StateBackup,        NdbDictionary::Object::StateBackup },
+  { DictTabInfo::ObsoleteStateBackup,NdbDictionary::Object::StateOnline }, // StateBackup no longer used
   { DictTabInfo::StateBroken,        NdbDictionary::Object::StateBroken }, 
   { -1, -1 }
 };

@@ -144,7 +144,7 @@ public:
       StateBuilding = 2,      ///< Building, not yet usable
       StateDropping = 3,      ///< Offlining or dropping, not usable
       StateOnline = 4,        ///< Online, usable
-      StateBackup = 5,        ///< Online, being backuped, usable
+      ObsoleteStateBackup = 5,///< Online, being backed-up, usable
       StateBroken = 9         ///< Broken, should be dropped and re-created
     };
 

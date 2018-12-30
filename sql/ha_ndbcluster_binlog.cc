@@ -1221,7 +1221,7 @@ class Ndb_binlog_setup {
 
       DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
       if (elmt.state != NDBOBJ::StateOnline &&
-          elmt.state != NDBOBJ::StateBackup &&
+          elmt.state != NDBOBJ::ObsoleteStateBackup &&
           elmt.state != NDBOBJ::StateBuilding)
       {
         ndb_log_info("Skipping setup of table '%s.%s', in state %d",
