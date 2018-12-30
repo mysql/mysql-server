@@ -88,6 +88,8 @@ Properties g_rewrite_databases;
 NdbRecordPrintFormat g_ndbrecord_print_format;
 unsigned int opt_no_binlog;
 
+Ndb_cluster_connection *g_cluster_connection = NULL;
+
 class RestoreOption
 {
 public:
@@ -826,14 +828,12 @@ bool create_consumers()
   if (printer == NULL)
     return false;
 
-  BackupRestore* restore = new BackupRestore(opt_ndb_connectstring,
-                                             opt_ndb_nodeid,
+  BackupRestore* restore = new BackupRestore(g_cluster_connection,
                                              opt_nodegroup_map,
                                              opt_nodegroup_map_len,
                                              ga_nodeId,
-                                             ga_nParallelism,
-                                             opt_connect_retry_delay,
-                                             opt_connect_retries);
+                                             ga_nParallelism);
+
   if (restore == NULL)
   {
     delete printer;
@@ -1244,6 +1244,37 @@ static void exitHandler(int code)
     abort();
   else
     exit(code);
+}
+
+static void init_restore()
+{
+  if (_restore_meta || _restore_data || ga_restore_epoch
+                    || ga_disable_indexes || ga_rebuild_indexes)
+  {
+    // create one Ndb_cluster_connection to be shared by all threads
+    g_cluster_connection = new Ndb_cluster_connection(opt_ndb_connectstring,
+                                        opt_ndb_nodeid);
+    if (g_cluster_connection == NULL)
+    {
+      err << "Failed to create cluster connection!!" << endl;
+      exitHandler(NDBT_FAILED);
+    }
+    g_cluster_connection->set_name(g_options.c_str());
+    if(g_cluster_connection->connect(opt_connect_retries - 1,
+            opt_connect_retry_delay, 1) != 0)
+    {
+      delete g_cluster_connection;
+      g_cluster_connection = NULL;
+      exitHandler(NDBT_FAILED);
+    }
+  }
+}
+
+static void cleanup_restore()
+{
+  delete g_cluster_connection;
+  g_cluster_connection = 0;
+  free_include_excludes_vector();
 }
 
 static void init_progress()
@@ -1979,6 +2010,8 @@ main(int argc, char** argv)
   if (result != NDBT_OK)
     exitHandler(result);
 
+  init_restore();
+
   // serial restore, multithreading added in later commit
   for (int i=1; i<=ga_part_count; i++)
   {
@@ -2020,8 +2053,7 @@ main(int argc, char** argv)
       break;
   }
 
-  free_include_excludes_vector();
-  clearConsumers();
+  cleanup_restore();
 
   if (result != NDBT_OK)
     exitHandler(result);

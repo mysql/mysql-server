@@ -838,21 +838,8 @@ BackupRestore::init(Uint32 tableChangesMask)
     return true;
 
   m_tableChangesMask = tableChangesMask;
-  m_cluster_connection = new Ndb_cluster_connection(m_ndb_connectstring,
-                                                    m_ndb_nodeid);
-  if (m_cluster_connection == NULL)
-  {
-    err << "Failed to create cluster connection!!" << endl;
-    return false;
-  }
-  m_cluster_connection->set_name(g_options.c_str());
-  if(m_cluster_connection->connect(m_ndb_connect_retries - 1, m_ndb_connect_retry_delay, 1) != 0)
-  {
-    return false;
-  }
 
   m_ndb = new Ndb(m_cluster_connection);
-
   if (m_ndb == NULL)
     return false;
   
@@ -923,12 +910,6 @@ void BackupRestore::release()
   {
     delete [] m_callback;
     m_callback= 0;
-  }
-
-  if (m_cluster_connection)
-  {
-    delete m_cluster_connection;
-    m_cluster_connection= 0;
   }
 }
 
