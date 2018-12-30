@@ -322,6 +322,8 @@ public:
   Uint32 m_recovery_work;
   Uint32 m_insert_recovery_work;
 
+  Uint32 m_cfg_mt_backup;
+
   struct Table {
     Table(Fragment_pool &);
     

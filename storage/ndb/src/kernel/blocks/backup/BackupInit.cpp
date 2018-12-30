@@ -273,6 +273,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
                             CFG_DB_INSERT_RECOVERY_WORK,
                             &m_insert_recovery_work);
 
+  m_cfg_mt_backup = 1; /* Default to enabled */
   calculate_real_disk_write_speed_parameters();
 
   jam();

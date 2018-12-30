@@ -159,8 +159,9 @@ static NDB_TICKS startTime;
 
 static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
 
-#define SEND_BACKUP_STARTED_FLAG(A) (((A) & 0x3) > 0)
-#define SEND_BACKUP_COMPLETED_FLAG(A) (((A) & 0x3) > 1)
+#define SEND_BACKUP_STARTED_FLAG(A) (((A) & BackupReq::WAITCOMPLETED) > 0)
+#define SEND_BACKUP_COMPLETED_FLAG(A) (((A) & BackupReq::WAITCOMPLETED) > 1)
+#define MT_BACKUP_FLAG(A) (((A) & BackupReq::MT_BACKUP) > 0)
 
 /**
  * "Magic" constants used for adaptive LCP speed algorithm. These magic
@@ -4145,6 +4146,49 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->flags = flags;
   ptr.p->masterRef = reference();
   ptr.p->nodes = c_aliveNodes;
+
+  m_cfg_mt_backup = 1;
+  Uint32 node = ptr.p->nodes.find_first();
+  Uint32 version = getNodeInfo(getOwnNodeId()).m_version;
+
+
+  while(node != NdbNodeBitmask::NotFound)
+  {
+    const NodeInfo nodeInfo = getNodeInfo(node);
+
+    if (nodeInfo.m_lqh_workers <= 1)
+    {
+     /* The MT_BACKUP flag is set to false in these
+      * cases:
+      * - ndbds
+      * - ndbmtds with only one LDM worker
+      */
+      m_cfg_mt_backup = 0;
+      g_eventLogger->info("Running single-threaded backup since node %u has only one LDM", node);
+      break;
+    }
+    if (getNodeInfo(node).m_version != version)
+    {
+      jam();
+      g_eventLogger->info("Detected incompatible versions, aborting backup");
+      ptr.p->setErrorCode(AbortBackupOrd::IncompatibleVersions);
+      sendBackupRef(senderRef, flags, signal, senderData,
+                    BackupRef::BackupDuringUpgradeUnsupported);
+      // clean up backup state
+      ptr.p->m_gsn = 0;
+      ptr.p->masterData.gsn = 0;
+      c_backups.release(ptr);
+      return;
+    }
+
+    node = ptr.p->nodes.find_next(node+1);
+  }
+
+   if(m_cfg_mt_backup)
+   {
+     ptr.p->flags |= BackupReq::MT_BACKUP;
+   }
+
   if (input_backupId)
   {
     jam();
@@ -6268,7 +6312,22 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
    * structure. If a non-zero part number is set, it creates files as per the
    * mt-backup directory structure.
    */
-  FsOpenReq::v2_setPartNum(req->fileNumber, 0);
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    /*
+     * If the MT_BACKUP flag is set, a non-zero backup-part-ID is
+     * passed to NDBFS so that the multithreaded backup directory
+     * structure is used. If it is false, the old single-threaded
+     * backup structure is used.
+     */
+    FsOpenReq::v2_setPartNum(req->fileNumber, instance());
+    FsOpenReq::v2_setTotalParts(req->fileNumber, globalData.ndbMtLqhWorkers);
+  }
+  else
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, 0);
+    FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
+  }
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 
   /**
@@ -6286,7 +6345,16 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_LOG);
   FsOpenReq::v2_setSequence(req->fileNumber, ptr.p->backupId);
   FsOpenReq::v2_setNodeId(req->fileNumber, getOwnNodeId());
-  FsOpenReq::v2_setPartNum(req->fileNumber, 0);
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, instance());
+    FsOpenReq::v2_setTotalParts(req->fileNumber, globalData.ndbMtLqhWorkers);
+  }
+  else
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, 0);
+    FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
+  }
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 
   /**
@@ -6304,7 +6372,16 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
   FsOpenReq::v2_setSequence(req->fileNumber, ptr.p->backupId);
   FsOpenReq::v2_setNodeId(req->fileNumber, getOwnNodeId());
-  FsOpenReq::v2_setPartNum(req->fileNumber, 0);
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, instance());
+    FsOpenReq::v2_setTotalParts(req->fileNumber, globalData.ndbMtLqhWorkers);
+  }
+  else
+  {
+    FsOpenReq::v2_setPartNum(req->fileNumber, 0);
+    FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
+  }
   FsOpenReq::v2_setCount(req->fileNumber, 0);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
