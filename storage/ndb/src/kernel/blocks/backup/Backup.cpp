@@ -4099,6 +4099,53 @@ Backup::execINCL_NODEREQ(Signal* signal)
  * 
  * Master functionallity - Define backup
  *
+ * Backup master = BACKUP instance 1 (LDM1) on master node.
+ * Backup master receives BACKUP_REQ and sends control signals to all slaves
+ * for mt-backup, slaves = all BACKUP instances(all LDMs) on all nodes
+ * for st-backup, slaves = BACKUP 1(LDM1) on all nodes
+ *
+ * File thread: A file-thread signal train of FSAPPENDREQ/FSAPPENDCONF is
+ * started for each backup file, i.e. one train each for the ctl, data and log
+ * file. The file-thread signal trains interleave with BACKUP-related signals
+ * on each slave thread. The BACKUP-related signals write data to dataBuffers
+ * as needed, using sendSignalWithDelay loops to wait in case a dataBuffer is
+ * not accepting writes. Each file-thread signal picks up data from its
+ * dataBuffer and writes it to the file.
+ *
+ * Control signals
+ * 1) DEFINE_BACKUP_REQ
+ * - seize BackupRecord, alloc and init file ptrs
+ * - send LIST_TABLES_REQ to DICT to get table info to create tablemap
+ * - send FSOPENREQ to open ctl, data and logfiles
+ * - write file headers for ctl, data and logfiles
+ * - start ctl file thread and write table list to ctl file
+ * - get table info for each table, save in thread-local list
+ * - lock tables
+ * - get frag counts for each table + frag info for each frag on each table,
+     save in thread-local list
+ * - reply to sender with DEFINE_BACKUP_CONF
+ *
+ * 2) START_BACKUP_REQ
+ * - start file threads for data and log files
+ * - tell DBTUP to create triggers for logfile writes
+ * - reply to sender with START_BACKUP_CONF
+ *
+ * 3) BACKUP_FRAGMENT_REQ
+ * - send SCAN_FRAGREQ to LQH to start scan
+ * - on receiving SCAN_FRAGCONF, reply to master with BACKUP_FRAGMENT_CONF
+ *
+ * 4) STOP_BACKUP_REQ
+ * - drop all triggers in TUP
+ * - insert footers in ctl and log files
+ * - unlock tables
+ * - close all files
+ * - reply to sender with STOP_BACKUP_CONF
+ *
+ * 5) ABORT_BACKUP_ORD
+ * - unlock tables
+ * - release file pages, file ptrs, thread-local lists of frag info, table data
+ * - release BackupRecord
+ *
  *****************************************************************************/
 
 void
