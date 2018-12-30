@@ -38,6 +38,8 @@
 #include "consumer_restore.hpp"
 #include "my_alloc.h"
 
+#include <NdbThread.h>
+
 #include <my_dir.h>
 
 #define TMP_TABLE_PREFIX "#sql"
@@ -60,10 +62,12 @@ static const Uint32 BF_UNKNOWN = 0;
 static const Uint32 BF_SINGLE = 1;
 static const Uint32 BF_MULTI_PART = 2;
 
+static bool g_restoring_in_parallel = true;
 static const int g_max_parts = 128;
 
 static int ga_backup_format = BF_UNKNOWN;
 static int ga_part_count = 1;
+static int ga_error_thread = 0;
 
 static const char* default_backupPath = "." DIR_SEPARATOR;
 static const char* ga_backupPath = default_backupPath;
@@ -826,6 +830,9 @@ bool create_consumers(RestoreThreadData *data)
                                 opt_nodegroup_map_len);
   if (printer == NULL)
     return false;
+
+  if (g_restoring_in_parallel && (ga_nParallelism > ga_part_count))
+    ga_nParallelism /= ga_part_count;
 
   char threadname[20];
   BaseString::snprintf(threadname, sizeof(threadname), "%d-%u", ga_nodeId, data->m_part_id);
@@ -1872,6 +1879,13 @@ int do_restore(RestoreThreadData *thrdata)
       }
     }
   }
+
+  if (ga_error_thread > 0)
+  {
+    err << "Thread " << thrdata->m_part_id << " exits on error" << endl;
+    return NDBT_FAILED; // thread 1 failed to restore metadata, exiting
+  }
+
   if (ga_restore_epoch)
   {
     Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
@@ -1883,6 +1897,12 @@ int do_restore(RestoreThreadData *thrdata)
         err << "Restore: Failed to restore epoch" << endl;
         return NDBT_FAILED;
       }
+  }
+
+  if (ga_error_thread > 0)
+  {
+    err << "Thread " << thrdata->m_part_id << " exits on error" << endl;
+    return NDBT_FAILED; // thread 1 failed to restore metadata, exiting
   }
 
   unsigned j;
@@ -1919,6 +1939,12 @@ int do_restore(RestoreThreadData *thrdata)
       if (!g_consumers[j]->endOfTablesFK())
         return NDBT_FAILED;
     }
+  }
+
+  if (ga_error_thread > 0)
+  {
+    err << "Thread " << thrdata->m_part_id << " exits on error" << endl;
+    return NDBT_FAILED; // thread 1 failed to restore metadata, exiting
   }
 
   /* report to clusterlog if applicable */
@@ -1990,6 +2016,18 @@ int detect_backup_format()
   return NDBT_OK;
 } // detect_backup_format
 
+static void* start_restore_worker(void *data)
+{
+  RestoreThreadData *rdata = (RestoreThreadData*)data;
+  rdata->m_result = do_restore(rdata);
+  if (rdata->m_result == NDBT_FAILED)
+  {
+    info << "Thread " << rdata->m_part_id << " failed, exiting" << endl;
+    ga_error_thread = rdata->m_part_id;
+  }
+  return 0;
+}
+
 int
 main(int argc, char** argv)
 {
@@ -2045,53 +2083,112 @@ main(int argc, char** argv)
 
   init_restore();
 
-  // serial restore, multithreading added in later commit
-  for (int i=1; i<=ga_part_count; i++)
+  g_restoring_in_parallel = true;
+  // check if single-threaded restore is necessary
+  if (_print || _print_meta || _print_data || _print_log || _print_sql_log
+             || ga_backup_format == BF_SINGLE)
   {
-   /*
-    * do_restore uses its parameter 'partId' to select the backup part.
-    * Each restore thread is started with a unique part ID.
-    * E.g. while restoring BACKUP-2,
-    * restore-thread 1 restores BACKUP-2/BACKUP-2-PART-1-OF-4,
-    * restore-thread 3 restores BACKUP-2/BACKUP-2-PART-3-OF-4
-    * and so on.
-    * do_restore uses the backup format and partId to locate backup files.
-    * The tid and backup type are passed to the file-handlers:
-    * - RestoreMetadata: finds ctl file
-    * - RestoreDataIterator: finds data file
-    * - RestoreLogIterator: finds log file
-    *
-    * For BF_SINGLE, the file-handlers search for the files in
-    *
-    * BACKUP_PATH/BACKUP-<backup_id>/
-    * E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1
-    *
-    * For BF_MULTI_PART, the file-handlers search in
-    *
-    * BACKUP_PATH/BACKUP-<backup-id>/BACKUP-<backup-id>-PART-<part_id>
-    * -OF-<total>/
-    * E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1/BACKUP-1-PART-2-OF-4/
-    */
-
-    RestoreThreadData thrdata(i);
-    if (!create_consumers(&thrdata))
+    g_restoring_in_parallel = false;
+    for (int i=1; i<=ga_part_count; i++)
     {
-      err << "Failed to create consumers for part " << i << endl;
-      return NDBT_FAILED;
+     /*
+      * do_restore uses its parameter 'partId' to select the backup part.
+      * Each restore thread is started with a unique part ID.
+      * E.g. while restoring BACKUP-2,
+      * restore-thread 1 restores BACKUP-2/BACKUP-2-PART-1-OF-4,
+      * restore-thread 3 restores BACKUP-2/BACKUP-2-PART-3-OF-4
+      * and so on.
+      * do_restore uses the backup format and partId to locate backup files.
+      * The tid and backup type are passed to the file-handlers:
+      * - RestoreMetadata: finds ctl file
+      * - RestoreDataIterator: finds data file
+      * - RestoreLogIterator: finds log file
+      *
+      * For BF_SINGLE, the file-handlers search for the files in
+      *
+      * BACKUP_PATH/BACKUP-<backup_id>/
+      * E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1
+      *
+      * For BF_MULTI_PART, the file-handlers search in
+      *
+      * BACKUP_PATH/BACKUP-<backup-id>/BACKUP-<backup-id>-PART-<part_id>
+      * -OF-<total>/
+      * E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1/BACKUP-1-PART-2-OF-4/
+      */
+      RestoreThreadData thrdata(i);
+      if (!create_consumers(&thrdata))
+      {
+        err << "Failed to init restore thread" << endl;
+        ga_error_thread = i;
+        break;
+      }
+      if (do_restore(&thrdata) == NDBT_FAILED)
+      {
+        if (ga_backup_format == BF_SINGLE)
+        {
+          info << "Failed to restore BACKUP-" << ga_backupId << endl;
+        }
+        else
+        {
+          info << "Failed to restore BACKUP-" << ga_backupId
+               << "-PART-" << i << "-OF-" << ga_part_count << endl;
+        }
+        ga_error_thread = i;
+        clear_consumers(&thrdata);
+        break;
+      }
+      clear_consumers(&thrdata);
     }
-
-    result = do_restore(&thrdata);
-
-    clear_consumers(&thrdata);
-
-    if (result == NDBT_FAILED)
-      break;
+  }
+  else
+  {
+   // create one restore thread per backup part
+    Vector<RestoreThreadData*> thrdata;
+    for (int part_id=1; part_id<=ga_part_count; part_id++)
+    {
+      NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_MEAN;
+      uint stack_size = 64*1024;
+      char name[20];
+      snprintf (name, sizeof(name), "restore%d", part_id);
+      RestoreThreadData *data = new RestoreThreadData(part_id);
+      if (!create_consumers(data))
+      {
+        err << "Failed to init restore thread for part BACKUP-"
+            << ga_backupId << "." << part_id << endl;
+        ga_error_thread = part_id;
+        break;
+      }
+      NdbThread *thread = NdbThread_Create (start_restore_worker,
+             (void**)(data), stack_size, name, prio);
+      if(!thread)
+      {
+        err << "Failed to start restore thread for part BACKUP-"
+            << ga_backupId << "." << part_id << endl;
+        ga_error_thread = part_id;
+        break;
+      }
+      data->m_thread = thread;
+      thrdata.push_back(data);
+    }
+    // join all threads
+    for (Uint32 i=0; i<thrdata.size(); i++)
+    {
+      void *status;
+      NdbThread_WaitFor(thrdata[i]->m_thread, &status);
+      NdbThread_Destroy(&thrdata[i]->m_thread);
+    }
+    for (int i=0; i<ga_part_count; i++)
+    {
+      clear_consumers(thrdata[i]);
+      delete thrdata[i];
+    }
+    thrdata.clear();
   }
 
   cleanup_restore();
 
-  if (result != NDBT_OK)
-    exitHandler(result);
+  if (ga_error_thread > 0)
+    exitHandler(NDBT_FAILED);
 
   if (opt_verbose)
     return NDBT_ProgramExit(NDBT_OK);
