@@ -56,7 +56,6 @@ static bool ga_no_upgrade = false;
 static bool ga_promote_attributes = false;
 static bool ga_demote_attributes = false;
 static Vector<class BackupConsumer *> g_consumers;
-static BackupPrinter* g_printer = NULL;
 
 static const Uint32 BF_UNKNOWN = 0;
 static const Uint32 BF_SINGLE = 1;
@@ -652,111 +651,6 @@ o verify nodegroup mapping
   exit(NDBT_ProgramExit(NDBT_WRONGARGS));
 #endif
 
-  g_printer = new BackupPrinter(opt_nodegroup_map,
-                                opt_nodegroup_map_len);
-  if (g_printer == NULL)
-    return false;
-
-  BackupRestore* restore = new BackupRestore(opt_ndb_connectstring,
-                                             opt_ndb_nodeid,
-                                             opt_nodegroup_map,
-                                             opt_nodegroup_map_len,
-                                             ga_nodeId,
-                                             ga_nParallelism,
-                                             opt_connect_retry_delay,
-                                             opt_connect_retries);
-  if (restore == NULL) 
-  {
-    delete g_printer;
-    g_printer = NULL;
-    return false;
-  }
-
-  if (_print) 
-  {
-    ga_print = true;
-    ga_restore = true;
-    g_printer->m_print = true;
-  } 
-  if (_print_meta) 
-  {
-    ga_print = true;
-    g_printer->m_print_meta = true;
-  }
-  if (_print_data) 
-  {
-    ga_print = true;
-    g_printer->m_print_data = true;
-  }
-  if (_print_log) 
-  {
-    ga_print = true;
-    g_printer->m_print_log = true;
-  }
-  if (_print_sql_log)
-    {
-      ga_print = true;
-      g_printer->m_print_sql_log = true;
-    }
-
-  if (_restore_data)
-  {
-    ga_restore = true;
-    restore->m_restore = true; 
-  }
-
-  if (_restore_meta)
-  {
-    //    ga_restore = true;
-    restore->m_restore_meta = true;
-    if(ga_exclude_missing_tables)
-    {
-      //conflict in options
-      err << "Conflicting arguments found : "
-          << "Cannot use `restore-meta` and "
-          << "`exclude-missing-tables` together. Exiting..." << endl;
-      return false;
-    }
-  }
-
-  if (_no_restore_disk)
-  {
-    restore->m_no_restore_disk = true;
-  }
-  
-  if (ga_no_upgrade)
-  {
-     restore->m_no_upgrade = true;
-  }
-
-  if (_preserve_trailing_spaces)
-  {
-     restore->m_preserve_trailing_spaces = true;
-  }
-
-  if (ga_restore_epoch)
-  {
-    restore->m_restore_epoch = true;
-  }
-
-  if (ga_disable_indexes)
-  {
-    restore->m_disable_indexes = true;
-  }
-
-  if (ga_rebuild_indexes)
-  {
-    restore->m_rebuild_indexes = true;
-  }
-
-  {
-    BackupConsumer * c = g_printer;
-    g_consumers.push_back(c);
-  }
-  {
-    BackupConsumer * c = restore;
-    g_consumers.push_back(c);
-  }
   for (;;)
   {
     int i= 0;
@@ -925,8 +819,118 @@ o verify nodegroup mapping
   return true;
 }
 
+bool create_consumers()
+{
+  BackupPrinter *printer = new BackupPrinter(opt_nodegroup_map,
+                                opt_nodegroup_map_len);
+  if (printer == NULL)
+    return false;
+
+  BackupRestore* restore = new BackupRestore(opt_ndb_connectstring,
+                                             opt_ndb_nodeid,
+                                             opt_nodegroup_map,
+                                             opt_nodegroup_map_len,
+                                             ga_nodeId,
+                                             ga_nParallelism,
+                                             opt_connect_retry_delay,
+                                             opt_connect_retries);
+  if (restore == NULL)
+  {
+    delete printer;
+    printer = NULL;
+    return false;
+  }
+
+  if (_print)
+  {
+    ga_print = true;
+    ga_restore = true;
+    printer->m_print = true;
+  }
+  if (_print_meta)
+  {
+    ga_print = true;
+    printer->m_print_meta = true;
+  }
+  if (_print_data)
+  {
+    ga_print = true;
+    printer->m_print_data = true;
+  }
+  if (_print_log)
+  {
+    ga_print = true;
+    printer->m_print_log = true;
+  }
+  if (_print_sql_log)
+    {
+      ga_print = true;
+      printer->m_print_sql_log = true;
+    }
+
+  if (_restore_data)
+  {
+    ga_restore = true;
+    restore->m_restore = true;
+  }
+
+  if (_restore_meta)
+  {
+    //    ga_restore = true;
+    restore->m_restore_meta = true;
+    if(ga_exclude_missing_tables)
+    {
+      //conflict in options
+      err << "Conflicting arguments found : "
+          << "Cannot use `restore-meta` and "
+          << "`exclude-missing-tables` together. Exiting..." << endl;
+      return false;
+    }
+  }
+
+  if (_no_restore_disk)
+  {
+    restore->m_no_restore_disk = true;
+  }
+
+  if (ga_no_upgrade)
+  {
+     restore->m_no_upgrade = true;
+  }
+
+  if (_preserve_trailing_spaces)
+  {
+     restore->m_preserve_trailing_spaces = true;
+  }
+
+  if (ga_restore_epoch)
+  {
+    restore->m_restore_epoch = true;
+  }
+
+  if (ga_disable_indexes)
+  {
+    restore->m_disable_indexes = true;
+  }
+
+  if (ga_rebuild_indexes)
+  {
+    restore->m_rebuild_indexes = true;
+  }
+
+  {
+    BackupConsumer * c = printer;
+    g_consumers.push_back(c);
+  }
+  {
+    BackupConsumer * c = restore;
+    g_consumers.push_back(c);
+  }
+  return true;
+}
+
 void
-clearConsumers()
+clear_consumers()
 {
   for(Uint32 i= 0; i<g_consumers.size(); i++)
     delete g_consumers[i];
@@ -1235,7 +1239,6 @@ free_include_excludes_vector()
 static void exitHandler(int code)
 {
   free_include_excludes_vector();
-  clearConsumers();
   NDBT_ProgramExit(code);
   if (opt_core)
     abort();
@@ -1294,7 +1297,7 @@ check_data_truncations(const TableS * table)
   }
 }
 
-int do_restore(const Uint32 partid)
+int do_restore(const Uint32 partId)
 {
   init_progress();
 
@@ -1979,6 +1982,12 @@ main(int argc, char** argv)
   // serial restore, multithreading added in later commit
   for (int i=1; i<=ga_part_count; i++)
   {
+    if (!create_consumers())
+    {
+      err << "Failed to create consumers for part " << i << endl;
+      return NDBT_FAILED;
+    }
+
    /*
     * do_restore uses its parameter 'partId' to select the backup part.
     * Each restore thread is started with a unique part ID.
@@ -2004,6 +2013,9 @@ main(int argc, char** argv)
     * E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1/BACKUP-1-PART-2-OF-4/
     */
     result = do_restore(i);
+
+    clear_consumers();
+
     if (result == NDBT_FAILED)
       break;
   }
