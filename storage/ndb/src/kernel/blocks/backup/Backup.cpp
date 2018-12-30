@@ -4713,12 +4713,42 @@ Backup::sendCreateTrig(Signal* signal,
     TriggerInfo::setTriggerEvent(ti2, triggerEventValues[i]);
     req->triggerInfo = ti2;
 
-    LinearSectionPtr ptr[3];
-    ptr[0].p = attrMask.rep.data;
-    ptr[0].sz = attrMask.getSizeInWords();
+    LinearSectionPtr attrPtr[3];
+    attrPtr[0].p = attrMask.rep.data;
+    attrPtr[0].sz = attrMask.getSizeInWords();
 
-    sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ,
-	       signal, CreateTrigImplReq::SignalLength, JBB, ptr ,1);
+
+    if (MT_BACKUP_FLAG(ptr.p->flags))
+    {
+      // In mt-backup, the backup log is divided between LDMs. Each
+      // BACKUP block writes insert/update/delete logs for the tuples it owns.
+      // Each LDM in a multithreaded backup sends CREATE_TRIG_IMPL_REQs only to
+      // its local DBTUP. Each DBTUP processes changes on its own fragments
+      // and sends FIRE_TRIG_ORDs to its local BACKUP block. Since one DBTUP
+      // instance has no knowledge of changes in other DBTUPs, this ensures
+      // that a BACKUP block receives FIRE_TRIG_ORDs only for tuples it owns.
+      // Each BACKUP block sends a CREATE_TRIG_IMPL_REQ to its local DBTUP
+      // Each DBTUP processes changes on its frags and sends FIRE_TRIG_ORDs
+      // to the local BACKUP block. Since one DBTUP instance has no knowledge
+      // of changes in other DBTUPs, this ensures that a BACKUP block receives
+      // FIRE_TRIG_ORDs for all changes on frags owned by its LDM, and for
+      // no other frags.
+      BlockReference ref = numberToRef(DBTUP, instance(), getOwnNodeId());
+      sendSignal(ref, GSN_CREATE_TRIG_IMPL_REQ,
+          signal, CreateTrigImplReq::SignalLength, JBB, attrPtr ,1);
+    }
+    else
+    {
+      // In single-threaded backup, the BACKUP block on LDM1 sends
+      // CREATE_TRIG_IMPL_REQs for insert/update/delete on all tables to the
+      // DbtupProxy. The DbtupProxy broadcasts the CREATE_TRIG to all LDMs.
+      // So for every insert/update/delete, the DBTUP which owns the modified
+      // fragment sends a FIRE_TRIG_ORD to the trigger creator on LDM1. When
+      // the BACKUP block receives a FIRE_TRIG_ORD, it extracts the details of
+      // the insert/update/delete and writes it to the backup log.
+      sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ,
+          signal, CreateTrigImplReq::SignalLength, JBB, attrPtr ,1);
+    }
   }
 }
 
@@ -5407,9 +5437,18 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
     Uint32 ti2 = ti;
     TriggerInfo::setTriggerEvent(ti2, triggerEventValues[i]);
     req->triggerInfo = ti2;
+    if (MT_BACKUP_FLAG(ptr.p->flags))
+    {
+      BlockReference ref = numberToRef(DBTUP, instance(), getOwnNodeId());
+      sendSignal(ref, GSN_DROP_TRIG_IMPL_REQ,
+               signal, DropTrigImplReq::SignalLength, JBB);
+    }
+    else
+    {
+      sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
+               signal, DropTrigImplReq::SignalLength, JBB);
+    }
 
-    sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
-	       signal, DropTrigImplReq::SignalLength, JBB);
     ptr.p->slaveData.trigSendCounter ++;
   }
 }
