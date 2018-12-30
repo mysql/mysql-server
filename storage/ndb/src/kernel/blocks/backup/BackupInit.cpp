@@ -274,6 +274,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
                             &m_insert_recovery_work);
 
   m_cfg_mt_backup = 1; /* Default to enabled */
+  m_skew_disk_speed = true;
   calculate_real_disk_write_speed_parameters();
 
   jam();

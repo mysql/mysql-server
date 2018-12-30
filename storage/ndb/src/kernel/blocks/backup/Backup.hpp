@@ -324,6 +324,7 @@ public:
   Uint32 m_insert_recovery_work;
 
   Uint32 m_cfg_mt_backup;
+  bool m_skew_disk_speed;
 
   struct Table {
     Table(Fragment_pool &);

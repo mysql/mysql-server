@@ -1678,7 +1678,7 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
 
   const Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
 
-  if (m_is_backup_running && 
+  if (m_is_backup_running && m_skew_disk_speed &&
       num_ldm_threads > 1)
   {
     jam();
@@ -5975,6 +5975,18 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   }//if
 
   CRASH_INSERTION((10014));
+
+  if (MT_BACKUP_FLAG(ptr.p->flags))
+  {
+    // All LDMs participate in backup, not just LDM1
+    // Prevent allotment of extra resources for LDM1
+    m_skew_disk_speed = false;
+  }
+  else
+  {
+    // only LDM1 participates in backup, allot extra disk speed quota
+    m_skew_disk_speed = true;
+  }
 
   // The masterRef is the BACKUP block which coordinates the backup
   // across all the nodes, i.e. LDM1 on the master node. The senderRef
