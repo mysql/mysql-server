@@ -1283,53 +1283,8 @@ check_data_truncations(const TableS * table)
   }
 }
 
-int
-main(int argc, char** argv)
+int do_restore(const Uint32 partid)
 {
-  NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
-  Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
-
-  debug << "Start readArguments" << endl;
-  if (!readArguments(opts, &argv))
-  {
-    exitHandler(NDBT_FAILED);
-  }
-
-  g_options.appfmt(" -b %u", ga_backupId);
-  g_options.appfmt(" -n %d", ga_nodeId);
-  if (_restore_meta)
-    g_options.appfmt(" -m");
-  if (ga_no_upgrade)
-    g_options.appfmt(" -u");
-  if (ga_promote_attributes)
-    g_options.appfmt(" -A");
-  if (ga_demote_attributes)
-    g_options.appfmt(" -L");
-  if (_preserve_trailing_spaces)
-    g_options.appfmt(" -P");
-  if (ga_skip_table_check)
-    g_options.appfmt(" -s");
-  if (_restore_data)
-    g_options.appfmt(" -r");
-  if (ga_restore_epoch)
-    g_options.appfmt(" -e");
-  if (_no_restore_disk)
-    g_options.appfmt(" -d");
-  if (ga_exclude_missing_columns)
-    g_options.append(" --exclude-missing-columns");
-  if (ga_exclude_missing_tables)
-    g_options.append(" --exclude-missing-tables");
-  if (ga_disable_indexes)
-    g_options.append(" --disable-indexes");
-  if (ga_rebuild_indexes)
-    g_options.append(" --rebuild-indexes");
-  g_options.appfmt(" -p %d", ga_nParallelism);
-  if (ga_skip_unknown_objects)
-    g_options.append(" --skip-unknown-objects");
-  if (ga_skip_broken_objects)
-    g_options.append(" --skip-broken-objects");
-
   init_progress();
 
   char timestamp[64];
@@ -1354,7 +1309,7 @@ main(int argc, char** argv)
   if (!metaData.readHeader())
   {
     err << "Failed to read " << metaData.getFilename() << endl << endl;
-    exitHandler(NDBT_FAILED);
+    return NDBT_FAILED;
   }
 
   const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
@@ -1387,14 +1342,14 @@ main(int argc, char** argv)
         << " and "
         << ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, buf, sizeof(buf))
         << endl;
-    exitHandler(NDBT_FAILED);
+    return NDBT_FAILED;
   }
 
   if (version > NDB_VERSION)
   {
     err << "Restore program older than backup version. Not supported. "
         << "Use new restore program" << endl;
-    exitHandler(NDBT_FAILED);
+    return NDBT_FAILED;
   }
 
   debug << "Load content" << endl;
@@ -1408,7 +1363,7 @@ main(int argc, char** argv)
   if (res == 0)
   {
     err << "Restore: Failed to load content" << endl;
-    exitHandler(NDBT_FAILED);
+    return NDBT_FAILED;
   }
   debug << "Get number of Tables" << endl;
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
@@ -1416,7 +1371,7 @@ main(int argc, char** argv)
   if (metaData.getNoOfTables() == 0) 
   {
     err << "The backup contains no tables" << endl;
-    exitHandler(NDBT_FAILED);
+    return NDBT_FAILED;
   }
 
   if(_print_sql_log && _print_log)
@@ -1425,7 +1380,7 @@ main(int argc, char** argv)
           << "options are not passed" << endl;
     err << "Both print-sql-log and print-log options passed. Exiting..."
         << endl;
-    exitHandler(NDBT_FAILED);
+    return NDBT_FAILED;
   }
 
   if (_print_sql_log)
@@ -1447,7 +1402,7 @@ main(int argc, char** argv)
       {
         err << "Found column of type blob with print-sql-log option set. "
             << "Exiting..." << endl;
-        exitHandler(NDBT_FAILED);
+        return NDBT_FAILED;
       }
       /* Hidden PKs are stored with the name $PK */
       int noOfPK = table->m_dictTable->getNoOfPrimaryKeys();
@@ -1458,7 +1413,7 @@ main(int argc, char** argv)
         {
           err << "Found hidden primary key with print-sql-log option set. "
               << "Exiting..." << endl;
-          exitHandler(NDBT_FAILED);
+          return NDBT_FAILED;
         }
       }
     }
@@ -1471,7 +1426,7 @@ main(int argc, char** argv)
   if (!metaData.validateFooter()) 
   {
     err << "Restore: Failed to validate footer." << endl;
-    exitHandler(NDBT_FAILED);
+    return NDBT_FAILED;
   }
   debug << "Init Backup objects" << endl;
   Uint32 i;
@@ -1480,7 +1435,7 @@ main(int argc, char** argv)
     if (!g_consumers[i]->init(g_tableCompabilityMask))
     {
       err << "Failed to initialize consumers" << endl;
-      exitHandler(NDBT_FAILED);
+      return NDBT_FAILED;
     }
 
   }
@@ -1503,7 +1458,7 @@ main(int argc, char** argv)
       {
 	err << "Restore: Failed to restore table: ";
         err << metaData[i]->getTableName() << " ... Exiting " << endl;
-	exitHandler(NDBT_FAILED);
+	return NDBT_FAILED;
       } 
     if (check_progress())
     {
@@ -1553,7 +1508,7 @@ main(int argc, char** argv)
                       MYF(MY_WME));
         if (res == 0)
         {
-          exitHandler(NDBT_FAILED);
+          return NDBT_FAILED;
         }
         FileOutputStream *f= new FileOutputStream(res);
         table_output[i]= f;
@@ -1563,7 +1518,7 @@ main(int argc, char** argv)
 	{
 	  err << "Restore: Failed to restore table: `";
           err << table->getTableName() << "` ... Exiting " << endl;
-	  exitHandler(NDBT_FAILED);
+	  return NDBT_FAILED;
 	} 
     } else {
       for(Uint32 j= 0; j < g_consumers.size(); j++)
@@ -1571,7 +1526,7 @@ main(int argc, char** argv)
         {
           err << "Restore: Failed to restore system table: ";
           err << table->getTableName() << " ... Exiting " << endl;
-          exitHandler(NDBT_FAILED);
+          return NDBT_FAILED;
         }
     }
     if (check_progress())
@@ -1592,7 +1547,7 @@ main(int argc, char** argv)
       if (!g_consumers[j]->fk(metaData.getObjType(i),
 			      metaData.getObjPtr(i)))
       {
-        exitHandler(NDBT_FAILED);
+        return NDBT_FAILED;
       } 
   }
 
@@ -1602,14 +1557,14 @@ main(int argc, char** argv)
     if (!g_consumers[i]->endOfTables())
     {
       err << "Restore: Failed while closing tables" << endl;
-      exitHandler(NDBT_FAILED);
+      return NDBT_FAILED;
     } 
     if (!ga_disable_indexes && !ga_rebuild_indexes)
     {
       if (!g_consumers[i]->endOfTablesFK())
       {
         err << "Restore: Failed while closing tables FKs" << endl;
-        exitHandler(NDBT_FAILED);
+        return NDBT_FAILED;
       } 
     }
   }
@@ -1637,14 +1592,14 @@ main(int argc, char** argv)
             {
               err << "Restore: Failed to restore data, ";
               err << tableS.getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
-              exitHandler(NDBT_FAILED);
+              return NDBT_FAILED;
             } 
             if (tableS.m_staging &&
                 !g_consumers[j]->prepare_staging(tableS))
             {
               err << "Restore: Failed to restore data, ";
               err << tableS.getTableName() << " failed to prepare staging table for data conversion ... Exiting " << endl;
-              exitHandler(NDBT_FAILED);
+              return NDBT_FAILED;
             }
           } 
         }
@@ -1664,7 +1619,7 @@ main(int argc, char** argv)
               {
                   err << "Restore: Failed to restore data, ";
                   err << tableS.getTableName() << " table's blobs incompatible with backup's ... Exiting " << endl;
-                  exitHandler(NDBT_FAILED);
+                  return NDBT_FAILED;
               }
             }
           }
@@ -1676,14 +1631,14 @@ main(int argc, char** argv)
       if (!dataIter.validateBackupFile())
       {
           err << "Unable to allocate memory for BackupFile constructor" << endl;
-          exitHandler(NDBT_FAILED);
+          return NDBT_FAILED;
       }
 
 
       if (!dataIter.validateRestoreDataIterator())
       {
           err << "Unable to allocate memory for RestoreDataIterator constructor" << endl;
-          exitHandler(NDBT_FAILED);
+          return NDBT_FAILED;
       }
       
       Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
@@ -1693,7 +1648,7 @@ main(int argc, char** argv)
       if (!dataIter.readHeader())
       {
 	err << "Failed to read header of data file. Exiting..." << endl;
-	exitHandler(NDBT_FAILED);
+	return NDBT_FAILED;
       }
       
       Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
@@ -1722,12 +1677,12 @@ main(int argc, char** argv)
 	{
 	  err <<" Restore: An error occured while restoring data. Exiting...";
           err << endl;
-	  exitHandler(NDBT_FAILED);
+	  return NDBT_FAILED;
 	}
 	if (!dataIter.validateFragmentFooter()) {
 	  err << "Restore: Error validating fragment footer. ";
           err << "Exiting..." << endl;
-	  exitHandler(NDBT_FAILED);
+	  return NDBT_FAILED;
 	}
       } // while (dataIter.readFragmentHeader(res))
       
@@ -1735,7 +1690,7 @@ main(int argc, char** argv)
       {
 	err << "Restore: An error occured while restoring data. Exiting... "
 	    << "res= " << res << endl;
-	exitHandler(NDBT_FAILED);
+	return NDBT_FAILED;
       }
       
       
@@ -1761,7 +1716,7 @@ main(int argc, char** argv)
       if (!logIter.readHeader())
       {
 	err << "Failed to read header of data file. Exiting..." << endl;
-	exitHandler(NDBT_FAILED);
+	return NDBT_FAILED;
       }
       
       const LogEntry * logEntry = 0;
@@ -1785,7 +1740,7 @@ main(int argc, char** argv)
       {
 	err << "Restore: An restoring the data log. Exiting... res=" 
 	    << res << endl;
-	exitHandler(NDBT_FAILED);
+	return NDBT_FAILED;
       }
       logIter.validateFooter(); //not implemented
       for (i= 0; i < g_consumers.size(); i++)
@@ -1813,7 +1768,7 @@ main(int argc, char** argv)
               err << "Restore: Failed staging data to table: ";
               err << table->getTableName() << ". ";
               err << "Exiting... " << endl;
-              exitHandler(NDBT_FAILED);
+              return NDBT_FAILED;
             }
           }
         }
@@ -1834,7 +1789,7 @@ main(int argc, char** argv)
           {
             err << "Restore: Failed to finalize restore table: %s. ";
             err << "Exiting... " << metaData[i]->getTableName() << endl;
-            exitHandler(NDBT_FAILED);
+            return NDBT_FAILED;
           }
       }
     }
@@ -1848,7 +1803,7 @@ main(int argc, char** argv)
       if (!g_consumers[i]->update_apply_status(metaData))
       {
         err << "Restore: Failed to restore epoch" << endl;
-        exitHandler(NDBT_FAILED);
+        return NDBT_FAILED;
       }
   }
 
@@ -1878,21 +1833,19 @@ main(int argc, char** argv)
       for(Uint32 j= 0; j < g_consumers.size(); j++)
       {
         if (!g_consumers[j]->rebuild_indexes(* table))
-          exitHandler(NDBT_FAILED);
+          return NDBT_FAILED;
       }
     }
     for(Uint32 j= 0; j < g_consumers.size(); j++)
     {
       if (!g_consumers[j]->endOfTablesFK())
-        exitHandler(NDBT_FAILED);
+        return NDBT_FAILED;
     }
   }
 
   /* report to clusterlog if applicable */
   for (i = 0; i < g_consumers.size(); i++)
     g_consumers[i]->report_completed(ga_backupId, ga_nodeId);
-
-  clearConsumers();
 
   for(i = 0; i < metaData.getNoOfTables(); i++)
   {
@@ -1904,7 +1857,63 @@ main(int argc, char** argv)
       table_output[i] = NULL;
     }
   }
+  return NDBT_OK;
+} // do_restore
+
+int
+main(int argc, char** argv)
+{
+  NDB_INIT(argv[0]);
+
+  const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
+  Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
+
+  if (!readArguments(opts, &argv))
+  {
+    exitHandler(NDBT_FAILED);
+  }
+
+  g_options.appfmt(" -b %u", ga_backupId);
+  g_options.appfmt(" -n %d", ga_nodeId);
+  if (_restore_meta)
+    g_options.appfmt(" -m");
+  if (ga_no_upgrade)
+    g_options.appfmt(" -u");
+  if (ga_promote_attributes)
+    g_options.appfmt(" -A");
+  if (ga_demote_attributes)
+    g_options.appfmt(" -L");
+  if (_preserve_trailing_spaces)
+    g_options.appfmt(" -P");
+  if (ga_skip_table_check)
+    g_options.appfmt(" -s");
+  if (_restore_data)
+    g_options.appfmt(" -r");
+  if (ga_restore_epoch)
+    g_options.appfmt(" -e");
+  if (_no_restore_disk)
+    g_options.appfmt(" -d");
+  if (ga_exclude_missing_columns)
+    g_options.append(" --exclude-missing-columns");
+  if (ga_exclude_missing_tables)
+    g_options.append(" --exclude-missing-tables");
+  if (ga_disable_indexes)
+    g_options.append(" --disable-indexes");
+  if (ga_rebuild_indexes)
+    g_options.append(" --rebuild-indexes");
+  g_options.appfmt(" -p %d", ga_nParallelism);
+  if (ga_skip_unknown_objects)
+    g_options.append(" --skip-unknown-objects");
+  if (ga_skip_broken_objects)
+    g_options.append(" --skip-broken-objects");
+
+  int result = do_restore(1);
+
   free_include_excludes_vector();
+  clearConsumers();
+
+  if (result != NDBT_OK)
+    exitHandler(result);
 
   if (opt_verbose)
     return NDBT_ProgramExit(NDBT_OK);
