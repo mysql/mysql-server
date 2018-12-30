@@ -83,6 +83,7 @@ const char *opt_ndb_database= NULL;
 const char *opt_ndb_table= NULL;
 unsigned int opt_verbose;
 unsigned int opt_hex_format;
+bool opt_show_part_id = true;
 unsigned int opt_progress_frequency;
 NDB_TICKS g_report_prev;
 Vector<BaseString> g_databases;
@@ -342,6 +343,9 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "skip-broken-objects", 256, "Skip broken object when parsing backup",
     (uchar**) &ga_skip_broken_objects, (uchar**) &ga_skip_broken_objects, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "show-part-id", 256, "Prefix log messages with backup part ID",
+    (uchar**) &opt_show_part_id, (uchar**) &opt_show_part_id, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #ifdef ERROR_INSERT
   { "error-insert", OPT_ERROR_INSERT,
@@ -1375,6 +1379,11 @@ int do_restore(RestoreThreadData *thrdata)
 
   char timestamp[64];
   Vector<BackupConsumer*> &g_consumers = thrdata->m_consumers;
+  char threadName[15] = "";
+  if (opt_show_part_id)
+    BaseString::snprintf(threadName, sizeof(threadName), "[part %u] ", thrdata->m_part_id);
+  restoreLogger.setThreadPrefix(threadName);
+
   /**
    * we must always load meta data, even if we will only print it to stdout
    */

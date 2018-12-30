@@ -574,6 +574,8 @@ public:
          ATTRIBUTE_FORMAT(printf, 2, 3);
   void log_error(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
+  void setThreadPrefix(const char* prefix);
+  const char* getThreadPrefix() const;
 private:
   NdbMutex *m_mutex;
 };

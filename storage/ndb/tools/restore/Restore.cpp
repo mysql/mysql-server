@@ -36,6 +36,12 @@
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
 #include "sql/ha_ndbcluster_tables.h"
+#include "../../../../sql/ha_ndbcluster_tables.h"
+#include <NdbThread.h>
+#include "../src/kernel/vm/Emulator.hpp"
+
+extern thread_local EmulatedJamBuffer* NDB_THREAD_TLS_JAM;
+
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern bool ga_skip_unknown_objects;
 extern bool ga_skip_broken_objects;
@@ -2386,7 +2392,7 @@ void RestoreLogger::log_error(const char* fmt, ...)
   va_end(ap);
 
   NdbMutex_Lock(m_mutex);
-  err << buf << endl;
+  err << getThreadPrefix() << buf << endl;
   NdbMutex_Unlock(m_mutex);
 }
 
@@ -2399,7 +2405,7 @@ void RestoreLogger::log_info(const char* fmt, ...)
   va_end(ap);
 
   NdbMutex_Lock(m_mutex);
-  info << buf << endl;
+  info << getThreadPrefix() << buf << endl;
   NdbMutex_Unlock(m_mutex);
 }
 
@@ -2412,10 +2418,27 @@ void RestoreLogger::log_debug(const char* fmt, ...)
   va_end(ap);
 
   NdbMutex_Lock(m_mutex);
-  debug << buf << endl;
+  debug << getThreadPrefix() << buf << endl;
   NdbMutex_Unlock(m_mutex);
 }
 
+void
+RestoreLogger::setThreadPrefix(const char* prefix)
+{
+   /* Reuse 'JAM buffer' Tls key for a per-thread prefix string buffer pointer */
+   NDB_THREAD_TLS_JAM = (EmulatedJamBuffer*)prefix;
+}
+
+const char*
+RestoreLogger::getThreadPrefix() const
+{
+   const char* prefix = (const char*) NDB_THREAD_TLS_JAM;
+   if (prefix == NULL)
+   {
+      prefix =  "";
+    }
+   return prefix;
+}
 #include <NDBT.hpp>
 
 NdbOut & 
