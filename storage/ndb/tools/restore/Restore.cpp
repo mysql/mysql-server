@@ -257,9 +257,12 @@ FilteredNdbOut debug(* new FileOutputStream(stdout), 2, 0);
 const Uint32 magicByteOrder = 0x12345678;
 const Uint32 swappedMagicByteOrder = 0x78563412;
 
-RestoreMetaData::RestoreMetaData(const char* path, Uint32 nodeId, Uint32 bNo) {
-  
+RestoreMetaData::RestoreMetaData(const char* path, Uint32 nodeId,
+                                 Uint32 bNo, Uint32 partId, Uint32 partCount)
+{
   debug << "RestoreMetaData constructor" << endl;
+  m_part_id = partId;
+  m_part_count = partCount;
   setCtlFile(nodeId, bNo, path);
 }
 
@@ -1414,6 +1417,8 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_file_size = 0;
   m_file_pos = 0;
   m_is_undolog = false;
+
+  m_part_count = 1;
 #ifdef ERROR_INSERT
   m_error_insert = 0;
 #endif
@@ -1627,7 +1632,18 @@ BackupFile::setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path){
 
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
   BaseString::snprintf(name, sz, "BACKUP-%u.%d.ctl", backupId, nodeId);  
-  setName(path, name);
+
+  if (m_part_count > 1)
+  {
+    char multiset_name[PATH_MAX];
+    BaseString::snprintf(multiset_name, sizeof(multiset_name),
+                    "BACKUP-%u-PART-%u-OF-%u%s%s", backupId, m_part_id, m_part_count, DIR_SEPARATOR, name);
+    setName(path, multiset_name);
+  }
+  else
+  {
+    setName(path, name);
+  }
 }
 
 void
@@ -1637,8 +1653,17 @@ BackupFile::setDataFile(const BackupFile & bf, Uint32 no){
   m_expectedFileHeader.FileType = BackupFormat::DATA_FILE;
   
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  BaseString::snprintf(name, sz, "BACKUP-%u-%d.%d.Data", 
-	   m_expectedFileHeader.BackupId, no, m_nodeId);
+  Uint32 backupId = m_expectedFileHeader.BackupId;
+  if (bf.m_part_count > 1)
+  {
+    BaseString::snprintf(name, sz, "BACKUP-%u-PART-%d-OF-%d%sBACKUP-%u-%u.%d.Data",
+          backupId, bf.m_part_id, bf.m_part_count, DIR_SEPARATOR, backupId, no, m_nodeId);
+  }
+  else
+  {
+    BaseString::snprintf(name, sz, "BACKUP-%u-%u.%d.Data",
+          backupId, no, m_nodeId);
+  }
   setName(bf.m_path, name);
 }
 
@@ -1649,8 +1674,17 @@ BackupFile::setLogFile(const BackupFile & bf, Uint32 no){
   m_expectedFileHeader.FileType = BackupFormat::LOG_FILE;
   
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  BaseString::snprintf(name, sz, "BACKUP-%u.%d.log", 
-	   m_expectedFileHeader.BackupId, m_nodeId);
+  Uint32 backupId = m_expectedFileHeader.BackupId;
+  if (bf.m_part_count > 1)
+  {
+    BaseString::snprintf(name, sz, "BACKUP-%u-PART-%d-OF-%d%sBACKUP-%u.%d.log",
+          backupId, bf.m_part_id, bf.m_part_count, DIR_SEPARATOR, backupId, m_nodeId);
+  }
+  else
+  {
+    BaseString::snprintf(name, sz, "BACKUP-%u.%d.log",
+          backupId, m_nodeId);
+  }
   setName(bf.m_path, name);
 }
 
@@ -1997,7 +2031,6 @@ Uint64 Twiddle64(Uint64 in)
 
   return(retVal);
 } // Twiddle64
-
 
 RestoreLogIterator::RestoreLogIterator(const RestoreMetaData & md)
   : m_metaData(md) 

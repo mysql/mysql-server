@@ -38,6 +38,8 @@
 #include "consumer_restore.hpp"
 #include "my_alloc.h"
 
+#include <my_dir.h>
+
 #define TMP_TABLE_PREFIX "#sql"
 #define TMP_TABLE_PREFIX_LEN 4
 
@@ -55,6 +57,15 @@ static bool ga_promote_attributes = false;
 static bool ga_demote_attributes = false;
 static Vector<class BackupConsumer *> g_consumers;
 static BackupPrinter* g_printer = NULL;
+
+static const Uint32 BF_UNKNOWN = 0;
+static const Uint32 BF_SINGLE = 1;
+static const Uint32 BF_MULTI_PART = 2;
+
+static const int g_max_parts = 128;
+
+static int ga_backup_format = BF_UNKNOWN;
+static int ga_part_count = 1;
 
 static const char* default_backupPath = "." DIR_SEPARATOR;
 static const char* ga_backupPath = default_backupPath;
@@ -1295,7 +1306,7 @@ int do_restore(const Uint32 partid)
 
   debug << "Start restoring meta data" << endl;
 
-  RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId);
+  RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId, partId, ga_part_count);
 #ifdef ERROR_INSERT
   if(_error_insert > 0)
   {
@@ -1860,6 +1871,58 @@ int do_restore(const Uint32 partid)
   return NDBT_OK;
 } // do_restore
 
+/* Detects the backup type (single part or multiple parts) by locating
+ * the ctl file. It sets the backup format as BF_SINGLE/BF_MULTI_PART
+ * for future file-handling. Also counts the parts to be restored.
+ */
+int detect_backup_format()
+{
+  // construct name of ctl file
+  char name[PATH_MAX]; const Uint32 sz = sizeof(name);
+  BaseString::snprintf(name, sz, "%s%sBACKUP-%u.%d.ctl",
+          ga_backupPath, DIR_SEPARATOR, ga_backupId, ga_nodeId);
+  MY_STAT buf;
+  if(my_stat(name, &buf, 0))
+  {
+    // for single part, backup path leads directly to ctl file
+    // File-handlers search for the files in
+    // BACKUP_PATH/BACKUP-<backup_id>/
+    // E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1
+    ga_backup_format = BF_SINGLE;
+    ga_part_count = 1;
+  }
+  else
+  {
+    // for multiple parts, backup patch has subdirectories which
+    // contain ctl files
+    // file-handlers search for files in
+    // BACKUP_PATH/BACKUP-<backup-id>/BACKUP-<backup-id>.<part_id>/
+    // E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1/BACKUP-1.2/
+    ga_backup_format = BF_MULTI_PART;
+    // count number of backup parts in multi-set backup
+    for(ga_part_count = 1; ga_part_count <= g_max_parts; ga_part_count++)
+    {
+      // backup parts are named as BACKUP-<backupid>-PART-<part_id>-OF-<total_parts>
+      // E.g. Part 2 of backup 3 which has 4 parts will be in the path
+      //    BACKUP-3/BACKUP-3-PART-2-OF-4/
+      // Try out different values of <total_parts> for PART-1 until correct total found
+      // E.g. for total = 4,
+      //      BACKUP-1-PART-1-OF-1 : not found, continue
+      //      BACKUP-1-PART-1-OF-2 : not found, continue
+      //      BACKUP-1-PART-1-OF-3 : not found, continue
+      //      BACKUP-1-PART-1-OF-4 : FOUND, set ga_part_count and break
+      BaseString::snprintf(name, sz, "%s%sBACKUP-%d-PART-1-OF-%u%sBACKUP-%u.%d.ctl",
+              ga_backupPath, DIR_SEPARATOR, ga_backupId, ga_part_count,
+              DIR_SEPARATOR, ga_backupId, ga_nodeId);
+      if(my_stat(name, &buf, 0))
+        break; // part found, end of parts
+      if(ga_part_count == g_max_parts)
+        return NDBT_FAILED; // too many parts
+    }
+  }
+  return NDBT_OK;
+} // detect_backup_format
+
 int
 main(int argc, char** argv)
 {
@@ -1907,7 +1970,43 @@ main(int argc, char** argv)
   if (ga_skip_broken_objects)
     g_options.append(" --skip-broken-objects");
 
-  int result = do_restore(1);
+  // determine backup format: simple or multi-part, and count parts
+  int result = detect_backup_format();
+
+  if (result != NDBT_OK)
+    exitHandler(result);
+
+  // serial restore, multithreading added in later commit
+  for (int i=1; i<=ga_part_count; i++)
+  {
+   /*
+    * do_restore uses its parameter 'partId' to select the backup part.
+    * Each restore thread is started with a unique part ID.
+    * E.g. while restoring BACKUP-2,
+    * restore-thread 1 restores BACKUP-2/BACKUP-2-PART-1-OF-4,
+    * restore-thread 3 restores BACKUP-2/BACKUP-2-PART-3-OF-4
+    * and so on.
+    * do_restore uses the backup format and partId to locate backup files.
+    * The tid and backup type are passed to the file-handlers:
+    * - RestoreMetadata: finds ctl file
+    * - RestoreDataIterator: finds data file
+    * - RestoreLogIterator: finds log file
+    *
+    * For BF_SINGLE, the file-handlers search for the files in
+    *
+    * BACKUP_PATH/BACKUP-<backup_id>/
+    * E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1
+    *
+    * For BF_MULTI_PART, the file-handlers search in
+    *
+    * BACKUP_PATH/BACKUP-<backup-id>/BACKUP-<backup-id>-PART-<part_id>
+    * -OF-<total>/
+    * E.g. /usr/local/mysql/datadir/BACKUP/BACKUP-1/BACKUP-1-PART-2-OF-4/
+    */
+    result = do_restore(i);
+    if (result == NDBT_FAILED)
+      break;
+  }
 
   free_include_excludes_vector();
   clearConsumers();

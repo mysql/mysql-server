@@ -357,9 +357,13 @@ protected:
   UtilBuffer m_twiddle_buffer;
 
   bool  m_is_undolog;
-
   void (* free_data_callback)();
   virtual void reset_buffers() {}
+
+  // In case of multiple backup parts, each backup part is
+  // identified by a unique part ID, which is m_part_id.
+  Uint32 m_part_id;
+  Uint32 m_part_count;
 
   bool openFile();
   void setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path);
@@ -435,7 +439,8 @@ class RestoreMetaData : public BackupFile {
   Vector<DictObject> m_objects;
   
 public:
-  RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo);
+  RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo,
+                  Uint32 partId, Uint32 partCount);
   virtual ~RestoreMetaData();
   
   int loadContent();
