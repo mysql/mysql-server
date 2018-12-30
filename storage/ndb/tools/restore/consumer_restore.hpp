@@ -78,9 +78,11 @@ public:
     m_n_tables = 0;
     m_logBytes = m_dataBytes = 0;
     m_logCount = m_dataCount = 0;
+    m_metadata_work_requested = 0;
     m_restore = false;
     m_restore_meta = false;
     m_no_restore_disk = false;
+    m_restore_epoch_requested = false;
     m_restore_epoch = false;
     m_backup_nodeid = backup_nodeid;
     m_parallelism = parallelism;
@@ -207,13 +209,24 @@ public:
 
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
+
   bool m_restore;
+
+  // flags set on all threads to indicate that metadata/epoch restore
+  // was requested - will ensure all threads init data needed by later
+  // stages of ndb_restore
+  bool m_metadata_work_requested;
+  bool m_restore_epoch_requested;
+
+  // flags set only on thread 1 to indicate that thread 1 must
+  // do restore work, like restoring epoch/rebuilding indices
   bool m_restore_meta;
-  bool m_no_restore_disk;
   bool m_restore_epoch;
-  bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
   bool m_disable_indexes;
   bool m_rebuild_indexes;
+
+  bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
+  bool m_no_restore_disk;
   Uint32 m_tableChangesMask;
   static bool m_preserve_trailing_spaces;
 

@@ -821,7 +821,7 @@ o verify nodegroup mapping
   return true;
 }
 
-bool create_consumers()
+bool create_consumers(Uint32 part_id)
 {
   BackupPrinter *printer = new BackupPrinter(opt_nodegroup_map,
                                 opt_nodegroup_map_len);
@@ -876,8 +876,27 @@ bool create_consumers()
 
   if (_restore_meta)
   {
-    //    ga_restore = true;
-    restore->m_restore_meta = true;
+    // ndb_restore has been requested to perform some metadata work
+    // like restore-meta or disable-indexes. To avoid 'object already exists'
+    // errors, only restore-thread 1 will do the actual metadata-restore work.
+    // So flags like restore_meta, restore_epoch and disable_indexes are set
+    // only on thread 1 to indicate that it must perform this restore work.
+    // While restoring metadata, some init work is done, like creating an Ndb
+    // object, setting up callbacks, and loading info about all the tables into
+    // the BackupConsumer.
+    // The remaining threads also need this init work to be done, since later
+    // phases of ndb_restore rely upon it, e.g. --restore-data needs the table
+    // info. So an additional flag m_metadata_work_requested is set for all
+    // the restore-threads to indicate that the init work must be done. If
+    // m_metadata_work_requested = 1 and m_restore_meta = 0, the thread will
+    // do only the init work, and skip the ndbapi function calls to create or
+    // delete the metadata objects.
+    restore->m_metadata_work_requested = true;
+    if (part_id == 1)
+    {
+      // restore-thread 1 must perform actual work of restoring metadata
+      restore->m_restore_meta = true;
+    }
     if(ga_exclude_missing_tables)
     {
       //conflict in options
@@ -905,17 +924,23 @@ bool create_consumers()
 
   if (ga_restore_epoch)
   {
-    restore->m_restore_epoch = true;
+    restore->m_restore_epoch_requested = true;
+    if (part_id == 1)
+      restore->m_restore_epoch = true;
   }
 
   if (ga_disable_indexes)
   {
-    restore->m_disable_indexes = true;
+    restore->m_metadata_work_requested = true;
+    if (part_id == 1)
+      restore->m_disable_indexes = true;
   }
 
   if (ga_rebuild_indexes)
   {
-    restore->m_rebuild_indexes = true;
+    restore->m_metadata_work_requested = true;
+    if (part_id == 1)
+      restore->m_rebuild_indexes = true;
   }
 
   {
@@ -2015,7 +2040,7 @@ main(int argc, char** argv)
   // serial restore, multithreading added in later commit
   for (int i=1; i<=ga_part_count; i++)
   {
-    if (!create_consumers())
+    if (!create_consumers(i))
     {
       err << "Failed to create consumers for part " << i << endl;
       return NDBT_FAILED;

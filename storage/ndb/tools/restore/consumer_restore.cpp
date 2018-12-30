@@ -833,8 +833,7 @@ BackupRestore::init(Uint32 tableChangesMask)
 {
   release();
 
-  if (!m_restore && !m_restore_meta && !m_restore_epoch &&
-      !m_rebuild_indexes && !m_disable_indexes)
+  if (!m_restore && !m_metadata_work_requested && !m_restore_epoch_requested)
     return true;
 
   m_tableChangesMask = tableChangesMask;
@@ -1290,6 +1289,9 @@ BackupRestore::finalize_table(const TableS & table){
 bool
 BackupRestore::rebuild_indexes(const TableS& table)
 {
+  if (!m_rebuild_indexes)
+     return true;
+
   const char *tablename = table.getTableName();
 
   const NdbDictionary::Table * tab = get_table(table);
@@ -2647,7 +2649,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
 
 bool
 BackupRestore::createSystable(const TableS & tables){
-  if (!m_restore && !m_restore_meta && !m_restore_epoch)
+  if (!m_restore && !m_metadata_work_requested)
     return true;
   const char *tablename = tables.getTableName();
 
@@ -2676,7 +2678,7 @@ BackupRestore::createSystable(const TableS & tables){
 
 bool
 BackupRestore::table(const TableS & table){
-  if (!m_restore && !m_restore_meta && !m_rebuild_indexes && !m_disable_indexes)
+  if (!m_restore && !m_metadata_work_requested)
     return true;
 
   const char * name = table.getTableName();
