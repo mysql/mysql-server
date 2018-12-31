@@ -22,7 +22,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
+#include "plugin/x/src/capabilities/handler_tls.h"
 
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
@@ -30,37 +30,39 @@
 #include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 
-namespace ngs {
+namespace xpl {
 
 using ::Mysqlx::Datatypes::Any;
 using ::Mysqlx::Datatypes::Scalar;
 
-bool Capability_tls::is_supported() const {
-  const xpl::Connection_type type = m_client.connection().get_type();
-  const bool is_supported_connection_type = xpl::Connection_tcpip == type ||
-                                            xpl::Connection_tls == type ||
-                                            xpl::Connection_unixsocket == type;
+bool Capability_tls::is_supported_impl() const {
+  const Connection_type type = m_client.connection().get_type();
+  const bool is_supported_connection_type = Connection_tcpip == type ||
+                                            Connection_tls == type ||
+                                            Connection_unixsocket == type;
 
   return m_client.server().ssl_context()->has_ssl() &&
          is_supported_connection_type;
 }
 
-void Capability_tls::get(Any &any) {
-  bool is_tls_active = m_client.connection().get_type() == xpl::Connection_tls;
+void Capability_tls::get_impl(Any &any) {
+  bool is_tls_active = m_client.connection().get_type() == Connection_tls;
 
-  Setter_any::set_scalar(any, is_tls_active);
+  ngs::Setter_any::set_scalar(any, is_tls_active);
 }
 
-bool Capability_tls::set(const Any &any) {
-  bool is_tls_active = m_client.connection().get_type() == xpl::Connection_tls;
+ngs::Error_code Capability_tls::set_impl(const Any &any) {
+  bool is_tls_active = m_client.connection().get_type() == Connection_tls;
 
   tls_should_be_enabled =
-      Getter_any::get_numeric_value_or_default<int>(any, false) &&
+      ngs::Getter_any::get_numeric_value_or_default<int>(any, false) &&
       !is_tls_active && is_supported();
 
   // Should fail if we try to turn it off
   // or if already activated
-  return tls_should_be_enabled;
+  if (tls_should_be_enabled) return {};
+  return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,
+                    "Capability prepare failed for '%s'", name().c_str());
 }
 
 void Capability_tls::commit() {
@@ -69,4 +71,4 @@ void Capability_tls::commit() {
   }
 }
 
-}  // namespace ngs
+}  // namespace xpl

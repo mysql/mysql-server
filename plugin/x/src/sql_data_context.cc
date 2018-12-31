@@ -453,8 +453,6 @@ ngs::Error_code Sql_data_context::attach() {
     return ngs::Error_code(ER_X_SERVICE_ERROR, "Internal error attaching");
   }
 
-  DBUG_ASSERT(nullptr == previous_thd);
-
   return {};
 }
 

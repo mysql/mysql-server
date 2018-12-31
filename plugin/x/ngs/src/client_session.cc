@@ -50,8 +50,8 @@ Session::Session(Client_interface *client, Protocol_encoder_interface *proto,
                          // circular reference
       m_encoder(proto),
       m_auth_handler(),
-      m_state(Authenticating),
-      m_state_before_close(Authenticating),
+      m_state(k_authenticating),
+      m_state_before_close(k_authenticating),
       m_id(session_id),
       m_thread_pending(0),
       m_thread_active(0) {
@@ -69,9 +69,9 @@ Session::~Session() {
 }
 
 void Session::on_close(const bool update_old_state) {
-  if (m_state != Closing) {
+  if (m_state != k_closing) {
     if (update_old_state) m_state_before_close = m_state;
-    m_state = Closing;
+    m_state = k_closing;
     m_client->on_session_close(*this);
   }
 }
@@ -82,10 +82,10 @@ void Session::on_close(const bool update_old_state) {
 // Return value means true if message was handled, false if not.
 // If message is handled, ownership of the object is passed on (and should be
 // deleted by the callee)
-bool Session::handle_message(Message_request &command) {
-  if (m_state == Authenticating) {
+bool Session::handle_message(ngs::Message_request &command) {
+  if (m_state == k_authenticating) {
     return handle_auth_message(command);
-  } else if (m_state == Ready) {
+  } else if (m_state == k_ready) {
     // handle session commands
     return handle_ready_message(command);
   }
@@ -96,7 +96,7 @@ bool Session::handle_message(Message_request &command) {
 bool Session::handle_ready_message(Message_request &command) {
   switch (command.get_message_type()) {
     case Mysqlx::ClientMessages::SESS_CLOSE:
-      m_state = Closing;
+      m_state = k_closing;
       m_client->on_session_reset(*this);
       return true;
 
@@ -112,7 +112,7 @@ bool Session::handle_ready_message(Message_request &command) {
         on_reset();
         return true;
       }
-      m_state = Closing;
+      m_state = k_closing;
       m_client->on_session_reset(*this);
       return true;
     }
@@ -192,7 +192,7 @@ void Session::on_auth_success(
     const Authentication_interface::Response &response) {
   log_debug("%s.%u: Login succeeded", m_client->client_id(), m_id);
   m_auth_handler.reset();
-  m_state = Ready;
+  m_state = k_ready;
   m_client->on_session_auth_success(*this);
   m_encoder->send_auth_ok(response.data);  // send it last, so that
                                            // on_auth_success() can send session

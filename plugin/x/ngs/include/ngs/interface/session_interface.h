@@ -43,15 +43,15 @@ class Client_interface;
 
 class Session_interface {
  public:
-  typedef int32_t Session_id;
+  using Session_id = std::int32_t;
 
   enum State {
-    // start as Authenticating
-    Authenticating,
+    // start as authenticating
+    k_authenticating,
     // once authenticated, we can handle work
-    Ready,
+    k_ready,
     // connection is closing, but wait for data to flush out first
-    Closing
+    k_closing
   };
 
   class Options {

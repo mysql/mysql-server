@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,33 +22,35 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_H_
+#ifndef PLUGIN_X_SRC_INTERFACE_CAPABILITY_HANDLER_H_
+#define PLUGIN_X_SRC_INTERFACE_CAPABILITY_HANDLER_H_
 
-#include <memory>
 #include <string>
 
+#include "plugin/x/ngs/include/ngs/ngs_error.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
-namespace ngs {
-class Client_interface;
+namespace xpl {
+namespace iface {
 
 class Capability_handler {
  public:
-  virtual ~Capability_handler() {}
+  virtual ~Capability_handler() = default;
 
-  virtual const std::string name() const = 0;
+  virtual std::string name() const = 0;
 
-  virtual bool is_supported() const = 0;
-
-  virtual void get(::Mysqlx::Datatypes::Any &any) = 0;
-  virtual bool set(const ::Mysqlx::Datatypes::Any &any) = 0;
+  virtual bool is_gettable() const = 0;
+  virtual bool is_settable() const = 0;
 
   virtual void commit() = 0;
+
+ protected:
+  virtual void get_impl(::Mysqlx::Datatypes::Any &any) = 0;
+  virtual ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) = 0;
+  virtual bool is_supported_impl() const = 0;
 };
 
-typedef std::shared_ptr<Capability_handler> Capability_handler_ptr;
+}  // namespace iface
+}  // namespace xpl
 
-}  // namespace ngs
-
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_H_
+#endif  // PLUGIN_X_SRC_INTERFACE_CAPABILITY_HANDLER_H_

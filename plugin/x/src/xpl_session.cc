@@ -151,7 +151,7 @@ THD *Session::get_thd() const { return m_sql.get_thd(); }
 bool Session::can_see_user(const std::string &user) const {
   const std::string owner = m_sql.get_authenticated_user_name();
 
-  if (state() == ngs::Session_interface::Ready && !owner.empty()) {
+  if (state() == ngs::Session_interface::k_ready && !owner.empty()) {
     if (m_sql.has_authenticated_user_a_super_priv() || (owner == user))
       return true;
   }

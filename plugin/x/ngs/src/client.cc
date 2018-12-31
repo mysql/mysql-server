@@ -38,10 +38,6 @@
 
 #include "my_macros.h"
 
-#include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_client_interactive.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/session_interface.h"
@@ -52,6 +48,11 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/src/capabilities/handler_auth_mech.h"
+#include "plugin/x/src/capabilities/handler_client_interactive.h"
+#include "plugin/x/src/capabilities/handler_connection_attributes.h"
+#include "plugin/x/src/capabilities/handler_readonly_value.h"
+#include "plugin/x/src/capabilities/handler_tls.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
 
@@ -135,23 +136,27 @@ void Client::on_auth_timeout() {
   disconnect_and_trigger_close();
 }
 
-Capabilities_configurator *Client::capabilities_configurator() {
-  std::vector<Capability_handler_ptr> handlers;
+xpl::Capabilities_configurator *Client::capabilities_configurator() {
+  std::vector<xpl::Capability_handler_ptr> handlers;
 
-  handlers.push_back(allocate_shared<Capability_tls>(std::ref(*this)));
-  handlers.push_back(allocate_shared<Capability_auth_mech>(std::ref(*this)));
+  handlers.push_back(allocate_shared<xpl::Capability_tls>(std::ref(*this)));
+  handlers.push_back(
+      allocate_shared<xpl::Capability_auth_mech>(std::ref(*this)));
 
   handlers.push_back(
-      allocate_shared<Capability_readonly_value>("doc.formats", "text"));
+      allocate_shared<xpl::Capability_readonly_value>("doc.formats", "text"));
 
   handlers.push_back(
-      allocate_shared<Capability_client_interactive>(std::ref(*this)));
+      allocate_shared<xpl::Capability_client_interactive>(std::ref(*this)));
 
-  return allocate_object<Capabilities_configurator>(handlers);
+  handlers.push_back(
+      ngs::allocate_shared<xpl::Capability_connection_attributes>());
+
+  return ngs::allocate_object<xpl::Capabilities_configurator>(handlers);
 }
 
 void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &) {
-  Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(
+  Memory_instrumented<xpl::Capabilities_configurator>::Unique_ptr configurator(
       capabilities_configurator());
   Memory_instrumented<Mysqlx::Connection::Capabilities>::Unique_ptr caps(
       configurator->get());
@@ -161,7 +166,7 @@ void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &) {
 
 void Client::set_capabilities(
     const Mysqlx::Connection::CapabilitiesSet &setcap) {
-  Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(
+  Memory_instrumented<xpl::Capabilities_configurator>::Unique_ptr configurator(
       capabilities_configurator());
   Error_code error_code = configurator->prepare_set(setcap.capabilities());
   m_encoder->send_result(error_code);
@@ -170,10 +175,36 @@ void Client::set_capabilities(
   }
 }
 
+bool Client::handle_session_connect_attr_set(ngs::Message_request &command) {
+  const auto capabilities_set =
+      static_cast<const Mysqlx::Connection::CapabilitiesSet &>(
+          *command.get_message());
+  const auto capabilities = capabilities_set.capabilities();
+  // other capabilites are not allowed at this point
+  if (capabilities.capabilities_size() != 1 ||
+      capabilities.capabilities(0).name() != "session_connect_attrs") {
+    log_debug("Only session_connect_attr capability is allowed at this point");
+    m_encoder->send_result(
+        ngs::Fatal(ER_X_CAPABILITY_SET_NOT_ALLOWED,
+                   "Only session_connect_attr capability is allowed after"
+                   " Session.Reset"));
+  } else {
+    set_capabilities(capabilities_set);
+  }
+  return true;
+}
+
 void Client::handle_message(Message_request &request) {
   auto s(session());
 
   log_message_recv(request);
+
+  if (m_state == Client_accepted_with_session &&
+      request.get_message_type() ==
+          Mysqlx::ClientMessages::CON_CAPABILITIES_SET) {
+    handle_session_connect_attr_set(request);
+    return;
+  }
 
   if (m_state != Client_accepted && s) {
     // pass the message to the session
@@ -379,25 +410,8 @@ void Client::on_accept() {
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the
   // audit.log as in the Pre-authenticate state
-  std::shared_ptr<Session_interface> session(
-      m_server.create_session(*this, *m_encoder, 1));
-  if (!session) {
-    log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
-                m_client_addr.c_str());
-    m_encoder->send_init_error(
-        ngs::Fatal(ER_OUT_OF_RESOURCES, "Could not allocate session"));
-  } else {
-    ngs::Error_code error(session->init());
-    if (error) {
-      log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
-                  error.message.c_str());
-      m_encoder->send_result(error);
-      session.reset();
-    } else
-      m_session = session;
-  }
-  if (!session) {
-    set_close_reason_if_non_fatal(Close_reason::k_error);
+  if (!create_session()) {
+    m_close_reason = Close_reason::k_error;
     disconnect_and_trigger_close();
   }
 }
@@ -414,7 +428,7 @@ void Client::on_session_close(Session_interface &s MY_ATTRIBUTE((unused))) {
   // no more open sessions, disconnect
   disconnect_and_trigger_close();
 
-  if (s.state_before_close() != ngs::Session_interface::Authenticating) {
+  if (s.state_before_close() != ngs::Session_interface::k_authenticating) {
     ++xpl::Global_status_variables::instance().m_closed_sessions_count;
   }
 
@@ -424,31 +438,12 @@ void Client::on_session_close(Session_interface &s MY_ATTRIBUTE((unused))) {
 void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused))) {
   log_debug("%s: Resetting session %i", client_id(), s.session_id());
 
-  m_state = Client_accepted_with_session;
-  std::shared_ptr<Session_interface> session(
-      m_server.create_session(*this, *m_encoder, 1));
-  if (!session) {
-    log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
-                m_client_addr.c_str());
-    m_encoder->send_result(
-        ngs::Fatal(ER_OUT_OF_RESOURCES, "Could not allocate new session"));
+  if (!create_session()) {
     m_state = Client_closing;
-  } else {
-    ngs::Error_code error(session->init());
-    if (error) {
-      log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
-                  error.message.c_str());
-      m_encoder->send_result(error);
-      session.reset();
-      m_state = Client_closing;
-    } else {
-      {
-        MUTEX_LOCK(lock_session_exit, get_session_exit_mutex());
-        m_session = session;
-      }
-      m_encoder->send_ok();
-    }
+    return;
   }
+  m_state = Client_accepted_with_session;
+  m_encoder->send_ok();
 }
 
 void Client::on_server_shutdown() {
@@ -551,4 +546,29 @@ Waiting_for_io_interface *Client::get_idle_processing() {
   return &m_session->get_notice_output_queue().get_callbacks_waiting_for_io();
 }
 
+bool Client::create_session() {
+  std::shared_ptr<Session_interface> session(
+      m_server.create_session(*this, *m_encoder, 1));
+  if (!session) {
+    log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
+                m_client_addr.c_str());
+    m_encoder->send_result(
+        Fatal(ER_OUT_OF_RESOURCES, "Could not allocate new session"));
+    return false;
+  }
+
+  Error_code error(session->init());
+  if (error) {
+    log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
+                error.message.c_str());
+    m_encoder->send_result(error);
+    return false;
+  }
+
+  {
+    MUTEX_LOCK(lock_session_exit, get_session_exit_mutex());
+    m_session = session;
+  }
+  return true;
+}
 }  // namespace ngs

@@ -1,0 +1,159 @@
+-->macro Send_session_connect_attrs_1	%KEY%	%VALUE%
+-->quiet
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "session_connect_attrs"
+      value {
+        type: OBJECT
+        obj {
+         fld {
+           key: %KEY%
+           value {
+             type: SCALAR
+             scalar {
+               type: V_STRING
+               v_string { value: %VALUE% }
+             }
+           }
+         }
+       }
+     }
+   }
+ }
+}
+-->endmacro
+
+-->macro Send_session_connect_attrs_2	%KEY1%	%VALUE1%	%KEY2%	%VALUE2%
+-->quiet
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "session_connect_attrs"
+      value {
+        type: OBJECT
+        obj {
+         fld {
+           key: %KEY1%
+           value {
+             type: SCALAR
+             scalar {
+               type: V_STRING
+               v_string { value: %VALUE1% }
+             }
+           }
+         }
+         fld {
+           key: %KEY2%
+           value {
+             type: SCALAR
+             scalar {
+               type: V_STRING
+               v_string { value: %VALUE2% }
+             }
+           }
+         }
+       }
+     }
+   }
+ }
+}
+-->endmacro
+
+-->macro Assert_no_attribute_inserted
+-->login x_root
+-->stmtsql SELECT COUNT(ATTR_VALUE) FROM performance_schema.session_connect_attrs WHERE ATTR_NAME="%TEST_KEY%";
+-->recvtovar %COUNT%
+-->echo [Assert that no session connect attributes were inserted]
+-->assert_eq %COUNT%	0
+-->endmacro
+
+-->macro Check_connect_attributes	%KEY%	%VALUE%
+-->echo [Verify that session_connect_attrs contains the following pair (%KEY%,%VALUE%)]
+-->stmtsql SELECT COUNT(*) FROM performance_schema.session_connect_attrs WHERE ATTR_NAME=%KEY% AND ATTR_VALUE=%VALUE%;
+-->recvtovar %COUNT%
+-->assert_ne %COUNT%	0
+-->endmacro
+
+-->macro Check_connect_attributes_not_exist	%KEY%	%VALUE%
+-->echo [Verify that session_connect_attrs does not contain the following pair (%KEY%,%VALUE%)]
+-->stmtsql SELECT COUNT(*) FROM performance_schema.session_connect_attrs WHERE ATTR_NAME=%KEY% AND ATTR_VALUE=%VALUE%;
+-->recvtovar %COUNT%
+-->assert_eq %COUNT%	0
+-->endmacro
+
+-->macro Check_connect_attributes_and_close_session	%KEY%	%VALUE%
+-->login x_root
+-->callmacro Check_connect_attributes	%KEY%	%VALUE%
+-->closesession
+-->endmacro
+
+-->macro Send_two_different_capabilities	%SCALAR1%	%SCALAR2%
+-->quiet
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "session_connect_attrs"
+      value {
+        type: OBJECT
+        obj {
+         fld {
+           key: "%TEST_KEY%"
+           value {
+             type: SCALAR
+             scalar {
+               %SCALAR1%
+             }
+           }
+         }
+       }
+     }
+   }
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          %SCALAR2%
+        }
+     }
+   }
+ }
+}
+-->endmacro
+
+-->macro Send_connect_capability_with_too_long_payload
+-->vargen %VALID_KEY% x 32
+-->vargen %VALID_VALUE% x 1024
+-->varlet %CAPABILITY_FIELD% fld { key: "%VALID_KEY%" value { type: SCALAR scalar { type: V_STRING v_string { value: "%VALID_VALUE%" } } } }
+# Construct 2^6 fields
+-->repeat 6
+-->varlet %CAPABILITY_FIELD% %CAPABILITY_FIELD% %CAPABILITY_FIELD%
+-->endrepeat
+-->quiet
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "session_connect_attrs"
+      value {
+        type: OBJECT
+        obj {
+          %CAPABILITY_FIELD%
+
+         fld {
+           key: "%TEST_KEY%"
+           value {
+             type: SCALAR
+             scalar {
+               type: V_STRING
+               v_string { value: "value" }
+             }
+           }
+         }
+       }
+     }
+   }
+ }
+}
+-->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_LENGTH
+-->endmacro

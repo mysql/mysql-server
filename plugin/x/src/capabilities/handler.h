@@ -22,33 +22,39 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_AUTH_MECH_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_AUTH_MECH_H_
+#ifndef PLUGIN_X_SRC_CAPABILITIES_HANDLER_H_
+#define PLUGIN_X_SRC_CAPABILITIES_HANDLER_H_
 
-#include <string>
+#include <memory>
 
-#include "plugin/x/ngs/include/ngs/capabilities/handler.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/src/interface/capability_handler.h"
 
 namespace ngs {
-
 class Client_interface;
-
-class Capability_auth_mech : public Capability_handler {
- public:
-  Capability_auth_mech(Client_interface &client) : m_client(client) {}
-
-  virtual const std::string name() const { return "authentication.mechanisms"; }
-  virtual bool is_supported() const;
-
-  virtual void get(::Mysqlx::Datatypes::Any &any);
-  virtual bool set(const ::Mysqlx::Datatypes::Any &any);
-
-  virtual void commit();
-
- private:
-  Client_interface &m_client;
-};
-
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_AUTH_MECH_H_
+namespace xpl {
+
+class Capability_handler : public iface::Capability_handler {
+ public:
+  bool is_supported() const {
+    return (is_gettable() || is_settable()) && is_supported_impl();
+  }
+
+  void get(::Mysqlx::Datatypes::Any &any) {
+    if (is_gettable()) get_impl(any);
+  }
+
+  ngs::Error_code set(const ::Mysqlx::Datatypes::Any &any) {
+    if (is_settable()) return set_impl(any);
+    return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,
+                      "CapabilitiesSet not supported for the %s capability",
+                      name().c_str());
+  }
+};
+
+}  // namespace xpl
+
+#endif  // PLUGIN_X_SRC_CAPABILITIES_HANDLER_H_

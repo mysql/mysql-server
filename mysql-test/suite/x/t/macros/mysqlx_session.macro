@@ -6,7 +6,6 @@
 # * Session_close
 #
 
-
 -->macro Session_reset_keep_open
 Mysqlx.Session.Reset {
   keep_open:true

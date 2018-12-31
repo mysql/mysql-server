@@ -22,28 +22,31 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
+#include "plugin/x/src/capabilities/handler_auth_mech.h"
 
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 
-namespace ngs {
+namespace xpl {
 
-bool Capability_auth_mech::is_supported() const { return true; }
+bool Capability_auth_mech::is_supported_impl() const { return true; }
 
-void Capability_auth_mech::get(::Mysqlx::Datatypes::Any &any) {
+void Capability_auth_mech::get_impl(::Mysqlx::Datatypes::Any &any) {
   std::vector<std::string> auth_mechs;
 
   m_client.server().get_authentication_mechanisms(auth_mechs, m_client);
 
-  Setter_any::set_array(any, auth_mechs);
+  ngs::Setter_any::set_array(any, auth_mechs);
 }
 
-bool Capability_auth_mech::set(const ::Mysqlx::Datatypes::Any &) {
-  return false;
+ngs::Error_code Capability_auth_mech::set_impl(
+    const ::Mysqlx::Datatypes::Any &) {
+  return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,
+                    "CapabilitiesSet not supported for the %s capability",
+                    name().c_str());
 }
 
 void Capability_auth_mech::commit() {}
 
-}  // namespace ngs
+}  // namespace xpl

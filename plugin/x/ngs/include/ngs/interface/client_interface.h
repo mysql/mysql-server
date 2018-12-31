@@ -97,6 +97,11 @@ class Client_interface {
   virtual void disconnect_and_trigger_close() = 0;
 
   virtual bool is_handler_thd(const THD *thd) const = 0;
+
+  virtual void get_capabilities(
+      const Mysqlx::Connection::CapabilitiesGet &msg) = 0;
+  virtual void set_capabilities(
+      const Mysqlx::Connection::CapabilitiesSet &msg) = 0;
 };
 
 }  // namespace ngs

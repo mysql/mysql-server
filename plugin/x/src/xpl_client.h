@@ -66,7 +66,7 @@ class Client : public ngs::Client {
 
  public:  // impl ngs::Client
   std::string resolve_hostname() override;
-  ngs::Capabilities_configurator *capabilities_configurator() override;
+  Capabilities_configurator *capabilities_configurator() override;
 
   void set_is_interactive(const bool flag) override;
 

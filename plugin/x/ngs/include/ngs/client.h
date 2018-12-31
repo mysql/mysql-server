@@ -29,7 +29,6 @@
 #include <string>
 
 #include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
@@ -37,6 +36,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/src/capabilities/configurator.h"
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
@@ -107,6 +107,8 @@ class Client : public Client_interface {
   void set_read_timeout(const uint32_t) override;
   void set_write_timeout(const uint32_t) override;
 
+  bool handle_session_connect_attr_set(ngs::Message_request &command);
+
  protected:
   char m_id[2 + sizeof(Client_id) * 2 + 1];  // 64bits in hex, plus 0x plus \0
   Client_id m_client_id;
@@ -153,9 +155,11 @@ class Client : public Client_interface {
 
   Error_code read_one_message(Message_request *out_message);
 
-  virtual Capabilities_configurator *capabilities_configurator();
-  void get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg);
-  void set_capabilities(const Mysqlx::Connection::CapabilitiesSet &msg);
+  virtual xpl::Capabilities_configurator *capabilities_configurator();
+  void get_capabilities(
+      const Mysqlx::Connection::CapabilitiesGet &msg) override;
+  void set_capabilities(
+      const Mysqlx::Connection::CapabilitiesSet &msg) override;
 
   void remove_client_from_server();
 

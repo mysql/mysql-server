@@ -119,7 +119,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Error {
   severity: ERROR
   code: 5001
-  msg: "Capability prepare failed for \'doc.formats\'"
+  msg: "CapabilitiesSet not supported for the doc.formats capability"
   sql_state: "HY000"
 }
 
@@ -158,10 +158,61 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Error {
   severity: ERROR
   code: 5001
-  msg: "Capability prepare failed for \'authentication.mechanisms\'"
+  msg: "CapabilitiesSet not supported for the authentication.mechanisms capability"
   sql_state: "HY000"
 }
 
+Error when setting a duplicated capability
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5010
+  msg: "Duplicated capability: \'client.interactive\'"
+  sql_state: "HY000"
+}
+
+After setting a duplicated capability it should be possible to set valid capability
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+RUN recvok
 setting Read only message.maxSendLength cap
 this param is not ready and needs changes in result file once available
 send Mysqlx.Connection.CapabilitiesSet {
@@ -1358,7 +1409,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Error {
   severity: ERROR
   code: 5001
-  msg: "Capability prepare failed for \'doc.formats\'"
+  msg: "CapabilitiesSet not supported for the doc.formats capability"
   sql_state: "HY000"
 }
 
@@ -1397,10 +1448,61 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Error {
   severity: ERROR
   code: 5001
-  msg: "Capability prepare failed for \'authentication.mechanisms\'"
+  msg: "CapabilitiesSet not supported for the authentication.mechanisms capability"
   sql_state: "HY000"
 }
 
+Error when setting a duplicated capability
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5010
+  msg: "Duplicated capability: \'client.interactive\'"
+  sql_state: "HY000"
+}
+
+After setting a duplicated capability it should be possible to set valid capability
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+RUN recvok
 setting Read only message.maxSendLength cap
 this param is not ready and needs changes in result file once available
 send Mysqlx.Connection.CapabilitiesSet {

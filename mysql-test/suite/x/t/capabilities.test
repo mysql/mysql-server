@@ -85,6 +85,49 @@ capabilities {
 }
 -->recvtype Mysqlx.Error
 
+-->echo Error when setting a duplicated capability
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 1
+        }
+     }
+   }
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 1
+        }
+     }
+   }
+ }
+}
+-->recverror ER_X_DUPLICATED_CAPABILITIES
+-->echo After setting a duplicated capability it should be possible to set valid capability
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 1
+        }
+     }
+   }
+ }
+}
+-->recvok
+
 -->echo setting Read only message.maxSendLength cap
 -->echo this param is not ready and needs changes in result file once available
 Mysqlx.Connection.CapabilitiesSet {

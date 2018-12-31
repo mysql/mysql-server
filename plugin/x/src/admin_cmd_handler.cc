@@ -177,7 +177,7 @@ void get_client_data(std::vector<Client_data_> *clients_data,
 
   if (session) {
     const std::string user =
-        session->state() == ngs::Session_interface::Ready
+        session->state() == ngs::Session_interface::k_ready
             ? session->data_context().get_authenticated_user_name()
             : "";
     if (requesting_session.can_see_user(user)) {

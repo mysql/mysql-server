@@ -362,6 +362,11 @@ class Mock_client : public ngs::Client_interface {
   MOCK_METHOD1(set_read_timeout, void(const unsigned int));
   MOCK_METHOD1(set_write_timeout, void(const unsigned int));
 
+  MOCK_METHOD1(get_capabilities,
+               void(const Mysqlx::Connection::CapabilitiesGet &));
+  MOCK_METHOD1(set_capabilities,
+               void(const Mysqlx::Connection::CapabilitiesSet &));
+
  public:
   MOCK_METHOD1(on_session_reset_void, bool(ngs::Session_interface &));
   MOCK_METHOD1(on_session_close_void, bool(ngs::Session_interface &));

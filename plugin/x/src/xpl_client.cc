@@ -32,10 +32,10 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
-#include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/src/cap_handles_expired_passwords.h"
+#include "plugin/x/src/capabilities/configurator.h"
+#include "plugin/x/src/capabilities/handler_expired_passwords.h"
+#include "plugin/x/src/capabilities/handler_readonly_value.h"
 #include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/mysql_variables.h"
@@ -54,13 +54,12 @@ Client::Client(std::shared_ptr<ngs::Vio_interface> connection,
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }
 
-ngs::Capabilities_configurator *Client::capabilities_configurator() {
-  ngs::Capabilities_configurator *caps =
-      ngs::Client::capabilities_configurator();
+Capabilities_configurator *Client::capabilities_configurator() {
+  Capabilities_configurator *caps = ngs::Client::capabilities_configurator();
 
   // add our capabilities
-  caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>(
-      "node_type", "mysql"));
+  caps->add_handler(
+      ngs::allocate_shared<Capability_readonly_value>("node_type", "mysql"));
   caps->add_handler(
       ngs::allocate_shared<Cap_handles_expired_passwords>(std::ref(*this)));
 

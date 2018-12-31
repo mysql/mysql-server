@@ -22,42 +22,33 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_CONFIGURATOR_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_CONFIGURATOR_H_
+#ifndef PLUGIN_X_SRC_CAPABILITIES_HANDLER_AUTH_MECH_H_
+#define PLUGIN_X_SRC_CAPABILITIES_HANDLER_AUTH_MECH_H_
 
 #include <string>
-#include <vector>
 
-#include "plugin/x/ngs/include/ngs/capabilities/handler.h"
-#include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/src/capabilities/handler.h"
 
-namespace ngs {
+namespace xpl {
 
-class Client_interface;
-
-class Capabilities_configurator {
+class Capability_auth_mech : public Capability_handler {
  public:
-  Capabilities_configurator(
-      const std::vector<Capability_handler_ptr> &capabilities);
-  virtual ~Capabilities_configurator() {}
+  Capability_auth_mech(ngs::Client_interface &client) : m_client(client) {}
 
-  virtual ::Mysqlx::Connection::Capabilities *get();
+  std::string name() const override { return "authentication.mechanisms"; }
+  bool is_gettable() const override { return true; }
+  bool is_settable() const override { return false; }
 
-  virtual Error_code prepare_set(
-      const ::Mysqlx::Connection::Capabilities &capabilities);
-  virtual void commit();
-
-  void add_handler(Capability_handler_ptr handler);
+  void commit() override;
 
  private:
-  Capability_handler_ptr get_capabilitie_by_name(const std::string &name);
+  void get_impl(::Mysqlx::Datatypes::Any &any) override;
+  ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
+  bool is_supported_impl() const override;
 
-  std::vector<Capability_handler_ptr> m_capabilities;
-  std::vector<Capability_handler_ptr> m_capabilities_prepared;
+  ngs::Client_interface &m_client;
 };
 
-}  // namespace ngs
+}  // namespace xpl
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_CONFIGURATOR_H_
+#endif  // PLUGIN_X_SRC_CAPABILITIES_HANDLER_AUTH_MECH_H_

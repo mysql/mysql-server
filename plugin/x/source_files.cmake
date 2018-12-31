@@ -23,13 +23,11 @@
 FILE(GLOB ngs_HDRS
   "${MYSQLX_PROJECT_DIR}/ngs/include/ngs/*.h"
   "${MYSQLX_PROJECT_DIR}/ngs/include/ngs/protocol/*.h"
-  "${MYSQLX_PROJECT_DIR}/ngs/include/ngs/capabilities/*.h"
 )
 
 FILE(GLOB ngs_SRC
   "${MYSQLX_PROJECT_DIR}/ngs/src/*.cc"
   "${MYSQLX_PROJECT_DIR}/ngs/src/protocol/*.cc"
-  "${MYSQLX_PROJECT_DIR}/ngs/src/capabilities/*.cc"
 )
 
 SET(xplugin_HDRS
@@ -91,7 +89,6 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/delete_statement_builder.h"
   "${MYSQLX_PROJECT_DIR}/src/view_statement_builder.h"
   "${MYSQLX_PROJECT_DIR}/src/notices.h"
-  "${MYSQLX_PROJECT_DIR}/src/cap_handles_expired_passwords.h"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.h"
   "${MYSQLX_PROJECT_DIR}/src/services/service_registrator.h"
   "${MYSQLX_PROJECT_DIR}/src/prepared_statement_builder.h"
@@ -110,6 +107,14 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/ssl_context.h"
   "${MYSQLX_PROJECT_DIR}/src/ssl_context_options.h"
   "${MYSQLX_PROJECT_DIR}/src/ssl_session_options.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/configurator.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_client_interactive.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_expired_passwords.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_tls.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_auth_mech.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_connection_attributes.h"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_readonly_value.h"
   ${ngs_HDRS}
 )
 
@@ -189,6 +194,11 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/ssl_context.cc"
   "${MYSQLX_PROJECT_DIR}/src/ssl_context_options.cc"
   "${MYSQLX_PROJECT_DIR}/src/ssl_session_options.cc"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/configurator.cc"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_auth_mech.cc"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_client_interactive.cc"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_connection_attributes.cc"
+  "${MYSQLX_PROJECT_DIR}/src/capabilities/handler_tls.cc"
   ${ngs_SRC}
 )
 

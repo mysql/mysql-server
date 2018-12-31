@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
+#include "plugin/x/src/capabilities/configurator.h"
 
 #include <algorithm>
+#include <unordered_set>
 
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/ngs_error.h"
 
-namespace ngs {
+namespace xpl {
 
 using ::Mysqlx::Connection::Capabilities;
 
@@ -56,7 +57,7 @@ Capabilities *Capabilities_configurator::get() {
   while (i != m_capabilities.end()) {
     const Capability_handler_ptr handler = *i;
 
-    if (handler->is_supported()) {
+    if (handler->is_supported() && handler->is_gettable()) {
       ::Mysqlx::Connection::Capability *c = result->add_capabilities();
 
       c->set_name(handler->name());
@@ -74,30 +75,38 @@ ngs::Error_code Capabilities_configurator::prepare_set(
     const ::Mysqlx::Connection::Capabilities &capabilities) {
   std::size_t capabilities_size = capabilities.capabilities_size();
 
+  std::unordered_set<std::string> capabilities_so_far;
   m_capabilities_prepared.clear();
 
   for (std::size_t index = 0; index < capabilities_size; ++index) {
     const ::Mysqlx::Connection::Capability &c =
         capabilities.capabilities(static_cast<int>(index));
-    Capability_handler_ptr handler = get_capabilitie_by_name(c.name());
+    auto capability_name = c.name();
+    if (capabilities_so_far.count(capability_name) != 0) {
+      m_capabilities_prepared.clear();
+      return ngs::Error(ER_X_DUPLICATED_CAPABILITIES,
+                        "Duplicated capability: '%s'", capability_name.c_str());
+    }
+    capabilities_so_far.insert(capability_name);
+    Capability_handler_ptr handler = get_capabilitie_by_name(capability_name);
 
     if (!handler) {
       m_capabilities_prepared.clear();
-
-      return Error(ER_X_CAPABILITY_NOT_FOUND, "Capability '%s' doesn't exist",
-                   c.name().c_str());
+      return ngs::Error(ER_X_CAPABILITY_NOT_FOUND,
+                        "Capability '%s' doesn't exist",
+                        capability_name.c_str());
     }
 
-    if (!handler->set(c.value())) {
+    auto set_error = handler->set(c.value());
+    if (set_error) {
       m_capabilities_prepared.clear();
-      return Error(ER_X_CAPABILITIES_PREPARE_FAILED,
-                   "Capability prepare failed for '%s'", c.name().c_str());
+      return set_error;
     }
 
     m_capabilities_prepared.push_back(handler);
   }
 
-  return Error_code();
+  return ngs::Error_code();
 }
 
 Capability_handler_ptr Capabilities_configurator::get_capabilitie_by_name(
@@ -122,4 +131,4 @@ void Capabilities_configurator::commit() {
   m_capabilities_prepared.clear();
 }
 
-}  // namespace ngs
+}  // namespace xpl

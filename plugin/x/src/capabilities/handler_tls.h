@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,33 +22,33 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_CLIENT_INTERACTIVE_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_CLIENT_INTERACTIVE_H_
+#ifndef PLUGIN_X_SRC_CAPABILITIES_HANDLER_TLS_H_
+#define PLUGIN_X_SRC_CAPABILITIES_HANDLER_TLS_H_
 
-#include "plugin/x/ngs/include/ngs/capabilities/handler.h"
-#include "plugin/x/src/xpl_client.h"
+#include "plugin/x/src/capabilities/handler.h"
 
-namespace ngs {
+namespace xpl {
 
-class Client_interface;
-
-class Capability_client_interactive : public Capability_handler {
+class Capability_tls : public Capability_handler {
  public:
-  Capability_client_interactive(Client_interface &client);
+  Capability_tls(ngs::Client_interface &client)
+      : m_client(client), tls_should_be_enabled(false) {}
 
-  virtual const std::string name() const { return "client.interactive"; }
-  virtual bool is_supported() const { return true; }
+  std::string name() const override { return "tls"; }
+  bool is_settable() const override { return true; }
+  bool is_gettable() const override { return true; }
 
-  virtual void get(::Mysqlx::Datatypes::Any &any);
-  virtual bool set(const ::Mysqlx::Datatypes::Any &any);
-
-  virtual void commit();
+  void commit() override;
 
  private:
-  Client_interface &m_client;
-  bool m_value;
+  void get_impl(::Mysqlx::Datatypes::Any &any) override;
+  ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
+  bool is_supported_impl() const override;
+
+  ngs::Client_interface &m_client;
+  bool tls_should_be_enabled;
 };
 
-}  // namespace ngs
+}  // namespace xpl
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_CLIENT_INTERACTIVE_H_
+#endif  // PLUGIN_X_SRC_CAPABILITIES_HANDLER_TLS_H_

@@ -106,4 +106,10 @@ int pfs_spawn_thread_v2(PSI_thread_key, my_thread_handle *,
                         const my_thread_attr_t *, void *(*)(void *), void *) {
   return 0;
 }
+int pfs_set_thread_connect_attrs_v1(char const *, unsigned int, void const *) {
+  return 0;
+}
+int pfs_set_thread_connect_attrs_v2(char const *, unsigned int, void const *) {
+  return 0;
+}
 #endif

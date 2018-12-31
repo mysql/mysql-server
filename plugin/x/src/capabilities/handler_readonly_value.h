@@ -22,35 +22,43 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_READONLY_VALUE_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_READONLY_VALUE_H_
+#ifndef PLUGIN_X_SRC_CAPABILITIES_HANDLER_READONLY_VALUE_H_
+#define PLUGIN_X_SRC_CAPABILITIES_HANDLER_READONLY_VALUE_H_
 
-#include "plugin/x/ngs/include/ngs/capabilities/handler.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
+#include "plugin/x/src/capabilities/handler.h"
 
-namespace ngs {
+namespace xpl {
 
 class Capability_readonly_value : public Capability_handler {
  public:
   template <typename ValueType>
   Capability_readonly_value(const std::string &cap_name, const ValueType &value)
       : m_name(cap_name) {
-    Setter_any::set_scalar(m_value, value);
+    ngs::Setter_any::set_scalar(m_value, value);
   }
 
-  virtual const std::string name() const { return m_name; }
-  virtual bool is_supported() const { return true; }
+  std::string name() const override { return m_name; }
+  bool is_settable() const override { return false; }
+  bool is_gettable() const override { return true; }
 
-  virtual void get(::Mysqlx::Datatypes::Any &any) { any.CopyFrom(m_value); }
-  virtual bool set(const ::Mysqlx::Datatypes::Any &) { return false; }
-
-  virtual void commit() {}
+  void commit() override {}
 
  private:
+  void get_impl(::Mysqlx::Datatypes::Any &any) override {
+    any.CopyFrom(m_value);
+  }
+  ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &) override {
+    return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,
+                      "CapabilitiesSet not supported for the %s capability",
+                      name().c_str());
+  }
+  bool is_supported_impl() const override { return true; }
+
   const std::string m_name;
   ::Mysqlx::Datatypes::Any m_value;
 };
 
-}  // namespace ngs
+}  // namespace xpl
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_READONLY_VALUE_H_
+#endif  // PLUGIN_X_SRC_CAPABILITIES_HANDLER_READONLY_VALUE_H_
