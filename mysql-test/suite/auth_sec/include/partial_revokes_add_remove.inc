@@ -442,7 +442,7 @@ INSERT INTO normal_db.t1 values (1,2), (3,4);
 --let $USER_1 = ''@'%'
 --let $USER_2 = ''@''
 # We can't create ''@'%' unless we delete row from mysql.db
-CREATE TABLE mysql.db_copy AS SELECT * FROM mysql.db;
+CREATE TEMPORARY TABLE mysql.db_copy AS SELECT * FROM mysql.db;
 DELETE FROM mysql.db WHERE host='%';
 FLUSH PRIVILEGES;
 eval CREATE USER $USER_1, $USER_2;
