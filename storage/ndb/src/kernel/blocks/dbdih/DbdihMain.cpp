@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22905,6 +22905,10 @@ dolocal:
   EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
 
   signal->theData[0] = 404;
+  signal->theData[1] = file1Ptr.p->fileRef;
+  EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
+
+  signal->theData[0] = DumpStateOrd::NdbfsDumpRequests;
   signal->theData[1] = file1Ptr.p->fileRef;
   EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
 

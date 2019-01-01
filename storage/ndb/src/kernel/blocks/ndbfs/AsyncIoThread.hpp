@@ -1,4 +1,5 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +27,7 @@
 #include <kernel_types.h>
 #include "MemoryChannel.hpp"
 #include <signaldata/BuildIndxImpl.hpp>
+#include <NdbTick.h>
 
 // Use this define if you want printouts from AsyncFile class
 //#define DEBUG_ASYNCFILE
@@ -53,7 +55,11 @@ class Request
 public:
   Request() {}
 
-  void atGet() { m_do_bind = false; }
+  void atGet()
+  {
+    m_do_bind = false;
+    NdbTick_Invalidate(&m_startTime);
+  }
 
   enum Action {
     open,
@@ -79,6 +85,7 @@ public:
     suspend
   };
   Action action;
+  static const char* actionName(Action);
   union {
     struct {
       Uint32 flags;
@@ -133,6 +140,9 @@ public:
   Uint32 m_fileinfo;
   Uint32 m_file_size_hi;
   Uint32 m_file_size_lo;
+
+  /* More debugging info */
+  NDB_TICKS m_startTime;
 };
 
 NdbOut& operator <<(NdbOut&, const Request&);

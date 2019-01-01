@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30794,6 +30794,16 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
         /* LQH : */
         ds->args[0] = DumpStateOrd::LqhDumpLcpState;
         sendSignal(cownref, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+
+        /* NDBFS : */
+        ds->args[0] = DumpStateOrd::NdbfsDumpFileStat;
+        sendSignal(NDBFS_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+
+        ds->args[0] = DumpStateOrd::NdbfsDumpOpenFiles;
+        sendSignal(NDBFS_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+
+        ds->args[0] = DumpStateOrd::NdbfsDumpRequests;
+        sendSignal(NDBFS_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
         
         const Uint32 ShutdownDelayMillis = 5 * 1000;
         /* Delay self-execution to give time for dump output */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -535,6 +535,8 @@ int
 Ndbfs::forward( AsyncFile * file, Request* request)
 {
   jam();
+  request->m_startTime = getHighResTimer();
+
   AsyncIoThread* thr = file->getThread();
   if (thr) // bound
   {
@@ -1791,6 +1793,39 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 
     return;
   }
+  if(signal->theData[0] == DumpStateOrd::NdbfsDumpRequests)
+  {
+    g_eventLogger->info("NDBFS: Dump requests: %u",
+                        theRequestPool->inuse());
+    for (unsigned ridx=0; ridx < theRequestPool->inuse(); ridx++)
+    {
+      const Request* req = theRequestPool->peekInuseItem(ridx);
+      Uint64 duration = 0;
+
+      if (NdbTick_IsValid(req->m_startTime))
+      {
+        duration = NdbTick_Elapsed(req->m_startTime,
+                                   getHighResTimer()).milliSec();
+      }
+
+      g_eventLogger->info("Request %u action %u %s userRef 0x%x "
+                          "userPtr %u filePtr %u bind %u "
+                          "duration(ms) %llu filename %s",
+                          ridx,
+                          req->action,
+                          Request::actionName(req->action),
+                          req->theUserReference,
+                          req->theUserPointer,
+                          req->theFilePointer,
+                          req->m_do_bind,
+                          duration,
+                          (req->file?
+                           req->file->theFileName.c_str():
+                           "NO FILE"));
+    }
+    return;
+  }
+
 
   if(signal->theData[0] == 404)
   {
