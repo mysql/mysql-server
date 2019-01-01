@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -240,51 +240,7 @@ operator<<(NdbOut& out, const Request& req)
       << " userData: " << dec << req.theUserPointer
       << " theFilePointer: " << req.theFilePointer
       << " action: ";
-  switch(req.action){
-  case Request::open:
-    out << "open";
-    break;
-  case Request::close:
-    out << "close";
-    break;
-  case Request::closeRemove:
-    out << "closeRemove";
-    break;
-  case Request::read:   // Allways leave readv directly after
-    out << "read";
-    break;
-  case Request::readv:
-    out << "readv";
-    break;
-  case Request::write:// Allways leave writev directly after
-    out << "write";
-    break;
-  case Request::writev:
-    out << "writev";
-    break;
-  case Request::writeSync:// Allways leave writevSync directly after
-    out << "writeSync";
-    break;
-    // writeSync because SimblockAsyncFileSystem depends on it
-  case Request::writevSync:
-    out << "writevSync";
-    break;
-  case Request::sync:
-    out << "sync";
-    break;
-  case Request::end:
-    out << "end";
-    break;
-  case Request::append:
-    out << "append";
-    break;
-  case Request::rmrf:
-    out << "rmrf";
-    break;
-  default:
-    out << (Uint32)req.action;
-    break;
-  }
+  out << Request::actionName(req.action);
   out << " ]";
   return out;
 }
