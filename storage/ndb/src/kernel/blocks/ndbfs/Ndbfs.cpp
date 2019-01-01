@@ -411,11 +411,13 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
     }
   }
 
-  // Make sure at least "noIdleFiles" files can be created and a few more
+  // Make sure at least "noIdleFiles" more files can be created
   if (noIdleFiles > m_maxFiles && m_maxFiles != 0)
   {
-    jam();
-    m_maxFiles = noIdleFiles + 2;
+    const Uint32 newMax = theFiles.size() + noIdleFiles + 1;
+    g_eventLogger->info("Resetting MaxNoOfOpenFiles %u to %u",
+                        m_maxFiles, newMax);
+    m_maxFiles = newMax;
   }
 
   // Create idle AsyncFiles
@@ -1242,7 +1244,7 @@ Ndbfs::createAsyncFile()
     }
     ndbout_c("m_maxFiles: %u, theFiles.size() = %u",
               m_maxFiles, theFiles.size());
-    ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
+    ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile: creating more than MaxNoOfOpenFiles");
   }
 
 #ifdef _WIN32
