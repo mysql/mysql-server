@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -211,7 +211,13 @@ public:
   T* get();
   void put(T* aT);
 
+  // size() : Return number free items in pool
   unsigned size(){ return theTop; };
+
+  // inuse() : Return number items taken from pool
+  unsigned inuse() const { return theCurrentSize - theTop; };
+
+  const T* peekInuseItem(unsigned idx) const;
   
 protected:
   void allocate(int aSize)
@@ -262,6 +268,15 @@ template <class T> inline void Pool<T>::put(T* aT)
    theList[theTop]= aT;
    ++theTop;
 }
+
+template <class T> const T* Pool<T>::peekInuseItem(unsigned idx) const
+{
+  assert(idx <= inuse());
+  // theTop is index of the first item in use
+  return theList[theTop + idx];
+}
+
+
 
 
 #undef JAM_FILE_ID
