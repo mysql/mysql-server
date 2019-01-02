@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,8 +99,8 @@ bool LimitOffsetIterator::Init() {
     if (err == 1) {
       return true;  // Note that this will propagate Read() errors to Init().
     } else if (err == -1) {
-      m_seen_rows = m_offset;  // So that Read() will return -1.
-      return false;            // EOF is not an error.
+      m_seen_rows = m_limit;  // So that Read() will return -1.
+      return false;           // EOF is not an error.
     }
     if (m_skipped_rows != nullptr) {
       ++*m_skipped_rows;
