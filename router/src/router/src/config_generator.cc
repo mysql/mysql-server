@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1678,7 +1678,7 @@ static void save_initial_dynamic_state(
          "protocol=" + protocol + "\n"
          "\n";
   // clang-format on
-};
+}
 
 void ConfigGenerator::create_config(
     std::ostream &config_file, std::ostream &state_file, uint32_t router_id,

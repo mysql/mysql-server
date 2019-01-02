@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -328,9 +328,6 @@ class Arch_Block {
   @param[in]	type	block type */
   Arch_Block(byte *blk_buf, uint size, Arch_Blk_Type type)
       : m_data(blk_buf), m_size(size), m_type(type) {}
-
-  /** Destructor. */
-  ~Arch_Block() {}
 
   /** Do a deep copy of the members of the block passed as the parameter.
   @note This member needs to be updated whenever a new data member is added to
@@ -1101,7 +1098,7 @@ class Arch_Group {
   uint purge(lsn_t purge_lsn, lsn_t &purged_lsn);
 
   /** Operations to be done at the time of shutdown. */
-  static void shutdown() { s_dblwr_file_ctx.close(); };
+  static void shutdown() { s_dblwr_file_ctx.close(); }
 
   /** Update the reset information in the in-memory structure that we maintain
   for faster access.

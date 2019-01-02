@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -532,7 +532,7 @@ dberr_t Arch_Group::recovery_parse(Arch_Page_Pos &write_pos,
                                    Arch_Page_Pos &reset_pos,
                                    size_t start_index) {
   size_t num_files = get_file_count();
-  dberr_t err;
+  dberr_t err = DB_SUCCESS;
 
   if (num_files == 0) {
     DBUG_PRINT("page_archiver", ("No group information available"));

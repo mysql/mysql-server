@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -38,7 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Archived page file default size in number of blocks. */
 uint ARCH_PAGE_FILE_CAPACITY =
     (ARCH_PAGE_BLK_SIZE - ARCH_PAGE_BLK_HEADER_LENGTH) / ARCH_BLK_PAGE_ID_SIZE;
-;
 
 /** Archived page data file size (without header) in number of blocks. */
 uint ARCH_PAGE_FILE_DATA_CAPACITY =

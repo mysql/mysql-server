@@ -310,6 +310,8 @@ class Notice_server_hello_ignore {
     }
   }
 
+  Notice_server_hello_ignore(const Notice_server_hello_ignore &) = default;
+
   Handler_result operator()(XProtocol *, const bool is_global,
                             const Mysqlx::Notice::Frame::Type type,
                             const char *, const uint32_t) {
