@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,6 @@
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/create_field.h"
 #include "sql/derror.h"  // ER_THD
-#include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
@@ -471,28 +470,26 @@ bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
   THD *thd = table->in_use;
   uint32 part_id;
   longlong func_value;
-  Dummy_error_handler error_handler;
-  bool ret = true;
-  DBUG_ENTER("set_partition");
+
   DBUG_ASSERT(thd);
 
   /* Only allow checking of constant values */
   List_iterator_fast<Item> v(values);
   Item *item;
-  thd->push_internal_handler(&error_handler);
+
   while ((item = v++)) {
-    if (!item->const_item()) goto err;
+    if (!item->const_item()) return true;
   }
 
   if (copy_default_values) restore_record(table, s->default_values);
 
   if (fields.elements || !values.elements) {
     if (fill_record(thd, table, fields, values, &full_part_field_set, NULL))
-      goto err;
+      return true;
   } else {
     if (fill_record(thd, table, table->field, values, &full_part_field_set,
                     NULL))
-      goto err;
+      return true;
   }
   DBUG_ASSERT(!table->auto_increment_field_not_null);
 
@@ -514,16 +511,12 @@ bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->read_set);
     const int rc = get_partition_id(this, &part_id, &func_value);
     dbug_tmp_restore_column_map(table->read_set, old_map);
-    if (rc) goto err;
+    if (rc) return true;
   }
 
   DBUG_PRINT("info", ("Insert into partition %u", part_id));
   bitmap_set_bit(used_partitions, part_id);
-  ret = false;
-
-err:
-  thd->pop_internal_handler();
-  DBUG_RETURN(ret);
+  return false;
 }
 
   /*
