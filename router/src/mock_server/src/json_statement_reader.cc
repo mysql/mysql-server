@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -163,7 +163,9 @@ QueriesJsonReader::QueriesJsonReader(const std::string &json_filename)
   // that invalid schema will slip by without throwing (but it will cause
   // validate_json_against_schema() to fail later on)
   JsonDocument schema_json;
-  if (schema_json.Parse<rapidjson::kParseCommentsFlag>(kSqlQueryJsonSchema)
+  if (schema_json
+          .Parse<rapidjson::kParseCommentsFlag>(SqlQueryJsonSchema::data(),
+                                                SqlQueryJsonSchema::size())
           .HasParseError())
     throw std::runtime_error(
         "Parsing JSON schema failed at offset " +

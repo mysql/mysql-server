@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,10 +45,6 @@
 #endif
 
 #include <rapidjson/document.h>
-
-// contents are auto-generated at CMake level, using json_schema_embedder
-// (see json_schema_embedder.cc) and written into dynamic_satate_schema.cc
-extern const char kStateFileJsonSchema[];
 
 namespace mysql_harness {
 
