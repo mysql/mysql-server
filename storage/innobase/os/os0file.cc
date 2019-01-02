@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -7977,6 +7977,7 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
   memset(key_name, 0x0, sizeof(key_name));
 
   if (s_master_key_id == 0) {
+    ut_ad(strlen(server_uuid) > 0);
     memset(s_uuid, 0x0, sizeof(s_uuid));
 
     /* If m_master_key is 0, means there's no encrypted
@@ -8073,10 +8074,15 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
                                       bool is_boot) {
   byte *master_key = nullptr;
   ulint master_key_id;
+  bool is_default_master_key = false;
 
   /* Get master key from key ring. For bootstrap, we use a default
   master key which master_key_id is 0. */
-  if (is_boot) {
+  if (is_boot
+#ifndef UNIV_HOTBACKUP
+      || (strlen(server_uuid) == 0)
+#endif
+  ) {
     master_key_id = 0;
 
     master_key = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
@@ -8084,6 +8090,7 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
     ut_ad(ENCRYPTION_KEY_LEN >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
 
     strcpy(reinterpret_cast<char *>(master_key), ENCRYPTION_DEFAULT_MASTER_KEY);
+    is_default_master_key = true;
   } else {
     get_master_key(&master_key_id, &master_key);
 
@@ -8135,7 +8142,7 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
 
   mach_write_to_4(ptr, crc);
 
-  if (is_boot) {
+  if (is_default_master_key) {
     ut_free(master_key);
   } else {
     my_free(master_key);
