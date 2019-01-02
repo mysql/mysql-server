@@ -1,0 +1,46 @@
+# Variable: mysqlx_enable_hello_notice
+# Default : true
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+SET @mysqlx_enable_hello_notice_sav= @@global.mysqlx_enable_hello_notice;
+
+## Valid cases
+SET GLOBAL mysqlx_enable_hello_notice=false;
+show variables like 'mysqlx_enable_hello_notice';
+
+SET @@global.mysqlx_enable_hello_notice=true;
+show variables like 'mysqlx_enable_hello_notice';
+
+##
+## Invalid scope
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_enable_hello_notice=true;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_enable_hello_notice=true;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_enable_hello_notice=true;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_enable_hello_notice=true;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_enable_hello_notice=true;
+
+##
+## Invalid value
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_enable_hello_notice='%45*#in';
+SELECT @@global.mysqlx_enable_hello_notice;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.mysqlx_enable_hello_notice = 4294967296;
+SELECT @@global.mysqlx_enable_hello_notice;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.mysqlx_enable_hello_notice = 10240022115;
+SELECT @@global.mysqlx_enable_hello_notice;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_enable_hello_notice = 10000.01;
+SELECT @@global.mysqlx_enable_hello_notice;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.mysqlx_enable_hello_notice = 42949672950;
+SELECT @@global.mysqlx_enable_hello_notice;
+
+SET @@global.mysqlx_enable_hello_notice= @mysqlx_enable_hello_notice_sav;

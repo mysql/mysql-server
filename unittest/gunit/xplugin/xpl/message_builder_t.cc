@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -220,7 +220,8 @@ TEST(message_builder, encode_notice_frame) {
   const int SCOPE = Mysqlx::Notice::Frame_Scope_GLOBAL;
   const std::string DATA = "\0\0\1\12\12aaa\0";
 
-  mb.encode_frame(obuffer.get(), TYPE, DATA, SCOPE);
+  const bool is_local = false;
+  mb.encode_frame(obuffer.get(), TYPE, is_local, DATA);
 
   std::unique_ptr<Mysqlx::Notice::Frame> msg(
       message_from_buffer<Mysqlx::Notice::Frame>(obuffer.get()));
@@ -229,7 +230,7 @@ TEST(message_builder, encode_notice_frame) {
 
   ASSERT_TRUE(msg->has_type());
   ASSERT_EQ(TYPE, msg->type());
-  ASSERT_TRUE(msg->has_scope());
+  ASSERT_FALSE(msg->has_scope());
   ASSERT_EQ(SCOPE, msg->scope());
   ASSERT_TRUE(msg->has_payload());
   ASSERT_EQ(DATA, msg->payload());

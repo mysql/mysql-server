@@ -161,6 +161,8 @@ EOF
 # send a msg with invalid encoding, which was triggering a crash
 
 --write_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
+-->import connection.macro
+
 -->title -Bug Crash when sending an invalid message of type Find, for example
 
 -->repeat 10
@@ -173,6 +175,7 @@ EOF
 -->closesession abort
 
 -->newsession foo	-
+-->callmacro Verify_its_xprotocol_connection
 # send a CapabilitySet message with missing fields
 -->binsend \x01\x00\x00\x00\x02
 # expect a protobuf decode error

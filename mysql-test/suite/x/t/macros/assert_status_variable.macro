@@ -20,13 +20,15 @@ wait_for %EXPECTED_VALUE%
 -->macro Assert_received_notices
 -->received Mysqlx.Notice.Warning	%MYSQLXTEST_NO_OF_WARNINGS%
 -->received Mysqlx.Notice.GroupReplicationStateChanged	%MYSQLXTEST_NO_OF_GLOBAL%
-
--->callmacro Assert_status_variable	Mysqlx_notice_global_sent	%MYSQLXTEST_NO_OF_GLOBAL%
+-->received Mysqlx.Notice.ServerHello	%MYSQLXTEST_NO_OF_SERVER_HELLOS%
+-->varlet %ALL_GLOBALS% %MYSQLXTEST_NO_OF_SERVER_HELLOS%
+-->varinc %ALL_GLOBALS% %MYSQLXTEST_NO_OF_GLOBAL%
+-->callmacro Assert_status_variable	Mysqlx_notice_global_sent	%ALL_GLOBALS%
 -->callmacro Assert_status_variable	Mysqlx_notice_warning_sent	%MYSQLXTEST_NO_OF_WARNINGS%
 
 -->received Mysqlx.Notice.Frame	%MYSQLXTEST_NO_OF_OTHER%
 -->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_WARNINGS%
--->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_GLOBAL%
+-->varinc %MYSQLXTEST_NO_OF_OTHER% -%ALL_GLOBALS%
 -->callmacro Assert_status_variable	Mysqlx_notice_other_sent	%MYSQLXTEST_NO_OF_OTHER%
 -->endmacro
 

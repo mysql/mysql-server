@@ -14,13 +14,14 @@ call mtr.add_suppression("Access denied for user .*");
 
 --write_file $MYSQL_TMP_DIR/auth_seq.tmp
 -->import connection_auth_mechanism_memory_helpers.macro
--->import ssl.macro
+-->import connection.macro
 
 -->echo #
 -->echo ## Try to authenticate two times, last one succesfull
 -->echo #
 newsession seq	-;
 
+callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 
 expecterror ER_ACCESS_DENIED_ERROR;
@@ -40,6 +41,7 @@ closesession;
 -->echo
 
 newsession seq	-;
+callmacro Verify_its_xprotocol_connection;
 
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 
@@ -64,6 +66,7 @@ closesession;
 
 newsession seq	-;
 
+callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 
 expecterror ER_ACCESS_DENIED_ERROR;
@@ -91,6 +94,7 @@ peerdisc 30000 30000;
 -->echo #######################################################################
 -->echo # Sequence succesfull
 newsession seq	-;
+callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 login xuser_sha256	sha256	test	sha256_memory;
 
@@ -109,6 +113,7 @@ closesession;
 -->echo #######################################################################
 -->echo # Sequence failed
 newsession seq	-;
+callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 login xuser_sha256	sha256	test	sha256_memory;
 
@@ -130,6 +135,9 @@ peerdisc 30000 30000;
 EOF
 
 --write_file $MYSQL_TMP_DIR/auth_errors.tmp
+-->import connection.macro
+callmacro Verify_its_xprotocol_connection;
+
 expecterror ER_ACCESS_DENIED_ERROR;
 login locked_user   pass    test    sha256_memory;
 

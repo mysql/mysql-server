@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -315,9 +315,9 @@ class Protocol_impl : public XProtocol,
 
   Protocol_factory *m_factory;
   Handler_id m_last_handler_id{0};
-  std::list<Notice_handler_with_id> m_notice_handlers;
-  std::list<Client_handler_with_id> m_message_send_handlers;
-  std::list<Server_handler_with_id> m_message_received_handlers;
+  Priority_list<Notice_handler_with_id> m_notice_handlers;
+  Priority_list<Client_handler_with_id> m_message_send_handlers;
+  Priority_list<Server_handler_with_id> m_message_received_handlers;
   std::unique_ptr<XConnection> m_sync_connection;
   std::unique_ptr<Query_instances> m_query_instances;
   std::shared_ptr<Context> m_context;

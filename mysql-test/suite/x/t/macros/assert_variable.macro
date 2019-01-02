@@ -17,11 +17,13 @@
 
 
 -->macro Assert_received_notices
+-->received Mysqlx.Notice.ServerHello	%MYSQLXTEST_NO_OF_SERVER_HELLOS%
 -->received Mysqlx.Notice.Warning	%MYSQLXTEST_NO_OF_WARNINGS%
+-->callmacro Assert_status_variable	Mysqlx_notice_warning_sent	%MYSQLXTEST_NO_OF_WARNINGS%
 -->received Mysqlx.Notice.Frame	%MYSQLXTEST_NO_OF_OTHER%
 -->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_WARNINGS%
+-->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_SERVER_HELLOS%
 -->callmacro Assert_status_variable	Mysqlx_notice_other_sent	%MYSQLXTEST_NO_OF_OTHER%
--->callmacro Assert_status_variable	Mysqlx_notice_warning_sent	%MYSQLXTEST_NO_OF_WARNINGS%
 -->endmacro
 
 

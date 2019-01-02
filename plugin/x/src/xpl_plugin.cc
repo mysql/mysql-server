@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -401,6 +401,13 @@ static MYSQL_SYSVAR_UINT(
     NULL, &xpl::Plugin_system_variables::update_func<uint32_t>, 0, 0,
     std::numeric_limits<uint16_t>::max(), 0);
 
+static MYSQL_SYSVAR_BOOL(
+    enable_hello_notice, xpl::Plugin_system_variables::m_enable_hello_notice,
+    PLUGIN_VAR_OPCMDARG,
+    "Hello notice is a X Protocol message send by the server after connection "
+    "establishment, using this variable it can be disabled",
+    NULL, &xpl::Plugin_system_variables::update_func<bool>, true);
+
 static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(port),
     MYSQL_SYSVAR(max_connections),
@@ -423,6 +430,7 @@ static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(read_timeout),
     MYSQL_SYSVAR(write_timeout),
     MYSQL_SYSVAR(document_id_unique_prefix),
+    MYSQL_SYSVAR(enable_hello_notice),
     NULL};
 
 #define SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                 \

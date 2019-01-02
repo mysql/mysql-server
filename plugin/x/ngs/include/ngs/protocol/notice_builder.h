@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class Output_buffer;
 class Notice_builder : public Message_builder {
  public:
   void encode_frame(Page_output_stream *out_buffer, uint32 type,
-                    const std::string &data, int scope);
+                    const bool is_local, const std::string &data);
 
   void encode_rows_affected(Page_output_stream *out_buffer, uint64 value);
 };

@@ -6,6 +6,8 @@
 --source include/xplugin_create_user.inc
 
 --write_file $MYSQL_TMP_DIR/mysqlx-connection_close.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Connection.Close {
 }
 -->recvtype Mysqlx.Ok

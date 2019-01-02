@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -296,6 +296,41 @@ const char *value_or_default_string(const char *value,
   return value;
 }
 
+class Notice_server_hello_ignore {
+ public:
+  Notice_server_hello_ignore(XProtocol *protocol) : m_protocol(protocol) {
+    m_handler_id = m_protocol->add_notice_handler(
+        *this, Handler_position::Begin,
+        Handler_priority_low);  // TODO(lkotula): end ?
+  }
+
+  ~Notice_server_hello_ignore() {
+    if (XCL_HANDLER_ID_NOT_VALID != m_handler_id) {
+      m_protocol->remove_notice_handler(m_handler_id);
+    }
+  }
+
+  Handler_result operator()(XProtocol *, const bool is_global,
+                            const Mysqlx::Notice::Frame::Type type,
+                            const char *, const uint32_t) {
+    const bool is_hello_notice =
+        Mysqlx::Notice::Frame_Type_SERVER_HELLO == type;
+
+    if (!is_global) return Handler_result::Continue;
+    if (!is_hello_notice) return Handler_result::Continue;
+
+    if (m_already_received) return Handler_result::Error;
+
+    m_already_received = true;
+
+    return Handler_result::Consumed;
+  }
+
+  bool m_already_received = false;
+  XProtocol::Handler_id m_handler_id = XCL_HANDLER_ID_NOT_VALID;
+  XProtocol *m_protocol;
+};
+
 }  // namespace details
 
 Session_impl::Session_impl(std::unique_ptr<Protocol_factory> factory)
@@ -505,6 +540,8 @@ XError Session_impl::connect(const char *host, const uint16_t port,
   if (result) return result;
 
   const auto connection_type = connection.state().get_connection_type();
+  details::Notice_server_hello_ignore notice_ignore(m_protocol.get());
+
   return authenticate(user, pass, schema, connection_type);
 }
 
@@ -521,6 +558,8 @@ XError Session_impl::connect(const char *socket_file, const char *user,
   if (result) return result;
 
   const auto connection_type = connection.state().get_connection_type();
+
+  details::Notice_server_hello_ignore notice_ignore(m_protocol.get());
   return authenticate(user, pass, schema, connection_type);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -413,7 +413,13 @@ void Client::on_accept() {
   if (!create_session()) {
     m_close_reason = Close_reason::k_error;
     disconnect_and_trigger_close();
+
+    return;
   }
+
+  if (xpl::Plugin_system_variables::m_enable_hello_notice)
+    m_encoder->send_notice(Frame_type::k_server_hello, Frame_scope::k_global,
+                           "", true);
 }
 
 void Client::on_session_auth_success(Session_interface &) {

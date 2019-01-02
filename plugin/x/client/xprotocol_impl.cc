@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "plugin/x/client/mysqlxclient/xrow.h"
 #include "plugin/x/client/password_hasher.h"
 #include "plugin/x/client/sha256_scramble_generator.h"
+#include "plugin/x/client/xpriority_list.h"
 #include "plugin/x/generated/mysqlx_version.h"
 #include "sha2.h"
 
@@ -414,11 +415,11 @@ XProtocol::Handler_id Protocol_impl::add_notice_handler(
 
   switch (position) {
     case Handler_position::Begin:
-      m_notice_handlers.emplace_front(id, prio, handler);
+      m_notice_handlers.push_front({id, prio, handler});
       break;
 
     case Handler_position::End:
-      m_notice_handlers.emplace_back(id, prio, handler);
+      m_notice_handlers.push_back({id, prio, handler});
       break;
   }
 
@@ -433,11 +434,11 @@ XProtocol::Handler_id Protocol_impl::add_received_message_handler(
 
   switch (position) {
     case Handler_position::Begin:
-      m_message_received_handlers.emplace_front(id, prio, handler);
+      m_message_received_handlers.push_front({id, prio, handler});
       break;
 
     case Handler_position::End:
-      m_message_received_handlers.emplace_back(id, prio, handler);
+      m_message_received_handlers.push_back({id, prio, handler});
       break;
   }
 
@@ -452,11 +453,11 @@ XProtocol::Handler_id Protocol_impl::add_send_message_handler(
 
   switch (position) {
     case Handler_position::Begin:
-      m_message_send_handlers.emplace_front(id, prio, handler);
+      m_message_send_handlers.push_front({id, prio, handler});
       break;
 
     case Handler_position::End:
-      m_message_send_handlers.emplace_back(id, prio, handler);
+      m_message_send_handlers.push_back({id, prio, handler});
       break;
   }
 

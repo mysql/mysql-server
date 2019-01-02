@@ -7497,8 +7497,8 @@ Try to enable fixed notice, should be ok
 
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 168]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 857]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 169]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -7810,7 +7810,7 @@ Mysqlx.Error {
 0 rows affected
 
 0 rows affected
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 32]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 39]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
@@ -7840,7 +7840,7 @@ Try enable produced_message
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
@@ -7871,7 +7871,7 @@ Try enable produced_message
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
@@ -7956,7 +7956,7 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
@@ -8139,7 +8139,7 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 6]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 1]
@@ -8167,7 +8167,7 @@ Mysqlx.Notice.Frame {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 5]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
@@ -8188,7 +8188,7 @@ Mysqlx.Error {
   sql_state: "3D000"
 }
 
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,7 @@ class Plugin_system_variables {
   static char *bind_address;
   static uint32_t m_interactive_timeout;
   static uint32_t m_document_id_unique_prefix;
+  static bool m_enable_hello_notice;
 
   static Ssl_config ssl_config;
 

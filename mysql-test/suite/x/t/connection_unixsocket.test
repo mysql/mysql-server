@@ -154,6 +154,8 @@ EOF
 
 
 --write_file $MYSQL_TMP_DIR/plain_connection.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 
 -->echo #
 -->echo # Match capabilities with the result file,

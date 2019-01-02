@@ -13,7 +13,7 @@ call mtr.add_suppression("Maximum number of authentication attempts reached");
 
 --write_file $MYSQL_TMP_DIR/auth_seq.tmp
 -->import connection_auth_mechanism_memory_helpers.macro
--->import ssl.macro
+-->import connection.macro
 
 -->echo
 -->echo #######################################################################
@@ -31,7 +31,7 @@ call mtr.add_suppression("Maximum number of authentication attempts reached");
 -->echo ## New connection & SSL, user is waiting for disconnection after the auth
 -->echo ## failure
 newsession seq	-;
-
+callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 
 expecterror ER_ACCESS_DENIED_ERROR;
@@ -45,6 +45,7 @@ peerdisc 30000 30000;
 -->echo ## failure
 newsession seq	-;
 
+callmacro Verify_its_xprotocol_connection;
 expecterror ER_ACCESS_DENIED_ERROR;
 login xuser_native	native	test	sha256_memory;
 

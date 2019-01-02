@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -287,9 +287,11 @@ bool Protocol_encoder::send_notice(const Frame_type type,
                                    const Frame_scope scope,
                                    const std::string &data,
                                    const bool force_flush) {
+  const bool is_global = Frame_scope::k_global == scope;
+
   if (Frame_type::k_warning == type)
     get_protocol_monitor().on_notice_warning_send();
-  else if (Frame_scope::k_global == scope)
+  else if (is_global)
     get_protocol_monitor().on_notice_global_send();
   else
     get_protocol_monitor().on_notice_other_send();
@@ -297,7 +299,7 @@ bool Protocol_encoder::send_notice(const Frame_type type,
   log_raw_message_send(Mysqlx::ServerMessages::NOTICE);
 
   m_notice_builder.encode_frame(&m_page_output_stream, static_cast<int>(type),
-                                data, static_cast<int>(scope));
+                                !is_global, data);
 
   if (force_flush) m_flusher.mark_flush();
 

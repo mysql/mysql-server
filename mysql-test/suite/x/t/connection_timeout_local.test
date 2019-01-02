@@ -10,6 +10,8 @@
 # 1. Wait until user is disconnected
 --write_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp
 -->import wait_until_disconnect.macro
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 
 echo # 1. Wait until user is disconnected;
 -->callmacro Wait_until_disconnect
@@ -26,9 +28,11 @@ EOF
 #
 --write_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.tmp
 -->import wait_until_disconnect.macro
+-->import connection.macro
 
 echo # 1. Connect to X Plugin;
 -->newsession idle_session	-
+-->callmacro Verify_its_xprotocol_connection
 
 -->noquery_result
 echo # 2. Show that its valid X Protocol connection;

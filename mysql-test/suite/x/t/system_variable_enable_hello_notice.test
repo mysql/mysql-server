@@ -1,0 +1,82 @@
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--echo
+--echo ## Test shows that user can DISABLE/ENABLE ServerHello notice
+--echo ## using 'mysqlx_enable_hello_notice' variable:
+--echo #
+--echo # 1. Verify raw connection to X Plugin with ServerHello notice on
+--echo # 2. Verify raw connection to X Plugin with ServerHello notice off
+--echo # 3. Verify SSL connection to X Plugin with ServerHello notice on
+--echo # 4. Verify SSL connection to X Plugin with ServerHello notice off
+--echo # 5. Unprivileged user fails to change ServerHello notice configuration;
+--echo #
+
+--write_file $MYSQL_TMP_DIR/mysqlx-hello-notice.tmp
+-->import connection.macro
+
+echo;
+echo #;
+echo # 1. Raw connection to X Plugin with ServerHello notice on;
+SET GLOBAL mysqlx_enable_hello_notice= TRUE;
+
+newsession attempt1	-;
+callmacro Verify_its_xprotocol_connection_with_result;
+login x_root		test	mysql41;
+
+echo;
+echo #;
+echo # 2. Raw connection to X Plugin with ServerHello notice off;
+SET GLOBAL mysqlx_enable_hello_notice= FALSE;
+
+newsession attempt2	-;
+login x_root		test	mysql41;
+
+echo;
+echo #;
+echo # 3. SSL connection to X Plugin with ServerHello notice on;
+
+SET GLOBAL mysqlx_enable_hello_notice= TRUE;
+
+newsession attempt3	-;
+callmacro Verify_its_xprotocol_connection_with_result;
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+login x_root		test	mysql41;
+
+echo;
+echo #;
+echo # 4. SSL connection to X Plugin with ServerHello notice off;
+
+SET GLOBAL mysqlx_enable_hello_notice= FALSE;
+
+newsession attempt4	-;
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+login x_root		test	mysql41;
+
+echo;
+echo #;
+echo # 5. Unprivileged user tries to enable ServerHello notice;
+SET GLOBAL mysqlx_enable_hello_notice= FALSE;
+
+newsession attempt5	some_user;
+expecterror ER_SPECIFIC_ACCESS_DENIED_ERROR;
+SET GLOBAL mysqlx_enable_hello_notice= TRUE;
+
+EOF
+
+CREATE USER 'some_user' @'localhost' IDENTIFIED WITH 'mysql_native_password';
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --ssl-mode=REQUIRED
+  --file=$MYSQL_TMP_DIR/mysqlx-hello-notice.tmp 2>&1;
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-hello-notice.tmp
+
+SET GLOBAL mysqlx_enable_hello_notice= DEFAULT;
+DROP USER 'some_user' @'localhost';
+--source include/xplugin_drop_user.inc
+

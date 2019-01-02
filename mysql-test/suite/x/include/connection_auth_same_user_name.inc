@@ -24,6 +24,8 @@
 EOF
 
 --write_file $mysqlxscript_failure
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 -->echo Login with '%OPTION_CLIENT_USER%:%OPTION_CLIENT_PASSWORD%@%OPTION_CLIENT_HOST%/%OPTION_CLIENT_SCHEMA%' should fail
 -->loginerror %EXPECTED_ERROR%	%OPTION_CLIENT_USER%	%OPTION_CLIENT_PASSWORD%	%OPTION_CLIENT_SCHEMA%
 EOF

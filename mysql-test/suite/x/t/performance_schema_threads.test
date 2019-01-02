@@ -8,6 +8,8 @@
 # Tests
 
 --write_file $MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 -->login %ARG_USER%	%ARG_PASS%	%ARG_DB%	mysql41
 
 -->macro Verify_column_in_thread_table	%COLUMN%	%EXPECTED_VALUE%

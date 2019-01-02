@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,13 +29,17 @@
 namespace ngs {
 
 void Notice_builder::encode_frame(Page_output_stream *out_buffer, uint32 type,
-                                  const std::string &data, int scope) {
+                                  const bool is_local,
+                                  const std::string &data) {
   start_message(out_buffer, Mysqlx::ServerMessages::NOTICE);
 
   // 1) Type
   encode_uint32(type);
   // 2) Scope
-  encode_int32(scope);
+  if (is_local)
+    encode_int32(Mysqlx::Notice::Frame_Scope_LOCAL);
+  else
+    skip_field();
   // 3) Payload
   encode_string(data.c_str(), data.length());
 

@@ -12,6 +12,7 @@ GRANT ALL ON *.* TO xtest_client@localhost;
 --write_file $MYSQL_TMP_DIR/session_connect_attrs_with_session_reset.xpl
 -->varlet %TEST_KEY% custom_test_key
 -->import connection_attributes.macro
+-->import connection.macro
 -->import mysqlx_session.macro
 
 -->echo
@@ -37,6 +38,7 @@ GRANT ALL ON *.* TO xtest_client@localhost;
 -->echo #
 -->echo # I.1
 -->newsession test_session.I.1	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
 -->recvok
 -->login xtest_client
@@ -51,6 +53,7 @@ GRANT ALL ON *.* TO xtest_client@localhost;
 -->echo #
 -->echo # I.2
 -->newsession test_session.I.2	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
 -->recvok
 -->login xtest_client
@@ -68,6 +71,7 @@ GRANT ALL ON *.* TO xtest_client@localhost;
 -->echo #
 -->echo # II.1
 -->newsession test_session.II.1	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
 -->recvok
 -->login xtest_client
@@ -94,6 +98,7 @@ Mysqlx.Connection.CapabilitiesSet {
 -->echo #
 -->echo # II.2
 -->newsession test_session.II.2	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
 -->recvok
 -->login xtest_client
@@ -113,6 +118,7 @@ Mysqlx.Connection.CapabilitiesSet {
 -->echo #
 -->echo # II.3
 -->newsession test_session.II.3	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
 -->recvok
 -->login xtest_client
@@ -144,6 +150,7 @@ Mysqlx.Connection.CapabilitiesSet {
 -->echo #
 -->echo # III.1
 -->newsession test_session.III.1	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someValue"
 -->recvok
 -->login xtest_client

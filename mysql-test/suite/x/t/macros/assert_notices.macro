@@ -59,7 +59,7 @@ quiet;
 setsession %NAME%;
 noquiet;
 noquery_result;
-recvmessage Mysqlx.Notice.Frame {type:4 scope:GLOBAL payload:"type:2"};
+recvmessage Mysqlx.Notice.Frame {type:4 payload:"type:2"};
 query_result;
 -->endmacro
 
@@ -70,7 +70,7 @@ quiet;
 setsession %NAME%;
 noquiet;
 noquery_result;
-recvmessage Mysqlx.Notice.Frame {type:4 scope:GLOBAL payload:"type:3"};
+recvmessage Mysqlx.Notice.Frame {type:4 payload:"type:3"};
 query_result;
 -->endmacro
 
@@ -81,7 +81,7 @@ quiet;
 setsession %NAME%;
 noquiet;
 noquery_result;
-recvmessage Mysqlx.Notice.Frame {type:4 scope:GLOBAL payload:"type:4"};
+recvmessage Mysqlx.Notice.Frame {type:4 payload:"type:4"};
 query_result;
 -->endmacro
 
@@ -92,7 +92,7 @@ quiet;
 setsession %NAME%;
 noquiet;
 noquery_result;
-recvmessage Mysqlx.Notice.Frame {type:4 scope:GLOBAL payload:"type:1"};
+recvmessage Mysqlx.Notice.Frame {type:4 payload:"type:1"};
 query_result;
 -->endmacro
 

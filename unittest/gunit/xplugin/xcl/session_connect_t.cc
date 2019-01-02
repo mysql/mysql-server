@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,14 @@ class Xcl_session_impl_tests_connect : public Xcl_session_impl_tests {
     EXPECT_CALL(m_mock_connection, connect_to_localhost(expected_socket_file))
         .WillOnce(Return(XError{error_code, ""}));
 
+    if (0 == error_code) {
+      EXPECT_CALL(
+          *m_mock_protocol,
+          add_notice_handler(_, Handler_position::Begin, Handler_priority_low))
+          .WillOnce(Return(4));
+      EXPECT_CALL(*m_mock_protocol, remove_notice_handler(4));
+    }
+
     return m_sut->connect(expected_socket_file, expected_user, expected_pass,
                           expected_schema);
   }
@@ -75,6 +83,14 @@ class Xcl_session_impl_tests_connect : public Xcl_session_impl_tests {
     EXPECT_CALL(m_mock_connection,
                 connect(expected_host, expected_port, Internet_protocol::Any))
         .WillOnce(Return(XError{error_code, ""}));
+
+    if (0 == error_code) {
+      EXPECT_CALL(
+          *m_mock_protocol,
+          add_notice_handler(_, Handler_position::Begin, Handler_priority_low))
+          .WillOnce(Return(4));
+      EXPECT_CALL(*m_mock_protocol, remove_notice_handler(4));
+    }
 
     return m_sut->connect(expected_host, expected_port, expected_user,
                           expected_pass, expected_schema);
@@ -158,10 +174,17 @@ TEST_F(Xcl_session_impl_tests_connect, connect_nullptrs) {
       .WillOnce(Return(Connection_type::Tcp));
   EXPECT_CALL(*m_mock_protocol, add_send_message_handler(_, _, _));
   EXPECT_CALL(*m_mock_protocol, remove_send_message_handler(0));
-  EXPECT_CALL(m_mock_connection, set_read_timeout(_));
-  EXPECT_CALL(m_mock_connection, set_write_timeout(_));
+  EXPECT_CALL(m_mock_connection, set_read_timeout(_))
+      .WillRepeatedly(Return(XError{}));
+  EXPECT_CALL(m_mock_connection, set_write_timeout(_))
+      .WillRepeatedly(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate("", "", "", "MYSQL41"))
       .WillOnce(Return(XError{}));
+
+  EXPECT_CALL(*m_mock_protocol, add_notice_handler(_, Handler_position::Begin,
+                                                   Handler_priority_low))
+      .WillOnce(Return(4));
+  EXPECT_CALL(*m_mock_protocol, remove_notice_handler(4));
 
   EXPECT_CALL(m_mock_connection,
               connect("", MYSQLX_TCP_PORT, Internet_protocol::Any))
@@ -183,10 +206,17 @@ TEST_F(Xcl_session_impl_tests_connect, connect_localhost_nullptrs) {
       .WillOnce(Return(Connection_type::Unix_socket));
   EXPECT_CALL(*m_mock_protocol, add_send_message_handler(_, _, _));
   EXPECT_CALL(*m_mock_protocol, remove_send_message_handler(0));
-  EXPECT_CALL(m_mock_connection, set_read_timeout(_));
-  EXPECT_CALL(m_mock_connection, set_write_timeout(_));
+  EXPECT_CALL(m_mock_connection, set_read_timeout(_))
+      .WillRepeatedly(Return(XError{}));
+  EXPECT_CALL(m_mock_connection, set_write_timeout(_))
+      .WillRepeatedly(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate("", "", "", "MYSQL41"))
       .WillOnce(Return(XError{}));
+
+  EXPECT_CALL(*m_mock_protocol, add_notice_handler(_, Handler_position::Begin,
+                                                   Handler_priority_low))
+      .WillOnce(Return(4));
+  EXPECT_CALL(*m_mock_protocol, remove_notice_handler(4));
 
   EXPECT_CALL(m_mock_connection, connect_to_localhost(MYSQLX_UNIX_ADDR))
       .WillOnce(Return(XError{0, ""}));

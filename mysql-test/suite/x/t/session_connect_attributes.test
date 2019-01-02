@@ -14,6 +14,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 --write_file $MYSQL_TMP_DIR/session_connect_attrs.xpl
 -->varlet %TEST_KEY% custom_test_key
 -->import connection_attributes.macro
+-->import connection.macro
 
 -->echo
 -->echo
@@ -63,6 +64,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # I.1
 -->newsession test_session.I.1	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"someOS"
 -->recvok
 -->callmacro Check_connect_attributes_and_close_session	"%TEST_KEY%"	"someOS"
@@ -71,6 +73,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # I.2
 -->newsession test_session.I.2	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"someOS"	"%TEST_KEY%"	"otherOS"
 -->recvok
 -->login x_root
@@ -82,6 +85,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # I.3
 -->newsession test_session.I.3	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"not_shownOS"
 -->recvok
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"shownOS"
@@ -92,6 +96,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # I.4
 -->newsession test_session.I.4	-
+-->callmacro Verify_its_xprotocol_connection
 -->varlet %KEY1% test_key1
 -->varlet %KEY2% test_key2
 -->callmacro Send_session_connect_attrs_2	"%KEY1%"	"value1"	"%KEY2%"	"value2"
@@ -105,6 +110,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.1.a
 -->newsession test_session.II.1.a	-
+-->callmacro Verify_its_xprotocol_connection
 -->vargen %INVALID_VALUE% x 1025
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"%INVALID_VALUE%"	"%TEST_KEY%"	"valid_value"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_VALUE_LENGTH
@@ -115,6 +121,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.1.b
 -->newsession test_session.II.1.b	-
+-->callmacro Verify_its_xprotocol_connection
 -->vargen %INVALID_VALUE% x 1025
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"%INVALID_VALUE%"	"%TEST_KEY%"	"valid_value"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_VALUE_LENGTH
@@ -128,6 +135,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.2.a
 -->newsession test_session.II.2.a	-
+-->callmacro Verify_its_xprotocol_connection
 -->vargen %INVALID_KEY% x 33
 -->callmacro Send_session_connect_attrs_2	"%INVALID_KEY%"	"valid_value"	"%TEST_KEY%"	"valid_value"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH
@@ -138,6 +146,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.2.b
 -->newsession test_session.II.2.b	-
+-->callmacro Verify_its_xprotocol_connection
 -->vargen %INVALID_KEY% x 33
 -->callmacro Send_session_connect_attrs_2	"%INVALID_KEY%"	"valid_value"	"%TEST_KEY%"	"valid_value"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH
@@ -151,6 +160,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.3.a
 -->newsession test_session.II.3.a	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	""	"valid_value"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_EMPTY_KEY
 -->callmacro Assert_no_attribute_inserted
@@ -160,6 +170,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.3.b
 -->newsession test_session.II.3.b	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	""	"valid_value"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_EMPTY_KEY
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"valid_value"
@@ -172,6 +183,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.4.a
 -->newsession test_session.II.4.a	-
+-->callmacro Verify_its_xprotocol_connection
 -->vargen %INVALID_KEY% x 33
 -->vargen %INVALID_VALUE% x 1025
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	"%INVALID_KEY%"	"%INVALID_VALUE%"
@@ -183,6 +195,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.4.b
 -->newsession test_session.II.4.b	-
+-->callmacro Verify_its_xprotocol_connection
 -->vargen %INVALID_KEY% x 33
 -->vargen %INVALID_VALUE% x 1025
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	"%INVALID_KEY%"	"%INVALID_VALUE%"
@@ -197,6 +210,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.5.a
 -->newsession test_session.II.5.a	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_connect_capability_with_too_long_payload
 -->callmacro Assert_no_attribute_inserted
 -->closesession
@@ -205,6 +219,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # II.5.b
 -->newsession test_session.II.5.b	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_connect_capability_with_too_long_payload
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"valid_value"
 -->recvok
@@ -216,6 +231,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # III.1
 -->newsession test_session.III.1	-
+-->callmacro Verify_its_xprotocol_connection
 -->varlet %SCALAR1% type: V_STRING v_string { value: "valid_value" }
 -->varlet %SCALAR2% type: V_BOOL v_bool: 1
 -->callmacro Send_two_different_capabilities	%SCALAR1%	%SCALAR2%
@@ -226,6 +242,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # III.2.a
 -->newsession test_session.III.2.a	-
+-->callmacro Verify_its_xprotocol_connection
 -->vargen %INVALID_VALUE% x 1025
 -->varlet %SCALAR1% type: V_STRING v_string { value: "%INVALID_VALUE%" }
 -->varlet %SCALAR2% type: V_BOOL v_bool: 1
@@ -238,6 +255,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # III.2.b
 -->newsession test_session.III.2.b	-
+-->callmacro Verify_its_xprotocol_connection
 -->varlet %SCALAR1% type: V_STRING v_string { value: "value" }
 -->varlet %SCALAR2% type: V_NULL
 -->callmacro Send_two_different_capabilities	%SCALAR1%	%SCALAR2%
@@ -249,12 +267,14 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # IV.1
 -->newsession test_session.IV.1_xtest_client_1	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"client1OS"
 -->recvok
 -->login xtest_client1
 -->callmacro Check_connect_attributes	"%TEST_KEY%"	"client1OS"
 -->closesession
 -->newsession test_session.IV.1_xtest_client_2	-
+-->callmacro Verify_its_xprotocol_connection
 -->login xtest_client2
 -->stmtsql SELECT COUNT(ATTR_VALUE) FROM performance_schema.session_connect_attrs WHERE ATTR_NAME="%TEST_KEY%";
 -->recvtovar %COUNT%
@@ -266,11 +286,13 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # IV.2
 -->newsession test_session.IV.2_xtest_client_1	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"client_1_OS"
 -->recvok
 -->login xtest_client1
 -->callmacro Check_connect_attributes	"%TEST_KEY%"	"client_1_OS"
 -->newsession test_session.IV.2_xtest_client_2	-
+-->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"client_2_OS"
 -->recvok
 -->login xtest_client2
@@ -282,6 +304,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # V
 -->newsession test_session.V_xtest_client_1	-
+-->callmacro Verify_its_xprotocol_connection
 -->login xtest_client1
 -->callmacro Send_session_connect_attrs_1	"%TEST_KEY%"	"client_2_OS"
 -->recverror 1047
@@ -291,6 +314,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->echo #
 -->echo # VI
 -->newsession test_session.VI_xtest_client_1	-
+-->callmacro Verify_its_xprotocol_connection
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {

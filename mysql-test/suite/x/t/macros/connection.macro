@@ -17,3 +17,13 @@ Mysqlx.Connection.CapabilitiesSet {
 -->recvtype Mysqlx.Ok
 -->do_ssl_handshake
 -->endmacro
+
+-->macro Verify_its_xprotocol_connection
+-->noquery_result
+-->recvmessage Mysqlx.Notice.Frame {type:5}
+-->query_result
+-->endmacro
+
+-->macro Verify_its_xprotocol_connection_with_result
+-->recvmessage Mysqlx.Notice.Frame {type:5}
+-->endmacro

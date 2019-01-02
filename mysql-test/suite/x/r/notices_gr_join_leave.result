@@ -120,23 +120,23 @@ RUN RESET MASTER
 
 ### Postcheck: Assert session status variables
 ### Expected:
-### - Myself 9 global-notices (7 from the tests scenarios + 2 from cleanup)
-### - Other 6 global-notices (6 from the tests scenarios)
+### - Myself 10 global-notices (7 from the tests scenarios + 2 from cleanup + 1 from connection)
+### - Other 7 global-notices (6 from the tests scenarios + 1 from connection)
 ##########################################################################
 [connection verify_1]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 9]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 10]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 9]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 10]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_warning_sent';
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_other_sent';
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
 [connection verify_2]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 6]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 7]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 6]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 7]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_warning_sent';
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_other_sent';
@@ -257,19 +257,19 @@ RUN RESET MASTER
 
 ### Postcheck: Assert session status variables
 ### Expected:
-### - Myself 9 global-notices (7 from the tests scenarios + 2 from cleanup)
-### - Other 6 global-notices (6 from the tests scenarios)
+### - Myself 10 global-notices (7 from the tests scenarios + 2 from cleanup + 1 from connection)
+### - Other 7 global-notices (6 from the tests scenarios + 1 from connection)
 ##########################################################################
 [connection verify_1]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_warning_sent';
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_other_sent';
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 [connection verify_2]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_global_sent';
-Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 1]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_warning_sent';
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 RUN SHOW STATUS LIKE 'Mysqlx_notice_other_sent';

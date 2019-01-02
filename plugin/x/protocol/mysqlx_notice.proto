@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,7 @@ message Frame {
     SESSION_VARIABLE_CHANGED = 2;
     SESSION_STATE_CHANGED = 3;
     GROUP_REPLICATION_STATE_CHANGED = 4;
+    SERVER_HELLO = 5;
   };
   required uint32 type = 1;
   optional Scope  scope = 2 [ default = GLOBAL ];
@@ -184,5 +185,17 @@ message GroupReplicationStateChanged {
   required uint32 type = 1;
 
   optional string view_id = 2;
+}
+
+// Notify clients about connection to X Protocol server
+//
+// ========================================== ==========
+// :protobuf:msg:`Mysqlx.Notice::Frame` field value
+// ========================================== ==========
+// ``.type``                                  5
+// ``.scope``                                 ``global``
+// ========================================== ==========
+//
+message ServerHello {
 }
 

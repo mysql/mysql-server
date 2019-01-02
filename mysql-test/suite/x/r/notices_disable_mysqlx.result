@@ -409,7 +409,7 @@ Try Disable produced_message
 Got expected error: Cannot disable notice produced_message (code 5164)
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 Variable_name	Value
-Mysqlx_notice_global_sent	0
+Mysqlx_notice_global_sent	1
 Mysqlx_notice_other_sent	1
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5
@@ -434,7 +434,7 @@ Try Disable produced_message
 Got expected error: Cannot disable notice produced_message (code 5164)
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 Variable_name	Value
-Mysqlx_notice_global_sent	0
+Mysqlx_notice_global_sent	1
 Mysqlx_notice_other_sent	1
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5

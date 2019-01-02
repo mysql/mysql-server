@@ -2713,7 +2713,7 @@ Mysqlx.Error {
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_global_sent	0
+Mysqlx_notice_global_sent	1
 Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5
@@ -2834,7 +2834,7 @@ Mysqlx.Error {
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_global_sent	0
+Mysqlx_notice_global_sent	1
 Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5

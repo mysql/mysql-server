@@ -12,6 +12,8 @@ GRANT SELECT ON xtest.* TO user1@'127.0.0.1';
 GRANT SELECT ON xtest.* TO user2@'127.0.0.1';
 
 --write_file $MYSQL_TMP_DIR/mysqlx-verify-variables.tmp
+-->import connection.macro
+-->callmacro Verify_its_xprotocol_connection
 -->varlet %OLD_SOCKET_ID% %ACTIVE_SOCKET_ID%
 
 -->macro Check_cmd_options %TEXT%

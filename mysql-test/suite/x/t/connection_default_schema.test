@@ -8,17 +8,21 @@
 --echo #
 
 --write_file $MYSQL_TMP_DIR/connection_default_schema_manual.tmp
+-->import connection.macro
 
 -->newsession non_root_user	-
+-->callmacro Verify_its_xprotocol_connection
 -->login user_with_access_to_ydb		ydb
 -->closesession
 
 -->newsession non_root_user	-
+-->callmacro Verify_its_xprotocol_connection
 -->expecterror ER_DBACCESS_DENIED_ERROR
 -->login user_with_access_to_ydb		xdb
 -->closesession abort
 
 -->newsession root_user	-
+-->callmacro Verify_its_xprotocol_connection
 -->expecterror ER_BAD_DB_ERROR
 -->login root		non_existing_schema	sha256_memory
 -->closesession abort

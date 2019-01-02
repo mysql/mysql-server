@@ -21,7 +21,6 @@ Mysqlx_ssl_active	OFF
 Sending 4 bytes raw data...
 Mysqlx.Notice.Frame {
   type: 1
-  scope: GLOBAL
   payload: "Mysqlx.Notice.Warning { level: ERROR\ncode: 1810\nmsg: \"IO Read error: read_timeout exceeded\"\n }"
 }
 
@@ -45,7 +44,6 @@ Mysqlx_ssl_active	ON
 Sending 4 bytes raw data...
 Mysqlx.Notice.Frame {
   type: 1
-  scope: GLOBAL
   payload: "Mysqlx.Notice.Warning { level: ERROR\ncode: 1810\nmsg: \"IO Read error: read_timeout exceeded\"\n }"
 }
 

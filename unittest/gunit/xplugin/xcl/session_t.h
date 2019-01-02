@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -68,11 +68,11 @@ class Xcl_session_impl_tests : public Test {
     EXPECT_CALL(*m_mock_factory, create_protocol_raw(_))
         .WillOnce(DoAll(Invoke(this, &Xcl_session_impl_tests::assign_configs),
                         Return(m_mock_protocol)));
-    EXPECT_CALL(*m_mock_protocol,
-                add_notice_handler(_, _, Handler_priority_high))
-        .WillOnce(DoAll(SaveArg<0>(&m_out_message_handler), Return(1)));
-    EXPECT_CALL(*m_mock_protocol,
-                add_notice_handler(_, _, Handler_priority_low))
+    EXPECT_CALL(*m_mock_protocol, add_notice_handler(_, Handler_position::End,
+                                                     Handler_priority_high))
+        .WillOnce(DoAll(SaveArg<0>(&m_out_message_handler), Return(2)));
+    EXPECT_CALL(*m_mock_protocol, add_notice_handler(_, Handler_position::End,
+                                                     Handler_priority_low))
         .WillOnce(Return(1));
     EXPECT_CALL(*m_mock_protocol, get_connection())
         .WillRepeatedly(ReturnRef(m_mock_connection));
