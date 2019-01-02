@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -954,6 +954,7 @@ String *Item_func_concat::val_str(String *str) {
           thd, Sql_condition::SL_WARNING, ER_WARN_ALLOWED_PACKET_OVERFLOWED,
           ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
           current_thd->variables.max_allowed_packet);
+      DBUG_ASSERT(maybe_null);
       null_value = true;
       return nullptr;
     }
@@ -964,7 +965,7 @@ String *Item_func_concat::val_str(String *str) {
   return res;
 }
 
-bool Item_func_concat::resolve_type(THD *) {
+bool Item_func_concat::resolve_type(THD *thd) {
   ulonglong char_length = 0;
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
@@ -974,6 +975,7 @@ bool Item_func_concat::resolve_type(THD *) {
     char_length += args[i]->max_char_length();
 
   set_data_type_string(char_length);
+  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -1014,6 +1016,7 @@ String *Item_func_concat_ws::val_str(String *str) {
                           ER_WARN_ALLOWED_PACKET_OVERFLOWED,
                           ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
                           func_name(), thd->variables.max_allowed_packet);
+      DBUG_ASSERT(maybe_null);
       null_value = true;
       return nullptr;
     }
@@ -1025,7 +1028,7 @@ String *Item_func_concat_ws::val_str(String *str) {
   return res;
 }
 
-bool Item_func_concat_ws::resolve_type(THD *) {
+bool Item_func_concat_ws::resolve_type(THD *thd) {
   ulonglong char_length;
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
@@ -1037,6 +1040,7 @@ bool Item_func_concat_ws::resolve_type(THD *) {
     char_length += args[i]->max_char_length();
 
   set_data_type_string(char_length);
+  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 

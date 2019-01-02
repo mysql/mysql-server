@@ -5089,3 +5089,86 @@ i
 i
 51393
 DROP PROCEDURE proc;
+#
+# Bug#29133127 ASSERTION `MAYBE_NULL' FAILED
+#              |ITEM_FUNC_CONCAT::VAL_STR(STRING*)
+#
+SET GLOBAL max_allowed_packet=1024;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SET collation_connection=utf32_unicode_ci;
+SELECT
+CONCAT('"',CONCAT('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT('"',CONCAT('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+NULL
+Warnings:
+Warning	1301	Result of concat() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+NULL
+Warnings:
+Warning	1301	Result of concat_ws() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+"
+Warnings:
+Warning	1301	Result of concat_ws() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT('"',CONCAT('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT('"',CONCAT('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+NULL
+Warnings:
+Warning	1301	Result of concat() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+NULL
+Warnings:
+Warning	1301	Result of concat_ws() was larger than max_allowed_packet (1024) - truncated
+SELECT
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"');
+CONCAT_WS('"',CONCAT_WS('";"',repeat('a',60),
+repeat('b',60),
+repeat('c',60),
+repeat ('d',100)),'"')
+"
+Warnings:
+Warning	1301	Result of concat_ws() was larger than max_allowed_packet (1024) - truncated
+SET GLOBAL max_allowed_packet=default;
