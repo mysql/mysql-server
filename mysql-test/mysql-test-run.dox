@@ -415,13 +415,13 @@
         like this, where fields are separated by one or more spaces.
 
         @verbatim
-  suite_name.test_name [@platform|@!platform] : <BUG|WL>#<XXXX> ["<comment>"]
+  suite_name.test_name [@platform|@!platform] : <BUG|WL>#<XXXX> [<comment>]
         @endverbatim
 
         Example:
 
         @verbatim
-  main.1st @linux : BUG#18980 "Test fails randomly"
+  main.1st @linux : BUG#18980 Test fails randomly
         @endverbatim
 
         <b><em>suite_name</em></b> is the suite name.

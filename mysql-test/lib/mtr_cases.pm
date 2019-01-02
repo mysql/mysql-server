@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@ sub report_disabled_test_format_error($$$) {
 
   mtr_error("The format of line '$line' at '$disabled_def_file:$line_number' " .
             "is incorrect. The format is '<suitename>.<testcasename> " .
-            "[\@platform|\@!platform] : <BUG|WL>#<XXXX> [\"<comment>\"]'.");
+            "[\@platform|\@!platform] : <BUG|WL>#<XXXX> [<comment>]'.");
 }
 
 ## Check if the test name format in a disabled.def file is correct. The
@@ -213,7 +213,7 @@ sub validate_test_name_part($$$$) {
 }
 
 ## Check if the comment section in a disabled.def file is correct. The
-## format is "<BUG|WL>#<XXXX> ["<comment>"]". If the format is incorrect,
+## format is "<BUG|WL>#<XXXX> [<comment>]". If the format is incorrect,
 ## throw an error and abort the test run.
 ##
 ## Arguments:
@@ -267,11 +267,13 @@ sub validate_disabled_test_entry($$$) {
 
   # Check the format of test name part.
   my $test_name =
-    validate_test_name_part($test_name_part, $line, $line_number, $disabled_def_file);
+    validate_test_name_part($test_name_part, $line, $line_number,
+                            $disabled_def_file);
 
   # Check the format of comment part.
   my $comment =
-    validate_comment_part($comment_part, $line, $line_number, $disabled_def_file);
+    validate_comment_part($comment_part, $line, $line_number,
+                          $disabled_def_file);
 
   return ($test_name, $comment);
 }

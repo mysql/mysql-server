@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -5348,10 +5348,11 @@ sub check_expected_crash_and_restart($$) {
         # Attempt to remove the .expect file. If it fails in
         # windows, retry removal after a sleep.
         my $retry = 1;
-        while (unlink($expect_file) == 0 &&
-               $! == 13 && # Error = 13, Permission denied
-               IS_WINDOWS &&
-               $retry-- >= 0) {
+        while (
+          unlink($expect_file) == 0 &&
+          $! == 13 &&    # Error = 13, Permission denied
+          IS_WINDOWS && $retry-- >= 0
+        ) {
           # Permission denied to unlink.
           # Race condition seen on windows. Wait and retry.
           mtr_milli_sleep(1000);

@@ -4,7 +4,7 @@
 # used for MySQL Cluster tests only.
 #
 # Separate the test case name and the comment with ':'.
-#   <suite>.<test> [@platform|@!platform] : <BUG|WL>#<XXXX> ["<comment>"]
+#   <suite>.<test> [@platform|@!platform] : <BUG|WL>#<XXXX> [<comment>]
 #
 # Note:
 #   - Do not use any TAB characters for whitespace.
