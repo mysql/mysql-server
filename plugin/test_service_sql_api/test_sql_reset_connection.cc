@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -661,8 +661,8 @@ bool reset_connection_init(UDF_INIT *, UDF_ARGS *args, char *) {
   return args->arg_count != 0;
 }
 
-long long reset_connection_exe(UDF_INIT *, UDF_ARGS *, char *, unsigned long *,
-                               unsigned char *, unsigned char *) {
+long long reset_connection_exe(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                               unsigned char *) {
   DBUG_ENTER("reset_connection_exe");
   test_execute_in_thread(plg, test_com_reset_connection);
   DBUG_RETURN(0);
