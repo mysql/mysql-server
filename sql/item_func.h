@@ -176,6 +176,14 @@ class Item_func : public Item_result_field {
     CEILING_FUNC,
     SQRT_FUNC,
     ABS_FUNC,
+    FLOOR_FUNC,
+    LOG_FUNC,
+    SIN_FUNC,
+    TAN_FUNC,
+    COS_FUNC,
+    ASIN_FUNC,
+    ATAN_FUNC,
+    ACOS_FUNC,
     MOD_FUNC,
     IF_FUNC,
     CASE_FUNC,
@@ -1123,6 +1131,7 @@ class Item_func_log final : public Item_dec_func {
   Item_func_log(const POS &pos, Item *a, Item *b) : Item_dec_func(pos, a, b) {}
   double val_real() override;
   const char *func_name() const override { return "log"; }
+  enum Functype functype() const override { return LOG_FUNC; }
 };
 
 class Item_func_log2 final : public Item_dec_func {
@@ -1159,6 +1168,7 @@ class Item_func_acos final : public Item_dec_func {
   Item_func_acos(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "acos"; }
+  enum Functype functype() const override { return ACOS_FUNC; }
 };
 
 class Item_func_asin final : public Item_dec_func {
@@ -1166,6 +1176,7 @@ class Item_func_asin final : public Item_dec_func {
   Item_func_asin(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "asin"; }
+  enum Functype functype() const override { return ASIN_FUNC; }
 };
 
 class Item_func_atan final : public Item_dec_func {
@@ -1174,6 +1185,7 @@ class Item_func_atan final : public Item_dec_func {
   Item_func_atan(const POS &pos, Item *a, Item *b) : Item_dec_func(pos, a, b) {}
   double val_real() override;
   const char *func_name() const override { return "atan"; }
+  enum Functype functype() const override { return ATAN_FUNC; }
 };
 
 class Item_func_cos final : public Item_dec_func {
@@ -1181,6 +1193,7 @@ class Item_func_cos final : public Item_dec_func {
   Item_func_cos(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "cos"; }
+  enum Functype functype() const override { return COS_FUNC; }
 };
 
 class Item_func_sin final : public Item_dec_func {
@@ -1188,6 +1201,7 @@ class Item_func_sin final : public Item_dec_func {
   Item_func_sin(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "sin"; }
+  enum Functype functype() const override { return SIN_FUNC; }
 };
 
 class Item_func_tan final : public Item_dec_func {
@@ -1195,6 +1209,7 @@ class Item_func_tan final : public Item_dec_func {
   Item_func_tan(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "tan"; }
+  enum Functype functype() const override { return TAN_FUNC; }
 };
 
 class Item_func_cot final : public Item_dec_func {
@@ -1241,6 +1256,7 @@ class Item_func_floor final : public Item_func_int_val {
   my_decimal *decimal_op(my_decimal *) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_function_as_value_generator(uchar *) override { return false; }
+  enum Functype functype() const override { return FLOOR_FUNC; }
 };
 
 /* This handles round and truncate */
