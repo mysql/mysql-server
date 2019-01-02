@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -4452,6 +4452,15 @@ sub run_testcase ($) {
     }
   }
 
+  if ($opt_manual_gdb ||
+      $opt_manual_lldb  ||
+      $opt_manual_ddd   ||
+      $opt_manual_debug ||
+      $opt_manual_dbx) {
+    # Set $MTR_MANUAL_DEBUG environment variable
+    $ENV{'MTR_MANUAL_DEBUG'} = 1;
+  }
+
   my $test_timeout = start_timer(testcase_timeout($tinfo));
 
   do_before_run_mysqltest($tinfo);
@@ -4489,14 +4498,22 @@ sub run_testcase ($) {
 
     if (!$keep_waiting_proc) {
       if ($test_timeout > $print_timeout) {
-        $proc = My::SafeProcess->wait_any_timeout($print_timeout);
+        $proc = My::SafeProcess->wait_any_timeout(start_timer(2));
         if ($proc->{timeout}) {
-          # Print out that the test is still on
-          mtr_print("Test still running: $tinfo->{name}");
-
-          # Reset the timer
-          $print_timeout = start_timer($print_freq * 60);
-          next;
+          if (has_expired($print_timeout)) {
+            # Print out that the test is still on
+            mtr_print("Test still running: $tinfo->{name}");
+            # Reset the timer
+            $print_timeout = start_timer($print_freq * 60);
+            next;
+          } elsif ($opt_manual_gdb ||
+                   $opt_manual_lldb  ||
+                   $opt_manual_ddd   ||
+                   $opt_manual_debug ||
+                   $opt_manual_dbx) {
+            check_expected_crash_and_restart($proc);
+            next;
+          }
         }
       } else {
         $proc = My::SafeProcess->wait_any_timeout($test_timeout);
@@ -4509,6 +4526,8 @@ sub run_testcase ($) {
     unless (defined $proc) {
       mtr_error("wait_any failed");
     }
+
+    next if $proc->{'SAFE_NAME'} eq 'timer';
 
     mtr_verbose("Got $proc");
     mark_time_used('test');
@@ -5186,7 +5205,9 @@ sub check_expected_crash_and_restart {
   my ($proc) = @_;
 
   foreach my $mysqld (mysqlds()) {
-    next unless ($mysqld->{proc} and $mysqld->{proc} eq $proc);
+    next
+      unless (($mysqld->{proc} and $mysqld->{proc} eq $proc) or
+              ($proc->{'SAFE_NAME'} eq 'timer'));
 
     # Check if crash expected by looking at the .expect file in var/tmp
     my $expect_file = "$opt_vardir/tmp/" . $mysqld->name() . ".expect";
