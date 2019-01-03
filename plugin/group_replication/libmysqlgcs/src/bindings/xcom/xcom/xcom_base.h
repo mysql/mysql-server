@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -260,6 +260,131 @@ int xcom_client_set_event_horizon(connection_descriptor *fd, uint32_t group_id,
 int xcom_client_terminate_and_exit(connection_descriptor *fd);
 int xcom_client_set_cache_limit(connection_descriptor *fd,
                                 uint64_t cache_limit);
+
+struct pax_machine;
+typedef struct pax_machine pax_machine;
+
+/**
+ * Initializes the message @c msg to go through a 3-phase, regular Paxos.
+ * Executed by Proposers.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ * @param msg Message to send
+ * @param msgno Synode where @c msg will be proposed
+ * @param msg_type The type of the message, e.g. normal or no_op
+ */
+void prepare_push_3p(site_def const *site, pax_machine *p, pax_msg *msg,
+                     synode_no msgno, pax_msg_type msg_type);
+/**
+ * Initializes the message @c p as a Prepare message, as in the message for
+ * Phase 1 (a) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param p The message to send
+ */
+void init_prepare_msg(pax_msg *p);
+/**
+ * Initializes the message @c p as a Prepare message for a no-op, as in the
+ * message for Phase 1 (a) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param p The no-op message to send
+ * @retval @c p
+ */
+pax_msg *create_noop(pax_msg *p);
+/**
+ * Process the incoming Prepare message from a Proposer, as in the message for
+ * Phase 1 (a) of the Paxos protocol.
+ * Executed by Acceptors.
+ *
+ * @param p Paxos instance
+ * @param pm Incoming Prepare message
+ * @retval pax_msg* the reply to send to the Proposer (as in the Phase 1 (b)
+ * message of the Paxos protocol) if the Acceptor accepts the Prepare
+ * @retval NULL otherwise
+ */
+pax_msg *handle_simple_prepare(pax_machine *p, pax_msg *pm, synode_no synode);
+/**
+ * Process the incoming acknowledge from an Acceptor to a sent Prepare, as in
+ * the message for Phase 1 (b) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ * @param m Incoming message
+ * @retval TRUE if a majority of Acceptors replied to the Proposer's Prepare
+ * @retval FALSE otherwise
+ */
+bool_t handle_simple_ack_prepare(site_def const *site, pax_machine *p,
+                                 pax_msg *m);
+/**
+ * Initializes the proposer's message to go through a 2-phase Paxos on the
+ * proposer's reserved ballot (0,_).
+ * Executed by Proposers.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ */
+void prepare_push_2p(site_def const *site, pax_machine *p);
+/**
+ * Initializes the message @c p as an Accept message, as in the message for
+ * Phase 2 (a) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param p The message to send
+ */
+void init_propose_msg(pax_msg *p);
+/**
+ * Process the incoming Accept from a Proposer, as in the message for
+ * Phase 2 (a) of the Paxos protocol.
+ * Executed by Acceptors.
+ *
+ * @param p Paxos instance
+ * @param m Incoming Accept message
+ * @param synode Synode of the Paxos instance/Accept message
+ * @retval pax_msg* the reply to send to the Proposer (as in the Phase 2 (b)
+ * message of the Paxos protocol) if the Acceptor accepts the Accept
+ * @retval NULL otherwise
+ */
+pax_msg *handle_simple_accept(pax_machine *p, pax_msg *m, synode_no synode);
+/**
+ * Process the incoming acknowledge from an Acceptor to a sent Accept, as in the
+ * message for Phase 2 (b) of the Paxos protocol.
+ * Executed by Proposers.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ * @param m Incoming message
+ * @retval pax_msg* the Learn message to send to Leaners if a majority of
+ * Acceptors replied to the Proposer's Accept
+ * @retval NULL otherwise
+ */
+pax_msg *handle_simple_ack_accept(site_def const *site, pax_machine *p,
+                                  pax_msg *m);
+/**
+ * Process the incoming tiny, i.e. without the learned value, Learn message.
+ * Executed by Learners.
+ *
+ * @param site XCom configuration
+ * @param pm Paxos instance
+ * @param p Incoming message
+ */
+void handle_tiny_learn(site_def const *site, pax_machine *pm, pax_msg *p);
+/**
+ * Process the incoming Learn message.
+ * Executed by Learners.
+ *
+ * @param site XCom configuration
+ * @param p Paxos instance
+ * @param m Incoming message
+ */
+void handle_learn(site_def const *site, pax_machine *p, pax_msg *m);
+/**
+ * @retval 1 if the value for the Paxos instance @c *p has been learned
+ * @retval 0 otherwise
+ */
+int pm_finished(pax_machine *p);
 
 static inline char *strerr_msg(char *buf, size_t len, int nr) {
 #if defined(_WIN32)
