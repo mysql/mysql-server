@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,11 +196,12 @@ bool contextualize_safe(Context *pc, Node *node) {
   For internal use in the contextualization code.
 */
 struct Table_ddl_parse_context final : public Parse_context {
-  Table_ddl_parse_context(THD *thd, SELECT_LEX *select, Alter_info *alter_info)
-      : Parse_context(thd, select),
-        create_info(thd->lex->create_info),
+  Table_ddl_parse_context(THD *thd_arg, SELECT_LEX *select_arg,
+                          Alter_info *alter_info)
+      : Parse_context(thd_arg, select_arg),
+        create_info(thd_arg->lex->create_info),
         alter_info(alter_info),
-        key_create_info(&thd->lex->key_create_info) {}
+        key_create_info(&thd_arg->lex->key_create_info) {}
 
   HA_CREATE_INFO *const create_info;
   Alter_info *const alter_info;
@@ -3427,20 +3428,20 @@ struct Privilege {
 struct Static_privilege : public Privilege {
   const uint grant;
 
-  Static_privilege(uint grant, const Mem_root_array<LEX_CSTRING> *columns)
-      : Privilege(STATIC, columns), grant(grant) {}
+  Static_privilege(uint grant, const Mem_root_array<LEX_CSTRING> *columns_arg)
+      : Privilege(STATIC, columns_arg), grant(grant) {}
 };
 
 struct Dynamic_privilege : public Privilege {
   const LEX_STRING ident;
 
   Dynamic_privilege(const LEX_STRING &ident,
-                    const Mem_root_array<LEX_CSTRING> *columns)
-      : Privilege(DYNAMIC, columns), ident(ident) {}
+                    const Mem_root_array<LEX_CSTRING> *columns_arg)
+      : Privilege(DYNAMIC, columns_arg), ident(ident) {}
 };
 
 class PT_role_or_privilege : public Parse_tree_node {
- protected:
+ private:
   POS pos;
 
  public:
@@ -3793,8 +3794,9 @@ class PT_alter_table_drop : public PT_alter_table_action {
 
  protected:
   PT_alter_table_drop(Alter_drop::drop_type drop_type,
-                      Alter_info::Alter_info_flag flag, const char *name)
-      : super(flag), m_alter_drop(drop_type, name) {}
+                      Alter_info::Alter_info_flag alter_info_flag,
+                      const char *name)
+      : super(alter_info_flag), m_alter_drop(drop_type, name) {}
 
  public:
   bool contextualize(Table_ddl_parse_context *pc) override {
@@ -4014,8 +4016,8 @@ class PT_alter_table_standalone_action : public PT_alter_table_action {
   friend class PT_alter_table_standalone_stmt;  // to access make_cmd()
 
  protected:
-  PT_alter_table_standalone_action(Alter_info::Alter_info_flag flag)
-      : super(flag) {}
+  PT_alter_table_standalone_action(Alter_info::Alter_info_flag alter_info_flag)
+      : super(alter_info_flag) {}
 
  private:
   virtual Sql_cmd *make_cmd(Table_ddl_parse_context *pc) = 0;
@@ -4122,8 +4124,9 @@ class PT_alter_table_partition_list_or_all
 
  public:
   explicit PT_alter_table_partition_list_or_all(
-      Alter_info::Alter_info_flag flag, const List<String> *opt_partition_list)
-      : super(flag), m_opt_partition_list(opt_partition_list) {}
+      Alter_info::Alter_info_flag alter_info_flag,
+      const List<String> *opt_partition_list)
+      : super(alter_info_flag), m_opt_partition_list(opt_partition_list) {}
 
   bool contextualize(Table_ddl_parse_context *pc) override {
     DBUG_ASSERT(pc->alter_info->partition_names.is_empty());

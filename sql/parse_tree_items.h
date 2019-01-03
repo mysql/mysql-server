@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -322,8 +322,8 @@ class PTI_text_literal_text_string : public PTI_text_literal {
 
  public:
   PTI_text_literal_text_string(const POS &pos, bool is_7bit_arg,
-                               const LEX_STRING &literal)
-      : super(pos, is_7bit_arg, literal) {}
+                               const LEX_STRING &literal_arg)
+      : super(pos, is_7bit_arg, literal_arg) {}
 
   virtual bool itemize(Parse_context *pc, Item **res) {
     if (super::itemize(pc, res)) return true;
@@ -354,8 +354,8 @@ class PTI_text_literal_nchar_string : public PTI_text_literal {
 
  public:
   PTI_text_literal_nchar_string(const POS &pos, bool is_7bit_arg,
-                                const LEX_STRING &literal)
-      : super(pos, is_7bit_arg, literal) {}
+                                const LEX_STRING &literal_arg)
+      : super(pos, is_7bit_arg, literal_arg) {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
 };
@@ -368,8 +368,8 @@ class PTI_text_literal_underscore_charset : public PTI_text_literal {
  public:
   PTI_text_literal_underscore_charset(const POS &pos, bool is_7bit_arg,
                                       const CHARSET_INFO *cs_arg,
-                                      const LEX_STRING &literal)
-      : super(pos, is_7bit_arg, literal), cs(cs_arg) {}
+                                      const LEX_STRING &literal_arg)
+      : super(pos, is_7bit_arg, literal_arg), cs(cs_arg) {}
 
   virtual bool itemize(Parse_context *pc, Item **res) {
     if (super::itemize(pc, res)) return true;

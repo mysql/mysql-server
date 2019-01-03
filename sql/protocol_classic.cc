@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3476,10 +3476,11 @@ bool Protocol_text::send_parameters(List<Item_param> *parameters, bool) {
     [..]..[[length]data]              data
 ****************************************************************************/
 bool Protocol_binary::start_result_metadata(uint num_cols, uint flags,
-                                            const CHARSET_INFO *result_cs) {
+                                            const CHARSET_INFO *result_cs_arg) {
   bit_fields = (num_cols + 9) / 8;
   packet->alloc(bit_fields + 1);
-  return Protocol_classic::start_result_metadata(num_cols, flags, result_cs);
+  return Protocol_classic::start_result_metadata(num_cols, flags,
+                                                 result_cs_arg);
 }
 
 void Protocol_binary::start_row() {

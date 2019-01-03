@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -381,7 +381,6 @@ class Table_function_json final : public Table_function {
   /**
     Prepare lists used to create tmp table and function execution
 
-    @param thd       thread handler
     @param nest_idx  index of parent's element in the nesting data array
     @param parent    Parent of the NESTED PATH clause being initialized
 
@@ -389,8 +388,7 @@ class Table_function_json final : public Table_function {
       true  on error
       false on success
   */
-  bool init_json_table_col_lists(THD *thd, uint *nest_idx,
-                                 Json_table_column *parent);
+  bool init_json_table_col_lists(uint *nest_idx, Json_table_column *parent);
   /**
     Set all underlying columns of a NESTED PATH to nullptr
 

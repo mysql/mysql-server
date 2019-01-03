@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1181,10 +1181,11 @@ class Item_sum_json : public Item_sum {
  public:
   /**
     Construct an Item_sum_json instance.
-    @param args  arguments to forward to Item_sum's constructor
+    @param parent_args arguments to forward to Item_sum's constructor
   */
   template <typename... Args>
-  Item_sum_json(Args &&... args) : Item_sum(std::forward<Args>(args)...) {
+  Item_sum_json(Args &&... parent_args)
+      : Item_sum(std::forward<Args>(parent_args)...) {
     set_data_type_json();
   }
 
@@ -2137,8 +2138,8 @@ class Item_non_framing_wf : public Item_sum {
   Item_non_framing_wf(const POS &pos, PT_window *w) : Item_sum(pos, w) {}
   Item_non_framing_wf(const POS &pos, Item *a, PT_window *w)
       : Item_sum(pos, a, w) {}
-  Item_non_framing_wf(const POS &pos, PT_item_list *args, PT_window *w)
-      : Item_sum(pos, args, w) {}
+  Item_non_framing_wf(const POS &pos, PT_item_list *opt_list, PT_window *w)
+      : Item_sum(pos, opt_list, w) {}
   Item_non_framing_wf(THD *thd, Item_non_framing_wf *i) : Item_sum(thd, i) {}
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
@@ -2383,9 +2384,9 @@ class Item_lead_lag : public Item_non_framing_wf {
 
  public:
   Item_lead_lag(const POS &pos, bool lead,
-                PT_item_list *args,  // [0] expr, [1] offset, [2] default
+                PT_item_list *opt_list,  // [0] expr, [1] offset, [2] default
                 enum_null_treatment null_treatment, PT_window *w)
-      : Item_non_framing_wf(pos, args, w),
+      : Item_non_framing_wf(pos, opt_list, w),
         m_null_treatment(null_treatment),
         m_is_lead(lead),
         m_n(0),

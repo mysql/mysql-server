@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1436,7 +1436,7 @@ int PFS_user_variable_value_row::make_row(const char *val, size_t length) {
 */
 #define COMMON_STATELESS_MATCH               \
   int cmp = 0;                               \
-  if (m_is_null) {                           \
+  if (is_null) {                             \
     cmp = (record_null ? 0 : 1);             \
   } else {                                   \
     if (record_null) {                       \
@@ -1449,7 +1449,7 @@ int PFS_user_variable_value_row::make_row(const char *val, size_t length) {
       cmp = 0;                               \
     }                                        \
   }                                          \
-  switch (m_find_flag) {                     \
+  switch (find_flag) {                       \
     case HA_READ_KEY_EXACT:                  \
       return (cmp == 0);                     \
     case HA_READ_KEY_OR_NEXT:                \
@@ -1466,27 +1466,27 @@ int PFS_user_variable_value_row::make_row(const char *val, size_t length) {
   }
 
 bool PFS_key_long::stateless_match(bool record_null, long record_value,
-                                   bool m_is_null, long m_key_value,
-                                   enum ha_rkey_function m_find_flag) {
+                                   bool is_null, long m_key_value,
+                                   enum ha_rkey_function find_flag) {
   COMMON_STATELESS_MATCH
 }
 
 bool PFS_key_ulong::stateless_match(bool record_null, ulong record_value,
-                                    bool m_is_null, ulong m_key_value,
-                                    enum ha_rkey_function m_find_flag) {
+                                    bool is_null, ulong m_key_value,
+                                    enum ha_rkey_function find_flag) {
   COMMON_STATELESS_MATCH
 }
 
 bool PFS_key_longlong::stateless_match(bool record_null, longlong record_value,
-                                       bool m_is_null, longlong m_key_value,
-                                       enum ha_rkey_function m_find_flag) {
+                                       bool is_null, longlong m_key_value,
+                                       enum ha_rkey_function find_flag) {
   COMMON_STATELESS_MATCH
 }
 
 bool PFS_key_ulonglong::stateless_match(bool record_null,
-                                        ulonglong record_value, bool m_is_null,
+                                        ulonglong record_value, bool is_null,
                                         ulonglong m_key_value,
-                                        enum ha_rkey_function m_find_flag) {
+                                        enum ha_rkey_function find_flag) {
   COMMON_STATELESS_MATCH
 }
 
@@ -1562,10 +1562,10 @@ bool PFS_key_pstring::stateless_match(bool record_null,
                                       const char *record_string,
                                       size_t record_string_length,
                                       const char *m_key_value,
-                                      size_t m_key_value_length, bool m_is_null,
-                                      enum ha_rkey_function m_find_flag) {
-  if (m_find_flag == HA_READ_KEY_EXACT) {
-    if (m_is_null) {
+                                      size_t m_key_value_length, bool is_null,
+                                      enum ha_rkey_function find_flag) {
+  if (find_flag == HA_READ_KEY_EXACT) {
+    if (is_null) {
       return record_null;
     }
 
@@ -1583,7 +1583,7 @@ bool PFS_key_pstring::stateless_match(bool record_null,
 
   int cmp = 0;
 
-  if (m_is_null) {
+  if (is_null) {
     cmp = record_null ? 0 : 1;
   } else {
     if (record_null) {
@@ -1593,7 +1593,7 @@ bool PFS_key_pstring::stateless_match(bool record_null,
     }
   }
 
-  switch (m_find_flag) {
+  switch (find_flag) {
     case HA_READ_KEY_OR_NEXT:
       return (cmp >= 0);
     case HA_READ_KEY_OR_PREV:

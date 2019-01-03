@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -912,13 +912,11 @@ class ha_innopart : public ha_innobase,
   if NULL use table->record[0] as return buffer.
   @param[in]	start_key	Start key to match.
   @param[in]	end_key	End key to match.
-  @param[in]	eq_range	Is equal range, start_key == end_key.
   @param[in]	sorted	Return rows in sorted order.
   @return error number or 0. */
   int read_range_first_in_part(uint part, uchar *record,
                                const key_range *start_key,
-                               const key_range *end_key, bool eq_range,
-                               bool sorted) override;
+                               const key_range *end_key, bool sorted) override;
 
   /** Return next record in index range scan from a partition.
   @param[in]	part	Partition to read from.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -269,7 +269,6 @@ static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
   The function goes recursively, starting from the top NESTED PATH clause
   and going in the depth-first way, traverses the tree of columns.
 
-  @param thd       thread handler
   @param nest_idx  index of parent's element in the nesting data array
   @param parent    Parent of the NESTED PATH clause being initialized
 
@@ -278,7 +277,7 @@ static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
     true   an error occurred
 */
 
-bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
+bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
                                                     Json_table_column *parent) {
   List_iterator<Json_table_column> li(*parent->m_nested_columns);
   Json_table_column *col;
@@ -370,7 +369,7 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
         nested = col;
 
         if (parse_path(&path, false, &col->m_path_json) ||
-            init_json_table_col_lists(thd, nest_idx, col))
+            init_json_table_col_lists(nest_idx, col))
           return true;
         break;
       }
@@ -444,7 +443,7 @@ bool Table_function_json::init() {
   Json_table_column top({nullptr, 0}, m_columns);
   if (m_vt_list.elements == 0) {
     uint nest_idx = 0;
-    if (init_json_table_col_lists(thd, &nest_idx, &top)) return true;
+    if (init_json_table_col_lists(&nest_idx, &top)) return true;
     List_iterator<Json_table_column> li(m_vt_list);
 
     /*

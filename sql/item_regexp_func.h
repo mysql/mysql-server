@@ -1,7 +1,7 @@
 #ifndef SQL_ITEM_REGEXP_FUNC_H_
 #define SQL_ITEM_REGEXP_FUNC_H_
 
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,8 @@
 */
 class Item_func_regexp : public Item_func {
  public:
-  Item_func_regexp(const POS &pos, PT_item_list *args) : Item_func(pos, args) {}
+  Item_func_regexp(const POS &pos, PT_item_list *opt_list)
+      : Item_func(pos, opt_list) {}
 
   /**
     Resolves the collation to use for comparison. The type resolution is done
@@ -225,8 +226,8 @@ class Item_func_regexp : public Item_func {
 
 class Item_func_regexp_instr : public Item_func_regexp {
  public:
-  Item_func_regexp_instr(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_instr(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_longlong();
   }
 
@@ -279,8 +280,8 @@ class Item_func_regexp_instr : public Item_func_regexp {
 
 class Item_func_regexp_like : public Item_func_regexp {
  public:
-  Item_func_regexp_like(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_like(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_bool();
   }
 
@@ -318,8 +319,8 @@ class Item_func_regexp_like : public Item_func_regexp {
 
 class Item_func_regexp_replace : public Item_func_regexp {
  public:
-  Item_func_regexp_replace(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_replace(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_string_init();
   }
 
@@ -359,8 +360,8 @@ class Item_func_regexp_replace : public Item_func_regexp {
 
 class Item_func_regexp_substr : public Item_func_regexp {
  public:
-  Item_func_regexp_substr(const POS &pos, PT_item_list *args)
-      : Item_func_regexp(pos, args) {
+  Item_func_regexp_substr(const POS &pos, PT_item_list *opt_list)
+      : Item_func_regexp(pos, opt_list) {
     set_data_type_string_init();
   }
 

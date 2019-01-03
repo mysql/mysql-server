@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,8 +106,8 @@ class Mock_execution_context : public Secondary_engine_execution_context {
 
 namespace mock {
 
-ha_mock::ha_mock(handlerton *hton, TABLE_SHARE *table_share)
-    : handler(hton, table_share) {}
+ha_mock::ha_mock(handlerton *hton, TABLE_SHARE *table_share_arg)
+    : handler(hton, table_share_arg) {}
 
 int ha_mock::open(const char *, int, unsigned int, const dd::Table *) {
   MockShare *share =
@@ -139,16 +139,17 @@ THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
   return to;
 }
 
-int ha_mock::prepare_load_table(const TABLE &table) {
-  loaded_tables->add(table.s->db.str, table.s->table_name.str);
+int ha_mock::prepare_load_table(const TABLE &table_arg) {
+  loaded_tables->add(table_arg.s->db.str, table_arg.s->table_name.str);
   return 0;
 }
 
-int ha_mock::load_table(const TABLE &table) {
-  DBUG_ASSERT(table.file != nullptr);
-  if (loaded_tables->get(table.s->db.str, table.s->table_name.str) == nullptr) {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), table.s->db.str,
-             table.s->table_name.str);
+int ha_mock::load_table(const TABLE &table_arg) {
+  DBUG_ASSERT(table_arg.file != nullptr);
+  if (loaded_tables->get(table_arg.s->db.str, table_arg.s->table_name.str) ==
+      nullptr) {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table_arg.s->db.str,
+             table_arg.s->table_name.str);
     return HA_ERR_KEY_NOT_FOUND;
   }
   return 0;

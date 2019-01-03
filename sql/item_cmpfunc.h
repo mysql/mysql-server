@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -461,11 +461,11 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
     return cmp.set_cmp_func(this, tmp_arg, tmp_arg + 1, true);
   }
   /**
-     When comparing strings, compare at most max_length bytes.
-     @param max_length how much to compare
+     When comparing strings, compare at most max_str_length bytes.
+     @param max_str_length how much to compare
   */
-  void set_max_str_length(size_t max_length) {
-    return cmp.set_max_str_length(max_length);
+  void set_max_str_length(size_t max_str_length) {
+    return cmp.set_max_str_length(max_str_length);
   }
   optimize_type select_optimize() const override { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }

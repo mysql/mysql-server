@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -316,11 +316,12 @@ class Explain_no_table : public Explain {
   const ha_rows rows;   ///< HA_POS_ERROR or cached "rows" argument
 
  public:
-  Explain_no_table(THD *explain_thd, const THD *query_thd,
+  Explain_no_table(THD *explain_thd_arg, const THD *query_thd_arg,
                    SELECT_LEX *select_lex_arg, const char *message_arg,
                    enum_parsing_context context_type_arg = CTX_JOIN,
                    ha_rows rows_arg = HA_POS_ERROR)
-      : Explain(context_type_arg, explain_thd, query_thd, select_lex_arg),
+      : Explain(context_type_arg, explain_thd_arg, query_thd_arg,
+                select_lex_arg),
         message(message_arg),
         rows(rows_arg) {
     if (can_walk_clauses())
@@ -344,9 +345,10 @@ class Explain_no_table : public Explain {
 
 class Explain_union_result : public Explain {
  public:
-  Explain_union_result(THD *explain_thd, const THD *query_thd,
+  Explain_union_result(THD *explain_thd_arg, const THD *query_thd_arg,
                        SELECT_LEX *select_lex_arg)
-      : Explain(CTX_UNION_RESULT, explain_thd, query_thd, select_lex_arg) {
+      : Explain(CTX_UNION_RESULT, explain_thd_arg, query_thd_arg,
+                select_lex_arg) {
     /* it's a UNION: */
     DBUG_ASSERT(select_lex_arg ==
                 select_lex_arg->master_unit()->fake_select_lex);
@@ -387,10 +389,11 @@ class Explain_table_base : public Explain {
   Key_map usable_keys;
 
   Explain_table_base(enum_parsing_context context_type_arg,
-                     THD *const explain_thd, const THD *query_thd,
-                     SELECT_LEX *select_lex = NULL,
-                     TABLE *const table_arg = NULL)
-      : Explain(context_type_arg, explain_thd, query_thd, select_lex),
+                     THD *const explain_thd_arg, const THD *query_thd_arg,
+                     SELECT_LEX *select_lex_arg = nullptr,
+                     TABLE *const table_arg = nullptr)
+      : Explain(context_type_arg, explain_thd_arg, query_thd_arg,
+                select_lex_arg),
         table(table_arg),
         tab(NULL) {}
 
@@ -421,10 +424,11 @@ class Explain_join : public Explain_table_base {
   table_map used_tables;  ///< accumulate used tables bitmap
 
  public:
-  Explain_join(THD *explain_thd, const THD *query_thd,
+  Explain_join(THD *explain_thd_arg, const THD *query_thd_arg,
                SELECT_LEX *select_lex_arg, bool need_tmp_table_arg,
                bool need_order_arg, bool distinct_arg)
-      : Explain_table_base(CTX_JOIN, explain_thd, query_thd, select_lex_arg),
+      : Explain_table_base(CTX_JOIN, explain_thd_arg, query_thd_arg,
+                           select_lex_arg),
         need_tmp_table(need_tmp_table_arg),
         need_order(need_order_arg),
         distinct(distinct_arg),
@@ -482,14 +486,14 @@ class Explain_table : public Explain_table_base {
   const char *message;              ///< cached "message" argument
 
  public:
-  Explain_table(THD *const explain_thd, const THD *query_thd,
+  Explain_table(THD *const explain_thd_arg, const THD *query_thd_arg,
                 SELECT_LEX *select_lex_arg, TABLE *const table_arg,
                 QEP_TAB *tab_arg, uint key_arg, ha_rows limit_arg,
                 bool need_tmp_table_arg, bool need_sort_arg,
                 enum_mod_type mod_type_arg, bool used_key_is_modified_arg,
                 const char *msg)
-      : Explain_table_base(CTX_JOIN, explain_thd, query_thd, select_lex_arg,
-                           table_arg),
+      : Explain_table_base(CTX_JOIN, explain_thd_arg, query_thd_arg,
+                           select_lex_arg, table_arg),
         key(key_arg),
         limit(limit_arg),
         need_tmp_table(need_tmp_table_arg),

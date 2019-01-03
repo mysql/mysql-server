@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,9 +54,10 @@ class Mock_SAMPLING_HANDLER : public Base_mock_HANDLER {
   MOCK_METHOD1(rnd_next, int(::uchar *buf));
   MOCK_METHOD0(rnd_end, int());
 
-  Mock_SAMPLING_HANDLER(handlerton *ht_arg, TABLE *table, TABLE_SHARE *share)
+  Mock_SAMPLING_HANDLER(handlerton *ht_arg, TABLE *table_arg,
+                        TABLE_SHARE *share)
       : Base_mock_HANDLER(ht_arg, share) {
-    this->table = table;
+    table = table_arg;
   }
 };
 

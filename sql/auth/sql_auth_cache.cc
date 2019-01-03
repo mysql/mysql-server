@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -476,18 +476,18 @@ void ACL_PROXY_USER::print_grant(String *str) {
   if (with_grant) str->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 }
 
-int ACL_PROXY_USER::store_pk(TABLE *table, const LEX_CSTRING &host,
+int ACL_PROXY_USER::store_pk(TABLE *table, const LEX_CSTRING &hostname,
                              const LEX_CSTRING &user,
                              const LEX_CSTRING &proxied_host,
                              const LEX_CSTRING &proxied_user) {
   DBUG_ENTER("ACL_PROXY_USER::store_pk");
-  DBUG_PRINT("info",
-             ("host=%s, user=%s, proxied_host=%s, proxied_user=%s",
-              host.str ? host.str : "<NULL>", user.str ? user.str : "<NULL>",
-              proxied_host.str ? proxied_host.str : "<NULL>",
-              proxied_user.str ? proxied_user.str : "<NULL>"));
-  if (table->field[MYSQL_PROXIES_PRIV_HOST]->store(host.str, host.length,
-                                                   system_charset_info))
+  DBUG_PRINT("info", ("host=%s, user=%s, proxied_host=%s, proxied_user=%s",
+                      hostname.str ? hostname.str : "<NULL>",
+                      user.str ? user.str : "<NULL>",
+                      proxied_host.str ? proxied_host.str : "<NULL>",
+                      proxied_user.str ? proxied_user.str : "<NULL>"));
+  if (table->field[MYSQL_PROXIES_PRIV_HOST]->store(
+          hostname.str, hostname.length, system_charset_info))
     DBUG_RETURN(true);
   if (table->field[MYSQL_PROXIES_PRIV_USER]->store(user.str, user.length,
                                                    system_charset_info))
@@ -512,13 +512,13 @@ int ACL_PROXY_USER::store_with_grant(TABLE *table, bool with_grant) {
   DBUG_RETURN(false);
 }
 
-int ACL_PROXY_USER::store_data_record(TABLE *table, const LEX_CSTRING &host,
+int ACL_PROXY_USER::store_data_record(TABLE *table, const LEX_CSTRING &hostname,
                                       const LEX_CSTRING &user,
                                       const LEX_CSTRING &proxied_host,
                                       const LEX_CSTRING &proxied_user,
                                       bool with_grant, const char *grantor) {
   DBUG_ENTER("ACL_PROXY_USER::store_pk");
-  if (store_pk(table, host, user, proxied_host, proxied_user))
+  if (store_pk(table, hostname, user, proxied_host, proxied_user))
     DBUG_RETURN(true);
   if (store_with_grant(table, with_grant)) DBUG_RETURN(true);
   if (table->field[MYSQL_PROXIES_PRIV_GRANTOR]->store(grantor, strlen(grantor),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,8 +115,8 @@ Cached_item_str::~Cached_item_str() {
   item = 0;  // Safety
 }
 
-Cached_item_json::Cached_item_json(Item *item)
-    : Cached_item(item), m_value(new (*THR_MALLOC) Json_wrapper()) {}
+Cached_item_json::Cached_item_json(Item *item_arg)
+    : Cached_item(item_arg), m_value(new (*THR_MALLOC) Json_wrapper()) {}
 
 Cached_item_json::~Cached_item_json() { destroy(m_value); }
 

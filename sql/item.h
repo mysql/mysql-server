@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4376,9 +4376,9 @@ class Item_empty_string : public Item_partition_func_safe_string {
 class Item_return_int : public Item_int {
  public:
   Item_return_int(const char *name_arg, uint length,
-                  enum_field_types field_type_arg, longlong value = 0)
-      : Item_int(Name_string(name_arg, name_arg ? strlen(name_arg) : 0), value,
-                 length) {
+                  enum_field_types field_type_arg, longlong value_arg = 0)
+      : Item_int(Name_string(name_arg, name_arg ? strlen(name_arg) : 0),
+                 value_arg, length) {
     set_data_type(field_type_arg);
     unsigned_flag = true;
   }
@@ -4998,8 +4998,8 @@ class Item_int_with_ref : public Item_int {
 class Item_temporal_with_ref : public Item_int_with_ref {
  public:
   Item_temporal_with_ref(enum_field_types field_type_arg, uint8 decimals_arg,
-                         longlong i, Item *ref_arg, bool unsigned_flag)
-      : Item_int_with_ref(field_type_arg, i, ref_arg, unsigned_flag) {
+                         longlong i, Item *ref_arg, bool unsigned_arg)
+      : Item_int_with_ref(field_type_arg, i, ref_arg, unsigned_arg) {
     decimals = decimals_arg;
   }
   void print(const THD *thd, String *str,
@@ -5193,7 +5193,7 @@ class Item_copy_string final : public Item_copy {
                                              bool no_conversions) override;
 
  public:
-  Item_copy_string(Item *item) : Item_copy(item) {}
+  Item_copy_string(Item *item_arg) : Item_copy(item_arg) {}
 
   String *val_str(String *) override;
   my_decimal *val_decimal(my_decimal *) override;
@@ -5246,7 +5246,9 @@ class Item_copy_int : public Item_copy {
 
 class Item_copy_uint final : public Item_copy_int {
  public:
-  Item_copy_uint(Item *item) : Item_copy_int(item) { unsigned_flag = 1; }
+  Item_copy_uint(Item *item_arg) : Item_copy_int(item_arg) {
+    unsigned_flag = true;
+  }
 
   String *val_str(String *) override;
   double val_real() override {

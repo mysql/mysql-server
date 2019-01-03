@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -226,9 +226,10 @@ class Item_func_statement_digest final : public Item_str_ascii_func {
       : Item_str_ascii_func(pos, query_string) {}
 
   const char *func_name() const override { return "statement_digest"; }
-  bool check_function_as_value_generator(uchar *args) override {
+  bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
     func_arg->banned_function_name = func_name();
     return func_arg->is_gen_col;
   }
@@ -257,9 +258,10 @@ class Item_func_statement_digest_text final : public Item_str_func {
     return false;
   }
 
-  bool check_function_as_value_generator(uchar *args) override {
+  bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
     func_arg->banned_function_name = func_name();
     return func_arg->is_gen_col;
   }
@@ -577,9 +579,10 @@ class Item_func_sysconst : public Item_str_func {
     call
   */
   virtual const Name_string fully_qualified_func_name() const = 0;
-  bool check_function_as_value_generator(uchar *args) override {
+  bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
     func_arg->banned_function_name = func_name();
     return func_arg->is_gen_col;
   }
@@ -627,9 +630,10 @@ class Item_func_user : public Item_func_sysconst {
     return (null_value ? 0 : &str_value);
   }
   bool fix_fields(THD *thd, Item **ref) override;
-  bool check_function_as_value_generator(uchar *args) override {
+  bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
     func_arg->banned_function_name = func_name();
     return true;
   }
@@ -971,9 +975,10 @@ class Item_load_file final : public Item_str_func {
     maybe_null = true;
     return false;
   }
-  bool check_function_as_value_generator(uchar *args) override {
+  bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
     func_arg->banned_function_name = func_name();
     return true;
   }
@@ -1212,9 +1217,10 @@ class Item_func_uuid final : public Item_str_func {
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "uuid"; }
   String *val_str(String *) override;
-  bool check_function_as_value_generator(uchar *args) override {
+  bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
     func_arg->banned_function_name = func_name();
     return func_arg->is_gen_col;
   }

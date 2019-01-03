@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5013,13 +5013,13 @@ Log_event::enum_skip_reason Query_log_event::do_shall_skip(
    @param length            The size of the event buffer.
    @param fd_event          The description event of the master which logged
                             the event.
-   @param[out] query        The pointer to receive the query pointer.
+   @param[out] query_arg    The pointer to receive the query pointer.
 
    @return                  The size of the query.
 */
 size_t Query_log_event::get_query(const char *buf, size_t length,
                                   const Format_description_event *fd_event,
-                                  char **query) {
+                                  const char **query_arg) {
   DBUG_ASSERT((Log_event_type)buf[EVENT_TYPE_OFFSET] ==
               binary_log::QUERY_EVENT);
 
@@ -5055,17 +5055,17 @@ size_t Query_log_event::get_query(const char *buf, size_t length,
                 status_vars_len + checksum_size))
     goto err;
 
-  *query = (char *)buf + query_header_len + db_len + 1 + status_vars_len;
+  *query_arg = buf + query_header_len + db_len + 1 + status_vars_len;
 
   /* Calculate the query length */
   end_of_query = buf +
                  (length - common_header_len) - /* we skipped the header */
                  checksum_size;
-  qlen = end_of_query - *query;
+  qlen = end_of_query - *query_arg;
   return qlen;
 
 err:
-  *query = NULL;
+  *query_arg = nullptr;
   return 0;
 }
 
@@ -6236,27 +6236,27 @@ void XA_prepare_log_event::print(FILE *,
   It also can commit on one phase when the event's member @c one_phase
   set to true.
 
-  @param  thd    a pointer to THD handle
+  @param  thd_arg  a pointer to THD handle
   @return false  as success and
           true   as an error
 */
 
-bool XA_prepare_log_event::do_commit(THD *thd) {
+bool XA_prepare_log_event::do_commit(THD *thd_arg) {
   bool error = false;
   xid_t xid;
 
-  enum_gtid_statement_status state = gtid_pre_statement_checks(thd);
+  enum_gtid_statement_status state = gtid_pre_statement_checks(thd_arg);
   if (state == GTID_STATEMENT_EXECUTE) {
-    if (gtid_pre_statement_post_implicit_commit_checks(thd))
+    if (gtid_pre_statement_post_implicit_commit_checks(thd_arg))
       state = GTID_STATEMENT_CANCEL;
   }
   if (state == GTID_STATEMENT_CANCEL) {
-    uint error = thd->get_stmt_da()->mysql_errno();
+    uint error = thd_arg->get_stmt_da()->mysql_errno();
     DBUG_ASSERT(error != 0);
-    thd->rli_slave->report(ERROR_LEVEL, error,
-                           "Error executing XA PREPARE event: '%s'",
-                           thd->get_stmt_da()->message_text());
-    thd->is_slave_error = 1;
+    thd_arg->rli_slave->report(ERROR_LEVEL, error,
+                               "Error executing XA PREPARE event: '%s'",
+                               thd_arg->get_stmt_da()->message_text());
+    thd_arg->is_slave_error = 1;
     return true;
   } else if (state == GTID_STATEMENT_SKIP)
     return false;
@@ -6267,17 +6267,17 @@ bool XA_prepare_log_event::do_commit(THD *thd) {
     /*
       This is XA-prepare branch.
     */
-    thd->lex->sql_command = SQLCOM_XA_PREPARE;
-    thd->lex->m_sql_cmd = new (thd->mem_root) Sql_cmd_xa_prepare(&xid);
-    error = thd->lex->m_sql_cmd->execute(thd);
+    thd_arg->lex->sql_command = SQLCOM_XA_PREPARE;
+    thd_arg->lex->m_sql_cmd = new (thd_arg->mem_root) Sql_cmd_xa_prepare(&xid);
+    error = thd_arg->lex->m_sql_cmd->execute(thd_arg);
   } else {
-    thd->lex->sql_command = SQLCOM_XA_COMMIT;
-    thd->lex->m_sql_cmd =
-        new (thd->mem_root) Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
-    error = thd->lex->m_sql_cmd->execute(thd);
+    thd_arg->lex->sql_command = SQLCOM_XA_COMMIT;
+    thd_arg->lex->m_sql_cmd =
+        new (thd_arg->mem_root) Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
+    error = thd_arg->lex->m_sql_cmd->execute(thd_arg);
   }
 
-  if (!error) error = mysql_bin_log.gtid_end_transaction(thd);
+  if (!error) error = mysql_bin_log.gtid_end_transaction(thd_arg);
 
   return error;
 }
@@ -11329,10 +11329,10 @@ Write_rows_log_event::Write_rows_log_event(
 }
 
 bool Write_rows_log_event::binlog_row_logging_function(
-    THD *thd, TABLE *table, bool is_transactional,
+    THD *thd_arg, TABLE *table, bool is_transactional,
     const uchar *before_record MY_ATTRIBUTE((unused)),
     const uchar *after_record) {
-  return thd->binlog_write_row(table, is_transactional, after_record, NULL);
+  return thd_arg->binlog_write_row(table, is_transactional, after_record, NULL);
 }
 #endif
 
@@ -11801,9 +11801,11 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 }
 
 bool Delete_rows_log_event::binlog_row_logging_function(
-    THD *thd, TABLE *table, bool is_transactional, const uchar *before_record,
+    THD *thd_arg, TABLE *table, bool is_transactional,
+    const uchar *before_record,
     const uchar *after_record MY_ATTRIBUTE((unused))) {
-  return thd->binlog_delete_row(table, is_transactional, before_record, NULL);
+  return thd_arg->binlog_delete_row(table, is_transactional, before_record,
+                                    NULL);
 }
 
 #endif /* #if defined(MYSQL_SERVER) */
@@ -11906,10 +11908,10 @@ Update_rows_log_event::Update_rows_log_event(
 }
 
 bool Update_rows_log_event::binlog_row_logging_function(
-    THD *thd, TABLE *table, bool is_transactional, const uchar *before_record,
-    const uchar *after_record) {
-  return thd->binlog_update_row(table, is_transactional, before_record,
-                                after_record, NULL);
+    THD *thd_arg, TABLE *table, bool is_transactional,
+    const uchar *before_record, const uchar *after_record) {
+  return thd_arg->binlog_update_row(table, is_transactional, before_record,
+                                    after_record, NULL);
 }
 
 void Update_rows_log_event::init(MY_BITMAP const *cols,
@@ -12804,8 +12806,8 @@ rpl_sidno Gtid_log_event::get_sidno(bool need_lock) {
 }
 
 Previous_gtids_log_event::Previous_gtids_log_event(
-    const char *buf, const Format_description_event *description_event)
-    : binary_log::Previous_gtids_event(buf, description_event),
+    const char *buf_arg, const Format_description_event *description_event)
+    : binary_log::Previous_gtids_event(buf_arg, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
   DBUG_VOID_RETURN;

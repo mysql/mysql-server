@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -744,9 +744,10 @@ bool Item_ident::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool Item::check_function_as_value_generator(uchar *args) {
+bool Item::check_function_as_value_generator(uchar *checker_args) {
   Check_function_as_value_generator_parameters *func_arg =
-      pointer_cast<Check_function_as_value_generator_parameters *>(args);
+      pointer_cast<Check_function_as_value_generator_parameters *>(
+          checker_args);
   Item_func *func_item = nullptr;
   if (type() == Item::FUNC_ITEM &&
       ((func_item = down_cast<Item_func *>(this)))) {
@@ -845,9 +846,10 @@ bool Item_field::find_item_in_field_list_processor(uchar *arg) {
   return false;
 }
 
-bool Item_field::check_function_as_value_generator(uchar *args) {
+bool Item_field::check_function_as_value_generator(uchar *checker_args) {
   Check_function_as_value_generator_parameters *func_args =
-      pointer_cast<Check_function_as_value_generator_parameters *>(args);
+      pointer_cast<Check_function_as_value_generator_parameters *>(
+          checker_args);
   // We walk through the Item tree twice to check for disallowed functions;
   // once before resolving is done and once after resolving is done. Before
   // resolving is done, we don't have the field object available, and hence
@@ -4139,8 +4141,8 @@ bool Item_copy_string::get_time(MYSQL_TIME *ltime) {
  Item_copy_json
  ****************************************************************************/
 
-Item_copy_json::Item_copy_json(Item *item)
-    : Item_copy(item), m_value(new (*THR_MALLOC) Json_wrapper()) {}
+Item_copy_json::Item_copy_json(Item *item_arg)
+    : Item_copy(item_arg), m_value(new (*THR_MALLOC) Json_wrapper()) {}
 
 Item_copy_json::~Item_copy_json() { destroy(m_value); }
 

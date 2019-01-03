@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,8 @@ using Mysql::Nullable;
 struct Column_parse_context : public Parse_context {
   const bool is_generated;  ///< Owner column is a generated one.
 
-  Column_parse_context(THD *thd, SELECT_LEX *select, bool is_generated)
-      : Parse_context(thd, select), is_generated(is_generated) {}
+  Column_parse_context(THD *thd_arg, SELECT_LEX *select_arg, bool is_generated)
+      : Parse_context(thd_arg, select_arg), is_generated(is_generated) {}
 };
 
 /**

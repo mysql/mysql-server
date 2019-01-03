@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2425,8 +2425,8 @@ int Partition_helper::handle_unordered_scan_next_partition(uchar *buf) {
         DBUG_ASSERT(buf == m_table->record[0]);
         DBUG_PRINT("info", ("read_range_first on partition %d", i));
         error = read_range_first_in_part(
-            i, NULL, m_start_key.key ? &m_start_key : NULL,
-            m_handler->end_range, get_eq_range(), false);
+            i, nullptr, m_start_key.key ? &m_start_key : nullptr,
+            m_handler->end_range, false);
         break;
       case PARTITION_INDEX_READ:
         DBUG_PRINT("info", ("index_read on partition %d", i));
@@ -2448,8 +2448,8 @@ int Partition_helper::handle_unordered_scan_next_partition(uchar *buf) {
         */
         DBUG_PRINT("info", ("read_range_first on partition %d", i));
         DBUG_ASSERT(buf == m_table->record[0]);
-        error = read_range_first_in_part(i, NULL, 0, m_handler->end_range,
-                                         get_eq_range(), 0);
+        error = read_range_first_in_part(i, nullptr, nullptr,
+                                         m_handler->end_range, false);
         break;
       default:
         DBUG_ASSERT(0);
@@ -2571,9 +2571,9 @@ int Partition_helper::handle_ordered_index_scan(uchar *buf) {
           table->record[0] (which read_range_* always uses).
         */
         error = read_range_first_in_part(
-            i, read_buf == m_table->record[0] ? NULL : read_buf,
-            m_start_key.key ? &m_start_key : NULL, m_handler->end_range,
-            get_eq_range(), true);
+            i, read_buf == m_table->record[0] ? nullptr : read_buf,
+            m_start_key.key ? &m_start_key : nullptr, m_handler->end_range,
+            true);
         break;
       }
       default:

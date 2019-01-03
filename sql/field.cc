@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7734,17 +7734,17 @@ type_conversion_status Field_json::unsupported_conversion() {
 /**
   Store the provided JSON binary data in this field.
 
-  @param[in] ptr     pointer to JSON binary data
+  @param[in] data    pointer to JSON binary data
   @param[in] length  the length of the binary data
   @return zero on success, non-zero on failure
 */
-type_conversion_status Field_json::store_binary(const char *ptr,
+type_conversion_status Field_json::store_binary(const char *data,
                                                 size_t length) {
   /*
     We expect that a valid binary representation of a JSON document is
     passed to us.
   */
-  DBUG_ASSERT(json_binary::parse_binary(ptr, length).is_valid());
+  DBUG_ASSERT(json_binary::parse_binary(data, length).is_valid());
 
   if (length > UINT_MAX32) {
     /* purecov: begin inspected */
@@ -7753,7 +7753,7 @@ type_conversion_status Field_json::store_binary(const char *ptr,
     /* purecov: end */
   }
 
-  return Field_blob::store(ptr, length, field_charset);
+  return Field_blob::store(data, length, field_charset);
 }
 
 /// Store a double in a JSON field. Will raise an error for now.

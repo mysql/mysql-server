@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,8 +82,8 @@ class Mock_dd_HANDLER : public Base_mock_HANDLER {
   // Handler method used for updates
   MOCK_METHOD2(update_row, int(const ::uchar *, ::uchar *));
 
-  Mock_dd_HANDLER(handlerton *ht, TABLE_SHARE *share)
-      : Base_mock_HANDLER(ht, share) {}
+  Mock_dd_HANDLER(handlerton *hton, TABLE_SHARE *share)
+      : Base_mock_HANDLER(hton, share) {}
 
   virtual ~Mock_dd_HANDLER() {}
 };

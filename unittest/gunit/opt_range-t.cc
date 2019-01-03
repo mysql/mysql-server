@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1742,9 +1742,9 @@ TEST_F(OptRangeTest, CombineAlways2) {
       make_root();
     }
 
-    void add_next_key_part(SEL_ROOT *next) {
-      set_next_key_part(next);
-      next->root->part = part + 1;
+    void add_next_key_part(SEL_ROOT *next_arg) {
+      set_next_key_part(next_arg);
+      next_arg->root->part = part + 1;
     }
 
    private:

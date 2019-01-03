@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,8 +65,8 @@ DWORD win_page_size;
 
 #define DBUG_RET(result) DBUG_RETURN(static_cast<int>(result))
 
-Handler::Handler(handlerton *hton, TABLE_SHARE *table_share)
-    : ::handler(hton, table_share),
+Handler::Handler(handlerton *hton, TABLE_SHARE *table_share_arg)
+    : ::handler(hton, table_share_arg),
       m_opened_table(),
       m_rnd_iterator(),
       m_rnd_iterator_is_positioned(),

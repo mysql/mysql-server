@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -786,11 +786,11 @@ class my_uca_scanner {
 
 template <class Mb_wc>
 struct uca_scanner_any : public my_uca_scanner {
-  uca_scanner_any(const Mb_wc mb_wc, const CHARSET_INFO *cs, const uchar *str,
-                  size_t length)
-      : my_uca_scanner(cs, str, length), mb_wc(mb_wc) {
+  uca_scanner_any(const Mb_wc mb_wc, const CHARSET_INFO *cs_arg,
+                  const uchar *str, size_t length)
+      : my_uca_scanner(cs_arg, str, length), mb_wc(mb_wc) {
     // UCA 9.0.0 uses a different table format from what this scanner expects.
-    DBUG_ASSERT(cs->uca == nullptr || cs->uca->version != UCA_V900);
+    DBUG_ASSERT(cs_arg->uca == nullptr || cs_arg->uca->version != UCA_V900);
   }
 
   uint get_char_index() const { return char_index; }
@@ -815,9 +815,9 @@ struct uca_scanner_any : public my_uca_scanner {
 template <class Mb_wc, int LEVELS_FOR_COMPARE>
 class uca_scanner_900 : public my_uca_scanner {
  public:
-  uca_scanner_900(const Mb_wc mb_wc, const CHARSET_INFO *cs, const uchar *str,
-                  size_t length)
-      : my_uca_scanner(cs, str, length), mb_wc(mb_wc) {}
+  uca_scanner_900(const Mb_wc mb_wc, const CHARSET_INFO *cs_arg,
+                  const uchar *str, size_t length)
+      : my_uca_scanner(cs_arg, str, length), mb_wc(mb_wc) {}
 
   inline int next();
 

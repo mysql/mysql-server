@@ -1,5 +1,4 @@
-
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1414,7 +1413,7 @@ class Query_log_event : public virtual binary_log::Query_event,
   }
   static size_t get_query(const char *buf, size_t length,
                           const Format_description_event *fd_event,
-                          char **query);
+                          const char **query_arg);
 
   bool is_query_prefix_match(const char *pattern, uint p_len) {
     return !strncmp(query, pattern, p_len);
@@ -3300,35 +3299,32 @@ class Delete_rows_log_event : public Rows_log_event,
 class Incident_log_event : public binary_log::Incident_event, public Log_event {
  public:
 #ifdef MYSQL_SERVER
-  Incident_log_event(THD *thd_arg, enum_incident incident)
-      : binary_log::Incident_event(incident),
+  Incident_log_event(THD *thd_arg, enum_incident incident_arg)
+      : binary_log::Incident_event(incident_arg),
         Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
-    DBUG_PRINT("enter", ("incident: %d", incident));
-    common_header->set_is_valid(incident > INCIDENT_NONE &&
-                                incident < INCIDENT_COUNT);
+    DBUG_PRINT("enter", ("incident: %d", incident_arg));
+    common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
+                                incident_arg < INCIDENT_COUNT);
     DBUG_ASSERT(message == NULL && message_length == 0);
     DBUG_VOID_RETURN;
   }
 
-  Incident_log_event(THD *thd_arg, enum_incident incident, LEX_STRING const msg)
-      : binary_log::Incident_event(incident),
+  Incident_log_event(THD *thd_arg, enum_incident incident_arg,
+                     LEX_STRING const msg)
+      : binary_log::Incident_event(incident_arg),
         Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
-    DBUG_PRINT("enter", ("incident: %d", incident));
-    common_header->set_is_valid(incident > INCIDENT_NONE &&
-                                incident < INCIDENT_COUNT);
+    DBUG_PRINT("enter", ("incident: %d", incident_arg));
+    common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
+                                incident_arg < INCIDENT_COUNT);
     DBUG_ASSERT(message == NULL && message_length == 0);
     if (!(message = (char *)my_malloc(key_memory_Incident_log_event_message,
                                       msg.length + 1, MYF(MY_WME)))) {
-      /*
-        If the incident is not recognized, this binlog event is
-        invalid.  If we set incident_number to INCIDENT_NONE, the
-        invalidity will be detected by is_valid in both the ctors.
-      */
-      incident = INCIDENT_NONE;
+      // The allocation failed. Mark this binlog event as invalid.
+      common_header->set_is_valid(false);
       DBUG_VOID_RETURN;
     }
     strmake(message, msg.str, msg.length);

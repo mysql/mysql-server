@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -315,8 +315,8 @@ TEST_F(Keys_container_test, StoreTwiceTheSame) {
 class Buffered_file_io_20 : public Buffered_file_io {
  public:
   Buffered_file_io_20(ILogger *logger) : Buffered_file_io(logger) {}
-  void set_memory_needed_for_buffer(size_t memory_needed_for_buffer) {
-    this->memory_needed_for_buffer = memory_needed_for_buffer;
+  void set_memory_needed_for_buffer(size_t memory_needed) {
+    memory_needed_for_buffer = memory_needed;
   }
 };
 

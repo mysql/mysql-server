@@ -1,7 +1,7 @@
 #ifndef ITEM_JSON_FUNC_INCLUDED
 #define ITEM_JSON_FUNC_INCLUDED
 
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,11 +163,12 @@ class Item_json_func : public Item_func {
   /**
     Construct an Item_json_func instance.
     @param thd   THD handle
-    @param args  arguments to forward to Item_func's constructor
+    @param parent_args  arguments to forward to Item_func's constructor
   */
   template <typename... Args>
-  Item_json_func(THD *thd, Args &&... args)
-      : Item_func(std::forward<Args>(args)...), m_path_cache(thd, arg_count) {
+  Item_json_func(THD *thd, Args &&... parent_args)
+      : Item_func(std::forward<Args>(parent_args)...),
+        m_path_cache(thd, arg_count) {
     set_data_type_json();
   }
 
@@ -533,8 +534,9 @@ class Item_func_json_set_replace : public Item_json_func {
 
  protected:
   template <typename... Args>
-  Item_func_json_set_replace(bool json_set, Args &&... args)
-      : Item_json_func(std::forward<Args>(args)...), m_json_set(json_set) {}
+  Item_func_json_set_replace(bool json_set, Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...),
+        m_json_set(json_set) {}
 
  public:
   bool val_json(Json_wrapper *wr) override;
@@ -546,8 +548,8 @@ class Item_func_json_set_replace : public Item_json_func {
 class Item_func_json_set : public Item_func_json_set_replace {
  public:
   template <typename... Args>
-  Item_func_json_set(Args &&... args)
-      : Item_func_json_set_replace(true, std::forward<Args>(args)...) {}
+  Item_func_json_set(Args &&... parent_args)
+      : Item_func_json_set_replace(true, std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_set"; }
 };
@@ -558,8 +560,8 @@ class Item_func_json_set : public Item_func_json_set_replace {
 class Item_func_json_replace : public Item_func_json_set_replace {
  public:
   template <typename... Args>
-  Item_func_json_replace(Args &&... args)
-      : Item_func_json_set_replace(false, std::forward<Args>(args)...) {}
+  Item_func_json_replace(Args &&... parent_args)
+      : Item_func_json_set_replace(false, std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_replace"; }
 };
@@ -570,8 +572,8 @@ class Item_func_json_replace : public Item_func_json_set_replace {
 class Item_func_json_array : public Item_json_func {
  public:
   template <typename... Args>
-  Item_func_json_array(Args &&... args)
-      : Item_json_func(std::forward<Args>(args)...) {}
+  Item_func_json_array(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_array"; }
 
@@ -608,11 +610,11 @@ class Item_func_json_search : public Item_json_func {
   /**
     Construct a JSON_SEARCH() node.
 
-    @param args arguments to pass to Item_json_func's constructor
+    @param parent_args arguments to pass to Item_json_func's constructor
   */
   template <typename... Args>
-  Item_func_json_search(Args &&... args)
-      : Item_json_func(std::forward<Args>(args)...),
+  Item_func_json_search(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...),
         m_cached_ooa(ooa_uninitialized) {}
 
   const char *func_name() const override { return "json_search"; }
@@ -636,8 +638,8 @@ class Item_func_json_remove : public Item_json_func {
 
  public:
   template <typename... Args>
-  Item_func_json_remove(Args &&... args)
-      : Item_json_func(std::forward<Args>(args)...) {}
+  Item_func_json_remove(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_remove"; }
 
