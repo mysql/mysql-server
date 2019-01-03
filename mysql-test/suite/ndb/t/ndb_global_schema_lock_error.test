@@ -24,6 +24,14 @@ connection default;
 # Restart NDB nodes into "no start"
 --source ndb_restart_nostart.inc
 
+# To get consistent error messages and warnings from the tests below, wait
+# until the "ndb binlog thread" has detected the cluster failure and is
+# waiting for cluster to start again.
+let $wait_condition =
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE state = "Waiting for ndbcluster to start";
+--source include/wait_condition.inc
+
 # Database DDL, works but generate a warning
 # about failure to acquire global schema lock
 CREATE DATABASE test2;
@@ -69,11 +77,5 @@ SHOW WARNINGS;
 # Start NDB nodes back up again
 --source ndb_restart_start.inc
 
-
-
-# NOTE! this is a workaround so that check-testcase after test
-# see the mysql.ndb_schema table(if not connected, 'find_files'
-# will hide the table)
-#
-# Wait until mysqld has connected properly to cluster
+# Wait until mysqld has connected properly to cluster again
 source include/ndb_not_readonly.inc;
