@@ -1,3 +1,6 @@
+#
+# wl9508: Show that explicit and implicit undo tablespaces can be encrypted.
+#
 use test;
 CREATE table tab1(c1 int);
 # create bootstrap file
@@ -18,7 +21,6 @@ use nath;
 CREATE TABLE tab2(c1 int , c2 varchar(10)) Engine=InnoDB ENCRYPTION='Y';
 INSERT INTO tab2 VALUES(2, 'VISH');
 CREATE INDEX ix2 ON tab2(c2) ;
-Server crashes here 
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
@@ -27,10 +29,23 @@ DROP UNDO TABLESPACE undo_003;
 DROP UNDO TABLESPACE undo_004;
 DROP TABLE tab2;
 DROP DATABASE nath;
-# Stop the encrypt server 
+# Stop the encrypt server
 # restart: --datadir=OLD_DATADIR
 SELECT @@datadir;
 @@datadir
 MYSQLD_OLD_DATADIR
 use test;
 DROP TABLE tab1;
+#
+# bug#29006275 : ENCRYPTION MASTER KEY IS GENERATED WITH BLANK UUID
+#
+# Stop the encrypt server
+# Drop existing UNDO tablespaces
+undo_001
+undo_002
+# Drop existing auto.cnf
+auto.cnf
+# Restart server with keyring plugin and innodb_undo_log_encrypt=ON
+# Show that a master key with a blank Server UUID is not used.
+SELECT * FROM performance_schema.keyring_keys where KEY_ID='INNODBKey--1';
+KEY_ID	KEY_OWNER	BACKEND_KEY_ID
