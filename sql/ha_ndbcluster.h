@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -336,6 +336,8 @@ public:
      cond_push()
      cond   Condition to be pushed. The condition tree must not be
      modified by the by the caller.
+     other_tbls_ok  Are other tables allowed to be referred
+     from the condition terms pushed down.
    RETURN
      The 'remainder' condition that caller must use to filter out records.
      NULL means the handler will not return rows that do not match the
@@ -356,10 +358,12 @@ public:
    =, !=, >, >=, <, <=, like, "not like", "is null", and "is not null". 
    Negated conditions are supported by NOT which generate NAND/NOR groups.
  */ 
-  const Item *cond_push(const Item *cond) override;
+  const Item *cond_push(const Item *cond,
+                        bool other_tbls_ok) override;
 
 private:
   void cond_push_boolean_term(const Item *pred,
+                              bool other_tbls_ok,
                               List<Item> &pushed,
                               List<Item> &remainder);
 

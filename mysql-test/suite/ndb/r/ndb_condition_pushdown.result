@@ -1557,7 +1557,7 @@ select auto from t1 where
 '1901-01-01 01:01:01' in(date_time) 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	medium_index	medium_index	3	const	#	#	Using pushed condition ((`test`.`t1`.`date_time` = TIMESTAMP'1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = DATE'1901-01-01') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`string` = 'aaaa') and (TIME'01:01:01' = `test`.`t1`.`time_field`)); Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	medium_index	medium_index	3	const	#	#	Using where; Using pushed condition ((`test`.`t1`.`date_time` = TIMESTAMP'1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = DATE'1901-01-01') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`string` = 'aaaa')); Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where ((`test`.`t1`.`date_time` = TIMESTAMP'1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = DATE'1901-01-01') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`medium` = -(1)) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`string` = 'aaaa') and (TIME'01:01:01' = `test`.`t1`.`time_field`)) order by `test`.`t1`.`auto`
 select auto from t1 where
@@ -1664,7 +1664,7 @@ select auto from t1 where
 '1901-01-01 01:01:01' not in(date_time) 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using pushed condition (('aaaa' <> `test`.`t1`.`string`) and ('aaaa' <> `test`.`t1`.`vstring`) and (0xaaaa <> `test`.`t1`.`bin`) and (0xaaaa <> `test`.`t1`.`vbin`) and (<cache>(-(1)) <> `test`.`t1`.`tiny`) and (<cache>(-(1)) <> `test`.`t1`.`short`) and (<cache>(-(1)) <> `test`.`t1`.`medium`) and (<cache>(-(1)) <> `test`.`t1`.`long_int`) and (-1 <> `test`.`t1`.`longlong`) and (1 <> `test`.`t1`.`utiny`) and (1 <> `test`.`t1`.`ushort`) and (1 <> `test`.`t1`.`umedium`) and (1 <> `test`.`t1`.`ulong`) and (1 <> `test`.`t1`.`ulonglong`) and ('one' <> `test`.`t1`.`options`) and ('one' <> `test`.`t1`.`flags`) and (DATE'1901-01-01' <> `test`.`t1`.`date_field`) and (1901 <> `test`.`t1`.`year_field`) and (TIME'01:01:01' <> `test`.`t1`.`time_field`) and (TIMESTAMP'1901-01-01 01:01:01' <> `test`.`t1`.`date_time`))
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using where; Using pushed condition (('aaaa' <> `test`.`t1`.`string`) and ('aaaa' <> `test`.`t1`.`vstring`) and (0xaaaa <> `test`.`t1`.`bin`) and (0xaaaa <> `test`.`t1`.`vbin`) and (<cache>(-(1)) <> `test`.`t1`.`tiny`) and (<cache>(-(1)) <> `test`.`t1`.`short`) and (<cache>(-(1)) <> `test`.`t1`.`medium`) and (<cache>(-(1)) <> `test`.`t1`.`long_int`) and (-1 <> `test`.`t1`.`longlong`) and (1 <> `test`.`t1`.`utiny`) and (1 <> `test`.`t1`.`ushort`) and (1 <> `test`.`t1`.`umedium`) and (1 <> `test`.`t1`.`ulong`) and (1 <> `test`.`t1`.`ulonglong`) and ('one' <> `test`.`t1`.`options`) and ('one' <> `test`.`t1`.`flags`) and (1901 <> `test`.`t1`.`year_field`))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where (('aaaa' <> `test`.`t1`.`string`) and ('aaaa' <> `test`.`t1`.`vstring`) and (0xaaaa <> `test`.`t1`.`bin`) and (0xaaaa <> `test`.`t1`.`vbin`) and (<cache>(-(1)) <> `test`.`t1`.`tiny`) and (<cache>(-(1)) <> `test`.`t1`.`short`) and (<cache>(-(1)) <> `test`.`t1`.`medium`) and (<cache>(-(1)) <> `test`.`t1`.`long_int`) and (-1 <> `test`.`t1`.`longlong`) and (1 <> `test`.`t1`.`utiny`) and (1 <> `test`.`t1`.`ushort`) and (1 <> `test`.`t1`.`umedium`) and (1 <> `test`.`t1`.`ulong`) and (1 <> `test`.`t1`.`ulonglong`) and ('one' <> `test`.`t1`.`options`) and ('one' <> `test`.`t1`.`flags`) and (DATE'1901-01-01' <> `test`.`t1`.`date_field`) and (1901 <> `test`.`t1`.`year_field`) and (TIME'01:01:01' <> `test`.`t1`.`time_field`) and (TIMESTAMP'1901-01-01 01:01:01' <> `test`.`t1`.`date_time`)) order by `test`.`t1`.`auto`
 select auto from t1 where
@@ -2848,7 +2848,7 @@ explain
 select * from t1 where
 '1999-01-01' >= date_field ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using pushed condition (DATE'1999-01-01' >= `test`.`t1`.`date_field`)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (DATE'1999-01-01' >= `test`.`t1`.`date_field`)
 explain
@@ -2862,7 +2862,7 @@ explain
 select * from t1 where
 date '1999-01-01' >= date_field ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using pushed condition (DATE'1999-01-01' >= `test`.`t1`.`date_field`)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (DATE'1999-01-01' >= `test`.`t1`.`date_field`)
 explain
@@ -2873,3 +2873,264 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` <= DATE'1999-01-01')
 drop table t1;
+create table t1 (
+a int,
+b int,
+c int,
+d int
+) engine=ndbcluster;
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+set optimizer_switch='block_nested_loop=off';
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.d = t1.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	10.00	Using pushed condition (`test`.`t2`.`d` = `test`.`t1`.`d`)
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.c and t2.d = t1.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	6.25	Using pushed condition ((`test`.`t2`.`d` = `test`.`t1`.`d`) and (`test`.`t2`.`a` = `test`.`t1`.`c`))
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.c or t2.d = t1.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	19.00	Using pushed condition ((`test`.`t2`.`a` = `test`.`t1`.`c`) or (`test`.`t2`.`d` = `test`.`t1`.`d`))
+explain
+select * from t1
+straight_join t1 as t2 on t2.d = t1.d
+straight_join t1 as t3 on t3.a = t2.c and t3.d = t1.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	10.00	Using pushed condition (`test`.`t2`.`d` = `test`.`t1`.`d`)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	6.25	Using pushed condition ((`test`.`t3`.`d` = `test`.`t1`.`c`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
+explain
+select * from t1
+straight_join t1 as t2 on t2.d = t1.d
+straight_join t1 as t3 on t3.a = t2.c or t3.d = t1.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	10.00	Using pushed condition (`test`.`t2`.`d` = `test`.`t1`.`d`)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	19.00	Using pushed condition ((`test`.`t3`.`a` = `test`.`t2`.`c`) or (`test`.`t3`.`d` = `test`.`t1`.`c`))
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or t1.d = t2.d);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	19.00	Using pushed condition ((`test`.`t2`.`d` = 1) or (`test`.`t2`.`d` = `test`.`t1`.`d`))
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or t1.d = 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or 1 = t1.d);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on (t1.d = 1 or 1 = t2.d);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on (1 = t1.d or t2.d = 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or t1.c = t1.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = t1.d or t1.c = t1.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = t2.c);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on (t1.a between t2.a and t2.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	11.11	Using pushed condition (`test`.`t1`.`a` between `test`.`t2`.`a` and `test`.`t2`.`b`)
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.a between t1.a and t1.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	11.11	Using pushed condition (`test`.`t2`.`a` between `test`.`t1`.`a` and `test`.`t1`.`b`)
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.a between t1.a and t2.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	11.11	Using where
+delete from t1;
+insert into t1 values (1,1,1,1), (2, 2, NULL, NULL);
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.d = t1.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	50.00	Using pushed condition (`test`.`t2`.`d` = `test`.`t1`.`d`)
+select *
+from t1 straight_join t1 as t2
+on t2.d = t1.d;
+a	b	c	d	a	b	c	d
+1	1	1	1	1	1	1	1
+select *
+from t1 straight_join t1 as t2
+on t2.d = t1.d or t2.a = t1.a;
+a	b	c	d	a	b	c	d
+1	1	1	1	1	1	1	1
+2	2	NULL	NULL	2	2	NULL	NULL
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.a or t2.d = t1.d;
+a	b	c	d	a	b	c	d
+1	1	1	1	1	1	1	1
+2	2	NULL	NULL	2	2	NULL	NULL
+select *
+from t1 straight_join t1 as t2
+on t2.d <> t1.d;
+a	b	c	d	a	b	c	d
+select *
+from t1 straight_join t1 as t2
+on t2.d < t1.d;
+a	b	c	d	a	b	c	d
+drop table t1;
+create table t1(a int, b char(10), c char(20))
+engine=ndbcluster;
+insert into t1 values
+(1,'1','1'),  (2,'2','2'),
+(3,'1%','0123456789abcdef'), (4,null,null), (null,'5','555555555555555'),
+(6,'x','x'),  (7,'y','y'),
+(8, '0123456789', '01234567890123456789');
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.b = t1.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using pushed condition (`test`.`t2`.`b` = `test`.`t1`.`b`)
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.b = t1.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.b = t1.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.c = t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using pushed condition (`test`.`t2`.`c` = `test`.`t1`.`b`)
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.b = t2.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using pushed condition (`test`.`t1`.`b` = `test`.`t2`.`c`)
+alter table t1 add column d varchar(20);
+update t1 set d = c;
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+alter table t1 drop column d;
+alter table t1 add column d char(20) character set latin1 collate latin1_swedish_ci;
+update t1 set d = c;
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+alter table t1 drop column d;
+drop table t1;
+set optimizer_switch='block_nested_loop=default';

@@ -129,13 +129,18 @@ class Ndb_item
 public:
   Ndb_item(NDB_ITEM_TYPE item_type) : type(item_type) {}
   // A Ndb_Item where an Item expression defines the value (a const)
-  Ndb_item(NDB_ITEM_TYPE item_type,
-           NDB_ITEM_QUALIFICATION item_qualification,
-           const Item *item_value)
-    : type(item_type), qualification(item_qualification)
+  Ndb_item(const Item *item_value, Item::Type item_type) : type(NDB_VALUE)
   {
-    DBUG_ASSERT(item_type == NDB_VALUE);
+    qualification.value_type= item_type;
     value.item= item_value;
+  }
+  // A Ndb_Item referring a Field from a previous table
+  // Handled as a NDB_VALUE, as its value is known when we 'generate'
+  Ndb_item(Field *field) : type(NDB_VALUE)
+  {
+    const Item *item_value = new(*THR_MALLOC) Item_field(field);
+    value.item= item_value;
+    qualification.value_type= item_value->type();
   }
   // A Ndb_Item reffering a Field from 'this' table
   Ndb_item(Field *field, int column_no) : type(NDB_FIELD)
@@ -228,6 +233,12 @@ public:
       return field->val_str(str);
 
     return NULL;
+  }
+
+  const Item *get_item()
+  {
+    DBUG_ASSERT(this->type == NDB_VALUE);
+    return value.item;
   }
 
   bool is_const_func()
@@ -391,7 +402,8 @@ class Ndb_expect_stack
   static const uint MAX_EXPECT_FIELD_TYPES = MYSQL_TYPE_GEOMETRY + 1;
   static const uint MAX_EXPECT_FIELD_RESULTS = DECIMAL_RESULT + 1;
  public:
-  Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
+  Ndb_expect_stack(): table(nullptr),
+                      collation(NULL), length(0), max_length(0), next(NULL)
   {
     // Allocate type checking bitmaps using fixed size buffers
     // since max size is known at compile time
@@ -424,15 +436,28 @@ class Ndb_expect_stack
       bitmap_clear_all(&expect_field_result_mask);
       bitmap_union(&expect_field_result_mask, &next->expect_field_result_mask);
       collation= next->collation;
+      table= next->table;
       next= next->next;
       destroy(expect_next);
     }
   }
+
+  void expect(TABLE* tab)
+  {
+    table = tab;
+  }
+  void dont_expect(TABLE *tab MY_ATTRIBUTE((unused)))
+  {
+    table = nullptr;
+  }
+  bool expecting(TABLE *tab) const
+  {
+    return (table == tab);
+  }
+
   void expect(Item::Type type)
   {
     bitmap_set_bit(&expect_mask, (uint) type);
-    if (type == Item::FIELD_ITEM)
-      expect_all_field_types();
   }
   void dont_expect(Item::Type type)
   {
@@ -459,6 +484,10 @@ class Ndb_expect_stack
   {
     expect_nothing();
     expect(type);
+  }
+  bool expecting_only(Item::Type type)
+  {
+    return (expecting(type) && bitmap_bits_set(&expect_mask) == 1);
   }
 
   void expect_field_type(enum_field_types type)
@@ -558,6 +587,7 @@ class Ndb_expect_stack
   }
 
 private:
+  TABLE* table;
   my_bitmap_map
     m_expect_buf[bitmap_buffer_size(MAX_EXPECT_ITEMS)];
   my_bitmap_map
@@ -611,6 +641,34 @@ class Ndb_cond_traverse_context
   {
     if (rewrite_stack) destroy(rewrite_stack);
   }
+
+  inline void expect_field_from_table()
+  {
+    expect_stack.expect(table);
+    expect_stack.expect(Item::FIELD_ITEM);
+    expect_stack.expect_all_field_types();
+  }
+  inline void expect_only_field_from_table()
+  {
+    expect_stack.expect_nothing();
+    expect_field_from_table();
+  }
+  void dont_expect_field_from_table()
+  {
+    expect_stack.dont_expect(table);
+    expect_stack.dont_expect(Item::FIELD_ITEM);
+  }
+  inline bool expecting_field_from_table()
+  {
+    return expect_stack.expecting(table) &&
+           expect_stack.expecting(Item::FIELD_ITEM);
+  }
+  inline bool expecting_only_field_from_table()
+  {
+    return expect_stack.expecting(table) &&
+           expect_stack.expecting_only(Item::FIELD_ITEM);
+  }
+
   inline void expect(Item::Type type)
   {
     expect_stack.expect(type);
@@ -874,7 +932,7 @@ ndb_serialize_cond(const Item *item, void *arg)
       {
         Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
         const Item_func *func_item= rewrite_context->func_item;
-        context->expect_only(Item::FIELD_ITEM);
+        context->expect_only_field_from_table();
         context->expect_field_result(STRING_RESULT);
         context->expect_field_result(REAL_RESULT);
         context->expect_field_result(INT_RESULT);
@@ -972,53 +1030,63 @@ ndb_serialize_cond(const Item *item, void *arg)
           const enum_field_types type= field->real_type();
 
           /* Check whether field is computed at MySQL layer */
-          if(field->is_virtual_gcol())
+          if (field->is_virtual_gcol())
           {
             context->supported= false;
             DBUG_VOID_RETURN;
           }
-          /*
-            Check that the field is part of the table of the handler
-            instance and that we expect a field with of this result type.
-          */
-          if (context->table->s == field->table->s)
-          {       
-            const NDBTAB *tab= context->ndb_table;
-            DBUG_PRINT("info", ("FIELD_ITEM"));
-            DBUG_PRINT("info", ("table %s", tab->getName()));
-            DBUG_PRINT("info", ("column %s", field->field_name));
-            DBUG_PRINT("info", ("column length %u", field->field_length));
-            DBUG_PRINT("info", ("type %d", type));
-            DBUG_PRINT("info", ("result type %d", field->result_type()));
 
-            // Check that we are expecting a field and with the correct
-            // result type and of length that can store the item value
-            if (context->expecting(Item::FIELD_ITEM) &&
-                context->expecting_field_type(type) &&
-                (context->expecting_field_result(field->result_type()) ||
-                 // Date and year can be written as string or int
-                 (is_supported_temporal_type(type)
-                  ? (context->expecting_field_result(STRING_RESULT) ||
-                     context->expecting_field_result(INT_RESULT))
-                  : true)) &&
-                // Bit fields no yet supported in scan filter
-                type != MYSQL_TYPE_BIT &&
-                /* Char(0) field is treated as Bit fields inside NDB
-                   Hence not supported in scan filter */
-                (!(type == MYSQL_TYPE_STRING && field->pack_length() == 0)) &&
-                // No BLOB support in scan filter
-                type != MYSQL_TYPE_TINY_BLOB &&
-                type != MYSQL_TYPE_MEDIUM_BLOB &&
-                type != MYSQL_TYPE_LONG_BLOB &&
-                type != MYSQL_TYPE_BLOB &&
-                type != MYSQL_TYPE_JSON &&
-                type != MYSQL_TYPE_GEOMETRY)
+          DBUG_PRINT("info", ("FIELD_ITEM"));
+          DBUG_PRINT("info", ("table %s", field->table->alias));
+          DBUG_PRINT("info", ("column %s", field->field_name));
+          DBUG_PRINT("info", ("column length %u", field->field_length));
+          DBUG_PRINT("info", ("type %d", type));
+          DBUG_PRINT("info", ("result type %d", field->result_type()));
+
+	  /*
+            Check that the field is part of the table of the handler
+            instance and that we expect a field of this result type.
+          */
+          // Check that we are expecting a field and with the correct
+          // result type and of length that can store the item value
+          if (context->expecting(Item::FIELD_ITEM) &&
+              context->expecting_field_type(type) &&
+              (context->expecting_field_result(field->result_type()) ||
+               // Date and year can be written as string or int
+               (is_supported_temporal_type(type)
+                ? (context->expecting_field_result(STRING_RESULT) ||
+                   context->expecting_field_result(INT_RESULT))
+                : false)) &&
+              // Bit fields no yet supported in scan filter
+              type != MYSQL_TYPE_BIT &&
+              /* Char(0) field is treated as Bit fields inside NDB
+                 Hence not supported in scan filter */
+              (!(type == MYSQL_TYPE_STRING && field->pack_length() == 0)) &&
+              // No BLOB support in scan filter
+              type != MYSQL_TYPE_TINY_BLOB &&
+              type != MYSQL_TYPE_MEDIUM_BLOB &&
+              type != MYSQL_TYPE_LONG_BLOB &&
+              type != MYSQL_TYPE_BLOB &&
+              type != MYSQL_TYPE_JSON &&
+              type != MYSQL_TYPE_GEOMETRY)
+          {
+            if (context->table == field->table)
             {
+              // Field is a reference to 'this' table, was it expected?
+              if (!context->expecting_field_from_table())
+              {
+                DBUG_PRINT("info", ("Was not expecting field from table %s",
+                                    field->table->s->table_name.str));
+                context->supported= false;
+                break;
+              }
+              const NDBTAB *tab= context->ndb_table;
               const NDBCOL *col= tab->getColumn(field->field_name);
               DBUG_ASSERT(col);
               curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(field, col->getColumnNo());
-              context->dont_expect(Item::FIELD_ITEM);
-              context->expect_no_field_result();
+              // Dont expect more Fields referring 'this' table
+              context->dont_expect_field_from_table();
+
               if (! context->expecting_nothing())
               {
                 // We have not seen second argument yet
@@ -1055,10 +1123,14 @@ ndb_serialize_cond(const Item *item, void *arg)
                     break;
                   }
                 }
+                // In addition, second argument can always be a FIELD_ITEM
+                // referring a previous table in the query plan.
+                context->expect(Item::FIELD_ITEM);
+                context->expect_only_field_type(type);
               }
               else
               {
-                // Expect another logical expression
+                // Seen expected arguments, expect another logical expression
                 context->expect_only(Item::FUNC_ITEM);
                 context->expect(Item::COND_ITEM);
 		
@@ -1080,20 +1152,58 @@ ndb_serialize_cond(const Item *item, void *arg)
                   }
                 }
               }
-              break;
+            }
+            else if (context->expecting_only_field_from_table())
+            {
+              // Have already seen a const, or Field value from another
+              // table. We only expected a field from 'this' table now.
+              DBUG_PRINT("info", ("Was not expecting a field from another table %s",
+                                  field->table->s->table_name.str));
+              context->supported= false;
             }
             else
             {
-              DBUG_PRINT("info", ("Was not expecting field of type %u(%u)",
-                                  field->result_type(), type));
-              context->supported= false;
+              // Is a field reference to another table
+              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(field);
+
+              if (context->expecting_field_from_table())
+              {
+                // We have not seen the field argument referring this table yet
+                // Expect it to refer a Field of same type as 'this' Field
+                context->expect_only_field_from_table();
+                context->expect_only_field_result(field->result_type());	
+                context->expect_only_field_type(type);
+                if (field->result_type() == STRING_RESULT)
+                {
+                  context->expect_collation(field_item->collation.collation);
+                  context->expect_length(item->max_length);
+                }
+              }
+              else
+              {
+                // Seen expected arguments, expect another logical expression
+                context->expect_only(Item::FUNC_ITEM);
+                context->expect(Item::COND_ITEM);
+
+                if (!context->expecting_length(item->max_length))
+                {
+                  DBUG_PRINT("info", ("Found non-matching string length %s",
+				      field->field_name));
+                  context->supported= false;
+                }
+                else if (!context->expecting_collation(item->collation.collation))
+                {
+                  DBUG_PRINT("info", ("Found non-matching collation %s",
+                                      item->collation.collation->name));
+                  context->supported= false;
+                }
+              }
             }
           }
           else
           {
-            DBUG_PRINT("info", ("Was not expecting field from table %s (%s)",
-                                context->table->s->table_name.str, 
-                                field->table->s->table_name.str));
+            DBUG_PRINT("info", ("Was not expecting field of type %u(%u)",
+                                field->result_type(), type));
             context->supported= false;
           }
           break;
@@ -1126,7 +1236,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::REAL_ITEM);
             context->expect(Item::DECIMAL_ITEM);
             context->expect(Item::VARBIN_ITEM);
-            context->expect(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
@@ -1143,7 +1253,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::REAL_ITEM);
             context->expect(Item::DECIMAL_ITEM);
             context->expect(Item::VARBIN_ITEM);
-            context->expect(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
@@ -1160,7 +1270,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::REAL_ITEM);
             context->expect(Item::DECIMAL_ITEM);
             context->expect(Item::VARBIN_ITEM);
-            context->expect(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
@@ -1179,7 +1289,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::REAL_ITEM);
             context->expect(Item::DECIMAL_ITEM);
             context->expect(Item::VARBIN_ITEM);
-            context->expect(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
@@ -1198,7 +1308,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::REAL_ITEM);
             context->expect(Item::DECIMAL_ITEM);
             context->expect(Item::VARBIN_ITEM);
-            context->expect(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
@@ -1217,7 +1327,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::DECIMAL_ITEM);
             context->expect(Item::INT_ITEM);
             context->expect(Item::VARBIN_ITEM);
-            context->expect(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
@@ -1246,7 +1356,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               on the expect stack to catch that we
               don't support <string> LIKE <field>.
              */
-            context->expect(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect_only_field_type(MYSQL_TYPE_STRING);
             context->expect_field_type(MYSQL_TYPE_VAR_STRING);
             context->expect_field_type(MYSQL_TYPE_VARCHAR);
@@ -1262,7 +1372,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("ISNULL_FUNC"));      
             curr_cond->ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
-            context->expect(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
@@ -1274,7 +1384,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("ISNOTNULL_FUNC"));      
             curr_cond->ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);     
-            context->expect(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
@@ -1312,7 +1422,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             curr_cond->ndb_item= 
               new (*THR_MALLOC) Ndb_item(Item_func::COND_AND_FUNC, 
                            func_item->argument_count() - 1);
-            context->expect_only(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect(Item::INT_ITEM);
             context->expect(Item::STRING_ITEM);
             context->expect(Item::VARBIN_ITEM);
@@ -1341,7 +1451,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("COND_OR_FUNC"));
             curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(
               Item_func::COND_OR_FUNC, func_item->argument_count() - 1);
-            context->expect_only(Item::FIELD_ITEM);
+            context->expect_field_from_table();
             context->expect(Item::INT_ITEM);
             context->expect(Item::STRING_ITEM);
             context->expect(Item::VARBIN_ITEM);
@@ -1380,13 +1490,11 @@ ndb_serialize_cond(const Item *item, void *arg)
               switch (func_item->result_type()) {
               case STRING_RESULT:
               {
-                NDB_ITEM_QUALIFICATION q;
-                q.value_type= Item::STRING_ITEM;
-                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item); 
-                if (! context->expecting_no_field_result())
+                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
+                if (context->expecting_field_from_table())
                 {
-                  // We have not seen the field argument yet
-                  context->expect_only(Item::FIELD_ITEM);
+                  // We have not seen the field argument referring this table yet
+                  context->expect_only_field_from_table();
                   context->expect_only_field_result(STRING_RESULT);
                   context->expect_collation(func_item->collation.collation);
                 }
@@ -1410,13 +1518,11 @@ ndb_serialize_cond(const Item *item, void *arg)
               }
               case REAL_RESULT:
               {
-                NDB_ITEM_QUALIFICATION q;
-                q.value_type= Item::REAL_ITEM;
-                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);
-                if (! context->expecting_no_field_result()) 
+                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
+                if (context->expecting_field_from_table())
                 {
-                  // We have not seen the field argument yet
-                  context->expect_only(Item::FIELD_ITEM);
+                  // We have not seen the field argument referring this table yet
+                  context->expect_only_field_from_table();
                   context->expect_only_field_result(REAL_RESULT);
                 }
                 else
@@ -1433,13 +1539,11 @@ ndb_serialize_cond(const Item *item, void *arg)
               }
               case INT_RESULT:
               {
-                NDB_ITEM_QUALIFICATION q;
-                q.value_type= Item::INT_ITEM;
-                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);
-                if (! context->expecting_no_field_result()) 
+                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+                if (context->expecting_field_from_table())
                 {
-                  // We have not seen the field argument yet
-                  context->expect_only(Item::FIELD_ITEM);
+                  // We have not seen the field argument referring this table yet
+                  context->expect_only_field_from_table();
                   context->expect_only_field_result(INT_RESULT);
                 }
                 else
@@ -1456,13 +1560,11 @@ ndb_serialize_cond(const Item *item, void *arg)
               }
               case DECIMAL_RESULT:
               {
-                NDB_ITEM_QUALIFICATION q;
-                q.value_type= Item::DECIMAL_ITEM;
-                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);
-                if (! context->expecting_no_field_result()) 
+                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
+                if (context->expecting_field_from_table())
                 {
-                  // We have not seen the field argument yet
-                  context->expect_only(Item::FIELD_ITEM);
+                  // We have not seen the field argument referring this table yet
+                  context->expect_only_field_from_table();
                   context->expect_only_field_result(DECIMAL_RESULT);
                 }
                 else
@@ -1506,13 +1608,11 @@ ndb_serialize_cond(const Item *item, void *arg)
             const_cast<Item*>(item)->print(current_thd, &str, QT_ORDINARY);
             DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
 #endif
-            NDB_ITEM_QUALIFICATION q;
-            q.value_type= Item::STRING_ITEM;
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);      
-            if (! context->expecting_no_field_result())
+            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
+            if (context->expecting_field_from_table())
             {
-              // We have not seen the field argument yet
-              context->expect_only(Item::FIELD_ITEM);
+              // We have not seen the field argument referring this table yet
+              context->expect_only_field_from_table();
               context->expect_only_field_result(STRING_RESULT);
               context->expect_collation(item->collation.collation);
               context->expect_length(item->max_length);
@@ -1541,13 +1641,11 @@ ndb_serialize_cond(const Item *item, void *arg)
           {
             DBUG_PRINT("info", ("value %ld",
                                 (long) ((Item_int*) item)->value));
-            NDB_ITEM_QUALIFICATION q;
-            q.value_type= Item::INT_ITEM;
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);
-            if (! context->expecting_no_field_result()) 
+            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+            if (context->expecting_field_from_table())
             {
-              // We have not seen the field argument yet
-              context->expect_only(Item::FIELD_ITEM);
+              // We have not seen the field argument referring this table yet
+              context->expect_only_field_from_table();
               context->expect_only_field_result(INT_RESULT);
               context->expect_field_result(REAL_RESULT);
               context->expect_field_result(DECIMAL_RESULT);
@@ -1567,13 +1665,11 @@ ndb_serialize_cond(const Item *item, void *arg)
           if (context->expecting(Item::REAL_ITEM)) 
           {
             DBUG_PRINT("info", ("value %f", ((Item_float*) item)->value));
-            NDB_ITEM_QUALIFICATION q;
-            q.value_type= Item::REAL_ITEM;
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);
-            if (! context->expecting_no_field_result()) 
+            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
+            if (context->expecting_field_from_table())
             {
-              // We have not seen the field argument yet
-              context->expect_only(Item::FIELD_ITEM);
+              // We have not seen the field argument referring this table yet
+              context->expect_only_field_from_table();
               context->expect_only_field_result(REAL_RESULT);
             }
             else
@@ -1590,13 +1686,11 @@ ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("VARBIN_ITEM"));
           if (context->expecting(Item::VARBIN_ITEM)) 
           {
-            NDB_ITEM_QUALIFICATION q;
-            q.value_type= Item::VARBIN_ITEM;
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);      
-            if (! context->expecting_no_field_result())
+            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::VARBIN_ITEM);
+            if (context->expecting_field_from_table())
             {
-              // We have not seen the field argument yet
-              context->expect_only(Item::FIELD_ITEM);
+              // We have not seen the field argument referring this table yet
+              context->expect_only_field_from_table();
               context->expect_only_field_result(STRING_RESULT);
             }
             else
@@ -1615,13 +1709,11 @@ ndb_serialize_cond(const Item *item, void *arg)
           {
             DBUG_PRINT("info", ("value %f",
                                 ((Item_decimal*) item)->val_real()));
-            NDB_ITEM_QUALIFICATION q;
-            q.value_type= Item::DECIMAL_ITEM;
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);
-            if (! context->expecting_no_field_result()) 
+            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
+            if (context->expecting_field_from_table())
             {
-              // We have not seen the field argument yet
-              context->expect_only(Item::FIELD_ITEM);
+              // We have not seen the field argument referring this table yet
+              context->expect_only_field_from_table();
               context->expect_only_field_result(REAL_RESULT);
               context->expect_field_result(DECIMAL_RESULT);
             }
@@ -1681,13 +1773,11 @@ ndb_serialize_cond(const Item *item, void *arg)
             {
               DBUG_PRINT("info", ("value %ld",
                                   (long) ((Item_int*) item)->value));
-              NDB_ITEM_QUALIFICATION q;
-              q.value_type= Item::INT_ITEM;
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);
-              if (! context->expecting_no_field_result()) 
+              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+              if (context->expecting_field_from_table())
               {
-                // We have not seen the field argument yet
-                context->expect_only(Item::FIELD_ITEM);
+                // We have not seen the field argument referring this table yet
+                context->expect_only_field_from_table();
                 context->expect_only_field_result(INT_RESULT);
                 context->expect_field_result(REAL_RESULT);
                 context->expect_field_result(DECIMAL_RESULT);
@@ -1708,13 +1798,11 @@ ndb_serialize_cond(const Item *item, void *arg)
             if (context->expecting(Item::REAL_ITEM)) 
             {
               DBUG_PRINT("info", ("value %f", ((Item_float*) item)->value));
-              NDB_ITEM_QUALIFICATION q;
-              q.value_type= Item::REAL_ITEM;
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);
-              if (! context->expecting_no_field_result()) 
+              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
+              if (context->expecting_field_from_table())
               {
-                // We have not seen the field argument yet
-                context->expect_only(Item::FIELD_ITEM);
+                // We have not seen the field argument referring this table yet
+                context->expect_only_field_from_table();
                 context->expect_only_field_result(REAL_RESULT);
               }
               else
@@ -1734,13 +1822,11 @@ ndb_serialize_cond(const Item *item, void *arg)
             {
               DBUG_PRINT("info", ("value %f",
                                   ((Item_decimal*) item)->val_real()));
-              NDB_ITEM_QUALIFICATION q;
-              q.value_type= Item::DECIMAL_ITEM;
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);
-              if (! context->expecting_no_field_result()) 
+              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
+              if (context->expecting_field_from_table())
               {
-                // We have not seen the field argument yet
-                context->expect_only(Item::FIELD_ITEM);
+                // We have not seen the field argument referring this table yet
+                context->expect_only_field_from_table();
                 context->expect_only_field_result(REAL_RESULT);
                 context->expect_field_result(DECIMAL_RESULT);
               }
@@ -1767,13 +1853,11 @@ ndb_serialize_cond(const Item *item, void *arg)
               const_cast<Item*>(item)->print(current_thd, &str, QT_ORDINARY);
               DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
   #endif
-              NDB_ITEM_QUALIFICATION q;
-              q.value_type= Item::STRING_ITEM;
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_VALUE, q, item);      
-              if (! context->expecting_no_field_result())
+              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
+              if (context->expecting_field_from_table())
               {
-                // We have not seen the field argument yet
-                context->expect_only(Item::FIELD_ITEM);
+                // We have not seen the field argument referring this table yet
+                context->expect_only_field_from_table();
                 context->expect_only_field_result(STRING_RESULT);
                 context->expect_collation(item->collation.collation);
                 context->expect_length(item->max_length);
@@ -1981,6 +2065,31 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     {
       DBUG_PRINT("info", ("condition missing 'field' argument"));
       DBUG_RETURN(1);
+    }
+
+    /*
+      The NdbInterpreter handles a NULL value as being less than any
+      non-NULL value. However, MySQL server (and SQL std spec) specifies
+      that a NULL-value in a comparison predicate should result in an
+      UNKNOWN boolean result, which is 'not TRUE' -> the row being eliminated.
+
+      Thus, extra checks for both 'field' and 'value' being a
+      NULL-value has to be added to mitigate this semantic difference.
+    */
+    if (value != nullptr &&
+	const_cast<Item*>(value->get_item())->is_null())
+    {
+      /*
+        'value' known to be a NULL-value.
+        Condition will be 'not TRUE' -> false, independent of the 'field'
+        value. Encapsulate in own group, as only this predicate become
+        'false', not entire group it is part of.
+      */
+      if (filter->begin() == -1   ||
+	  filter->isfalse() == -1 ||
+	  filter->end() == -1)
+        DBUG_RETURN(1);
+      DBUG_RETURN(0);
     }
 
     bool need_explicit_null_check = field->get_field()->maybe_null();

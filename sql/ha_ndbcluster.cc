@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -16258,7 +16258,9 @@ ha_ndbcluster::parent_of_pushed_join() const
   handler::pushed_cond will be assigned the (part of) the condition
   which we accepted to be pushed down.
   
-  @param cond  Condition to be pushed down.
+  @param cond          Condition to be pushed down.
+  @param other_tbls_ok Are other tables allowed to be referred
+                       from the condition terms pushed down.
 
   @retval Return the 'remainder' condition, consisting of the AND'ed
           sum of boolean terms which could not be pushed. A nullptr
@@ -16266,17 +16268,25 @@ ha_ndbcluster::parent_of_pushed_join() const
 */
 const 
 Item* 
-ha_ndbcluster::cond_push(const Item *cond) 
+ha_ndbcluster::cond_push(const Item *cond, bool other_tbls_ok)
 { 
   DBUG_ENTER("ha_ndbcluster::cond_push");
   DBUG_ASSERT(pushed_cond == nullptr);
   DBUG_ASSERT(cond != nullptr);
   DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
 
+  if (m_pushed_join_member != nullptr &&
+      m_pushed_join_operation > PUSHED_ROOT)
+  {
+    // This is a 'child' in a pushed join operation. Field values from
+    // other tables are not known yet when we generate the scan filters.
+    other_tbls_ok = false;
+  }
+
   // Build lists of the boolean terms either 'pushed', or being a 'remained'
   List<Item> pushed;
   List<Item> remainder;
-  cond_push_boolean_term(cond, pushed, remainder);
+  cond_push_boolean_term(cond, other_tbls_ok, pushed, remainder);
 
   if (remainder.elements == 0)
   {
@@ -16327,15 +16337,18 @@ ha_ndbcluster::cond_push(const Item *cond)
 
 /**
   Decompose a condition into AND'ed 'boolean terms'. Add the terms
-  To either the list of 'pushed' or unpushed 'remainder' terms.
+  to either the list of 'pushed' or unpushed 'remainder' terms.
 
-  @param cond       Condition to try to push down.
-  @param pushed     List of boolean terms we may push down to the
-                    ndbcluster storage engine.
-  @param remainder  List of boolean terms being an unpushed remainder.
+  @param cond          Condition to try to push down.
+  @param other_tbls_ok Are other tables allowed to be referred
+                       from the condition terms pushed down.
+  @param pushed        List of boolean terms we may push down to the
+                       ndbcluster storage engine.
+  @param remainder     List of boolean terms being an unpushed remainder.
  */
 void
 ha_ndbcluster::cond_push_boolean_term(const Item *term,
+                                      bool other_tbls_ok,
                                       List<Item>& pushed, List<Item>& remainder)
 
 {
@@ -16349,17 +16362,16 @@ ha_ndbcluster::cond_push_boolean_term(const Item *term,
       Item *boolean_term;
       while ((boolean_term = li++))
       {
-        cond_push_boolean_term(boolean_term, pushed, remainder);
+        cond_push_boolean_term(boolean_term, other_tbls_ok, pushed, remainder);
       }
       DBUG_VOID_RETURN;
     }
   }
-
-  if (term->used_tables() & ~table->pos_in_table_list->map())
+  if (!other_tbls_ok &&
+      (term->used_tables() & ~table->pos_in_table_list->map()))
   {
     /**
-     * 'term' refers fields from other tables, or other instances
-     * of this table, -> reject it.
+     * 'term' refers fields from other tables -> reject it.
      */
     DBUG_EXECUTE("where",print_where((Item *)term, "Other table, rejected", QT_ORDINARY););
     remainder.push_back((Item*)term);

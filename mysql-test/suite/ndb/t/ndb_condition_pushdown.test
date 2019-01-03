@@ -2784,5 +2784,280 @@ explain
 select * from t1 where
  date_field <= date '1999-01-01';
 
+drop table t1;
+
+
+#########################################################
+# WL#12686: Enable condition pushdown of field references
+#   to previous tables in the query plan.
+#########################################################
+
+create table t1 (
+  a int,
+  b int,
+  c int,
+  d int
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+
+# Turn of BNL, as it would prevent condition pushdown
+# referring 'other' tables.
+set optimizer_switch='block_nested_loop=off';
+
+# We dont want to see the warning info explaining why
+# each query below is not join-pushed (No keys in t1)
+--disable_warnings
+
+##############
+# Comparing against column values from previous tables(t1)
+# should now be supported.
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.d = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.c and t2.d = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.c or t2.d = t1.d;
+
+############
+# Multiple 'other' tables may be referred.
+# (Only one 'other' table from each 'term' though)
+explain
+select * from t1
+  straight_join t1 as t2 on t2.d = t1.d
+  straight_join t1 as t3 on t3.a = t2.c and t3.d = t1.c;
+
+explain
+select * from t1
+  straight_join t1 as t2 on t2.d = t1.d
+  straight_join t1 as t3 on t3.a = t2.c or t3.d = t1.c;
+
+#######
+# It is still a requirement that each predicate term has to refer
+# a column from the table being pushed to:
+
+# Pushed as 't2' is referred in both or'ed terms:
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or t1.d = t2.d);
+
+# Not pushed as 't2' not referred from 't1.d = 1'
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or t1.d = 1);
+
+# Permutations of above in order to test different parsing order
+# of 'value' vs 'field' (Dont push)
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or 1 = t1.d);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (t1.d = 1 or 1 = t2.d);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (1 = t1.d or t2.d = 1);
+
+########
+# 't1.c = t1.b' should not push, t2 not referenced in term
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = 1 or t1.c = t1.b);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = t1.d or t1.c = t1.b);
+
+#######
+# There should be only a *single* reference to the table being pushed
+# to(t2) from each predicate term:
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.d = t2.c);
+
+#####
+# Testing between.
+
+## Both below pushed
+explain
+select *
+from t1 straight_join t1 as t2
+on (t1.a between t2.a and t2.b);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.a between t1.a and t1.b);
+
+# Not pushed, as the rewritten term 't2.a <= t2.b' is rejected.
+# Note, that we could have pushed the first rewritten term 't2.a >= t1.a'.
+# However, entire between predicate is handled as a single unit.
+explain
+select *
+from t1 straight_join t1 as t2
+on (t2.a between t1.a and t2.b);
+
+# Check correct handling of field having a NULL-value in
+# comparison operations with another field:
+# These should all result in an UNKNOWN boolean value, which
+# is a 'not TRUE' result for the predicate.
+delete from t1;
+insert into t1 values (1,1,1,1), (2, 2, NULL, NULL);
+
+explain
+ select *
+ from t1 straight_join t1 as t2
+ on t2.d = t1.d;
+
+--sorted_result
+select *
+ from t1 straight_join t1 as t2
+ on t2.d = t1.d;
+
+--sorted_result
+select *
+ from t1 straight_join t1 as t2
+ on t2.d = t1.d or t2.a = t1.a;
+
+--sorted_result
+select *
+ from t1 straight_join t1 as t2
+ on t2.a = t1.a or t2.d = t1.d;
+
+--sorted_result
+select *
+  from t1 straight_join t1 as t2
+  on t2.d <> t1.d;
+
+--sorted_result
+select *
+  from t1 straight_join t1 as t2
+  on t2.d < t1.d;
 
 drop table t1;
+
+
+create table t1(a int, b char(10), c char(20))
+  engine=ndbcluster;
+
+insert into t1 values
+ (1,'1','1'),  (2,'2','2'),
+ (3,'1%','0123456789abcdef'), (4,null,null), (null,'5','555555555555555'),
+ (6,'x','x'),  (7,'y','y'),
+ (8, '0123456789', '01234567890123456789');
+
+# Comparing identical types -> pushed
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.b = t1.b;
+
+#Types below does not match on type or length -> dont push
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.b = t1.c;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.b;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.a = t1.c;
+
+###########
+# Test: Length of Item value (t1) has to be <= length of Field. (t2)
+# Length of 'b' is less than 'c', so below will not be pushed
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.b = t1.c;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.c = t2.b;
+
+# Length of 'c' is greater than 'b' -> pushed
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.b;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.b = t2.c;
+
+
+###########
+# Test a varchar Field compared against char Field.
+alter table t1 add column d varchar(20);
+update t1 set d = c;
+
+# Test: excact type match required, cant compare char - varchar.
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+
+alter table t1 drop column d;
+
+
+###########
+# Test collations, which has to match
+# (Other char columns created with the default utf8mb4 collation)
+alter table t1 add column d char(20) character set latin1 collate latin1_swedish_ci;
+
+update t1 set d = c;
+
+#Different collations -> dont push
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+
+alter table t1 drop column d;
+drop table t1;
+
+--enable_warnings
+set optimizer_switch='block_nested_loop=default';

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -333,7 +333,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
   if (conds &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
-    table->file->cond_push(conds);
+    table->file->cond_push(conds, false);
   }
 
   {  // Enter scope for optimizer trace wrapper

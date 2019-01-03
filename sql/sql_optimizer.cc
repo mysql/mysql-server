@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -823,7 +823,17 @@ int JOIN::push_to_engines() {
         }
         const Item *cond = qep_tab[i].condition();
         if (cond != nullptr) {
-          const Item *remainder = qep_tab[i].table()->file->cond_push(cond);
+          const bool using_join_cache =
+              (qep_tab[i].op != nullptr &&
+               qep_tab[i].op->type() == QEP_operation::OT_CACHE);
+          /*
+            If a join cache is referred by this table, there is not a single
+            specific row from the 'other tables' to compare rows from this table
+            against. Thus, other tables can not be referred in this case.
+          */
+          const bool other_tbls_ok = !using_join_cache;
+          const Item *remainder =
+              qep_tab[i].table()->file->cond_push(cond, other_tbls_ok);
           qep_tab[i].set_condition(const_cast<Item *>(remainder));
         }
       }

@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5200,8 +5200,10 @@ class handler {
   /**
     Push condition down to the table handler.
 
-    @param  cond   Condition to be pushed. The condition tree must not be
-                   modified by the by the caller.
+    @param  cond          Condition to be pushed. The condition tree
+                          must not be modified by the caller.
+    @param  other_tbls_ok Are other tables than than 'this' allowed to
+                          be referred by the condition terms being pushed.
 
     @return
       The 'remainder' condition that caller must use to filter out records.
@@ -5219,7 +5221,8 @@ class handler {
     Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
     condition stack.
   */
-  virtual const Item *cond_push(const Item *cond) {
+  virtual const Item *cond_push(const Item *cond,
+                                bool other_tbls_ok MY_ATTRIBUTE((unused))) {
     DBUG_ASSERT(pushed_cond == NULL);
     return cond;
   }
