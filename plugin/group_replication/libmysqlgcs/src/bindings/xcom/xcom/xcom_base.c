@@ -4691,7 +4691,11 @@ again:
       common to both the sender_task, reply_handler_task,  and the ac‐
       ceptor_learner_task.
     */
+    // Allow the previous server reference to be freed.
+    if (ep->srv) srv_unref(ep->srv);
     ep->srv = get_server(ep->site, ep->p->from);
+    // Prevent the new server reference from being freed.
+    if (ep->srv) srv_ref(ep->srv);
     ep->p->refcnt = 1; /* Refcnt from other end is void here */
     MAY_DBG(FN; NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
             COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
@@ -4812,6 +4816,8 @@ again:
   DBGOUT(FN; NDBG(xcom_shutdown, d));
   if (ep->buf) X_FREE(ep->buf);
   free(ep->in_buf);
+  // Allow the server reference to be freed.
+  if (ep->srv) srv_unref(ep->srv);
 
   TASK_END;
 }
