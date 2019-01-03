@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -315,6 +315,8 @@ public:
     case (Item_func::LIKE_FUNC): { return NDB_LIKE_FUNC; }
     case (Item_func::NOT_FUNC): { return NDB_NOT_FUNC; }
     case (Item_func::NEG_FUNC): { return NDB_UNKNOWN_FUNC; }
+    case (Item_func::DATE_FUNC): { return NDB_UNKNOWN_FUNC; }
+    case (Item_func::DATETIME_LITERAL): { return NDB_UNKNOWN_FUNC; }
     case (Item_func::UNKNOWN_FUNC): { return NDB_UNKNOWN_FUNC; }
     case (Item_func::COND_AND_FUNC): { return NDB_COND_AND_FUNC; }
     case (Item_func::COND_OR_FUNC): { return NDB_COND_OR_FUNC; }
@@ -842,6 +844,8 @@ ndb_serialize_cond(const Item *item, void *arg)
           {
             Item_func *func_item= (Item_func *) item;
             if ((func_item->functype() == Item_func::UNKNOWN_FUNC ||
+                 func_item->functype() == Item_func::DATE_FUNC ||
+                 func_item->functype() == Item_func::DATETIME_LITERAL ||
                  func_item->functype() == Item_func::NEG_FUNC) &&
                 func_item->const_item())
             {
@@ -1117,6 +1121,8 @@ ndb_serialize_cond(const Item *item, void *arg)
           // Check that we expect a function or functional expression here
           if (context->expecting(Item::FUNC_ITEM) ||
               func_item->functype() == Item_func::UNKNOWN_FUNC ||
+              func_item->functype() == Item_func::DATE_FUNC ||
+              func_item->functype() == Item_func::DATETIME_LITERAL ||
               func_item->functype() == Item_func::NEG_FUNC)
             context->expect_nothing();
           else
@@ -1361,6 +1367,8 @@ ndb_serialize_cond(const Item *item, void *arg)
             break;
           }
           case Item_func::NEG_FUNC:
+          case Item_func::DATE_FUNC:
+          case Item_func::DATETIME_LITERAL:
           case Item_func::UNKNOWN_FUNC:
           {
             /*
