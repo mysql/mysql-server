@@ -1052,3 +1052,21 @@ SELECT * FROM t1;
 a	b
 1	1
 DROP TABLE t1;
+#
+# Bug#28738100: SECONDARY ENGINE RETURNS WRONG RESULT WITH IS NULL CLAUSE
+#
+SET @saved_sql_auto_is_null = @@sql_auto_is_null;
+SET @@sql_auto_is_null = 1;
+CREATE TABLE t(a INT PRIMARY KEY AUTO_INCREMENT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+INSERT INTO t VALUES ();
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT * FROM t WHERE a IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (`test`.`t`.`a` = <cache>(last_insert_id()))
+DROP TABLE t;
+SET @@sql_auto_is_null = @saved_sql_auto_is_null;

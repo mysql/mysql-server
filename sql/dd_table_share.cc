@@ -499,7 +499,14 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
   if (share->found_next_number_field) {
     Field *reg_field = *share->found_next_number_field;
-    if ((int)(share->next_number_index = (uint)find_ref_key(
+    /*
+      Check that the auto-increment column is the first column of some key. The
+      check is skipped for shares that represent tables in secondary engines,
+      since secondary engines don't have keys or indexes, and the auto-increment
+      column is maintained by the primary engine.
+    */
+    if (share->is_primary() &&
+        (int)(share->next_number_index = (uint)find_ref_key(
                   share->key_info, share->keys, share->default_values,
                   reg_field, &share->next_number_key_offset,
                   &share->next_number_keypart)) < 0) {
@@ -1048,10 +1055,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     reg_field->m_default_val_expr = default_val_expr;
   }
 
-  // Auto-increment columns are maintained in the primary storage
-  // engine only. Treat the auto-increment column as a regular column
-  // in the secondary table.
-  if ((auto_flags & Field::NEXT_NUMBER) && share->is_primary())
+  if ((auto_flags & Field::NEXT_NUMBER) != 0)
     share->found_next_number_field = &share->field[field_nr];
 
   // Set field flags

@@ -684,6 +684,23 @@ SELECT b FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#28738100: SECONDARY ENGINE RETURNS WRONG RESULT WITH IS NULL CLAUSE
+--echo #
+
+# Enable special handling of IS NULL for this test case.
+SET @saved_sql_auto_is_null = @@sql_auto_is_null;
+SET @@sql_auto_is_null = 1;
+CREATE TABLE t(a INT PRIMARY KEY AUTO_INCREMENT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+INSERT INTO t VALUES ();
+ANALYZE TABLE t;
+# Verify that a IS NULL is rewritten to a = last_insert_id().
+EXPLAIN SELECT * FROM t WHERE a IS NULL;
+DROP TABLE t;
+# Restore regular handling of IS NULL.
+SET @@sql_auto_is_null = @saved_sql_auto_is_null;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log
