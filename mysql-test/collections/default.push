@@ -4,7 +4,7 @@
 # Other suites and more extensive runs should be covered in daily and weekly.
 # GR suite is an exception and runs per push even though it is not
 # one of the default suites.
-perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug-server --force --parallel=auto --comment=all-default-debug --vardir=var-all-default --skip-combinations --unit-tests-report --no-skip
+perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug-server --force  --comment=all-default-debug --vardir=var-all-default --skip-combinations --unit-tests-report --no-skip
 
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
