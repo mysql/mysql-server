@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +89,8 @@ struct pax_machine {
 #endif
 };
 
+pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
+                              synode_no synode);
 int is_busy_machine(pax_machine *p);
 int lock_pax_machine(pax_machine *p);
 pax_machine *get_cache_no_touch(synode_no synode, bool_t force);

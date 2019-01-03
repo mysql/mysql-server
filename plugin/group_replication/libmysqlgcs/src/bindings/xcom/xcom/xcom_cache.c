@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,9 +83,6 @@ static linkage protected_lru = {
     0, &protected_lru, &protected_lru}; /* Head of LRU chain of cache hits */
 static linkage probation_lru = {
     0, &probation_lru, &probation_lru}; /* Head of LRU chain of cache misses */
-
-static pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
-                                     synode_no synode);
 
 static void hash_init() {
   unsigned int i = 0;
@@ -351,8 +348,8 @@ void xcom_cache_var_init() {}
 /* {{{ Paxos machine */
 
 /* Initialize a Paxos instance */
-static pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
-                                     synode_no synode) {
+pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
+                              synode_no synode) {
   sub_cache_size(p);
   link_init(&p->hash_link, type_hash("pax_machine"));
   p->lru = lru;

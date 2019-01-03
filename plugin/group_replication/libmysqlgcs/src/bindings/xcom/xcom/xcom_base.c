@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1336,15 +1336,17 @@ static void prepare(pax_msg *p, pax_op op) {
 }
 
 /* Initialize a prepare_msg */
+void init_prepare_msg(pax_msg *p) { prepare(p, prepare_op); }
+
 static int prepare_msg(pax_msg *p) {
-  prepare(p, prepare_op);
+  init_prepare_msg(p);
   /* p->msg_type = normal; */
   return send_to_acceptors(p, "prepare_msg");
 }
 
 /* Initialize a noop_msg */
-static pax_msg *create_noop(pax_msg *p) {
-  prepare(p, prepare_op);
+pax_msg *create_noop(pax_msg *p) {
+  init_prepare_msg(p);
   p->msg_type = no_op;
   return p;
 }
@@ -1388,12 +1390,20 @@ static void set_unique_id(pax_msg *msg, synode_no synode) {
   }
 }
 
-static int propose_msg(pax_msg *p) {
+void init_propose_msg(pax_msg *p) {
   p->op = accept_op;
   p->reply_to = p->proposal;
   brand_app_data(p);
   /* set_unique_id(p, my_unique_id(synode)); */
+}
+
+static int send_propose_msg(pax_msg *p) {
   return send_to_acceptors(p, "propose_msg");
+}
+
+static int propose_msg(pax_msg *p) {
+  init_propose_msg(p);
+  return send_propose_msg(p);
 }
 
 static void set_learn_type(pax_msg *p) {
@@ -1402,27 +1412,34 @@ static void set_learn_type(pax_msg *p) {
 }
 
 /* purecov: begin deadcode */
-static int learn_msg(site_def const *site, pax_msg *p) {
+static void init_learn_msg(pax_msg *p) {
   set_learn_type(p);
   p->reply_to = p->proposal;
   brand_app_data(p);
+}
+
+static int send_learn_msg(site_def const *site, pax_msg *p) {
   MAY_DBG(FN; dbg_bitset(p->receivers, get_maxnodes(site)););
   return send_to_all_site(site, p, "learn_msg");
 }
 /* purecov: end */
-static int tiny_learn_msg(site_def const *site, pax_msg *p) {
-  int retval;
-  pax_msg *tmp = clone_pax_msg_no_app(p);
-  pax_machine *pm = get_cache(p->synode);
 
-  ref_msg(tmp);
-  tmp->msg_type = p->a ? normal : no_op;
-  tmp->op = tiny_learn_op;
-  tmp->reply_to = pm->proposer.bal;
-  brand_app_data(tmp);
+static pax_msg *create_tiny_learn_msg(pax_machine *pm, pax_msg *p) {
+  pax_msg *tiny_learn_msg = clone_pax_msg_no_app(p);
+
+  ref_msg(tiny_learn_msg);
+  tiny_learn_msg->msg_type = p->a ? normal : no_op;
+  tiny_learn_msg->op = tiny_learn_op;
+  tiny_learn_msg->reply_to = pm->proposer.bal;
+  brand_app_data(tiny_learn_msg);
+
+  return tiny_learn_msg;
+}
+
+static int send_tiny_learn_msg(site_def const *site, pax_msg *p) {
   MAY_DBG(FN; dbg_bitset(tmp->receivers, get_maxnodes(site)););
-  retval = send_to_all_site(site, tmp, "tiny_learn_msg");
-  unref_msg(&tmp);
+  int retval = send_to_all_site(site, p, "tiny_learn_msg");
+  unref_msg(&p);
   return retval;
 }
 
@@ -1430,10 +1447,11 @@ static int tiny_learn_msg(site_def const *site, pax_msg *p) {
 
 /* {{{ Proposer task */
 
-static void prepare_push_3p(site_def const *site, pax_machine *p, pax_msg *msg,
-                            synode_no msgno) {
+void prepare_push_3p(site_def const *site, pax_machine *p, pax_msg *msg,
+                     synode_no msgno, pax_msg_type msg_type) {
   MAY_DBG(FN; SYCEXP(msgno); NDBG(p->proposer.bal.cnt, d);
           NDBG(p->acceptor.promise.cnt, d));
+  BIT_ZERO(p->proposer.prep_nodeset);
   p->proposer.bal.node = get_nodeno(site);
   {
     int maxcnt = MAX(p->proposer.bal.cnt, p->acceptor.promise.cnt);
@@ -1441,9 +1459,11 @@ static void prepare_push_3p(site_def const *site, pax_machine *p, pax_msg *msg,
   }
   msg->synode = msgno;
   msg->proposal = p->proposer.bal;
+  msg->msg_type = msg_type;
+  msg->force_delivery = p->force_delivery;
 }
 
-static void push_msg_2p(site_def const *site, pax_machine *p) {
+void prepare_push_2p(site_def const *site, pax_machine *p) {
   assert(p->proposer.msg);
 
   BIT_ZERO(p->proposer.prop_nodeset);
@@ -1453,6 +1473,10 @@ static void push_msg_2p(site_def const *site, pax_machine *p) {
   p->proposer.msg->proposal = p->proposer.bal;
   p->proposer.msg->synode = p->synode;
   p->proposer.msg->force_delivery = p->force_delivery;
+}
+
+static void push_msg_2p(site_def const *site, pax_machine *p) {
+  prepare_push_2p(site, p);
   propose_msg(p->proposer.msg);
 }
 
@@ -1463,11 +1487,8 @@ static void push_msg_3p(site_def const *site, pax_machine *p, pax_msg *msg,
   }
 
   assert(msgno.msgno != 0);
-  prepare_push_3p(site, p, msg, msgno);
-  msg->msg_type = msg_type;
-  BIT_ZERO(p->proposer.prep_nodeset);
+  prepare_push_3p(site, p, msg, msgno, msg_type);
   assert(p->proposer.msg);
-  msg->force_delivery = p->force_delivery;
   prepare_msg(msg);
   MAY_DBG(FN; BALCEXP(msg->proposal); SYCEXP(msgno); STRLIT(" op ");
           STRLIT(pax_op_to_str(msg->op)));
@@ -2258,7 +2279,6 @@ synode_no set_current_message(synode_no msgno) {
   return current_message = msgno;
 }
 
-static void handle_learn(site_def const *site, pax_machine *p, pax_msg *m);
 static void update_max_synode(pax_msg *p);
 
 #if TASK_DBUG_ON
@@ -3436,9 +3456,8 @@ void request_values(synode_no find, synode_no end) {
   reply_msg(reply); \
   replace_pax_msg(&reply, NULL)
 
-static void teach_ignorant_node(site_def const *site, pax_machine *p,
-                                pax_msg *pm, synode_no synode,
-                                linkage *reply_queue) {
+static pax_msg *create_learn_msg_for_ignorant_node(pax_machine *p, pax_msg *pm,
+                                                   synode_no synode) {
   CREATE_REPLY(pm);
   DBGOUT(FN; SYCEXP(synode));
   reply->synode = synode;
@@ -3447,6 +3466,13 @@ static void teach_ignorant_node(site_def const *site, pax_machine *p,
   copy_app_data(&reply->a, p->learner.msg->a);
   set_learn_type(reply);
   /* set_unique_id(reply, p->learner.msg->unique_id); */
+  return reply;
+}
+
+static void teach_ignorant_node(site_def const *site, pax_machine *p,
+                                pax_msg *pm, synode_no synode,
+                                linkage *reply_queue) {
+  pax_msg *reply = create_learn_msg_for_ignorant_node(p, pm, synode);
   SEND_REPLY;
 }
 
@@ -3489,35 +3515,41 @@ static void miss_accept(site_def const *site, pax_msg *pm,
 
 #endif
 
-static void handle_simple_prepare(site_def const *site, pax_machine *p,
-                                  pax_msg *pm, synode_no synode,
-                                  linkage *reply_queue) {
+static pax_msg *create_ack_prepare_msg(pax_machine *p, pax_msg *pm,
+                                       synode_no synode) {
+  CREATE_REPLY(pm);
+  reply->synode = synode;
+  if (accepted(p)) { /* We have accepted a value */
+    reply->proposal = p->acceptor.msg->proposal;
+    reply->msg_type = p->acceptor.msg->msg_type;
+    copy_app_data(&reply->a, p->acceptor.msg->a);
+    MAY_DBG(FN; STRLIT(" already accepted value "); SYCEXP(synode));
+    reply->op = ack_prepare_op;
+  } else {
+    MAY_DBG(FN; STRLIT(" no value synode "); SYCEXP(synode));
+    reply->op = ack_prepare_empty_op;
+  }
+  return reply;
+}
+
+pax_msg *handle_simple_prepare(pax_machine *p, pax_msg *pm, synode_no synode) {
+  pax_msg *reply = NULL;
   if (finished(p)) { /* We have learned a value */
     MAY_DBG(FN; SYCEXP(synode); BALCEXP(pm->proposal); NDBG(finished(p), d));
-    teach_ignorant_node(site, p, pm, synode, reply_queue);
+    reply = create_learn_msg_for_ignorant_node(p, pm, synode);
   } else {
     int greater =
         gt_ballot(pm->proposal,
                   p->acceptor.promise); /* Paxos acceptor phase 1 decision */
     MAY_DBG(FN; SYCEXP(synode); BALCEXP(pm->proposal); NDBG(greater, d));
     if (greater || noop_match(p, pm)) {
-      CREATE_REPLY(pm);
-      reply->synode = synode;
-      if (greater)
+      if (greater) {
         p->acceptor.promise = pm->proposal; /* promise to not accept any less */
-      if (accepted(p)) {                    /* We have accepted a value */
-        reply->proposal = p->acceptor.msg->proposal;
-        reply->msg_type = p->acceptor.msg->msg_type;
-        copy_app_data(&reply->a, p->acceptor.msg->a);
-        MAY_DBG(FN; STRLIT(" already accepted value "); SYCEXP(synode));
-        reply->op = ack_prepare_op;
-      } else {
-        MAY_DBG(FN; STRLIT(" no value synode "); SYCEXP(synode));
-        reply->op = ack_prepare_empty_op;
       }
-      SEND_REPLY;
+      reply = create_ack_prepare_msg(p, pm, synode);
     }
   }
+  return reply;
 }
 
 /* Handle incoming prepare */
@@ -3536,37 +3568,45 @@ static void handle_prepare(site_def const *site, pax_machine *p,
           if (p->acceptor.msg) BALCEXP(p->acceptor.msg->proposal);
           STRLIT("type "); STRLIT(pax_msg_type_to_str(pm->msg_type)));
 
-  handle_simple_prepare(site, p, pm, pm->synode, reply_queue);
+  pax_msg *reply = handle_simple_prepare(p, pm, pm->synode);
+  if (reply != NULL) SEND_REPLY;
 }
 
-static void check_propose(site_def const *site, pax_machine *p) {
+bool_t check_propose(site_def const *site, pax_machine *p) {
   MAY_DBG(FN; SYCEXP(p->synode);
           COPY_AND_FREE_GOUT(dbg_machine_nodeset(p, get_maxnodes(site))););
   PAX_MSG_SANITY_CHECK(p->proposer.msg);
+  bool_t can_propose = FALSE;
   if (prep_majority(site, p)) {
     p->proposer.msg->proposal = p->proposer.bal;
     BIT_ZERO(p->proposer.prop_nodeset);
     p->proposer.msg->synode = p->synode;
-    propose_msg(p->proposer.msg);
+    init_propose_msg(p->proposer.msg);
     p->proposer.sent_prop = p->proposer.bal;
+    can_propose = TRUE;
   }
+  return can_propose;
 }
 
-static void check_learn(site_def const *site, pax_machine *p) {
+static pax_msg *check_learn(site_def const *site, pax_machine *p) {
   MAY_DBG(FN; SYCEXP(p->synode);
           COPY_AND_FREE_GOUT(dbg_machine_nodeset(p, get_maxnodes(site))););
   PAX_MSG_SANITY_CHECK(p->proposer.msg);
+  pax_msg *learn_msg = NULL;
   if (get_nodeno(site) != VOID_NODE_NO && prop_majority(site, p)) {
     p->proposer.msg->synode = p->synode;
     if (p->proposer.msg->receivers) free_bit_set(p->proposer.msg->receivers);
     p->proposer.msg->receivers = clone_bit_set(p->proposer.prep_nodeset);
     BIT_SET(get_nodeno(site), p->proposer.msg->receivers);
-    if (no_duplicate_payload)
-      tiny_learn_msg(site, p->proposer.msg);
-    else
-      learn_msg(site, p->proposer.msg);
+    if (no_duplicate_payload) {
+      learn_msg = create_tiny_learn_msg(p, p->proposer.msg);
+    } else {
+      init_learn_msg(p->proposer.msg);
+      learn_msg = p->proposer.msg;
+    }
     p->proposer.sent_learn = p->proposer.bal;
   }
+  return learn_msg;
 }
 
 static void do_learn(site_def const *site MY_ATTRIBUTE((unused)),
@@ -3591,10 +3631,21 @@ static void do_learn(site_def const *site MY_ATTRIBUTE((unused)),
   shrink_cache();
 }
 
-static void handle_simple_ack_prepare(
-    site_def const *site MY_ATTRIBUTE((unused)), pax_machine *p, pax_msg *m) {
+bool_t handle_simple_ack_prepare(site_def const *site, pax_machine *p,
+                                 pax_msg *m) {
   if (get_nodeno(site) != VOID_NODE_NO)
     BIT_SET(m->from, p->proposer.prep_nodeset);
+
+  bool_t can_propose = FALSE;
+  if (m->op == ack_prepare_op &&
+      gt_ballot(m->proposal, p->proposer.msg->proposal)) { /* greater */
+    replace_pax_msg(&p->proposer.msg, m);
+    assert(p->proposer.msg);
+  }
+  if (gt_ballot(m->reply_to, p->proposer.sent_prop)) {
+    can_propose = check_propose(site, p);
+  }
+  return can_propose;
 }
 
 /* Other node has already accepted a value */
@@ -3624,57 +3675,33 @@ static void handle_ack_prepare(site_def const *site, pax_machine *p,
 
   if (m->from != VOID_NODE_NO &&
       eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my prepare */
-    handle_simple_ack_prepare(site, p, m);
-    if (gt_ballot(m->proposal, p->proposer.msg->proposal)) { /* greater */
-      replace_pax_msg(&p->proposer.msg, m);
-      assert(p->proposer.msg);
-    }
-    if (gt_ballot(m->reply_to, p->proposer.sent_prop)) check_propose(site, p);
-  }
-}
-
-/* Other node has not already accepted a value */
-static void handle_ack_prepare_empty(site_def const *site, pax_machine *p,
-                                     pax_msg *m) {
-  ADD_EVENTS(add_synode_event(p->synode); add_event(string_arg("m->from"));
-             add_event(int_arg(m->from));
-             add_event(string_arg(pax_op_to_str(m->op))););
-#if 0
-	DBGOUT(FN;
-	    NDBG(m->from, d); NDBG(m->to, d);
-	    SYCEXP(m->synode);
-	    BALCEXP(m->proposal); BALCEXP(p->acceptor.promise));
-#endif
-  MAY_DBG(FN; if (p->proposer.msg) BALCEXP(p->proposer.msg->proposal);
-          BALCEXP(p->proposer.bal); BALCEXP(m->reply_to);
-          BALCEXP(p->proposer.sent_prop); SYCEXP(m->synode));
-  if (m->from != VOID_NODE_NO &&
-      eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my prepare */
-    handle_simple_ack_prepare(site, p, m);
-    if (gt_ballot(m->reply_to, p->proposer.sent_prop)) check_propose(site, p);
+    bool_t can_propose = handle_simple_ack_prepare(site, p, m);
+    if (can_propose) send_propose_msg(p->proposer.msg);
   }
 }
 
 /* #define AUTO_MSG(p,synode) {if(!(p)){replace_pax_msg(&(p),
  * pax_msg_new(synode, site));} */
 
-static void handle_simple_accept(site_def const *site, pax_machine *p,
-                                 pax_msg *m, synode_no synode,
-                                 linkage *reply_queue) {
+static pax_msg *create_ack_accept_msg(pax_msg *m, synode_no synode) {
+  CREATE_REPLY(m);
+  reply->op = ack_accept_op;
+  reply->synode = synode;
+  return reply;
+}
+
+pax_msg *handle_simple_accept(pax_machine *p, pax_msg *m, synode_no synode) {
+  pax_msg *reply = NULL;
   if (finished(p)) { /* We have learned a value */
-    teach_ignorant_node(site, p, m, synode, reply_queue);
+    reply = create_learn_msg_for_ignorant_node(p, m, synode);
   } else if (!gt_ballot(p->acceptor.promise,
                         m->proposal) || /* Paxos acceptor phase 2 decision */
              noop_match(p, m)) {
     MAY_DBG(FN; SYCEXP(m->synode); STRLIT("accept "); BALCEXP(m->proposal));
     replace_pax_msg(&p->acceptor.msg, m);
-    {
-      CREATE_REPLY(m);
-      reply->op = ack_accept_op;
-      reply->synode = synode;
-      SEND_REPLY;
-    }
+    reply = create_ack_accept_msg(m, synode);
   }
+  return reply;
 }
 
 /* Accecpt value if promise is not greater */
@@ -3687,10 +3714,23 @@ static void handle_accept(site_def const *site, pax_machine *p,
              add_event(int_arg(m->from));
              add_event(string_arg(pax_op_to_str(m->op))););
 
-  handle_simple_accept(site, p, m, m->synode, reply_queue);
+  pax_msg *reply = handle_simple_accept(p, m, m->synode);
+  if (reply != NULL) SEND_REPLY;
 }
 
 /* Handle answer to accept */
+pax_msg *handle_simple_ack_accept(site_def const *site, pax_machine *p,
+                                  pax_msg *m) {
+  pax_msg *learn_msg = NULL;
+  if (get_nodeno(site) != VOID_NODE_NO && m->from != VOID_NODE_NO &&
+      eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my accept */
+    BIT_SET(m->from, p->proposer.prop_nodeset);
+    if (gt_ballot(m->proposal, p->proposer.sent_learn)) {
+      learn_msg = check_learn(site, p);
+    }
+  }
+  return learn_msg;
+}
 static void handle_ack_accept(site_def const *site, pax_machine *p,
                               pax_msg *m) {
   ADD_EVENTS(add_synode_event(p->synode); add_event(string_arg("m->from"));
@@ -3702,10 +3742,38 @@ static void handle_ack_accept(site_def const *site, pax_machine *p,
   MAY_DBG(FN; SYCEXP(p->synode);
           if (p->acceptor.msg) BALCEXP(p->acceptor.msg->proposal);
           BALCEXP(p->proposer.bal); BALCEXP(m->reply_to););
-  if (get_nodeno(site) != VOID_NODE_NO && m->from != VOID_NODE_NO &&
-      eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my accept */
-    BIT_SET(m->from, p->proposer.prop_nodeset);
-    if (gt_ballot(m->proposal, p->proposer.sent_learn)) check_learn(site, p);
+
+  pax_msg *learn_msg = handle_simple_ack_accept(site, p, m);
+  if (learn_msg != NULL) {
+    if (learn_msg->op == tiny_learn_op) {
+      send_tiny_learn_msg(site, learn_msg);
+    } else {
+      assert(learn_msg->op == learn_op);
+      send_learn_msg(site, learn_msg);
+    }
+  }
+}
+
+/* Handle incoming learn. */
+static void activate_sweeper();
+void handle_tiny_learn(site_def const *site, pax_machine *pm, pax_msg *p) {
+  assert(p->msg_type != no_op);
+  if (pm->acceptor.msg) {
+    /* 			BALCEXP(pm->acceptor.msg->proposal); */
+    if (eq_ballot(pm->acceptor.msg->proposal, p->proposal)) {
+      pm->acceptor.msg->op = learn_op;
+      pm->last_modified = task_now();
+      update_max_synode(p);
+      activate_sweeper();
+      handle_learn(site, pm, pm->acceptor.msg);
+    } else {
+      send_read(p->synode);
+      DBGOUT(FN; STRLIT("tiny_learn"); SYCEXP(p->synode);
+             BALCEXP(pm->acceptor.msg->proposal); BALCEXP(p->proposal));
+    }
+  } else {
+    send_read(p->synode);
+    DBGOUT(FN; STRLIT("tiny_learn"); SYCEXP(p->synode); BALCEXP(p->proposal));
   }
 }
 
@@ -3760,7 +3828,7 @@ static void start_force_config(site_def *s, int enforcer) {
 }
 
 /* Learn this value */
-static void handle_learn(site_def const *site, pax_machine *p, pax_msg *m) {
+void handle_learn(site_def const *site, pax_machine *p, pax_msg *m) {
   MAY_DBG(FN; STRLIT("proposer nodeset ");
           dbg_bitset(p->proposer.prop_nodeset, get_maxnodes(site)););
   MAY_DBG(FN; STRLIT("receivers ");
@@ -4403,20 +4471,13 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       handle_prepare(site, pm, reply_queue, p);
       break;
     case ack_prepare_op:
-      if (in_front || !is_cached(p->synode)) break;
-      pm = get_cache(p->synode);
-      if (p->force_delivery) pm->force_delivery = 1;
-      if (!pm->proposer.msg) break;
-      assert(pm && pm->proposer.msg);
-      handle_ack_prepare(site, pm, p);
-      break;
     case ack_prepare_empty_op:
       if (in_front || !is_cached(p->synode)) break;
       pm = get_cache(p->synode);
       if (p->force_delivery) pm->force_delivery = 1;
       if (!pm->proposer.msg) break;
       assert(pm && pm->proposer.msg);
-      handle_ack_prepare_empty(site, pm, p);
+      handle_ack_prepare(site, pm, p);
       break;
     case accept_op:
       pm = get_cache(p->synode);
@@ -4465,24 +4526,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       pm = get_cache(p->synode);
       assert(pm);
       if (p->force_delivery) pm->force_delivery = 1;
-      if (pm->acceptor.msg) {
-        /* 			BALCEXP(pm->acceptor.msg->proposal); */
-        if (eq_ballot(pm->acceptor.msg->proposal, p->proposal)) {
-          pm->acceptor.msg->op = learn_op;
-          pm->last_modified = task_now();
-          update_max_synode(p);
-          activate_sweeper();
-          handle_learn(site, pm, pm->acceptor.msg);
-        } else {
-          send_read(p->synode);
-          DBGOUT(FN; STRLIT("tiny_learn"); SYCEXP(p->synode);
-                 BALCEXP(pm->acceptor.msg->proposal); BALCEXP(p->proposal));
-        }
-      } else {
-        send_read(p->synode);
-        DBGOUT(FN; STRLIT("tiny_learn"); SYCEXP(p->synode);
-               BALCEXP(p->proposal));
-      }
+      handle_tiny_learn(site, pm, p);
       break;
     case skip_op:
       pm = get_cache(p->synode);
