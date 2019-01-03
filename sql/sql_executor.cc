@@ -1458,8 +1458,11 @@ enum class Substructure { NONE, OUTER_JOIN, SEMIJOIN, WEEDOUT };
 
    - Unhandled weedouts will add elements to unhandled_duplicates
      (to be handled at the top level of the query).
-   - Unhandled semijoins will set add_limit_1 to true, which means a
-     LIMIT 1 iterator should be added.
+   - Unhandled semijoins will either:
+     * Set add_limit_1 to true, which means a LIMIT 1 iterator should
+       be added, or
+     * Add elements to unhandled_duplicates in situations that cannot
+       be solved by a simple one-table, one-row LIMIT.
 
   If not returning NONE, substructure_end will also be filled with where this
   sub-join ends (exclusive).
@@ -1567,9 +1570,22 @@ static Substructure FindSubstructure(
   // right place for that, so we solve it by adding a LIMIT 1 and then
   // treating the slice as a normal outer join.
   *add_limit_1 = false;
-  if (is_semijoin && is_outer_join && semijoin_end == outer_join_end) {
-    *add_limit_1 = true;
-    is_semijoin = false;
+  if (is_semijoin && is_outer_join) {
+    if (semijoin_end == outer_join_end) {
+      *add_limit_1 = true;
+      is_semijoin = false;
+    } else if (semijoin_end > outer_join_end) {
+      // A special case of the special case; there might be more than one
+      // outer join contained in this semijoin, e.g. A LEFT JOIN B LEFT JOIN C
+      // where the combination B-C is _also_ the right side of a semijoin.
+      // This forms a non-hierarchical structure and should be exceedingly rare,
+      // so we handle it the same way we handle non-hierarchical weedout above,
+      // ie., just by removing the added duplicates at the top of the query.
+      for (plan_idx i = this_idx; i < semijoin_end; ++i) {
+        unhandled_duplicates->push_back(&qep_tabs[i]);
+      }
+      is_semijoin = false;
+    }
   }
 
   // We may have detected both a semijoin and an outer join starting at
@@ -1583,13 +1599,8 @@ static Substructure FindSubstructure(
     is_outer_join = false;
   }
   if (is_semijoin && is_outer_join) {
-    if (outer_join_end > semijoin_end) {
-      is_semijoin = false;
-    } else if (semijoin_end > outer_join_end) {
-      is_outer_join = false;
-    } else {
-      DBUG_ASSERT(false);
-    }
+    DBUG_ASSERT(outer_join_end > semijoin_end);
+    is_semijoin = false;
   }
 
   DBUG_ASSERT(is_semijoin + is_outer_join + is_weedout <= 1);

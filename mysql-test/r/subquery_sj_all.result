@@ -12769,4 +12769,31 @@ SELECT c FROM t WHERE 1 IN
 c
 4096
 DROP TABLE t;
+#
+# Bug #29132639: WL#12470: SIG 6 IN CONNECTJOINS|SQL/SQL_EXECUTOR.C
+#
+CREATE TABLE t1 ( f1 TIME, f2 VARCHAR(1) );
+INSERT INTO t1 VALUES ('08:35:24', 'X'), ('14:51:13', 'S'), ('11:22:33', 'Q');
+CREATE TABLE t2 ( pk INTEGER );
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
+EXPLAIN
+-> Remove duplicate (t2, t1) rows using temporary table (weedout)
+    -> Nested loop left join
+        -> Nested loop left join
+            -> Nested loop inner join
+                -> Limit: 1 row(s)
+                    -> Table scan on t2
+                -> Table scan on t1
+            -> Filter: 1
+                -> Table scan on t1
+        -> Filter: 1
+            -> Table scan on alias1
+
+SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
+f1	f2
+08:35:24	X
+14:51:13	S
+11:22:33	Q
+DROP TABLE t1, t2;
 set optimizer_switch=default;
