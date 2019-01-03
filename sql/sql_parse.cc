@@ -5553,10 +5553,13 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
     THD *thd, Table_ident *table_name, const char *alias, ulong table_options,
     thr_lock_type lock_type, enum_mdl_type mdl_type,
     List<Index_hint> *index_hints_arg, List<String> *partition_names,
-    LEX_STRING *option, Parse_context *pc) {
+    LEX_STRING *option, Parse_context *pc, Sequence_scan_mode seq_scan_mode) {
   TABLE_LIST *previous_table_ref =
       NULL; /* The table preceding the current one. */
   LEX *lex = thd->lex;
+
+  bool sequence_query;
+
   DBUG_ENTER("add_table_to_list");
 
   DBUG_ASSERT(table_name != nullptr);
@@ -5619,6 +5622,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
     if (!found_cte && lex->copy_db_to((char **)&ptr->db, &ptr->db_length))
       DBUG_RETURN(0);
   }
+
+  sequence_query = (table_options & TL_OPTION_SEQUENCE);
 
   ptr->set_tableno(0);
   ptr->set_lock({lock_type, THR_DEFAULT});
@@ -5707,7 +5712,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
     }
   }
   /* Store the table reference preceding the current one. */
-  if (table_list.elements > 0) {
+  if (table_list.elements > 0 && !sequence_query) {
     /*
       table_list.next points to the last inserted TABLE_LIST->next_local'
       element
@@ -5732,7 +5737,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
     previous table reference to 'ptr'. Here we also add one element to the
     list 'table_list'.
   */
-  table_list.link_in_list(ptr, &ptr->next_local);
+  if (!sequence_query) table_list.link_in_list(ptr, &ptr->next_local);
+
   ptr->next_name_resolution_table = NULL;
   ptr->partition_names = partition_names;
   /* Link table in global list (all used tables) */
@@ -5778,6 +5784,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
       if (thd->is_error()) DBUG_RETURN(nullptr);
     }
   }
+
+  ptr->sequence_scan.set(seq_scan_mode);
 
   DBUG_RETURN(ptr);
 }

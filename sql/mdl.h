@@ -914,7 +914,8 @@ class MDL_ticket : public MDL_wait_for_subgraph {
         m_lock(NULL),
         m_is_fast_path(false),
         m_hton_notified(false),
-        m_psi(NULL) {
+        m_psi(NULL),
+        m_autonomous(false) {
   }
 
   virtual ~MDL_ticket() { DBUG_ASSERT(m_psi == NULL); }
@@ -967,6 +968,13 @@ class MDL_ticket : public MDL_wait_for_subgraph {
  private:
   MDL_ticket(const MDL_ticket &);            /* not implemented */
   MDL_ticket &operator=(const MDL_ticket &); /* not implemented */
+
+ public:
+  bool is_autonomous() { return m_autonomous; }
+  void set_autonomous(bool type) { m_autonomous = type; }
+
+ private:
+  bool m_autonomous;
 };
 
 /**
@@ -1346,6 +1354,8 @@ class MDL_context {
   void release_statement_locks();
   void release_transactional_locks();
   void rollback_to_savepoint(const MDL_savepoint &mdl_savepoint);
+
+  void release_autonomous_transactional_locks();
 
   MDL_context_owner *get_owner() const { return m_owner; }
 

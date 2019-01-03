@@ -119,7 +119,11 @@ static const char *handler_error_messages[] = {
     "Row format changed in storage engine",
     "Do not wait for lock",
     "No more room in disk",
-    "No session temporary tablespace available"};
+    "No session temporary tablespace available",
+    "Sequence has run out",
+    "Sequence structure or number is invalid",
+    "Sequence is not yet defined in current session",
+    "Sequence access failure"};
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

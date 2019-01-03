@@ -471,6 +471,8 @@ void LEX::reset() {
   option_type = OPT_DEFAULT;
 
   clear_privileges();
+
+  sequence_info = NULL;
 }
 
 /**

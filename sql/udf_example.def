@@ -33,9 +33,9 @@ EXPORTS
   myfunc_double
   myfunc_int_init
   myfunc_int
-  sequence_init
-  sequence_deinit
-  sequence
+  sequence_alias_init
+  sequence_alias_deinit
+  sequence_alias
   avgcost_init
   avgcost_deinit
   avgcost_add

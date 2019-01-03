@@ -1,0 +1,878 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+create database s_db;
+create user normal_1@'%' identified by 'pass';
+create user normal_2@'%' identified by 'pass';
+create user normal_3@'%' identified by 'pass';
+create user normal_4@'%' identified by 'pass';
+grant all on s_db.* to normal_1@'%' ;
+grant all on test.* to normal_2@'%' ;
+grant all on s_db.* to normal_3@'%' ;
+grant all on test.* to normal_4@'%' ;
+SET @start_read_only = @@global.read_only;
+SET global read_only = true;
+###########################################
+master and slave sync sequence.
+###########################################
+use s_db;
+create sequence s1;
+show create table s1;
+Table	Create Table
+s1	CREATE TABLE `s1` (
+  `currval` bigint(21) NOT NULL COMMENT 'current value',
+  `nextval` bigint(21) NOT NULL COMMENT 'next value',
+  `minvalue` bigint(21) NOT NULL COMMENT 'min value',
+  `maxvalue` bigint(21) NOT NULL COMMENT 'max value',
+  `start` bigint(21) NOT NULL COMMENT 'start value',
+  `increment` bigint(21) NOT NULL COMMENT 'increment value',
+  `cache` bigint(21) NOT NULL COMMENT 'cache size',
+  `cycle` bigint(21) NOT NULL COMMENT 'cycle state',
+  `round` bigint(21) NOT NULL COMMENT 'already how many round'
+) ENGINE=Sequence DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+use s_db;
+show create table s1;
+Table	Create Table
+s1	CREATE TABLE `s1` (
+  `currval` bigint(21) NOT NULL COMMENT 'current value',
+  `nextval` bigint(21) NOT NULL COMMENT 'next value',
+  `minvalue` bigint(21) NOT NULL COMMENT 'min value',
+  `maxvalue` bigint(21) NOT NULL COMMENT 'max value',
+  `start` bigint(21) NOT NULL COMMENT 'start value',
+  `increment` bigint(21) NOT NULL COMMENT 'increment value',
+  `cache` bigint(21) NOT NULL COMMENT 'cache size',
+  `cycle` bigint(21) NOT NULL COMMENT 'cycle state',
+  `round` bigint(21) NOT NULL COMMENT 'already how many round'
+) ENGINE=Sequence DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+use s_db;
+drop sequence s1;
+###########################################
+not support create table engine=sequence.
+###########################################
+create table t(id int)engine=sequence;
+ERROR HY000: Sequence 's_db.t' structure or number is invalid.
+create table t(id int)engine=innodb;
+alter table t engine=sequence;
+ERROR HY000: Sequence 'x.x' structure or number is invalid.
+drop table t;
+###########################################
+not support alter sequence table.
+###########################################
+create sequence s2;
+alter table s2 add id int;
+ERROR HY000: Sequence 'x.x' structure or number is invalid.
+alter table s2 add index ind_x(start);
+ERROR HY000: Sequence 'x.x' structure or number is invalid.
+drop sequence s2;
+###########################################
+support create sequence
+###########################################
+CREATE TABLE `s2` (
+`currval` bigint(21) NOT NULL COMMENT 'current value',
+`nextval` bigint(21) NOT NULL COMMENT 'next value',
+`minvalue` bigint(21) NOT NULL COMMENT 'min value',
+`maxvalue` bigint(21) NOT NULL COMMENT 'max value',
+`start` bigint(21) NOT NULL COMMENT 'start value',
+`increment` bigint(21) NOT NULL COMMENT 'increment value',
+`cache` bigint(21) NOT NULL COMMENT 'cache size',
+`cycle` bigint(21) NOT NULL COMMENT 'cycle state',
+`round` bigint(21) NOT NULL COMMENT 'already how many round'
+) ENGINE=Sequence DEFAULT CHARSET=latin1;
+insert into s2 values(0, 0, 1, 10, 1, 2, 1, 1, 0);
+commit;
+select nextval(s2) ;
+nextval(s2)
+1
+select nextval(s2) ;
+nextval(s2)
+3
+select nextval(s2) ;
+nextval(s2)
+5
+select nextval(s2) ;
+nextval(s2)
+7
+select nextval(s2) ;
+nextval(s2)
+9
+select nextval(s2) ;
+nextval(s2)
+1
+select nextval(s2) ;
+nextval(s2)
+3
+select * from s2;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	5	1	10	1	2	1	1	1
+select * from s2;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	5	1	10	1	2	1	1	1
+drop sequence s2;
+CREATE TABLE `s2` (
+`currval` bigint(21) NULL COMMENT 'current value',
+`nextval` bigint(21) NOT NULL COMMENT 'next value',
+`minvalue` bigint(21) NOT NULL COMMENT 'min value',
+`maxvalue` bigint(21) NOT NULL COMMENT 'max value',
+`start` bigint(21) NOT NULL COMMENT 'start value',
+`increment` bigint(21) NOT NULL COMMENT 'increment value',
+`cache` bigint(21) NOT NULL COMMENT 'cache size',
+`cycle` bigint(21) NOT NULL COMMENT 'cycle state',
+`round` bigint(21) NOT NULL COMMENT 'already how many round'
+) ENGINE=Sequence DEFAULT CHARSET=latin1;
+ERROR HY000: Sequence 's_db.s2' structure or number is invalid.
+CREATE TABLE `s2` (
+`rrval` bigint(21) NULL COMMENT 'current value',
+`nextval` bigint(21) NOT NULL COMMENT 'next value',
+`minvalue` bigint(21) NOT NULL COMMENT 'min value',
+`maxvalue` bigint(21) NOT NULL COMMENT 'max value',
+`start` bigint(21) NOT NULL COMMENT 'start value',
+`increment` bigint(21) NOT NULL COMMENT 'increment value',
+`cache` bigint(21) NOT NULL COMMENT 'cache size',
+`cycle` bigint(21) NOT NULL COMMENT 'cycle state',
+`round` bigint(21) NOT NULL COMMENT 'already how many round'
+) ENGINE=Sequence DEFAULT CHARSET=latin1;
+ERROR HY000: Sequence 's_db.s2' structure or number is invalid.
+CREATE TABLE `s2` (
+`currval` bigint(21) NOT NULL AUTO_INCREMENT PRIMARY KEY  COMMENT 'current value',
+`nextval` bigint(21) NOT NULL COMMENT 'next value',
+`minvalue` bigint(21) NOT NULL COMMENT 'min value',
+`maxvalue` bigint(21) NOT NULL COMMENT 'max value',
+`start` bigint(21) NOT NULL COMMENT 'start value',
+`increment` bigint(21) NOT NULL COMMENT 'increment value',
+`cache` bigint(21) NOT NULL COMMENT 'cache size',
+`cycle` bigint(21) NOT NULL COMMENT 'cycle state',
+`round` bigint(21) NOT NULL COMMENT 'already how many round'
+) ENGINE=Sequence DEFAULT CHARSET=latin1;
+ERROR HY000: Sequence 's_db.s2' structure or number is invalid.
+CREATE TABLE `s2` (
+`currval` bigint(21) NOT NULL COMMENT 'current value',
+`nextval` bigint(21) NOT NULL COMMENT 'next value',
+`minvalue` bigint(21) NOT NULL COMMENT 'min value',
+`maxvalue` bigint(21) NOT NULL COMMENT 'max value',
+`start` bigint(21) NOT NULL COMMENT 'start value',
+`increment` bigint(21) NOT NULL COMMENT 'increment value',
+`cache` bigint(21) NOT NULL COMMENT 'cache size',
+`cycle` bigint(21) NOT NULL COMMENT 'cycle state',
+`round` bigint(21) NOT NULL COMMENT 'already how many round'
+) ENGINE=sequence DEFAULT CHARSET=latin1;
+show create table s2;
+Table	Create Table
+s2	CREATE TABLE `s2` (
+  `currval` bigint(21) NOT NULL COMMENT 'current value',
+  `nextval` bigint(21) NOT NULL COMMENT 'next value',
+  `minvalue` bigint(21) NOT NULL COMMENT 'min value',
+  `maxvalue` bigint(21) NOT NULL COMMENT 'max value',
+  `start` bigint(21) NOT NULL COMMENT 'start value',
+  `increment` bigint(21) NOT NULL COMMENT 'increment value',
+  `cache` bigint(21) NOT NULL COMMENT 'cache size',
+  `cycle` bigint(21) NOT NULL COMMENT 'cycle state',
+  `round` bigint(21) NOT NULL COMMENT 'already how many round'
+) ENGINE=Sequence DEFAULT CHARSET=latin1
+drop sequence s2;
+###########################################
+select sequence syntax test
+###########################################
+create sequence s2;
+create table t2 (id int);
+select * from s2;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	0	1	9223372036854775807	1	1	10000	0	0
+select * from t2;
+id
+insert into t2 select nextval(s2);
+commit;
+select * from t2;
+id
+1
+select nextval(s2);
+nextval(s2)
+2
+select nextval(t2);
+ERROR HY000: Table 's_db.t2' should be sequence
+select * from s2, t2;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round	id
+0	10002	1	9223372036854775807	1	1	10000	0	0	1
+drop sequence s2;
+drop table t2;
+###########################################
+support rename, not support truncate
+###########################################
+create sequence s2;
+alter table s2 rename to s2_1;
+select nextval(s2_1);
+nextval(s2_1)
+1
+rename table s2_1 to s2_2;
+select nextval(s2_2);
+nextval(s2_2)
+10002
+truncate table s2_2;
+ERROR HY000: Table storage engine for 's2_2' doesn't have this option
+rename table s2_2 to s2;
+drop sequence s2;
+###########################################
+not support create temproary sequence.
+###########################################
+create temporary sequence s2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sequence s2' at line 1
+###########################################
+all invalid sequence value
+###########################################
+use s_db;
+create sequence s2 start with 1
+minvalue 1
+maxvalue 100000
+increment by 1
+cache 10000
+cycle;
+drop sequence s2;
+create sequence s2 start with 1
+minvalue 1
+maxvalue 100000
+increment by 1
+cache 10000
+nocycle;
+drop sequence s2;
+create sequence s2 start with 1
+minvalue 1
+maxvalue 100000
+increment by 1
+nocache
+nocycle;
+drop sequence s2;
+create sequence s2 start with 1
+minvalue 5
+maxvalue 100000
+increment by 1
+nocache
+nocycle;
+ERROR HY000: Sequence 's_db.s2' structure or number is invalid.
+create sequence s2 start with 1
+minvalue 5
+maxvalue 5
+increment by 1
+nocache
+nocycle;
+ERROR HY000: Sequence 's_db.s2' structure or number is invalid.
+create sequence s2 start with 1
+minvalue 5
+maxvalue 4
+increment by 1
+nocache
+nocycle;
+ERROR HY000: Sequence 's_db.s2' structure or number is invalid.
+create sequence s2 start with 1
+minvalue 5
+maxvalue 4
+increment by 0
+nocache
+nocycle;
+ERROR HY000: Sequence 's_db.s2' structure or number is invalid.
+###########################################
+global read lock prevent query sequence
+###########################################
+use s_db;
+create sequence s_db.s1;
+flush table with read lock;
+select nextval(s1);
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+drop sequence s1;
+###########################################
+session setting
+###########################################
+use s_db;
+create sequence s1;
+set session sequence_read_skip_cache=true;
+select nextval(s1);
+nextval(s1)
+0
+select currval(s1);
+currval(s1)
+0
+set session sequence_read_skip_cache=false;
+select nextval(s1);
+nextval(s1)
+1
+select currval(s1);
+currval(s1)
+1
+drop sequence s1;
+###########################################
+priv test
+###########################################
+create sequence s_db.s1;
+select * from s_db.s1;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	0	1	9223372036854775807	1	1	10000	0	0
+create sequence s_db.s2;
+drop sequence s_db.s2;
+select nextval(s_db.s1);
+ERROR 42000: SELECT command denied to user 'normal_2'@'localhost' for table 's1'
+create sequence s_db.s2;
+ERROR 42000: CREATE command denied to user 'normal_2'@'localhost' for table 's2'
+drop sequence s_db.s1;
+###########################################
+run out sequence value
+###########################################
+use s_db;
+create sequence s_t start with 1 cache 2 maxvalue 5;
+create table t(id int);
+insert into t values(1111);
+insert into t select nextval(s_t);
+insert into t select nextval(s_t);
+insert into t select nextval(s_t);
+insert into t select nextval(s_t);
+insert into t select nextval(s_t);
+insert into t select nextval(s_t);
+ERROR HY000: Sequence 's_db.s_t' has run out.
+insert into t select nextval(s_t);
+ERROR HY000: Sequence 's_db.s_t' has run out.
+commit;
+select * from t;
+id
+1111
+1
+2
+3
+4
+5
+use s_db;
+select * from t;
+id
+1111
+1
+2
+3
+4
+5
+use s_db;
+drop sequence s_t;
+drop table t;
+###########################################
+read_only prevent query sequence
+###########################################
+create sequence s_db.s1 nocache;
+show global variables like 'read_only';
+Variable_name	Value
+read_only	OFF
+select nextval(s_db.s1);
+nextval(s_db.s1)
+1
+show global variables like 'read_only';
+Variable_name	Value
+read_only	ON
+select nextval(s_db.s1);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+drop sequence s_db.s1;
+###########################################
+update based table
+###########################################
+use s_db;
+create sequence s_t start with 1 minvalue 1 maxvalue 20 increment by 1 cache 5 cycle;
+use s_db;
+select * from s_t;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	0	1	20	1	1	5	1	0
+select nextval(s_t);
+nextval(s_t)
+1
+select * from s_t;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	7	1	20	1	1	5	1	0
+------------------------------------------
+master update nextval;
+------------------------------------------
+select nextval(s_t);
+nextval(s_t)
+2
+update s_t set nextval= 11;
+commit;
+select * from s_t;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	11	1	20	1	1	5	1	0
+------------------------------------------
+show slave nextval;
+------------------------------------------
+select * from s_t;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	11	1	20	1	1	5	1	0
+set session sequence_read_skip_cache=off;
+select nextval(s_t);
+nextval(s_t)
+11
+select * from s_t;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	17	1	20	1	1	5	1	0
+------------------------------------------
+update into invalid sequence
+------------------------------------------
+select nextval(s_t);
+nextval(s_t)
+12
+update s_t set nextval= 11,start=10, minvalue=11;
+commit;
+create table t_1(id int);
+insert into t_1 value(1111);
+select nextval(s_t);
+ERROR HY000: Sequence 's_db.s_t' structure or number is invalid.
+insert into t_1 select nextval(s_t);
+ERROR HY000: Sequence 's_db.s_t' structure or number is invalid.
+commit;
+select * from t_1;
+id
+1111
+------------------------------------------
+delete sequence row
+------------------------------------------
+delete from s_t;
+commit;
+select nextval(s_t);
+ERROR HY000: Can't find record in 's_t'
+drop sequence s_t;
+drop table t_1;
+###########################################
+test transaction context (myisam)
+###########################################
+------------------------------------------
+transaction table and sequence
+normal transaction commit
+------------------------------------------
+use s_db;
+set session sequence_read_skip_cache=off;
+create sequence s_1 cache 5;
+create table t_1(id int)engine=myisam;
+begin;
+insert into t_1 values(1111);
+insert into t_1 select nextval(s_1);
+insert into t_1 select nextval(s_1);
+insert into t_1 values(2222);
+commit;
+select * from t_1;
+id
+1111
+1
+2
+2222
+set session sequence_read_skip_cache=off;
+use s_db;
+select * from t_1;
+id
+1111
+1
+2
+2222
+------------------------------------------
+normal transaction rollback
+------------------------------------------
+begin;
+insert into t_1 values(3333);
+insert into t_1 select nextval(s_1);
+insert into t_1 select nextval(s_1);
+insert into t_1 select nextval(s_1);
+insert into t_1 select nextval(s_1);
+insert into t_1 select nextval(s_1);
+insert into t_1 select nextval(s_1);
+insert into t_1 select nextval(s_1);
+insert into t_1 select nextval(s_1);
+select * from t_1;
+id
+1111
+1
+2
+2222
+3333
+3
+4
+5
+6
+7
+8
+9
+10
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+select * from t_1;
+id
+1111
+1
+2
+2222
+3333
+3
+4
+5
+6
+7
+8
+9
+10
+select nextval(s_1);
+nextval(s_1)
+11
+set session sequence_read_skip_cache=off;
+use s_db;
+select * from t_1;
+id
+1111
+1
+2
+2222
+3333
+3
+4
+5
+6
+7
+8
+9
+10
+use s_db;
+drop sequence s_1;
+drop table t_1;
+###########################################
+close binlog
+###########################################
+use s_db;
+create sequence s1 cache 2;
+select nextval(s1);
+nextval(s1)
+1
+select nextval(s1);
+nextval(s1)
+2
+select nextval(s1);
+nextval(s1)
+3
+select nextval(s1);
+nextval(s1)
+4
+commit;
+select * from s1;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	7	1	9223372036854775807	1	1	2	0	0
+use s_db;
+select * from s1;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	7	1	9223372036854775807	1	1	2	0	0
+------------------------------------------
+close session binlog.
+------------------------------------------
+set session sql_log_bin=off;
+select nextval(s1);
+nextval(s1)
+5
+select nextval(s1);
+nextval(s1)
+6
+select nextval(s1);
+nextval(s1)
+7
+select nextval(s1);
+nextval(s1)
+8
+set session sql_log_bin=on;
+select * from s1;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	10	1	9223372036854775807	1	1	2	0	0
+use s_db;
+select * from s1;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	7	1	9223372036854775807	1	1	2	0	0
+use s_db;
+drop sequence s1;
+###########################################
+statement binlog
+###########################################
+------------------------------------------
+set binlog_format=statement
+------------------------------------------
+set session sequence_read_skip_cache=off;
+set session binlog_format=statement;
+show  session variables like '%binlog_format%';
+Variable_name	Value
+binlog_format	STATEMENT
+create sequence s1 cache 2;
+select nextval(s1);
+ERROR HY000: Sequence requires binlog_format = row
+set session binlog_format=row;
+select nextval(s1);
+nextval(s1)
+1
+use s_db;
+select * from s1;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	4	1	9223372036854775807	1	1	2	0	0
+set session sequence_read_skip_cache=off;
+use s_db;
+drop sequence s1;
+------------------------------------------
+set binlog_format=mixed
+------------------------------------------
+set session sequence_read_skip_cache=off;
+set session binlog_format=mixed;
+show  session variables like '%binlog_format%';
+Variable_name	Value
+binlog_format	MIXED
+create sequence s1 cache 2;
+select nextval(s1);
+ERROR HY000: Sequence requires binlog_format = row
+set session binlog_format=row;
+select nextval(s1);
+nextval(s1)
+1
+use s_db;
+select * from s1;
+currval	nextval	minvalue	maxvalue	start	increment	cache	cycle	round
+0	4	1	9223372036854775807	1	1	2	0	0
+set session sequence_read_skip_cache=off;
+use s_db;
+drop sequence s1;
+###########################################
+test savepoint
+###########################################
+set session sequence_read_skip_cache=off;
+set session binlog_format=row;
+create sequence s1 cache 2;
+create table t1(id int)engine=innodb;
+begin;
+insert into t1 values(1111);
+savepoint sp1;
+insert into t1 select nextval(s1);
+insert into t1 select nextval(s1);
+insert into t1 select nextval(s1);
+insert into t1 values(2222);
+select * from t1;
+id
+1111
+1
+2
+3
+2222
+rollback to sp1;
+select * from t1;
+id
+1111
+select nextval(s1);
+nextval(s1)
+4
+commit;
+drop sequence s1;
+drop table t1;
+###########################################
+test proc
+###########################################
+set session sequence_read_skip_cache=off;
+use s_db;
+create table t(id int)engine=innodb;
+create procedure p1()
+begin
+create sequence s1 cache 2;
+end//
+create procedure p2()
+begin
+insert into t select nextval(s1);
+commit;
+end//
+call p1();
+call p2();
+call p2();
+call p2();
+call p2();
+select * from t;
+id
+1
+2
+3
+4
+use s_db;
+select * from t;
+id
+1
+2
+3
+4
+drop table t;
+drop sequence s1;
+drop procedure p1;
+drop procedure p2;
+###########################################
+test trigger
+###########################################
+set session sequence_read_skip_cache=off;
+use s_db;
+create sequence s1 cache 2;
+create table t1(id int)engine=innodb;
+create table t2(id int)engine=innodb;
+CREATE TRIGGER tri_1
+before INSERT ON t2 FOR EACH ROW
+BEGIN
+INSERT INTO t1 select nextval(s1);
+END//
+begin;
+insert into t2 values(1111);
+insert into t2 values(1111);
+insert into t2 values(1111);
+insert into t2 values(1111);
+select * from t2;
+id
+1111
+1111
+1111
+1111
+select * from t1;
+id
+1
+2
+3
+4
+rollback;
+select * from t2;
+id
+select * from t1;
+id
+select nextval(s1);
+nextval(s1)
+5
+drop trigger tri_1;
+drop table t1;
+drop table t2;
+drop sequence s1;
+###########################################
+test value boundary
+###########################################
+use s_db;
+------------------------------------------
+round increment by round
+------------------------------------------
+create sequence s1 start with 5 minvalue 2 maxvalue 7 cache 1 cycle;
+select nextval(s1);
+nextval(s1)
+5
+select nextval(s1);
+nextval(s1)
+6
+select nextval(s1);
+nextval(s1)
+7
+select nextval(s1);
+nextval(s1)
+2
+select nextval(s1);
+nextval(s1)
+3
+drop sequence s1;
+create sequence s1 start with 5 minvalue 2 maxvalue 7 cache 10 nocycle;
+select nextval(s1);
+nextval(s1)
+5
+select nextval(s1);
+nextval(s1)
+6
+select nextval(s1);
+nextval(s1)
+7
+select nextval(s1);
+ERROR HY000: Sequence 's_db.s1' has run out.
+drop sequence s1;
+create sequence s1 start with 2 minvalue 1 maxvalue 3 increment by 3 nocache cycle;
+select nextval(s1);
+nextval(s1)
+2
+select nextval(s1);
+nextval(s1)
+1
+select nextval(s1);
+nextval(s1)
+1
+select nextval(s1);
+nextval(s1)
+1
+select nextval(s1);
+nextval(s1)
+1
+drop sequence s1;
+create sequence s1 start with 2 minvalue 1 maxvalue 3 increment by 3 cache 2 nocycle;
+select nextval(s1);
+nextval(s1)
+2
+select nextval(s1);
+ERROR HY000: Sequence 's_db.s1' has run out.
+drop sequence s1;
+------------------------------------------
+beyond ulonglong maxvalue
+------------------------------------------
+create sequence s1 start with 9223372036854775805 minvalue 9223372036854775804 maxvalue 9223372036854775807  cache 1 cycle;
+select nextval(s1);
+nextval(s1)
+9223372036854775805
+select nextval(s1);
+nextval(s1)
+9223372036854775806
+select nextval(s1);
+nextval(s1)
+9223372036854775807
+select nextval(s1);
+nextval(s1)
+9223372036854775804
+select nextval(s1);
+nextval(s1)
+9223372036854775805
+select nextval(s1);
+nextval(s1)
+9223372036854775806
+select nextval(s1);
+nextval(s1)
+9223372036854775807
+select nextval(s1);
+nextval(s1)
+9223372036854775804
+select nextval(s1);
+nextval(s1)
+9223372036854775805
+select nextval(s1);
+nextval(s1)
+9223372036854775806
+drop sequence s1;
+create sequence s1 start with 9223372036854775805 minvalue 9223372036854775804 maxvalue 9223372036854775807  cache 10 cycle;
+select nextval(s1);
+nextval(s1)
+9223372036854775805
+select nextval(s1);
+nextval(s1)
+9223372036854775806
+select nextval(s1);
+nextval(s1)
+9223372036854775807
+select nextval(s1);
+nextval(s1)
+9223372036854775804
+select nextval(s1);
+nextval(s1)
+9223372036854775805
+select nextval(s1);
+nextval(s1)
+9223372036854775806
+select nextval(s1);
+nextval(s1)
+9223372036854775807
+select nextval(s1);
+nextval(s1)
+9223372036854775804
+select nextval(s1);
+nextval(s1)
+9223372036854775805
+select nextval(s1);
+nextval(s1)
+9223372036854775806
+drop sequence s1;
+drop database s_db;
+drop user normal_1@'%';
+drop user normal_2@'%';
+drop user normal_3@'%';
+drop user normal_4@'%';
+set global read_only = @start_read_only;
+include/rpl_end.inc

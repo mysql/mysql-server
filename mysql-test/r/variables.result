@@ -2019,6 +2019,7 @@ SET SESSION pseudo_thread_id = @@session.pseudo_thread_id;
 SET SESSION rand_seed1 = @@session.rand_seed1;
 SET SESSION rand_seed2 = @@session.rand_seed2;
 SET SESSION resultset_metadata = @@session.resultset_metadata;
+SET SESSION sequence_read_skip_cache = @@session.sequence_read_skip_cache;
 SET SESSION sql_log_bin = @@session.sql_log_bin;
 SET SESSION timestamp = @@session.timestamp;
 SET SESSION transaction_allow_batching = @@session.transaction_allow_batching;

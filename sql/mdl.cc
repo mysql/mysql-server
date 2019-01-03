@@ -4177,6 +4177,24 @@ void MDL_context::release_locks_stored_before(enum_mdl_duration duration,
   DBUG_VOID_RETURN;
 }
 
+void MDL_context::release_autonomous_transactional_locks() {
+  MDL_ticket *ticket;
+  enum_mdl_duration duration;
+  DBUG_ENTER("MDL_context::release_autonomous_transactional_locks");
+  duration = MDL_TRANSACTION;
+
+  MDL_ticket_store::List_iterator it = m_ticket_store.list_iterator(duration);
+
+  if (m_ticket_store.is_empty(duration)) {
+    DBUG_VOID_RETURN;
+  }
+
+  while ((ticket = it++)) {
+    if (ticket->is_autonomous()) release_lock(duration, ticket);
+  }
+  DBUG_VOID_RETURN;
+}
+
 /**
   Release all explicit locks in the context which correspond to the
   same name/object as this lock request.
@@ -4445,6 +4463,7 @@ void MDL_context::release_transactional_locks() {
 void MDL_context::release_statement_locks() {
   DBUG_ENTER("MDL_context::release_transactional_locks");
   release_locks_stored_before(MDL_STATEMENT, NULL);
+  release_autonomous_transactional_locks();
   DBUG_VOID_RETURN;
 }
 

@@ -98,6 +98,7 @@
 #include "sql/field.h"
 #include "sql/filesort.h"  // Filesort
 #include "sql/gis/srid.h"
+#include "sql/ha_sequence.h"  // get_ha_sequence
 #include "sql/handler.h"
 #include "sql/histograms/histogram.h"
 #include "sql/item.h"
@@ -139,6 +140,7 @@
 #include "sql/sql_plist.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_resolver.h"  // setup_order
+#include "sql/sql_sequence.h"  // Insert_sequence_table_ctx
 #include "sql/sql_show.h"
 #include "sql/sql_tablespace.h"  // validate_tablespace_name
 #include "sql/sql_time.h"        // make_truncated_value_warning
@@ -988,9 +990,9 @@ static bool rea_create_base_table(
   }
 
   if ((create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-      create_info->db_type->post_ddl)
+      create_info->db_type->post_ddl) {
     *post_ddl_ht = create_info->db_type;
-
+  }
   if (ha_create_table(thd, path, db, table_name, create_info, false, false,
                       table_def)) {
     /*
@@ -7756,6 +7758,30 @@ static bool create_table_impl(
     }
   }
 
+  /**
+    Strictly check the columns format if CREATE TABLE .... ENGINE= sequence;
+  */
+  if ((create_info->db_type ==
+       ha_resolve_by_legacy_type(thd, DB_TYPE_SEQUENCE_DB)) &&
+      check_sequence_fields_valid(alter_info)) {
+    my_error(ER_SEQUENCE_INVALID, MYF(0), db, table_name);
+    DBUG_RETURN(true);
+  }
+
+  /* Change the table engine to sequence engine if CREATE SEQUENCE ... */
+  if (thd->lex->sequence_info) {
+    Sequence_info *sequence_info = thd->lex->sequence_info;
+    DBUG_ASSERT(thd->lex->sql_command == SQLCOM_CREATE_TABLE);
+    DBUG_ASSERT(create_info->db_type != sequence_hton);
+    file.reset(get_ha_sequence(sequence_info, thd->mem_root));
+    if (file.get() == nullptr) {
+      mem_alloc_error(sizeof(handler));
+      DBUG_RETURN(true);
+    }
+    create_info->db_type = ha_resolve_by_legacy_type(thd, DB_TYPE_SEQUENCE_DB);
+    DBUG_ASSERT(create_info->db_type == sequence_hton);
+  }
+
   /* Suppress key length errors if this is a white listed table. */
   Key_length_error_handler error_handler;
   bool is_whitelisted_table =
@@ -8825,6 +8851,12 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                                                  &uncommitted_tables);
     }
 
+    /* Init the sequence row if CREATE SEQUENCE */
+    if (!result && create_info->sequence_info) {
+      result = Insert_sequence_table_ctx(thd, create_table,
+                                         create_info->sequence_info)
+                   .write_record();
+    }
     /*
       Unless we are executing CREATE TEMPORARY TABLE we need to commit
       changes to the data-dictionary, SE and binary log and possibly run

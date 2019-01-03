@@ -40,6 +40,7 @@ regexp_stack_limit
 regexp_time_limit
 regexp_time_limit
 resultset_metadata
+sequence_read_skip_cache
 sql_require_primary_key
 sql_require_primary_key
 tls_version

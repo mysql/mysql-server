@@ -18442,6 +18442,23 @@ ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED
   eng "The SSL library function %s failed. This is typically caused by the SSL library already being used. As a result the SSL memory allocation will not be instrumented."
   bg "Функцията от SSL библиотеката %s върна грешка. Това обикновено е защото SSL библиотеката вече е била използвана. Заради това SSL паметта няма да се инструментира."
 
+ER_SEQUENCE_RUN_OUT
+  eng "Sequence '%-.192s.%-.192s' has run out."
+
+ER_SEQUENCE_INVALID
+  eng "Sequence '%-.192s.%-.192s' structure or number is invalid."
+
+ER_SEQUENCE_ACCESS_FAILURE
+  eng "Sequence '%-.192s.%-.192s' access failure."
+
+ER_SEQUENCE_BINLOG_FORMAT
+  eng "Sequence requires binlog_format = row"
+
+ER_SEQUENCE_NOT_DEFINED
+   eng "Sequence '%-.192s.%-.192s' is not yet defined in current session"
+
+ER_TABLE_IS_NOT_SEQUENCE
+   eng "Table '%-.192s.%-.192s' should be sequence"
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

@@ -89,6 +89,7 @@ class PT_subquery;
 class PT_type;
 class Sql_cmd;
 struct MEM_ROOT;
+class Sequence_info;
 
 /**
   @defgroup ptn  Parse tree nodes
@@ -200,11 +201,13 @@ struct Table_ddl_parse_context final : public Parse_context {
       : Parse_context(thd, select),
         create_info(thd->lex->create_info),
         alter_info(alter_info),
-        key_create_info(&thd->lex->key_create_info) {}
+        key_create_info(&thd->lex->key_create_info),
+        sequence_info(thd->lex->sequence_info) {}
 
   HA_CREATE_INFO *const create_info;
   Alter_info *const alter_info;
   KEY_CREATE_INFO *const key_create_info;
+  Sequence_info *const sequence_info;
 };
 
 /**
@@ -3272,7 +3275,8 @@ class PT_column_def : public PT_table_element {
 
   @ingroup ptn_create_table
 */
-class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
+class PT_create_table_stmt : public PT_table_ddl_stmt_base {
+ protected:
   bool is_temporary;
   bool only_if_not_exists;
   Table_ident *table_name;

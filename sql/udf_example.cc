@@ -62,7 +62,7 @@
 **
 ** Function 'myfunc_int' returns summary length of all its arguments.
 **
-** Function 'sequence' returns an sequence starting from a certain number.
+** Function 'sequence_alias' returns an sequence starting from a certain number.
 **
 ** Function 'myfunc_argument_name' returns name of argument.
 **
@@ -86,7 +86,7 @@
 ** CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
 ** CREATE FUNCTION myfunc_double RETURNS REAL SONAME "udf_example.so";
 ** CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "udf_example.so";
-** CREATE FUNCTION sequence RETURNS INTEGER SONAME "udf_example.so";
+** CREATE FUNCTION sequence_alias RETURNS INTEGER SONAME "udf_example.so";
 ** CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
 ** CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
 ** CREATE AGGREGATE FUNCTION avgcost RETURNS REAL SONAME "udf_example.so";
@@ -537,7 +537,7 @@ extern "C" bool myfunc_int_init(UDF_INIT *, UDF_ARGS *, char *) { return 0; }
   or 1 if no arguments have been given
 */
 
-extern "C" bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+extern "C" bool sequence_alias_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   if (args->arg_count > 1) {
     strcpy(message, "This function takes none or 1 argument");
     return 1;
@@ -551,18 +551,18 @@ extern "C" bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   }
   memset(initid->ptr, 0, sizeof(long long));
   /*
-    sequence() is a non-deterministic function : it has different value
+    sequence_alias() is a non-deterministic function : it has different value
     even if called with the same arguments.
   */
   initid->const_item = 0;
   return 0;
 }
 
-extern "C" void sequence_deinit(UDF_INIT *initid) {
+extern "C" void sequence_alias_deinit(UDF_INIT *initid) {
   if (initid->ptr) free(initid->ptr);
 }
 
-extern "C" long long sequence(UDF_INIT *initid, UDF_ARGS *args, unsigned char *,
+extern "C" long long sequence_alias(UDF_INIT *initid, UDF_ARGS *args, unsigned char *,
                               unsigned char *) {
   unsigned long long val = 0;
   if (args->arg_count) val = *((long long *)args->args[0]);

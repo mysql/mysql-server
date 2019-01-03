@@ -352,6 +352,8 @@ struct System_variables {
   ulong use_secondary_engine;
 
   bool sql_require_primary_key;
+
+  bool sequence_read_skip_cache;
 };
 
 /**

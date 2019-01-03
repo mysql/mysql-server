@@ -87,6 +87,7 @@
 #include "sql/derror.h"                      // ER_DEFAULT
 #include "sql/error_handler.h"               // Internal_error_handler
 #include "sql/field.h"
+#include "sql/ha_sequence.h"
 #include "sql/item.h"
 #include "sql/lock.h"  // MYSQL_LOCK
 #include "sql/log.h"
@@ -842,6 +843,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin) {
     case DB_TYPE_INNODB:
       innodb_hton = hton;
       break;
+    case DB_TYPE_SEQUENCE_DB:
+      sequence_hton = hton;
     default:
       break;
   };

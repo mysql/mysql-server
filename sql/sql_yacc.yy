@@ -108,6 +108,9 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
                                              // Sql_cmd_create_trigger
 #include "sql/sql_truncate.h"                      // Sql_cmd_truncate_table
 
+#include "sql/item_sequence_func.h"  //Item_func_nextval, Item_func_currval
+#include "sql/sql_sequence.h"        //Sql_cmd_create_sequence
+
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
 /* warning C4065: switch statement contains 'default' but no 'case' labels */
@@ -472,8 +475,7 @@ void warn_about_deprecated_national(THD *thd)
    FUTURE-USE : Reserved for futur use
 
    This makes the code grep-able, and helps maintenance.
-
-   2) About token values
+2) About token values
 
    Token values are assigned by bison, in order of declaration.
 
@@ -1229,6 +1231,15 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> SECONDARY_LOAD_SYM            /* MYSQL */
 %token<keyword> SECONDARY_UNLOAD_SYM          /* MYSQL */
 
+/* Tokens for Sequence object */
+%token<keyword>  INCREMENT_SYM                 /* MYSQL */
+%token<keyword>  CYCLE_SYM                     /* MYSQL */
+%token<keyword>  MINVALUE_SYM                  /* MYSQL */
+%token<keyword>  NOCACHE_SYM                   /* MYSQL */
+%token<keyword>  NOCYCLE_SYM                   /* MYSQL */
+%token<keyword>  SEQUENCE_SYM                  /* MYSQL */
+%token<keyword>  CURRVAL_SYM                   /* MYSQL */
+%token<keyword>  NEXTVAL_SYM                   /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1809,6 +1820,9 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <create_table_tail> opt_create_table_options_etc
         opt_create_partitioning_etc opt_duplicate_as_qe
+
+%type <opt_sequence_options> opt_sequence opt_sequence_options
+%type <opt_sequence_option> opt_sequence_option
 
 %type <wild_or_where> opt_wild_or_where_for_show
 // used by JSON_TABLE
@@ -2676,7 +2690,75 @@ create_table_stmt:
           {
             $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $2, $4, $5, $8);
           }
+        | CREATE SEQUENCE_SYM opt_if_not_exists table_ident opt_sequence
+          {
+          $$ = NEW_PTN PT_create_sequence_stmt(YYMEM_ROOT, $3, $4,
+                                               On_duplicate::ERROR, $5);
+          }
         ;
+
+opt_sequence:
+         /* empty */ { $$= NULL; }
+        | opt_sequence_options
+         {
+           $$= $1;
+         }
+
+opt_sequence_options:
+          opt_sequence_option
+          {
+            $$= NEW_PTN Mem_root_array<PT_create_table_option *>(YYMEM_ROOT);
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT;
+          }
+        | opt_sequence_options opt_sequence_option
+          {
+            $$= $1;
+            if ($$->push_back($2))
+              MYSQL_YYABORT;
+          }
+
+opt_sequence_option:
+          MINVALUE_SYM ulonglong_num
+          {
+            $$= NEW_PTN PT_values_create_sequence_option<
+                Sequence_field::FIELD_NUM_MINVALUE>($2);
+          }
+        | MAX_VALUE_SYM ulonglong_num
+          {
+            $$= NEW_PTN PT_values_create_sequence_option<
+                Sequence_field::FIELD_NUM_MAXVALUE>($2);
+          }
+        | START_SYM WITH ulonglong_num
+          {
+            $$= NEW_PTN PT_values_create_sequence_option<
+                Sequence_field::FIELD_NUM_START>($3);
+          }
+        | INCREMENT_SYM BY ulonglong_num
+          {
+            $$= NEW_PTN PT_values_create_sequence_option<
+                Sequence_field::FIELD_NUM_INCREMENT>($3);
+          }
+        | CACHE_SYM ulonglong_num
+          {
+            $$= NEW_PTN PT_values_create_sequence_option<
+                Sequence_field::FIELD_NUM_CACHE>($2);
+          }
+        | NOCACHE_SYM
+          {
+            $$= NEW_PTN PT_values_create_sequence_option<
+                Sequence_field::FIELD_NUM_CACHE>(0);
+          }
+        | CYCLE_SYM
+          {
+            $$= NEW_PTN PT_values_create_sequence_option<
+                Sequence_field::FIELD_NUM_CYCLE>(1);
+          }
+        | NOCYCLE_SYM
+          {
+            $$= NEW_PTN PT_values_create_sequence_option<
+                Sequence_field::FIELD_NUM_CYCLE>(0);
+          }
 
 create_role_stmt:
           CREATE ROLE_SYM opt_if_not_exists role_list
@@ -9417,6 +9499,31 @@ simple_expr:
           {
             $$= NEW_PTN Item_date_add_interval(@$, $5, $2, $3, 0);
           }
+        | NEXTVAL_SYM '(' table_ident ')'
+          {
+          TABLE_LIST *table;
+          LEX *lex= Lex;
+          if (!(table = lex->current_select()->add_table_to_list(
+                    lex->thd, $3, NULL, TL_OPTION_SEQUENCE, TL_READ,
+                    MDL_SHARED_READ, NULL, NULL, NULL, NULL,
+                    Sequence_scan_mode::ITERATION_SCAN)))
+            MYSQL_YYABORT;
+          $$ = NEW_PTN Item_func_nextval(YYTHD, table);
+
+          }
+        | CURRVAL_SYM '(' table_ident ')'
+          {
+            TABLE_LIST *table;
+            LEX *lex= Lex;
+            if (!(table = lex->current_select()->add_table_to_list(
+                      lex->thd, $3, NULL, TL_OPTION_SEQUENCE, TL_READ,
+                      MDL_SHARED_READ, NULL, NULL, NULL, NULL,
+                      Sequence_scan_mode::ITERATION_SCAN)))
+              MYSQL_YYABORT;
+
+            $$= NEW_PTN Item_func_currval(YYTHD, table);
+
+          }
         | simple_ident JSON_SEPARATOR_SYM TEXT_STRING_literal
           {
             Item_string *path=
@@ -13877,6 +13984,8 @@ role_or_label_keyword:
         */
         | CURRENT_SYM
         | CURSOR_NAME_SYM
+        | CURRVAL_SYM
+        | CYCLE_SYM
         | DATAFILE_SYM
         | DATA_SYM
         | DATE_SYM
@@ -13935,6 +14044,7 @@ role_or_label_keyword:
         | HOUR_SYM
         | IDENTIFIED_SYM
         | IGNORE_SERVER_IDS_SYM
+        | INCREMENT_SYM
         | INDEXES
         | INITIAL_SIZE_SYM
         | INSERT_METHOD
@@ -13994,6 +14104,7 @@ role_or_label_keyword:
         | MIGRATE_SYM
         | MIN_ROWS
         | MINUTE_SYM
+        | MINVALUE_SYM
         | MODE_SYM
         | MODIFY_SYM
         | MONTH_SYM
@@ -14011,6 +14122,9 @@ role_or_label_keyword:
         | NEVER_SYM
         | NEW_SYM
         | NEXT_SYM
+        | NEXTVAL_SYM
+        | NOCACHE_SYM
+        | NOCYCLE_SYM
         | NODEGROUP_SYM
         | NO_WAIT_SYM
         | NOWAIT_SYM
@@ -14084,6 +14198,7 @@ role_or_label_keyword:
         | SCHEDULE_SYM
         | SCHEMA_NAME_SYM
         | SECOND_SYM
+        | SEQUENCE_SYM
         | SERIALIZABLE_SYM
         | SERIAL_SYM
         | SESSION_SYM
@@ -14534,6 +14649,7 @@ lock:
 table_or_tables:
           TABLE_SYM
         | TABLES
+        | SEQUENCE_SYM
         ;
 
 table_lock_list:

@@ -4,7 +4,7 @@ CREATE FUNCTION myfunc_double RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
 CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
 ERROR HY000: Can't find symbol 'myfunc_nonexist' in library
 CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
-CREATE FUNCTION sequence RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION sequence_alias RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
 CREATE FUNCTION lookup RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 CREATE FUNCTION reverse_lookup
 RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
@@ -21,7 +21,7 @@ metaphon	char	function	UDF_EXAMPLE_LIB	1
 myfunc_double	double	function	UDF_EXAMPLE_LIB	1
 myfunc_int	integer	function	UDF_EXAMPLE_LIB	1
 reverse_lookup	char	function	UDF_EXAMPLE_LIB	1
-sequence	integer	function	UDF_EXAMPLE_LIB	1
+sequence_alias	integer	function	UDF_EXAMPLE_LIB	1
 # Should get an index lookup
 EXPLAIN
 SELECT udf_type FROM performance_schema.user_defined_functions
@@ -253,7 +253,7 @@ DROP FUNCTION myfunc_double;
 DROP FUNCTION myfunc_nonexist;
 ERROR 42000: FUNCTION test.myfunc_nonexist does not exist
 DROP FUNCTION myfunc_int;
-DROP FUNCTION sequence;
+DROP FUNCTION sequence_alias;
 DROP FUNCTION lookup;
 DROP FUNCTION reverse_lookup;
 DROP FUNCTION avgcost;
@@ -367,32 +367,32 @@ DROP FUNCTION check_const_len;
 DROP PROCEDURE check_const_len_sp;
 DROP TRIGGER check_const_len_trigger;
 DROP TABLE const_len_bug;
-CREATE FUNCTION sequence RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION sequence_alias RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t1 VALUES (4),(3),(2),(1);
 INSERT INTO t2 SELECT * FROM t1;
-SELECT sequence() AS seq, a FROM t1 ORDER BY seq ASC;
+SELECT sequence_alias() AS seq, a FROM t1 ORDER BY seq ASC;
 seq	a
 1	4
 2	3
 3	2
 4	1
-SELECT sequence() AS seq, a FROM t1 ORDER BY seq DESC;
+SELECT sequence_alias() AS seq, a FROM t1 ORDER BY seq DESC;
 seq	a
 4	1
 3	2
 2	3
 1	4
-SELECT * FROM t1 WHERE a = sequence();
+SELECT * FROM t1 WHERE a = sequence_alias();
 a
-SELECT * FROM t2 WHERE a = sequence();
+SELECT * FROM t2 WHERE a = sequence_alias();
 a
 1
 2
 3
 4
-DROP FUNCTION sequence;
+DROP FUNCTION sequence_alias;
 DROP TABLE t1,t2;
 drop function if exists test.metaphon;
 drop function if exists metaphon;

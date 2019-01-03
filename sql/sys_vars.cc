@@ -6196,3 +6196,9 @@ static Sys_var_bool Sys_sql_require_primary_key{
     NO_MUTEX_GUARD,
     IN_BINLOG,
     ON_CHECK(check_has_super)};
+
+static Sys_var_bool Sys_sequence_read_skip_cache(
+    "sequence_read_skip_cache",
+    "Skip sequence cache, read the based table directly.",
+    SESSION_ONLY(sequence_read_skip_cache), NO_CMD_LINE, DEFAULT(FALSE),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0));
