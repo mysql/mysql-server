@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1641,12 +1641,23 @@ class Gtid_set {
                  const String_format *string_format = NULL) const;
 #ifndef DBUG_OFF
   /// Debug only: Print this Gtid_set to stdout.
+
+  /// For use with C `printf`
   void print(bool need_lock = false,
              const Gtid_set::String_format *sf = NULL) const {
     char *str;
     to_string(&str, need_lock, sf);
     printf("%s\n", str ? str : "out of memory in Gtid_set::print");
     my_free(str);
+  }
+
+  /// For use with C++ `std::ostream`
+  inline friend std::ostream &operator<<(std::ostream &os, const Gtid_set &in) {
+    char *str;
+    in.to_string(&str, true, nullptr);
+    os << std::string(str) << std::flush;
+    my_free(str);
+    return os;
   }
 #endif
   /**

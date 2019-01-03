@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -514,9 +514,8 @@ class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item> {
 
 class Slave_worker : public Relay_log_info {
  public:
-  Slave_worker(Relay_log_info *rli
+  Slave_worker(Relay_log_info *rli,
 #ifdef HAVE_PSI_INTERFACE
-               ,
                PSI_mutex_key *param_key_info_run_lock,
                PSI_mutex_key *param_key_info_data_lock,
                PSI_mutex_key *param_key_info_sleep_lock,
@@ -524,9 +523,8 @@ class Slave_worker : public Relay_log_info {
                PSI_mutex_key *param_key_info_data_cond,
                PSI_mutex_key *param_key_info_start_cond,
                PSI_mutex_key *param_key_info_stop_cond,
-               PSI_mutex_key *param_key_info_sleep_cond
+               PSI_mutex_key *param_key_info_sleep_cond,
 #endif
-               ,
                uint param_id, const char *param_channel);
 
   virtual ~Slave_worker();

@@ -9,10 +9,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
 ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
 
-# FLUSH RELAY LOGS for group_replication_applier is blocked in all conditions
-FLUSH RELAY LOGS FOR CHANNEL 'group_replication_applier';
-ERROR HY000: FLUSH RELAY LOGS cannot be performed on channel 'group_replication_applier'.
-
 # error when executing START SLAVE IO_THREAD FOR CHANNEL
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 ERROR HY000: START SLAVE IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
@@ -63,10 +59,6 @@ include/stop_group_replication.inc
 # CHANGE MASTER command is blocked for restricted channels.
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
 ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
-
-# FLUSH RELAY LOGS for group_replication_applier is blocked in all conditions
-FLUSH RELAY LOGS FOR CHANNEL 'group_replication_applier';
-ERROR HY000: FLUSH RELAY LOGS cannot be performed on channel 'group_replication_applier'.
 
 # error when executing START SLAVE IO_THREAD FOR CHANNEL
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';

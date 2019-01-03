@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4297,23 +4297,13 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
                                                    Gtid *first_gtid,
                                                    const char **errmsg) {
   DBUG_ENTER("MYSQL_BIN_LOG::gtid_read_start_binlog");
-  /*
-    Gather the set of files to be accessed.
-  */
-  list<string> filename_list;
   LOG_INFO linfo;
-  int error;
-
+  auto log_index = this->get_log_index();
+  std::list<std::string> filename_list = log_index.second;
+  int error = log_index.first;
   list<string>::reverse_iterator rit;
-  Gtid_set binlog_previous_gtid_set(gtid_set->get_sid_map());
+  Gtid_set binlog_previous_gtid_set{gtid_set->get_sid_map()};
 
-  mysql_mutex_lock(&LOCK_index);
-  for (error = find_log_pos(&linfo, NULL, false /*need_lock_index=false*/);
-       !error; error = find_next_log(&linfo, false /*need_lock_index=false*/)) {
-    DBUG_PRINT("info", ("read log filename '%s'", linfo.log_file_name));
-    filename_list.push_back(string(linfo.log_file_name));
-  }
-  mysql_mutex_unlock(&LOCK_index);
   if (error != LOG_INFO_EOF) {
     *errmsg =
         "Failed to read the binary log index file while "
@@ -4458,15 +4448,6 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     sid_lock->assert_some_wrlock();
   }
 
-  // Gather the set of files to be accessed.
-  list<string> filename_list;
-  LOG_INFO linfo;
-  int error;
-
-  list<string>::iterator it;
-  list<string>::reverse_iterator rit;
-  bool reached_first_file = false;
-
   /* Initialize the sid_map to be used in read_gtids_from_binlog */
   Sid_map *sid_map = NULL;
   if (all_gtids)
@@ -4474,11 +4455,14 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
   else if (lost_gtids)
     sid_map = lost_gtids->get_sid_map();
 
-  for (error = find_log_pos(&linfo, NULL, false /*need_lock_index=false*/);
-       !error; error = find_next_log(&linfo, false /*need_lock_index=false*/)) {
-    DBUG_PRINT("info", ("read log filename '%s'", linfo.log_file_name));
-    filename_list.push_back(string(linfo.log_file_name));
-  }
+  // Gather the set of files to be accessed.
+  auto log_index = this->get_log_index(false);
+  std::list<std::string> filename_list = log_index.second;
+  int error = log_index.first;
+  list<string>::iterator it;
+  list<string>::reverse_iterator rit;
+  bool reached_first_file = false;
+
   if (error != LOG_INFO_EOF) {
     DBUG_PRINT("error", ("Error reading %s index",
                          is_relay_log ? "relaylog" : "binlog"));
@@ -4495,8 +4479,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     filename_list.pop_back();
 
   error = 0;
-
-  if (all_gtids != NULL) {
+  if (all_gtids != nullptr) {
     DBUG_PRINT("info", ("Iterating backwards through %s logs, "
                         "looking for the last %s log that contains "
                         "a Previous_gtids_log_event.",
@@ -5453,6 +5436,29 @@ int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN + 1]) {
 
   mysql_mutex_unlock(&LOCK_index);
   return error;
+}
+
+std::pair<int, std::list<std::string>> MYSQL_BIN_LOG::get_log_index(
+    bool need_lock_index) {
+  DBUG_ENTER("MYSQL_BIN_LOG::get_log_index(bool)");
+  LOG_INFO log_info;
+
+  if (need_lock_index)
+    mysql_mutex_lock(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
+
+  std::list<std::string> filename_list;
+  int error = 0;
+  for (error = this->find_log_pos(&log_info, NULL, false /*need_lock_index*/);
+       error == 0;
+       error = this->find_next_log(&log_info, false /*need_lock_index*/)) {
+    filename_list.push_back(std::string(log_info.log_file_name));
+  }
+
+  if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
+
+  DBUG_RETURN(std::make_pair(error, filename_list));
 }
 
 /**
@@ -6612,14 +6618,19 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
       /*
         If relay log is too big, rotate. But only if not in the middle of a
         transaction when GTIDs are enabled.
+
+        Also rotate, if a deffered flush request has been placed.
+
         We now try to mimic the following master binlog behavior: "A transaction
         is written in one chunk to the binary log, so it is never split between
         several binary logs. Therefore, if you have big transactions, you might
         see binary log files larger than max_binlog_size."
       */
       if (m_binlog_file->get_real_file_size() >
-          DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size)) {
+              DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size) ||
+          mi->is_rotate_requested()) {
         error = new_file_without_locking(mi->get_mi_description_event());
+        mi->clear_rotate_requests();
       }
     }
   }

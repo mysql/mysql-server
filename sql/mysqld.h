@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -399,6 +399,7 @@ extern PSI_mutex_key key_master_info_data_lock;
 extern PSI_mutex_key key_master_info_run_lock;
 extern PSI_mutex_key key_master_info_sleep_lock;
 extern PSI_mutex_key key_master_info_thd_lock;
+extern PSI_mutex_key key_master_info_rotate_lock;
 extern PSI_mutex_key key_mutex_slave_reporting_capability_err_lock;
 extern PSI_mutex_key key_relay_log_info_data_lock;
 extern PSI_mutex_key key_relay_log_info_sleep_lock;
@@ -449,6 +450,7 @@ extern PSI_cond_key key_master_info_data_cond;
 extern PSI_cond_key key_master_info_start_cond;
 extern PSI_cond_key key_master_info_stop_cond;
 extern PSI_cond_key key_master_info_sleep_cond;
+extern PSI_cond_key key_master_info_rotate_cond;
 extern PSI_cond_key key_relay_log_info_data_cond;
 extern PSI_cond_key key_relay_log_info_log_space_cond;
 extern PSI_cond_key key_relay_log_info_start_cond;

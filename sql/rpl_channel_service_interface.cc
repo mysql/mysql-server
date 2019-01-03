@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -784,10 +784,9 @@ int channel_queue_packet(const char *channel, const char *buf,
     channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
+  channel_map.unlock();
 
   result = queue_event(mi, buf, event_len, false /*flush_master_info*/);
-
-  channel_map.unlock();
 
   DBUG_RETURN(result);
 }
@@ -944,7 +943,7 @@ int channel_flush(const char *channel) {
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  bool error = flush_relay_logs(mi);
+  bool error = (flush_relay_logs(mi, mi->info_thd) == 1);
 
   channel_map.unlock();
 

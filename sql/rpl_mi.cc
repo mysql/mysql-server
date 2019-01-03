@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <string.h>
 #include <algorithm>
 
+#include "include/mutex_lock.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
@@ -35,6 +36,7 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/debug_sync.h"
 #include "sql/dynamic_ids.h"  // Server_ids
 #include "sql/log.h"
 #include "sql/mysqld.h"  // sync_masterinfo_period
@@ -133,23 +135,27 @@ Master_info::Master_info(
     PSI_mutex_key *param_key_info_data_lock,
     PSI_mutex_key *param_key_info_sleep_lock,
     PSI_mutex_key *param_key_info_thd_lock,
+    PSI_mutex_key *param_key_info_rotate_lock,
     PSI_mutex_key *param_key_info_data_cond,
     PSI_mutex_key *param_key_info_start_cond,
     PSI_mutex_key *param_key_info_stop_cond,
     PSI_mutex_key *param_key_info_sleep_cond,
+    PSI_mutex_key *param_key_info_rotate_cond,
 #endif
     uint param_id, const char *param_channel)
-    : Rpl_info("I/O"
+    : Rpl_info("I/O",
 #ifdef HAVE_PSI_INTERFACE
-               ,
                param_key_info_run_lock, param_key_info_data_lock,
                param_key_info_sleep_lock, param_key_info_thd_lock,
                param_key_info_data_cond, param_key_info_start_cond,
-               param_key_info_stop_cond, param_key_info_sleep_cond
+               param_key_info_stop_cond, param_key_info_sleep_cond,
 #endif
-               ,
                param_id, param_channel),
       start_user_configured(false),
+#ifdef HAVE_PSI_INTERFACE
+      key_info_rotate_lock(param_key_info_rotate_lock),
+      key_info_rotate_cond(param_key_info_rotate_cond),
+#endif
       ssl(0),
       ssl_verify_server_cert(0),
       get_public_key(false),
@@ -187,6 +193,10 @@ Master_info::Master_info(
 
   gtid_monitoring_info = new Gtid_monitoring_info(&data_lock);
 
+  mysql_mutex_init(*key_info_rotate_lock, &this->rotate_lock,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(*key_info_rotate_cond, &this->rotate_cond);
+
   /*channel is set in base class, rpl_info.cc*/
   snprintf(for_channel_str, sizeof(for_channel_str) - 1, " for channel '%s'",
            channel);
@@ -206,10 +216,66 @@ Master_info::~Master_info() {
   /* No other administrative task is able to get this master_info */
   channel_map.assert_some_wrlock();
   m_channel_lock->unlock();
+
+  this->clear_rotate_requests();
+  mysql_mutex_destroy(&rotate_lock);
+  mysql_cond_destroy(&rotate_cond);
+
   delete m_channel_lock;
   delete ignore_server_ids;
   delete mi_description_event;
   delete gtid_monitoring_info;
+}
+
+void Master_info::request_rotate(THD *thd) {
+  DBUG_ENTER("Master_info::request_rotate(THD*)");
+  MUTEX_LOCK(lock, &this->rotate_lock);
+  this->rotate_requested.store(true);
+
+  DBUG_EXECUTE_IF("deferred_flush_relay_log", {
+    /*
+      See `gr_flush_relay_log_no_split_trx.test`
+      4) Make the `FLUSH RELAY LOG` execution path to emit
+         `signal.rpl_requested_for_a_flush` right before waiting on the
+         transaction to end.
+    */
+    const char dbug_signal[] = "now SIGNAL signal.rpl_requested_for_a_flush";
+    DBUG_ASSERT(
+        !debug_sync_set_action(current_thd, STRING_WITH_LEN(dbug_signal)));
+  });
+
+  while (this->rotate_requested.load() && !thd->killed)
+    mysql_cond_wait(&this->rotate_cond, &this->rotate_lock);
+
+  DBUG_VOID_RETURN;
+}
+
+void Master_info::clear_rotate_requests() {
+  DBUG_ENTER("Master_info::clear_rotate_requests()");
+  MUTEX_LOCK(lock, &this->rotate_lock);
+
+  if (this->rotate_requested.load()) {
+    this->rotate_requested.store(false);
+    mysql_cond_broadcast(&this->rotate_cond);
+
+    DBUG_EXECUTE_IF("deferred_flush_relay_log", {
+      /*
+        See `gr_flush_relay_log_no_split_trx.test`
+        7) Make the applier execution path to emit
+           `signal.rpl_broadcasted_rotate_end` just after finishing processing
+           the deferred flushing of the relay log.
+      */
+      const char dbug_signal[] = "now SIGNAL signal.rpl_broadcasted_rotate_end";
+      DBUG_ASSERT(
+          !debug_sync_set_action(current_thd, STRING_WITH_LEN(dbug_signal)));
+    });
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+bool Master_info::is_rotate_requested() {
+  return this->rotate_requested.load();
 }
 
 /**

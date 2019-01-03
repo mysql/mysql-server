@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -390,7 +390,7 @@ bool flush_relay_logs_cmd(THD *thd);
   @retval true Error.
 */
 bool reencrypt_relay_logs();
-bool flush_relay_logs(Master_info *mi);
+int flush_relay_logs(Master_info *mi, THD *thd);
 int reset_slave(THD *thd, Master_info *mi, bool reset_all);
 int reset_slave(THD *thd);
 int init_slave();

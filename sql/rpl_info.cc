@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,8 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "thr_mutex.h"
 
-Rpl_info::Rpl_info(const char *type
+Rpl_info::Rpl_info(const char *type,
 #ifdef HAVE_PSI_INTERFACE
-                   ,
                    PSI_mutex_key *param_key_info_run_lock,
                    PSI_mutex_key *param_key_info_data_lock,
                    PSI_mutex_key *param_key_info_sleep_lock,
@@ -37,9 +36,8 @@ Rpl_info::Rpl_info(const char *type
                    PSI_mutex_key *param_key_info_data_cond,
                    PSI_mutex_key *param_key_info_start_cond,
                    PSI_mutex_key *param_key_info_stop_cond,
-                   PSI_mutex_key *param_key_info_sleep_cond
+                   PSI_mutex_key *param_key_info_sleep_cond,
 #endif
-                   ,
                    uint param_id, const char *param_channel)
     : Slave_reporting_capability(type),
 #ifdef HAVE_PSI_INTERFACE
@@ -69,14 +67,14 @@ Rpl_info::Rpl_info(const char *type
   mysql_cond_init(*key_info_stop_cond, &stop_cond);
   mysql_cond_init(*key_info_sleep_cond, &sleep_cond);
 #else
-  mysql_mutex_init(NULL, &run_lock, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(NULL, &data_lock, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(NULL, &sleep_lock, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(NULL, &info_thd_lock, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(NULL, &data_cond);
-  mysql_cond_init(NULL, &start_cond);
-  mysql_cond_init(NULL, &stop_cond);
-  mysql_cond_init(NULL, &sleep_cond);
+  mysql_mutex_init(nullptr, &run_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(nullptr, &data_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(nullptr, &sleep_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(nullptr, &info_thd_lock, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(nullptr, &data_cond);
+  mysql_cond_init(nullptr, &start_cond);
+  mysql_cond_init(nullptr, &stop_cond);
+  mysql_cond_init(nullptr, &sleep_cond);
 #endif
 
   if (param_channel)

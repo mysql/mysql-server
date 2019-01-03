@@ -1,0 +1,127 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test that a `FLUSH RELAY LOG` doesn't split
+# transactions among two different relay logs.
+#
+# ==== Requirements ====
+#
+# R1. A request for flushing the relay logs WILL be postponed if there is an
+#     ongoing transaction.
+#
+# R2. Once the given ongoing transaction comes to an end, the relay logs MUST be
+#     flushed.
+#
+# R3. The client or channel that requested the relay logs flush MUST be blocked
+#     and in wait until the actual flush is finished.
+#
+# ==== Implementation ====
+#
+# 1) Add a debug sync point that holds and makes the applier thread to wait, in
+#    the middle of a transaction - `signal.rpl_requested_for_a_flush` in
+#    `rpl_slave.cc:queue_event`.
+# 2) Execute some statements in the master.
+# 3) Retrieve the number of the relay log file with the highest index number.
+# 4) Make the `FLUSH RELAY LOG` execution path to emit
+#    `signal.rpl_requested_for_a_flush` right before waiting on the transaction
+#    to end - in `rpl_info.cc:Rpl_info::request_rotate`.
+# 5) Execute `FLUSH RELAY LOG` in the slave.
+# 6) Add a debug sync point that holds the test execution and waits for the
+#    flush to terminate - `signal.rpl_broadcasted_rotate_end`.
+# 7) Make the applier execution path to emit `signal.rpl_broadcasted_rotate_end`
+#    just after finishing processing the deferred flushing of the relay log - in
+#    `rpl_info.cc:Rpl_info::clear_rotate_requests`.
+# 8) Retrieve the number of the relay log file with the highest index number and
+#    assert that the highest index number before the `FLUSH RELAY LOG` execution
+#    is lower than the highest index number after.
+# 9) Assert that the statements that blocked the relay log rotation are not in
+#    the new relay log.
+# 10) Ensure that all statements were executed on the slave.
+#
+# ==== References ====
+#
+# BUG#28684376 MAKE GR REPLICATION CHANNELS ROTATE RELAY LOG ON FLUSH LOGS
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (i INT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+# 1) Add a debug sync point that holds and makes the applier thread to wait, in
+#    the middle of a transaction - `signal.rpl_requested_for_a_flush` in
+#    `rpl_slave.cc:queue_event`.
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+SET GLOBAL debug = '+d,wait_in_the_middle_of_trx,deferred_flush_relay_log';
+
+# 2) Execute some statements in the master.
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+# 3) Retrieve the number of the relay log file with the highest index number.
+--let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.2/data/*relay*.*
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_before_flush = $log_file_max_number
+
+# 5) Execute `FLUSH RELAY LOG` in the slave.
+FLUSH RELAY LOGS;
+
+# 6) Add a debug sync point that holds the test execution and waits for the
+#    flush to terminate - `signal.rpl_broadcasted_rotate_end`.
+SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_broadcasted_rotate_end";
+
+# 8) Retrieve the number of the relay log file with the highest index number and
+#    assert that the highest index number before the `FLUSH RELAY LOG` execution
+#    is lower than the highest index number after.
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_after_flush = $log_file_max_number
+
+--let $assert_text = 'FLUSH RELAY LOGS' rotated properly
+--let $assert_cond = $max_log_file_before_flush < $max_log_file_after_flush
+--source include/assert.inc
+
+# 9) Assert that the statements that blocked the relay log rotation are not in
+#    the new relay log.
+--let $relay_lof_file = $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.$log_file_max_extension
+--let $relay_log_dump = `SELECT CONCAT('$MYSQLTEST_VARDIR/tmp/flush_relay_log_', UUID(), '.dump')`
+
+--exec $MYSQL_BINLOG --force-if-open -vv $relay_lof_file > $relay_log_dump
+
+--let $assert_select = (BEGIN|Write_rows|COMMIT)
+--let $assert_file = $relay_log_dump
+--let $assert_text = No 'BEGIN|INSERT|COMMIT' in relay log
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+--source include/rpl_sync.inc
+
+# 10) Ensure that all statements were executed on the slave.
+--let $diff_tables = server1:t1, server2:t1
+--source include/diff_tables.inc
+
+# Clean up
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC = "reset";
+SET GLOBAL debug = '-d,wait_in_the_middle_of_trx,deferred_flush_relay_log';
+
+--remove_file $relay_log_dump
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/group_replication_end.inc

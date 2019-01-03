@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9850,6 +9850,7 @@ PSI_mutex_key key_master_info_data_lock;
 PSI_mutex_key key_master_info_run_lock;
 PSI_mutex_key key_master_info_sleep_lock;
 PSI_mutex_key key_master_info_thd_lock;
+PSI_mutex_key key_master_info_rotate_lock;
 PSI_mutex_key key_mutex_slave_reporting_capability_err_lock;
 PSI_mutex_key key_relay_log_info_data_lock;
 PSI_mutex_key key_relay_log_info_sleep_lock;
@@ -9939,6 +9940,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_master_info_run_lock, "Master_info::run_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_master_info_sleep_lock, "Master_info::sleep_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_master_info_thd_lock, "Master_info::info_thd_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_master_info_rotate_lock, "Master_info::rotate_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_mutex_slave_reporting_capability_err_lock, "Slave_reporting_capability::err_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_data_lock, "Relay_log_info::data_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_sleep_lock, "Relay_log_info::sleep_lock", 0, 0, PSI_DOCUMENT_ME},
@@ -10024,6 +10026,7 @@ PSI_cond_key key_master_info_data_cond;
 PSI_cond_key key_master_info_start_cond;
 PSI_cond_key key_master_info_stop_cond;
 PSI_cond_key key_master_info_sleep_cond;
+PSI_cond_key key_master_info_rotate_cond;
 PSI_cond_key key_relay_log_info_data_cond;
 PSI_cond_key key_relay_log_info_log_space_cond;
 PSI_cond_key key_relay_log_info_start_cond;
@@ -10067,6 +10070,7 @@ static PSI_cond_info all_server_conds[]=
   { &key_master_info_start_cond, "Master_info::start_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_master_info_stop_cond, "Master_info::stop_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_master_info_sleep_cond, "Master_info::sleep_cond", 0, 0, PSI_DOCUMENT_ME},
+  { &key_master_info_rotate_cond, "Master_info::rotate_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_data_cond, "Relay_log_info::data_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_log_space_cond, "Relay_log_info::log_space_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_start_cond, "Relay_log_info::start_cond", 0, 0, PSI_DOCUMENT_ME},

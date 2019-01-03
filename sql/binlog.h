@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -827,6 +827,19 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int get_current_log(LOG_INFO *linfo, bool need_lock_log = true);
   int raw_get_current_log(LOG_INFO *linfo);
   uint next_file_id();
+  /**
+    Retrieves the contents of the index file associated with this log object
+    into an `std::list<std::string>` object. The order held by the index file is
+    kept.
+
+    @param need_lock_index whether or not the lock over the index file should be
+                           acquired inside the function.
+
+    @return a pair: a function status code; a list of `std::string` objects with
+            the content of the log index file.
+  */
+  std::pair<int, std::list<std::string>> get_log_index(
+      bool need_lock_index = true);
   inline char *get_index_fname() { return index_file_name; }
   inline char *get_log_fname() { return log_file_name; }
   inline char *get_name() { return name; }

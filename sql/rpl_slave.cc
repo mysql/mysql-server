@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "include/mutex_lock.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
@@ -6480,15 +6481,13 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
       This is preserved until the next START SLAVE.
     */
     Slave_worker *worker_copy = new Slave_worker(
-        NULL
+        nullptr,
 #ifdef HAVE_PSI_INTERFACE
-        ,
         &key_relay_log_info_run_lock, &key_relay_log_info_data_lock,
         &key_relay_log_info_sleep_lock, &key_relay_log_info_thd_lock,
         &key_relay_log_info_data_cond, &key_relay_log_info_start_cond,
-        &key_relay_log_info_stop_cond, &key_relay_log_info_sleep_cond
+        &key_relay_log_info_stop_cond, &key_relay_log_info_sleep_cond,
 #endif
-        ,
         w->id, rli->get_channel());
     worker_copy->copy_values_for_PFS(w->id, w->running_status, w->info_thd,
                                      w->last_error(),
@@ -6546,6 +6545,69 @@ end:
   rli->slave_parallel_workers = 0;
 
   *mts_inited = false;
+}
+
+/**
+  Processes the outcome of applying an event, logs it properly if it's an error
+  and return the proper error code to trigger.
+
+  @return the error code to bubble up in the execution stack.
+ */
+static int report_apply_event_error(THD *thd, Relay_log_info *rli) {
+  DBUG_ENTER("report_apply_event_error(THD*, Relay_log_info*)");
+  longlong slave_errno = 0;
+
+  /*
+    retrieve as much info as possible from the thd and, error
+    codes and warnings and print this to the error log as to
+    allow the user to locate the error
+  */
+  uint32 const last_errno = rli->last_error().number;
+
+  if (thd->is_error()) {
+    char const *const errmsg = thd->get_stmt_da()->message_text();
+
+    DBUG_PRINT("info", ("thd->get_stmt_da()->get_mysql_errno()=%d; "
+                        "rli->last_error.number=%d",
+                        thd->get_stmt_da()->mysql_errno(), last_errno));
+    if (last_errno == 0) {
+      /*
+        This function is reporting an error which was not reported
+        while executing exec_relay_log_event().
+      */
+      rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(), "%s", errmsg);
+    } else if (last_errno != thd->get_stmt_da()->mysql_errno()) {
+      /*
+       * An error was reported while executing exec_relay_log_event()
+       * however the error code differs from what is in the thread.
+       * This function prints out more information to help finding
+       * what caused the problem.
+       */
+      LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ADDITIONAL_ERROR_INFO_FROM_DA, errmsg,
+             thd->get_stmt_da()->mysql_errno());
+    }
+  }
+
+  /* Print any warnings issued */
+  Diagnostics_area::Sql_condition_iterator it =
+      thd->get_stmt_da()->sql_conditions();
+  const Sql_condition *err;
+  /*
+    Added controlled slave thread cancel for replication
+    of user-defined variables.
+  */
+  bool udf_error = false;
+  while ((err = it++)) {
+    if (err->mysql_errno() == ER_CANT_OPEN_LIBRARY) udf_error = true;
+    LogErr(WARNING_LEVEL, ER_RPL_SLAVE_ERROR_INFO_FROM_DA, err->message_text(),
+           err->mysql_errno());
+  }
+  if (udf_error)
+    slave_errno = ER_RPL_SLAVE_ERROR_LOADING_USER_DEFINED_LIBRARY;
+  else
+    slave_errno = ER_RPL_SLAVE_ERROR_RUNNING_QUERY;
+
+  DBUG_RETURN(slave_errno);
 }
 
 /**
@@ -6812,56 +6874,7 @@ extern "C" void *handle_slave_sql(void *arg) {
 
       // do not scare the user if SQL thread was simply killed or stopped
       if (!sql_slave_killed(thd, rli)) {
-        /*
-          retrieve as much info as possible from the thd and, error
-          codes and warnings and print this to the error log as to
-          allow the user to locate the error
-        */
-        uint32 const last_errno = rli->last_error().number;
-
-        if (thd->is_error()) {
-          char const *const errmsg = thd->get_stmt_da()->message_text();
-
-          DBUG_PRINT("info", ("thd->get_stmt_da()->get_mysql_errno()=%d; "
-                              "rli->last_error.number=%d",
-                              thd->get_stmt_da()->mysql_errno(), last_errno));
-          if (last_errno == 0) {
-            /*
-              This function is reporting an error which was not reported
-              while executing exec_relay_log_event().
-            */
-            rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(), "%s",
-                        errmsg);
-          } else if (last_errno != thd->get_stmt_da()->mysql_errno()) {
-            /*
-             * An error was reported while executing exec_relay_log_event()
-             * however the error code differs from what is in the thread.
-             * This function prints out more information to help finding
-             * what caused the problem.
-             */
-            LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ADDITIONAL_ERROR_INFO_FROM_DA,
-                   errmsg, thd->get_stmt_da()->mysql_errno());
-          }
-        }
-
-        /* Print any warnings issued */
-        Diagnostics_area::Sql_condition_iterator it =
-            thd->get_stmt_da()->sql_conditions();
-        const Sql_condition *err;
-        /*
-          Added controlled slave thread cancel for replication
-          of user-defined variables.
-        */
-        bool udf_error = false;
-        while ((err = it++)) {
-          if (err->mysql_errno() == ER_CANT_OPEN_LIBRARY) udf_error = true;
-          LogErr(WARNING_LEVEL, ER_RPL_SLAVE_ERROR_INFO_FROM_DA,
-                 err->message_text(), err->mysql_errno());
-        }
-        if (udf_error)
-          slave_errno = ER_RPL_SLAVE_ERROR_LOADING_USER_DEFINED_LIBRARY;
-        else
-          slave_errno = ER_RPL_SLAVE_ERROR_RUNNING_QUERY;
+        slave_errno = report_apply_event_error(thd, rli);
       }
       goto err;
     }
@@ -7072,6 +7085,20 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   mysql_mutex_t *log_lock = rli->relay_log.get_log_lock();
   ulong s_id;
   int lock_count = 0;
+
+  DBUG_EXECUTE_IF("wait_in_the_middle_of_trx", {
+    /*
+      See `gr_flush_relay_log_no_split_trx.test`
+      1) Add a debug sync point that holds and makes the applier thread to
+         wait, in the middle of a transaction -
+         `signal.rpl_requested_for_a_flush`.
+    */
+    DBUG_SET("-d,wait_in_the_middle_of_trx");
+    const char dbug_wait[] = "now WAIT_FOR signal.rpl_requested_for_a_flush";
+    DBUG_ASSERT(
+        !debug_sync_set_action(current_thd, STRING_WITH_LEN(dbug_wait)));
+  });
+
   /*
     FD_q must have been prepared for the first R_a event
     inside get_master_version_and_clock()
@@ -8022,16 +8049,41 @@ end:
 
   @param[in]         mi      Master_info corresponding to the
                              channel.
+  @param[in]         thd     the client thread carrying the command.
+
   @return
-    @retval          true     fail
-    @retval          false     ok.
+    @retval          1     fail
+    @retval          0     ok
+    @retval          -1    deferred flush
 */
-bool flush_relay_logs(Master_info *mi) {
+int flush_relay_logs(Master_info *mi, THD *thd) {
   DBUG_ENTER("flush_relay_logs");
-  bool error = false;
+  int error = 0;
 
   if (mi) {
-    if (rotate_relay_log(mi)) error = true;
+    Relay_log_info *rli = mi->rli;
+    if (rli->inited) {
+      // Rotate immediately if one is true:
+      if ((!is_group_replication_plugin_loaded() ||  // GR is disabled
+           !mi->transaction_parser
+                .is_inside_transaction() ||  // not inside a transaction
+           !channel_map.is_group_replication_channel_name(
+               mi->get_channel(), true) ||  // channel isn't GR applier channel
+           !mi->slave_running) &&           // the I/O thread isn't running
+          DBUG_EVALUATE_IF("deferred_flush_relay_log",
+                           !channel_map.is_group_replication_channel_name(
+                               mi->get_channel(), true),
+                           true)) {
+        if (rotate_relay_log(mi)) error = 1;
+      }
+      // Postpone the rotate action, delegating it to the I/O thread
+      else {
+        channel_map.unlock();
+        mi->request_rotate(thd);
+        channel_map.rdlock();
+        error = -1;
+      }
+    }
   }
   DBUG_RETURN(error);
 }
@@ -8056,7 +8108,7 @@ bool flush_relay_logs_cmd(THD *thd) {
   LEX *lex = thd->lex;
   bool error = false;
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   /*
      lex->mi.channel is NULL, for FLUSH LOGS or when the client thread
@@ -8064,39 +8116,37 @@ bool flush_relay_logs_cmd(THD *thd) {
      When channel is not provided, lex->mi.for_channel is false.
   */
   if (!lex->mi.channel || !lex->mi.for_channel) {
-    for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
-         it++) {
-      mi = it->second;
+    bool flush_was_deferred{false};
+    enum_channel_type channel_types[] = {SLAVE_REPLICATION_CHANNEL,
+                                         GROUP_REPLICATION_CHANNEL};
 
-      if ((error = flush_relay_logs(mi))) break;
+    for (auto channel_type : channel_types) {
+      mi_map already_processed;
+
+      do {
+        flush_was_deferred = false;
+
+        for (mi_map::iterator it = channel_map.begin(channel_type);
+             it != channel_map.end(channel_type); it++) {
+          if (already_processed.find(it->first) != already_processed.end())
+            continue;
+
+          mi = it->second;
+          already_processed.insert(std::make_pair(it->first, mi));
+
+          int flush_status = flush_relay_logs(mi, thd);
+          flush_was_deferred = (flush_status == -1);
+          error = (flush_status == 1);
+
+          if (flush_status != 0) break;
+        }
+      } while (flush_was_deferred);
     }
   } else {
     mi = channel_map.get_mi(lex->mi.channel);
 
     if (mi) {
-      /*
-        Disallow flush on Group Replication applier channel to avoid
-        split transactions among relay log files due to DBA action.
-      */
-      if (channel_map.is_group_replication_channel_name(lex->mi.channel,
-                                                        true)) {
-        if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
-            thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER) {
-          /*
-            Log warning on SQL or worker threads.
-          */
-          LogErr(WARNING_LEVEL, ER_RPL_SLAVE_FLUSH_RELAY_LOGS_NOT_ALLOWED,
-                 lex->mi.channel);
-        } else {
-          /*
-            Return error on client sessions.
-          */
-          error = true;
-          my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-                   "FLUSH RELAY LOGS", lex->mi.channel);
-        }
-      } else
-        error = flush_relay_logs(mi);
+      error = (flush_relay_logs(mi, thd) == 1);
     } else {
       if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
           thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER) {

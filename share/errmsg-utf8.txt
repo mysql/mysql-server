@@ -11492,7 +11492,7 @@ OBSOLETE_ER_NDB_DISTRIBUTING_ERR
 ER_RPL_SLAVE_INSECURE_CHANGE_MASTER
   eng "Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information."
 
-ER_RPL_SLAVE_FLUSH_RELAY_LOGS_NOT_ALLOWED
+OBSOLETE_ER_RPL_SLAVE_FLUSH_RELAY_LOGS_NOT_ALLOWED
   eng "FLUSH RELAY LOGS cannot be performed on channel '%-.192s'."
 
 ER_RPL_SLAVE_INCORRECT_CHANNEL

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -223,7 +223,7 @@ class Relay_log_info : public Rpl_info {
 
   /*
     Identifies when the recovery process is going on.
-    See sql/slave.cc:init_recovery for further details.
+    See sql/rpl_slave.h:init_recovery for further details.
   */
   bool is_relay_log_recovery;
 
@@ -1264,9 +1264,8 @@ class Relay_log_info : public Rpl_info {
   void set_sql_delay(time_t _sql_delay) { sql_delay = _sql_delay; }
   time_t get_sql_delay_end() { return sql_delay_end; }
 
-  Relay_log_info(bool is_slave_recovery
+  Relay_log_info(bool is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
-                 ,
                  PSI_mutex_key *param_key_info_run_lock,
                  PSI_mutex_key *param_key_info_data_lock,
                  PSI_mutex_key *param_key_info_sleep_lock,
@@ -1274,9 +1273,8 @@ class Relay_log_info : public Rpl_info {
                  PSI_mutex_key *param_key_info_data_cond,
                  PSI_mutex_key *param_key_info_start_cond,
                  PSI_mutex_key *param_key_info_stop_cond,
-                 PSI_mutex_key *param_key_info_sleep_cond
+                 PSI_mutex_key *param_key_info_sleep_cond,
 #endif
-                 ,
                  uint param_id, const char *param_channel, bool is_rli_fake);
   virtual ~Relay_log_info();
 

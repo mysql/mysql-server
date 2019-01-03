@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,6 @@
 #include "mysql/service_mysql_keyring.h"
 #include "sql/binlog.h"
 #include "sql/rpl_slave.h"
-/* todo: remove it after Bug#28684376 is fixed. */
-#include "sql/rpl_group_replication.h"
 
 Rpl_encryption rpl_encryption;
 
@@ -652,9 +650,7 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
     }
       /* FALLTHROUGH */
     case Key_rotation_step::PURGE_UNUSED_ENCRYPTION_KEYS: {
-      if (m_master_key_recovered && current_thd &&
-          /* todo: remove the condition after Bug#28684376 is fixed. */
-          !is_group_replication_plugin_loaded()) {
+      if (m_master_key_recovered && current_thd) {
         /* We do not purge unused encryption keys during recovery. */
         if (purge_unused_keys()) goto warn1;
       }
