@@ -85,7 +85,6 @@ let SEARCH_PATTERN= lCC;
 eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
 
 SET GLOBAL innodb_undo_log_encrypt = ON;
---sleep 2
 
 CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
 START TRANSACTION;

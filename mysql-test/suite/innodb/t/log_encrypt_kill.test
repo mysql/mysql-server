@@ -77,7 +77,6 @@ SELECT @@global.innodb_redo_log_encrypt;
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SELECT @@global.innodb_undo_log_encrypt;
 SET GLOBAL innodb_undo_log_encrypt = 1;
---sleep 1
 SELECT @@global.innodb_undo_log_encrypt;
 --replace_regex /\.dll/.so/
 --error ER_UDF_EXISTS

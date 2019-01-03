@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -1283,7 +1283,9 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
     trx_rseg_add_rollback_segments(). */
   }
 
-  srv_enable_undo_encryption_if_set();
+  if (srv_undo_log_encrypt) {
+    srv_enable_undo_encryption();
+  }
 
   return (DB_SUCCESS);
 }

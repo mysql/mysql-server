@@ -17,7 +17,6 @@ call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log tablespace to be enc
 
 #Enable redo log encryption, should report error in server log, since keyring is not loaded.
 SET GLOBAL innodb_redo_log_encrypt = ON;
---sleep 1
 
 # Create a table with encryption, should fail since keyring is not
 # loaded.
@@ -36,7 +35,6 @@ let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PL
 
 #Enable redo log encryption
 SET GLOBAL innodb_redo_log_encrypt = ON;
---sleep 1
 
 SHOW CREATE TABLE t1;
 

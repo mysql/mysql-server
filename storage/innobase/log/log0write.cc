@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -2708,50 +2708,11 @@ bool log_rotate_encryption() {
   return (log_write_encryption(nullptr, nullptr, false));
 }
 
-void log_enable_encryption_if_set() {
+void redo_rotate_default_master_key() {
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
   if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
     return;
-  }
-
-  /* Check encryption for redo log is enabled or not. If it's
-  enabled, we will start to encrypt the redo log block from now on.
-  Note: We need the server_uuid initialized, otherwise, the keyname will
-  not contains server uuid. */
-  if (srv_redo_log_encrypt && !FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
-      strlen(server_uuid) > 0) {
-    dberr_t err;
-    byte key[ENCRYPTION_KEY_LEN];
-    byte iv[ENCRYPTION_KEY_LEN];
-
-    if (srv_read_only_mode) {
-      srv_redo_log_encrypt = false;
-      ib::error(ER_IB_MSG_1242) << "Can't set redo log tablespace to be"
-                                << " encrypted in read-only mode.";
-      return;
-    }
-
-    Encryption::random_value(key);
-    Encryption::random_value(iv);
-    if (!log_write_encryption(key, iv, false)) {
-      srv_redo_log_encrypt = false;
-      ib::error(ER_IB_MSG_1243) << "Can't set redo log"
-                                << " tablespace to be"
-                                << " encrypted.";
-    } else {
-      FSP_FLAGS_SET_ENCRYPTION(space->flags);
-      err = fil_set_encryption(space->id, Encryption::AES, key, iv);
-      if (err != DB_SUCCESS) {
-        srv_redo_log_encrypt = false;
-        ib::warn(ER_IB_MSG_1244) << "Can't set redo log"
-                                 << " tablespace to be"
-                                 << " encrypted.";
-      } else {
-        ib::info(ER_IB_MSG_1245) << "Redo log encryption is"
-                                 << " enabled.";
-      }
-    }
   }
 
   /* If the redo log space is using default key, rotate it.
