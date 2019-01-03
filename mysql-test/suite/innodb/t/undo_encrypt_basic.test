@@ -58,7 +58,6 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 
 #Enable undo log encryption, should report error in server log, since keyring is not loaded.
 SET GLOBAL innodb_undo_log_encrypt = ON;
---sleep 1
 
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -71,7 +70,6 @@ CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 #Enable undo log encryption, shouldn't report error in server log.
 SET GLOBAL innodb_undo_log_encrypt = ON;
---sleep 1
 
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION='Y' ENGINE = InnoDB;
 

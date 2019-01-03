@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -17390,7 +17390,7 @@ ER_IB_MSG_1048
 ER_IB_MSG_1049
   eng "Waiting for change buffer merge to complete number of bytes of change buffer just merged: %llu"
 
-ER_IB_MSG_1050
+OBSOLETE_ER_IB_MSG_1050
   eng "Can't set undo tablespace(s) to be encrypted since --innodb_undo_tablespaces=0."
 
 ER_IB_MSG_1051
@@ -17967,16 +17967,16 @@ ER_IB_MSG_1241
   eng "%s"
 
 ER_IB_MSG_1242
-  eng "%s"
+  eng "Can't set redo log tablespace to be encrypted in read-only mode."
 
 ER_IB_MSG_1243
-  eng "%s"
+  eng "Can't set redo log tablespace to be encrypted."
 
 ER_IB_MSG_1244
-  eng "%s"
+  eng "Can't set redo log tablespace to be encrypted."
 
 ER_IB_MSG_1245
-  eng "%s"
+  eng "Redo log encryption is enabled."
 
 ER_IB_MSG_1246
   eng "%s"

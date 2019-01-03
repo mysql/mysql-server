@@ -68,7 +68,6 @@ FROM INFORMATION_SCHEMA.PLUGINS
   WHERE PLUGIN_NAME LIKE '%keyring_file%' ;
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SET GLOBAL innodb_undo_log_encrypt = 1;
---sleep 1
 SELECT @@global.innodb_redo_log_encrypt ;
 CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
