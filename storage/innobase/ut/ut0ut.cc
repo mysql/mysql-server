@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,6 +57,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "mysql/components/services/log_builtins.h"
 #include "sql/derror.h"
+
+namespace ut {
+ulong spin_wait_pause_multiplier = 50;
+}
 
 #ifdef _WIN32
 using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);
@@ -253,18 +257,18 @@ void meb_sprintf_timestamp_without_extra_chars(
 
 #else  /* UNIV_HOTBACKUP */
 
-/** Runs an idle loop on CPU. The argument gives the desired delay
- in microseconds on 100 MHz Pentium + Visual C++.
- @return dummy value */
-ulint ut_delay(ulint delay) /*!< in: delay in microseconds on 100 MHz Pentium */
-{
+ulint ut_delay(ulint delay) {
   ulint i, j;
-
+  /* We don't expect overflow here, as ut::spin_wait_pause_multiplier is limited
+  to 100, and values of delay are not larger than @@innodb_spin_wait_delay
+  which is limited by 1 000. Anyway, in case an overflow happened, the program
+  would still work (as iterations is unsigned). */
+  const ulint iterations = delay * ut::spin_wait_pause_multiplier;
   UT_LOW_PRIORITY_CPU();
 
   j = 0;
 
-  for (i = 0; i < delay * 50; i++) {
+  for (i = 0; i < iterations; i++) {
     j += i;
     UT_RELAX_CPU();
   }

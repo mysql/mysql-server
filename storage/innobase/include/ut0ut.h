@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -262,11 +262,25 @@ struct ut_strcmp_functor {
   }
 };
 
+namespace ut {
+/** The current value of @@innodb_spin_wait_pause_multiplier. Determines
+how many PAUSE instructions to emit for each requested unit of delay
+when calling `ut_delay(delay)`. The default value of 50 causes `delay*50` PAUSES
+which was equivalent to `delay` microseconds on 100 MHz Pentium + Visual C++.
+Useful on processors which have "non-standard" duration of a single PAUSE
+instruction - one can compensate for longer PAUSES by setting the
+spin_wait_pause_multiplier to a smaller value on such machine */
+extern ulong spin_wait_pause_multiplier;
+}  // namespace ut
+
 /** Runs an idle loop on CPU. The argument gives the desired delay
  in microseconds on 100 MHz Pentium + Visual C++.
+ The actual duration depends on a product of `delay` and the current value of
+ @@innodb_spin_wait_pause_multiplier.
+ @param[in]   delay   delay in microseconds on 100 MHz Pentium, assuming
+                      spin_wait_pause_multiplier is 50 (default).
  @return dummy value */
-ulint ut_delay(
-    ulint delay); /*!< in: delay in microseconds on 100 MHz Pentium */
+ulint ut_delay(ulint delay);
 
 /* Forward declaration of transaction handle */
 struct trx_t;
