@@ -2044,3 +2044,24 @@ num	lc	uc
 SELECT 'a' as letter, 0x00 as nullchar, 0xff as nonprintable;
 letter	nullchar	nonprintable
 @	#	#
+#
+# BUG#28936083: MYSQLTEST.CC DOES NOT HANDLE MULTILINE SEND_EVAL CORRECTLY
+#
+SELECT 100 AS res;
+res
+100
+SELECT 100 AS res;
+res
+100
+SELECT 200 AS res;
+res
+200
+SELECT 100 AS res;;
+res
+100
+SELECT 100 AS res;
+res
+100
+SELECT 200 AS res;
+res
+200

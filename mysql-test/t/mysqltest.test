@@ -4773,3 +4773,35 @@ SELECT 1 as num, "abc" as lc, "ABC" as uc;
 
 --replace_regex /^[[:print:]]$/@/ /[^[:print:]]/#/
 SELECT 'a' as letter, 0x00 as nullchar, 0xff as nonprintable;
+
+--echo #
+--echo # BUG#28936083: MYSQLTEST.CC DOES NOT HANDLE MULTILINE SEND_EVAL CORRECTLY
+--echo #
+
+--let $my_stmt = SELECT 100 AS res
+
+--send_eval $my_stmt
+--reap
+
+--send_eval
+$my_stmt;
+--reap
+
+--send_eval
+--let $my_stmt = SELECT 200 AS res
+$my_stmt;
+--reap
+
+--let $val = 100
+
+--send_eval SELECT $val AS res;
+--reap
+
+--send_eval
+SELECT $val AS res;
+--reap
+
+--send_eval
+--let $val = 200
+SELECT $val AS res;
+--reap

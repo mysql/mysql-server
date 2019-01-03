@@ -7413,8 +7413,21 @@
       the functionality of both. After variable replacement has been
       done, it behaves like the <b>send</b> command.
 
+      If <b><em>statement</em></b> is omitted, the <b>send_eval</b>
+      command applies to the next statement executed. This means that
+      <b>send_eval</b> can be used on a line by itself before a
+      statement. Thus, this command:
+
       @verbatim
   --send_eval $my_stmt
+      @endverbatim
+    </li>
+
+      Is equivalent to these commands:
+
+      @verbatim
+  --send_eval
+  $my_stmt;
       @endverbatim
     </li>
 
