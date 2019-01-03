@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -748,6 +748,12 @@ static server *mksrv(char *srv, xcom_port port) {
                                 "reply_handler_task", XCOM_THREAD_DEBUG);
   }
   reset_srv_buf(&s->out_buf);
+  /*
+   Keep the server from being freed if the acceptor_learner_task calls
+   srv_unref on the server before the {local_,}server_task and
+   reply_handler_task begin.
+  */
+  srv_ref(s);
   return s;
 }
 
@@ -853,6 +859,9 @@ static void shut_srv(server *s) {
   /* Tasks will free the server object when they terminate */
   if (s->sender) task_terminate(s->sender);
   if (s->reply_handler) task_terminate(s->reply_handler);
+
+  // Allow the server to be freed. This unref pairs with the ref from mksrv.
+  srv_unref(s);
 }
 
 int srv_ref(server *s) {
