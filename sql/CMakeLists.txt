@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -619,7 +619,7 @@ ADD_CUSTOM_TARGET(
 
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
-                 MODULE_ONLY SKIP_INSTALL MODULE_OUTPUT_NAME "udf_example")
+                 MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
 IF(NOT DISABLE_SHARED)
   IF(WIN32)
     SET_TARGET_PROPERTIES(udf_example
