@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18403,6 +18403,7 @@ static void test_wl6791() {
     MYSQL_OPT_SSL_CA,
     MYSQL_OPT_SSL_CAPATH,
     MYSQL_OPT_SSL_CIPHER,
+    MYSQL_OPT_TLS_CIPHERSUITES,
     MYSQL_OPT_SSL_CRL,
     MYSQL_OPT_SSL_CRLPATH,
     MYSQL_SERVER_PUBLIC_KEY },

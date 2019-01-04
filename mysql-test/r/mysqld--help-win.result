@@ -1309,7 +1309,9 @@ The following options may be given as the first argument:
  Define threads usage for handling queries, one of
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
- --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2
+ --tls-ciphersuites=name 
+ --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1,
+ TLSv1.2, TLSv1.3
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY
  storage engine exceeds this size, MySQL will
  automatically convert it to an on-disk table
@@ -1707,6 +1709,7 @@ temptable-use-mmap TRUE
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
+tls-ciphersuites (No default value)
 tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ

@@ -393,7 +393,8 @@ enum mysql_option {
   MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
   MYSQL_OPT_RETRY_COUNT,
   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
-  MYSQL_OPT_SSL_FIPS_MODE
+  MYSQL_OPT_SSL_FIPS_MODE,
+  MYSQL_OPT_TLS_CIPHERSUITES
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {

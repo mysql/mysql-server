@@ -1,6 +1,7 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+--source include/allowed_ciphers.inc
 
 #------------------------------------------------------------------------------
 
@@ -45,7 +46,7 @@ let SEARCH_PATTERN= CA certificate .* is self signed.;
 
 --echo # Try to establish SSL connection : This must succeed.
 connect (ssl_root_1,localhost,root,,,,,SSL);
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 SHOW STATUS LIKE 'Ssl_cipher';
 SHOW VARIABLES LIKE 'have_ssl';
 
@@ -59,7 +60,7 @@ connection default;
 disconnect ssl_root_1;
 
 --echo # Connect using mysql client : This must succeed.
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher';"
 
 
@@ -125,7 +126,7 @@ let SEARCH_PATTERN= CA certificate .* is self signed.;
 --source include/search_pattern.inc
 
 --echo # Try creating SSL connection
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher';"
 
 

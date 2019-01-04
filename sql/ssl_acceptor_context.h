@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +104,7 @@ class SslAcceptorContext {
   static int show_ssl_get_ssl_cert(THD *, SHOW_VAR *var, char *buff);
   static int show_ssl_get_ssl_key(THD *, SHOW_VAR *var, char *buff);
   static int show_ssl_get_ssl_cipher(THD *, SHOW_VAR *var, char *buff);
+  static int show_ssl_get_tls_ciphersuites(THD *, SHOW_VAR *var, char *buff);
   static int show_ssl_get_tls_version(THD *, SHOW_VAR *var, char *buff);
   static int show_ssl_get_ssl_crl(THD *, SHOW_VAR *var, char *buff);
   static int show_ssl_get_ssl_crlpath(THD *, SHOW_VAR *var, char *buff);
@@ -199,6 +200,10 @@ class SslAcceptorContext {
       const SslAcceptorContext *c = *this;
       return c->current_cipher_.c_str();
     }
+    const char *get_current_ciphersuites() {
+      const SslAcceptorContext *c = *this;
+      return c->current_ciphersuites_.c_str();
+    }
   };
 
   ~SslAcceptorContext();
@@ -219,6 +224,7 @@ class SslAcceptorContext {
     @param [out] version
     @param [out] cert
     @param [out] cipher
+    @param [out] ciphersuites
     @param [out] key
     @param [out] crl
     @param [out] crl_path
@@ -226,8 +232,9 @@ class SslAcceptorContext {
   static void read_parameters(
       OptionalString *ca = nullptr, OptionalString *capath = nullptr,
       OptionalString *version = nullptr, OptionalString *cert = nullptr,
-      OptionalString *cipher = nullptr, OptionalString *key = nullptr,
-      OptionalString *crl = nullptr, OptionalString *crl_path = nullptr);
+      OptionalString *cipher = nullptr, OptionalString *ciphersuites = nullptr,
+      OptionalString *key = nullptr, OptionalString *crl = nullptr,
+      OptionalString *crl_path = nullptr);
 
  protected:
   /**
@@ -270,7 +277,8 @@ class SslAcceptorContext {
     Copies of the current effective values for quick return via the status vars
   */
   OptionalString current_ca_, current_capath_, current_version_, current_cert_,
-      current_cipher_, current_key_, current_crl_, current_crlpath_;
+      current_cipher_, current_ciphersuites_, current_key_, current_crl_,
+      current_crlpath_;
 
   /** singleton lock */
   static SslAcceptorContextLockType *lock;

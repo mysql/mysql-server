@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ bool Ssl_context::setup(const Config &config) {
 
   m_ssl_acceptor =
       new_VioSSLAcceptorFd(config.ssl_key, config.ssl_cert, config.ssl_ca,
-                           config.ssl_capath, config.ssl_cipher, &error,
+                           config.ssl_capath, config.ssl_cipher, NULL, &error,
                            config.ssl_crl, config.ssl_crlpath, ssl_ctx_flags);
 
   if (NULL == m_ssl_acceptor) {

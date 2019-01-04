@@ -48,6 +48,7 @@ disconnect ssl_con;
 --echo # Save the defaults
 let $orig_cipher= query_get_value(SHOW STATUS LIKE 'Ssl_cipher', Value, 1);
 SET @orig_ssl_cipher = @@global.ssl_cipher;
+SET @orig_tls_version = @@global.tls_version;
 
 --echo # in ssl_con
 connect (ssl_con,localhost,root,,,,,SSL);
@@ -61,7 +62,7 @@ connection default;
 
 --echo # setting new values for ssl_cipher
 SET GLOBAL ssl_cipher = "DHE-RSA-AES256-SHA256";
-
+SET GLOBAL tls_version = "TLSv1.2";
 ALTER INSTANCE RELOAD TLS;
 
 --echo # in ssl_new_con
@@ -90,6 +91,7 @@ disconnect ssl_con;
 disconnect ssl_new_con;
 
 SET GLOBAL ssl_cipher = @orig_ssl_cipher;
+SET GLOBAL tls_version = @orig_tls_version;
 ALTER INSTANCE RELOAD TLS;
 
 # Wait till all disconnects are completed
@@ -221,6 +223,7 @@ SET @orig_ssl_capath= @@global.ssl_capath;
 SET @orig_ssl_crl= @@global.ssl_crl;
 SET @orig_ssl_crlpath= @@global.ssl_crlpath;
 SET @orig_ssl_cipher= @@global.ssl_cipher;
+SET @orig_tls_cipher= @@global.tls_ciphersuites;
 SET @orig_tls_version= @@global.tls_version;
 
 --echo # Must pass
@@ -231,6 +234,7 @@ SET GLOBAL ssl_capath = 'gizmo';
 SET GLOBAL ssl_crl = 'gizmo';
 SET GLOBAL ssl_crlpath = 'gizmo';
 SET GLOBAL ssl_cipher = 'gizmo';
+SET GLOBAL tls_ciphersuites = 'gizmo';
 SET GLOBAL tls_version = 'gizmo';
 
 --echo # Must fail
@@ -249,14 +253,16 @@ SET SESSION ssl_crlpath = 'gizmo';
 --error ER_GLOBAL_VARIABLE
 SET SESSION ssl_cipher = 'gizmo';
 --error ER_GLOBAL_VARIABLE
+SET SESSION tls_ciphersuites = 'gizmo';
+--error ER_GLOBAL_VARIABLE
 SET SESSION tls_version = 'gizmo';
 
---echo # FR6: Must return 8
+--echo # FR6: Must return 9
 SELECT VARIABLE_NAME FROM performance_schema.session_status WHERE
   VARIABLE_NAME IN
   ('Current_tls_ca', 'Current_tls_capath', 'Current_tls_cert',
    'Current_tls_key', 'Current_tls_version', 'Current_tls_cipher',
-   'Current_tls_crl', 'Current_tls_crlpath') AND
+   'Current_tls_ciphersuites', 'Current_tls_crl', 'Current_tls_crlpath') AND
   VARIABLE_VALUE != 'gizmo'
   ORDER BY VARIABLE_NAME;
 
@@ -268,6 +274,7 @@ SET GLOBAL ssl_capath = @orig_ssl_capath;
 SET GLOBAL ssl_crl = @orig_ssl_crl;
 SET GLOBAL ssl_crlpath = @orig_ssl_crlpath;
 SET GLOBAL ssl_cipher = @orig_ssl_cipher;
+SET GLOBAL tls_ciphersuites = @orig_tls_ciphersuites;
 SET GLOBAL tls_version = @orig_tls_version;
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,7 +159,7 @@
     {"tls-version",
      OPT_TLS_VERSION,
      "TLS version to use, "
-     "permitted values are: TLSv1, TLSv1.1, TLSv1.2",
+     "permitted values are: TLSv1, TLSv1.1, TLSv1.2, TLSv1.3",
      &opt_tls_version,
      &opt_tls_version,
      0,
@@ -181,6 +181,20 @@
 #endif
      0,
      0,
+     0,
+     GET_STR,
+     REQUIRED_ARG,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0},
+    {"tls-ciphersuites",
+     OPT_TLS_CIPHERSUITES,
+     "TLS v1.3 cipher to use.",
+     &opt_tls_ciphersuites,
+     &opt_tls_ciphersuites,
      0,
      GET_STR,
      REQUIRED_ARG,

@@ -9,7 +9,7 @@ Variable_name	Value
 Ssl_cipher	SSL_CIPHER
 #T3: Setting TLS version TLSv1.2 from the client
 Variable_name	Value
-Ssl_version	TLS_VERSION
+Ssl_version	TLSv1.2
 #T4: Setting TLS version TLSv1.1 from the client
 Variable_name	Value
 Ssl_version	TLSv1.1

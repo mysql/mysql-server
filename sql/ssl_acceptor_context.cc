@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,8 +44,9 @@
   the visibility is confined to the current file
 */
 static char *opt_ssl_ca = NULL, *opt_ssl_capath = NULL, *opt_ssl_cert = NULL,
-            *opt_ssl_cipher = NULL, *opt_ssl_key = NULL, *opt_ssl_crl = NULL,
-            *opt_ssl_crlpath = NULL, *opt_tls_version = NULL;
+            *opt_ssl_cipher = NULL, *opt_tls_ciphersuites = NULL,
+            *opt_ssl_key = NULL, *opt_ssl_crl = NULL, *opt_ssl_crlpath = NULL,
+            *opt_tls_version = NULL;
 
 static PolyLock_mutex lock_ssl_ctx(&LOCK_tls_ctx_options);
 
@@ -397,6 +398,18 @@ int SslAcceptorContext::show_ssl_get_ssl_cipher(THD *, SHOW_VAR *var,
   return 0;
 }
 
+int SslAcceptorContext::show_ssl_get_tls_ciphersuites(THD *, SHOW_VAR *var,
+                                                      char *buff) {
+  AutoLock c;
+  const char *s = c.get_current_ciphersuites();
+
+  var->type = SHOW_CHAR;
+  strncpy(buff, s ? s : "", SHOW_VAR_FUNC_BUFF_SIZE);
+  buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
+  var->value = buff;
+  return 0;
+}
+
 int SslAcceptorContext::show_ssl_get_tls_version(THD *, SHOW_VAR *var,
                                                  char *buff) {
   AutoLock c;
@@ -508,14 +521,15 @@ SslAcceptorContext::SslAcceptorContext(bool use_ssl_arg, bool report_ssl_error,
   enum enum_ssl_init_error error = SSL_INITERR_NOERROR;
 
   read_parameters(&current_ca_, &current_capath_, &current_version_,
-                  &current_cert_, &current_cipher_, &current_key_,
-                  &current_crl_, &current_crlpath_);
+                  &current_cert_, &current_cipher_, &current_ciphersuites_,
+                  &current_key_, &current_crl_, &current_crlpath_);
 
   if (use_ssl_arg) {
     ssl_acceptor_fd = new_VioSSLAcceptorFd(
         current_key_.c_str(), current_cert_.c_str(), current_ca_.c_str(),
-        current_capath_.c_str(), current_cipher_.c_str(), &error,
-        current_crl_.c_str(), current_crlpath_.c_str(),
+        current_capath_.c_str(), current_cipher_.c_str(),
+        current_ciphersuites_.c_str(), &error, current_crl_.c_str(),
+        current_crlpath_.c_str(),
         process_tls_version(current_version_.c_str()));
 
     if (!ssl_acceptor_fd && report_ssl_error)
@@ -658,14 +672,15 @@ int SslAcceptorContext::warn_self_signed_ca() {
 
 void SslAcceptorContext::read_parameters(
     OptionalString *ca, OptionalString *capath, OptionalString *version,
-    OptionalString *cert, OptionalString *cipher, OptionalString *key,
-    OptionalString *crl, OptionalString *crl_path) {
+    OptionalString *cert, OptionalString *cipher, OptionalString *ciphersuites,
+    OptionalString *key, OptionalString *crl, OptionalString *crl_path) {
   AutoRLock lock(&lock_ssl_ctx);
   if (ca) ca->assign(opt_ssl_ca);
   if (capath) capath->assign(opt_ssl_capath);
   if (version) version->assign(opt_tls_version);
   if (cert) cert->assign(opt_ssl_cert);
   if (cipher) cipher->assign(opt_ssl_cipher);
+  if (ciphersuites) ciphersuites->assign(opt_tls_ciphersuites);
   if (key) key->assign(opt_ssl_key);
   if (crl) crl->assign(opt_ssl_crl);
   if (crl_path) crl_path->assign(opt_ssl_crlpath);
@@ -690,10 +705,16 @@ static Sys_var_charptr Sys_ssl_capath(
     &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_tls_version(
-    "tls_version", "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2",
+    "tls_version",
+    "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2, TLSv1.3",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_tls_version),
     CMD_LINE(REQUIRED_ARG, OPT_TLS_VERSION), IN_FS_CHARSET,
-    "TLSv1,TLSv1.1,TLSv1.2", &lock_ssl_ctx);
+#ifdef HAVE_TLSv13
+    "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3",
+#else
+    "TLSv1,TLSv1.1,TLSv1.2",
+#endif /* HAVE_TLSv13 */
+    &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_cert(
     "ssl_cert", "X509 cert in PEM format (implies --ssl)",
@@ -705,6 +726,12 @@ static Sys_var_charptr Sys_ssl_cipher(
     "ssl_cipher", "SSL cipher to use (implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_cipher),
     CMD_LINE(REQUIRED_ARG, OPT_SSL_CIPHER), IN_FS_CHARSET, DEFAULT(0),
+    &lock_ssl_ctx);
+
+static Sys_var_charptr Sys_tls_ciphersuites(
+    "tls_ciphersuites", "TLS v1.3 ciphersuite to use (implies --ssl)",
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_tls_ciphersuites),
+    CMD_LINE(REQUIRED_ARG, OPT_TLS_CIPHERSUITES), IN_FS_CHARSET, DEFAULT(0),
     &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_key("ssl_key",

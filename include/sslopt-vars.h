@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,7 @@ static char *opt_ssl_ca = 0;
 static char *opt_ssl_capath = 0;
 static char *opt_ssl_cert = 0;
 static char *opt_ssl_cipher = 0;
+static char *opt_tls_ciphersuites = 0;
 static char *opt_ssl_key = 0;
 static char *opt_ssl_crl = 0;
 static char *opt_ssl_crlpath = 0;
@@ -102,6 +103,7 @@ static inline int set_client_ssl_options(MYSQL *mysql) {
   mysql_options(mysql, MYSQL_OPT_SSL_FIPS_MODE, &opt_ssl_fips_mode);
   if (opt_ssl_fips_mode > 0 && mysql_errno(mysql) == CR_SSL_FIPS_MODE_ERR)
     return 1;
+  mysql_options(mysql, MYSQL_OPT_TLS_CIPHERSUITES, opt_tls_ciphersuites);
 
   return 0;
 }

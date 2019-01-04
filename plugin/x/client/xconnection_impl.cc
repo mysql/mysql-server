@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -528,7 +528,7 @@ XError Connection_impl::activate_tls() {
       details::null_when_empty(m_context->m_ssl_config.m_cert),
       details::null_when_empty(m_context->m_ssl_config.m_ca),
       details::null_when_empty(m_context->m_ssl_config.m_ca_path),
-      details::null_when_empty(m_context->m_ssl_config.m_cipher),
+      details::null_when_empty(m_context->m_ssl_config.m_cipher), NULL,
       &m_ssl_init_error,
       details::null_when_empty(m_context->m_ssl_config.m_crl),
       details::null_when_empty(m_context->m_ssl_config.m_crl_path),

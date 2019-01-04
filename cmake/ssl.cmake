@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -308,6 +308,13 @@ MACRO (MYSQL_CHECK_SSL)
         "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
         OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
         )
+      STRING(REGEX REPLACE
+        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
+        OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
+        )
+    ENDIF()
+    IF("${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_FIX_VERSION}" VERSION_GREATER "1.1.0")
+       ADD_DEFINITIONS(-DHAVE_TLSv13)
     ENDIF()
     IF(OPENSSL_INCLUDE_DIR AND
        OPENSSL_LIBRARY   AND
@@ -379,6 +386,7 @@ MACRO (MYSQL_CHECK_SSL)
     MESSAGE(STATUS "CRYPTO_LIBRARY = ${CRYPTO_LIBRARY}")
     MESSAGE(STATUS "OPENSSL_MAJOR_VERSION = ${OPENSSL_MAJOR_VERSION}")
     MESSAGE(STATUS "OPENSSL_MINOR_VERSION = ${OPENSSL_MINOR_VERSION}")
+    MESSAGE(STATUS "OPENSSL_FIX_VERSION = ${OPENSSL_FIX_VERSION}")
     # The server hangs in OpenSSL_add_all_algorithms() in ssl_start()
     IF(WIN32 AND OPENSSL_MINOR_VERSION VERSION_EQUAL 1)
       MESSAGE(WARNING "OpenSSL 1.1 is experimental on Windows")

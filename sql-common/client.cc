@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1574,6 +1574,7 @@ static const char *default_options[] = {"port",
                                         "ssl_mode",
                                         "optional-resultset-metadata",
                                         "ssl-fips-mode",
+                                        "tls-ciphersuites",
                                         NullS};
 enum option_id {
   OPT_port = 1,
@@ -1616,6 +1617,7 @@ enum option_id {
   OPT_ssl_mode,
   OPT_optional_resultset_metadata,
   OPT_ssl_fips_mode,
+  OPT_tls_ciphersuites,
   OPT_keep_this_one_last
 };
 
@@ -1825,6 +1827,9 @@ void mysql_read_default_options(struct st_mysql_options *options,
             options->ssl_cipher =
                 my_strdup(key_memory_mysql_options, opt_arg, MYF(MY_WME));
             break;
+          case OPT_tls_ciphersuites:
+            EXTENSION_SET_STRING(options, tls_ciphersuites, opt_arg);
+            break;
           case OPT_tls_version:
             EXTENSION_SET_SSL_STRING(options, tls_version, opt_arg,
                                      SSL_MODE_PREFERRED);
@@ -1843,6 +1848,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           case OPT_ssl_ca:
           case OPT_ssl_capath:
           case OPT_ssl_cipher:
+          case OPT_tls_ciphersuites:
           case OPT_ssl_crl:
           case OPT_ssl_crlpath:
           case OPT_tls_version:
@@ -2534,6 +2540,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
     my_free(mysql->options.extension->tls_version);
     my_free(mysql->options.extension->ssl_crl);
     my_free(mysql->options.extension->ssl_crlpath);
+    my_free(mysql->options.extension->tls_ciphersuites);
   }
   if (ssl_fd) SSL_CTX_free(ssl_fd->ssl_context);
   my_free(mysql->connector_fd);
@@ -2549,6 +2556,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
     mysql->options.extension->tls_version = 0;
     mysql->options.extension->ssl_mode = SSL_MODE_DISABLED;
     mysql->options.extension->ssl_fips_mode = SSL_FIPS_MODE_OFF;
+    mysql->options.extension->tls_ciphersuites = 0;
   }
   mysql->connector_fd = 0;
   DBUG_VOID_RETURN;
@@ -3463,7 +3471,9 @@ static int cli_establish_ssl(MYSQL *mysql) {
     /* Create the VioSSLConnectorFd - init SSL and load certs */
     if (!(ssl_fd = new_VioSSLConnectorFd(
               options->ssl_key, options->ssl_cert, options->ssl_ca,
-              options->ssl_capath, options->ssl_cipher, &ssl_init_error,
+              options->ssl_capath, options->ssl_cipher,
+              options->extension ? options->extension->tls_ciphersuites : NULL,
+              &ssl_init_error,
               options->extension ? options->extension->ssl_crl : NULL,
               options->extension ? options->extension->ssl_crlpath : NULL,
               options->extension ? options->extension->ssl_ctx_flags : 0))) {
@@ -5597,6 +5607,10 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
     case MYSQL_OPT_SSL_CIPHER:
       SET_OPTION(ssl_cipher, static_cast<const char *>(arg));
       break;
+    case MYSQL_OPT_TLS_CIPHERSUITES:
+      EXTENSION_SET_STRING(&mysql->options, tls_ciphersuites,
+                           static_cast<const char *>(arg));
+      break;
     case MYSQL_OPT_SSL_CRL:
       if (mysql->options.extension)
         my_free(mysql->options.extension->ssl_crl);
@@ -5749,11 +5763,11 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
   const char *
     MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
     MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME,
-  MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND,
-  MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH, MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT,
-  MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
-  MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH, MYSQL_OPT_TLS_VERSION,
-    MYSQL_SERVER_PUBLIC_KEY, MYSQL_OPT_SSL_FIPS_MODE
+    MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND,
+    MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH, MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT,
+    MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
+    MYSQL_OPT_TLS_CIPHERSUITES, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
+    MYSQL_OPT_TLS_VERSION, MYSQL_SERVER_PUBLIC_KEY, MYSQL_OPT_SSL_FIPS_MODE
 
   <none, error returned>
     MYSQL_OPT_NAMED_PIPE, MYSQL_OPT_CONNECT_ATTR_RESET,
@@ -5854,6 +5868,11 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
       break;
     case MYSQL_OPT_SSL_CIPHER:
       *((char **)arg) = mysql->options.ssl_cipher;
+      break;
+    case MYSQL_OPT_TLS_CIPHERSUITES:
+      *((char **)arg) = mysql->options.extension
+                            ? mysql->options.extension->tls_ciphersuites
+                            : NULL;
       break;
     case MYSQL_OPT_RETRY_COUNT:
       *((uint *)arg) =

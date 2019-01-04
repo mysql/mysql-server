@@ -8172,6 +8172,9 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Current_tls_cipher", (char *)&SslAcceptorContext::show_ssl_get_ssl_cipher,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Current_tls_ciphersuites",
+     (char *)&SslAcceptorContext::show_ssl_get_tls_ciphersuites, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Current_tls_crl", (char *)&SslAcceptorContext::show_ssl_get_ssl_crl,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Current_tls_crlpath",
@@ -8658,6 +8661,7 @@ bool mysqld_get_one_option(int optid,
     case OPT_SSL_CA:
     case OPT_SSL_CAPATH:
     case OPT_SSL_CIPHER:
+    case OPT_TLS_CIPHERSUITES:
     case OPT_SSL_CRL:
     case OPT_SSL_CRLPATH:
     case OPT_TLS_VERSION:

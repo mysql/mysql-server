@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -207,7 +207,8 @@ enum mysql_option {
   MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
   MYSQL_OPT_RETRY_COUNT,
   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
-  MYSQL_OPT_SSL_FIPS_MODE
+  MYSQL_OPT_SSL_FIPS_MODE,
+  MYSQL_OPT_TLS_CIPHERSUITES
 };
 
 /**

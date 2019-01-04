@@ -1,1 +1,3 @@
+--tls-version=TLSv1.2
 --ssl-cipher=DHE-RSA-AES256-SHA
+--tls-ciphersuites=""

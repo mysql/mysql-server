@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -480,13 +480,23 @@ uint get_fips_mode() { return FIPS_mode(); }
 long process_tls_version(const char *tls_version) {
   const char *separator = ",";
   char *token, *lasts = NULL;
-  unsigned int tls_versions_count = 3;
-  const char *tls_version_name_list[3] = {"TLSv1", "TLSv1.1", "TLSv1.2"};
+
+#ifdef HAVE_TLSv13
+  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2",
+                                         "TLSv1.3"};
+  const char ctx_flag_default[] = "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3";
+  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1,
+                               SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3};
+  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
+                      SSL_OP_NO_TLSv1_3;
+#else
+  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2"};
   const char ctx_flag_default[] = "TLSv1,TLSv1.1,TLSv1.2";
-  const long tls_ctx_list[3] = {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1,
-                                SSL_OP_NO_TLSv1_2};
+  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1,
+                               SSL_OP_NO_TLSv1_2};
   long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
-  unsigned int index = 0;
+#endif /* HAVE_TLSv13 */
+  const unsigned int tls_versions_count = array_elements(tls_version_name_list);
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
   int tls_found = 0;
 
@@ -499,11 +509,10 @@ long process_tls_version(const char *tls_version) {
   strncpy(tls_version_option, tls_version, sizeof(tls_version_option));
   token = my_strtok_r(tls_version_option, separator, &lasts);
   while (token) {
-    for (index = 0; index < tls_versions_count; index++) {
-      if (!my_strcasecmp(&my_charset_latin1, tls_version_name_list[index],
-                         token)) {
+    for (unsigned int i = 0; i < tls_versions_count; i++) {
+      if (!my_strcasecmp(&my_charset_latin1, tls_version_name_list[i], token)) {
         tls_found = 1;
-        tls_ctx_flag = tls_ctx_flag & (~tls_ctx_list[index]);
+        tls_ctx_flag &= ~tls_ctx_list[i];
         break;
       }
     }
@@ -539,7 +548,8 @@ static int wolfssl_send(WOLFSSL *ssl, char *buf, int sz, void *vio) {
 /************************ VioSSLFd **********************************/
 static struct st_VioSSLFd *new_VioSSLFd(
     const char *key_file, const char *cert_file, const char *ca_file,
-    const char *ca_path, const char *cipher, bool is_client,
+    const char *ca_path, const char *cipher,
+    const char *ciphersuites MY_ATTRIBUTE((unused)), bool is_client,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
     const long ssl_ctx_flags) {
   DH *dh;
@@ -566,19 +576,48 @@ static struct st_VioSSLFd *new_VioSSLFd(
 
   ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
                     (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
-                     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2);
+                     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2
+#ifdef HAVE_TLSv13
+                     | SSL_OP_NO_TLSv1_3
+#endif /* HAVE_TLSv13 */
+                    );
   if (!(ssl_fd = ((struct st_VioSSLFd *)my_malloc(
             key_memory_vio_ssl_fd, sizeof(struct st_VioSSLFd), MYF(0)))))
     DBUG_RETURN(0);
 
-  if (!(ssl_fd->ssl_context = SSL_CTX_new(
-            is_client ? SSLv23_client_method() : SSLv23_server_method()))) {
+  if (!(ssl_fd->ssl_context = SSL_CTX_new(is_client ?
+#ifdef HAVE_TLSv13
+                                                    TLS_client_method()
+                                                    : TLS_server_method()
+#else  /* HAVE_TLSv13 */
+                                                    SSLv23_client_method()
+                                                    : SSLv23_server_method()
+#endif /* HAVE_TLSv13 */
+                                              ))) {
     *error = SSL_INITERR_MEMFAIL;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
     report_errors();
     my_free(ssl_fd);
     DBUG_RETURN(0);
   }
+
+#ifdef HAVE_TLSv13
+  /*
+    Set OpenSSL TLS v1.3 ciphersuites.
+    Note that an empty list is permissible.
+  */
+  if (NULL != ciphersuites) {
+    /*
+      Note: if TLSv1.3 is enabled but TLSv1.3 ciphersuite list is empty
+      (that's permissible and mentioned in the documentation),
+      the connection will fail with "no ciphers available" error.
+    */
+    if (0 == SSL_CTX_set_ciphersuites(ssl_fd->ssl_context, ciphersuites)) {
+      *error = SSL_INITERR_CIPHERS;
+      goto error;
+    }
+  }
+#endif /* HAVE_TLSv13 */
 
   /*
     We explicitly prohibit weak ciphers.
@@ -601,11 +640,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
   if (ret_set_cipherlist ==
       SSL_CTX_set_cipher_list(ssl_fd->ssl_context, cipher_list)) {
     *error = SSL_INITERR_CIPHERS;
-    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
-    report_errors();
-    SSL_CTX_free(ssl_fd->ssl_context);
-    my_free(ssl_fd);
-    DBUG_RETURN(0);
+    goto error;
   }
 
   /* Load certs from the trusted ca */
@@ -615,23 +650,15 @@ static struct st_VioSSLFd *new_VioSSLFd(
     if (ca_file || ca_path) {
       /* fail only if ca file or ca path were supplied and looking into
          them fails. */
+      DBUG_PRINT("warning", ("SSL_CTX_load_verify_locations failed"));
       *error = SSL_INITERR_BAD_PATHS;
-      DBUG_PRINT("error", ("SSL_CTX_load_verify_locations failed : %s",
-                           sslGetErrString(*error)));
-      report_errors();
-      SSL_CTX_free(ssl_fd->ssl_context);
-      my_free(ssl_fd);
-      DBUG_RETURN(0);
+      goto error;
     }
 
     /* otherwise go use the defaults */
     if (SSL_CTX_set_default_verify_paths(ssl_fd->ssl_context) == 0) {
       *error = SSL_INITERR_BAD_PATHS;
-      DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
-      report_errors();
-      SSL_CTX_free(ssl_fd->ssl_context);
-      my_free(ssl_fd);
-      DBUG_RETURN(0);
+      goto error;
     }
   }
 
@@ -647,43 +674,28 @@ static struct st_VioSSLFd *new_VioSSLFd(
             store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL) == 0) {
       DBUG_PRINT("warning", ("X509_STORE_load_locations for CRL failed"));
       *error = SSL_INITERR_BAD_PATHS;
-      DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
-      report_errors();
-      SSL_CTX_free(ssl_fd->ssl_context);
-      my_free(ssl_fd);
-      DBUG_RETURN(0);
+      goto error;
     }
 #endif
   }
 
   if (vio_set_cert_stuff(ssl_fd->ssl_context, cert_file, key_file, error)) {
-    DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
-    report_errors();
-    SSL_CTX_free(ssl_fd->ssl_context);
-    my_free(ssl_fd);
-    DBUG_RETURN(0);
+    DBUG_PRINT("warning", ("vio_set_cert_stuff failed"));
+    goto error;
   }
 
   /* Server specific check : Must have certificate and key file */
   if (!is_client && !key_file && !cert_file) {
     *error = SSL_INITERR_NO_USABLE_CTX;
-    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
-    report_errors();
-    SSL_CTX_free(ssl_fd->ssl_context);
-    my_free(ssl_fd);
-    DBUG_RETURN(0);
+    goto error;
   }
 
   /* DH stuff */
   dh = get_dh2048();
   if (SSL_CTX_set_tmp_dh(ssl_fd->ssl_context, dh) == 0) {
-    *error = SSL_INITERR_DHFAIL;
-    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
-    report_errors();
     DH_free(dh);
-    SSL_CTX_free(ssl_fd->ssl_context);
-    my_free(ssl_fd);
-    DBUG_RETURN(0);
+    *error = SSL_INITERR_DHFAIL;
+    goto error;
   }
   DH_free(dh);
 
@@ -698,13 +710,22 @@ static struct st_VioSSLFd *new_VioSSLFd(
   DBUG_PRINT("exit", ("OK 1"));
 
   DBUG_RETURN(ssl_fd);
+
+error:
+  DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+  report_errors();
+  SSL_CTX_free(ssl_fd->ssl_context);
+  my_free(ssl_fd);
+  DBUG_RETURN(0);
 }
 
-/************************ VioSSLConnectorFd **********************************/
+/************************ VioSSLConnectorFd
+ * **********************************/
 struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
-    const char *ca_path, const char *cipher, enum enum_ssl_init_error *error,
-    const char *crl_file, const char *crl_path, const long ssl_ctx_flags) {
+    const char *ca_path, const char *cipher, const char *ciphersuites,
+    enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
+    const long ssl_ctx_flags) {
   struct st_VioSSLFd *ssl_fd;
   int verify = SSL_VERIFY_PEER;
 
@@ -714,9 +735,9 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
   */
   if (ca_file == 0 && ca_path == 0) verify = SSL_VERIFY_NONE;
 
-  if (!(ssl_fd =
-            new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher, true,
-                         error, crl_file, crl_path, ssl_ctx_flags))) {
+  if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
+                              ciphersuites, true, error, crl_file, crl_path,
+                              ssl_ctx_flags))) {
     return 0;
   }
 
@@ -730,13 +751,14 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
 /************************ VioSSLAcceptorFd **********************************/
 struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
-    const char *ca_path, const char *cipher, enum enum_ssl_init_error *error,
-    const char *crl_file, const char *crl_path, const long ssl_ctx_flags) {
+    const char *ca_path, const char *cipher, const char *ciphersuites,
+    enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
+    const long ssl_ctx_flags) {
   struct st_VioSSLFd *ssl_fd;
   int verify = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
-  if (!(ssl_fd =
-            new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher, false,
-                         error, crl_file, crl_path, ssl_ctx_flags))) {
+  if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
+                              ciphersuites, false, error, crl_file, crl_path,
+                              ssl_ctx_flags))) {
     return 0;
   }
   /* Init the the VioSSLFd as a "acceptor" ie. the server side */
