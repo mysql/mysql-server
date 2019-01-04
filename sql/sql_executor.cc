@@ -2127,7 +2127,8 @@ void JOIN::create_iterators() {
     enum {
       MATERIALIZE,
       AGGREGATE_THEN_MATERIALIZE,
-      AGGREGATE_INTO_TMP_TABLE
+      AGGREGATE_INTO_TMP_TABLE,
+      WINDOWING_FUNCTION
     } type;
   };
   vector<MaterializeOperation> final_materializations;
@@ -2165,9 +2166,12 @@ void JOIN::create_iterators() {
       } else if (tmp_op->get_write_func() == end_write_group) {
         final_materializations.push_back(MaterializeOperation{
             qep_tab + 1, MaterializeOperation::AGGREGATE_THEN_MATERIALIZE});
-      } else {
+      } else if (tmp_op->get_write_func() == end_update) {
         final_materializations.push_back(MaterializeOperation{
             qep_tab + 1, MaterializeOperation::AGGREGATE_INTO_TMP_TABLE});
+      } else if (tmp_op->get_write_func() == end_write_wf) {
+        final_materializations.push_back(MaterializeOperation{
+            qep_tab + 1, MaterializeOperation::WINDOWING_FUNCTION});
       }
     }
 
@@ -2181,8 +2185,8 @@ void JOIN::create_iterators() {
     }
   }
 
-  // Similarly, no rollup or window functions.
-  if (rollup.state != ROLLUP::STATE_NONE || m_windows.elements != 0) {
+  // Similarly, no rollup.
+  if (rollup.state != ROLLUP::STATE_NONE) {
     return;
   }
 
@@ -2283,7 +2287,26 @@ void JOIN::create_iterators() {
 
     qep_tab->table()->alias = "<temporary>";
 
-    if (materialize_op.type == MaterializeOperation::AGGREGATE_INTO_TMP_TABLE) {
+    if (materialize_op.type == MaterializeOperation::WINDOWING_FUNCTION) {
+      if (qep_tab->tmp_table_param->m_window->needs_buffering()) {
+        iterator.reset(new (thd->mem_root) BufferingWindowingIterator(
+            thd, move(iterator), qep_tab->tmp_table_param, this,
+            qep_tab->ref_item_slice));
+      } else {
+        iterator.reset(new (thd->mem_root) WindowingIterator(
+            thd, move(iterator), qep_tab->tmp_table_param, this,
+            qep_tab->ref_item_slice));
+      }
+      if (!qep_tab->tmp_table_param->m_window_short_circuit) {
+        iterator.reset(new (thd->mem_root) MaterializeIterator(
+            thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
+            move(qep_tab->read_record.iterator), /*cte=*/nullptr, select_lex,
+            this,
+            /*ref_slice=*/-1, /*copy_fields_and_items_in_materialize=*/false,
+            qep_tab->rematerialize, tmp_table_param.end_write_records));
+      }
+    } else if (materialize_op.type ==
+               MaterializeOperation::AGGREGATE_INTO_TMP_TABLE) {
       iterator.reset(new (thd->mem_root) TemptableAggregateIterator(
           thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
           move(qep_tab->read_record.iterator), select_lex, this,
@@ -5316,8 +5339,8 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
                             buffer the row.
   @return true if error.
 */
-static bool buffer_windowing_record(THD *thd, Temp_table_param *param,
-                                    bool *new_partition) {
+bool buffer_windowing_record(THD *thd, Temp_table_param *param,
+                             bool *new_partition) {
   DBUG_ENTER("buffer_windowing_record");
   Window *w = param->m_window;
 
@@ -5482,10 +5505,10 @@ inline static void dbug_restore_all_columns(
 
   @return true on error
 */
-static bool bring_back_frame_row(THD *thd, Window &w,
-                                 Temp_table_param *out_param, int64 rowno,
-                                 enum Window::retrieve_cached_row_reason reason,
-                                 int fno = 0) {
+bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
+                          int64 rowno,
+                          enum Window::retrieve_cached_row_reason reason,
+                          int fno) {
   DBUG_ENTER("bring_back_frame_row");
   DBUG_PRINT("enter", ("rowno: %lld reason: %d fno: %d", rowno, reason, fno));
   DBUG_ASSERT(reason == Window::REA_MISC_POSITIONS || fno == 0);
@@ -5736,9 +5759,9 @@ bool process_wfs_needing_card(
 
   @return true if error
 */
-static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
-                                              const bool new_partition_or_eof,
-                                              bool *output_row_ready) {
+bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
+                                       const bool new_partition_or_eof,
+                                       bool *output_row_ready) {
   DBUG_ENTER("process_buffered_windowing_record");
   /**
     The current window

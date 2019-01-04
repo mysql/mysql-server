@@ -52,13 +52,14 @@
 #include "sql/row_iterator.h"
 #include "sql/table.h"
 
+template <class T>
+class List;
 class JOIN;
 class SELECT_LEX;
 class SJ_TMP_TABLE;
 class THD;
 class Temp_table_param;
-template <class T>
-class List;
+class Window;
 
 /**
   An iterator that takes in a stream of rows and passes through only those that
@@ -769,6 +770,123 @@ class NestedLoopSemiJoinWithDuplicateRemovalIterator final
   uchar *m_key_buf;  // Owned by the THD's MEM_ROOT.
   const size_t m_key_len;
   bool m_deduplicate_against_previous_row;
+};
+
+/**
+  WindowingIterator is similar to AggregateIterator, but deals with windowed
+  aggregates (i.e., OVER expressions). It deals specifically with aggregates
+  that don't need to buffer rows.
+
+  WindowingIterator always outputs to a temporary table. Similarly to
+  AggregateIterator, needs to do some of MaterializeIterator's work in
+  copying fields and Items into the destination fields (see AggregateIterator
+  for more information).
+ */
+class WindowingIterator final : public RowIterator {
+ public:
+  WindowingIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
+                    Temp_table_param *temp_table_param,  // Includes the window.
+                    JOIN *join, int output_slice);
+
+  bool Init() override;
+
+  int Read() override;
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
+
+  void UnlockRow() override {
+    // There's nothing we can do here.
+  }
+
+  std::vector<std::string> DebugString() const override;
+
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source.get(), ""}};
+  }
+
+ private:
+  /// The iterator we are reading from.
+  unique_ptr_destroy_only<RowIterator> const m_source;
+
+  /// Parameters for the temporary table we are outputting to.
+  Temp_table_param *m_temp_table_param;
+
+  /// The window function itself.
+  Window *m_window;
+
+  /// The join we are a part of.
+  JOIN *m_join;
+
+  /// The slice we will be using when reading rows.
+  int m_input_slice;
+
+  /// The slice we will be using when outputting rows.
+  int m_output_slice;
+};
+
+/**
+  BufferingWindowingIterator is like WindowingIterator, but deals with window
+  functions that need to buffer rows.
+ */
+class BufferingWindowingIterator final : public RowIterator {
+ public:
+  BufferingWindowingIterator(
+      THD *thd, unique_ptr_destroy_only<RowIterator> source,
+      Temp_table_param *temp_table_param,  // Includes the window.
+      JOIN *join, int output_slice);
+
+  bool Init() override;
+
+  int Read() override;
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
+
+  void UnlockRow() override {
+    // There's nothing we can do here.
+  }
+
+  std::vector<std::string> DebugString() const override;
+
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source.get(), ""}};
+  }
+
+ private:
+  int ReadBufferedRow(bool new_partition_or_eof);
+
+  /// The iterator we are reading from.
+  unique_ptr_destroy_only<RowIterator> const m_source;
+
+  /// Parameters for the temporary table we are outputting to.
+  Temp_table_param *m_temp_table_param;
+
+  /// The window function itself.
+  Window *m_window;
+
+  /// The join we are a part of.
+  JOIN *m_join;
+
+  /// The slice we will be using when reading rows.
+  int m_input_slice;
+
+  /// The slice we will be using when outputting rows.
+  int m_output_slice;
+
+  /// If true, we may have more buffered rows to process that need to be
+  /// checked for before reading more rows from the source.
+  bool m_possibly_buffered_rows;
+
+  /// Whether the last input row started a new partition, and was tucked away
+  /// to finalize the previous partition; if so, we need to bring it back
+  /// for processing before we read more rows.
+  bool m_last_input_row_started_new_partition;
+
+  /// Whether we have seen the last input row.
+  bool m_eof;
 };
 
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

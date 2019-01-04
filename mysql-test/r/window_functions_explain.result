@@ -16706,106 +16706,122 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 1,
-                "columns": 5,
-                "row_length": 22,
-                "key_length": 5,
-                "unique_constraint": false,
-                "makes_grouped_rows": true,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
-            "sorting_table_in_plan_at_position": 1,
-            "filesort_information": [
-              {
-                "direction": "asc",
-                "table": "intermediate_tmp_table",
-                "field": "i"
-              }
-            ],
-            "filesort_priority_queue_optimization": {
-              "usable": false,
-              "cause": "not applicable (no LIMIT)"
-            },
-            "filesort_execution": [
-            ],
-            "filesort_summary": {
-              "memory_available": 262144,
-              "key_size": "XXX",
-              "row_size": "XXX",
-              "max_rows_per_buffer": 34,
-              "num_rows_estimate": 34,
-              "num_rows_found": 24,
-              "num_initial_chunks_spilled_to_disk": 0,
-              "peak_memory_used": "NNN",
-              "sort_algorithm": "std::stable_sort",
-              "unpacked_addon_fields": "using_heap_table",
-              "sort_mode": "<fixed_sort_key, rowid>"
-            }
-          },
-          {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 2,
-                "columns": 6,
-                "row_length": 29,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
-            "sorting_table_in_plan_at_position": 2,
-            "filesort_information": [
-              {
-                "direction": "desc",
-                "table": "intermediate_tmp_table",
-                "field": "i"
-              }
-            ],
-            "filesort_priority_queue_optimization": {
-              "usable": false,
-              "cause": "not applicable (no LIMIT)"
-            },
-            "filesort_execution": [
-            ],
-            "filesort_summary": {
-              "memory_available": 262144,
-              "key_size": "XXX",
-              "row_size": "XXX",
-              "max_rows_per_buffer": 34,
-              "num_rows_estimate": 34,
-              "num_rows_found": 24,
-              "num_initial_chunks_spilled_to_disk": 0,
-              "peak_memory_used": "NNN",
-              "sort_algorithm": "std::stable_sort",
-              "unpacked_addon_fields": "using_heap_table",
-              "sort_mode": "<fixed_sort_key, rowid>"
-            }
-          },
-          {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 3,
-                "columns": 7,
-                "row_length": 45,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
+            "materialize": {
+              "select#": 1,
+              "steps": [
+                {
+                  "materialize": {
+                    "select#": 1,
+                    "steps": [
+                      {
+                        "materialize": {
+                          "select#": 1,
+                          "steps": [
+                            {
+                              "creating_tmp_table": {
+                                "tmp_table_info": {
+                                  "in_plan_at_position": 1,
+                                  "columns": 5,
+                                  "row_length": 22,
+                                  "key_length": 5,
+                                  "unique_constraint": false,
+                                  "makes_grouped_rows": true,
+                                  "cannot_insert_duplicates": false,
+                                  "location": "TempTable"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "sorting_table_in_plan_at_position": 1,
+                        "filesort_information": [
+                          {
+                            "direction": "asc",
+                            "field": "i"
+                          }
+                        ],
+                        "filesort_priority_queue_optimization": {
+                          "usable": false,
+                          "cause": "not applicable (no LIMIT)"
+                        },
+                        "filesort_execution": [
+                        ],
+                        "filesort_summary": {
+                          "memory_available": 262144,
+                          "key_size": "XXX",
+                          "row_size": "XXX",
+                          "max_rows_per_buffer": 34,
+                          "num_rows_estimate": 34,
+                          "num_rows_found": 24,
+                          "num_initial_chunks_spilled_to_disk": 0,
+                          "peak_memory_used": "NNN",
+                          "sort_algorithm": "std::stable_sort",
+                          "unpacked_addon_fields": "using_heap_table",
+                          "sort_mode": "<fixed_sort_key, rowid>"
+                        }
+                      },
+                      {
+                        "creating_tmp_table": {
+                          "tmp_table_info": {
+                            "in_plan_at_position": 2,
+                            "columns": 6,
+                            "row_length": 29,
+                            "key_length": 0,
+                            "unique_constraint": false,
+                            "makes_grouped_rows": false,
+                            "cannot_insert_duplicates": false,
+                            "location": "TempTable"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "sorting_table_in_plan_at_position": 2,
+                  "filesort_information": [
+                    {
+                      "direction": "desc",
+                      "field": "i"
+                    }
+                  ],
+                  "filesort_priority_queue_optimization": {
+                    "usable": false,
+                    "cause": "not applicable (no LIMIT)"
+                  },
+                  "filesort_execution": [
+                  ],
+                  "filesort_summary": {
+                    "memory_available": 262144,
+                    "key_size": "XXX",
+                    "row_size": "XXX",
+                    "max_rows_per_buffer": 34,
+                    "num_rows_estimate": 34,
+                    "num_rows_found": 24,
+                    "num_initial_chunks_spilled_to_disk": 0,
+                    "peak_memory_used": "NNN",
+                    "sort_algorithm": "std::stable_sort",
+                    "unpacked_addon_fields": "using_heap_table",
+                    "sort_mode": "<fixed_sort_key, rowid>"
+                  }
+                },
+                {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "in_plan_at_position": 3,
+                      "columns": 7,
+                      "row_length": 45,
+                      "key_length": 0,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": false,
+                      "cannot_insert_duplicates": false,
+                      "location": "TempTable"
+                    }
+                  }
+                }
+              ]
             }
           },
           {
@@ -16813,7 +16829,6 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "i"
               }
             ],

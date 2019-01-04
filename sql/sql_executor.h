@@ -751,4 +751,14 @@ void SplitConditions(Item *condition,
                      std::vector<Item *> *predicates_below_join,
                      std::vector<PendingCondition> *predicates_above_join);
 
+bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
+                                       const bool new_partition_or_eof,
+                                       bool *output_row_ready);
+bool buffer_windowing_record(THD *thd, Temp_table_param *param,
+                             bool *new_partition);
+bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
+                          int64 rowno,
+                          enum Window::retrieve_cached_row_reason reason,
+                          int fno = 0);
+
 #endif /* SQL_EXECUTOR_INCLUDED */
