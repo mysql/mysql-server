@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -121,4 +121,5 @@ usr/lib/mysql/plugin/debug/replication_observers_example_plugin.so
 usr/lib/mysql/plugin/debug/rewrite_example.so
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/test_udf_services.so
+usr/lib/mysql/plugin/debug/udf_example.so
 ")
