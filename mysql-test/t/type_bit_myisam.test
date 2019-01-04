@@ -89,8 +89,10 @@ select hex(max(b)) from t1;
 select a+0, b+0, c+0 from t1 where a = 4 and b = 0 limit 2;
 select a+0, b+0, c+0 from t1 where a = 4 and b = 1;
 select a+0, b+0, c+0 from t1 where a = 4 and b = 1 and c=100;
-select a+0, b+0, c+0 from t1 order by b desc;
-select a+0, b+0, c+0 from t1 order by c;
+--partially_sorted_result 1
+select b+0, a+0, c+0 from t1 order by b desc;
+--partially_sorted_result 1
+select c+0, a+0, b+0 from t1 order by c;
 drop table t1;
 
 create table t1(a bit(2), b bit(2));

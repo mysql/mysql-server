@@ -2230,9 +2230,6 @@ void JOIN::create_iterators() {
       // Recursive CTE.
       return;
     }
-    if (qep_tab->needs_duplicate_removal) {
-      return;
-    }
   }
 
   // OK, so we're good. Go through the tables and make the join iterators.
@@ -2408,9 +2405,63 @@ void JOIN::create_iterators() {
       qep_tab->mark_condition_as_pushed_to_sort();
     }
 
+    // The pre-iterator executor does duplicate removal by going into the
+    // temporary table and actually deleting records, using a hash table for
+    // smaller tables and an O(n²) algorithm for large tables. This kind of
+    // deletion is not cleanly representable in the iterator model, so we do it
+    // using a duplicate-removing filesort instead, which has a straight-up
+    // O(n log n) cost.
+    if (qep_tab->needs_duplicate_removal) {
+      bool all_order_fields_used;
+      ORDER *order = create_order_from_distinct(
+          thd, ref_items[qep_tab->ref_item_slice], this->order, fields_list,
+          /*skip_aggregates=*/false, &all_order_fields_used);
+      if (order == nullptr) {
+        // Only const fields.
+        iterator.reset(new (thd->mem_root) LimitOffsetIterator(
+            thd, move(iterator), /*select_limit_cnt=*/1, /*offset_limit_cnt=*/0,
+            /*count_all_rows=*/false, /*skipped_rows=*/nullptr));
+      } else {
+        bool force_sort_positions = false;
+        if (all_order_fields_used) {
+          // The ordering for DISTINCT already gave us the right sort order,
+          // so no need to sort again.
+          filesort = nullptr;
+        } else if (filesort != nullptr) {
+          // We have the rather unusual situation here that we have two sorts
+          // directly after each other, with no temporary table in-between,
+          // and filesort expects to be able to refer to rows by their position
+          // (unless it's using addon fields). Usually, the sort for DISTINCT
+          // would be a superset of the sort for ORDER BY, but not always
+          // (e.g. when sorting by some expression), so we could end up in a
+          // situation where the first sort is by addon fields and the second
+          // one is by positions.
+          //
+          // Thus, in this case, we force the first sort to be by positions,
+          // so that the result comes from SortFileIndirectIterator or
+          // SortBufferIndirectIterator. These will both position the cursor
+          // on the underlying temporary table correctly before returning it,
+          // so that the successive filesort will save the right position
+          // for the row.
+          //
+          // TODO: If we knew ahead of time (before calling filesort) whether
+          // we could use addon fields or not, we could be smarter here.
+          force_sort_positions = true;
+        }
+
+        Filesort *dup_filesort = new (thd->mem_root)
+            Filesort(qep_tab, order, HA_POS_ERROR, /*force_stable_sort=*/false,
+                     /*remove_duplicates=*/true);
+        iterator.reset(new (thd->mem_root) SortingIterator(
+            thd, dup_filesort, move(iterator), force_sort_positions,
+            &examined_rows));
+      }
+    }
+
     if (filesort != nullptr) {
       iterator.reset(new (thd->mem_root) SortingIterator(
-          thd, filesort, move(iterator), &examined_rows));
+          thd, filesort, move(iterator), qep_tab->keep_current_rowid,
+          &examined_rows));
     }
   }
 
@@ -2468,11 +2519,11 @@ void JOIN::create_iterators() {
         calc_found_rows, &send_records));
   }
 
-#if 0
-  // This can be useful during debugging.
-  fprintf(stderr, "Query plan:\n%s\n",
-          PrintQueryPlan(0, iterator.get()).c_str());
-#endif
+  if (false) {
+    // This can be useful during debugging.
+    fprintf(stderr, "Query plan:\n%s\n",
+            PrintQueryPlan(0, iterator.get()).c_str());
+  }
 
   iterator->set_join(this);
   m_root_iterator = move(iterator);
@@ -4196,7 +4247,7 @@ vector<string> DynamicRangeIterator::DebugString() const {
     Prior to reading the table following tasks are done, (in the order of
     execution):
       .) derived tables are materialized
-      .) duplicates removed (tmp tables only)
+      .) pre-iterator executor only: duplicates removed (tmp tables only)
       .) table is sorted with filesort (both non-tmp and tmp tables)
     After this have been done this function resets quick select, if it's
     present, sets up table reading functions, and reads first record.
@@ -4210,8 +4261,6 @@ vector<string> DynamicRangeIterator::DebugString() const {
 */
 
 void join_setup_read_record(QEP_TAB *tab) {
-  DBUG_ASSERT(!tab->needs_duplicate_removal);
-
   setup_read_record(&tab->read_record, tab->join()->thd, NULL, tab, false,
                     /*ignore_not_found_rows=*/false, /*examined_rows=*/nullptr);
 
@@ -4228,9 +4277,9 @@ void join_setup_read_record(QEP_TAB *tab) {
     // Wrap the chosen RowIterator in a SortingIterator, so that we get
     // sorted results out.
     unique_ptr_destroy_only<RowIterator> sort(
-        new (&tab->read_record.sort_holder)
-            SortingIterator(tab->join()->thd, tab->filesort, move(iterator),
-                            &tab->join()->examined_rows));
+        new (&tab->read_record.sort_holder) SortingIterator(
+            tab->join()->thd, tab->filesort, move(iterator),
+            tab->keep_current_rowid, &tab->join()->examined_rows));
     tab->read_record.iterator = move(sort);
   }
 }

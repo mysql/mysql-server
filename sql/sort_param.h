@@ -280,6 +280,12 @@ class Sort_param {
   TABLE *sort_form{nullptr};    // For quicker make_sortkey.
   bool use_hash{false};         // Whether to use hash to distinguish cut JSON
   bool m_force_stable_sort{false};  // Keep relative order of equal elements
+  bool m_remove_duplicates{
+      false};  ///< Whether we want to remove duplicate rows
+
+  /// If we are removing duplicate rows and merging, contains a buffer where we
+  /// can store the last key seen.
+  uchar *m_last_key_seen{nullptr};
 
   /**
     ORDER BY list with some precalculated info for filesort.
@@ -303,12 +309,13 @@ class Sort_param {
     @param max_length_for_sort_data from thd->variables
     @param maxrows   HA_POS_ERROR or possible LIMIT value
     @param sort_positions see documentation for the filesort() function
+    @param remove_duplicates if true, items with duplicate keys will be removed
   */
   void init_for_filesort(Filesort *file_sort,
                          Bounds_checked_array<st_sort_field> sf_array,
                          uint sortlen, TABLE *table,
                          ulong max_length_for_sort_data, ha_rows maxrows,
-                         bool sort_positions);
+                         bool sort_positions, bool remove_duplicates);
 
   /// Enables the packing of addons if possible.
   void try_to_pack_addons(ulong max_length_for_sort_data);

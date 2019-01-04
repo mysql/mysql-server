@@ -443,8 +443,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
       unique_ptr_destroy_only<RowIterator> sort(new (
           &info.sort_holder) SortingIterator(thd, fsort.get(), move(iterator),
+                                             /*force_sort_position=*/true,
                                              /*rows_examined=*/nullptr));
-      qep_tab.keep_current_rowid = true;  // Force filesort to sort by position.
       if (sort->Init()) DBUG_RETURN(true);
       info.iterator = move(sort);
       thd->inc_examined_row_count(examined_rows);

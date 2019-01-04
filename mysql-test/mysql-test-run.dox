@@ -7611,6 +7611,21 @@
     </li>
 
     <li>
+      <tt>partially_sorted_result <b>start_column</b></tt>
+
+      Similarly to <b>sorted_result</b>, but assumes that the first
+      <b>start_column</b> columns are already sorted, sorting only
+      on the remaining ones. This is useful if you wish to verify
+      a partial ordering property, e.g. that <b>SELECT a,b,c ORDER BY
+      a</b>. In this case, you could use <b>partially_sorted_result 1</b>
+      to sort only on b and c, giving deterministic results without
+      masking bugs where sorting on a column would not work correctly.
+
+      <tt>sorted_result</tt> is functionally equal to
+      <tt>partially_sorted_result 0</tt>.
+    </li>
+
+    <li>
       <tt>source <b>file_name</b></tt>
 
       Read test input from the named file.

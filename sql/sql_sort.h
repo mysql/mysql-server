@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,9 +182,11 @@ class Filesort_info {
 
   Filesort_info() : m_using_varlen_keys(false), m_sort_length(0) {}
 
-  /** Sort filesort_buffer */
-  void sort_buffer(Sort_param *param, uint count) {
-    filesort_buffer.sort_buffer(param, count);
+  /** Sort filesort_buffer
+    @return Number of records, after any deduplication
+   */
+  unsigned sort_buffer(Sort_param *param, uint count) {
+    return filesort_buffer.sort_buffer(param, count);
   }
 
   /**

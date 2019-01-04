@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,9 +59,10 @@ class Filesort {
   bool m_force_stable_sort;
   /// Addon fields descriptor
   Addon_fields *addon_fields;
+  bool m_remove_duplicates;
 
   Filesort(QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
-           bool force_stable_sort = false);
+           bool force_stable_sort = false, bool remove_duplicates = false);
 
   Addon_fields *get_addon_fields(ulong max_length_for_sort_data,
                                  Field **ptabfield, uint sortlength,
@@ -80,7 +81,7 @@ class Filesort {
 
 bool filesort(THD *thd, Filesort *fsort, bool sort_positions,
               RowIterator *source_iterator, Sort_result *sort_result,
-              ha_rows *found_rows, ha_rows *returned_rows);
+              ha_rows *found_rows);
 void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr, uchar *to);
 

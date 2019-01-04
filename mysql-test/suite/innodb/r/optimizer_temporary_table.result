@@ -2714,9 +2714,9 @@ Warnings:
 Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`b`
 select sql_big_result distinct t1.a from t1, t2 group by t1.b;
 a
-9
 2
 3
+9
 explain format = json select t1.* from t1 inner join t2 on t1.a = t2.a order by t2.a;
 EXPLAIN
 {
@@ -3142,10 +3142,10 @@ Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`b`,`test`.`t1`.`a`
 select distinct a from t1 group by b,a;
 a
-9
 2
 3
 4
+9
 set @old_sort_buffer_size = @@sort_buffer_size;
 set @@sort_buffer_size = 32804;
 explain format = json select distinct b from t3 group by a having count(*) > 1;

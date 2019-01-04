@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,11 +74,13 @@ bool merge_many_buff(THD *thd, Merge_param *param, Sort_buffer sort_buffer,
     for (i = 0; i < num_chunks - MERGEBUFF * 3U / 2U; i += MERGEBUFF) {
       if (merge_buffers(thd, param, from_file, to_file, sort_buffer,
                         last_chunk++,
-                        Merge_chunk_array(&chunk_array[i], MERGEBUFF), 0))
+                        Merge_chunk_array(&chunk_array[i], MERGEBUFF),
+                        /*include_keys=*/true))
         goto cleanup;
     }
     if (merge_buffers(thd, param, from_file, to_file, sort_buffer, last_chunk++,
-                      Merge_chunk_array(&chunk_array[i], num_chunks - i), 0))
+                      Merge_chunk_array(&chunk_array[i], num_chunks - i),
+                      /*include_keys=*/true))
       break;                            /* purecov: inspected */
     if (flush_io_cache(to_file)) break; /* purecov: inspected */
 

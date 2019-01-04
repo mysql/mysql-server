@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,8 +110,10 @@ class Filesort_buffer {
         m_current_block_size(0),
         m_space_used_other_blocks(0) {}
 
-  /** Sort me... */
-  void sort_buffer(Sort_param *param, uint count);
+  /** Sort me...
+    @return Number of records, after any deduplication
+   */
+  unsigned sort_buffer(Sort_param *param, uint count);
 
   /**
     Prepares the buffer for the next batch of records to process.

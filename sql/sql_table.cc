@@ -16903,11 +16903,11 @@ static int copy_data_between_tables(
     if (setup_order(thd, select_lex->base_ref_items, &tables, fields,
                     all_fields, order))
       goto err;
-    qep_tab.keep_current_rowid = true;  // Force filesort to sort by position.
     fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
     unique_ptr_destroy_only<RowIterator> sort(
         new (&info.sort_holder)
             SortingIterator(thd, fsort.get(), move(info.iterator),
+                            /*force_sort_position=*/true,
                             /*examined_rows=*/nullptr));
     if (sort->Init()) {
       error = 1;

@@ -650,6 +650,7 @@ INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
 SELECT c1, c2, COUNT(*) FROM t1 GROUP BY c1 LIMIT 4;
 
 # The actual test case
+EXPLAIN FORMAT=tree SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 
 # Cleanup
@@ -948,3 +949,24 @@ EXPLAIN FORMAT=tree SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEF
 DROP TABLE t1, t2, t3;
 
 SET optimizer_switch=@old_optimizer_switch;
+
+--echo #
+--echo # Test that DISTINCT-by-filesort manages to deduplicate across sort chunks.
+--echo #
+
+SET @old_sort_buffer_size = @@sort_buffer_size;
+SET @@sort_buffer_size = 32768;
+CREATE TABLE t1 ( f FLOAT );
+INSERT INTO t1 VALUES (0.0);
+INSERT INTO t1 SELECT RAND() FROM t1 AS t1, t1 AS t2;  # 3 rows.
+INSERT INTO t1 SELECT RAND() FROM t1 AS t1, t1 AS t2;  # 6 rows.
+INSERT INTO t1 SELECT RAND() FROM t1 AS t1, t1 AS t2;  # 42 rows.
+INSERT INTO t1 SELECT RAND() FROM t1 AS t1, t1 AS t2;  # 1806 rows.
+INSERT INTO t1 SELECT RAND() FROM t1;  # 3612 rows.
+INSERT INTO t1 SELECT RAND() FROM t1;  # 7224 rows; enough to fill a few sort chunks.
+
+EXPLAIN FORMAT=tree SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
+SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
+
+DROP TABLE t1;
+SET @@sort_buffer_size = @old_sort_buffer_size;

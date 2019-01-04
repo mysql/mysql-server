@@ -37,7 +37,6 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>  // std::isinf
-#include <functional>
 #include <limits>
 #include <new>
 #include <regex>
@@ -211,6 +210,7 @@ static bool testcase_disabled = 0;
 static bool display_result_vertically = false, display_result_lower = false,
             display_metadata = false, display_result_sorted = false,
             display_session_track_info = false;
+static int start_sort_column = 0;
 static bool disable_query_log = 0, disable_result_log = 0;
 static bool disable_connect_log = 1;
 static bool disable_warnings = 0;
@@ -572,6 +572,7 @@ enum enum_commands {
   Q_QUERY_VERTICAL,
   Q_QUERY_HORIZONTAL,
   Q_SORTED_RESULT,
+  Q_PARTIALLY_SORTED_RESULT,
   Q_LOWERCASE,
   Q_START_TIMER,
   Q_END_TIMER,
@@ -638,11 +639,11 @@ const char *command_names[] = {
     "disable_async_client", "exec", "execw", "exec_in_background", "delimiter",
     "disable_abort_on_error", "enable_abort_on_error", "vertical_results",
     "horizontal_results", "query_vertical", "query_horizontal", "sorted_result",
-    "lowercase_result", "start_timer", "end_timer", "character_set",
-    "disable_ps_protocol", "enable_ps_protocol", "disable_reconnect",
-    "enable_reconnect", "if", "disable_testcase", "enable_testcase",
-    "replace_regex", "replace_numeric_round", "remove_file", "file_exists",
-    "write_file", "copy_file", "perl", "die",
+    "partially_sorted_result", "lowercase_result", "start_timer", "end_timer",
+    "character_set", "disable_ps_protocol", "enable_ps_protocol",
+    "disable_reconnect", "enable_reconnect", "if", "disable_testcase",
+    "enable_testcase", "replace_regex", "replace_numeric_round", "remove_file",
+    "file_exists", "write_file", "copy_file", "perl", "die",
 
     /* Don't execute any more commands, compare result */
     "exit", "skip", "chmod", "append_file", "cat_file", "diff_files",
@@ -1110,7 +1111,8 @@ static void mysql_free_result_wrapper(MYSQL_RES *result) {
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val, size_t len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
-void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input);
+void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input,
+                          int start_sort_column);
 
 void revert_properties();
 
@@ -2653,7 +2655,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
           Call the replace_numeric_round function with the specified
           precision. It may be used along with replace_result, so use the
           output from replace_result as the input for replace_numeric_round.
-       */
+*/
         if (glob_replace_numeric_round >= 0) {
           /* Copy the result from replace_result if it was used, into buffer */
           if (ds_temp.length > 0) {
@@ -8881,7 +8883,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
 
   if (display_result_sorted) {
     /* Sort the result set and append it to result */
-    dynstr_append_sorted(save_ds, &ds_sorted);
+    dynstr_append_sorted(save_ds, &ds_sorted, start_sort_column);
     ds = save_ds;
     dynstr_free(&ds_sorted);
   }
@@ -9714,6 +9716,16 @@ int main(int argc, char **argv) {
             command
           */
           display_result_sorted = true;
+          start_sort_column = 0;
+          break;
+        case Q_PARTIALLY_SORTED_RESULT:
+          /*
+            Turn on sorting of result set, will be reset after next
+            command
+          */
+          display_result_sorted = true;
+          start_sort_column = atoi(command->first_argument);
+          command->last_argument = command->end;
           break;
         case Q_LOWERCASE:
           /*
@@ -11315,18 +11327,33 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val) {
   dynstr_append_sorted
   ds - string where the sorted output will be appended
   ds_input - string to be sorted
-
+  start_sort_column - column to start sorting from (0 for sorting
+    the entire line); a stable sort will be used
 */
 
-class Comp_lines
-    : public std::binary_function<const char *, const char *, bool> {
+class Comp_lines {
  public:
   bool operator()(const char *a, const char *b) {
     return std::strcmp(a, b) < 0;
   }
 };
 
-void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input) {
+static size_t length_of_n_first_columns(const char *str,
+                                        int start_sort_column) {
+  const char *ptr = str;
+  for (int i = 0; i < start_sort_column; ++i) {
+    const char *first_tab = strchr(ptr, '\t');
+    if (first_tab == nullptr) {
+      return strlen(str);
+    } else {
+      ptr = first_tab + 1;
+    }
+  }
+  return ptr - str;
+}
+
+void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input,
+                          int start_sort_column) {
   char *start = ds_input->str;
   Prealloced_array<const char *, 32> lines(PSI_NOT_INSTRUMENTED);
   DBUG_ENTER("dynstr_append_sorted");
@@ -11339,12 +11366,30 @@ void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input) {
   dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
 
   /* Insert line(s) in array */
+  size_t first_unsorted_row = 0;
   while (*start) {
     char *line_end = (char *)start;
 
     /* Find end of line */
     while (*line_end && *line_end != '\n') line_end++;
     *line_end = 0;
+
+    if (!lines.empty() && start_sort_column > 0) {
+      /*
+        If doing partial sorting, and the prefix is different from that of the
+        previous line, the group is done. Sort it and start another one.
+       */
+      size_t prev_line_prefix_len =
+          length_of_n_first_columns(lines.back(), start_sort_column);
+      size_t this_line_prefix_len =
+          length_of_n_first_columns(start, start_sort_column);
+      if (this_line_prefix_len != prev_line_prefix_len ||
+          memcmp(lines.back(), start, prev_line_prefix_len) != 0) {
+        std::sort(lines.begin() + first_unsorted_row, lines.end(),
+                  Comp_lines());
+        first_unsorted_row = lines.size();
+      }
+    }
 
     /* Insert pointer to the line in array */
     if (lines.push_back(start)) die("Out of memory inserting lines to sort");
@@ -11353,7 +11398,8 @@ void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input) {
   }
 
   /* Sort array */
-  std::sort(lines.begin(), lines.end(), Comp_lines());
+  std::stable_sort(lines.begin() + first_unsorted_row, lines.end(),
+                   Comp_lines());
 
   /* Create new result */
   for (const char **line = lines.begin(); line != lines.end(); ++line) {

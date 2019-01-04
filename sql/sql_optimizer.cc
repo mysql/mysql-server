@@ -104,9 +104,6 @@ static bool list_contains_unique_index(JOIN_TAB *tab,
                                        void *data);
 static bool find_field_in_item_list(Field *field, void *data);
 static bool find_field_in_order_list(Field *field, void *data);
-static ORDER *create_distinct_group(THD *thd, Ref_item_array ref_item_array,
-                                    ORDER *order, List<Item> &fields,
-                                    bool *all_order_by_fields_used);
 static TABLE *get_sort_by_table(ORDER *a, ORDER *b, TABLE_LIST *tables);
 static void trace_table_dependencies(Opt_trace_context *trace,
                                      JOIN_TAB *join_tabs, uint table_count);
@@ -1226,8 +1223,9 @@ bool JOIN::optimize_distinct_group_order() {
     }
     ORDER *o;
     bool all_order_fields_used;
-    if ((o = create_distinct_group(thd, ref_items[REF_SLICE_ACTIVE], order,
-                                   fields_list, &all_order_fields_used))) {
+    if ((o = create_order_from_distinct(thd, ref_items[REF_SLICE_ACTIVE], order,
+                                        fields_list, /*skip_aggregates=*/true,
+                                        &all_order_fields_used))) {
       group_list = ORDER_with_src(o, ESC_DISTINCT);
       const bool skip_group =
           skip_sort_order &&
@@ -9920,16 +9918,10 @@ static bool find_field_in_item_list(Field *field, void *data) {
   return part_found;
 }
 
-/**
-  Create a group by that consist of all non const fields.
-
-  Try to use the fields in the order given by 'order' to allow one to
-  optimize away 'order by'.
-*/
-
-static ORDER *create_distinct_group(THD *thd, Ref_item_array ref_item_array,
-                                    ORDER *order_list, List<Item> &fields,
-                                    bool *all_order_by_fields_used) {
+ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
+                                  ORDER *order_list, List<Item> &fields,
+                                  bool skip_aggregates,
+                                  bool *all_order_by_fields_used) {
   List_iterator<Item> li(fields);
   Item *item;
   ORDER *order, *group, **prev;
@@ -9951,7 +9943,7 @@ static ORDER *create_distinct_group(THD *thd, Ref_item_array ref_item_array,
 
   li.rewind();
   while ((item = li++)) {
-    if (!item->const_item() && !item->has_aggregation() &&
+    if (!item->const_item() && (!skip_aggregates || !item->has_aggregation()) &&
         item->marker != Item::MARKER_DISTINCT_GROUP) {
       /*
         Don't put duplicate columns from the SELECT list into the

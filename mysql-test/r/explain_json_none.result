@@ -2619,7 +2619,7 @@ s
 SHOW SESSION STATUS WHERE (Variable_name LIKE 'Sort_%' OR Variable_name LIKE 'Created_%_tables') AND Value > 0;
 Variable_name	Value
 Created_tmp_tables	1
-Sort_rows	2
+Sort_rows	3
 Sort_scan	1
 DROP TABLE t1;
 # "buffer_result" node

@@ -1,7 +1,7 @@
 #ifndef SQL_SORTING_ITERATOR_H_
 #define SQL_SORTING_ITERATOR_H_
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class SortingIterator final : public RowIterator {
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortingIterator(THD *thd, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
-                  ha_rows *examined_rows);
+                  bool force_sort_positions, ha_rows *examined_rows);
   ~SortingIterator() override;
 
   // Calls Init() on the source iterator, then does the actual sort.
@@ -110,6 +110,11 @@ class SortingIterator final : public RowIterator {
   unique_ptr_destroy_only<RowIterator> m_result_iterator;
 
   Sort_result m_sort_result;
+
+  // If true, we will always sort references to rows on table (and crucially,
+  // the result iterators used will always position the underlying table on
+  // the original row before returning from Read()).
+  bool m_force_sort_positions;
 
   ha_rows *m_examined_rows;
 

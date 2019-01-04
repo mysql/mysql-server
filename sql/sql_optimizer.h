@@ -1172,6 +1172,18 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                    uint first_unused);
 
 /**
+  Create an order list that consists of all non-const fields and items.
+  This is usable for e.g. converting DISTINCT into GROUP or ORDER BY.
+
+  Try to put the items in "order_list" first, to allow one to optimize away
+  a later ORDER BY.
+ */
+ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
+                                  ORDER *order_list, List<Item> &fields,
+                                  bool skip_aggregates,
+                                  bool *all_order_by_fields_used);
+
+/**
    Returns true if arguments are a temporal Field having no date,
    part and a temporal expression having a date part.
    @param  f  Field

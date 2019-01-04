@@ -4,8 +4,10 @@ insert into t1 values(100,1,2),(200,1,1),(300,2,1),(400,2,2);
 analyze table t1;
 
 eval select distinct b from $source order by c;
+--sorted_result
 eval select distinct min(b) from $source group by a order by min(c);
 # just to see that if source is a view, it is merged
+--sorted_result
 --replace_column 9 #
 eval explain select distinct min(b) from $source group by a order by min(c);
 
@@ -23,6 +25,7 @@ analyze table t1;
 eval select distinct b from $source order by c;
 
 --echo Random order too (same reason):
+--sorted_result
 eval select distinct min(b) from $source group by a order by min(c);
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -35,6 +38,7 @@ eval select distinct b from $source order by c;
 eval select distinct b from $source order by b-1,b+1,c;
 
 --echo and this one too:
+--sorted_result
 --error ER_AGGREGATE_IN_ORDER_NOT_SELECT
 eval select distinct min(b) from $source group by a order by min(c);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,13 @@
 #include "sql/thr_malloc.h"
 
 PSI_memory_key key_memory_Filesort_buffer_sort_keys;
+
+using std::max;
+using std::min;
+using std::sort;
+using std::stable_sort;
+using std::unique;
+using std::vector;
 
 namespace {
 /**
@@ -135,7 +142,7 @@ inline bool my_mem_compare_longkey(const uchar *s1, const uchar *s2,
 
 class Mem_compare {
  public:
-  Mem_compare(size_t n) : m_size(n) {}
+  explicit Mem_compare(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) const {
 #ifdef __sun
     // The native memcmp is faster on SUN.
@@ -151,7 +158,7 @@ class Mem_compare {
 
 class Mem_compare_longkey {
  public:
-  Mem_compare_longkey(size_t n) : m_size(n) {}
+  explicit Mem_compare_longkey(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) const {
 #ifdef __sun
     // The native memcmp is faster on SUN.
@@ -180,30 +187,58 @@ class Mem_compare_varlen_key {
   bool use_hash;
 };
 
+template <class Comp>
+class Equality_from_less {
+ public:
+  explicit Equality_from_less(const Comp &comp) : m_comp(comp) {}
+
+  template <class A, class B>
+  bool operator()(const A &a, const B &b) const {
+    return !(m_comp(a, b) || m_comp(b, a));
+  }
+
+ private:
+  const Comp &m_comp;
+};
+
 }  // namespace
 
-void Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
+unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
   const bool force_stable_sort = param->m_force_stable_sort;
   param->m_sort_algorithm = Sort_param::FILESORT_ALG_NONE;
 
-  if (count <= 1) return;
-  if (param->max_compare_length() == 0) return;
+  if (count <= 1) return count;
+  if (param->max_compare_length() == 0) return count;
+
+  const auto it_begin = begin(m_record_pointers);
+  const auto it_end = begin(m_record_pointers) + count;
 
   if (param->using_varlen_keys()) {
+    const Mem_compare_varlen_key comp(param->local_sortorder, param->use_hash);
     if (force_stable_sort) {
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_STABLE;
-      std::stable_sort(
-          begin(m_record_pointers), begin(m_record_pointers) + count,
-          Mem_compare_varlen_key(param->local_sortorder, param->use_hash));
+      stable_sort(it_begin, it_end, comp);
     } else {
       // TODO: Make more elaborate heuristics than just always picking
       // std::sort.
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
-      std::sort(
-          begin(m_record_pointers), begin(m_record_pointers) + count,
-          Mem_compare_varlen_key(param->local_sortorder, param->use_hash));
+      sort(it_begin, it_end, comp);
     }
-    return;
+    if (param->m_remove_duplicates) {
+      return unique(it_begin, it_end,
+                    Equality_from_less<Mem_compare_varlen_key>(comp)) -
+             it_begin;
+    }
+    return count;
+  }
+
+  // If we don't use addon fields, we'll have the record position appended to
+  // the end of each record. This disturbs our equality comparisons, so we'll
+  // have to remove it. (Removing it also makes the comparisons ever so slightly
+  // cheaper.)
+  size_t key_len = param->max_compare_length();
+  if (!param->using_addon_fields()) {
+    key_len -= param->ref_length;
   }
 
   /*
@@ -215,14 +250,23 @@ void Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
   if (count <= 100 && !force_stable_sort) {
     if (param->max_compare_length() < 10) {
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
-      std::sort(begin(m_record_pointers), begin(m_record_pointers) + count,
-                Mem_compare(param->max_compare_length()));
-      return;
+      sort(it_begin, it_end, Mem_compare(key_len));
+      if (param->m_remove_duplicates) {
+        return unique(it_begin, it_end,
+                      Equality_from_less<Mem_compare>(Mem_compare(key_len))) -
+               it_begin;
+      }
+      return count;
     }
     param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
-    std::sort(begin(m_record_pointers), begin(m_record_pointers) + count,
-              Mem_compare_longkey(param->max_compare_length()));
-    return;
+    sort(it_begin, it_end, Mem_compare_longkey(param->max_compare_length()));
+    if (param->m_remove_duplicates) {
+      auto new_end = unique(it_begin, it_end,
+                            Equality_from_less<Mem_compare_longkey>(
+                                Mem_compare_longkey(key_len)));
+      return new_end - it_begin;
+    }
+    return count;
   }
 
   /*
@@ -239,12 +283,19 @@ void Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
   }
   param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_STABLE;
   // Heuristics here: avoid function overhead call for short keys.
-  if (compare_len < 10)
-    std::stable_sort(begin(m_record_pointers), begin(m_record_pointers) + count,
-                     Mem_compare(compare_len));
-  else
-    std::stable_sort(begin(m_record_pointers), begin(m_record_pointers) + count,
-                     Mem_compare_longkey(compare_len));
+  if (compare_len < 10) {
+    stable_sort(it_begin, it_end, Mem_compare(compare_len));
+    if (param->m_remove_duplicates) {
+      return unique(it_begin, it_end, Mem_compare(compare_len)) - it_begin;
+    }
+  } else {
+    stable_sort(it_begin, it_end, Mem_compare_longkey(compare_len));
+    if (param->m_remove_duplicates) {
+      return unique(it_begin, it_end, Mem_compare_longkey(compare_len)) -
+             it_begin;
+    }
+  }
+  return count;
 }
 
 void Filesort_buffer::reset() {
@@ -368,7 +419,7 @@ bool Filesort_buffer::allocate_block(size_t num_bytes) {
                   sizeof(m_record_pointers[0]);
   }
 
-  next_block_size = std::min(std::max(next_block_size, num_bytes), space_left);
+  next_block_size = min(max(next_block_size, num_bytes), space_left);
   if (next_block_size < num_bytes) {
     /*
       If we're really out of space, but have at least 32 kB unused in
@@ -425,8 +476,8 @@ void Filesort_buffer::free_sort_buffer() {
   // std::unique_ptr<int> to Filesort_buffer and giving it a value in the
   // constructor; it will leak all over the place.) We should fix that,
   // but for the time being, we have this workaround instead.
-  m_record_pointers = std::vector<uchar *>();
-  m_blocks = std::vector<unique_ptr_my_free<uchar[]>>();
+  m_record_pointers = vector<uchar *>();
+  m_blocks = vector<unique_ptr_my_free<uchar[]>>();
 
   m_space_used_other_blocks = 0;
   m_next_rec_ptr = nullptr;
@@ -448,7 +499,7 @@ Bounds_checked_array<uchar> Filesort_buffer::get_contiguous_buffer() {
 
 void Filesort_buffer::update_peak_memory_used() const {
   m_peak_memory_used =
-      std::max(m_peak_memory_used,
-               m_record_pointers.capacity() * sizeof(m_record_pointers[0]) +
-                   m_current_block_size + m_space_used_other_blocks);
+      max(m_peak_memory_used,
+          m_record_pointers.capacity() * sizeof(m_record_pointers[0]) +
+              m_current_block_size + m_space_used_other_blocks);
 }
