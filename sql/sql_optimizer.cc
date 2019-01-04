@@ -831,7 +831,10 @@ int JOIN::push_to_engines() {
             specific row from the 'other tables' to compare rows from this table
             against. Thus, other tables can not be referred in this case.
           */
-          const bool other_tbls_ok = !using_join_cache;
+          const bool other_tbls_ok =
+              !using_join_cache &&
+              thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
+              thd->lex->sql_command != SQLCOM_DELETE_MULTI;
           const Item *remainder =
               qep_tab[i].table()->file->cond_push(cond, other_tbls_ok);
           qep_tab[i].set_condition(const_cast<Item *>(remainder));
