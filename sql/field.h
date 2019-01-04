@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -572,8 +572,19 @@ void copy_integer(uchar *to, size_t to_length, const uchar *from,
 }
 
 /**
-  Used for storing information associated with generated column or default
-  values generated from expression.
+  Enum to indicate source for which value generator is used. This is needed
+  while unpacking value generator expression and pre-validating the
+  expression for generated column, default expression or check constraint.
+*/
+enum Value_generator_source : short {
+  VGS_GENERATED_COLUMN = 0,  // Value generator for GENERATED_COLUMN.
+  VGS_DEFAULT_EXPRESSION,    // Value generator for Default expression.
+  VGS_CHECK_CONSTRAINT       // Value generator for check constraints.
+};
+
+/**
+  Used for storing information associated with generated column, default
+  values generated from expression or check constraint expression.
 */
 class Value_generator {
  public:
@@ -4633,18 +4644,18 @@ inline bool is_blob(enum_field_types sql_type) {
 const char *get_field_name_or_expression(THD *thd, const Field *field);
 
 /*
-  Perform per item-type checks to determine if the expression is
-  allowed for a generated column, default value expression or a functional
-  index. Note that validation of the specific function is done later in
-  procedures open_table_from_share and fix_value_generators_fields
+  Perform per item-type checks to determine if the expression is allowed for
+  a generated column, default value expression, a functional index or a check
+  constraint. Note that validation of the specific function is done later in
+  procedures open_table_from_share and fix_value_generators_fields.
 
-  @param expr         the expression to check for validity
-  @param column_name  used for error reporting
-  @param is_gen_col   weather it is a GCOL or a default value expression
+  @param expr                 the expression to check for validity
+  @param name                 used for error reporting
+  @param source               Source of value generator(a generated column, a
+                              regular column with generated default value or
+                              a check constraint).
   @return  false if ok, true otherwise
 */
-bool pre_validate_value_generator_expr(Item *expression,
-                                       const char *column_name,
-                                       bool is_gen_col);
-
+bool pre_validate_value_generator_expr(Item *expression, const char *name,
+                                       Value_generator_source source);
 #endif /* FIELD_INCLUDED */

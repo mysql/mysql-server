@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,10 @@ class Schema;
 }  // namespace dd
 struct TABLE;
 
+class Sql_check_constraint_spec;
+using Sql_check_constraint_spec_list =
+    Mem_root_array<Sql_check_constraint_spec *>;
+
 struct HA_CREATE_INFO;
 template <class T>
 class List;
@@ -59,23 +63,26 @@ class Dictionary_client;
 
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
 static const char FOREIGN_KEY_NAME_SUBSTR[] = "_ibfk_";
+static const char CHECK_CONSTRAINT_NAME_SUBSTR[] = "_chk_";
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
   and return it to the caller. This function creates a user table, as
   opposed to create_table() which can handle system tables as well.
 
-  @param thd            Thread handle
-  @param sch_obj        Schema.
-  @param table_name     Table name.
-  @param create_info    HA_CREATE_INFO describing the table to be created.
-  @param create_fields  List of fields for the table.
-  @param keyinfo        Array with descriptions of keys for the table.
-  @param keys           Number of keys.
-  @param keys_onoff     keys ON or OFF
-  @param fk_keyinfo     Array with descriptions of foreign keys for the table.
-  @param fk_keys        Number of foreign keys.
-  @param file           handler instance for the table.
+  @param thd                Thread handle
+  @param sch_obj            Schema.
+  @param table_name         Table name.
+  @param create_info        HA_CREATE_INFO describing the table to be created.
+  @param create_fields      List of fields for the table.
+  @param keyinfo            Array with descriptions of keys for the table.
+  @param keys               Number of keys.
+  @param keys_onoff         keys ON or OFF
+  @param fk_keyinfo         Array with descriptions of foreign keys for the
+                            table.
+  @param fk_keys            Number of foreign keys.
+  @param check_cons_spec    Specification of check constraints for the table.
+  @param file               handler instance for the table.
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
 */
@@ -84,7 +91,8 @@ std::unique_ptr<dd::Table> create_dd_user_table(
     HA_CREATE_INFO *create_info, const List<Create_field> &create_fields,
     const KEY *keyinfo, uint keys,
     Alter_info::enum_enable_or_disable keys_onoff,
-    const FOREIGN_KEY *fk_keyinfo, uint fk_keys, handler *file);
+    const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
+    const Sql_check_constraint_spec_list *check_cons_spec, handler *file);
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
@@ -101,6 +109,7 @@ std::unique_ptr<dd::Table> create_dd_user_table(
   @param fk_keyinfo         Array with descriptions of foreign keys for the
   table.
   @param fk_keys            Number of foreign keys.
+  @param check_cons_spec    Specification of check constraints for the table.
   @param file               handler instance for the table.
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
@@ -110,22 +119,24 @@ std::unique_ptr<dd::Table> create_table(
     HA_CREATE_INFO *create_info, const List<Create_field> &create_fields,
     const KEY *keyinfo, uint keys,
     Alter_info::enum_enable_or_disable keys_onoff,
-    const FOREIGN_KEY *fk_keyinfo, uint fk_keys, handler *file);
+    const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
+    const Sql_check_constraint_spec_list *check_cons_spec, handler *file);
 
 /**
   Prepares a dd::Table object for a temporary table from
   mysql_prepare_create_table() output. Doesn't update DD tables,
   instead returns dd::Table object to caller.
 
-  @param thd            Thread handle.
-  @param sch_obj        Schema.
-  @param table_name     Table name.
-  @param create_info    HA_CREATE_INFO describing the table to be created.
-  @param create_fields  List of fields for the table.
-  @param keyinfo        Array with descriptions of keys for the table.
-  @param keys           Number of keys.
-  @param keys_onoff     Enable or disable keys.
-  @param file           handler instance for the table.
+  @param thd              Thread handle.
+  @param sch_obj          Schema.
+  @param table_name       Table name.
+  @param create_info      HA_CREATE_INFO describing the table to be created.
+  @param create_fields    List of fields for the table.
+  @param keyinfo          Array with descriptions of keys for the table.
+  @param keys             Number of keys.
+  @param keys_onoff       Enable or disable keys.
+  @param check_cons_spec  Specification of check constraints for the table.
+  @param file             handler instance for the table.
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
 */
@@ -133,7 +144,8 @@ std::unique_ptr<dd::Table> create_tmp_table(
     THD *thd, const dd::Schema &sch_obj, const dd::String_type &table_name,
     HA_CREATE_INFO *create_info, const List<Create_field> &create_fields,
     const KEY *keyinfo, uint keys,
-    Alter_info::enum_enable_or_disable keys_onoff, handler *file);
+    Alter_info::enum_enable_or_disable keys_onoff,
+    const Sql_check_constraint_spec_list *check_cons_spec, handler *file);
 
 //////////////////////////////////////////////////////////////////////////
 // Function common to 'table' and 'view' objects
@@ -403,6 +415,32 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const dd::Table &t);
   @return true if a non-hidden index has type dd::Index::IT_PRIMARY
  */
 bool has_primary_key(const Table &t);
+
+/**
+  Check if name of check constraint is generated one.
+
+  @param    table_name         Table name.
+  @param    table_name_length  Table name length.
+  @param    cc_name            Check constraint name.
+  @param    cc_name_length     Check constraint name length.
+
+  @retval   true               If check constraint name is generated one.
+  @retval   false              Otherwise.
+*/
+bool is_generated_check_constraint_name(const char *table_name,
+                                        size_t table_name_length,
+                                        const char *cc_name,
+                                        size_t cc_name_length);
+
+/**
+  Rename generated check constraint names to match the new name of the table.
+
+  @param old_table_name  Table name before rename.
+  @param new_tab         New version of the table with new name set.
+
+  @returns true if error, false otherwise.
+*/
+bool rename_check_constraints(const char *old_table_name, dd::Table *new_tab);
 
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

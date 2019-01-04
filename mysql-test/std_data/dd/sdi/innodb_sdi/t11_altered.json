@@ -645,6 +645,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": 255
     }

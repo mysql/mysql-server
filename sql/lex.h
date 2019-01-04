@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -224,6 +224,7 @@ static const SYMBOL symbols[] = {
     {SYM("ENCLOSED", ENCLOSED)},
     {SYM("END", END)},
     {SYM("ENDS", ENDS_SYM)},
+    {SYM("ENFORCED", ENFORCED_SYM)},
     {SYM("ENGINE", ENGINE_SYM)},
     {SYM("ENGINES", ENGINES_SYM)},
     {SYM("ENUM", ENUM_SYM)},

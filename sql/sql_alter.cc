@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,11 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
       alter_index_visibility_list(mem_root,
                                   rhs.alter_index_visibility_list.begin(),
                                   rhs.alter_index_visibility_list.end()),
+      alter_state_list(mem_root, rhs.alter_state_list.begin(),
+                       rhs.alter_state_list.end()),
+      check_constraint_spec_list(mem_root,
+                                 rhs.check_constraint_spec_list.begin(),
+                                 rhs.check_constraint_spec_list.end()),
       create_list(rhs.create_list, mem_root),
       flags(rhs.flags),
       keys_onoff(rhs.keys_onoff),

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -778,6 +778,12 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
                            TRG_EVENT_INSERT, table->s->fields))
       DBUG_RETURN(true);
 
+    if (invoke_table_check_constraints(thd, table)) {
+      if (thd->is_error()) DBUG_RETURN(true);
+      // continue when IGNORE clause is used.
+      goto continue_loop;
+    }
+
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:
         read_info.next_line();
@@ -997,6 +1003,12 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 
     if (thd->is_error()) DBUG_RETURN(true);
 
+    if (invoke_table_check_constraints(thd, table)) {
+      if (thd->is_error()) DBUG_RETURN(true);
+      // continue when IGNORE clause is used.
+      goto continue_loop;
+    }
+
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:
         read_info.next_line();
@@ -1158,6 +1170,12 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
                            thd, &info, m_opt_set_fields, m_opt_set_exprs, table,
                            TRG_EVENT_INSERT, table->s->fields))
       DBUG_RETURN(true);
+
+    if (invoke_table_check_constraints(thd, table)) {
+      if (thd->is_error()) DBUG_RETURN(true);
+      // continue when IGNORE clause is used.
+      goto continue_loop;
+    }
 
     switch (table_list->view_check_option(thd)) {
       case VIEW_CHECK_SKIP:

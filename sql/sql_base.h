@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -218,6 +218,17 @@ bool fill_record(THD *thd, TABLE *table, Field **field, List<Item> &values,
                  MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
 
 bool check_record(THD *thd, Field **ptr);
+
+/**
+  Invoke check constraints defined on the table.
+
+  @param  thd                   Thread handle.
+  @param  table                 Instance of TABLE.
+
+  @retval  false  If all enforced check constraints are satisfied.
+  @retval  true   Otherwise.
+*/
+bool invoke_table_check_constraints(THD *thd, const TABLE *table);
 
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
                             TABLE_LIST *last_table, Item **ref,

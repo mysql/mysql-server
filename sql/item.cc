@@ -859,30 +859,36 @@ bool Item_field::check_function_as_value_generator(uchar *checker_args) {
   }
 
   int fld_idx = func_args->col_index;
-  bool is_gen_col = func_args->is_gen_col;
   DBUG_ASSERT(fld_idx > -1);
+
   /*
     Don't allow the GC (or default expression) to refer itself or another GC
     (or default expressions) that is defined after it.
   */
-  if ((field->is_gcol() ||
+  if ((func_args->source != VGS_CHECK_CONSTRAINT) &&
+      (field->is_gcol() ||
        field->has_insert_default_general_value_expression()) &&
       field->field_index >= fld_idx) {
-    func_args->err_code = is_gen_col ? ER_GENERATED_COLUMN_NON_PRIOR
-                                     : ER_DEFAULT_VAL_GENERATED_NON_PRIOR;
+    func_args->err_code = (func_args->source == VGS_GENERATED_COLUMN)
+                              ? ER_GENERATED_COLUMN_NON_PRIOR
+                              : ER_DEFAULT_VAL_GENERATED_NON_PRIOR;
     return true;
   }
   /*
-    If a generated column or default expression depends on an auto_increment
-    column:
+    If a generated column, default expression or check constraint depends
+    on an auto_increment column:
     - calculation of the generated value is done before write_row(),
     - but the auto_increment value is determined in write_row() by the
     engine.
     So this case is forbidden.
   */
   if (field->flags & AUTO_INCREMENT_FLAG) {
-    func_args->err_code = is_gen_col ? ER_GENERATED_COLUMN_REF_AUTO_INC
-                                     : ER_DEFAULT_VAL_GENERATED_REF_AUTO_INC;
+    func_args->err_code =
+        (func_args->source == VGS_GENERATED_COLUMN)
+            ? ER_GENERATED_COLUMN_REF_AUTO_INC
+            : (func_args->source == VGS_DEFAULT_EXPRESSION)
+                  ? ER_DEFAULT_VAL_GENERATED_REF_AUTO_INC
+                  : ER_CHECK_CONSTRAINT_REFERS_AUTO_INCREMENT_COLUMN;
     return true;
   }
 

@@ -480,7 +480,8 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(p_arg);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 
@@ -1032,7 +1033,8 @@ class Item_func_curtime : public Item_time_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 
@@ -1091,7 +1093,8 @@ class Item_func_curdate : public Item_date_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 
@@ -1154,7 +1157,8 @@ class Item_func_now : public Item_datetime_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 

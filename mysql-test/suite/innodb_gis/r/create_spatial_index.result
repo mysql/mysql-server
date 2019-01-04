@@ -1625,13 +1625,17 @@ CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 DROP TABLE tab;
-CREATE TABLE tab(c1 POINT NOT NULL SRID 0,CONSTRAINT tab_const check(c1 > 0) ) ENGINE=InnoDB;
+CREATE TABLE tab(c1 POINT NOT NULL SRID 0,
+CONSTRAINT tab_const
+CHECK(ST_Equals(c1, ST_GeomFromText("POINT(0 0)") = FALSE))
+) ENGINE=InnoDB;
 CREATE SPATIAL INDEX idx1 ON tab(c1) ;
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` point NOT NULL /*!80003 SRID 0 */,
-  SPATIAL KEY `idx1` (`c1`)
+  SPATIAL KEY `idx1` (`c1`),
+  CONSTRAINT `tab_const` CHECK (st_equals(`c1`,(st_geomfromtext(_utf8mb4'POINT(0 0)') = FALSE)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ANALYZE TABLE tab;
 Table	Op	Msg_type	Msg_text

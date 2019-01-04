@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -278,6 +278,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 
     INNODB_DD_TABLE("catalogs", 2),
     INNODB_DD_TABLE("character_sets", 3),
+    INNODB_DD_TABLE("check_constraints", 3),
     INNODB_DD_TABLE("collations", 3),
     INNODB_DD_TABLE("column_statistics", 3),
     INNODB_DD_TABLE("column_type_elements", 1),

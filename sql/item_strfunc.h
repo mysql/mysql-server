@@ -231,7 +231,7 @@ class Item_func_statement_digest final : public Item_str_ascii_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return (func_arg->source == VGS_GENERATED_COLUMN);
   }
 
   bool resolve_type(THD *) override {
@@ -263,7 +263,7 @@ class Item_func_statement_digest_text final : public Item_str_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return (func_arg->source == VGS_GENERATED_COLUMN);
   }
   String *val_str(String *) override;
 };
@@ -584,7 +584,8 @@ class Item_func_sysconst : public Item_str_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 
@@ -1222,7 +1223,8 @@ class Item_func_uuid final : public Item_str_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 

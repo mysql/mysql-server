@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,7 @@ static s_object_type_map object_type_map[] = {
     {OBJECT_TYPE_BACKUP_LOCK, {C_STRING_WITH_LEN("BACKUP LOCK")}},
     {OBJECT_TYPE_RESOURCE_GROUPS, {C_STRING_WITH_LEN("RESOURCE_GROUPS")}},
     {OBJECT_TYPE_FOREIGN_KEY, {C_STRING_WITH_LEN("FOREIGN KEY")}},
+    {OBJECT_TYPE_CHECK_CONSTRAINT, {C_STRING_WITH_LEN("CHECK CONSTRAINT")}},
     {NO_OBJECT_TYPE, {C_STRING_WITH_LEN("")}}};
 
 void object_type_to_string(enum_object_type object_type, const char **string,

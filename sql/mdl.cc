@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,7 +127,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
     {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for backup lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME},
-    {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME}};
+    {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME},
+    {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME}};
 
 #ifdef HAVE_PSI_INTERFACE
 void MDL_key::init_psi_keys() {
@@ -814,6 +815,7 @@ class MDL_lock {
       case MDL_key::BACKUP_LOCK:
       case MDL_key::RESOURCE_GROUPS:
       case MDL_key::FOREIGN_KEY:
+      case MDL_key::CHECK_CONSTRAINT:
         return &m_scoped_lock_strategy;
       default:
         return &m_object_lock_strategy;

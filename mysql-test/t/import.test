@@ -647,6 +647,20 @@ SET SESSION sql_require_primary_key= OFF;
 --echo # Clean SDI files in \$EXPORT_DIR
 --remove_files_wildcard $EXPORT_DIR t*
 
+--echo #-----------------------------------------------------------------------
+--echo # WL#929 - Check constraint.
+--echo # Test case to verify check constraint import from SDI.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT CHECK (f1 < 10)) ENGINE=MyISAM;
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $MYSQL_TMP_DIR/ t*
+DROP TABLE t1;
+--copy_files_wildcard $MYSQL_TMP_DIR/ $MYSQLD_DATADIR/test/ t*
+IMPORT TABLE FROM 'test/t1*.sdi';
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+--remove_files_wildcard $MYSQL_TMP_DIR/ t*
+
 --echo # Remove 'export' folder created at the beginning of test file.
 --force-rmdir $EXPORT_DIR
 

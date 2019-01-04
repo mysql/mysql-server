@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -384,7 +384,7 @@ int table_events_waits_common::make_metadata_lock_object_columns(
 
   if (safe_metadata_lock->get_version() == wait->m_weak_version) {
     // TODO: remove code duplication with PFS_column_row::make_row()
-    static_assert(MDL_key::NAMESPACE_END == 17,
+    static_assert(MDL_key::NAMESPACE_END == 18,
                   "Adjust performance schema when changing enum_mdl_namespace");
 
     MDL_key *mdl = &safe_metadata_lock->m_mdl_key;
@@ -506,6 +506,12 @@ int table_events_waits_common::make_metadata_lock_object_columns(
       case MDL_key::FOREIGN_KEY:
         m_row.m_object_type = "FOREIGN KEY";
         m_row.m_object_type_length = 11;
+        m_row.m_object_schema_length = mdl->db_name_length();
+        m_row.m_object_name_length = mdl->name_length();
+        break;
+      case MDL_key::CHECK_CONSTRAINT:
+        m_row.m_object_type = "CHECK CONSTRAINT";
+        m_row.m_object_type_length = 16;
         m_row.m_object_schema_length = mdl->db_name_length();
         m_row.m_object_name_length = mdl->name_length();
         break;

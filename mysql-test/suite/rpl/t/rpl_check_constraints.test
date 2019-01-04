@@ -1,0 +1,45 @@
+################################################################################
+# WL929 - CHECK CONSTRAINTS.                                                   #
+################################################################################
+
+--source include/master-slave.inc
+
+CALL mtr.add_suppression("Check constraint 't1_chk_2' is violated.");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+CREATE TABLE t1 (f1 int primary key, CHECK(f1 < 100));
+SHOW CREATE TABLE t1;
+INSERT INTO t1 (f1) VALUES(20);
+
+--source include/sync_slave_sql_with_master.inc
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD CONSTRAINT CHECK(f1 < 50);
+SHOW CREATE TABLE t1;
+
+--source include/rpl_connection_master.inc
+update t1 set f1 = 80;
+
+--source include/rpl_connection_slave.inc
+--echo # t1_chk_2 check constraint validation for update fails at slave.
+--let $slave_sql_errno= convert_error(ER_CHECK_CONSTRAINT_VIOLATED)
+--source include/wait_for_slave_sql_error.inc
+SELECT * from t1;
+
+--source include/rpl_connection_master.inc
+insert into t1 values(90);
+
+--source include/rpl_connection_slave.inc
+--echo # t1_chk_2 check constraint validation for insert fails at slave.
+--let $slave_sql_errno= convert_error(ER_CHECK_CONSTRAINT_VIOLATED)
+--source include/wait_for_slave_sql_error.inc
+SELECT * from t1;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_connection_slave.inc
+DROP TABLE t1;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+--source include/rpl_end.inc

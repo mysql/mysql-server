@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1342,6 +1342,31 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   if ((for_str = file->get_foreign_key_create_info())) {
     packet->append(for_str, strlen(for_str));
     file->free_foreign_key_create_info(for_str);
+  }
+
+  /*
+    Append check constraints to the CREATE TABLE statement. All check
+    constraints are listed in table check constraint form.
+  */
+  if (table->table_check_constraint_list != nullptr) {
+    for (auto &cc : *table->table_check_constraint_list) {
+      packet->append(STRING_WITH_LEN(",\n  "));
+      packet->append(STRING_WITH_LEN("CONSTRAINT "));
+      append_identifier(thd, packet, cc->name().str, cc->name().length);
+
+      packet->append(STRING_WITH_LEN(" CHECK ("));
+      packet->append(cc->expr_str().str, cc->expr_str().length,
+                     system_charset_info);
+      packet->append(STRING_WITH_LEN(")"));
+
+      /*
+        If check constraint is not-enforced then it is listed with the comment
+        "NOT ENFORCED".
+      */
+      if (!cc->is_enforced()) {
+        packet->append(STRING_WITH_LEN(" /*!80015 NOT ENFORCED */"));
+      }
+    }
   }
 
   packet->append(STRING_WITH_LEN("\n)"));

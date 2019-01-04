@@ -221,6 +221,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -491,6 +492,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -887,6 +889,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -1367,6 +1370,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -1918,6 +1922,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -2301,6 +2306,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -2773,6 +2779,560 @@
                 ]
             }
         ],
+        "check_constraints": [],
+        "partitions": [],
+        "collation_id": X,
+        "tablespace_ref": "mysql"
+    }
+}
+}
+,
+{
+	"type": 1,
+	"id": X,
+	"object":
+		{
+    "mysqld_version_id": X,
+    "dd_version": X,
+    "sdi_version": 1,
+    "dd_object_type": "Table",
+    "dd_object": {
+        "name": "check_constraints",
+        "mysql_version_id": X,
+        "created": NNN,
+        "last_altered": NNN,
+        "hidden": 2,
+        "options": "avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
+        "columns": [
+            {
+                "name": "id",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": true,
+                "is_auto_increment": true,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 1,
+                "char_length": 20,
+                "numeric_precision": 20,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "column_key": 2,
+                "column_type_utf8": "bigint(20) unsigned",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": false
+            },
+            {
+                "name": "schema_id",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": true,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 2,
+                "char_length": 20,
+                "numeric_precision": 20,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "column_key": 4,
+                "column_type_utf8": "bigint(20) unsigned",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": false
+            },
+            {
+                "name": "table_id",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": true,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 3,
+                "char_length": 20,
+                "numeric_precision": 20,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "column_key": 4,
+                "column_type_utf8": "bigint(20) unsigned",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": false
+            },
+            {
+                "name": "name",
+                "type": 16,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 4,
+                "char_length": 192,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "column_key": 1,
+                "column_type_utf8": "varchar(64)",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": true
+            },
+            {
+                "name": "enforced",
+                "type": 22,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 5,
+                "char_length": 9,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=2;",
+                "se_private_data": "table_id=X",
+                "column_key": 1,
+                "column_type_utf8": "enum('NO','YES')",
+                "elements": [
+                    {
+                        "name": "Tk8=", "decoded-name": "NO",
+                        "index": 1
+                    },
+                    {
+                        "name": "WUVT", "decoded-name": "YES",
+                        "index": 2
+                    }
+                ],
+                "collation_id": X,
+                "is_explicit_collation": false
+            },
+            {
+                "name": "check_clause",
+                "type": 26,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 6,
+                "char_length": 4294967295,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "column_key": 1,
+                "column_type_utf8": "longblob",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": true
+            },
+            {
+                "name": "check_clause_utf8",
+                "type": 26,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 7,
+                "char_length": 4294967295,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "column_key": 1,
+                "column_type_utf8": "longtext",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_TRX_ID",
+                "type": 10,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 2,
+                "ordinal_position": 8,
+                "char_length": 6,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_id=X",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_ROLL_PTR",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 2,
+                "ordinal_position": 9,
+                "char_length": 7,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_id=X",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": false
+            }
+        ],
+        "schema_ref": "mysql",
+        "se_private_id":NNN,
+        "engine": "InnoDB",
+        "last_checked_for_upgrade_version_id": X,
+        "comment": "",
+        "se_private_data": "autoinc=0;version=0;",
+        "row_format": 2,
+        "partition_type": 0,
+        "partition_expression": "",
+        "partition_expression_utf8": "",
+        "default_partitioning": 0,
+        "subpartition_type": 0,
+        "subpartition_expression": "",
+        "subpartition_expression_utf8": "",
+        "default_subpartitioning": 0,
+        "indexes": [
+            {
+                "name": "PRIMARY",
+                "hidden": false,
+                "is_generated": false,
+                "ordinal_position": 1,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                "type": 1,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 8,
+                        "order": 2,
+                        "column_opx": 0
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 7
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 8
+                    },
+                    {
+                        "ordinal_position": 4,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 1
+                    },
+                    {
+                        "ordinal_position": 5,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 6,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 3
+                    },
+                    {
+                        "ordinal_position": 7,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 4
+                    },
+                    {
+                        "ordinal_position": 8,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 5
+                    },
+                    {
+                        "ordinal_position": 9,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 6
+                    }
+                ],
+                "tablespace_ref": "mysql"
+            },
+            {
+                "name": "schema_id",
+                "hidden": false,
+                "is_generated": false,
+                "ordinal_position": 2,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                "type": 2,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 8,
+                        "order": 2,
+                        "column_opx": 1
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 192,
+                        "order": 2,
+                        "column_opx": 3
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 0
+                    }
+                ],
+                "tablespace_ref": "mysql"
+            },
+            {
+                "name": "table_id",
+                "hidden": false,
+                "is_generated": false,
+                "ordinal_position": 3,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                "type": 2,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 8,
+                        "order": 2,
+                        "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 192,
+                        "order": 2,
+                        "column_opx": 3
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 0
+                    }
+                ],
+                "tablespace_ref": "mysql"
+            }
+        ],
+        "foreign_keys": [
+            {
+                "name": "check_constraints_ibfk_1",
+                "match_option": 1,
+                "update_rule": 1,
+                "delete_rule": 1,
+                "unique_constraint_name": "",
+                "referenced_table_catalog_name": "def",
+                "referenced_table_schema_name": "mysql",
+                "referenced_table_name": "schemata",
+                "elements": [
+                    {
+                        "column_opx": 1,
+                        "ordinal_position": 1,
+                        "referenced_column_name": "id"
+                    }
+                ]
+            },
+            {
+                "name": "check_constraints_ibfk_2",
+                "match_option": 1,
+                "update_rule": 1,
+                "delete_rule": 1,
+                "unique_constraint_name": "",
+                "referenced_table_catalog_name": "def",
+                "referenced_table_schema_name": "mysql",
+                "referenced_table_name": "tables",
+                "elements": [
+                    {
+                        "column_opx": 2,
+                        "ordinal_position": 1,
+                        "referenced_column_name": "id"
+                    }
+                ]
+            }
+        ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -3296,6 +3856,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -3876,6 +4437,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -4164,6 +4726,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -5903,6 +6466,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -7482,6 +8046,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -7905,6 +8470,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -8737,6 +9303,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -9257,6 +9824,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -9727,6 +10295,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -10123,6 +10692,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -11038,6 +11608,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -11326,6 +11897,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -12337,6 +12909,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -12813,6 +13386,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -14715,6 +15289,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -15252,6 +15827,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -15910,6 +16486,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -16282,6 +16859,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -17180,6 +17758,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -17870,6 +18449,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -20017,6 +20597,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -20382,6 +20963,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -20807,6 +21389,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -22075,6 +22658,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -22446,6 +23030,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -22817,6 +23402,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -23129,6 +23715,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -23492,6 +24079,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -23813,6 +24401,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -24125,6 +24714,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -24395,6 +24985,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -25669,6 +26260,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -28278,6 +28870,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -28875,6 +29468,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -29330,6 +29924,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -29885,6 +30480,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -30370,6 +30966,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -31018,6 +31615,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -31339,6 +31937,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -31567,6 +32166,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -32089,6 +32689,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -32514,6 +33115,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -32855,6 +33457,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -33083,6 +33686,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -33340,6 +33944,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -33568,6 +34173,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -33805,6 +34411,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -34075,6 +34682,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -34429,6 +35037,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -34657,6 +35266,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -35179,6 +35789,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -36457,6 +37068,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -37147,6 +37759,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -37417,6 +38030,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -37765,6 +38379,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"
@@ -38197,6 +38812,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": X,
         "tablespace_ref": "mysql"

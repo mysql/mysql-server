@@ -66,7 +66,7 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
   typedef decltype(Alter_info::flags) alter_info_flags_t;
 
   virtual void apply_type_flags(ulong *) const {}
-  virtual void apply_alter_info_flags(uint *) const {}
+  virtual void apply_alter_info_flags(ulonglong *) const {}
   virtual void apply_comment(LEX_STRING *) const {}
   virtual void apply_default_value(Item **) const {}
   virtual void apply_gen_default_value(Value_generator **) {}
@@ -126,7 +126,7 @@ class PT_unique_key_column_attr : public PT_column_attr_base {
     *type_flags |= UNIQUE_FLAG;
   }
 
-  virtual void apply_alter_info_flags(uint *flags) const {
+  virtual void apply_alter_info_flags(ulonglong *flags) const {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
 };
@@ -142,7 +142,7 @@ class PT_primary_key_column_attr : public PT_column_attr_base {
     *type_flags |= PRI_KEY_FLAG | NOT_NULL_FLAG;
   }
 
-  virtual void apply_alter_info_flags(uint *flags) const {
+  virtual void apply_alter_info_flags(ulonglong *flags) const {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
 };
@@ -271,7 +271,7 @@ class PT_serial_default_value_column_attr : public PT_column_attr_base {
   virtual void apply_type_flags(ulong *type_flags) const {
     *type_flags |= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG;
   }
-  virtual void apply_alter_info_flags(uint *flags) const {
+  virtual void apply_alter_info_flags(ulonglong *flags) const {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
   virtual bool contextualize(Column_parse_context *pc) {

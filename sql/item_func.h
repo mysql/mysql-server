@@ -892,7 +892,8 @@ class Item_func_connection_id final : public Item_int_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 
@@ -1296,7 +1297,8 @@ class Item_func_rand final : public Item_real_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 
  private:
@@ -2764,7 +2766,9 @@ class Item_var_func : public Item_func {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
-    func_arg->err_code = ER_DEFAULT_VAL_GENERATED_VARIABLES;
+    func_arg->err_code = (func_arg->source == VGS_CHECK_CONSTRAINT)
+                             ? ER_CHECK_CONSTRAINT_VARIABLES
+                             : ER_DEFAULT_VAL_GENERATED_VARIABLES;
     return true;
   }
 };
@@ -3734,7 +3738,8 @@ class Item_func_uuid_short final : public Item_int_func {
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
-    return func_arg->is_gen_col;
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
 };
 

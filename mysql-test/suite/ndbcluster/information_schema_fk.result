@@ -32,14 +32,14 @@ foreign key emp_fk1 (manager) references emp (id)
 select * from information_schema.table_constraints
 where table_schema = 'test'
   order by table_name, constraint_type, constraint_name;
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-def	test	PRIMARY	test	customer	PRIMARY KEY
-def	test	emp_fk1	test	emp	FOREIGN KEY
-def	test	PRIMARY	test	emp	PRIMARY KEY
-def	test	PRIMARY	test	product	PRIMARY KEY
-def	test	fk1	test	product_order	FOREIGN KEY
-def	test	fk2	test	product_order	FOREIGN KEY
-def	test	PRIMARY	test	product_order	PRIMARY KEY
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test	PRIMARY	test	customer	PRIMARY KEY	YES
+def	test	emp_fk1	test	emp	FOREIGN KEY	YES
+def	test	PRIMARY	test	emp	PRIMARY KEY	YES
+def	test	PRIMARY	test	product	PRIMARY KEY	YES
+def	test	fk1	test	product_order	FOREIGN KEY	YES
+def	test	fk2	test	product_order	FOREIGN KEY	YES
+def	test	PRIMARY	test	product_order	PRIMARY KEY	YES
 select CONCAT_WS('.', TABLE_NAME, COLUMN_NAME) as COL,
 ORDINAL_POSITION,
 POSITION_IN_UNIQUE_CONSTRAINT,
@@ -93,15 +93,15 @@ select *
 from information_schema.table_constraints
 where table_schema like 'mydb%'
   order by table_name, constraint_type, constraint_name;
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-def	mydb1	fk_b1a1	mydb1	t1	FOREIGN KEY
-def	mydb1	fk_b1b2	mydb1	t1	FOREIGN KEY
-def	mydb1	PRIMARY	mydb1	t1	PRIMARY KEY
-def	mydb1	xb1	mydb1	t1	UNIQUE
-def	mydb2	fk_b2a2	mydb2	t2	FOREIGN KEY
-def	mydb2	fk_b2b1	mydb2	t2	FOREIGN KEY
-def	mydb2	PRIMARY	mydb2	t2	PRIMARY KEY
-def	mydb2	xb2	mydb2	t2	UNIQUE
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	mydb1	fk_b1a1	mydb1	t1	FOREIGN KEY	YES
+def	mydb1	fk_b1b2	mydb1	t1	FOREIGN KEY	YES
+def	mydb1	PRIMARY	mydb1	t1	PRIMARY KEY	YES
+def	mydb1	xb1	mydb1	t1	UNIQUE	YES
+def	mydb2	fk_b2a2	mydb2	t2	FOREIGN KEY	YES
+def	mydb2	fk_b2b1	mydb2	t2	FOREIGN KEY	YES
+def	mydb2	PRIMARY	mydb2	t2	PRIMARY KEY	YES
+def	mydb2	xb2	mydb2	t2	UNIQUE	YES
 select *
 from information_schema.key_column_usage
 where table_schema like 'mydb%'

@@ -796,6 +796,14 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         error = 1;
         break;
       }
+      if (invoke_table_check_constraints(thd, table)) {
+        if (thd->is_error()) {
+          error = 1;
+          break;
+        }
+        // continue when IGNORE clause is used.
+        continue;
+      }
       found_rows++;
 
       if (!records_are_comparable(table) || compare_records(table)) {
@@ -2067,6 +2075,12 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
               *values_for_table[offset], table, TRG_EVENT_UPDATE, 0))
         DBUG_RETURN(true);
 
+      if (invoke_table_check_constraints(thd, table)) {
+        if (thd->is_error()) DBUG_RETURN(true);
+        // continue when IGNORE clause is used.
+        continue;
+      }
+
       /*
         Reset the table->auto_increment_field_not_null as it is valid for
         only one row.
@@ -2373,6 +2387,12 @@ bool Query_result_update::do_updates(THD *thd) {
         table->triggers->disable_fields_temporary_nullability();
 
         if (rc || check_record(thd, table->field)) goto err;
+      }
+
+      if (invoke_table_check_constraints(thd, table)) {
+        if (thd->is_error()) goto err;
+        // continue when IGNORE clause is used.
+        continue;
       }
 
       if (!records_are_comparable(table) || compare_records(table)) {

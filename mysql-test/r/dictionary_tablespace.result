@@ -14,6 +14,7 @@ mysql.tablespaces ON tables1.tablespace_id = tablespaces.id
 WHERE tables1.name NOT IN ('ndb_binlog_index') ORDER BY tables1.name;
 catalogs	mysql
 character_sets	mysql
+check_constraints	mysql
 collations	mysql
 column_statistics	mysql
 column_type_elements	mysql
@@ -82,6 +83,7 @@ name NOT IN ('ndb_binlog_index')
 ORDER BY name ASC;
 catalogs
 character_sets
+check_constraints
 collations
 column_statistics
 column_type_elements

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,11 +36,12 @@
 #include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/gis/srid.h"
-#include "sql/mdl.h"                // MDL_request
-#include "sql/mem_root_array.h"     // Mem_root_array
-#include "sql/sql_cmd.h"            // Sql_cmd
-#include "sql/sql_cmd_ddl_table.h"  // Sql_cmd_ddl_table
-#include "sql/sql_list.h"           // List
+#include "sql/mdl.h"                   // MDL_request
+#include "sql/mem_root_array.h"        // Mem_root_array
+#include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec_list
+#include "sql/sql_cmd.h"               // Sql_cmd
+#include "sql/sql_cmd_ddl_table.h"     // Sql_cmd_ddl_table
+#include "sql/sql_list.h"              // List
 #include "sql/thr_malloc.h"
 
 class Create_field;
@@ -55,13 +56,13 @@ struct TABLE_LIST;
 using Mysql::Nullable;
 
 /**
-  Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
-  clauses in ALTER TABLE statement.
+  Class representing DROP COLUMN, DROP KEY, DROP FOREIGN KEY and DROP CHECK
+  CONSTRAINT clauses in ALTER TABLE statement.
 */
 
 class Alter_drop {
  public:
-  enum drop_type { KEY, COLUMN, FOREIGN_KEY };
+  enum drop_type { KEY, COLUMN, FOREIGN_KEY, CHECK_CONSTRAINT };
   const char *name;
   drop_type type;
 
@@ -161,6 +162,24 @@ class Alter_rename_key {
 };
 
 /**
+  Class which instances represents state(i.e ENFORCED | NOT ENFORCED) of
+  CHECK CONSTRAINT in ALTER TABLE statement.
+*/
+
+class Alter_state {
+ public:
+  enum class Type { CHECK_CONSTRAINT };
+  const char *name;
+  Type type;
+  bool state;
+
+  Alter_state(Type par_type, const char *par_name, bool par_state)
+      : name(par_name), type(par_type), state(par_state) {
+    DBUG_ASSERT(par_name != nullptr);
+  }
+};
+
+/**
   Data describing the table being created by CREATE TABLE or
   altered by ALTER TABLE.
 */
@@ -176,107 +195,119 @@ class Alter_info {
     type of index to be added/dropped.
   */
 
-  enum Alter_info_flag : uint {
+  enum Alter_info_flag : ulonglong {
     /// Set for ADD [COLUMN]
-    ALTER_ADD_COLUMN = 1UL << 0,
+    ALTER_ADD_COLUMN = 1ULL << 0,
 
     /// Set for DROP [COLUMN]
-    ALTER_DROP_COLUMN = 1UL << 1,
+    ALTER_DROP_COLUMN = 1ULL << 1,
 
     /// Set for CHANGE [COLUMN] | MODIFY [CHANGE]
     /// Set by mysql_recreate_table()
-    ALTER_CHANGE_COLUMN = 1UL << 2,
+    ALTER_CHANGE_COLUMN = 1ULL << 2,
 
     /// Set for ADD INDEX | ADD KEY | ADD PRIMARY KEY | ADD UNIQUE KEY |
     ///         ADD UNIQUE INDEX | ALTER ADD [COLUMN]
-    ALTER_ADD_INDEX = 1UL << 3,
+    ALTER_ADD_INDEX = 1ULL << 3,
 
     /// Set for DROP PRIMARY KEY | DROP FOREIGN KEY | DROP KEY | DROP INDEX
-    ALTER_DROP_INDEX = 1UL << 4,
+    ALTER_DROP_INDEX = 1ULL << 4,
 
     /// Set for RENAME [TO]
-    ALTER_RENAME = 1UL << 5,
+    ALTER_RENAME = 1ULL << 5,
 
     /// Set for ORDER BY
-    ALTER_ORDER = 1UL << 6,
+    ALTER_ORDER = 1ULL << 6,
 
     /// Set for table_options
-    ALTER_OPTIONS = 1UL << 7,
+    ALTER_OPTIONS = 1ULL << 7,
 
     /// Set for ALTER [COLUMN] ... SET DEFAULT ... | DROP DEFAULT
-    ALTER_CHANGE_COLUMN_DEFAULT = 1UL << 8,
+    ALTER_CHANGE_COLUMN_DEFAULT = 1ULL << 8,
 
     /// Set for DISABLE KEYS | ENABLE KEYS
-    ALTER_KEYS_ONOFF = 1UL << 9,
+    ALTER_KEYS_ONOFF = 1ULL << 9,
 
     /// Set for FORCE
     /// Set for ENGINE(same engine)
     /// Set by mysql_recreate_table()
-    ALTER_RECREATE = 1UL << 10,
+    ALTER_RECREATE = 1ULL << 10,
 
     /// Set for ADD PARTITION
-    ALTER_ADD_PARTITION = 1UL << 11,
+    ALTER_ADD_PARTITION = 1ULL << 11,
 
     /// Set for DROP PARTITION
-    ALTER_DROP_PARTITION = 1UL << 12,
+    ALTER_DROP_PARTITION = 1ULL << 12,
 
     /// Set for COALESCE PARTITION
-    ALTER_COALESCE_PARTITION = 1UL << 13,
+    ALTER_COALESCE_PARTITION = 1ULL << 13,
 
     /// Set for REORGANIZE PARTITION ... INTO
-    ALTER_REORGANIZE_PARTITION = 1UL << 14,
+    ALTER_REORGANIZE_PARTITION = 1ULL << 14,
 
     /// Set for partition_options
-    ALTER_PARTITION = 1UL << 15,
+    ALTER_PARTITION = 1ULL << 15,
 
     /// Set for LOAD INDEX INTO CACHE ... PARTITION
     /// Set for CACHE INDEX ... PARTITION
-    ALTER_ADMIN_PARTITION = 1UL << 16,
+    ALTER_ADMIN_PARTITION = 1ULL << 16,
 
     /// Set for REORGANIZE PARTITION
-    ALTER_TABLE_REORG = 1UL << 17,
+    ALTER_TABLE_REORG = 1ULL << 17,
 
     /// Set for REBUILD PARTITION
-    ALTER_REBUILD_PARTITION = 1UL << 18,
+    ALTER_REBUILD_PARTITION = 1ULL << 18,
 
     /// Set for partitioning operations specifying ALL keyword
-    ALTER_ALL_PARTITION = 1UL << 19,
+    ALTER_ALL_PARTITION = 1ULL << 19,
 
     /// Set for REMOVE PARTITIONING
-    ALTER_REMOVE_PARTITIONING = 1UL << 20,
+    ALTER_REMOVE_PARTITIONING = 1ULL << 20,
 
     /// Set for ADD FOREIGN KEY
-    ADD_FOREIGN_KEY = 1UL << 21,
+    ADD_FOREIGN_KEY = 1ULL << 21,
 
     /// Set for DROP FOREIGN KEY
-    DROP_FOREIGN_KEY = 1UL << 22,
+    DROP_FOREIGN_KEY = 1ULL << 22,
 
     /// Set for EXCHANGE PARITION
-    ALTER_EXCHANGE_PARTITION = 1UL << 23,
+    ALTER_EXCHANGE_PARTITION = 1ULL << 23,
 
     /// Set by Sql_cmd_alter_table_truncate_partition::execute()
-    ALTER_TRUNCATE_PARTITION = 1UL << 24,
+    ALTER_TRUNCATE_PARTITION = 1ULL << 24,
 
     /// Set for ADD [COLUMN] FIRST | AFTER
-    ALTER_COLUMN_ORDER = 1UL << 25,
+    ALTER_COLUMN_ORDER = 1ULL << 25,
 
     /// Set for RENAME INDEX
-    ALTER_RENAME_INDEX = 1UL << 26,
+    ALTER_RENAME_INDEX = 1ULL << 26,
 
     /// Set for discarding the tablespace
-    ALTER_DISCARD_TABLESPACE = 1UL << 27,
+    ALTER_DISCARD_TABLESPACE = 1ULL << 27,
 
     /// Set for importing the tablespace
-    ALTER_IMPORT_TABLESPACE = 1UL << 28,
+    ALTER_IMPORT_TABLESPACE = 1ULL << 28,
 
     /// Means that the visibility of an index is changed.
-    ALTER_INDEX_VISIBILITY = 1UL << 29,
+    ALTER_INDEX_VISIBILITY = 1ULL << 29,
 
-    /// Set for SECONDARY_LOAD
-    ALTER_SECONDARY_LOAD = 1UL << 30,
+    /// Set for SECONDARY LOAD
+    ALTER_SECONDARY_LOAD = 1ULL << 30,
 
-    /// Set for SECONDARY_UNLOAD
-    ALTER_SECONDARY_UNLOAD = 1UL << 31,
+    /// Set for SECONDARY UNLOAD
+    ALTER_SECONDARY_UNLOAD = 1ULL << 31,
+
+    /// Set for add check constraint.
+    ADD_CHECK_CONSTRAINT = 1ULL << 32,
+
+    /// Set for drop check constraint.
+    DROP_CHECK_CONSTRAINT = 1ULL << 33,
+
+    /// Set for check constraint enforce.
+    ENFORCE_CHECK_CONSTRAINT = 1ULL << 34,
+
+    /// Set for check constraint suspend.
+    SUSPEND_CHECK_CONSTRAINT = 1ULL << 35,
   };
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
@@ -350,10 +381,16 @@ class Alter_info {
   /// Indexes whose visibilities are to be changed.
   Mem_root_array<const Alter_index_visibility *> alter_index_visibility_list;
 
+  /// List of check constraints whose state is changed.
+  Mem_root_array<const Alter_state *> alter_state_list;
+
+  /// Check constraints specification for CREATE and ALTER TABLE operations.
+  Sql_check_constraint_spec_list check_constraint_spec_list;
+
   // List of columns, used by both CREATE and ALTER TABLE.
   List<Create_field> create_list;
   // Type of ALTER TABLE operation.
-  uint flags;
+  ulonglong flags;
   // Enable or disable keys.
   enum_enable_or_disable keys_onoff;
   // List of partitions.
@@ -383,6 +420,8 @@ class Alter_info {
         key_list(mem_root),
         alter_rename_key_list(mem_root),
         alter_index_visibility_list(mem_root),
+        alter_state_list(mem_root),
+        check_constraint_spec_list(mem_root),
         flags(0),
         keys_onoff(LEAVE_AS_IS),
         num_parts(0),

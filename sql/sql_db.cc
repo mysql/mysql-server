@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -585,6 +585,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
     if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
                          0) ||
         rm_table_do_discovery_and_lock_fk_tables(thd, tables) ||
+        lock_check_constraint_names(thd, tables) ||
         Events::lock_schema_events(thd, *schema) ||
         lock_db_routines(thd, *schema) || lock_trigger_names(thd, tables))
       DBUG_RETURN(true);

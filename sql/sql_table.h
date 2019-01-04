@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,8 @@ static const uint NO_FK_CHECKS = 1 << 2;
 static const uint NO_DD_COMMIT = 1 << 3;
 /** Don't change generated foreign key names while renaming table. */
 static const uint NO_FK_RENAME = 1 << 4;
+/** Don't change generated check constraint names while renaming table. */
+static const uint NO_CC_RENAME = 1 << 5;
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                              bool stay_quiet = false);
@@ -512,5 +514,38 @@ extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 bool lock_trigger_names(THD *thd, TABLE_LIST *tables);
 struct TYPELIB;
 TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def);
+
+/**
+  Method to collect check constraint names for the all the tables and acquire
+  MDL lock on them.
+
+  @param[in]    thd     Thread handle.
+  @param[in]    tables  Check constraints of tables to be locked.
+
+  @retval       false   Success.
+  @retval       true    Failure.
+*/
+bool lock_check_constraint_names(THD *thd, TABLE_LIST *tables);
+
+/**
+  Method to lock check constraint names for rename table operation.
+  Method acquire locks on the constraint names of source table and
+  also on the name of check constraint in the target table.
+
+  @param[in]    thd                 Thread handle.
+  @param[in]    db                  Database name.
+  @param[in]    table_name          Table name.
+  @param[in]    table_def           DD table object of source table.
+  @param[in]    target_db           Target database name.
+  @param[in]    target_table_name   Target table name.
+
+  @retval       false               Success.
+  @retval       true                Failure.
+*/
+bool lock_check_constraint_names_for_rename(THD *thd, const char *db,
+                                            const char *table_name,
+                                            const dd::Table *table_def,
+                                            const char *target_db,
+                                            const char *target_table_name);
 
 #endif /* SQL_TABLE_INCLUDED */

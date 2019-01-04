@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -120,6 +120,7 @@ SET(DD_SOURCES
   dd/impl/raw/raw_table.cc
 
   dd/impl/system_views/character_sets.cc
+  dd/impl/system_views/check_constraints.cc
   dd/impl/system_views/collations.cc
   dd/impl/system_views/collation_charset_applicability.cc
   dd/impl/system_views/columns.cc
@@ -151,6 +152,7 @@ SET(DD_SOURCES
   dd/impl/system_views/views.cc
 
   dd/impl/tables/character_sets.cc
+  dd/impl/tables/check_constraints.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
   dd/impl/tables/column_statistics.cc
@@ -183,6 +185,7 @@ SET(DD_SOURCES
   dd/impl/types/table_stat_impl.cc
   dd/impl/types/abstract_table_impl.cc
   dd/impl/types/charset_impl.cc
+  dd/impl/types/check_constraint_impl.cc
   dd/impl/types/collation_impl.cc
   dd/impl/types/column_impl.cc
   dd/impl/types/column_statistics_impl.cc
@@ -440,6 +443,7 @@ SET(SQL_SHARED_SOURCES
   sql_bootstrap.cc
   sql_initialize.cc
   sql_call.cc
+  sql_check_constraint.cc
   sql_class.cc
   sql_component.cc
   sql_const_folding.cc

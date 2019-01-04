@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,8 @@
 
 #include "sql/dd/impl/system_registry.h"
 
-#include "sql/dd/impl/system_views/character_sets.h"  // Character_sets
+#include "sql/dd/impl/system_views/character_sets.h"     // Character_sets
+#include "sql/dd/impl/system_views/check_constraints.h"  // Check_constraints
 #include "sql/dd/impl/system_views/collation_charset_applicability.h"  // Collati...
 #include "sql/dd/impl/system_views/collations.h"           // Collations
 #include "sql/dd/impl/system_views/column_statistics.h"    // Column_statistics
@@ -55,6 +56,7 @@
 
 #include "sql/dd/impl/tables/catalogs.h"              // Catalog
 #include "sql/dd/impl/tables/character_sets.h"        // Character_sets
+#include "sql/dd/impl/tables/check_constraints.h"     // Check_constraints
 #include "sql/dd/impl/tables/collations.h"            // Collations
 #include "sql/dd/impl/tables/column_statistics.h"     // Column_statistics
 #include "sql/dd/impl/tables/column_type_elements.h"  // Column_type_elements
@@ -154,6 +156,7 @@ void System_tables::add_remaining_dd_tables() {
 
   register_table<Catalogs>(core);
   register_table<Character_sets>(core);
+  register_table<Check_constraints>(core);
   register_table<Collations>(core);
   register_table<dd::tables::Column_statistics>(core);
   register_table<Column_type_elements>(core);
@@ -233,6 +236,7 @@ void System_views::init() {
   dd::System_views::Types is = dd::System_views::Types::INFORMATION_SCHEMA;
 
   register_view<dd::system_views::Character_sets>(is);
+  register_view<dd::system_views::Check_constraints>(is);
   register_view<dd::system_views::Collations>(is);
   register_view<dd::system_views::Collation_charset_applicability>(is);
   register_view<dd::system_views::Columns>(is);

@@ -478,24 +478,30 @@ struct Name_resolution_context {
   check_function_as_value_generator
 */
 struct Check_function_as_value_generator_parameters {
-  Check_function_as_value_generator_parameters(int default_error_code,
-                                               bool is_generated_column)
-      : err_code(default_error_code), is_gen_col(is_generated_column) {}
+  Check_function_as_value_generator_parameters(
+      int default_error_code, Value_generator_source val_gen_src)
+      : err_code(default_error_code), source(val_gen_src) {}
   /// the order of the column in table
   int col_index{-1};
   /// the error code found during check(if any)
   int err_code;
-  /// if it is a generated column
-  bool is_gen_col;
+  /*
+    If it is a generated column, default expression or check constraint
+    expresion value generator.
+  */
+  Value_generator_source source;
   /// the name of the function which is not allowed
   const char *banned_function_name{nullptr};
 
   /// Return the correct error code, based on whether or not if we are checking
-  /// for disallowed functions in generated column expressions or in default
-  /// value expressions.
+  /// for disallowed functions in generated column expressions, in default
+  /// value expressions or in check constraint expression.
   int get_unnamed_function_error_code() const {
-    return is_gen_col ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                      : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return ((source == VGS_GENERATED_COLUMN)
+                ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                : (source == VGS_DEFAULT_EXPRESSION)
+                      ? ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED
+                      : ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED);
   }
 };
 /*

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -610,6 +610,15 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
           has_error = true;
           break;
         }
+      }
+
+      if (invoke_table_check_constraints(thd, insert_table)) {
+        if (thd->is_error()) {
+          has_error = true;
+          break;
+        }
+        // continue when IGNORE clause is used.
+        continue;
       }
 
       const int check_result = table_list->view_check_option(thd);
@@ -1753,6 +1762,11 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
         if (!insert_id_consumed)
           table->file->restore_auto_increment(prev_insert_id);
 
+        if (invoke_table_check_constraints(thd, table)) {
+          if (thd->is_error()) goto before_trg_err;
+          goto ok_or_after_trg_err;  // return false when IGNORE clause is used
+        }
+
         /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
         {
           const TABLE_LIST *inserted_view =
@@ -2095,6 +2109,12 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
     table->auto_increment_field_not_null = false;
     DBUG_RETURN(true);
   }
+
+  if (invoke_table_check_constraints(thd, table)) {
+    // return false when IGNORE clause is used.
+    DBUG_RETURN(thd->is_error());
+  }
+
   if (table_list)  // Not CREATE ... SELECT
   {
     switch (table_list->view_check_option(thd)) {

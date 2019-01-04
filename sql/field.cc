@@ -1103,27 +1103,33 @@ static enum_field_types field_types_merge_rules[FIELDTYPE_NUM][FIELDTYPE_NUM] =
          // MYSQL_TYPE_STRING       MYSQL_TYPE_GEOMETRY
          MYSQL_TYPE_STRING, MYSQL_TYPE_GEOMETRY}};
 
-bool pre_validate_value_generator_expr(Item *expression,
-                                       const char *column_name,
-                                       bool is_gen_col) {
+bool pre_validate_value_generator_expr(Item *expression, const char *name,
+                                       Value_generator_source source) {
+  enum error_type { ER_GENERATED_ROW, ER_NAMED_FUNCTION, MAX_ERROR };
+  int error_code_map[][MAX_ERROR] = {
+      // Generated column
+      {ER_GENERATED_COLUMN_ROW_VALUE,
+       ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED},
+      // Default expression
+      {ER_DEFAULT_VAL_GENERATED_ROW_VALUE,
+       ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED},
+      // Check constraint
+      {ER_CHECK_CONSTRAINT_ROW_VALUE,
+       ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED}};
+
   // ROW values are not allowed
   if (expression->cols() != 1) {
-    const int err_code = is_gen_col ? ER_GENERATED_COLUMN_ROW_VALUE
-                                    : ER_DEFAULT_VAL_GENERATED_ROW_VALUE;
-    my_error(err_code, MYF(0), column_name);
+    my_error(error_code_map[source][ER_GENERATED_ROW], MYF(0), name);
     return true;
   }
 
-  const int error_code =
-      is_gen_col ? ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
-                 : ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED;
-  Check_function_as_value_generator_parameters checker_args(error_code,
-                                                            is_gen_col);
+  Check_function_as_value_generator_parameters checker_args(
+      error_code_map[source][ER_NAMED_FUNCTION], source);
 
   if (expression->walk(&Item::check_function_as_value_generator,
                        Item::WALK_SUBQUERY_POSTFIX,
                        pointer_cast<uchar *>(&checker_args))) {
-    my_error(checker_args.err_code, MYF(0), column_name,
+    my_error(checker_args.err_code, MYF(0), name,
              checker_args.banned_function_name);
     return true;
   }

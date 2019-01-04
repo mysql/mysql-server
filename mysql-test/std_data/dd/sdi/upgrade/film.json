@@ -843,6 +843,7 @@
                 ]
             }
         ],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": 33
     }

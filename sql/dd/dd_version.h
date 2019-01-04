@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -137,18 +137,25 @@
   - Bug#24741307: add last_checked_for_upgrade column to msyql.tables table
 
 
-  80014: Current
+  80014: Published in 8.0.14
   ----------------------------------------------------------------------------
   Changes from version 80013:
 
   - Bug#28492272: Synchronize sql_mode in server with that in DD.
 
 
-  80015: Next DD version number after the previous is public.
+  80015: Current
   ----------------------------------------------------------------------------
   Changes from version 80014:
 
-  - No changes, this version number is not active yet.
+  - WL#929 - CHECK CONSTRAINTS
+      New DD table check_constraints is introduced for the check
+      constraints metadata.
+
+
+  80016: Next DD version number after the previous is public.
+  ----------------------------------------------------------------------------
+  Changes from version 80015:
 
 
   If a new DD version is published in a MRU, that version may or may not
@@ -160,9 +167,9 @@
 */
 namespace dd {
 
-static const uint DD_VERSION = 80014;
+static const uint DD_VERSION = 80015;
 
-static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80014;
+static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80015;
 
 }  // namespace dd
 

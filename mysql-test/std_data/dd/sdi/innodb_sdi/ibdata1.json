@@ -505,6 +505,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": 255,
         "tablespace_ref": "innodb_system"
@@ -691,6 +692,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [],
         "collation_id": 255,
         "tablespace_ref": "innodb_system"

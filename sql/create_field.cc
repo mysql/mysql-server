@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -279,11 +279,11 @@ bool Create_field::init(
       */
       sql_type = fld_type = gcol_info->get_real_type();
       if (pre_validate_value_generator_expr(gcol_info->expr_item, field_name,
-                                            true))
+                                            VGS_GENERATED_COLUMN))
         DBUG_RETURN(true);
     } else {
       if (pre_validate_value_generator_expr(m_default_val_expr->expr_item,
-                                            field_name, false))
+                                            field_name, VGS_DEFAULT_EXPRESSION))
         DBUG_RETURN(true);
     }
   }

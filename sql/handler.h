@@ -2766,6 +2766,15 @@ class Alter_inplace_info {
   */
   static const HA_ALTER_FLAGS STORED_GCOL_REEVAL = 1ULL << 45;
 
+  // Add check constraint.
+  static const HA_ALTER_FLAGS ADD_CHECK_CONSTRAINT = 1ULL << 46;
+
+  // Drop check constraint.
+  static const HA_ALTER_FLAGS DROP_CHECK_CONSTRAINT = 1ULL << 47;
+
+  // Suspend check constraint.
+  static const HA_ALTER_FLAGS SUSPEND_CHECK_CONSTRAINT = 1ULL << 48;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 

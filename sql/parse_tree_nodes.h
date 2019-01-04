@@ -29,6 +29,7 @@
 #include <limits>
 
 #include "binary_log_types.h"
+#include "binlog_event.h"  // UNDEFINED_SERVER_VERSION
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
@@ -63,7 +64,8 @@
 #include "sql/sp_head.h"    // sp_head
 #include "sql/sql_admin.h"  // Sql_cmd_shutdown etc.
 #include "sql/sql_alter.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec
+#include "sql/sql_class.h"             // THD
 #include "sql/sql_cmd_srs.h"
 #include "sql/sql_exchange.h"
 #include "sql/sql_lex.h"  // LEX
@@ -3254,16 +3256,40 @@ class PT_create_table_default_collation : public PT_create_table_option {
   bool contextualize(Table_ddl_parse_context *pc) override;
 };
 
-class PT_check_constraint : public PT_table_constraint_def {
+class PT_check_constraint final : public PT_table_constraint_def {
   typedef PT_table_constraint_def super;
-
-  Item *expr;
+  Sql_check_constraint_spec cc_spec;
 
  public:
-  explicit PT_check_constraint(Item *expr) : expr(expr) {}
+  explicit PT_check_constraint(LEX_STRING &name, Item *expr, bool is_enforced) {
+    cc_spec.name = name;
+    cc_spec.check_expr = expr;
+    cc_spec.is_enforced = is_enforced;
+  }
+  void set_column_name(const LEX_STRING &name) { cc_spec.column_name = name; }
 
   bool contextualize(Table_ddl_parse_context *pc) override {
-    return super::contextualize(pc) && expr->itemize(pc, &expr);
+    /*
+      On slave, add check constraint only if master server is on version
+      supporting check constraints. Check constraint support is introduced
+      in 80015.
+    */
+    THD *thd = pc->thd;
+    if ((thd->system_thread &
+         (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) &&
+        (thd->variables.original_server_version == UNDEFINED_SERVER_VERSION ||
+         thd->variables.original_server_version < 80015))
+      return false;
+
+    if (super::contextualize(pc) ||
+        cc_spec.check_expr->itemize(pc, &cc_spec.check_expr))
+      return true;
+
+    if (pc->alter_info->check_constraint_spec_list.push_back(&cc_spec))
+      return true;
+
+    pc->alter_info->flags |= Alter_info::ADD_CHECK_CONSTRAINT;
+    return false;
   }
 };
 
@@ -3272,20 +3298,22 @@ class PT_column_def : public PT_table_element {
 
   const LEX_STRING field_ident;
   PT_field_def_base *field_def;
-
-  /// Currently we ignore that constraint in the executor.
-  PT_table_constraint_def *opt_column_constraint;
+  // For column check constraint.
+  PT_check_constraint *opt_column_constraint{nullptr};
 
   const char *opt_place;
 
  public:
   PT_column_def(const LEX_STRING &field_ident, PT_field_def_base *field_def,
-                PT_table_constraint_def *opt_column_constraint,
+                PT_table_constraint_def *column_constraint,
                 const char *opt_place = NULL)
-      : field_ident(field_ident),
-        field_def(field_def),
-        opt_column_constraint(opt_column_constraint),
-        opt_place(opt_place) {}
+      : field_ident(field_ident), field_def(field_def), opt_place(opt_place) {
+    if (column_constraint) {
+      opt_column_constraint =
+          down_cast<PT_check_constraint *>(column_constraint);
+      opt_column_constraint->set_column_name(field_ident);
+    }
+  }
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 };
@@ -3827,6 +3855,31 @@ class PT_alter_table_drop_key final : public PT_alter_table_drop {
   explicit PT_alter_table_drop_key(const char *name)
       : PT_alter_table_drop(Alter_drop::KEY, Alter_info::ALTER_DROP_INDEX,
                             name) {}
+};
+
+class PT_alter_table_drop_check_constraint final : public PT_alter_table_drop {
+ public:
+  explicit PT_alter_table_drop_check_constraint(const char *name)
+      : PT_alter_table_drop(Alter_drop::CHECK_CONSTRAINT,
+                            Alter_info::DROP_CHECK_CONSTRAINT, name) {}
+};
+
+class PT_alter_table_check_constraint final : public PT_alter_table_action {
+  typedef PT_alter_table_action super;
+
+ public:
+  explicit PT_alter_table_check_constraint(const char *name, bool state)
+      : super(state ? Alter_info::ENFORCE_CHECK_CONSTRAINT
+                    : Alter_info::SUSPEND_CHECK_CONSTRAINT),
+        cc_state(Alter_state::Type::CHECK_CONSTRAINT, name, state) {}
+
+  bool contextualize(Table_ddl_parse_context *pc) override {
+    return (super::contextualize(pc) ||
+            pc->alter_info->alter_state_list.push_back(&cc_state));
+  }
+
+ private:
+  Alter_state cc_state;
 };
 
 class PT_alter_table_enable_keys final : public PT_alter_table_action {

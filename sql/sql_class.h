@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,6 +149,7 @@ class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
 struct LOG_INFO;
+class Check_constraints_adjusted_names_map;
 
 typedef struct user_conn USER_CONN;
 struct MYSQL_LOCK;
@@ -2427,6 +2428,12 @@ class THD : public MDL_context_owner,
 
   // We don't want to load/unload plugins for unit tests.
   bool m_enable_plugins;
+
+  /*
+    Map of check constraints adjusted names to actual names. Needed for error
+    reporting during ALTER TABLE.
+  */
+  Check_constraints_adjusted_names_map *m_cc_adjusted_names_map{nullptr};
 
   THD(bool enable_plugins = true);
 

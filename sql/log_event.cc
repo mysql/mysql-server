@@ -11552,6 +11552,10 @@ int Write_rows_log_event::write_row(const Relay_log_info *const rli,
     DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
   }
 
+  // Invoke check constraints on the unpacked row.
+  if (invoke_table_check_constraints(thd, table))
+    DBUG_RETURN(ER_CHECK_CONSTRAINT_VIOLATED);
+
   if (m_curr_row == m_rows_buf) {
     /* this is the first row to be inserted, we estimate the rows with
        the size of the first row and use that value to initialize
@@ -12008,6 +12012,10 @@ int Update_rows_log_event::do_exec_row(const Relay_log_info *const rli) {
   /* this also updates m_curr_row_end */
   if ((error = unpack_current_row(rli, &m_cols_ai, true /*is AI*/)))
     return error;
+
+  // Invoke check constraints on the unpacked row.
+  if (invoke_table_check_constraints(thd, m_table))
+    return ER_CHECK_CONSTRAINT_VIOLATED;
 
   /*
     Now we have the right row to update.  The old row (the one we're

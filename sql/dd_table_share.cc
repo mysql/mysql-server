@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,7 @@
 #include "sql/dd/impl/utils.h"  // dd::eat_str
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
+#include "sql/dd/types/check_constraint.h"     // dd::Check_constraint
 #include "sql/dd/types/column.h"               // dd::enum_column_types
 #include "sql/dd/types/column_type_element.h"  // dd::Column_type_element
 #include "sql/dd/types/foreign_key.h"
@@ -74,7 +75,8 @@
 #include "sql/partition_element.h"  // partition_element
 #include "sql/partition_info.h"     // partition_info
 #include "sql/sql_bitmap.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/sql_check_constraint.h"  // Sql_check_constraint_share_list
+#include "sql/sql_class.h"             // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
@@ -2233,6 +2235,54 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
   return false;
 }
 
+/**
+  Fill check constraints from dd::Table object to the TABLE_SHARE.
+
+  @param[in,out]      share              TABLE_SHARE instance.
+  @param[in]          tab_obj            Table instance.
+
+  @retval   false   On Success.
+  @retval   true    On failure.
+*/
+static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
+                                           const dd::Table *tab_obj) {
+  DBUG_ASSERT(share->check_constraint_share_list == nullptr);
+
+  if (tab_obj->check_constraints().size() > 0) {
+    share->check_constraint_share_list = new (&share->mem_root)
+        Sql_check_constraint_share_list(&share->mem_root);
+    if (share->check_constraint_share_list == nullptr) return true;  // OOM
+
+    for (auto &cc : tab_obj->check_constraints()) {
+      // Check constraint name.
+      LEX_CSTRING name;
+      if (lex_string_strmake(&share->mem_root, &name, cc->name().c_str(),
+                             cc->name().length()))
+        return true;  // OOM
+
+      // Check constraint expression (clause).
+      LEX_CSTRING check_clause;
+      if (lex_string_strmake(&share->mem_root, &check_clause,
+                             cc->check_clause().c_str(),
+                             cc->check_clause().length()))
+        return true;  // OOM
+
+      // Check constraint state.
+      bool is_cc_enforced =
+          (cc->constraint_state() == dd::Check_constraint::CS_ENFORCED);
+
+      Sql_check_constraint_share *cc_share = new (&share->mem_root)
+          Sql_check_constraint_share(name, check_clause, is_cc_enforced);
+      if (cc_share == nullptr) return true;  // OOM
+
+      if (share->check_constraint_share_list->push_back(cc_share))
+        return true;  // OOM
+    }
+  }
+
+  return false;
+}
+
 bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
   DBUG_ENTER("open_table_def");
 
@@ -2245,7 +2295,8 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
                 fill_columns_from_dd(thd, share, &table_def) ||
                 fill_indexes_from_dd(thd, share, &table_def) ||
                 fill_partitioning_from_dd(thd, share, &table_def) ||
-                fill_foreign_keys_from_dd(share, &table_def));
+                fill_foreign_keys_from_dd(share, &table_def) ||
+                fill_check_constraints_from_dd(share, &table_def));
 
   thd->mem_root = old_root;
 

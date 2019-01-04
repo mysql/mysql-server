@@ -50,8 +50,8 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of hidden DD/DDSE tables must be as expected.
 ########################################################################
-include/assert.inc [There are 31 hidden DD/DDSE tables.]
-include/assert.inc [There are 33 DD/DDSE tables in total.]
+include/assert.inc [There are 32 hidden DD/DDSE tables.]
+include/assert.inc [There are 34 DD/DDSE tables in total.]
 ########################################################################
 # No unexpected DD tables must be present.
 ########################################################################
@@ -190,8 +190,8 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of hidden DD/DDSE tables must be as expected.
 ########################################################################
-include/assert.inc [There are 31 hidden DD/DDSE tables.]
-include/assert.inc [There are 33 DD/DDSE tables in total.]
+include/assert.inc [There are 32 hidden DD/DDSE tables.]
+include/assert.inc [There are 34 DD/DDSE tables in total.]
 ########################################################################
 # No unexpected DD tables must be present.
 ########################################################################
@@ -332,8 +332,8 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of hidden DD/DDSE tables must be as expected.
 ########################################################################
-include/assert.inc [There are 31 hidden DD/DDSE tables.]
-include/assert.inc [There are 33 DD/DDSE tables in total.]
+include/assert.inc [There are 32 hidden DD/DDSE tables.]
+include/assert.inc [There are 34 DD/DDSE tables in total.]
 ########################################################################
 # No unexpected DD tables must be present.
 ########################################################################
@@ -474,8 +474,8 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of hidden DD/DDSE tables must be as expected.
 ########################################################################
-include/assert.inc [There are 31 hidden DD/DDSE tables.]
-include/assert.inc [There are 33 DD/DDSE tables in total.]
+include/assert.inc [There are 32 hidden DD/DDSE tables.]
+include/assert.inc [There are 34 DD/DDSE tables in total.]
 ########################################################################
 # No unexpected DD tables must be present.
 ########################################################################

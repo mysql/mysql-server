@@ -7,6 +7,7 @@ use INFORMATION_SCHEMA;
 show tables where Tables_in_information_schema NOT LIKE 'INNODB%' and Tables_in_information_schema NOT LIKE 'ndb%';
 Tables_in_information_schema
 CHARACTER_SETS
+CHECK_CONSTRAINTS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS

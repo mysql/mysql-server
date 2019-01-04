@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -414,8 +414,8 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
       if (sql_field->gcol_info && (*field_ptr)->gcol_info)
       {
         if (unpack_value_generator(
-            thd, table, *field_ptr, &(*field_ptr)->gcol_info, false, false,
-            &error_reported)) {
+                thd, table, &(*field_ptr)->gcol_info, VGS_GENERATED_COLUMN,
+                (*field_ptr)->field_name, *field_ptr, false, &error_reported)) {
           error= false;
           break;
         }
@@ -964,7 +964,7 @@ bool migrate_table_to_dd(THD *thd,
   std::unique_ptr<dd::Table> table_def = dd::create_dd_user_table(
       thd, *sch_obj, to_table_name, &create_info, alter_info.create_list,
       key_info_buffer, key_count, Alter_info::ENABLE, fk_key_info_buffer,
-      fk_number, table.file);
+      fk_number, nullptr, table.file);
 
   if (!table_def || thd->dd_client()->store(table_def.get())) {
     ndb_log_error("Error in Creating DD entry for %s.%s",

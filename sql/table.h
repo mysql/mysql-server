@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,6 +96,7 @@ class Temp_table_param;
 class handler;
 class partition_info;
 enum enum_stats_auto_recalc : int;
+enum Value_generator_source : short;
 enum row_type : int;
 struct HA_CREATE_INFO;
 struct LEX;
@@ -114,6 +115,14 @@ class View;
 enum class enum_table_type;
 }  // namespace dd
 class Common_table_expr;
+
+class Sql_table_check_constraint;
+using Sql_table_check_constraint_list =
+    Mem_root_array<Sql_table_check_constraint *>;
+
+class Sql_check_constraint_share;
+using Sql_check_constraint_share_list =
+    Mem_root_array<Sql_check_constraint_share *>;
 
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 
@@ -931,6 +940,9 @@ struct TABLE_SHARE {
   uint foreign_key_parents{0};
   TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *foreign_key_parent{nullptr};
 
+  // List of check constraint share instances.
+  Sql_check_constraint_share_list *check_constraint_share_list{nullptr};
+
   /**
     Set share's table cache key and update its db and table name appropriately.
 
@@ -1462,6 +1474,9 @@ struct TABLE {
   uint db_stat{0};         /* mode of file as in handler.h */
   int current_lock{0};     /* Type of lock on table */
 
+  // List of table check constraints.
+  Sql_table_check_constraint_list *table_check_constraint_list{nullptr};
+
  private:
   /**
     If true, this table is inner w.r.t. some outer join operation, all columns
@@ -1838,19 +1853,26 @@ struct TABLE {
 
   /**
     Helper function for refix_value_generator_items() that fixes one column's
-    expression (be it GC or default expression).
+    expression (be it GC or default expression) and check constraint expression.
 
-    @param[in] thd           current thread
-    @param[in,out] g_expr    the expression who's items needs to be fixed
-    @param[in] table         the table it blongs to
-    @param[in] field         the column it blongs to
-    @param[in] is_gen_col    if it is a generated column or default expression
+    @param[in]     thd          current thread
+    @param[in,out] g_expr       the expression who's items needs to be fixed
+    @param[in]     table        the table it blongs to
+    @param[in]     field        the column it blongs to (for GC and Default
+                                expression).
+    @param[in]     source       Source of value generator(a generated column, a
+                                regular column with generated default value or
+                                a check constraint).
+    @param[in]     source_name  Name of the source (generated column, a reguler
+                                column with generated default value or a check
+                                constraint).
 
     @return true if error, else false
   */
   bool refix_inner_value_generator_items(THD *thd, Value_generator *g_expr,
                                          Field *field, TABLE *table,
-                                         bool is_gen_col);
+                                         Value_generator_source source,
+                                         const char *source_name);
 
   /**
     Clean any state in items associated with generated columns to be ready for
@@ -3648,17 +3670,22 @@ static inline void dbug_tmp_restore_column_maps(
 void init_mdl_requests(TABLE_LIST *table_list);
 
 /**
-   Unpacks the definition of a generated column or default expression passed as
-   argument. Parses the text obtained from TABLE_SHARE and produces an Item.
+   Unpacks the definition of a generated column, default expression or check
+   constraint expression passed as argument. Parses the text obtained from
+   TABLE_SHARE and produces an Item.
 
   @param thd                  Thread handler
   @param table                Table with the checked field
+  @param val_generator        The expression to unpack.
+  @param source               Source of value generator(a generated column,
+                              a regular column with generated default value or
+                              a check constraint).
+  @param source_name          Name of the source (generated column, a reguler
+                              column with generated default value or a check
+                              constraint).
   @param field                Pointer to Field object
-  @param val_generator        The virtual column or default expr to be parsed.
   @param is_create_table      Indicates that table is opened as part
                               of CREATE or ALTER and does not yet exist in SE
-  @param is_gen_col           Indicates if the expression is a column or just
-                              an expression for the default value.
   @param error_reported       updated flag for the caller that no other error
                               messages are to be generated.
 
@@ -3666,10 +3693,11 @@ void init_mdl_requests(TABLE_LIST *table_list);
   @retval false Success.
 */
 
-bool unpack_value_generator(THD *thd, TABLE *table, Field *field,
+bool unpack_value_generator(THD *thd, TABLE *table,
                             Value_generator **val_generator,
-                            bool is_create_table, bool is_gen_col,
-                            bool *error_reported);
+                            Value_generator_source source,
+                            const char *source_name, Field *field,
+                            bool is_create_table, bool *error_reported);
 
 /**
    Unpack the partition expression. Parse the partition expression

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Check_constraint;
 class Partition;
 class Table_impl;
 class Trigger;
@@ -47,6 +48,7 @@ class Table : virtual public Abstract_table {
   typedef std::vector<Foreign_key_parent *> Foreign_key_parent_collection;
   typedef Collection<Partition *> Partition_collection;
   typedef Collection<Trigger *> Trigger_collection;
+  typedef Collection<Check_constraint *> Check_constraint_collection;
 
   /*
     The type Partition_collection object 'own' the Partition* object. That
@@ -384,6 +386,16 @@ class Table : virtual public Abstract_table {
   */
 
   virtual void drop_all_triggers() = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Check constraint collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Check_constraint *add_check_constraint() = 0;
+
+  virtual const Check_constraint_collection &check_constraints() const = 0;
+
+  virtual Check_constraint_collection *check_constraints() = 0;
 
  public:
   /**

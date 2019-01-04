@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1103,8 +1103,14 @@ bool sync_meta_data(THD *thd) {
          it != System_tables::instance()->end() &&
          persisted_it != persisted_dd_tables.end();
          ++it, ++persisted_it) {
+      /*
+        If we are in the process of upgrading, there may not be an entry
+        in the persisted_dd_tables for new tables that have been added after
+        the version we are upgrading from.
+      */
+      if ((*persisted_it) == nullptr) continue;
+
       if ((*it)->property() == System_tables::Types::CORE) {
-        DBUG_ASSERT((*it)->entity()->name() == (*persisted_it)->name());
         dd::cache::Storage_adapter::instance()->core_store(
             thd, static_cast<Table *>((*persisted_it).get()));
       }

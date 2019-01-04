@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1256,9 +1256,9 @@ static bool fix_generated_columns_for_upgrade(
     for (field_ptr = table->s->field; (sql_field = itc++); field_ptr++) {
       // Field has generated col information.
       if (sql_field->gcol_info && (*field_ptr)->gcol_info) {
-        if (unpack_value_generator(thd, table, *field_ptr,
-                                   &(*field_ptr)->gcol_info, false, true,
-                                   &error_reported)) {
+        if (unpack_value_generator(
+                thd, table, &(*field_ptr)->gcol_info, VGS_GENERATED_COLUMN,
+                (*field_ptr)->field_name, *field_ptr, false, &error_reported)) {
           error = true;
           break;
         }
@@ -1693,6 +1693,7 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
 
   FOREIGN_KEY *fk_key_info_buffer = NULL;
   uint fk_number = 0;
+  Sql_check_constraint_spec_list cc_spec_list_unused(thd->mem_root);
 
   // Set sql_mode=0 for handling default values, it will be restored vai RAII.
   thd->variables.sql_mode = 0;
@@ -1725,7 +1726,7 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   std::unique_ptr<dd::Table> table_def = dd::create_dd_user_table(
       thd, *sch_obj, to_table_name, &create_info, alter_info.create_list,
       key_info_buffer, key_count, Alter_info::ENABLE, fk_key_info_buffer,
-      fk_number, table.file);
+      fk_number, &cc_spec_list_unused, table.file);
 
   if (!table_def || thd->dd_client()->store(table_def.get())) {
     LogErr(ERROR_LEVEL, ER_DD_ERROR_CREATING_ENTRY, schema_name.c_str(),

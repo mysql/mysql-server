@@ -8772,6 +8772,42 @@ ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
 ER_CLIENT_WARN_PARTIAL_REVOKE_MYSQLBINLOG_INCOMPATIBILITY
   eng "mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog."
 
+ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+  eng "An expression of non-boolean type specified to a check constraint '%-.192s'."
+
+ER_COLUMN_CHECK_CONSTRAINT_REFERENCES_OTHER_COLUMN
+  eng "Column check constraint '%-.192s' references other column."
+
+ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED
+  eng "An expression of a check constraint '%-.192s' contains disallowed function: %s."
+
+ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
+  eng "An expression of a check constraint '%-.192s' contains disallowed function."
+
+ER_CHECK_CONSTRAINT_VARIABLES
+  eng "An expression of a check constraint '%-.192s' cannot refer to a user or system variables."
+
+ER_CHECK_CONSTRAINT_ROW_VALUE
+  eng "Check constraint '%-.192s' cannot refer to a row value."
+
+ER_CHECK_CONSTRAINT_REFERS_AUTO_INCREMENT_COLUMN
+  eng "Check constraint '%-.192s' cannot refer to an auto-increment column."
+
+ER_CHECK_CONSTRAINT_VIOLATED
+  eng "Check constraint '%-.192s' is violated."
+
+ER_CHECK_CONSTRAINT_REFERS_UNKNOWN_COLUMN
+  eng "Check constraint '%-.192s' refers to non-existing column '%-.192s'."
+
+ER_CHECK_CONSTRAINT_NOT_FOUND
+  eng "Check constraint '%-.192s' is not found in the table."
+
+ER_CHECK_CONSTRAINT_DUP_NAME
+  eng "Duplicate check constraint name '%-.192s'."
+
+ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN
+  eng "Column '%-.192s' cannot be used in a check constraint '%-.192s': needed in a foreign key constraint '%-.192s' referential action."
+
 #
 #  End of 8.0 error messages.
 #

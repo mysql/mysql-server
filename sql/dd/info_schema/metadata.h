@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ namespace info_schema {
     if it is a regular key part. For functional key parts, COLUMN_NAME is set to
     SQL NULL.
 
-  80013: Current
+  80013: Published in 8.0.13
   ------------------------------------
   Changes from version 80012
 
@@ -85,9 +85,23 @@ namespace info_schema {
     Adds a new view `information_schema`.`st_units_of_measure` with columns
     `UNIT_NAME`, `CONVERSION_FACTOR`, `DESCRIPTION`, and `UNIT_TYPE`. This view
     contains the supported spatial units.
+
+  80014:
+  ------------------------------------
+  There are no changes from version 80013. Hence server version 80014 used
+  I_S version 80013.
+
+  80015: Current
+  ------------------------------------
+  Changes from version 80014.
+
+  - WL#929 - CHECK CONSTRAINTS
+    New INFORMATION_SCHMEA table CHECK_CONSTRAINTS is introduced and
+    INFORMATION_SCHMEA.TABLE_CONSTRAINTS is modified to include check
+    constraints defined on the table.
 */
 
-static const uint IS_DD_VERSION = 80013;
+static const uint IS_DD_VERSION = 80015;
 
 /**
   Initialize INFORMATION_SCHEMA system views.

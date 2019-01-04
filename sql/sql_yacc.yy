@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -461,6 +461,7 @@ void warn_about_deprecated_national(THD *thd)
    For each token, please include in the same line a comment that contains
    one or more of the following tags:
 
+   SQL-2015-N : Non Reserved keyword as per SQL-2015 draft
    SQL-2015-R : Reserved keyword as per SQL-2015 draft
    SQL-2003-R : Reserved keyword as per SQL-2003
    SQL-2003-N : Non Reserved keyword as per SQL-2003
@@ -1235,6 +1236,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> SECONDARY_UNLOAD_SYM          /* MYSQL */
 %token<keyword> RETAIN_SYM                    /* MYSQL */
 %token<keyword> OLD_SYM                       /* SQL-2003-R */
+%token<keyword> ENFORCED_SYM                  /* SQL-2015-N */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1494,6 +1496,8 @@ void warn_about_deprecated_national(THD *thd)
         opt_local
         opt_retain_current_password
         opt_discard_old_password
+        opt_constraint_enforcement
+        opt_not
 
 %type <show_cmd_type> opt_show_cmd_type
 
@@ -6149,16 +6153,8 @@ column_def:
         ;
 
 opt_check_or_references:
-          /* empty */   { $$= NULL; }
-        | check_constraint
-          {
-            /*
-              Currently we ignore the CHECK clause.
-
-              Return expression for syntax validation purposes only:
-            */
-            $$= $1;
-          }
+          /* empty */      { $$= NULL; }
+        | check_constraint { $$= $1; }
         |  references
           {
             /* Currently we ignore FK references here: */
@@ -6202,27 +6198,30 @@ table_constraint_def:
                                                   $8.fk_update_opt,
                                                   $8.fk_delete_opt);
           }
-        | opt_constraint check_constraint
-          {
-            $$= $2;
-          }
+        | check_constraint { $$= $1; }
         ;
 
 check_constraint:
-          CHECK_SYM '(' expr ')'
+          opt_constraint CHECK_SYM '(' expr ')' opt_constraint_enforcement
           {
-            /*
-              Currently we ignore CHECK clauses in the query executor.
-
-              Return expression for syntax validation purposes only:
-            */
-            $$= NEW_PTN PT_check_constraint($3);
+            $$= NEW_PTN PT_check_constraint($1, $4, $6);
+            if ($$ == nullptr) MYSQL_YYABORT; // OOM
           }
         ;
 
 opt_constraint:
           /* empty */          { $$= NULL_STR; }
         | CONSTRAINT opt_ident { $$= $2; }
+        ;
+
+opt_not:
+          /* empty */  { $$= false; }
+        | NOT_SYM      { $$= true; }
+        ;
+
+opt_constraint_enforcement:
+          /* empty */           { $$= true; }
+        | opt_not ENFORCED_SYM  { $$ = !($1); }
         ;
 
 field_def:
@@ -8025,6 +8024,10 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_drop_key($3.str);
           }
+        | DROP CHECK_SYM ident
+          {
+            $$= NEW_PTN PT_alter_table_drop_check_constraint($3.str);
+          }
         | DISABLE_SYM KEYS
           {
             $$= NEW_PTN PT_alter_table_enable_keys(false);
@@ -8048,6 +8051,10 @@ alter_list_item:
         | ALTER INDEX_SYM ident visibility
           {
             $$= NEW_PTN PT_alter_table_index_visible($3.str, $4);
+          }
+        | ALTER CHECK_SYM ident opt_not ENFORCED_SYM
+          {
+            $$ = NEW_PTN PT_alter_table_check_constraint($3.str, !($4));
           }
         | RENAME opt_to table_ident
           {
@@ -14047,6 +14054,7 @@ role_or_label_keyword:
         | ENABLE_SYM
         | ENCRYPTION_SYM
         | ENDS_SYM
+        | ENFORCED_SYM
         | ENGINES_SYM
         | ENGINE_SYM
         | ENUM_SYM

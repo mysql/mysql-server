@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +104,7 @@ bool Ignore_error_handler::handle_condition(
     case ER_NO_PARTITION_FOR_GIVEN_VALUE:
     case ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT:
     case ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET:
+    case ER_CHECK_CONSTRAINT_VIOLATED:
       (*level) = Sql_condition::SL_WARNING;
       break;
     default:

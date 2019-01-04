@@ -262,6 +262,7 @@
             }
         ],
         "foreign_keys": [],
+        "check_constraints": [],
         "partitions": [
             {
                 "name": "p0",
