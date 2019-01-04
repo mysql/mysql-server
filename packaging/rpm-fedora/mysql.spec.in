@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -99,11 +99,7 @@ BuildRequires:  perl(Sys::Hostname)
 BuildRequires:  perl(Time::HiRes)
 BuildRequires:  perl(Time::localtime)
 BuildRequires:  perl-generators
-%if 0%{?fedora} > 28
-BuildRequires:  compat-openssl10-devel
-%else
 BuildRequires:  openssl-devel
-%endif
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel

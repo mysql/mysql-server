@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -133,10 +133,11 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
       client_ssl_mode = SSL_MODE_VERIFY_CA;
     }
 
-    OptionalString capath, cipher, crl, crlpath, version;
+    OptionalString capath, cipher, ciphersuites, crl, crlpath, version;
 
     SslAcceptorContext::read_parameters(nullptr, &capath, &version, nullptr,
-                                        &cipher, nullptr, &crl, &crlpath);
+                                        &cipher, &ciphersuites, nullptr, &crl,
+                                        &crlpath);
 
     mysql_ssl_set(mysql, ssl_ctx->m_ssl_private_key, ssl_ctx->m_ssl_certificate,
                   ssl_ctx->m_ssl_certificate_authority, capath.c_str(),
@@ -145,6 +146,7 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
     mysql_options(mysql, MYSQL_OPT_SSL_CRL, crl.c_str());
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, crlpath.c_str());
     mysql_options(mysql, MYSQL_OPT_TLS_VERSION, version.c_str());
+    mysql_options(mysql, MYSQL_OPT_TLS_CIPHERSUITES, ciphersuites.c_str());
   }
 
   mysql_options(mysql, MYSQL_OPT_SSL_MODE, &client_ssl_mode);

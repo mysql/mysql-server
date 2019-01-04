@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -287,7 +287,7 @@ void get_server_parameters(char **hostname, uint *port, char **uuid,
   OptionalString ca, capath, cert, cipher, key, crl, crlpath, version;
 
   SslAcceptorContext::read_parameters(&ca, &capath, &version, &cert, &cipher,
-                                      &key, &crl, &crlpath);
+                                      nullptr, &key, &crl, &crlpath);
 
 #ifdef HAVE_OPENSSL
   server_ssl_variables->have_ssl_opt = true;
