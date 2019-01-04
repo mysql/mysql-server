@@ -163,5 +163,5 @@ DROP TABLE proc;
 DROP TABLE trigg;
 DROP TABLE t1;
 DROP TABLE t2;
-RESET MASTER;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
