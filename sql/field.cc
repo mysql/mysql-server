@@ -3214,7 +3214,7 @@ type_conversion_status Field_tiny::store(double nr) {
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error = TYPE_WARN_OUT_OF_RANGE;
     } else
-      *ptr = (char)nr;
+      *ptr = static_cast<unsigned char>(nr);
   } else {
     if (nr < -128.0) {
       *ptr = (char)-128;
