@@ -731,6 +731,7 @@ bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr);
 void init_tmptable_sum_functions(Item_sum **func_ptr);
 bool update_sum_func(Item_sum **func_ptr);
 void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
+bool has_rollup_result(Item *item);
 
 /*
   If a condition cannot be applied right away, for instance because it is a

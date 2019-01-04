@@ -181,6 +181,56 @@ vector<RowIterator::Child> FilterIterator::children() const {
   return ret;
 }
 
+AggregateIterator::AggregateIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> source, JOIN *join,
+    Temp_table_param *temp_table_param, int output_slice, bool rollup)
+    : RowIterator(thd),
+      m_source(move(source)),
+      m_join(join),
+      m_output_slice(output_slice),
+      m_temp_table_param(temp_table_param),
+      m_rollup(rollup) {
+  // If we have rollup, the rollup rows will contain a different set of items
+  // from the normal rows. (In particular, fields that are not normally nullable
+  // can be NULL, and the rollup aggregates are also different Items.)
+  // Unfortunately, we don't have any good way of returning rows from iterators;
+  // the executor will send whatever is in join->fields.
+  //
+  // However, there is no problem in programming that can't be solved with
+  // another layer of indirection. Thus, we replace the entire field list with a
+  // set of Item_ref, which work as pointers into either the original fields or
+  // to the rollup fields, depending on what we want to output. (For outputting
+  // to temporary tables, we don't need this, as join->fields isn't used.)
+  //
+  // If we do this, ConvertItemsToCopy() needs to be careful to propagate the
+  // result fields correctly (so we mark in the JOIN that it needs to do so),
+  // but it runs after this constructor, so it should be fine.
+  m_replace_field_list =
+      m_rollup && m_output_slice == REF_SLICE_ORDERED_GROUP_BY;
+  if (m_replace_field_list) {
+    m_join->replaced_items_for_rollup = true;
+    m_original_fields = m_join->fields;
+    m_current_fields = new (thd->mem_root)
+        Mem_root_array<Item *>(thd->mem_root, m_original_fields->size());
+
+    // Create the new list of items.
+    List<Item> *ref_items = new (thd->mem_root) List<Item>;
+    size_t item_index = 0;
+    for (Item &item : *m_original_fields) {
+      (*m_current_fields)[item_index] = &item;
+      Item_ref *ref = new (thd->mem_root) Item_ref(
+          /*name_resolution_context=*/nullptr,
+          &((*m_current_fields)[item_index]),
+          /*table_name=*/nullptr, /*field_name=*/nullptr,
+          /*alias_of_expr=*/false);
+      ref->set_result_field(item.get_result_field());
+      ref_items->push_back(ref);
+      ++item_index;
+    }
+    m_join->fields = ref_items;
+  }
+}
+
 bool AggregateIterator::Init() {
   DBUG_ASSERT(!m_join->tmp_table_param.precomputed_group_by);
   if (m_source->Init()) {
@@ -192,6 +242,12 @@ bool AggregateIterator::Init() {
 
   m_seen_eof = false;
   m_save_nullinfo = 0;
+
+  // Not really used, just to be sure.
+  m_current_rollup_position = 0;
+  m_last_unchanged_group_item_idx = 0;
+
+  m_current_fields_source = nullptr;
   m_state = READING_FIRST_ROW;
 
   return false;
@@ -229,6 +285,7 @@ int AggregateIterator::Read() {
           if (m_join->clear_fields(&m_save_nullinfo)) {
             return 1;
           }
+          SwitchFieldList(m_original_fields);
           return 0;
         }
       }
@@ -238,6 +295,7 @@ int AggregateIterator::Read() {
       (void)update_item_cache_if_changed(m_join->group_fields);
 
       m_state = LAST_ROW_STARTED_NEW_GROUP;
+      m_last_unchanged_group_item_idx = 0;
     }
       // Fall through.
 
@@ -287,7 +345,9 @@ int AggregateIterator::Read() {
         return 1;
       }
 
-      if (init_sum_functions(m_join->sum_funcs, m_join->sum_funcs_end[0])) {
+      if (init_sum_functions(
+              m_join->sum_funcs,
+              m_join->sum_funcs_end[m_last_unchanged_group_item_idx])) {
         return 1;
       }
 
@@ -313,6 +373,7 @@ int AggregateIterator::Read() {
 
           // Store the result in the temporary table, if we are outputting
           // to that.
+          SwitchFieldList(m_original_fields);
           copy_sum_funcs(m_join->sum_funcs,
                          m_join->sum_funcs_end[m_join->send_group_parts]);
           if (m_temp_table_param->items_to_copy != nullptr) {
@@ -322,18 +383,28 @@ int AggregateIterator::Read() {
             }
           }
 
-          m_state = DONE_OUTPUTTING_ROWS;
+          if (m_rollup && m_join->send_group_parts > 0) {
+            // Also output the final groups, including the total row
+            // (with NULLs in all fields).
+            m_current_rollup_position = m_join->send_group_parts - 1;
+            m_last_unchanged_group_item_idx = 0;
+            m_state = OUTPUTTING_ROLLUP_ROWS;
+          } else {
+            m_state = DONE_OUTPUTTING_ROWS;
+          }
           return 0;
         }
 
-        int idx = update_item_cache_if_changed(m_join->group_fields);
-        if (idx >= 0) {
+        int first_changed_idx =
+            update_item_cache_if_changed(m_join->group_fields);
+        if (first_changed_idx >= 0) {
           // The group changed. Return the current row and mark so that next
           // Read() will deal with the new group.
           SwitchSlice(m_join, m_output_slice);
 
           // Store the result in the temporary table, if we are outputting
           // to that.
+          SwitchFieldList(m_original_fields);
           copy_sum_funcs(m_join->sum_funcs,
                          m_join->sum_funcs_end[m_join->send_group_parts]);
           if (m_temp_table_param->items_to_copy != nullptr) {
@@ -345,7 +416,22 @@ int AggregateIterator::Read() {
 
           // If we have rollup, we may need to output more than one row.
           // Mark so that the next calls to Read() will return those rows.
-          m_state = LAST_ROW_STARTED_NEW_GROUP;
+          //
+          // NOTE: first_changed_idx is the first group value that _changed_,
+          // while what we store is the last item that did _not_ change.
+          if (m_rollup) {
+            m_last_unchanged_group_item_idx = first_changed_idx + 1;
+            if (static_cast<unsigned>(first_changed_idx) <
+                m_join->send_group_parts - 1) {
+              m_current_rollup_position = m_join->send_group_parts - 1;
+              m_state = OUTPUTTING_ROLLUP_ROWS;
+            } else {
+              m_state = LAST_ROW_STARTED_NEW_GROUP;
+            }
+          } else {
+            m_last_unchanged_group_item_idx = 0;
+            m_state = LAST_ROW_STARTED_NEW_GROUP;
+          }
           return 0;
         }
 
@@ -355,7 +441,46 @@ int AggregateIterator::Read() {
         }
       }
 
+    case OUTPUTTING_ROLLUP_ROWS: {
+      m_join->copy_ref_item_slice(
+          m_join->ref_items[REF_SLICE_ACTIVE],
+          m_join->rollup.ref_item_arrays[m_current_rollup_position]);
+      m_join->current_ref_item_slice = -1;
+
+      SwitchFieldList(&m_join->rollup.fields_list[m_current_rollup_position]);
+
+      // Store the result in the temporary table, if we are outputting to that.
+      copy_sum_funcs(m_join->sum_funcs_end[m_current_rollup_position + 1],
+                     m_join->sum_funcs_end[m_current_rollup_position]);
+      if (m_temp_table_param->items_to_copy != nullptr) {
+        if (copy_funcs(m_temp_table_param, m_join->thd,
+                       CFT_DEPENDING_ON_AGGREGATE)) {
+          return 1;
+        }
+      }
+      for (Item &item : m_join->rollup.all_fields[m_current_rollup_position]) {
+        if (has_rollup_result(&item) && item.get_result_field() != nullptr) {
+          item.save_in_result_field(true);
+        }
+      }
+
+      --m_current_rollup_position;
+      if (m_current_rollup_position < m_last_unchanged_group_item_idx) {
+        // Done outputting rollup rows; on next Read() call, deal with the new
+        // group instead.
+        if (m_seen_eof) {
+          m_state = DONE_OUTPUTTING_ROWS;
+        } else {
+          m_state = LAST_ROW_STARTED_NEW_GROUP;
+        }
+      }
+
+      return 0;
+    }
+
     case DONE_OUTPUTTING_ROWS:
+      SwitchSlice(m_join,
+                  m_output_slice);  // We could have set it to -1 earlier.
       if (m_save_nullinfo != 0) {
         m_join->restore_fields(m_save_nullinfo);
         m_save_nullinfo = 0;
@@ -375,10 +500,16 @@ void AggregateIterator::UnlockRow() {
 }
 
 vector<string> AggregateIterator::DebugString() const {
+  Item_sum **sum_funcs_end =
+      m_rollup ? m_join->sum_funcs_end[m_join->send_group_parts]
+               : m_join->sum_funcs_end[0];
+
   string ret;
   if (m_join->grouped || m_join->group_optimized_away) {
-    if (m_join->sum_funcs == m_join->sum_funcs_end[0]) {
+    if (m_join->sum_funcs == sum_funcs_end) {
       ret = "Group (no aggregates)";
+    } else if (m_rollup) {
+      ret = "Group aggregate with rollup: ";
     } else {
       ret = "Group aggregate: ";
     }
@@ -387,8 +518,7 @@ vector<string> AggregateIterator::DebugString() const {
   }
 
   bool first = true;
-  for (Item_sum **item = m_join->sum_funcs; item != m_join->sum_funcs_end[0];
-       ++item) {
+  for (Item_sum **item = m_join->sum_funcs; item != sum_funcs_end; ++item) {
     if (first) {
       first = false;
     } else {
@@ -1331,6 +1461,7 @@ bool BufferingWindowingIterator::Init() {
 
   // Store which slice we will be reading from.
   m_input_slice = m_join->get_ref_item_slice();
+  DBUG_ASSERT(m_input_slice >= 0);
 
   return false;
 }

@@ -80,6 +80,11 @@ EXPLAIN
 -> Group aggregate: count(0)
     -> Index scan on t1 using f1
 
+EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: count(0)
+    -> Index scan on t1 using f1
+
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );

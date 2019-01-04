@@ -206,12 +206,7 @@ class AggregateIterator final : public RowIterator {
  public:
   AggregateIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
                     JOIN *join, Temp_table_param *temp_table_param,
-                    int output_slice)
-      : RowIterator(thd),
-        m_source(move(source)),
-        m_join(join),
-        m_output_slice(output_slice),
-        m_temp_table_param(temp_table_param) {}
+                    int output_slice, bool rollup);
 
   bool Init() override;
   int Read() override;
@@ -231,6 +226,7 @@ class AggregateIterator final : public RowIterator {
     READING_FIRST_ROW,
     LAST_ROW_STARTED_NEW_GROUP,
     READING_ROWS,
+    OUTPUTTING_ROLLUP_ROWS,
     DONE_OUTPUTTING_ROWS
   } m_state;
 
@@ -261,6 +257,72 @@ class AggregateIterator final : public RowIterator {
 
   /// The parameters for the temporary table we are materializing into, if any.
   Temp_table_param *m_temp_table_param;
+
+  /// Whether this is a rollup query.
+  const bool m_rollup;
+
+  /**
+    Whether we have a rollup query where we needed to replace m_join->fields
+    with a set of Item_refs. See the constructor for more information.
+   */
+  bool m_replace_field_list;
+
+  /// If we have replaced the field list, contains the original field list.
+  List<Item> *m_original_fields = nullptr;
+
+  /**
+    If we have replaced the field list, this is the list of Item pointers
+    that each Item_ref points into.
+   */
+  Mem_root_array<Item *> *m_current_fields = nullptr;
+
+  /**
+    The list that the current values in m_current_fields come from.
+    This is used purely as an optimization so that SwitchFieldList()
+    does not have to do copying work if m_current_fields is already set up
+    correctly. Only used if m_replace_field_list is true.
+   */
+  const List<Item> *m_current_fields_source = nullptr;
+
+  /**
+    For rollup: The index of the first group item that did _not_ change when we
+    last switched groups. E.g., if we have group fields A,B,C,D and then switch
+    to group A,B,D,D, this value will become 1 (which means that we need
+    to output rollup rows for 2 -- A,B,D,NULL -- and then 1 -- A,B,NULL,NULL).
+    m_current_rollup_position will count down from the end until it becomes
+    less than this value.
+
+    In addition, it is important to know this value so that we known
+    which aggregates to reset once we start reading rows again; e.g.,
+    in the given example, the two first aggregates should keep counting,
+    while the two last ones should be reset. join->sum_funcs_end contains
+    the right end pointers for this purpose.
+
+    If we do not have rollup, this value is perennially zero, because there
+    is only one element in join->sum_funcs_end (representing all aggregates
+    in the query).
+   */
+  int m_last_unchanged_group_item_idx;
+
+  /**
+    If we are in state OUTPUTTING_ROLLUP_ROWS, where we are in the iteration.
+    This value will start at the index of the last group expression and then
+    count backwards down to and including m_last_unchanged_group_item_idx.
+    It is used to know which field list we should send.
+   */
+  int m_current_rollup_position;
+
+  void SwitchFieldList(List<Item> *fields) {
+    if (!m_replace_field_list || m_current_fields_source == fields) {
+      return;
+    }
+
+    size_t item_index = 0;
+    for (Item &item : *fields) {
+      (*m_current_fields)[item_index++] = &item;
+    }
+    m_current_fields_source = fields;
+  }
 };
 
 /**

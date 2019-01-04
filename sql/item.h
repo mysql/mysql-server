@@ -1901,6 +1901,7 @@ class Item : public Parse_tree_node {
   */
   virtual void set_result_field(Field *) {}
   virtual bool is_result_field() const { return false; }
+  virtual Field *get_result_field() const { return nullptr; }
   virtual bool is_bool_func() const { return false; }
   virtual void save_in_result_field(
       bool no_conversions MY_ATTRIBUTE((unused))) {}
@@ -3575,7 +3576,9 @@ class Item_null_result final : public Item_null {
       : Item_null(), res_type(res_type), result_field(NULL) {
     set_data_type(fld_type);
   }
+  void set_result_field(Field *field) override { result_field = field; }
   bool is_result_field() const override { return result_field != nullptr; }
+  Field *get_result_field() const override { return result_field; }
   void save_in_result_field(bool no_conversions) override {
     save_in_field(result_field, no_conversions);
   }
@@ -4519,6 +4522,7 @@ class Item_result_field : public Item {
 
   void set_result_field(Field *field) override { result_field = field; }
   bool is_result_field() const override { return true; }
+  Field *get_result_field() const override { return result_field; }
   void save_in_result_field(bool no_conversions) override {
     DBUG_ENTER("Item_result_field::save_in_result_field");
     save_in_field(result_field, no_conversions);
@@ -4691,6 +4695,7 @@ class Item_ref : public Item_ident {
   }
   void set_result_field(Field *field) override { result_field = field; }
   bool is_result_field() const override { return true; }
+  Field *get_result_field() const override { return result_field; }
   void save_in_result_field(bool no_conversions) override {
     (*ref)->save_in_field(result_field, no_conversions);
   }

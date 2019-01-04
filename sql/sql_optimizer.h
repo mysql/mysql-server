@@ -708,6 +708,14 @@ class JOIN {
   */
   bool with_json_agg;
 
+  /**
+    If set, "fields" has been replaced with a set of Item_refs for rollup
+    processing; see the AggregateIterator constructor for more details.
+    This is used when constructing iterators only; it is not used during
+    execution.
+   */
+  bool replaced_items_for_rollup = false;
+
   /// True if plan is const, ie it will return zero or one rows.
   bool plan_is_const() const { return const_tables == primary_tables; }
 

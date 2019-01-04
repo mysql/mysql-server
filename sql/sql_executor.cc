@@ -145,7 +145,6 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
                                        size_t key_length, Item *having);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
-static bool has_rollup_result(Item *item);
 
 /**
    Evaluates HAVING condition
@@ -1259,7 +1258,7 @@ enum CallingContext {
   TODO: The optimizer should output just one kind of structure directly.
  */
 static void ConvertItemsToCopy(List<Item> *items, Field **fields,
-                               Temp_table_param *param) {
+                               Temp_table_param *param, JOIN *join) {
   DBUG_ASSERT(param->items_to_copy == nullptr);
 
   // All fields are to be copied.
@@ -1269,11 +1268,41 @@ static void ConvertItemsToCopy(List<Item> *items, Field **fields,
   for (Item &item : *items) {
     Item *real_item = item.real_item();
     if (real_item->type() == Item::FIELD_ITEM) {
-      param->copy_fields.emplace_back(
-          *field_ptr, ((Item_field *)real_item)->field, /*save=*/true);
+      Field *from_field = (pointer_cast<Item_field *>(real_item))->field;
+      Field *to_field = *field_ptr;
+      param->copy_fields.emplace_back(to_field, from_field, /*save=*/true);
+
+      // If any of the Item_null_result items are set to save in this field,
+      // forward them to the new field instead. See below for the result fields
+      // for the other items.
+      if (join->replaced_items_for_rollup) {
+        for (size_t rollup_level = 0; rollup_level < join->send_group_parts;
+             ++rollup_level) {
+          for (Item &item : join->rollup.fields_list[rollup_level]) {
+            if (item.type() == Item::NULL_RESULT_ITEM &&
+                item.get_result_field() == from_field) {
+              item.set_result_field(to_field);
+            }
+          }
+        }
+      }
     } else if (item.real_item()->is_result_field()) {
-      item.set_result_field(*field_ptr);
+      Field *from_field = item.real_item()->get_result_field();
+      Field *to_field = *field_ptr;
+      item.set_result_field(to_field);
       copy_func->push_back(Func_ptr(&item));
+
+      // Similarly to above, set the right result field for any aggregates
+      // that we might output as part of rollup.
+      if (join->replaced_items_for_rollup && &item != real_item) {
+        for (Item_sum **func_ptr = join->sum_funcs;
+             func_ptr != join->sum_funcs_end[join->send_group_parts];
+             ++func_ptr) {
+          if ((*func_ptr)->get_result_field() == from_field) {
+            (*func_ptr)->set_result_field(to_field);
+          }
+        }
+      }
     } else {
       Func_ptr ptr(&item);
       ptr.set_override_result_field(*field_ptr);
@@ -1282,6 +1311,27 @@ static void ConvertItemsToCopy(List<Item> *items, Field **fields,
     ++field_ptr;
   }
   param->items_to_copy = copy_func;
+
+  if (join->replaced_items_for_rollup) {
+    // Patch up the rollup items so that they save in the same field as
+    // the ref would. This is required because we call save_in_result_field()
+    // directly on each field in the rollup field list
+    // (in AggregateIterator::Read), not on the Item_ref in join->fields.
+    for (size_t rollup_level = 0; rollup_level < join->send_group_parts;
+         ++rollup_level) {
+      List_STL_Iterator<Item> item_it = join->fields->begin();
+      for (Item &item : join->rollup.fields_list[rollup_level]) {
+        // For cases where we need an Item_null_result, the field in
+        // join->fields often does not have the right result field set.
+        // However, the Item_null_result field does after we patched it
+        // up earlier in the function.
+        if (item.type() != Item::NULL_RESULT_ITEM) {
+          item.set_result_field(item_it->get_result_field());
+        }
+        ++item_it;
+      }
+    }
+  }
 }
 
 /** Similar to PendingCondition, but for cache invalidator iterators. */
@@ -1656,7 +1706,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
   if (qep_tab->materialize_table == join_materialize_derived) {
     JOIN *subjoin = qep_tab->table_ref->derived_unit()->first_select()->join;
     ConvertItemsToCopy(subjoin->fields, qep_tab->table()->visible_field_ptr(),
-                       &subjoin->tmp_table_param);
+                       &subjoin->tmp_table_param, subjoin);
 
     bool rematerialize = qep_tab->rematerialize;
     if (qep_tab->join()->select_lex->uncacheable &&
@@ -1706,8 +1756,8 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
     // correctly, so we just clear it and create our own.
     sjm->table_param.items_to_copy = nullptr;
     ConvertItemsToCopy(&sjm->sj_nest->nested_join->sj_inner_exprs,
-                       qep_tab->table()->visible_field_ptr(),
-                       &sjm->table_param);
+                       qep_tab->table()->visible_field_ptr(), &sjm->table_param,
+                       qep_tab->join());
 
     int join_start = sjm->inner_table_index;
     int join_end = join_start + sjm->table_count;
@@ -2185,11 +2235,6 @@ void JOIN::create_iterators() {
     }
   }
 
-  // Similarly, no rollup.
-  if (rollup.state != ROLLUP::STATE_NONE) {
-    return;
-  }
-
   // OK, so we're good. Go through the tables and make the join iterators.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
@@ -2269,13 +2314,14 @@ void JOIN::create_iterators() {
       // (We can also aggregate as we go after the materialization step;
       // see below. We won't be aggregating twice, though.)
       if (qep_tab->tmp_table_param->precomputed_group_by) {
+        DBUG_ASSERT(rollup.state == ROLLUP::STATE_NONE);
         iterator.reset(new (thd->mem_root) PrecomputedAggregateIterator(
             thd, move(iterator), this, qep_tab->tmp_table_param,
             qep_tab->ref_item_slice));
       } else {
         iterator.reset(new (thd->mem_root) AggregateIterator(
             thd, move(iterator), this, qep_tab->tmp_table_param,
-            qep_tab->ref_item_slice));
+            qep_tab->ref_item_slice, rollup.state != ROLLUP::STATE_NONE));
       }
     }
 
@@ -2400,10 +2446,11 @@ void JOIN::create_iterators() {
       iterator.reset(new (thd->mem_root) PrecomputedAggregateIterator(
           thd, move(iterator), this, &tmp_table_param,
           REF_SLICE_ORDERED_GROUP_BY));
+      DBUG_ASSERT(rollup.state == ROLLUP::STATE_NONE);
     } else {
       iterator.reset(new (thd->mem_root) AggregateIterator(
           thd, move(iterator), this, &tmp_table_param,
-          REF_SLICE_ORDERED_GROUP_BY));
+          REF_SLICE_ORDERED_GROUP_BY, rollup.state != ROLLUP::STATE_NONE));
     }
   }
 
