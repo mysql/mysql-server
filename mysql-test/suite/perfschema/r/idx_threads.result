@@ -145,7 +145,7 @@ select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_USER = "root";
 thread_id = @tid	name	processlist_state	processlist_info
-1	thread/sql/one_connection	Sending data	select thread_id = @tid, name, processlist_state, processlist_info
+1	thread/sql/one_connection	executing	select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_USER = "root"
 explain select THREAD_ID from performance_schema.threads
@@ -182,7 +182,7 @@ select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
 thread_id = @tid	name	processlist_state	processlist_info
-1	thread/sql/one_connection	Sending data	select thread_id = @tid, name, processlist_state, processlist_info
+1	thread/sql/one_connection	executing	select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost"
 explain select THREAD_ID from performance_schema.threads
@@ -219,6 +219,6 @@ select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_HOST = "localhost";
 thread_id = @tid	name	processlist_state	processlist_info
-1	thread/sql/one_connection	Sending data	select thread_id = @tid, name, processlist_state, processlist_info
+1	thread/sql/one_connection	executing	select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_HOST = "localhost"

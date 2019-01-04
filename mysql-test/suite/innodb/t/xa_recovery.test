@@ -16,7 +16,7 @@ connect (con1,localhost,root);
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = 'Sending data' and
+  where state = 'executing' and
         info = 'SELECT * FROM t1 LOCK IN SHARE MODE';
 --source include/wait_condition.inc
 

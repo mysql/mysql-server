@@ -32,7 +32,7 @@ connection con2;
 # Check that the above SELECT is blocked
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = 'Sending data' and
+  where state = 'executing' and
         info = 'SELECT * FROM t1 FOR UPDATE';
 --source include/wait_condition.inc
 SET DEBUG_SYNC='now SIGNAL select1';
@@ -65,7 +65,7 @@ connection con2;
 # Check that the above SELECT is blocked because of X lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = 'Sending data' and
+  where state = 'executing' and
         info = 'SELECT * FROM t1 LOCK IN SHARE MODE';
 --source include/wait_condition.inc
 SET DEBUG_SYNC='now SIGNAL select2';
@@ -87,7 +87,7 @@ connection con2;
 # Check that the above SELECT is blocked because of X lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = 'Sending data' and
+  where state = 'executing' and
         info = 'SELECT b FROM t1 LOCK IN SHARE MODE';
 --source include/wait_condition.inc
 SET DEBUG_SYNC='now SIGNAL select3';
@@ -167,7 +167,7 @@ connection con2;
 # Check that the above SELECT is blocked
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = 'Sending data' and
+  where state = 'executing' and
         info = 'SELECT a,b FROM t1 LOCK IN SHARE MODE';
 --source include/wait_condition.inc
 SET DEBUG_SYNC='now SIGNAL select6';

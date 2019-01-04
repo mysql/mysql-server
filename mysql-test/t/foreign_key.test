@@ -906,7 +906,7 @@ connection con1;
 --echo # Wait until CREATE TABLE is blocked by con1 because of row locks.
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Sending data" AND
+  WHERE state = "System lock" AND
         info LIKE "CREATE TABLE child%";
 --source include/wait_condition.inc
 

@@ -301,7 +301,6 @@ void JOIN::exec() {
     DBUG_VOID_RETURN;
   }
 
-  THD_STAGE_INFO(thd, stage_sending_data);
   DBUG_PRINT("info", ("%s", thd->proc_info));
   if (query_result->send_result_set_metadata(
           thd, *fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
@@ -389,7 +388,6 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
   /* if group or order on first table, sort first */
   if (group_list && simple_group) {
     DBUG_PRINT("info", ("Sorting for group"));
-    THD_STAGE_INFO(thd, stage_sorting_for_group);
 
     if (m_ordered_index_usage != ORDERED_INDEX_GROUP_BY &&
         add_sorting_to_table(const_tables, &group_list))
@@ -412,7 +410,6 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
     if (!group_list && !table->is_distinct && order && simple_order &&
         !m_windows_sort) {
       DBUG_PRINT("info", ("Sorting for order"));
-      THD_STAGE_INFO(thd, stage_sorting_for_order);
 
       if (m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
           add_sorting_to_table(const_tables, &order))
@@ -7173,7 +7170,6 @@ bool QEP_TAB::remove_duplicates() {
   DBUG_ENTER("remove_duplicates");
 
   DBUG_ASSERT(join()->tmp_tables > 0 && table()->s->tmp_table != NO_TMP_TABLE);
-  THD_STAGE_INFO(thd, stage_removing_duplicates);
 
   TABLE *const tbl = table();
 

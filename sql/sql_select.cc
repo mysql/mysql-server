@@ -4459,7 +4459,6 @@ bool JOIN::make_tmp_tables_info() {
     */
     ASSERT_BEST_REF_IN_JOIN_ORDER(this);
     DBUG_PRINT("info", ("Sorting for send_result_set_metadata"));
-    THD_STAGE_INFO(thd, stage_sorting_result);
     /*
       If we have already done the group, add HAVING to sorted table except
       when rollup is present

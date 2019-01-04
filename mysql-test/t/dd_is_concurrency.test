@@ -47,7 +47,7 @@ SELECT table_name, table_comment
 connection con1;
 let $wait_condition=
 SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-  WHERE STATE="Sending data" AND 
+  WHERE STATE="executing" AND
         INFO = "SELECT table_name, comment FROM not_system_view WHERE table_name='t1'";
 --source include/wait_condition.inc 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -481,8 +481,6 @@ void SortingIterator::ReleaseBuffers() {
 bool SortingIterator::Init() {
   QEP_TAB *qep_tab = m_filesort->qep_tab;
   ReleaseBuffers();
-
-  THD_STAGE_INFO(thd(), stage_creating_sort_index);
 
   // Both empty result and error count as errors. (TODO: Why? This is a legacy
   // choice that doesn't always seem right to me, although it should nearly
