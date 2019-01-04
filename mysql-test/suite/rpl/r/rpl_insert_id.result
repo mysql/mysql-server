@@ -109,9 +109,11 @@ insert into t2 (a) select a from t1 where a is null;
 select * from t2 ORDER BY a;
 a
 1
+1
 include/sync_slave_sql_with_master.inc
 select * from t2 ORDER by a;
 a
+1
 1
 drop table t1;
 drop table t2;

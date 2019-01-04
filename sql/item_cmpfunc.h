@@ -1809,6 +1809,7 @@ class Item_func_isnull : public Item_bool_func {
   const CHARSET_INFO *compare_collation() const override {
     return args[0]->collation.collation;
   }
+  bool fix_fields(THD *thd, Item **ref) override;
 };
 
 /* Functions used by HAVING for rewriting IN subquery */

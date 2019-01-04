@@ -1779,6 +1779,7 @@ class Item_func_last_insert_id final : public Item_int_func {
   typedef Item_int_func super;
 
  public:
+  Item_func_last_insert_id() : Item_int_func() {}
   explicit Item_func_last_insert_id(const POS &pos) : Item_int_func(pos) {}
   Item_func_last_insert_id(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 

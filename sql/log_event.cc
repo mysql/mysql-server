@@ -5731,7 +5731,6 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli) {
   switch (type) {
     case LAST_INSERT_ID_EVENT:
       thd->first_successful_insert_id_in_prev_stmt = val;
-      thd->substitute_null_with_insert_id = true;
       break;
     case INSERT_ID_EVENT:
       thd->force_one_auto_inc_interval(val);

@@ -2324,8 +2324,6 @@ class THD : public MDL_context_owner,
   bool is_fatal_sub_stmt_error;
   bool query_start_usec_used;
   bool rand_used, time_zone_used;
-  /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
-  bool substitute_null_with_insert_id;
   bool in_lock_tables;
   /**
     True if a slave error. Causes the slave to stop. Not the same

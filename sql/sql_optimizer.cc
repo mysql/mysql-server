@@ -9532,8 +9532,6 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
   DBUG_RETURN(false);
 }
 
-static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
-                                     Item::cond_result *cond_value);
 /**
   Calls fold_condition. If that made the condition constant for execution,
   simplify and fold again. @see fold_condition() for arguments.
@@ -9543,24 +9541,25 @@ static bool fold_condition_exec(THD *thd, Item *cond, Item **retcond,
   if (fold_condition(thd, cond, retcond, cond_value)) return true;
   if (*retcond != nullptr && (*retcond)->const_for_execution() &&
       !(*retcond)->is_expensive())  // simplify further maybe
-    return internal_remove_eq_conds(thd, *retcond, retcond, cond_value);
+    return remove_eq_conds(thd, *retcond, retcond, cond_value);
   return false;
 }
 
 /**
-  Handle the recursive job for remove_eq_conds()
+  Removes const and eq items. Returns the new item, or nullptr if no condition.
 
-  @param thd             Thread handler
-  @param cond            the condition to handle.
-  @param[out] retcond    Modified condition after removal
-  @param[out] cond_value the resulting value of the condition
-  @see remove_eq_conds() for more details on argument
+  @param      thd        thread handler
+  @param      cond       the condition to handle
+  @param[out] retcond    condition after const removal
+  @param[out] cond_value resulting value of the condition
+              =COND_OK    condition must be evaluated (e.g. field = constant)
+              =COND_TRUE  always true                 (e.g. 1 = 1)
+              =COND_FALSE always false                (e.g. 1 = 2)
 
   @returns false if success, true if error
 */
-
-static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
-                                     Item::cond_result *cond_value) {
+bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
+                     Item::cond_result *cond_value) {
   if (cond->type() == Item::COND_ITEM) {
     Item_cond *const item_cond = down_cast<Item_cond *>(cond);
     const bool and_level = item_cond->functype() == Item_func::COND_AND_FUNC;
@@ -9571,8 +9570,7 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     while ((item = li++)) {
       Item *new_item;
       Item::cond_result tmp_cond_value;
-      if (internal_remove_eq_conds(thd, item, &new_item, &tmp_cond_value))
-        return true;
+      if (remove_eq_conds(thd, item, &new_item, &tmp_cond_value)) return true;
 
       if (new_item == NULL)
         li.remove();
@@ -9716,69 +9714,6 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     }
   }
   return fold_condition_exec(thd, cond, retcond, cond_value);
-}
-
-/**
-  Remove const and eq items. Return new item, or NULL if no condition
-
-  @param      thd        thread handler
-  @param      cond       the condition to handle
-  @param[out] retcond    condition after const removal
-  @param[out] cond_value resulting value of the condition
-              =COND_OK    condition must be evaluated (e.g field = constant)
-              =COND_TRUE  always true                 (e.g 1 = 1)
-              =COND_FALSE always false                (e.g 1 = 2)
-
-  @note calls internal_remove_eq_conds() to check the complete tree.
-
-  @returns false if success, true if error
-*/
-
-bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
-                     Item::cond_result *cond_value) {
-  if (cond->type() == Item::FUNC_ITEM &&
-      down_cast<Item_func *>(cond)->functype() == Item_func::ISNULL_FUNC) {
-    /*
-      Handles this special case for some ODBC applications:
-      The are requesting the row that was just updated with a auto_increment
-      value with this construct:
-
-      SELECT * from table_name where auto_increment_column IS NULL
-      This will be changed to:
-      SELECT * from table_name where auto_increment_column = LAST_INSERT_ID
-    */
-
-    Item_func_isnull *const func = down_cast<Item_func_isnull *>(cond);
-    Item **args = func->arguments();
-    if (args[0]->type() == Item::FIELD_ITEM) {
-      Field *const field = down_cast<Item_field *>(args[0])->field;
-      if ((field->flags & AUTO_INCREMENT_FLAG) &&
-          !field->table->is_nullable() &&
-          (thd->variables.option_bits & OPTION_AUTO_IS_NULL) &&
-          (thd->first_successful_insert_id_in_prev_stmt > 0 &&
-           thd->substitute_null_with_insert_id)) {
-        cond = new Item_func_eq(
-            args[0],
-            new Item_int(NAME_STRING("last_insert_id()"),
-                         thd->read_first_successful_insert_id_in_prev_stmt(),
-                         MY_INT64_NUM_DECIMAL_DIGITS));
-        if (cond == NULL) return true;
-
-        if (cond->fix_fields(thd, &cond)) return true;
-
-        /*
-          IS NULL should be mapped to LAST_INSERT_ID only for first row, so
-          clear for next row
-        */
-        thd->substitute_null_with_insert_id = false;
-
-        *cond_value = Item::COND_OK;
-        *retcond = cond;
-        return false;
-      }
-    }
-  }
-  return internal_remove_eq_conds(thd, cond, retcond, cond_value);
 }
 
 /**

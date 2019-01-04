@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4903,7 +4903,6 @@ static bool update_last_insert_id(THD *thd, set_var *var) {
   }
   thd->first_successful_insert_id_in_prev_stmt =
       var->save_result.ulonglong_value;
-  thd->substitute_null_with_insert_id = true;
   return false;
 }
 static ulonglong read_last_insert_id(THD *thd) {

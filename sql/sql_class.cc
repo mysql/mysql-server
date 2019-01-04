@@ -525,8 +525,6 @@ THD::THD(bool enable_plugins)
   protocol_binary.init(this);
   protocol_text.set_client_capabilities(0);  // minimalistic client
 
-  substitute_null_with_insert_id = false;
-
   /*
     Make sure thr_lock_info_init() is called for threads which do not get
     assigned a proper thread_id value but keep using reserved_thread_id.
@@ -1434,7 +1432,6 @@ void THD::cleanup_after_query() {
     first_successful_insert_id_in_prev_stmt =
         first_successful_insert_id_in_cur_stmt;
     first_successful_insert_id_in_cur_stmt = 0;
-    substitute_null_with_insert_id = true;
   }
   arg_of_last_insert_id_function = 0;
   /* Hack for cleaning up view security contexts */

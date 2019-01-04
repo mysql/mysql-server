@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5293,6 +5293,37 @@ float Item_func_isnull::get_filtering_effect(THD *thd,
 
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_EQUALITY);
+}
+
+bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
+  if (Item_bool_func::fix_fields(thd, ref)) return true;
+
+  /*
+    Handles this special case for some ODBC applications:
+    They are requesting the row that was just updated with an auto_increment
+    value with this construct:
+
+      SELECT * FROM table_name WHERE auto_increment_column IS NULL
+
+    This will be changed to:
+
+      SELECT * FROM table_name WHERE auto_increment_column = LAST_INSERT_ID()
+  */
+  if (args[0]->type() == Item::FIELD_ITEM &&
+      thd->lex->current_select()->where_cond() == this &&
+      (thd->variables.option_bits & OPTION_AUTO_IS_NULL) != 0) {
+    const Field *const field = down_cast<Item_field *>(args[0])->field;
+    if ((field->flags & AUTO_INCREMENT_FLAG) != 0 &&
+        !field->table->is_nullable()) {
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      const auto last_insert_id_func = new Item_func_last_insert_id();
+      if (last_insert_id_func == nullptr) return true;
+      *ref = new Item_func_eq(args[0], last_insert_id_func);
+      if (*ref == nullptr || (*ref)->fix_fields(thd, ref)) return true;
+    }
+  }
+
+  return false;
 }
 
 bool Item_func_isnull::resolve_type(THD *) {
