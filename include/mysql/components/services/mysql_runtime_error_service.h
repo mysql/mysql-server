@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef MYSQL_RUNTIME_ERROR_SERVICE_H
 #define MYSQL_RUNTIME_ERROR_SERVICE_H
 
+//! @cond Doxygen_Suppress
 #include <mysql/components/component_implementation.h>
+//! @endcond
 #include <mysql/components/service.h>
 #include <mysql/components/services/mysql_runtime_error.h>
+//! @cond Doxygen_Suppress
 #include <stdarg.h>
+//! @endcond
 
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
 
