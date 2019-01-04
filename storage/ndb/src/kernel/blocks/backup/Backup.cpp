@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4227,7 +4227,7 @@ Backup::execBACKUP_REQ(Signal* signal)
     ptr.p->idleFragWorkerCount += ldmCount;
 
     // Only support multithreaded backup if all nodes have multiple LDMs
-    if (ldmCount <= 1)
+    if (ldmCount <= 1 && (m_cfg_mt_backup > 0))
     {
      /* The MT_BACKUP flag is set to false in these
       * cases:
@@ -4236,7 +4236,6 @@ Backup::execBACKUP_REQ(Signal* signal)
       */
       m_cfg_mt_backup = 0;
       g_eventLogger->info("Running single-threaded backup since node %u has only one LDM", node);
-      break;
     }
     if (getNodeInfo(node).m_version != version)
     {

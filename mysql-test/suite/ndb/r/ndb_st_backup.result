@@ -274,3 +274,4 @@ auto	string	vstring	tiny	short	medium	long_int	longlong	real_float	real_double	r
 9	1111	1111	-1	-1	-1	-1	-1	1.1	1.1000	1.1000	1	00001	1	1	1		one	one	1911-01-01	1911	01:01:01	1911-01-01 01:01:01
 10	NULL	NULL	10	10	10	10	10	10.1	NULL	NULL	10	00010	10	10	10	NULL	two	two	NULL	NULL	NULL	NULL
 "Drop tables after backup completes"
+Case 3: start backup wait completed
