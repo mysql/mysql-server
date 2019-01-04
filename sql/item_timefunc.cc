@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1983,17 +1983,31 @@ bool Item_func_from_unixtime::get_date(
     lld.rem = 0;
   }
 
+  // Return NULL for timestamps after 2038-01-19 03:14:07 UTC
   if ((null_value = (args[0]->null_value || lld.quot > TIMESTAMP_MAX_VALUE) ||
                     lld.quot < 0 || lld.rem < 0))
-    return 1;
+    return true;
+
+  const bool is_end_of_epoch = (lld.quot == TIMESTAMP_MAX_VALUE);
 
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)lld.quot);
   int warnings = 0;
   ltime->second_part = decimals ? static_cast<ulong>(lld.rem / 1000) : 0;
-  return propagate_datetime_overflow(current_thd, &warnings,
-                                     datetime_add_nanoseconds_adjust_frac(
-                                         ltime, lld.rem % 1000, &warnings,
-                                         current_thd->is_fsp_truncate_mode()));
+  bool ret = propagate_datetime_overflow(
+      thd, &warnings,
+      datetime_add_nanoseconds_adjust_frac(ltime, lld.rem % 1000, &warnings,
+                                           thd->is_fsp_truncate_mode()));
+  // Disallow round-up to one second past end of epoch.
+  if (decimals && is_end_of_epoch) {
+    MYSQL_TIME max_ltime;
+    thd->variables.time_zone->gmt_sec_to_TIME(&max_ltime, TIMESTAMP_MAX_VALUE);
+    max_ltime.second_part = 999999UL;
+
+    const longlong max_t = TIME_to_longlong_datetime_packed(max_ltime);
+    const longlong ret_t = TIME_to_longlong_datetime_packed(*ltime);
+    if ((null_value = (ret_t > max_t))) return true;
+  }
+  return ret;
 }
 
 bool Item_func_convert_tz::resolve_type(THD *) {

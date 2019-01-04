@@ -4499,7 +4499,7 @@ SELECT * FROM t1 WHERE a IN (0, 20000101000000, 20000101230000);
 SELECT * FROM t1 WHERE a=0.1;
 # So does this:
 SELECT * FROM t1 WHERE a IN (0.1);
-# Perhaps it's fine, as INSERT INTO t1 VALUES (0.1) stores '0000-00-00 00:00:00'
+# Perhaps it is fine, as INSERT INTO t1 VALUES (0.1) stores '0000-00-00 00:00:00'
 # "IN (0.000001)" also returns '0000-00-00 00:00:00' for the same reasons
 SELECT * FROM t1 WHERE a IN (20000101000000.000001, 20000101230000.000001);
 # The following query returns an empty set with a warning
@@ -7874,3 +7874,39 @@ SELECT ADDTIME(a, 100000) FROM t1;
 SET @@session.sql_buffer_result=default;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #28671811 FROM_UNIXTIME ACCEPTS AN OUT OF RANGE PARAMETER
+--echo #               THROUGH ROUNDING
+--echo #
+
+SET time_zone='+00:00';
+
+SELECT
+  FROM_UNIXTIME(2147483647) AS c1,
+  FROM_UNIXTIME(2147483648) AS c2,
+  FROM_UNIXTIME(2147483647.9999999) AS c3;
+
+SET time_zone=default;
+
+SELECT
+  FROM_UNIXTIME(2147483647) AS c1,
+  FROM_UNIXTIME(2147483648) AS c2,
+  FROM_UNIXTIME(2147483647.9999999) AS c3;
+
+SET sql_mode=time_truncate_fractional;
+SET time_zone='+00:00';
+
+SELECT
+  FROM_UNIXTIME(2147483647) AS c1,
+  FROM_UNIXTIME(2147483648) AS c2,
+  FROM_UNIXTIME(2147483647.9999999) AS c3;
+
+SET time_zone=default;
+
+SELECT
+  FROM_UNIXTIME(2147483647) AS c1,
+  FROM_UNIXTIME(2147483648) AS c2,
+  FROM_UNIXTIME(2147483647.9999999) AS c3;
+
+SET sql_mode=default;
