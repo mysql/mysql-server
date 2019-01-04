@@ -1893,7 +1893,7 @@ bool Optimize_table_order::choose_table_order() {
                            Item::WALK_POSTFIX, NULL);
   }
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join);
+  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
   deps_lateral.init();
 
   if (straight_join)
@@ -1997,7 +1997,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
   // resolve_subquery() disables semijoin if STRAIGHT_JOIN
   DBUG_ASSERT(join->select_lex->sj_nests.is_empty());
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join);
+  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
 
   Opt_trace_context *const trace = &join->thd->opt_trace;
   for (JOIN_TAB **pos = join->best_ref + idx; *pos; idx++, pos++) {
@@ -2014,8 +2014,6 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
       with execution, check it:
     */
     DBUG_ASSERT(!check_interleaving_with_nj(s));
-
-    deps_lateral.restore();
 
     /* Find the best access method from 's' to the current partial plan */
     best_access_path(s, join_tables, idx, false, rowcount, position);
@@ -2596,7 +2594,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
   memcpy(saved_refs, join->best_ref + idx,
          sizeof(JOIN_TAB *) * (join->tables - idx));
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join);
+  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
 
   for (JOIN_TAB **pos = join->best_ref + idx; *pos; pos++) {
     JOIN_TAB *const s = *pos;
@@ -2623,7 +2621,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       // If optimizing a sj-mat nest, tables in this plan must be in nest:
       DBUG_ASSERT(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
 
-      deps_lateral.restore();
+      deps_lateral.restore();  // as we "popped" the previously-tried table
 
       /* Find the best access method from 's' to the current partial plan */
       best_access_path(s, remaining_tables, idx, false,
@@ -2926,7 +2924,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
   memcpy(saved_refs, join->best_ref + idx,
          sizeof(JOIN_TAB *) * (join->tables - idx));
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join);
+  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
 
   for (JOIN_TAB **pos = join->best_ref + idx; (s = *pos); pos++) {
     const table_map real_table_bit = s->table_ref->map();
@@ -3539,7 +3537,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     no_jbuf_before = (table_count > 1) ? last_tab + 1 : first_tab;
   }
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join);
+  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
   // recalculate, as we go back in the range of "unoptimized" tables:
   deps_lateral.recalculate(first_tab);
 
@@ -3678,7 +3676,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
   const double inner_fanout = sjm_nest->nested_join->sjm.expected_rowcount;
   double outer_fanout = 1.0;
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join);
+  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
   // recalculate, as we go back in the range of "unoptimized" tables:
   deps_lateral.recalculate(last_inner_tab + 1);
 

@@ -3200,3 +3200,54 @@ Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row
 Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
 DROP TABLE bb;
 SET SQL_MODE=DEFAULT;
+#
+# Bug#28954838 ASSERTION `(REMAINING_TABLES_AFTER != 0) || ((CUR_EMBEDDING_MAP == 0) && (JOIN->
+#
+CREATE TABLE t1 (
+pk INTEGER,
+col_int INT not null,
+col_int_key INT not null,
+col_time_gckey TIME,
+col_varchar VARCHAR(20) not null,
+col_varchar_key VARCHAR(15)  not null
+);
+CREATE TABLE t2 (
+pk INTEGER,
+col_int INT not null,
+col_varchar VARCHAR(20) not null,
+col_varchar_key VARCHAR(15) not null
+);
+SET OPTIMIZER_SWITCH='derived_merge=off';
+SELECT table1.col_varchar_key AS field1,
+table2.col_time_gckey AS field2
+FROM t2 AS table1 STRAIGHT_JOIN t1 AS table2
+ON table2.col_varchar_key = table1.col_varchar_key
+WHERE table2.col_int_key IN
+(WITH qn AS
+(SELECT sq1_t1.col_int AS sq1_field1
+FROM t2 AS sq1_t1
+WHERE sq1_t1.col_varchar_key = table2.col_varchar OR
+EXISTS (WITH qn1 AS
+(SELECT c_sq1_t1.col_int_key AS c_sq1_field1
+FROM t1 AS c_sq1_t1
+WHERE c_sq1_t1.col_varchar_key > sq1_t1.col_varchar OR
+c_sq1_t1.col_int <> c_sq1_t1.pk
+)
+SELECT * FROM qn1
+)
+)
+SELECT * FROM qn
+) AND
+EXISTS (WITH qn AS
+(SELECT sq2_t1.col_varchar AS sq2_field1
+FROM t1 AS sq2_t1 STRAIGHT_JOIN
+t2 AS sq2_t2 INNER JOIN t1 AS sq2_t3
+ON sq2_t3.col_varchar = sq2_t2.col_varchar_key
+ON sq2_t3.col_int = sq2_t2.pk
+)
+SELECT * FROM qn
+) AND
+table2.col_varchar_key <> 'j';
+field1	field2
+SET OPTIMIZER_SWITCH=DEFAULT;
+DROP TABLE t1,t2;

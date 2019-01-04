@@ -597,7 +597,7 @@ int JOIN::optimize() {
     }
 
     bool simple_sort = true;
-    Deps_of_remaining_lateral_derived_tables deps_lateral(this);
+    Deps_of_remaining_lateral_derived_tables deps_lateral(this, all_table_map);
     // Check whether join cache could be used
     for (uint i = const_tables; i < tables; i++) {
       JOIN_TAB *const tab = best_ref[i];
@@ -2828,12 +2828,22 @@ bool JOIN::get_best_combination() {
   DBUG_RETURN(false);
 }
 
-void JOIN::recalculate_deps_of_remaining_lateral_derived_tables(uint idx) {
+/**
+   Updates JOIN::deps_of_remaining_lateral_derived_tables
+
+   @param plan_tables  map of all tables that the planner is processing
+                       (tables already in plan and tables to be added to plan)
+   @param idx          index of the table which the planner is currently
+                       considering
+*/
+void JOIN::recalculate_deps_of_remaining_lateral_derived_tables(
+    table_map plan_tables, uint idx) {
   DBUG_ASSERT(has_lateral);
   deps_of_remaining_lateral_derived_tables = 0;
   auto last = best_ref + tables;
   for (auto **pos = best_ref + idx; pos < last; pos++) {
-    if ((*pos)->table_ref && (*pos)->table_ref->is_derived())
+    if ((*pos)->table_ref && (*pos)->table_ref->is_derived() &&
+        ((*pos)->table_ref->map() & plan_tables))
       deps_of_remaining_lateral_derived_tables |=
           (*pos)->table_ref->derived_unit()->m_lateral_deps;
   }
