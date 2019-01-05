@@ -45,9 +45,4 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1103	Invalid table name. `test/fts_0000000000000424_config` has the form of an FTS auxiliary table name
 Error	1103	Incorrect table name 'fts_0000000000000424_config'
-# Try to create a table when InnoDB runs out of free undo logs.
-SET GLOBAL innodb_trx_rseg_n_slots_debug=1;
-CREATE TABLE t1 (f1 CHAR(6), FULLTEXT KEY(f1));
-ERROR HY000: Too many active concurrent transactions
-SET GLOBAL innodb_trx_rseg_n_slots_debug=default;
 SET innodb_strict_mode = default;
