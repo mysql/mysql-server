@@ -425,6 +425,9 @@ extern bool srv_log_checksums;
 /** If true then disable checkpointing. */
 extern bool srv_checkpoint_disabled;
 
+/* Used to inject a failure to find a free rollback segment. */
+extern bool srv_inject_too_many_concurrent_trxs;
+
 #endif /* UNIV_DEBUG */
 
 extern ulong srv_flush_log_at_trx_commit;

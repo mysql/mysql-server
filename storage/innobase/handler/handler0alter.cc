@@ -4626,7 +4626,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
     }
   }
 
-  ut_ad(new_clustered == ctx->need_rebuild());
+  ut_ad(!!new_clustered == ctx->need_rebuild());
 
   DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter", error = DB_OUT_OF_MEMORY;
                   goto error_handling;);

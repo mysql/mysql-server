@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -630,7 +630,7 @@ dberr_t DDL_Log_Table::search_all(DDL_Records &records) {
       continue;
     }
 
-    DDL_Record *record = new DDL_Record();
+    DDL_Record *record = UT_NEW_NOKEY(DDL_Record());
     convert_to_ddl_record(index->is_clustered(), rec, offsets, *record);
     records.push_back(record);
   }
@@ -656,7 +656,7 @@ dberr_t DDL_Log_Table::search(ulint thread_id, DDL_Records &records) {
   }
 
   for (auto record : records_of_thread_id) {
-    delete record;
+    UT_DELETE(record);
   }
 
   return (error);
@@ -694,7 +694,7 @@ dberr_t DDL_Log_Table::search_by_id(ulint id, dict_index_t *index,
       continue;
     }
 
-    DDL_Record *record = new DDL_Record();
+    DDL_Record *record = UT_NEW_NOKEY(DDL_Record());
     convert_to_ddl_record(index->is_clustered(), rec, offsets, *record);
     records.push_back(record);
   }
@@ -714,7 +714,7 @@ dberr_t DDL_Log_Table::remove(ulint id) {
   dtuple_t *row;
   btr_cur_t *btr_cur;
   dtuple_t *entry;
-  dberr_t error = DB_SUCCESS;
+  dberr_t err = DB_SUCCESS;
   enum row_search_result search_result;
   ulint flags = BTR_NO_LOCKING_FLAG;
   static uint64_t count = 0;
@@ -748,16 +748,16 @@ dberr_t DDL_Log_Table::remove(ulint id) {
   rec = btr_cur_get_rec(btr_cur);
 
   if (!rec_get_deleted_flag(rec, dict_table_is_comp(m_table))) {
-    error = btr_cur_del_mark_set_clust_rec(flags, btr_cur_get_block(btr_cur),
-                                           rec, clust_index, offsets, m_thr,
-                                           m_tuple, &mtr);
+    err = btr_cur_del_mark_set_clust_rec(flags, btr_cur_get_block(btr_cur), rec,
+                                         clust_index, offsets, m_thr, m_tuple,
+                                         &mtr);
   }
 
   btr_pcur_close(&pcur);
   mtr_commit(&mtr);
 
-  if (error != DB_SUCCESS) {
-    return (error);
+  if (err != DB_SUCCESS) {
+    return (err);
   }
 
   mtr_start(&mtr);
@@ -778,29 +778,30 @@ dberr_t DDL_Log_Table::remove(ulint id) {
   rec = btr_cur_get_rec(btr_cur);
 
   if (!rec_get_deleted_flag(rec, dict_table_is_comp(m_table))) {
-    error = btr_cur_del_mark_set_sec_rec(flags, btr_cur, TRUE, m_thr, &mtr);
+    err = btr_cur_del_mark_set_sec_rec(flags, btr_cur, TRUE, m_thr, &mtr);
   }
 
   btr_pcur_close(&pcur);
   mtr_commit(&mtr);
 
-  return (error);
+  return (err);
 }
 
 dberr_t DDL_Log_Table::remove(const DDL_Records &records) {
-  dberr_t err = DB_SUCCESS;
+  dberr_t ret = DB_SUCCESS;
 
   for (auto record : records) {
     if (record->get_deletable()) {
-      err = remove(record->get_id());
+      dberr_t err = remove(record->get_id());
+
       ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
       if (err != DB_SUCCESS) {
-        break;
+        ret = err;
       }
     }
   }
 
-  return (err);
+  return (ret);
 }
 
 Log_DDL::Log_DDL() {
@@ -872,9 +873,15 @@ dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
     DBUG_INJECT_CRASH("ddl_log_crash_after_free_tree_log",
                       crash_after_free_tree_log_counter++);
 
+    DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_1",
+                    srv_inject_too_many_concurrent_trxs = true;);
+
     /* Delete this operation if the create trx is committed */
     err = delete_by_id(trx, id, false);
     ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+
+    DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_1",
+                    srv_inject_too_many_concurrent_trxs = false;);
 
     DBUG_INJECT_CRASH("ddl_log_crash_after_free_tree_delete",
                       crash_after_free_tree_delete_counter++);
@@ -960,8 +967,14 @@ dberr_t Log_DDL::write_delete_space_log(trx_t *trx, const dict_table_t *table,
     DBUG_INJECT_CRASH("ddl_log_crash_after_delete_space_log",
                       crash_after_delete_space_log_counter++);
 
+    DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_2",
+                    srv_inject_too_many_concurrent_trxs = true;);
+
     err = delete_by_id(trx, id, dict_locked);
     ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+
+    DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_2",
+                    srv_inject_too_many_concurrent_trxs = false;);
 
     DBUG_INJECT_CRASH("ddl_log_crash_after_delete_space_delete",
                       crash_after_delete_space_delete_counter++);
@@ -1054,8 +1067,14 @@ dberr_t Log_DDL::write_rename_space_log(space_id_t space_id,
   DBUG_INJECT_CRASH("ddl_log_crash_after_rename_space_log",
                     crash_after_rename_space_log_counter++);
 
+  DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_4",
+                  srv_inject_too_many_concurrent_trxs = true;);
+
   err = delete_by_id(trx, id, true);
   ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+
+  DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_4",
+                  srv_inject_too_many_concurrent_trxs = false;);
 
   DBUG_INJECT_CRASH("ddl_log_crash_after_rename_space_delete",
                     crash_after_rename_space_delete_counter++);
@@ -1236,8 +1255,14 @@ dberr_t Log_DDL::write_rename_table_log(dict_table_t *table,
       insert_rename_table_log(id, thread_id, table->id, old_name, new_name);
   ut_ad(err == DB_SUCCESS);
 
+  DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_5",
+                  srv_inject_too_many_concurrent_trxs = true;);
+
   err = delete_by_id(trx, id, true);
   ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+
+  DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_5",
+                  srv_inject_too_many_concurrent_trxs = false;);
 
   return (err);
 }
@@ -1296,8 +1321,14 @@ dberr_t Log_DDL::write_remove_cache_log(trx_t *trx, dict_table_t *table) {
       insert_remove_cache_log(id, thread_id, table->id, table->name.m_name);
   ut_ad(err == DB_SUCCESS);
 
+  DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_3",
+                  srv_inject_too_many_concurrent_trxs = true;);
+
   err = delete_by_id(trx, id, false);
   ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+
+  DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_3",
+                  srv_inject_too_many_concurrent_trxs = false;);
 
   return (err);
 }
@@ -1348,6 +1379,10 @@ dberr_t Log_DDL::delete_by_id(trx_t *trx, uint64_t id, bool dict_locked) {
     DDL_Log_Table ddl_log(trx);
     err = ddl_log.remove(id);
     ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+
+    if (err == DB_TOO_MANY_CONCURRENT_TRXS) {
+      ib::error(ER_IB_MSG_DDL_LOG_DELETE_BY_ID_TMCT);
+    }
   }
 
   if (dict_locked) {
@@ -1355,7 +1390,7 @@ dberr_t Log_DDL::delete_by_id(trx_t *trx, uint64_t id, bool dict_locked) {
   }
 
   if (srv_print_ddl_logs && err == DB_SUCCESS) {
-    ib::info(ER_IB_MSG_653) << "DDL log delete : " << id;
+    ib::info(ER_IB_MSG_DDL_LOG_DELETE_BY_ID_OK) << "DDL log delete : " << id;
   }
 
   return (err);
@@ -1384,11 +1419,9 @@ dberr_t Log_DDL::replay_all() {
   err = delete_by_ids(records);
   ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
 
-  if (err == DB_SUCCESS) {
-    for (auto record : records) {
-      if (record->get_deletable()) {
-        delete record;
-      }
+  for (auto record : records) {
+    if (record->get_deletable()) {
+      UT_DELETE(record);
     }
   }
 
@@ -1409,16 +1442,16 @@ dberr_t Log_DDL::replay_by_thread_id(ulint thread_id) {
   err = delete_by_ids(records);
   ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
 
-  if (err == DB_SUCCESS) {
-    for (auto record : records) {
-      if (record->get_deletable()) {
-        delete record;
-      }
+  for (auto record : records) {
+    if (record->get_deletable()) {
+      UT_DELETE(record);
     }
   }
 
   return (err);
 }
+
+#define DELETE_IDS_RETRIES_MAX 10
 
 dberr_t Log_DDL::delete_by_ids(DDL_Records &records) {
   dberr_t err = DB_SUCCESS;
@@ -1427,19 +1460,32 @@ dberr_t Log_DDL::delete_by_ids(DDL_Records &records) {
     return (err);
   }
 
-  trx_t *trx;
-  trx = trx_allocate_for_background();
-  trx_start_if_not_started(trx, true);
-  trx->ddl_operation = true;
+  int t;
+  for (t = DELETE_IDS_RETRIES_MAX; t > 0; t--) {
+    trx_t *trx;
+    trx = trx_allocate_for_background();
+    trx_start_if_not_started(trx, true);
+    trx->ddl_operation = true;
 
-  {
-    DDL_Log_Table ddl_log(trx);
-    err = ddl_log.remove(records);
-    ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+    {
+      DDL_Log_Table ddl_log(trx);
+      err = ddl_log.remove(records);
+      ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+    }
+
+    trx_commit_for_mysql(trx);
+    trx_free_for_background(trx);
+
+#ifdef UNIV_DEBUG
+    if (srv_inject_too_many_concurrent_trxs) {
+      srv_inject_too_many_concurrent_trxs = false;
+    }
+#endif /* UNIV_DEBUG */
+
+    if (err != DB_TOO_MANY_CONCURRENT_TRXS) {
+      break;
+    }
   }
-
-  trx_commit_for_mysql(trx);
-  trx_free_for_background(trx);
 
   return (err);
 }
@@ -1743,6 +1789,20 @@ dberr_t Log_DDL::recover() {
   s_in_recovery = false;
 
   ib::info(ER_IB_MSG_663) << "DDL log recovery : end";
+
+  return (err);
+}
+
+dberr_t Log_DDL::post_ts_encryption(DDL_Records &records) {
+  for (auto record : records) {
+    record->set_deletable(true);
+  }
+
+  dberr_t err = Log_DDL::delete_by_ids(records);
+
+  for (auto record : records) {
+    UT_DELETE(record);
+  }
 
   return (err);
 }

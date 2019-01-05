@@ -16298,7 +16298,7 @@ ER_IB_MSG_651
 ER_IB_MSG_652
   eng "%s"
 
-ER_IB_MSG_653
+ER_IB_MSG_DDL_LOG_DELETE_BY_ID_OK
   eng "%s"
 
 ER_IB_MSG_654
@@ -19073,6 +19073,19 @@ ER_SERVER_UPGRADE_SYS_SCHEMA_OBJECT_COUNT
 
 ER_SERVER_UPGRADE_CHECKING_DB
   eng "Checking '%s' schema."
+
+ER_IB_MSG_DDL_LOG_DELETE_BY_ID_TMCT
+  eng "Too many concurrent transactions while clearing the DDL Log. Please increase the number of Rollback Segments."
+
+ER_IB_MSG_POST_RECOVER_DDL_LOG_RECOVER
+  eng "Error in DDL Log recovery during Post-Recovery processing."
+
+ER_IB_MSG_POST_RECOVER_POST_TS_ENCRYPT
+  eng "Error in Post-Tablespace-Encryption during Post-Recovery processing."
+
+ER_IB_MSG_DDL_LOG_FAIL_POST_DDL
+  eng "Error in DLL Log cleanup during Post-DDL processing."
+
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1223,9 +1223,9 @@ The tablespace must exist in the memory cache.
 @param[in]	new_name	New tablespace name in the schema/name format
 @param[in]	new_path_in	New file name, or nullptr if it is located in
                                 The normal data directory
-@return true if success */
-bool fil_rename_tablespace(space_id_t space_id, const char *old_path,
-                           const char *new_name, const char *new_path_in)
+@return InnoDB error code */
+dberr_t fil_rename_tablespace(space_id_t space_id, const char *old_path,
+                              const char *new_name, const char *new_path_in)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Create a tablespace file.

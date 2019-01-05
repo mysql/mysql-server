@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -276,7 +276,7 @@ dberr_t btr_root_adjust_on_import(
     page_is_compact_format = page_is_comp(page) > 0;
 
     /* Check if the page format and table format agree. */
-    if (page_is_compact_format != dict_table_is_comp(table)) {
+    if (page_is_compact_format != !!dict_table_is_comp(table)) {
       err = DB_CORRUPTION;
     } else {
       /* Check that the table flags and the tablespace

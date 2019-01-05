@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -851,9 +851,9 @@ class Fil_shard {
   @param[in]	new_name	New tablespace  name in the schema/space
   @param[in]	new_path_in	New file name, or nullptr if it
                                   is located in the normal data directory
-  @return true if success */
-  bool space_rename(space_id_t space_id, const char *old_path,
-                    const char *new_name, const char *new_path_in)
+  @return InnoDB error code */
+  dberr_t space_rename(space_id_t space_id, const char *old_path,
+                       const char *new_name, const char *new_path_in)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Deletes an IBD tablespace, either general or single-table.
@@ -4602,9 +4602,9 @@ The tablespace must exist in the memory cache.
 @param[in]	new_name	New tablespace  name in the schema/space
 @param[in]	new_path_in	New file name, or nullptr if it is located
                                 in the normal data directory
-@return true if success */
-bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
-                             const char *new_name, const char *new_path_in) {
+@return InnoDB error code */
+dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
+                                const char *new_name, const char *new_path_in) {
   fil_space_t *space;
   ulint count = 0;
   fil_node_t *file = nullptr;
@@ -4640,7 +4640,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
 
       mutex_release();
 
-      return (false);
+      return (DB_ERROR);
 
     } else if (space->stop_ios) {
       /* Some other thread has stopped the IO. We need to
@@ -4660,14 +4660,14 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
     } else if (count > 25000) {
       mutex_release();
 
-      return (false);
+      return (DB_ERROR);
 
     } else if (space != get_space_by_name(space->name)) {
       ib::error(ER_IB_MSG_298, space->name);
 
       mutex_release();
 
-      return (false);
+      return (DB_ERROR);
 
     } else {
       auto new_space = get_space_by_name(new_name);
@@ -4676,7 +4676,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
         if (new_space == space) {
           mutex_release();
 
-          return (true);
+          return (DB_SUCCESS);
         }
 
         ut_a(new_space->id == space->id);
@@ -4720,7 +4720,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
                                                     old_file_name);
       ut_free(new_file_name);
       if (err != DB_SUCCESS) {
-        return (false);
+        return (err);
       }
 
       write_ddl_log = false;
@@ -4848,7 +4848,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
   ut_free(old_file_name);
   ut_free(old_space_name);
 
-  return (success);
+  return (success ? DB_SUCCESS : DB_ERROR);
 }
 
 /** Rename a single-table tablespace.
@@ -4858,14 +4858,14 @@ The tablespace must exist in the memory cache.
 @param[in]	new_name	New tablespace name in the schema/name format
 @param[in]	new_path_in	New file name, or nullptr if it is located
                                 in the normal data directory
-@return true if success */
-bool fil_rename_tablespace(space_id_t space_id, const char *old_path,
-                           const char *new_name, const char *new_path_in) {
+@return InnoDB error code */
+dberr_t fil_rename_tablespace(space_id_t space_id, const char *old_path,
+                              const char *new_name, const char *new_path_in) {
   auto shard = fil_system->shard_by_id(space_id);
 
-  bool success = shard->space_rename(space_id, old_path, new_name, new_path_in);
+  dberr_t err = shard->space_rename(space_id, old_path, new_name, new_path_in);
 
-  return (success);
+  return (err);
 }
 
 /** Rename a tablespace.  Use the space_id to find the shard.
@@ -10148,10 +10148,11 @@ static bool fil_op_replay_rename(const page_id_t &page_id,
 
   const auto ptr = name.c_str();
 
-  success =
+  dberr_t err =
       fil_rename_tablespace(space_id, old_name.c_str(), ptr, new_name.c_str());
 
-  ut_a(success);
+  /* Stop recovery if this does not succeed. */
+  ut_a(err == DB_SUCCESS);
 
   clone_mark_active();
 

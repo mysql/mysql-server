@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -5263,7 +5263,7 @@ static bool lock_rec_queue_validate(
   ut_a(block->frame == page_align(rec));
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
-  ut_ad(lock_mutex_own() == locked_lock_trx_sys);
+  ut_ad(lock_mutex_own() == !!locked_lock_trx_sys);
   ut_ad(!index || index->is_clustered() || !dict_index_is_online_ddl(index));
 
   ulint heap_no = page_rec_get_heap_no(rec);
