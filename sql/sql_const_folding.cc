@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -965,6 +965,7 @@ static bool analyze_field_constant(THD *thd, Item_field *f, Item **const_val,
   *place = RP_INSIDE;  // a priori
 
   if ((*const_val)->is_null()) return false;
+  if (thd->is_error()) return true;
 
   const auto ft = func->functype();
   switch (f->data_type()) {
