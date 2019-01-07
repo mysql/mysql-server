@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,8 +130,8 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   for (int cnt = 0; cnt < m_argc; ++cnt) {
     m_argv[cnt] = argv[cnt];
   }
-  /* add --<plugin_name>_open_mode=1 option */
-  m_internal_option = "--" + m_source_plugin_name + "_open_mode=1";
+  /* add --loose_<plugin_name>_open_mode=1 option */
+  m_internal_option = "--loose_" + m_source_plugin_name + "_open_mode=1";
   m_argv[m_argc] = const_cast<char *>(m_internal_option.c_str());
   /* update m_argc, m_argv */
   m_argv[++m_argc] = nullptr;
