@@ -1,7 +1,7 @@
 #ifndef SQL_REF_ROW_ITERATORS_H
 #define SQL_REF_ROW_ITERATORS_H
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -257,7 +257,9 @@ class AlternativeIterator final : public RowIterator {
   int Read() override { return m_iterator->Read(); }
 
   void SetNullRowFlag(bool is_null_row) override {
-    m_iterator->SetNullRowFlag(is_null_row);
+    // Init() may not have been called yet, so just forward to both iterators.
+    m_source_iterator->SetNullRowFlag(is_null_row);
+    m_table_scan_iterator.SetNullRowFlag(is_null_row);
   }
 
   void UnlockRow() override { m_iterator->UnlockRow(); }

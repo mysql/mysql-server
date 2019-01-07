@@ -1,7 +1,7 @@
 #ifndef SQL_ROW_ITERATOR_H_
 #define SQL_ROW_ITERATOR_H_
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,6 +93,11 @@ class RowIterator {
     produce a NULL-complemented row. Init() or Read() won't necessarily
     reset this flag, so if you ever set is to true, make sure to also set it
     to false when needed.
+
+    Note that this can be called without Init() having been called first.
+    For example, NestedLoopIterator can hit EOF immediately on the outer
+    iterator, which means the inner iterator doesn't get an Init() call,
+    but will still forward SetNullRowFlag to both inner and outer iterators.
 
     TODO: We shouldn't need this. See the comments on AggregateIterator for
     a bit more discussion on abstracting out a row interface.

@@ -1,0 +1,66 @@
+CREATE TABLE t1 (
+col_int_key integer,
+col_varchar varchar(1),
+col_varchar_key varchar(1),
+KEY k1 (col_int_key),
+KEY k2 (col_varchar_key)
+);
+INSERT INTO t1 VALUES (1,'f','5'),(2,'H','f'),(3,'D','u');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE TABLE t2 (
+col_int_key integer,
+col_varchar varchar(1),
+col_varchar_key varchar(1),
+KEY k3 (col_int_key),
+KEY k4 (col_varchar_key)
+);
+INSERT INTO t2 VALUES (4,'w','c');
+CREATE TABLE a (
+f1 varchar(1),
+KEY k5 (f1)
+);
+CREATE VIEW v1 AS SELECT f1 from a;
+EXPLAIN FORMAT=tree SELECT col_varchar_key FROM t1
+WHERE ( col_varchar_key, col_varchar_key ) NOT IN (
+SELECT alias1.col_varchar_key, alias1.col_varchar_key
+FROM (
+t1 AS alias1
+JOIN ( t1 AS alias2 JOIN t2 ON t2.col_varchar_key = alias2.col_varchar_key )
+ON ( t2.col_int_key = alias2.col_int_key AND alias2.col_varchar_key IN ( SELECT f1 FROM v1 ) ) )
+WHERE alias1.col_varchar >= 'Z' );
+EXPLAIN
+-> Filter: (not(<in_optimizer>((t1.col_varchar_key,t1.col_varchar_key),<exists>(select #2))))
+    -> Index scan on t1 using k2
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)
+            -> Filter: (<if>(outer_field_is_not_null, <is_not_null_test>(alias1.col_varchar_key), true) and <if>(outer_field_is_not_null, <is_not_null_test>(alias1.col_varchar_key), true))
+                -> Nested loop inner join
+                    -> Filter: (t2.col_varchar_key is not null)
+                        -> Index range scan on t2 using k3, with index condition: (t2.col_int_key is not null)
+                    -> Remove duplicate (alias2, alias1) rows using temporary table (weedout)
+                        -> Nested loop inner join
+                            -> Nested loop inner join
+                                -> Index lookup on a using k5 (f1=t2.col_varchar_key)
+                                -> Filter: (alias2.col_varchar_key = t2.col_varchar_key)
+                                    -> Index lookup on alias2 using k1 (col_int_key=t2.col_int_key)
+                            -> Filter: ((alias1.col_varchar >= 'Z') and <if>(outer_field_is_not_null, ((<cache>(t1.col_varchar_key) = alias1.col_varchar_key) or (alias1.col_varchar_key is null)), true) and <if>(outer_field_is_not_null, ((<cache>(t1.col_varchar_key) = alias1.col_varchar_key) or (alias1.col_varchar_key is null)), true))
+                                -> Alternative plans for IN subquery: Index lookup unless col_varchar_key IS NULL
+                                    -> Index lookup on alias1 using k2 (col_varchar_key=<cache>(t1.col_varchar_key) or NULL)
+                                    -> Table scan on alias1
+
+SELECT col_varchar_key FROM t1
+WHERE ( col_varchar_key, col_varchar_key ) NOT IN (
+SELECT alias1.col_varchar_key, alias1.col_varchar_key
+FROM (
+t1 AS alias1
+JOIN ( t1 AS alias2 JOIN t2 ON t2.col_varchar_key = alias2.col_varchar_key )
+ON ( t2.col_int_key = alias2.col_int_key AND alias2.col_varchar_key IN ( SELECT f1 FROM v1 ) ) )
+WHERE alias1.col_varchar >= 'Z' );
+col_varchar_key
+5
+f
+u
+DROP VIEW v1;
+DROP TABLE t1, t2, a;
