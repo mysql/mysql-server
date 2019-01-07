@@ -5,6 +5,9 @@
 # This test needs MyISAM for some sub tests
 --source include/have_myisam.inc
 
+# Different number of warnings with/without ps-protocol
+--source include/no_ps_protocol.inc
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings

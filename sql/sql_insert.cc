@@ -1419,8 +1419,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
         and we must now add them on row by row basis.
 
         Check the first INSERT value.
-        Do not fail here, since that would break MyISAM behavior of inserting
-        all rows before the failing row.
 
         PRUNE_DEFAULTS means the partitioning fields are only set to DEFAULT
         values, so we only need to check the first INSERT value, since all the
@@ -1428,15 +1426,17 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       */
       if (insert_table->part_info->set_used_partition(
               insert_field_list, *values, info, prune_needs_default_values,
-              &used_partitions))
+              &used_partitions)) {
         can_prune_partitions = partition_info::PRUNE_NO;
+        // set_used_partition may fail.
+        if (thd->is_error()) DBUG_RETURN(true);
+      }
 
       while ((values = its++)) {
         counter++;
 
         /*
-          To make it possible to increase concurrency on table level locking
-          engines such as MyISAM, we check pruning for each row until we will
+          We check pruning for each row until we will
           use all partitions, Even if the number of rows is much higher than the
           number of partitions.
           TODO: Cache the calculated part_id and reuse in
@@ -1445,8 +1445,11 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
         if (can_prune_partitions == partition_info::PRUNE_YES) {
           if (insert_table->part_info->set_used_partition(
                   insert_field_list, *values, info, prune_needs_default_values,
-                  &used_partitions))
+                  &used_partitions)) {
             can_prune_partitions = partition_info::PRUNE_NO;
+            // set_used_partition may fail.
+            if (thd->is_error()) DBUG_RETURN(true);
+          }
           if (!(counter % num_partitions)) {
             /*
               Check if we using all partitions in table after adding partition

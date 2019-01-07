@@ -461,6 +461,8 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
   @returns Operational status
     @retval false  Success
     @retval true   Failure
+  A return value of 'false' may indicate conversion error,
+  so caller must check thd->is_error().
 */
 
 bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
