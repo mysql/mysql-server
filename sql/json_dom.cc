@@ -63,6 +63,7 @@
 #include "sql/derror.h"       // ER_THD
 #include "sql/field.h"
 #include "sql/json_path.h"
+#include "sql/json_syntax_check.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_class.h"       // THD
 #include "sql/sql_const.h"       // STACK_MIN_SIZE
@@ -370,22 +371,6 @@ Json_object::Json_object()
                                                 )) {
 }
 
-/**
-  Check if the depth of a JSON document exceeds the maximum supported
-  depth (JSON_DOCUMENT_MAX_DEPTH). Raise an error if the maximum depth
-  has been exceeded.
-
-  @param[in] depth  the current depth of the document
-  @return true if the maximum depth is exceeded, false otherwise
-*/
-static bool check_json_depth(size_t depth) {
-  if (depth > JSON_DOCUMENT_MAX_DEPTH) {
-    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
-    return true;
-  }
-  return false;
-}
-
 namespace {
 
 /**
@@ -620,48 +605,6 @@ Json_dom_ptr Json_dom::parse(const char *text, size_t length,
   return NULL;
 }
 #endif  // ifdef MYSQL_SERVER
-
-namespace {
-
-/**
-  This class implements a handler for use with rapidjson::Reader when
-  we want to check if a string is a valid JSON text. The handler does
-  not build a DOM structure, so it is quicker than Json_dom::parse()
-  in the cases where we don't care about the DOM, such as in the
-  JSON_VALID() function.
-
-  The handler keeps track of how deeply nested the document is, and it
-  raises an error and stops parsing when the depth exceeds
-  JSON_DOCUMENT_MAX_DEPTH.
-
-  All the member functions follow the rapidjson convention of
-  returning true on success and false on failure.
-*/
-class Syntax_check_handler : public rapidjson::BaseReaderHandler<> {
- private:
-  size_t m_depth{0};  ///< The current depth of the document
-
- public:
-  bool StartObject() { return !check_json_depth(++m_depth); }
-  bool EndObject(rapidjson::SizeType) {
-    --m_depth;
-    return true;
-  }
-  bool StartArray() { return !check_json_depth(++m_depth); }
-  bool EndArray(rapidjson::SizeType) {
-    --m_depth;
-    return true;
-  }
-};
-
-}  // namespace
-
-bool is_valid_json_syntax(const char *text, size_t length) {
-  Syntax_check_handler handler;
-  rapidjson::Reader reader;
-  rapidjson::MemoryStream ms(text, length);
-  return reader.Parse<rapidjson::kParseDefaultFlags>(ms, handler);
-}
 
 /**
   Map the JSON type used by the binary representation to the type
@@ -1567,8 +1510,8 @@ static bool append_comma(String *buffer, bool pretty) {
   Helper function which does all the heavy lifting for
   Json_wrapper::to_string(). It processes the Json_wrapper
   recursively. The depth parameter keeps track of the current nesting
-  level. When it reaches JSON_DOCUMENT_MAX_DEPTH, it gives up in order
-  to avoid running out of stack space.
+  level. When it reaches JSON_DOCUMENT_MAX_DEPTH (see json_syntax_check.cc for
+  definition), it gives up in order to avoid running out of stack space.
 
   @param[in]     wr          the value to convert to a string
   @param[in,out] buffer      the buffer to write to

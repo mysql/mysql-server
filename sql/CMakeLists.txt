@@ -376,6 +376,8 @@ SET(SQL_SHARED_SOURCES
   json_diff.cc
   json_dom.cc
   json_path.cc
+  json_schema.cc
+  json_syntax_check.cc
   key.cc
   key_spec.cc
   keycaches.cc

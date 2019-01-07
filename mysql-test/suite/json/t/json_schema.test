@@ -1,0 +1,257 @@
+--echo # See that SQL NULL is handled properly
+SELECT JSON_SCHEMA_VALID(NULL, NULL);
+SELECT JSON_SCHEMA_VALID('{}', NULL);
+SELECT JSON_SCHEMA_VALID(NULL, '{}');
+
+--echo # Check some basic scenarios to verify that everything is working as
+--echo # expected. Note that the rapidjson library contains a bunch of tests to
+--echo # verify the correctness of the JSON Schema validation, so we don't do
+--echo # any extensive testing of the validation process itself here.
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "minimum": 63
+    },
+    "longitude": {
+      "type": "number"
+    }
+  },
+  "required": ["latitude", "longitude"]
+}','{
+  "latitude": 63.444697,
+  "longitude": 10.445118
+}') AS should_be_valid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "minimum": 63
+    },
+    "longitude": {
+      "type": "number"
+    }
+  },
+  "required": ["latitude", "longitude"]
+}','{
+  "longitude": 10.445118
+}') AS should_be_invalid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "minimum": 63
+    },
+    "longitude": {
+      "type": "number"
+    }
+  },
+  "required": ["latitude", "longitude"]
+}','{
+  "latitude": 62,
+  "longitude": 10.445118
+}') AS should_be_invalid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]"
+    }
+  }
+}','{
+  "a_string": "8"
+}') AS should_be_valid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]"
+    }
+  }
+}','{
+  "a_string": "4"
+}') AS should_be_invalid;
+
+--error ER_NOT_SUPPORTED_YET
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": { "$ref": "http://example.com" }
+}','
+{
+  "latitude": 63.444697
+}') AS invalid;
+
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALID(repeat('[', 100000), json_object());
+
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALID(json_object(), repeat('[', 100000));
+
+--echo # Check that we can use JSON_SCHEMA_VALID as a CHECK constraint.
+CREATE TABLE t1 (
+  geometry JSON,
+  CHECK(JSON_SCHEMA_VALID('{
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      },
+      "required": ["latitude", "longitude"]
+    }', geometry)
+  )
+);
+
+INSERT INTO t1 VALUES ('{"latitude": 0, "longitude": 0}');
+INSERT INTO t1 VALUES ('{"latitude": -90, "longitude": -180}');
+INSERT INTO t1 VALUES ('{"latitude": 90, "longitude": 180}');
+
+SELECT geometry FROM t1;
+
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1  VALUES ('{"latitude": 0}'); # missing required property "longitude"
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES ('{"latitude": 181, "longitude": 0}'); # latitude out of range
+
+DROP TABLE t1;
+
+--echo # Negative test for wrong number of arguments
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_SCHEMA_VALID();
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_SCHEMA_VALID(NULL);
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_SCHEMA_VALID(NULL, NULL, NULL);
+
+--echo # Invalid JSON document in either argument
+SET @invalid_json = '{"foo": "bar"'; # Missing closing '}'
+SET @valid_json = '{}';
+
+SELECT JSON_SCHEMA_VALID(@valid_json, @valid_json) AS should_be_true;
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALID(@invalid_json, @valid_json);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALID(@valid_json, @invalid_json);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALID(@invalid_json, @invalid_json);
+
+--echo # Invalid regex patterns. rapidjson ignores invalid regex patterns, so
+--echo # they are removed from the validation process.
+SELECT JSON_SCHEMA_VALID('{"type":"string","pattern":"("}', '"abc"') AS should_be_true;
+
+SELECT JSON_SCHEMA_VALID('{"type":"string","pattern":"[asdf@123"}', '"abc"') AS should_be_true;
+
+--echo # Positive and negative tests for anchored regex patterns
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]"
+    }
+  }
+}','{
+  "a_string": "a8"
+}') AS should_be_valid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "^[5-9]"
+    }
+  }
+}','{
+  "a_string": "a8"
+}') AS should_be_invalid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]"
+    }
+  }
+}','{
+  "a_string": "8a"
+}') AS should_be_valid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]$"
+    }
+  }
+}','{
+  "a_string": "8a"
+}') AS should_be_invalid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "^[5-9]$"
+    }
+  }
+}','{
+  "a_string": "8"
+}') AS should_be_valid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "^[5-9]$"
+    }
+  }
+}','{
+  "a_string": "a8"
+}') AS should_be_invalid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "^[5-9]$"
+    }
+  }
+}','{
+  "a_string": "8a"
+}') AS should_be_invalid;
+
+--echo # The JSON Schema must be an object, so see that we don't accept any
+--echo # other type as the first argument.
+--error ER_INVALID_JSON_TYPE
+SELECT JSON_SCHEMA_VALID('[]', '{}');
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALID(CAST('test' AS JSON), '{}');

@@ -1,4 +1,4 @@
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -103,3 +103,5 @@ MACRO (MYSQL_CHECK_RAPIDJSON)
 ENDMACRO()
 
 ADD_DEFINITIONS(-DRAPIDJSON_NO_SIZETYPEDEFINE)
+ADD_DEFINITIONS(-DRAPIDJSON_SCHEMA_USE_INTERNALREGEX=0)
+ADD_DEFINITIONS(-DRAPIDJSON_SCHEMA_USE_STDREGEX=1)

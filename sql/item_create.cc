@@ -1426,6 +1426,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"JSON_MERGE_PRESERVE",
      SQL_FN_V_LIST_THD(Item_func_json_merge_preserve, 2, MAX_ARGLIST_SIZE)},
     {"JSON_QUOTE", SQL_FN_LIST(Item_func_json_quote, 1)},
+    {"JSON_SCHEMA_VALID", SQL_FN(Item_func_json_schema_valid, 2)},
     {"JSON_STORAGE_FREE", SQL_FN(Item_func_json_storage_free, 1)},
     {"JSON_STORAGE_SIZE", SQL_FN(Item_func_json_storage_size, 1)},
     {"JSON_UNQUOTE", SQL_FN_LIST(Item_func_json_unquote, 1)},

@@ -62,9 +62,6 @@ using Json_dom_ptr = std::unique_ptr<Json_dom>;
 using Json_array_ptr = std::unique_ptr<Json_array>;
 using Json_object_ptr = std::unique_ptr<Json_object>;
 
-/// The maximum number of nesting levels allowed in a JSON document.
-#define JSON_DOCUMENT_MAX_DEPTH 100
-
 /**
   @file sql/json_dom.h
   JSON DOM.

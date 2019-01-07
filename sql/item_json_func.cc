@@ -48,6 +48,8 @@
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
+#include "sql/json_schema.h"
+#include "sql/json_syntax_check.h"
 #include "sql/my_decimal.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_class.h"       // THD
@@ -133,7 +135,7 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
 
   if (!dom) {
     DBUG_ASSERT(!require_str_or_json);
-    return !is_valid_json_syntax(safep, safe_length);
+    return !is_valid_json_syntax(safep, safe_length, nullptr, nullptr);
   }
 
   const char *parse_err;
@@ -480,6 +482,31 @@ longlong Item_func_json_valid::val_int() {
     return error_int();
     /* purecov: end */
   }
+}
+
+bool Item_func_json_schema_valid::val_bool() {
+  DBUG_ASSERT(fixed);
+
+  String document_buffer;
+  String schema_buffer;
+  String *schema_string = args[0]->val_str(&schema_buffer);
+  String *document_string = args[1]->val_str(&document_buffer);
+
+  if (args[0]->null_value || args[1]->null_value) {
+    DBUG_ASSERT(maybe_null);
+    null_value = true;
+    return false;
+  }
+
+  bool validation_result = false;
+  if (is_valid_json_schema(document_string->ptr(), document_string->length(),
+                           schema_string->ptr(), schema_string->length(),
+                           func_name(), &validation_result)) {
+    return error_bool();
+  }
+
+  null_value = false;
+  return validation_result;
 }
 
 typedef Prealloced_array<size_t, 16> Sorted_index_array;

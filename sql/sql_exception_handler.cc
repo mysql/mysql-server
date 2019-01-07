@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,8 @@
 // boost::geometry::empty_input_exception
 // boost::geometry::exception
 #include <boost/geometry/core/exception.hpp>
-#include <new>        // std::bad_alloc
+#include <new>  // std::bad_alloc
+#include <regex>
 #include <stdexcept>  // Other std exceptions
 #include <string>
 
@@ -75,6 +76,8 @@ void handle_std_exception(const char *funcname) {
     my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::logic_error &e) {
     my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), funcname);
+  } catch (const std::regex_error &e) {
+    my_error(ER_STD_REGEX_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::runtime_error &e) {
     my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), funcname);
   } catch (const std::exception &e) {

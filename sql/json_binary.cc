@@ -37,8 +37,9 @@
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"
 #endif
-#include "sql/field.h"      // Field_json
-#include "sql/json_dom.h"   // Json_dom
+#include "sql/field.h"     // Field_json
+#include "sql/json_dom.h"  // Json_dom
+#include "sql/json_syntax_check.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/system_variables.h"
@@ -505,8 +506,7 @@ static enum_serialization_result serialize_json_array(const THD *thd,
   const size_t start_pos = dest->length();
   const size_t size = array->size();
 
-  if (++depth > JSON_DOCUMENT_MAX_DEPTH) {
-    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+  if (check_json_depth(++depth)) {
     return FAILURE;
   }
 
@@ -568,8 +568,7 @@ static enum_serialization_result serialize_json_object(
   const size_t start_pos = dest->length();
   const size_t size = object->cardinality();
 
-  if (++depth > JSON_DOCUMENT_MAX_DEPTH) {
-    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+  if (check_json_depth(++depth)) {
     return FAILURE;
   }
 

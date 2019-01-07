@@ -310,6 +310,21 @@ class Item_func_json_valid final : public Item_int_func {
 };
 
 /**
+  Represents the JSON function JSON_SCHEMA_VALID( <json schema>, <json doc> )
+*/
+class Item_func_json_schema_valid final : public Item_bool_func {
+ public:
+  Item_func_json_schema_valid(const POS &pos, Item *a, Item *b)
+      : Item_bool_func(pos, a, b) {}
+
+  const char *func_name() const override { return "json_schema_valid"; }
+
+  bool val_bool() override;
+
+  longlong val_int() override { return val_bool() ? 1 : 0; }
+};
+
+/**
   Represents the JSON function JSON_CONTAINS()
 */
 class Item_func_json_contains final : public Item_int_func {

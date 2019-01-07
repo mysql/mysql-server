@@ -6200,20 +6200,21 @@ JSON_UNQUOTE(CAST(j AS CHAR)),
 JSON_QUOTE(CAST(j AS CHAR)),
 JSON_PRETTY(j),
 JSON_STORAGE_FREE(j),
-JSON_STORAGE_SIZE(j)
+JSON_STORAGE_SIZE(j),
+JSON_SCHEMA_VALID('{"type":"object"}', j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE_PRESERVE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE_PRESERVE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)	JSON_SCHEMA_VALID('{"type":"object"}', j)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL	NULL
 1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	[[1], [1]]	{"k": [1]}	[1]	"[1]"	[
   1
-]	0	8
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
+]	0	8	0
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL	NULL
 1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	[{"a": "b"}, {"a": "b"}]	{"k": {"a": "b"}}	{"a": "b"}	"{\"a\": \"b\"}"	{
   "a": "b"
-}	0	15
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
-1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["abc", "abc"]	{"k": "abc"}	abc	"\"abc\""	"abc"	0	5
+}	0	15	1
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL	NULL
+1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["abc", "abc"]	{"k": "abc"}	abc	"\"abc\""	"abc"	0	5	0
 ALTER TABLE T_WITH_NULLS MODIFY COLUMN j TEXT;
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
@@ -6239,20 +6240,21 @@ JSON_UNQUOTE(CAST(j AS CHAR)),
 JSON_QUOTE(CAST(j AS CHAR)),
 JSON_PRETTY(j),
 JSON_STORAGE_FREE(j),
-JSON_STORAGE_SIZE(j)
+JSON_STORAGE_SIZE(j),
+JSON_SCHEMA_VALID('{"type":"object"}', j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE_PRESERVE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE_PRESERVE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)	JSON_SCHEMA_VALID('{"type":"object"}', j)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL	NULL
 1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	["[1]", "[1]"]	{"k": "[1]"}	[1]	"[1]"	[
   1
-]	0	8
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
+]	0	8	0
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL	NULL
 1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	["{\"a\": \"b\"}", "{\"a\": \"b\"}"]	{"k": "{\"a\": \"b\"}"}	{"a": "b"}	"{\"a\": \"b\"}"	{
   "a": "b"
-}	0	15
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
-1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["\"abc\"", "\"abc\""]	{"k": "\"abc\""}	abc	"\"abc\""	"abc"	0	5
+}	0	15	1
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL	NULL
+1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["\"abc\"", "\"abc\""]	{"k": "\"abc\""}	abc	"\"abc\""	"abc"	0	5	0
 DROP TABLE T_WITH_NULLS;
 CREATE TABLE t_latin1(id INT PRIMARY KEY AUTO_INCREMENT,
 json_text VARCHAR(20),

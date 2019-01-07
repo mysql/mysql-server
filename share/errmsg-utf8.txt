@@ -8893,6 +8893,12 @@ ER_INNODB_REDO_LOG_ARCHIVE_FAILED
 ER_INNODB_REDO_LOG_ARCHIVE_SESSION
   eng "Redo log archiving has not been started by this session"
 
+ER_STD_REGEX_ERROR
+  eng "Regex error: %-.256s in function %s."
+
+ER_INVALID_JSON_TYPE 22032
+  eng "Invalid JSON type in argument %u to function %s; an %s is required."
+
 #
 #  End of 8.0 error messages.
 #
