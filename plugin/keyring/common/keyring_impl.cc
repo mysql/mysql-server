@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ std::unique_ptr<IKeys_container> keys(nullptr);
 volatile bool is_keys_container_initialized = false;
 std::unique_ptr<ILogger> logger(nullptr);
 std::unique_ptr<char[]> keyring_file_data(nullptr);
-bool keyring_file_open_mode = false;  // 0 - Read|Write|Create; 1 - Read only
+bool keyring_open_mode = false;  // 0 - Read|Write|Create; 1 - Read only
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[] = {
