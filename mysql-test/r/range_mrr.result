@@ -1286,7 +1286,7 @@ explain select * from t1 where dateval >= '2007-01-01 00:00:00' and dateval <= '
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	dateval	dateval	4	NULL	2	100.00	Using where; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`dateval` AS `dateval` from `test`.`t1` where ((`test`.`t1`.`dateval` >= DATE'2007-01-01') and (`test`.`t1`.`dateval` <= TIMESTAMP'2007-01-02 23:59:59'))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`dateval` AS `dateval` from `test`.`t1` where ((`test`.`t1`.`dateval` >= DATE'2007-01-01') and (`test`.`t1`.`dateval` <= DATE'2007-01-02'))
 drop table t1;
 CREATE TABLE t1 (
 a varchar(32), index (a)

@@ -887,9 +887,19 @@ static bool analyze_timestamp_field_constant(THD *thd, Item_field *f,
           Make a DATETIME literal, unless the field is a DATE and the constant
           has zero time, in which case we make a DATE literal
         */
-        if (ft == MYSQL_TYPE_DATE && ltime.hour == 0 && ltime.minute == 0 &&
-            ltime.second == 0 && ltime.second_part == 0) {
+        if (ft == MYSQL_TYPE_DATE) {
           ltime.time_type = MYSQL_TIMESTAMP_DATE;
+          if (ltime.hour == 0 && ltime.minute == 0 && ltime.second == 0 &&
+              ltime.second_part == 0) {
+            /* OK, time part is zero, so trivial type change */
+          } else {
+            /* truncate time part: must adjust operators */
+            ltime.hour = 0;
+            ltime.minute = 0;
+            ltime.second = 0;
+            ltime.second_part = 0;
+            *place = RP_INSIDE_TRUNCATED;
+          }
           i = new (thd->mem_root) Item_date_literal(&ltime);
         } else {
           i = new (thd->mem_root)
