@@ -26631,10 +26631,32 @@ EXPLAIN SELECT * FROM t WHERE i = (i < 255);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (`test`.`t`.`i` = (`test`.`t`.`i` is not null))
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (`test`.`t`.`i` = if(isnull(`test`.`t`.`i`),NULL,1))
 SELECT * FROM t WHERE i = (i < 255);
 i
 1
+
+Bug#29179604
+
+EXPLAIN SELECT * FROM t WHERE 1 = (i < 255);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (1 = if(isnull(`test`.`t`.`i`),NULL,1))
+SELECT * FROM t WHERE 1 = (i < 255);
+i
+10
+100
+1
+0
+Used to give wrong result: NULL/UNKNOWN was lost in folding
+EXPLAIN SELECT * FROM t WHERE 0 = (i < 255);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (0 = if(isnull(`test`.`t`.`i`),NULL,1))
+SELECT * FROM t WHERE 0 = (i < 255);
+i
 DROP TABLE t;
 CREATE TABLE t(d DECIMAL(65,0));
 EXPLAIN SELECT d FROM t WHERE d <  45.34e306;

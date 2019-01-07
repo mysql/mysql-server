@@ -578,6 +578,17 @@ let query=SELECT * FROM t WHERE i = (i < 255);
 eval EXPLAIN $query;
 eval $query;
 
+--echo
+--echo Bug#29179604
+--echo
+let query=SELECT * FROM t WHERE 1 = (i < 255);
+eval EXPLAIN $query;
+eval $query;
+--echo Used to give wrong result: NULL/UNKNOWN was lost in folding
+let query=SELECT * FROM t WHERE 0 = (i < 255);
+eval EXPLAIN $query;
+eval $query;
+
 DROP TABLE t;
 
 # Missing coverage for too large (for decimal) double constants, add here:
