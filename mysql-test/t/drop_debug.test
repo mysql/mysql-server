@@ -276,3 +276,21 @@ let $MYSQLD_DATADIR= `SELECT @@global.datadir`;
 --list_files $MYSQLD_DATADIR/mysqltest *.MYD
 --echo # And that DROP DATABASE can remove this table, without problems.
 DROP DATABASE mysqltest;
+
+
+--echo #
+--echo # Bug#28923782: DD CRASHES ON ASSERT IF HA_COMMIT_TRANS() RETURNS ERROR
+--echo #
+--echo # Check result of ha_commit_trans() before committing changes of the DD
+--echo # objects.
+--echo #
+
+CREATE TABLE t(i INT);
+SET debug = '+d,simulate_failure_in_before_commit_hook';
+
+# Before the patch, this would fail with an assert due to an inconsistency
+# between the state of the DD cache and the contents of the DD tables.
+--error ER_RUN_HOOK_ERROR
+DROP TABLE t;
+SET debug = '-d,simulate_failure_in_before_commit_hook';
+DROP TABLE t;
