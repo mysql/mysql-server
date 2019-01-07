@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ require "lib/mtr_misc.pl";
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
 
 our $mysql_version_id;
-my $mysql_version_extra;
+our $mysql_version_extra;
 our $glob_mysql_test_dir;
 our $basedir;
 our $bindir;
@@ -313,6 +313,7 @@ my $opt_strace_server;
 
 our $opt_user = "root";
 
+our $opt_sanitize= 0;
 our $opt_valgrind= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
@@ -456,6 +457,12 @@ sub main {
     $opt_parallel= 1;
   }
 
+  # When either --valgrind or --sanitize option is enabled, a dummy
+  # test is created.
+  if ($opt_valgrind_mysqld or $opt_sanitize) {
+    $num_tests_for_report = $num_tests_for_report + 1;
+  }
+
   # Create server socket on any free port
   my $server = new IO::Socket::INET
     (
@@ -584,17 +591,23 @@ sub main {
 
   push @$completed, run_ctest() if $opt_ctest;
 
-  if ($opt_valgrind_mysqld) {
+  if ($opt_valgrind_mysqld or $opt_sanitize) {
     # Create minimalistic "test" for the reporting
-    my $tinfo = My::Test->new
-      (
-       name           => 'valgrind_report',
-      );
+    my $tinfo = My::Test->new(
+      name      => $opt_valgrind_mysqld ? 'valgrind_report' : 'sanitize_report',
+      shortname => $opt_valgrind_mysqld ? 'valgrind_report' : 'sanitize_report',
+    );
+
     # Set dummy worker id to align report with normal tests
     $tinfo->{worker} = 0 if $opt_parallel > 1;
     if ($valgrind_reports) {
       $tinfo->{result}= 'MTR_RES_FAILED';
-      $tinfo->{comment}= "Valgrind reported failures at shutdown, see above";
+      if ($opt_valgrind_mysqld) {
+        $tinfo->{comment} = "Valgrind reported failures at shutdown, see above";
+      } else {
+        $tinfo->{comment} =
+          "Sanitizer reported failures at shutdown, see above";
+      }
       $tinfo->{failures}= 1;
     } else {
       $tinfo->{result}= 'MTR_RES_PASSED';
@@ -817,7 +830,10 @@ sub run_test_server ($$$) {
 	elsif ($line =~ /^SPENT/) {
 	  add_total_times($line);
 	}
-	elsif ($line eq 'VALGREP' && $opt_valgrind) {
+	elsif ($line eq 'VALGREP' && ($opt_valgrind or $opt_sanitize)) {
+          # 'VALGREP' means that the worker found some valgrind reports in the
+          # server logs. This will cause the master to flag the pseudo test
+          # valgrind_report as failed.
 	  $valgrind_reports= 1;
 	}
 	else {
@@ -1003,7 +1019,7 @@ sub run_worker ($) {
       stop_all_servers($opt_shutdown_timeout);
       mark_time_used('restart');
       my $valgrind_reports= 0;
-      if ($opt_valgrind_mysqld) {
+      if ($opt_valgrind_mysqld or $opt_sanitize) {
         $valgrind_reports= valgrind_exit_reports();
 	print $server "VALGREP\n" if $valgrind_reports;
       }
@@ -1068,6 +1084,7 @@ sub print_global_resfile {
   resfile_global("debug", $opt_debug ? 1 : 0);
   resfile_global("gcov", $opt_gcov ? 1 : 0);
   resfile_global("gprof", $opt_gprof ? 1 : 0);
+  resfile_global("sanitize", $opt_sanitize ? 1 : 0);
   resfile_global("valgrind", $opt_valgrind ? 1 : 0);
   resfile_global("callgrind", $opt_callgrind ? 1 : 0);
   resfile_global("mem", $opt_mem ? 1 : 0);
@@ -1201,6 +1218,7 @@ sub command_line_setup {
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
+             'sanitize'                 => \$opt_sanitize,
              'valgrind|valgrind-all'    => \$opt_valgrind,
 	     'valgrind-clients'         => \$opt_valgrind_clients,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
@@ -2861,9 +2879,12 @@ sub environment_setup {
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
 
   # Make sure LeakSanitizer exits if leaks are found
-  $ENV{'LSAN_OPTIONS'} = "exitcode=42,suppressions=${glob_mysql_test_dir}/lsan.supp";
+  $ENV{'LSAN_OPTIONS'} =
+    "exitcode=42,suppressions=${glob_mysql_test_dir}/lsan.supp"
+    if $opt_sanitize;
 
-  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp";
+  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
+    if $opt_sanitize;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
@@ -5952,8 +5973,10 @@ sub mysqld_start ($$) {
   unlink($mysqld->value('pid-file'));
 
   my $output= $mysqld->value('#log-error');
+
   # Remember this log file for valgrind error report search
-  $mysqld_logs{$output}= 1 if $opt_valgrind;
+  $mysqld_logs{$output}= 1 if $opt_valgrind or $opt_sanitize;
+
   # Remember data dir for gmon.out files if using gprof
   $gprof_dirs{$mysqld->value('datadir')}= 1 if $opt_gprof;
 
@@ -7071,6 +7094,7 @@ sub valgrind_arguments {
 
 #
 # Search server logs for valgrind reports printed at mysqld termination
+# Also search for sanitize reports.
 #
 
 sub valgrind_exit_reports() {
@@ -7083,6 +7107,7 @@ sub valgrind_exit_reports() {
     my $found_report= 0;
     my $err_in_report= 0;
     my $ignore_report= 0;
+    my $tool_name= $opt_sanitize ? "Sanitizer" : "Valgrind";
 
     my $LOGF = IO::File->new($log_file)
       or mtr_error("Could not open file '$log_file' for reading: $!");
@@ -7097,7 +7122,7 @@ sub valgrind_exit_reports() {
         {
           if ($err_in_report)
           {
-            mtr_print ("Valgrind report from $log_file after tests:\n",
+            mtr_print ("$tool_name report from $log_file after tests:\n",
                         @culprits);
             mtr_print_line();
             print ("$valgrind_rep\n");
@@ -7114,8 +7139,12 @@ sub valgrind_exit_reports() {
       }
       # This line marks a report to be ignored
       $ignore_report=1 if $line =~ /VALGRIND_DO_QUICK_LEAK_CHECK/;
+
       # This line marks the start of a valgrind report
       $found_report= 1 if $line =~ /^==\d+== .* SUMMARY:/;
+
+      # This line marks the start of ASAN memory leaks
+      $found_report = 1 if $line =~ /^==\d+==ERROR:.*/;
 
       if ($ignore_report && $found_report) {
         $ignore_report= 0;
@@ -7126,6 +7155,7 @@ sub valgrind_exit_reports() {
         $line=~ s/^==\d+== //;
         $valgrind_rep .= $line;
         $err_in_report= 1 if $line =~ /ERROR SUMMARY: [1-9]/;
+        $err_in_report= 1 if $line =~ /^==\d+==ERROR:.*/;
         $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
         $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
@@ -7135,7 +7165,7 @@ sub valgrind_exit_reports() {
     $LOGF= undef;
 
     if ($err_in_report) {
-      mtr_print ("Valgrind report from $log_file after tests:\n", @culprits);
+      mtr_print ("$tool_name report from $log_file after tests:\n", @culprits);
       mtr_print_line();
       print ("$valgrind_rep\n");
       $found_err= 1;
@@ -7487,6 +7517,9 @@ Misc options
   xml-report=FILE       Generate a XML report file compatible with JUnit.
   summary-report=FILE   Generate a plain text file of the test summary only,
                         suitable for sending by email.
+  sanitize              Scan server log files for warnings from various
+                        sanitizers. Assumes that you have built with
+                        -DWITH_ASAN.
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.
