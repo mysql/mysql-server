@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@ my_bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created()
 
   // try creating file or opening existing
   File file= file_io.open(keyring_file_data_key, this->keyring_filename.c_str(),
-                          file_exist && keyring_file_open_mode ? O_RDONLY :
+                          file_exist && keyring_open_mode ? O_RDONLY :
                           O_RDWR | O_CREAT, MYF(MY_WME));
   if (file < 0 ||
       file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
@@ -330,7 +330,7 @@ my_bool Buffered_file_io::get_serialized_object(ISerialized_object **serialized_
 
   // try creating file or opening existing
   File file= file_io.open(keyring_file_data_key, keyring_filename.c_str(),
-                          file_exist && keyring_file_open_mode ? O_RDONLY :
+                          file_exist && keyring_open_mode ? O_RDONLY :
                           O_RDWR | O_CREAT, MYF(MY_WME));
 
   *serialized_object= NULL;
