@@ -173,6 +173,19 @@ IF (WITH_BOOST)
   ENDIF()
   IF(LOCAL_BOOST_ZIP)
     MESSAGE(STATUS "Local boost zip ${LOCAL_BOOST_ZIP}")
+    SET(LOCAL_BOOST_ZIP_ZERO_LENGTH)
+    FILE(STRINGS ${LOCAL_BOOST_ZIP} LOCAL_BOOST_ZIP_ZERO_LENGTH
+      LIMIT_INPUT 0)
+    IF(DEFINED LOCAL_BOOST_ZIP_ZERO_LENGTH)
+      # A previous failed download has left an empty file, most likely the
+      # user pressed Ctrl-C to kill a hanging connection due to missing vpn
+      # proxy.  Remove it!
+      MESSAGE("${LOCAL_BOOST_ZIP} is zero length. Deleting it.")
+      FILE(REMOVE ${WITH_BOOST}/${BOOST_TARBALL})
+      UNSET(LOCAL_BOOST_ZIP)
+      UNSET(LOCAL_BOOST_ZIP CACHE)
+    ENDIF()
+    UNSET(LOCAL_BOOST_ZIP_ZERO_LENGTH)
   ENDIF()
 ENDIF()
 
