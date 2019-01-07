@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,9 +70,9 @@ Gcs_xcom_communication::Gcs_xcom_communication(
       m_xcom_nodes(),
       m_gid_hash(),
       m_protocol_changer(xcom_node_address, *gcs_engine, m_msg_pipeline) {
-  m_gid_hash =
-      Gcs_xcom_utils::mhash((unsigned char *)group_id.get_group_id().c_str(),
-                            group_id.get_group_id().size());
+  const void *id_str = group_id.get_group_id().c_str();
+  m_gid_hash = Gcs_xcom_utils::mhash(static_cast<const unsigned char *>(id_str),
+                                     group_id.get_group_id().size());
 }
 
 Gcs_xcom_communication::~Gcs_xcom_communication() {}

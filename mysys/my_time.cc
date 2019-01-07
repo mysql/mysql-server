@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -1727,7 +1727,7 @@ longlong my_time_packed_from_binary(const uchar *ptr, uint dec) {
 
     case 5:
     case 6:
-      return (static_cast<longlong> mi_uint6korr(ptr)) - TIMEF_OFS;
+      return (static_cast<longlong>(mi_uint6korr(ptr))) - TIMEF_OFS;
   }
 }
 

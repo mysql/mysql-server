@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -192,7 +192,7 @@ int chk_del(MI_CHECK *param, MI_INFO *info, uint test_flag) {
         goto wrong;
       }
       if (info->s->options & HA_OPTION_PACK_RECORD) {
-        my_off_t prev_link = mi_sizekorr(buff + 12);
+        my_off_t prev_link = mi_sizekorr(pointer_cast<uchar *>(buff) + 12);
         if (empty && prev_link != old_link) {
           if (test_flag & T_VERBOSE) puts("");
           mi_check_print_error(
@@ -202,8 +202,8 @@ int chk_del(MI_CHECK *param, MI_INFO *info, uint test_flag) {
           goto wrong;
         }
         old_link = next_link;
-        next_link = mi_sizekorr(buff + 4);
-        empty += mi_uint3korr(buff + 1);
+        next_link = mi_sizekorr(pointer_cast<uchar *>(buff) + 4);
+        empty += mi_uint3korr(pointer_cast<uchar *>(buff) + 1);
       } else {
         param->record_checksum += (ha_checksum)next_link;
         next_link = _mi_rec_pos(info->s, (uchar *)buff + 1);

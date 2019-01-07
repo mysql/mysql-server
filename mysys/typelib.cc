@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,10 +172,10 @@ const char *get_type(TYPELIB *typelib, uint nr) {
     a integer representation of the supplied string
 */
 
-my_ulonglong find_typeset(char *x, TYPELIB *lib, int *err) {
+my_ulonglong find_typeset(const char *x, TYPELIB *lib, int *err) {
   my_ulonglong result;
   int find;
-  char *i;
+  const char *i;
   DBUG_ENTER("find_set");
   DBUG_PRINT("enter", ("x: '%s'  lib: %p", x, lib));
 

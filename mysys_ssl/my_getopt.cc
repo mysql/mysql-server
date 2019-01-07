@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,14 +60,15 @@ typedef void (*init_func_p)(const struct my_option *option, void *variable,
 my_error_reporter my_getopt_error_reporter = &my_message_local;
 
 static bool getopt_compare_strings(const char *, const char *, uint);
-static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
-static ulonglong getopt_ull(char *, const struct my_option *, int *);
+static longlong getopt_ll(const char *arg, const struct my_option *optp,
+                          int *err);
+static ulonglong getopt_ull(const char *, const struct my_option *, int *);
 static double getopt_double(const char *arg, const struct my_option *optp,
                             int *err);
 static void init_variables(const struct my_option *, init_func_p);
 static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
-static int setval(const struct my_option *, void *, char *, bool);
+static int setval(const struct my_option *, void *, const char *, bool);
 static void setval_source(const struct my_option *, void *);
 static char *check_struct_option(char *cur_arg, char *key_name);
 static bool get_bool_argument(const char *argument, bool *error);
@@ -87,8 +88,9 @@ enum enum_special_opt {
   OPT_LOOSE
 };
 
-char *disabled_my_option = (char *)"0";
-char *enabled_my_option = (char *)"1";
+char *disabled_my_option = const_cast<char *>("0");
+static char enabled_my_option[] = "1";
+static char space_char[] = " ";
 
 /*
    This is a flag that can be set in client programs. 0 means that
@@ -549,7 +551,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
                   /* The rest of the option is option argument */
                   argument = optend + 1;
                   /* This is in effect a jump out of the outer loop */
-                  optend = (char *)" ";
+                  optend = space_char;
                   if (optp->var_type == GET_PASSWORD && is_cmdline_arg)
                     print_cmdline_password_warning();
                 } else {
@@ -602,7 +604,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
                 Do not continue to parse at the current "-XYZ" argument,
                 skip to the next argv[] argument instead.
               */
-              optend = (char *)" ";
+              optend = space_char;
             } else {
               if (my_getopt_print_errors)
                 my_getopt_error_reporter(ERROR_LEVEL, EE_UNKNOWN_SHORT_OPTION,
@@ -746,8 +748,8 @@ static void setval_source(const struct my_option *opts, void *value) {
   Will set the option value to given value
 */
 
-static int setval(const struct my_option *opts, void *value, char *argument,
-                  bool set_maximum_value) {
+static int setval(const struct my_option *opts, void *value,
+                  const char *argument, bool set_maximum_value) {
   int err = 0, res = 0;
   bool error = 0;
   ulong var_type = opts->var_type & GET_TYPE_MASK;
@@ -816,7 +818,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       case GET_PASSWORD:
         if (argument == enabled_my_option)
           break; /* string options don't use this default of "1" */
-        *((char **)value) = argument;
+        *static_cast<const char **>(value) = argument;
         break;
       case GET_STR_ALLOC:
         if (argument == enabled_my_option)
@@ -1062,8 +1064,9 @@ template ulonglong eval_num_suffix<ulonglong>(const char *, int *,
   In case of an error, set error value in *err.
 */
 
-static longlong getopt_ll(char *arg, const struct my_option *optp, int *err) {
-  longlong num = eval_num_suffix<longlong>(arg, err, (char *)optp->name);
+static longlong getopt_ll(const char *arg, const struct my_option *optp,
+                          int *err) {
+  longlong num = eval_num_suffix<longlong>(arg, err, optp->name);
   return getopt_ll_limit_value(num, optp, NULL);
 }
 
@@ -1136,7 +1139,7 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   return num;
 }
 
-static inline bool is_negative_num(char *num) {
+static inline bool is_negative_num(const char *num) {
   while (my_isspace(&my_charset_latin1, *num)) num++;
 
   return (*num == '-');
@@ -1149,7 +1152,8 @@ static inline bool is_negative_num(char *num) {
   values.
 */
 
-static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err) {
+static ulonglong getopt_ull(const char *arg, const struct my_option *optp,
+                            int *err) {
   char buf[255];
   ulonglong num;
 
@@ -1160,7 +1164,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err) {
                              EE_ADJUSTED_ULONGLONG_VALUE_FOR_OPTION, optp->name,
                              arg, ullstr(num, buf));
   } else
-    num = eval_num_suffix<ulonglong>(arg, err, (char *)optp->name);
+    num = eval_num_suffix<ulonglong>(arg, err, optp->name);
 
   return getopt_ull_limit_value(num, optp, NULL);
 }

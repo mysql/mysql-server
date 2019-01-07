@@ -1089,7 +1089,7 @@ static xcom_port local_server_port = 0;
 static connection_descriptor *input_signal_connection = NULL;
 
 #ifdef XCOM_HAVE_OPENSSL
-static connection_descriptor *connect_xcom(char *server, xcom_port port,
+static connection_descriptor *connect_xcom(const char *server, xcom_port port,
                                            bool use_ssl);
 bool xcom_input_new_signal_connection() {
   assert(local_server_port != 0);
@@ -1099,7 +1099,7 @@ bool xcom_input_new_signal_connection() {
   return (input_signal_connection != NULL);
 }
 #else
-static connection_descriptor *connect_xcom(char *server, xcom_port port);
+static connection_descriptor *connect_xcom(const char *server, xcom_port port);
 void xcom_input_new_signal_connection(void) {
   assert(local_server_port != 0);
   assert(input_signal_connection == NULL);
@@ -5814,10 +5814,10 @@ end:
 
 /* Connect to server on given port */
 #ifdef XCOM_HAVE_OPENSSL
-static connection_descriptor *connect_xcom(char *server, xcom_port port,
+static connection_descriptor *connect_xcom(const char *server, xcom_port port,
                                            bool use_ssl) {
 #else
-static connection_descriptor *connect_xcom(char *server, xcom_port port) {
+static connection_descriptor *connect_xcom(const char *server, xcom_port port) {
 #endif
   result fd = {0, 0};
   result ret = {0, 0};
@@ -5979,7 +5979,7 @@ end:
   return cd;
 }
 
-connection_descriptor *xcom_open_client_connection(char *server,
+connection_descriptor *xcom_open_client_connection(const char *server,
                                                    xcom_port port) {
 #ifdef XCOM_HAVE_OPENSSL
   return connect_xcom(server, port, true);

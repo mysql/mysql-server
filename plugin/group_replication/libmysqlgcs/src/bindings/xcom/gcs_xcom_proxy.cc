@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ bool Gcs_xcom_proxy_impl::xcom_client_close_connection(
 
 connection_descriptor *Gcs_xcom_proxy_impl::xcom_client_open_connection(
     std::string saddr, xcom_port port) {
-  char *addr = (char *)saddr.c_str();
+  const char *addr = saddr.c_str();
   return ::xcom_open_client_connection(addr, port);
 }
 

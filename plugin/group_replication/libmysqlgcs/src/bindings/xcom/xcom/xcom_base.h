@@ -231,7 +231,7 @@ void xcom_input_free_signal_connection(void);
 typedef int (*xcom_socket_accept_cb)(int fd, site_def const *config);
 int set_xcom_socket_accept_cb(xcom_socket_accept_cb x);
 
-connection_descriptor *xcom_open_client_connection(char *server,
+connection_descriptor *xcom_open_client_connection(const char *server,
                                                    xcom_port port);
 int xcom_close_client_connection(connection_descriptor *connection);
 

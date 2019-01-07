@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,9 +156,9 @@ PSI_memory_key key_memory_defaults;
    See BUG#25192
 */
 static const char *args_separator = "----args-separator----";
-inline static void set_args_separator(char **arg) {
+inline static void set_args_separator(const char **arg) {
   DBUG_ASSERT(my_getopt_use_args_separator);
-  *arg = (char *)args_separator;
+  *arg = args_separator;
 }
 /*
   persisted arguments separator
@@ -170,7 +170,7 @@ inline static void set_args_separator(char **arg) {
 */
 static const char *persist_args_separator = "----persist-args-separator----";
 void set_persist_args_separator(char **arg) {
-  *arg = (char *)persist_args_separator;
+  *arg = const_cast<char *>(persist_args_separator);
 }
 bool my_getopt_is_ro_persist_args_separator(const char *arg) {
   return (arg == persist_args_separator);
@@ -335,7 +335,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                            uint *args_used, Process_option_func func,
                            void *func_ctx, const char **default_directories,
                            bool is_login_file, bool found_no_defaults) {
-  const char **dirs, *forced_default_file, *forced_extra_defaults;
+  const char **dirs;
+  char *forced_default_file, *forced_extra_defaults;
   int error = 0;
   DBUG_ENTER("my_search_option_files");
 
@@ -343,9 +344,9 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   if (!is_login_file) {
     /* Check if we want to force the use a specific default file */
     *args_used += get_defaults_options(
-        *argc - *args_used, *argv + *args_used, (char **)&forced_default_file,
-        (char **)&forced_extra_defaults, (char **)&my_defaults_group_suffix,
-        (char **)&my_login_path, found_no_defaults);
+        *argc - *args_used, *argv + *args_used, &forced_default_file,
+        &forced_extra_defaults, const_cast<char **>(&my_defaults_group_suffix),
+        const_cast<char **>(&my_login_path), found_no_defaults);
 
     if (!my_defaults_group_suffix)
       my_defaults_group_suffix = getenv("MYSQL_GROUP_SUFFIX");
@@ -520,7 +521,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
 
   if (!option) return 0;
 
-  if (find_type((char *)group_name, ctx->group, FIND_TYPE_NO_PREFIX)) {
+  if (find_type(group_name, ctx->group, FIND_TYPE_NO_PREFIX)) {
     if (!(tmp = (char *)alloc_root(ctx->alloc, strlen(option) + 1))) return 1;
     if (ctx->m_args->push_back(tmp)) return 1;
     my_stpcpy(tmp, option);
@@ -671,7 +672,8 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   bool found_print_defaults = 0;
   uint args_used = 0;
   int error = 0;
-  char *ptr, **res;
+  const char **ptr;
+  const char **res;
   struct handle_option_ctx ctx;
   const char **dirs;
   char my_login_file[FN_REFLEN];
@@ -717,10 +719,10 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
   */
-  if (!(ptr = (char *)alloc_root(
+  if (!(ptr = (const char **)alloc_root(
             alloc, (my_args.size() + *argc + 1 + args_sep) * sizeof(char *))))
     goto err;
-  res = (char **)(ptr);
+  res = ptr;
 
   /* copy name + found arguments + command line arguments to new array */
   res[0] = argv[0][0]; /* Name MUST be set */
@@ -752,7 +754,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   res[my_args.size() + *argc + args_sep] = 0; /* last null */
 
   (*argc) += my_args.size() + args_sep;
-  *argv = res;
+  *argv = const_cast<char **>(res);
 
   if (default_directories) *default_directories = dirs;
 
@@ -786,12 +788,12 @@ err:
 static int search_default_file(Process_option_func opt_handler,
                                void *handler_ctx, const char *dir,
                                const char *config_file, bool is_login_file) {
-  char **ext;
+  const char **ext;
   const char *empty_list[] = {"", 0};
   bool have_ext = fn_ext(config_file)[0] != 0;
   const char **exts_to_use = have_ext ? empty_list : f_extensions;
 
-  for (ext = (char **)exts_to_use; *ext; ext++) {
+  for (ext = exts_to_use; *ext; ext++) {
     int error;
     if ((error =
              search_default_file_with_ext(opt_handler, handler_ctx, dir, *ext,
@@ -873,7 +875,8 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
                                         const char *config_file,
                                         int recursion_level,
                                         bool is_login_file) {
-  char name[FN_REFLEN + 10], buff[4096], curr_gr[4096], *ptr, *end, **tmp_ext;
+  char name[FN_REFLEN + 10], buff[4096], curr_gr[4096], *ptr, *end;
+  const char **tmp_ext;
   char *value, option[4096 + 2], tmp[FN_REFLEN];
   static const char includedir_keyword[] = "includedir";
   static const char include_keyword[] = "include";
@@ -946,7 +949,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
           ext = fn_ext(search_file->name);
 
           /* check extension */
-          for (tmp_ext = (char **)f_extensions; *tmp_ext; tmp_ext++) {
+          for (tmp_ext = f_extensions; *tmp_ext; tmp_ext++) {
             if (!strcmp(ext, *tmp_ext)) break;
           }
 
@@ -1192,7 +1195,8 @@ void my_print_default_files(const char *conf_file) {
   const char *empty_list[] = {"", 0};
   bool have_ext = fn_ext(conf_file)[0] != 0;
   const char **exts_to_use = have_ext ? empty_list : f_extensions;
-  char name[FN_REFLEN], **ext;
+  char name[FN_REFLEN];
+  const char **ext;
 
   puts(
       "\nDefault options are read from the following files in the given "
@@ -1209,7 +1213,7 @@ void my_print_default_files(const char *conf_file) {
       fputs("Internal error initializing default directories list", stdout);
     } else {
       for (; *dirs; dirs++) {
-        for (ext = (char **)exts_to_use; *ext; ext++) {
+        for (ext = exts_to_use; *ext; ext++) {
           const char *pos;
           char *end;
           if (**dirs)

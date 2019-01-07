@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ struct TYPELIB {             /* Different types saved here */
   unsigned int *type_lengths{nullptr};
 };
 
-extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,
+extern my_ulonglong find_typeset(const char *x, TYPELIB *typelib,
                                  int *error_position);
 extern int find_type_or_exit(const char *x, TYPELIB *typelib,
                              const char *option);
