@@ -25,6 +25,9 @@ if ($TSAN_OPTIONS) {
 if ($wait_counter) {
   --let $counter= $wait_counter
 }
+if ($MTR_MANUAL_DEBUG) {
+  --let $counter = 864000
+}
 --let $mysql_errno= 9999
 while ($mysql_errno)
 {
