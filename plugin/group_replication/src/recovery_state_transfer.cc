@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -577,7 +577,7 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
   DBUG_RETURN(error);
 }
 
-int Recovery_state_transfer::terminate_recovery_slave_threads() {
+int Recovery_state_transfer::terminate_recovery_slave_threads(bool purge_logs) {
   DBUG_ENTER("Recovery_state_transfer::terminate_recovery_slave_threads");
 
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_DONOR_CONN_TERMINATION);
@@ -589,8 +589,10 @@ int Recovery_state_transfer::terminate_recovery_slave_threads() {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_STOPPING_GRP_REC); /* purecov: inspected */
   } else {
-    // If there is no repository in place nothing happens
-    error = purge_recovery_slave_threads_repos();
+    if (purge_logs) {
+      // If there is no repository in place nothing happens
+      error = purge_recovery_slave_threads_repos();
+    }
   }
 
   DBUG_RETURN(error);
@@ -690,7 +692,8 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd) {
 
   channel_observation_manager->unregister_channel_observer(
       recovery_channel_observer);
-  terminate_recovery_slave_threads();
+  // do not purge logs if an error occur, keep the diagnose on SLAVE STATUS
+  terminate_recovery_slave_threads(!error);
   connected_to_donor = false;
 
   DBUG_RETURN(error);
