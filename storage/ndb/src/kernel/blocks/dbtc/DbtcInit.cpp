@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ extern EventLogger * g_eventLogger;
 Uint64 Dbtc::getTransactionMemoryNeed(
     const Uint32 dbtc_instance_count,
     const ndb_mgm_configuration_iterator * mgm_cfg,
-    const Uint32 MaxDMLOperationsPerTransaction,
+    const Uint32 TakeOverOperations,
     const Uint32 MaxNoOfConcurrentIndexOperations,
     const Uint32 MaxNoOfConcurrentOperations,
     const Uint32 MaxNoOfConcurrentScans,
@@ -119,7 +119,7 @@ Uint64 Dbtc::getTransactionMemoryNeed(
   byte_count += CommitAckMarkerBuffer_pool::getMemoryNeed(8 * MaxNoOfConcurrentTransactions);
   byte_count_to += CommitAckMarkerBuffer_pool::getMemoryNeed(4 * MaxNoOfConcurrentTransactions);
   byte_count += TcConnectRecord_pool::getMemoryNeed(MaxNoOfConcurrentOperations + 16 + MaxNoOfConcurrentTransactions);
-  byte_count_to += TcConnectRecord_pool::getMemoryNeed(MaxDMLOperationsPerTransaction);
+  byte_count_to += TcConnectRecord_pool::getMemoryNeed(TakeOverOperations);
   byte_count += TcFiredTriggerData_pool::getMemoryNeed(MaxNoOfFiredTriggers);
   byte_count += TcIndexOperation_pool::getMemoryNeed(MaxNoOfConcurrentIndexOperations);
   byte_count += ScanFragLocation_pool::getMemoryNeed(MaxNoOfConcurrentScans);
@@ -131,8 +131,8 @@ Uint64 Dbtc::getTransactionMemoryNeed(
   Uint64 byte_total = dbtc_instance_count * byte_count + byte_count_to;
 
 #ifdef DEBUG_MEM
-  g_eventLogger->info("MaxDMLOperationsPerTransaction: %u (%u)",
-      MaxDMLOperationsPerTransaction, targetTakeOverConnectRecord);
+  g_eventLogger->info("TakeOverOperations: %u (%u)",
+      TakeOverOperations, targetTakeOverConnectRecord);
   g_eventLogger->info("MaxNoOfConcurrentIndexOperations: %u (%u)",
       MaxNoOfConcurrentIndexOperations, targetIndexOperations);
   g_eventLogger->info("MaxNoOfConcurrentOperations: %u (%u)",

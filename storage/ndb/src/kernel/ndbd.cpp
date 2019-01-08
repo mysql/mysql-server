@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -474,7 +474,6 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     tcInstances = globalData.ndbMtTcThreads;
   }
 
-  Uint32 MaxDMLOperationsPerTransaction = ~0;
   Uint32 MaxNoOfConcurrentIndexOperations = 8192;
   Uint32 MaxNoOfConcurrentOperations = 32768;
   Uint32 MaxNoOfConcurrentScans = 256;
@@ -483,8 +482,6 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint32 MaxNoOfLocalScans = 0;
   Uint32 TransactionBufferMemory = 1048576;
 
-  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION,
-                            &MaxDMLOperationsPerTransaction);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEX_OPS,
                             &MaxNoOfConcurrentIndexOperations);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_OPS, &MaxNoOfConcurrentOperations);
@@ -496,16 +493,13 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   ndb_mgm_get_int_parameter(p, CFG_TC_LOCAL_SCAN, &MaxNoOfLocalScans);
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM, &TransactionBufferMemory);
 
-  if (~MaxDMLOperationsPerTransaction == 0)
-  {
-    MaxDMLOperationsPerTransaction = MaxNoOfConcurrentOperations;
-  }
+  const Uint32 TakeOverOperations = MaxNoOfConcurrentOperations;
 
   Uint64 transmem_bytes =
       globalEmulatorData.theSimBlockList->getTransactionMemoryNeed(
         tcInstances,
         p,
-        MaxDMLOperationsPerTransaction,
+        TakeOverOperations,
         MaxNoOfConcurrentIndexOperations,
         MaxNoOfConcurrentOperations,
         MaxNoOfConcurrentScans,

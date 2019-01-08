@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,7 +206,7 @@ SimBlockList::unload(){
 Uint64 SimBlockList::getTransactionMemoryNeed(
   const Uint32 dbtc_instance_count,
   const ndb_mgm_configuration_iterator * mgm_cfg,
-  const Uint32 MaxDMLOperationsPerTransaction,
+  const Uint32 TakeOverOperations,
   const Uint32 MaxNoOfConcurrentIndexOperations,
   const Uint32 MaxNoOfConcurrentOperations,
   const Uint32 MaxNoOfConcurrentScans,
@@ -218,7 +218,7 @@ Uint64 SimBlockList::getTransactionMemoryNeed(
   Uint64 byte_count = Dbtc::getTransactionMemoryNeed(
   dbtc_instance_count,
   mgm_cfg,
-  MaxDMLOperationsPerTransaction,
+  TakeOverOperations,
   MaxNoOfConcurrentIndexOperations,
   MaxNoOfConcurrentOperations,
   MaxNoOfConcurrentScans,

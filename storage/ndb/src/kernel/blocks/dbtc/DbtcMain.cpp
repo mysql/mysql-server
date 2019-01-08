@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1062,15 +1062,15 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &val);
   m_max_writes_per_trans = val;
 
-#if 0
+  val = ~(Uint32)0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_MAX_TO_CONNECT_RECORD, &val));
+  m_take_over_operations = val;
+
   if (m_max_writes_per_trans == ~(Uint32)0)
   {
-    ndb_mgm_get_int_parameter(p, CFG_TC_MAX_TO_CONNECT_RECORD, &val);
-    m_max_writes_per_trans = val;
-    // m_max_writes_per_trans = ctcConnectFailCount;
+    m_max_writes_per_trans = m_take_over_operations;
   }
-  ndbrequire(m_max_writes_per_trans <= ctcConnectFailCount);
-#endif
+  ndbrequire(m_max_writes_per_trans <= m_take_over_operations);
 
   ctimeOutCheckDelay = 50; // 500ms
   ctimeOutCheckDelayScan = 40; // 400ms
@@ -3852,10 +3852,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         /**
          * Allow slave applier to ignore m_max_writes_per_trans
          */
-        break;
+        if (unlikely(regApiPtr->m_write_count > m_take_over_operations))
+        {
+          TCKEY_abort(signal, 65, apiConnectptr);
+          return;
+        }
       }
-
-      if (unlikely(regApiPtr->m_write_count > m_max_writes_per_trans))
+      else if (unlikely(regApiPtr->m_write_count > m_max_writes_per_trans))
       {
         TCKEY_abort(signal, 65, apiConnectptr);
         return;
