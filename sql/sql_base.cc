@@ -3225,6 +3225,10 @@ retry_share : {
         table_list->set_view_query((LEX *)new (thd->mem_root) st_lex_local);
         if (!table_list->is_view()) DBUG_RETURN(true);
 
+        // Create empty list of view_tables.
+        table_list->view_tables = new (thd->mem_root) List<TABLE_LIST>;
+        if (table_list->view_tables == nullptr) DBUG_RETURN(true);
+
         table_list->view_db.str = table_list->db;
         table_list->view_db.length = table_list->db_length;
         table_list->view_name.str = table_list->table_name;
