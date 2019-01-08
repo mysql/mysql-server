@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,8 @@ private:
     ,ZDEBUG_DELAY_TCROLLBACKREP            = 24
 #endif
     ,ZSCAN_FOR_READ_BACKUP                 = 25
+    ,ZTRANSIENT_POOL_STAT                  = 26
+    ,ZSHRINK_TRANSIENT_POOLS               = 27
   };
 };
 

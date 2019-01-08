@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,22 @@ int NdbMem_MemUnlockAll(void);
  * Memlock region
  */
 int NdbMem_MemLock(const void * ptr, size_t len);
+
+#ifdef VM_TRACE
+
+/**
+ * Experimental functions for manage address space without backing, nor in
+ * memory nor on disk.
+ */
+
+int NdbMem_ReserveSpace(void** ptr, size_t len);
+int NdbMem_PopulateSpace(void* ptr, size_t len);
+int NdbMem_FreeSpace(void* ptr, size_t len);
+
+#endif
+
+void* NdbMem_AlignedAlloc(size_t alignment, size_t size);
+void NdbMem_AlignedFree(void* p);
 
 #ifdef	__cplusplus
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,12 @@
 */
 
 
-
 #include "ndbd_malloc_impl.hpp"
 #include <ndb_global.h>
 #include <EventLogger.hpp>
 #include <portlib/NdbMem.h>
+
+#define PAGES_PER_REGION_LOG BPP_2LOG
 
 #ifdef _WIN32
 void *sbrk(int increment)
@@ -46,16 +47,6 @@ static const char * f_method = "MSms";
 #endif
 #define MAX_CHUNKS 10
 
-#ifdef VM_TRACE
-#ifndef NDBD_RANDOM_START_PAGE
-#define NDBD_RANDOM_START_PAGE
-#endif
-#endif
-
-#ifdef NDBD_RANDOM_START_PAGE
-static Uint32 g_random_start_page_id = 0;
-#endif
-
 /*
  * For muti-threaded ndbd, these calls are used for locking around
  * memory allocation operations.
@@ -70,6 +61,221 @@ extern void mt_mem_manager_unlock();
 #include <NdbOut.hpp>
 
 extern void ndbd_alloc_touch_mem(void * p, size_t sz, volatile Uint32 * watchCounter);
+
+const Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
+{ /* bound in regions */
+  ZONE_19_BOUND >> PAGES_PER_REGION_LOG,
+  ZONE_27_BOUND >> PAGES_PER_REGION_LOG,
+  ZONE_30_BOUND >> PAGES_PER_REGION_LOG,
+  ZONE_32_BOUND >> PAGES_PER_REGION_LOG
+};
+
+/**
+ * do_virtual_alloc uses debug functions NdbMem_ReserveSpace and
+ * NdbMem_PopulateSpace to be able to use as high page numbers as possible for
+ * each memory region.  Using high page numbers will likely lure bugs due to
+ * storing not all required bits of page numbers.
+ */
+
+#ifdef VM_TRACE
+#if defined(_WIN32) || defined(MADV_DONTDUMP)
+/**
+ * For Windows and Linux measures are taken not to dump the whole virtual
+ * memory reserved but only those pages that are populated.
+ * The linux support depends on having MADV_DONTDUMP defined.
+ * For other OS do_virtual_alloc should not be used since it will produce huge
+ * core dumps if crashing.
+ */
+#define USE_DO_VIRTUAL_ALLOC
+#elif defined(USE_DO_VIRTUAL_ALLOC)
+#error do_virtual_alloc is not supported, please undefine USE_DO_VIRTUAL_ALLOC.
+#endif
+#endif
+
+#ifdef USE_DO_VIRTUAL_ALLOC
+
+/*
+ * To verify that the maximum of 16383 regions can be reserved without failure
+ * in do_virtual_alloc define NDB_TEST_128TB_VIRTUAL_MEMORY, data node should
+ * exit early with exit status 0, anything else is an error.
+ * Look for NdbMem printouts in data node log.
+ *
+ * Also see Bug#28961597.
+ */
+//#define NDB_TEST_128TB_VIRTUAL_MEMORY
+#ifdef NDB_TEST_128TB_VIRTUAL_MEMORY
+
+static inline int
+log_and_fake_success(const char func[], int line,
+                     const char msg[], void* p, size_t s)
+{
+  ndbout_c("DEBUG: %s: %u: %s: p %p: len %zu",
+           func, line, msg, p, s);
+  return 0;
+}
+
+#define NdbMem_ReserveSpace(x,y) \
+  log_and_fake_success(__func__, __LINE__, "NdbMem_ReserveSpace", (x), (y))
+
+#define NdbMem_PopulateSpace(x,y) \
+  log_and_fake_success(__func__, __LINE__, "NdbMem_PopulateSpace", (x), (y))
+
+#endif
+
+bool
+Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
+                                   InitChunk chunks[ZONE_COUNT],
+                                   Uint32* watchCounter,
+                                   Alloc_page** base_address)
+{
+  if (watchCounter)
+    *watchCounter = 9;
+  const Uint32 max_regions = zone_bound[ZONE_COUNT - 1];
+  const Uint32 max_pages = max_regions << PAGES_PER_REGION_LOG;
+  require(max_regions == (max_pages >> PAGES_PER_REGION_LOG));
+  require(max_regions > 0); // TODO static_assert
+  if (pages > max_pages)
+  {
+    return false;
+  }
+  const bool half_space = (pages <= (max_pages >> 1));
+
+  /* Find out page count per zone */
+  Uint32 page_count[ZONE_COUNT];
+  Uint32 region_count[ZONE_COUNT];
+  Uint32 prev_bound = 0;
+  for (int i = 0; i < ZONE_COUNT; i++)
+  {
+    Uint32 n = pages / (ZONE_COUNT - i);
+    if (half_space && n > (zone_bound[i] << (PAGES_PER_REGION_LOG - 1)))
+    {
+      n = zone_bound[i] << (PAGES_PER_REGION_LOG - 1);
+    }
+    else if (n > ((zone_bound[i] - prev_bound) << PAGES_PER_REGION_LOG))
+    {
+      n = (zone_bound[i] - prev_bound) << PAGES_PER_REGION_LOG;
+    }
+    page_count[i] = n;
+    region_count[i] = (n + 256 * 1024 - 1) / (256 * 1024);
+    prev_bound = zone_bound[i];
+    pages -= n;
+  }
+  require(pages == 0);
+
+  /* Reserve big enough continuous address space */
+  require(ZONE_COUNT >= 2); // TODO static assert
+  const Uint32 highest_low = zone_bound[0] - region_count[0];
+  const Uint32 lowest_high = zone_bound[ZONE_COUNT - 2] +
+                             region_count[ZONE_COUNT - 1];
+  const Uint32 least_region_count = lowest_high - highest_low;
+  Uint32 space_regions = max_regions;
+  Alloc_page *space;
+  int rc = -1;
+  while (space_regions >= least_region_count)
+  {
+    if (watchCounter)
+      *watchCounter = 9;
+    rc = NdbMem_ReserveSpace(
+           (void**)&space,
+           (space_regions << PAGES_PER_REGION_LOG) * Uint64(32768));
+    if (watchCounter)
+      *watchCounter = 9;
+    if (rc == 0)
+    {
+      ndbout_c("%s: Reserved address space for %u 8GiB regions at %p.",
+               __func__,
+              space_regions,
+              space);
+      break;
+    }
+    space_regions = (space_regions - 1 + least_region_count) / 2;
+  }
+  if (rc == -1)
+  {
+    ndbout_c("%s: Failed reserved address space for at least %u 8GiB regions.",
+             __func__,
+             least_region_count);
+    return false;
+  }
+
+#ifdef NDBD_RANDOM_START_PAGE
+  Uint32 range = highest_low;
+  for (int i = 0; i < ZONE_COUNT; i++)
+  {
+    Uint32 rmax = (zone_bound[i] << PAGES_PER_REGION_LOG) - page_count[i];
+    if (i > 0)
+    {
+      rmax -= zone_bound[i - 1] << PAGES_PER_REGION_LOG;
+    }
+    if (half_space)
+    {
+      rmax -= 1 << 17; /* lower half of region */
+    }
+    if (range > rmax)
+    {
+      rmax = range;
+    }
+  }
+  m_random_start_page_id = rand() % range;
+#endif
+
+  Uint32 first_region[ZONE_COUNT];
+  for (int i = 0; i < ZONE_COUNT; i++)
+  {
+    first_region[i] = (i < ZONE_COUNT - 1)
+                      ? zone_bound[i]
+                      : MIN(first_region[0] + space_regions, max_regions);
+    first_region[i] -= ((page_count[i] +
+#ifdef NDBD_RANDOM_START_PAGE
+                         m_random_start_page_id +
+#endif
+                         ((1 << PAGES_PER_REGION_LOG) - 1))
+                        >> PAGES_PER_REGION_LOG);
+
+    if (watchCounter)
+      *watchCounter = 9;
+    rc = NdbMem_PopulateSpace(
+           space + (first_region[i] - first_region[0]) * 8 * Uint64(32768),
+           page_count[i] * Uint64(32768));
+    if (watchCounter)
+      *watchCounter = 9;
+    if (rc != 0)
+    {
+      if (watchCounter)
+        *watchCounter = 9;
+      NdbMem_FreeSpace(
+        space,
+        (space_regions << PAGES_PER_REGION_LOG) * Uint64(32768));
+      if (watchCounter)
+        *watchCounter = 9;
+      return false;
+    }
+    chunks[i].m_cnt = page_count[i];
+    chunks[i].m_ptr = space + ((first_region[i] - first_region[0])
+                                << PAGES_PER_REGION_LOG);
+#ifndef NDBD_RANDOM_START_PAGE
+    const Uint32 first_page = first_region[i] << PAGES_PER_REGION_LOG;
+#else
+    const Uint32 first_page = (first_region[i] << PAGES_PER_REGION_LOG) +
+                              m_random_start_page_id;
+#endif
+    const Uint32 last_page = first_page + chunks[i].m_cnt - 1;
+    ndbout_c("%s: Populated space with pages %u to %u at %p.",
+             __func__,
+             first_page,
+             last_page,
+             chunks[i].m_ptr);
+    require(last_page < (zone_bound[i] << PAGES_PER_REGION_LOG));
+  }
+  *base_address = space - first_region[0] * 8 * Uint64(32768);
+  if (watchCounter)
+    *watchCounter = 9;
+#ifdef NDB_TEST_128TB_VIRTUAL_MEMORY
+  exit(0); // No memory mapped only faking no meaning to continue.
+#endif
+  return true;
+}
+#endif
 
 static
 bool
@@ -214,6 +420,7 @@ Resource_limits::Resource_limits()
   m_in_use = 0;
   m_spare = 0;
   m_max_page = 0;
+  m_prio_free_limit = 0;
   memset(m_limit, 0, sizeof(m_limit));
 }
 
@@ -328,6 +535,31 @@ Resource_limits::init_resource_spare(Uint32 id, Uint32 pct)
  * Ndbd_mem_manager
  */
 
+int
+Ndbd_mem_manager::PageInterval::compare(const void* px, const void* py)
+{
+  const PageInterval* x = static_cast<const PageInterval*>(px);
+  const PageInterval* y = static_cast<const PageInterval*>(py);
+
+  if (x->start < y->start)
+  {
+    return -1;
+  }
+  if (x->start > y->start)
+  {
+    return +1;
+  }
+  if (x->end < y->end)
+  {
+    return -1;
+  }
+  if (x->end > y->end)
+  {
+    return +1;
+  }
+  return 0;
+}
+
 Uint32
 Ndbd_mem_manager::ndb_log2(Uint32 input)
 {
@@ -345,8 +577,10 @@ Ndbd_mem_manager::ndb_log2(Uint32 input)
 }
 
 Ndbd_mem_manager::Ndbd_mem_manager()
+: m_base_page(NULL),
+  m_mapped_pages_count(0),
+  m_mapped_pages_new_count(0)
 {
-  m_base_page = 0;
   memset(m_buddy_lists, 0, sizeof(m_buddy_lists));
 
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
@@ -361,7 +595,7 @@ void*
 Ndbd_mem_manager::get_memroot() const
 {
 #ifdef NDBD_RANDOM_START_PAGE
-  return (void*)(m_base_page - g_random_start_page_id);
+  return (void*)(m_base_page - m_random_start_page_id);
 #else
   return (void*)m_base_page;
 #endif
@@ -461,33 +695,54 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
   }
 #endif
 
-#ifdef NDBD_RANDOM_START_PAGE
-  /**
-   * In order to find bad-users of page-id's
-   *   we add a random offset to the page-id's returned
-   *   however, due to ZONE_19 that offset can't be that big
-   *   (since we at get_page don't know if it's a HI/LO page)
-   */
-  Uint32 max_rand_start = ZONE_19_BOUND - 1;
-  if (max_rand_start > pages)
+  Uint32 allocated = 0;
+  m_base_page = NULL;
+
+#ifdef USE_DO_VIRTUAL_ALLOC
   {
-    max_rand_start -= pages;
-    if (max_rand_start > 0x10000)
-      g_random_start_page_id = 0x10000 + (rand() % (max_rand_start - 0x10000));
-    else if (max_rand_start)
-      g_random_start_page_id = rand() % max_rand_start;
+    InitChunk chunks[ZONE_COUNT];
+    if (do_virtual_alloc(pages, chunks, watchCounter, &m_base_page))
+    {
+      for (int i = 0; i < ZONE_COUNT; i++)
+      {
+        m_unmapped_chunks.push_back(chunks[i]);
+        allocated += chunks[i].m_cnt;
+      }
+      require(allocated == pages);
+    }
+  }
+#endif
 
-    assert(Uint64(pages) + Uint64(g_random_start_page_id) <= 0xFFFFFFFF);
+#ifdef NDBD_RANDOM_START_PAGE
+  if (m_base_page == NULL)
+  {
+    /**
+     * In order to find bad-users of page-id's
+     *   we add a random offset to the page-id's returned
+     *   however, due to ZONE_19 that offset can't be that big
+     *   (since we at get_page don't know if it's a HI/LO page)
+     */
+    Uint32 max_rand_start = ZONE_19_BOUND - 1;
+    if (max_rand_start > pages)
+    {
+      max_rand_start -= pages;
+      if (max_rand_start > 0x10000)
+        m_random_start_page_id =
+          0x10000 + (rand() % (max_rand_start - 0x10000));
+      else if (max_rand_start)
+        m_random_start_page_id = rand() % max_rand_start;
 
-    ndbout_c("using g_random_start_page_id: %u (%.8x)",
-             g_random_start_page_id, g_random_start_page_id);
+      assert(Uint64(pages) + Uint64(m_random_start_page_id) <= 0xFFFFFFFF);
+
+      ndbout_c("using m_random_start_page_id: %u (%.8x)",
+               m_random_start_page_id, m_random_start_page_id);
+    }
   }
 #endif
 
   /**
    * Do malloc
    */
-  Uint32 allocated = 0;
   while (m_unmapped_chunks.size() < MAX_CHUNKS && allocated < pages)
   {
     InitChunk chunk;
@@ -528,14 +783,17 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
       return false;
   }
 
-  /**
-   * Sort chunks...
-   */
-  qsort(m_unmapped_chunks.getBase(), m_unmapped_chunks.size(),
-        sizeof(InitChunk), cmp_chunk);
+  if (m_base_page == NULL)
+  {
+    /**
+     * Sort chunks...
+     */
+    qsort(m_unmapped_chunks.getBase(), m_unmapped_chunks.size(),
+          sizeof(InitChunk), cmp_chunk);
 
-  m_base_page = m_unmapped_chunks[0].m_ptr;
-  
+    m_base_page = m_unmapped_chunks[0].m_ptr;
+  }
+
   for (Uint32 i = 0; i<m_unmapped_chunks.size(); i++)
   {
     UintPtr start = UintPtr(m_unmapped_chunks[i].m_ptr) - UintPtr(m_base_page);
@@ -657,6 +915,28 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
   {
     NdbMem_MemLockAll(1);
   }
+
+  /* Note: calls to map() must be serialized by other means. */
+  m_mapped_pages_lock.write_lock();
+  if (m_mapped_pages_new_count != m_mapped_pages_count)
+  {
+    /* Do not support shrinking memory */
+    require(m_mapped_pages_new_count > m_mapped_pages_count);
+
+    qsort(m_mapped_pages,
+          m_mapped_pages_new_count,
+          sizeof(m_mapped_pages[0]),
+          PageInterval::compare);
+
+    /* Validate no overlapping intervals */
+    for (Uint32 i = 1; i < m_mapped_pages_new_count; i++)
+    {
+      require(m_mapped_pages[i - 1].end <= m_mapped_pages[i].start);
+    }
+
+    m_mapped_pages_count = m_mapped_pages_new_count;
+  }
+  m_mapped_pages_lock.write_unlock();
 }
 
 void
@@ -687,15 +967,15 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
     grow((start_bmp + 1) << BPP_2LOG, cnt - tmp);
     return;
   }
-  
-  if ((start + cnt) == ((start_bmp + 1) << BPP_2LOG))
-  {
-    cnt--; // last page is always marked as empty
-  }
-  
+
   for (Uint32 i = 0; i<m_used_bitmap_pages.size(); i++)
     if (m_used_bitmap_pages[i] == start_bmp)
+    {
+      m_mapped_pages[m_mapped_pages_new_count].start = start;
+      m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
+      m_mapped_pages_new_count++;
       goto found;
+    }
 
   if (start != (start_bmp << BPP_2LOG))
   {
@@ -716,7 +996,13 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
 #ifdef UNIT_TEST
   ndbout_c("creating bitmap page %d", start_bmp);
 #endif
-  
+
+  require(m_mapped_pages_new_count < NDB_ARRAY_SIZE(m_mapped_pages));
+
+  m_mapped_pages[m_mapped_pages_new_count].start = start;
+  m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
+  m_mapped_pages_new_count++;
+
   {
     Alloc_page* bmp = m_base_page + start;
     memset(bmp, 0, sizeof(Alloc_page));
@@ -724,8 +1010,13 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
     start++;
   }
   m_used_bitmap_pages.push_back(start_bmp);
-  
+
 found:
+  if ((start + cnt) == ((start_bmp + 1) << BPP_2LOG))
+  {
+    cnt--; // last page is always marked as empty
+  }
+
   if (cnt)
   {
     mt_mem_manager_lock();
@@ -779,6 +1070,9 @@ void
 Ndbd_mem_manager::release(Uint32 start, Uint32 cnt)
 {
   assert(start);
+#if defined VM_TRACE || defined ERROR_INSERT
+  memset(m_base_page + start, 0xF5, cnt * sizeof(m_base_page[0]));
+#endif
 
   set(start, start+cnt-1);
 
@@ -826,7 +1120,12 @@ Ndbd_mem_manager::alloc(AllocZone zone,
   {
     alloc_impl(z, ret, pages, min);
     if (*pages)
+    {
+#if defined VM_TRACE || defined ERROR_INSERT
+      memset(m_base_page + *ret, 0xF6, *pages * sizeof(m_base_page[0]));
+#endif
       return;
+    }
     if (z == 0)
       return;
     * pages = save;
@@ -1025,7 +1324,7 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
   const Uint32 free_res = m_resource_limits.get_resource_free_reserved(idx);
   if (free_res < cnt)
   {
-    const Uint32 free_shr = m_resource_limits.get_free_shared();
+    const Uint32 free_shr = m_resource_limits.get_resource_free_shared(idx);
     const Uint32 free = m_resource_limits.get_resource_free(idx);
     if (free < min || (free_shr + free_res < min))
     {
@@ -1052,8 +1351,8 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
     if (!locked)
       mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
-    *i += g_random_start_page_id;
-    return m_base_page + *i - g_random_start_page_id;
+    *i += m_random_start_page_id;
+    return m_base_page + *i - m_random_start_page_id;
 #else
     return m_base_page + *i;
 #endif
@@ -1082,8 +1381,8 @@ Ndbd_mem_manager::alloc_spare_page(Uint32 type, Uint32* i, AllocZone zone)
       m_resource_limits.check();
       mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
-      *i += g_random_start_page_id;
-      return m_base_page + *i - g_random_start_page_id;
+      *i += m_random_start_page_id;
+      return m_base_page + *i - m_random_start_page_id;
 #else
       return m_base_page + *i;
 #endif
@@ -1102,7 +1401,7 @@ Ndbd_mem_manager::release_page(Uint32 type, Uint32 i, bool locked)
     mt_mem_manager_lock();
 
 #ifdef NDBD_RANDOM_START_PAGE
-  i -= g_random_start_page_id;
+  i -= m_random_start_page_id;
 #endif
 
   release(i, 1);
@@ -1168,7 +1467,7 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
   if (!locked)
     mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
-  *i += g_random_start_page_id;
+  *i += m_random_start_page_id;
 #endif
 }
 
@@ -1181,7 +1480,7 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
     mt_mem_manager_lock();
 
 #ifdef NDBD_RANDOM_START_PAGE
-  i -= g_random_start_page_id;
+  i -= m_random_start_page_id;
 #endif
 
   release(i, cnt);

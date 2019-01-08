@@ -17431,7 +17431,7 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
     Ensure that SUB_GCP_COMPLETE_REP is send once per epoch to Dblqh.
   */
   ndbrequire(gci == m_micro_gcp.m_old_gci);
-#if defined(ERROR_INSER) || defined(VM_TRACE)
+#if defined(ERROR_INSERT) || defined(VM_TRACE)
   /**
     Detect if some test actually provoke a double send.
     At point of writing no test have failed yet.

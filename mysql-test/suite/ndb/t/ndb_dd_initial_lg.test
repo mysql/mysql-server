@@ -5,7 +5,8 @@
 # BUG#11762867
 # - show that system started with InitialLogFileGroup automatically allocated
 #   extra reserved memory for use by the undo buffer
-select reserved, (used>reserved) from ndbinfo.resources
+set @undo_buffer_pages = 20 * 32; # 20M / 32k pages
+select (reserved > @undo_buffer_pages), (used>reserved) from ndbinfo.resources
   where resource_name = 'TRANSACTION_MEMORY'
     order by node_id;
 

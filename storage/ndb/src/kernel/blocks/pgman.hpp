@@ -306,26 +306,6 @@ private:
   typedef SLFifoList<Page_request_pool> Page_request_list;
   typedef LocalSLFifoList<Page_request_pool> Local_page_request_list;
   
-  struct Page_entry_stack_ptr {
-    Uint32 nextList;
-    Uint32 prevList;
-  };
-
-  struct Page_entry_queue_ptr {
-    Uint32 nextList;
-    Uint32 prevList;
-  };
-
-  struct Page_entry_sublist_ptr {
-    Uint32 nextList;
-    Uint32 prevList;
-  };
-
-  struct Page_entry_dirty_ptr {
-    Uint32 nextList;
-    Uint32 prevList;
-  };
-
   typedef Uint32 Page_state;
   
   enum DirtyState {
@@ -335,10 +315,8 @@ private:
     IN_NO_DIRTY_LIST = 3
   };
 
-  struct Page_entry : Page_entry_stack_ptr,
-                      Page_entry_queue_ptr,
-                      Page_entry_sublist_ptr,
-                      Page_entry_dirty_ptr {
+  struct Page_entry
+  {
     Page_entry() {}
     Page_entry(Uint32 file_no,
                Uint32 page_no,
@@ -402,6 +380,18 @@ private:
     
     Page_request_list::Head m_requests;
     
+    Uint32 nextStack;
+    Uint32 prevStack;
+
+    Uint32 nextQueue;
+    Uint32 prevQueue;
+
+    Uint32 nextSublist;
+    Uint32 prevSublist;
+
+    Uint32 nextDirty;
+    Uint32 prevDirty;
+
     Uint32 nextHash;
     Uint32 prevHash;
     
@@ -418,12 +408,11 @@ private:
 
   typedef ArrayPool<Page_entry> Page_entry_pool;
   typedef DLCHashTable<Page_entry_pool> Page_hashlist;
-  typedef DLCFifoList<Page_entry_pool, Page_entry_stack_ptr> Page_stack;
-  typedef DLCFifoList<Page_entry_pool, Page_entry_queue_ptr> Page_queue;
-  typedef DLCFifoList<Page_entry_pool, Page_entry_sublist_ptr> Page_sublist;
-  typedef DLCFifoList<Page_entry_pool, Page_entry_dirty_ptr> Page_dirty_list;
-  typedef LocalDLCFifoList<Page_entry_pool, Page_entry_dirty_ptr>
-    LocalPage_dirty_list;
+  typedef DLCFifoList<Page_entry_pool, IA_Stack> Page_stack;
+  typedef DLCFifoList<Page_entry_pool, IA_Queue> Page_queue;
+  typedef DLCFifoList<Page_entry_pool, IA_Sublist> Page_sublist;
+  typedef DLCFifoList<Page_entry_pool, IA_Dirty> Page_dirty_list;
+  typedef LocalDLCFifoList<Page_entry_pool, IA_Dirty> LocalPage_dirty_list;
 
   /**
    * We keep all page entries in a linked list on the fragment record.

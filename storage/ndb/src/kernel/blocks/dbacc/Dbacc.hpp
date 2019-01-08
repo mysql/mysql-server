@@ -306,21 +306,6 @@ struct Page8 {
 }; /* p2c: size = 8192 bytes */
   typedef Ptr<Page8> Page8Ptr;
 
-struct Page8SLinkMethods
-{
-  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
-  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
-  static void setPrev(Page8& /* item */, Uint32 /* prev */) { /* no op for single linked list */ }
-};
-
-struct ContainerPageLinkMethods
-{
-  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
-  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
-  static Uint32 getPrev(Page8 const& item) { return item.word32[Page8::PREV_PAGE]; }
-  static void setPrev(Page8& item, Uint32 prev) { item.word32[Page8::PREV_PAGE] = prev; }
-};
-
 struct Page32
 {
   enum { MAGIC = 0x17283482 };
@@ -375,10 +360,10 @@ private:
   Page32_pool& m_page_pool;
 };
 
-typedef SLCFifoList<Page8_pool,Page8,Page8SLinkMethods> Page8List;
-typedef LocalSLCFifoList<Page8_pool,Page8,Page8SLinkMethods> LocalPage8List;
-typedef DLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> ContainerPageList;
-typedef LocalDLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> LocalContainerPageList;
+typedef SLCFifoList<Page8_pool, IA_Page8> Page8List;
+typedef LocalSLCFifoList<Page8_pool, IA_Page8> LocalPage8List;
+typedef DLCFifoList<Page8_pool, IA_Page8> ContainerPageList;
+typedef LocalDLCFifoList<Page8_pool, IA_Page8> LocalContainerPageList;
 
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */

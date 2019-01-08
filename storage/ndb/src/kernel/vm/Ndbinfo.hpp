@@ -217,6 +217,7 @@ public:
     Uint64 entry_size;
     Uint64 used_hi;
     Uint32 config_params[4];
+    Uint32 record_type;
   };
 
   enum counter_id {

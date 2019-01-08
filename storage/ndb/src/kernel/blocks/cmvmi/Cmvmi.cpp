@@ -2265,14 +2265,16 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
         dm_pages_total,
         sizeof(GlobalPage),
         0,
-        { CFG_DB_DATA_MEM,0,0,0 }},
+        { CFG_DB_DATA_MEM,0,0,0 },
+        0},
       { "Long message buffer",
         g_sectionSegmentPool.getUsed(),
         g_sectionSegmentPool.getSize(),
         sizeof(SectionSegment),
         g_sectionSegmentPool.getUsedHi(),
-        { CFG_DB_LONG_SIGNAL_BUFFER,0,0,0 }},
-      { NULL, 0,0,0,0,{ 0,0,0,0 }}
+        { CFG_DB_LONG_SIGNAL_BUFFER,0,0,0 },
+        0},
+      { NULL, 0,0,0,0,{ 0,0,0,0 }, 0}
     };
 
     static const size_t num_config_params =
@@ -2294,6 +2296,8 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))

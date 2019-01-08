@@ -1,0 +1,31 @@
+call mtr.add_suppression("Failed to release global schema lock");
+create table t (x int primary key, y int) engine ndbcluster partition by key() partitions 4;
+begin;
+insert into t values (3,3);
+insert into t values (1,1);
+insert into t values (0,0);
+insert into t values (2,2);
+insert into t values (4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+insert into t select x + 10, y + 10 from t;
+insert into t select x + 20, y + 20 from t;
+insert into t select x + 40, y + 40 from t;
+show warnings;
+Level	Code	Message
+insert into t select x + 80, y + 80 from t;
+Warnings:
+Warning	1296	Got error 261 'DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction' from NDB
+
+commit;
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4350 'Transaction already aborted' from NDB
+Error	1296	Got error 4350 'Transaction already aborted' from NDBCLUSTER
+Error	1180	Got error 4350 - 'Unknown error 4350' during COMMIT
+ROWID	x	y
+0 rows returned
+
+NDBT_ProgramExit: 0 - OK
+
+select * from t;
+x	y
+drop table t;

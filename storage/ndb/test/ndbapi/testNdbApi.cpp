@@ -228,42 +228,56 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
 
   HugoOperations hugoOps(*pTab);
 
-  bool endTest = false;
-  while (!endTest){
+  /**
+   * Finding max operations is done in two phases.
+   * First double transaction size until a transaction fail.
+   * Then bisect between last working transaction size and failing transaction
+   * size to find biggest working transaction.
+   */
+  int lower_max_ops = 0;
+  int next_max_ops = 1000;
+  int upper_max_ops = -1;
+  bool endTest;
+  while (upper_max_ops == -1 ||
+         (upper_max_ops - lower_max_ops) >= 1000)
+  {
     int errors = 0;
     const int maxErrors = 5;
 
-    maxOpsLimit = l*1000;    
-       
+    endTest = false;
+
     if (hugoOps.startTransaction(pNdb) != NDBT_OK){
       delete pNdb;
       ndbout << "startTransaction failed, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
-    int i = 0;
-    do
+    for (int i = 1; !endTest && i <= next_max_ops; i++)
     {
-      i++;      
-
       const int rowNo = (i % 256);
       if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
         errors++;
         ndbout << "ReadRecord failed at line: " << __LINE__ << ", row: " << rowNo << endl;
         if (errors >= maxErrors){
           result = NDBT_FAILED;
-          maxOpsLimit = i;
         }
       }
 
       // Avoid Transporter overload by executing after max 1000 ops.
       int execResult = 0;
-      if (i >= maxOpsLimit)
+      if (i == next_max_ops)
+      {
         execResult = hugoOps.execute_Commit(pNdb); //Commit after last op
+      }
       else if ((i%1000) == 0)
+      {
         execResult = hugoOps.execute_NoCommit(pNdb);
+      }
       else
+      {
+        require(i < next_max_ops);
         continue;
+      }
 
       switch(execResult){
       case NDBT_OK:
@@ -273,22 +287,51 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
         result = NDBT_FAILED;
         // Fall through - to '233' which also terminate test, but not 'FAILED'
       case 233:  // Out of operation records in transaction coordinator  
-      case 1217: // Out of operation records in local data manager
+      case 1217:  // Out of operation records in local data manager (increase MaxNoOfLocalOperations)
         // OK - end test
         endTest = true;
-        maxOpsLimit = i;		
-        ndbout << "execute failed at line: " << __LINE__
-	       << ", with execResult: " << execResult << endl;
         break;
       }
-    } while (i < maxOpsLimit);
-
-    ndbout << i << " operations used" << endl;
+    }
+    ndbout << next_max_ops
+           << " operations used"
+           << (endTest ? " failed" : " succeeded")
+           << endl;
+    if (upper_max_ops == -1 && !endTest)
+    {
+      lower_max_ops = next_max_ops;
+      if (next_max_ops == INT_MAX)
+      {
+        upper_max_ops = next_max_ops;
+      }
+      else if (next_max_ops <= INT_MAX / 2)
+      {
+        next_max_ops = next_max_ops * 2;
+      }
+      else
+      {
+        next_max_ops = INT_MAX;
+      }
+    }
+    else
+    {
+      if (!endTest)
+      {
+        lower_max_ops = next_max_ops;
+      }
+      else
+      {
+        upper_max_ops = next_max_ops;
+      }
+      next_max_ops = (lower_max_ops + upper_max_ops) / 2;
+    }
 
     hugoOps.closeTransaction(pNdb);
 
     l++;
   }
+  maxOpsLimit = lower_max_ops;
+  ndbout << "Found max operations limit " << maxOpsLimit << endl;
 
   /**
    * After the peak usage of NdbOperations comes a cool down periode

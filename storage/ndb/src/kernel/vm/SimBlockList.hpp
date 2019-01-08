@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,18 @@ public:
   
   void load(EmulatorData&);
   void unload();
+
+  Uint64 getTransactionMemoryNeed(
+    const Uint32 dbtc_instance_count,
+    const ndb_mgm_configuration_iterator * mgm_cfg,
+    const Uint32 TakeOverOperations,
+    const Uint32 MaxNoOfConcurrentIndexOperations,
+    const Uint32 MaxNoOfConcurrentOperations,
+    const Uint32 /* MaxNoOfConcurrentScans */,
+    const Uint32 MaxNoOfConcurrentTransactions,
+    const Uint32 MaxNoOfFiredTriggers,
+    const Uint32 MaxNoOfLocalScans,
+    const Uint32 TransactionBufferMemory) const;
 private:
   int noOfBlocks;
   SimulatedBlock** theList;

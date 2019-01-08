@@ -1,0 +1,557 @@
+create table t0 (c int primary key) engine=ndbcluster;
+CREATE TABLE t1 (
+a int NOT NULL,
+b int NOT NULL,
+c int NOT NULL,
+d int NOT NULL,
+PRIMARY KEY (`b`,`a`),
+unique key(d),
+key (c),
+foreign key (c) references t0(c) on delete cascade
+) ENGINE=ndbcluster;
+create table num (n int);
+insert into num value (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+set @pool = 13;
+set @pool = @pool - 1;
+=== Make pool 12 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x0000000c 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x0000000c 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 279 'Out of transaction markers in transaction coordinator' from NDB
+Error	1297	Got temporary error 279 'Out of transaction markers in transaction coordinator' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 279 'Out of transaction markers in transaction coordinator' from NDB
+Error	1297	Got temporary error 279 'Out of transaction markers in transaction coordinator' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 279 'Out of transaction markers in transaction coordinator' from NDB
+Error	1297	Got temporary error 279 'Out of transaction markers in transaction coordinator' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x0000000c 
+Sending dump signal with data:
+0x000009fd 0x0000000c 
+
+delete from t0;
+set @pool = @pool - 1;
+set @pool = @pool - 1;
+=== Make pool 10 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x0000000a 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x0000000a 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 245 'Too many active scans' from NDB
+Warning	1297	Got temporary error 245 'Too many active scans' from NDB
+Error	1297	Got temporary error 245 'Too many active scans' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 245 'Too many active scans' from NDB
+Error	1297	Got temporary error 245 'Too many active scans' from NDBCLUSTER
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 245 'Too many active scans' from NDB
+Error	1297	Got temporary error 245 'Too many active scans' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x0000000a 
+Sending dump signal with data:
+0x000009fd 0x0000000a 
+
+delete from t0;
+set @pool = @pool - 1;
+=== Make pool 9 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x00000009 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000009 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 291 'Out of scanfrag records in TC (increase MaxNoOfLocalScans)' from NDB
+Warning	1297	Got temporary error 291 'Out of scanfrag records in TC (increase MaxNoOfLocalScans)' from NDB
+Error	1297	Got temporary error 291 'Out of scanfrag records in TC (increase MaxNoOfLocalScans)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 291 'Out of scanfrag records in TC (increase MaxNoOfLocalScans)' from NDB
+Error	1297	Got temporary error 291 'Out of scanfrag records in TC (increase MaxNoOfLocalScans)' from NDBCLUSTER
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1296
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 0 'No error' from NDB
+Error	1296	Got error 122 'Unknown error code' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000009 
+Sending dump signal with data:
+0x000009fd 0x00000009 
+
+delete from t0;
+set @pool = @pool - 1;
+=== Make pool 8 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x00000008 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000008 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 218 'Out of LongMessageBuffer' from NDB
+Warning	1297	Got temporary error 218 'Out of LongMessageBuffer' from NDB
+Error	1297	Got temporary error 218 'Out of LongMessageBuffer' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 218 'Out of LongMessageBuffer' from NDB
+Error	1297	Got temporary error 218 'Out of LongMessageBuffer' from NDBCLUSTER
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 218 'Out of LongMessageBuffer' from NDB
+Error	1297	Got temporary error 218 'Out of LongMessageBuffer' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000008 
+Sending dump signal with data:
+0x000009fd 0x00000008 
+
+delete from t0;
+set @pool = @pool - 1;
+set @pool = @pool - 1;
+=== Make pool 6 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x00000006 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000006 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000006 
+Sending dump signal with data:
+0x000009fd 0x00000006 
+
+delete from t0;
+set @pool = @pool - 1;
+=== Make pool 5 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x00000005 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000005 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000005 
+Sending dump signal with data:
+0x000009fd 0x00000005 
+
+delete from t0;
+set @pool = @pool - 1;
+=== Make pool 4 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x00000004 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000004 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 233 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDB
+Error	1297	Got temporary error 233 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 233 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDB
+Error	1297	Got temporary error 233 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 233 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDB
+Error	1297	Got temporary error 233 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 233 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDB
+Error	1297	Got temporary error 233 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000004 
+Sending dump signal with data:
+0x000009fd 0x00000004 
+
+delete from t0;
+set @pool = @pool - 1;
+=== Make pool 3 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x00000003 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000003 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 288 'Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)' from NDB
+Error	1297	Got temporary error 288 'Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000003 
+Sending dump signal with data:
+0x000009fd 0x00000003 
+
+delete from t0;
+set @pool = @pool - 1;
+=== Make pool 2 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x00000002 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000002 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 221 'Too many concurrently fired triggers (increase MaxNoOfFiredTriggers)' from NDB
+Error	1297	Got temporary error 221 'Too many concurrently fired triggers (increase MaxNoOfFiredTriggers)' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 221 'Too many concurrently fired triggers (increase MaxNoOfFiredTriggers)' from NDB
+Error	1297	Got temporary error 221 'Too many concurrently fired triggers (increase MaxNoOfFiredTriggers)' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000002 
+Sending dump signal with data:
+0x000009fd 0x00000002 
+
+delete from t0;
+set @pool = @pool - 1;
+=== Make pool 1 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x00000001 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000001 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 273 'Out of transaction markers databuffer in transaction coordinator' from NDB
+Error	1297	Got temporary error 273 'Out of transaction markers databuffer in transaction coordinator' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 273 'Out of transaction markers databuffer in transaction coordinator' from NDB
+Error	1297	Got temporary error 273 'Out of transaction markers databuffer in transaction coordinator' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000001 
+Sending dump signal with data:
+0x000009fd 0x00000001 
+
+delete from t0;
+set @pool = @pool - 1;
+=== Make pool 0 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Sending dump signal with data:
+0x000009fc 0x00000000 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000000 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1296
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 293 'Inconsistent trigger state in TC block' from NDB
+Error	1296	Got error 293 'Inconsistent trigger state in TC block' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1296
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 293 'Inconsistent trigger state in TC block' from NDB
+Error	1296	Got error 293 'Inconsistent trigger state in TC block' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000000 
+Sending dump signal with data:
+0x000009fd 0x00000000 
+
+delete from t0;
+drop table num;
+drop table t1;
+drop table t0;

@@ -3214,13 +3214,15 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         c_backupPool.getSize(),
         c_backupPool.getEntrySize(),
         c_backupPool.getUsedHi(),
-        { CFG_DB_PARALLEL_BACKUPS,0,0,0 }},
+        { CFG_DB_PARALLEL_BACKUPS,0,0,0 },
+        0},
       { "Backup File",
         c_backupFilePool.getUsed(),
         c_backupFilePool.getSize(),
         c_backupFilePool.getEntrySize(),
         c_backupFilePool.getUsedHi(),
-        { CFG_DB_PARALLEL_BACKUPS,0,0,0 }},
+        { CFG_DB_PARALLEL_BACKUPS,0,0,0 },
+        0},
       { "Table",
         c_tablePool.getUsed(),
         c_tablePool.getSize(),
@@ -3229,7 +3231,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         { CFG_DB_PARALLEL_BACKUPS,
           CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES },
+        0},
       { "Trigger",
         c_triggerPool.getUsed(),
         c_triggerPool.getSize(),
@@ -3238,7 +3241,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         { CFG_DB_PARALLEL_BACKUPS,
           CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES },
+        0},
       { "Fragment",
         c_fragmentPool.getUsed(),
         c_fragmentPool.getSize(),
@@ -3246,15 +3250,17 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         c_fragmentPool.getUsedHi(),
         { CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+        0},
       { "Page",
         c_pagePool.getUsed(),
         c_pagePool.getSize(),
         c_pagePool.getEntrySize(),
         c_pagePool.getUsedHi(),
         { CFG_DB_BACKUP_MEM,
-          CFG_DB_BACKUP_DATA_BUFFER_MEM,0,0 }},
-      { NULL, 0,0,0,0, { 0,0,0,0 }}
+          CFG_DB_BACKUP_DATA_BUFFER_MEM,0,0 },
+        0},
+      { NULL, 0,0,0,0, { 0,0,0,0 }, 0}
     };
 
     const size_t num_config_params =
@@ -3276,6 +3282,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))

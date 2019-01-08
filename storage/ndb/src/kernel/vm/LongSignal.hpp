@@ -150,9 +150,10 @@ Uint32* getLastWordPtr(Uint32 id);
 bool verifySection(Uint32 firstIVal, 
                    SectionSegmentPool& thePool= g_sectionSegmentPool);
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 void
-append(DataBuffer<sz,Pool>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
+append(DataBuffer<sz, Pool, Type_id>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool)
+{
   Uint32 len = ptr.sz;
   while(len > SectionSegment::DataLength){
     dst.append(ptr.p->theData, SectionSegment::DataLength);

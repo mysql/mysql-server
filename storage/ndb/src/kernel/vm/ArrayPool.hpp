@@ -629,7 +629,10 @@ ArrayPool<T>::getPtr(Ptr<T> & ptr, bool CrashOnBoundaryError) const
       /**
        * Getting a non-seized element
        */
-      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+      if (CrashOnBoundaryError)
+        ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+      else
+        ptr.i = RNIL;
     }
 #endif
   } else {

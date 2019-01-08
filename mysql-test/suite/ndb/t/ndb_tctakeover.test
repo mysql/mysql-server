@@ -1,0 +1,33 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+
+call mtr.add_suppression("Failed to release global schema lock");
+
+create table t (x int primary key, y int) engine ndbcluster partition by key() partitions 4;
+
+begin;
+# key 0 -> part 0
+# key 1 -> part 3
+# key 2 -> part 1
+# key 3 -> part 2
+insert into t values (3,3);
+insert into t values (1,1);
+insert into t values (0,0);
+insert into t values (2,2);
+insert into t values (4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+insert into t select x + 10, y + 10 from t;
+insert into t select x + 20, y + 20 from t;
+error 0,1296;
+insert into t select x + 40, y + 40 from t;
+show warnings;
+insert into t select x + 80, y + 80 from t;
+exec $NDB_MGM --no-defaults --verbose=0 -e "2 error 8030";
+error 0,1296;
+commit;
+show warnings;
+
+exec $NDB_SELECT_ALL --rowid -d test t;
+select * from t;
+
+drop table t;
+

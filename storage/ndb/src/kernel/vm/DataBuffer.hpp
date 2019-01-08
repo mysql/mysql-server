@@ -39,9 +39,16 @@
  *
  * @note   The buffer is divided into segments (of size sz)
  */
-template<Uint32 sz>
-  struct DataBufferSegment {
-    Uint32 magic;
+template<Uint32 sz, Uint32 Type_id = 0>
+  struct DataBufferSegment
+  {
+    STATIC_CONST( TYPE_ID = Type_id );
+
+    DataBufferSegment()
+      : m_magic(Magic::make(TYPE_ID))
+    {}
+
+    Uint32 m_magic;
     Uint32 nextPool;
     Uint32 data[sz];
     NdbOut& print(NdbOut& out){
@@ -98,12 +105,12 @@ require(src.in_use);
 
   };
 
-template <Uint32 sz, typename Pool>
+template <Uint32 sz, typename Pool, Uint32 Type_id = 0>
 class DataBuffer {
 public:
-  typedef DataBufferSegment<sz> Segment;
-  typedef typename DataBufferSegment<sz>::HeadPOD HeadPOD;
-  typedef typename DataBufferSegment<sz>::Head Head;
+  typedef DataBufferSegment<sz, Type_id> Segment;
+  typedef typename DataBufferSegment<sz, Type_id>::HeadPOD HeadPOD;
+  typedef typename DataBufferSegment<sz, Type_id>::Head Head;
 public:
   typedef Pool DataBufferPool;
 
@@ -223,12 +230,13 @@ private:
   bool import(Uint32 pos, const Uint32* src, Uint32 len);
 };
 
-template<Uint32 sz, typename Pool>
-class LocalDataBuffer : public DataBuffer<sz, Pool> {
+template<Uint32 sz, typename Pool, Uint32 Type_id = 0>
+class LocalDataBuffer : public DataBuffer<sz, Pool, Type_id>
+{
 public:
-  LocalDataBuffer(typename DataBuffer<sz, Pool>::DataBufferPool & thePool,
-                   typename DataBuffer<sz, Pool>::HeadPOD & _src)
-    : DataBuffer<sz, Pool>(thePool), src(_src)
+  LocalDataBuffer(typename DataBuffer<sz, Pool, Type_id>::DataBufferPool & thePool,
+                   typename DataBuffer<sz, Pool, Type_id>::HeadPOD & _src)
+    : DataBuffer<sz, Pool, Type_id>(thePool), src(_src)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
     if (src.in_use == true)
@@ -247,24 +255,27 @@ public:
 #endif
   }
 private:
-  typename DataBuffer<sz, Pool>::HeadPOD & src;
+  typename DataBuffer<sz, Pool, Type_id>::HeadPOD & src;
 };
 
-template<Uint32 sz>
+template<Uint32 sz, Uint32 Type_id>
 inline
-DataBufferSegment<sz>::Head::Head(){
+DataBufferSegment<sz, Type_id>::Head::Head()
+{
   this->init();
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
-bool DataBuffer<sz, Pool>::importable(const DataBufferIterator it, Uint32 len){
+bool DataBuffer<sz, Pool, Type_id>::importable(const DataBufferIterator it, Uint32 len)
+{
   return (it.pos + len < head.used);
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
-bool DataBuffer<sz, Pool>::position(DataBufferIterator& it, Uint32 p){
+bool DataBuffer<sz, Pool, Type_id>::position(DataBufferIterator& it, Uint32 p)
+{
 
   // TODO: The current implementation is not the most effective one.
   //       A more effective implementation would start at the current
@@ -276,10 +287,10 @@ bool DataBuffer<sz, Pool>::position(DataBufferIterator& it, Uint32 p){
   return next(it, p);
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::import(const DataBufferIterator & it,
+DataBuffer<sz, Pool, Type_id>::import(const DataBufferIterator & it,
                               const Uint32* src, Uint32 len)
 {
   Uint32 ind = (it.pos % sz);
@@ -301,10 +312,11 @@ DataBuffer<sz, Pool>::import(const DataBufferIterator & it,
   return true;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::append(const Uint32* src, Uint32 len){
+DataBuffer<sz, Pool, Type_id>::append(const Uint32* src, Uint32 len)
+{
   if(len == 0)
     return true;
 
@@ -321,9 +333,10 @@ DataBuffer<sz, Pool>::append(const Uint32* src, Uint32 len){
   return true;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
-void DataBuffer<sz, Pool>::print(FILE* out) const {
+void DataBuffer<sz, Pool, Type_id>::print(FILE* out) const
+{
   fprintf(out, "[DataBuffer used=%d words, segmentsize=%d words",
 	  head.used, sz);
 
@@ -353,15 +366,17 @@ void DataBuffer<sz, Pool>::print(FILE* out) const {
   fprintf(out, " ]\n");
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
-DataBuffer<sz, Pool>::DataBuffer(DataBufferPool & p) : thePool(p){
+DataBuffer<sz, Pool, Type_id>::DataBuffer(DataBufferPool & p) : thePool(p)
+{
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::seize(Uint32 n){
+DataBuffer<sz, Pool, Type_id>::seize(Uint32 n)
+{
   Uint32 rest; // Free space in last segment (currently)
 
   if(head.firstItem == RNIL)
@@ -465,10 +480,11 @@ DataBuffer<sz,ArrayPool<DataBufferSegment<sz> > >::release()
 }
 #endif
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 void
-DataBuffer<sz, Pool>::release(){
+DataBuffer<sz, Pool, Type_id>::release()
+{
   Ptr<Segment> tmp;
   tmp.i = head.firstItem;
   while (tmp.i != RNIL)
@@ -482,35 +498,38 @@ head.firstItem = head.lastItem = RNIL;
 head.used = 0;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 Uint32
-DataBuffer<sz, Pool>::getSegmentSize(){
+DataBuffer<sz, Pool, Type_id>::getSegmentSize()
+{
   return sz;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 Uint32
-DataBuffer<sz, Pool>::getSegmentSizeInBytes(){
+DataBuffer<sz, Pool, Type_id>::getSegmentSizeInBytes(){
   return 4 * sz;
 }
 
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::first(DataBufferIterator & it){
+DataBuffer<sz, Pool, Type_id>::first(DataBufferIterator & it)
+{
   ConstDataBufferIterator tmp;
   bool ret = first(tmp);
   it.assign(tmp);
   return ret;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::next(DataBufferIterator & it){
+DataBuffer<sz, Pool, Type_id>::next(DataBufferIterator & it)
+{
   ConstDataBufferIterator tmp;
   tmp.assign(it);
   bool ret = next(tmp);
@@ -518,10 +537,11 @@ DataBuffer<sz, Pool>::next(DataBufferIterator & it){
   return ret;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::next(DataBufferIterator & it, Uint32 hops){
+DataBuffer<sz, Pool, Type_id>::next(DataBufferIterator & it, Uint32 hops)
+{
   ConstDataBufferIterator tmp;
   tmp.assign(it);
   bool ret = next(tmp, hops);
@@ -529,10 +549,11 @@ DataBuffer<sz, Pool>::next(DataBufferIterator & it, Uint32 hops){
   return ret;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::first(ConstDataBufferIterator & it) const {
+DataBuffer<sz, Pool, Type_id>::first(ConstDataBufferIterator & it) const
+{
   it.curr.i = head.firstItem;
   if(it.curr.i == RNIL){
     it.setNull();
@@ -545,10 +566,11 @@ DataBuffer<sz, Pool>::first(ConstDataBufferIterator & it) const {
   return true;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::next(ConstDataBufferIterator & it) const {
+DataBuffer<sz, Pool, Type_id>::next(ConstDataBufferIterator & it) const
+{
   it.ind ++;
   it.data ++;
   it.pos ++;
@@ -569,7 +591,7 @@ DataBuffer<sz, Pool>::next(ConstDataBufferIterator & it) const {
        *  abort when trying to get RNIL. That's why the check is within
        *  ARRAY_GUARD
        */
-      ErrorReporter::handleAssert("DataBuffer<sz, Pool>::next", __FILE__, __LINE__);
+      ErrorReporter::handleAssert("DataBuffer<sz, Pool, Type_id>::next", __FILE__, __LINE__);
     }
 #endif
     it.curr.p = static_cast<Segment*>(thePool.getPtr(it.curr.i));
@@ -581,10 +603,11 @@ DataBuffer<sz, Pool>::next(ConstDataBufferIterator & it) const {
   return false;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::next(ConstDataBufferIterator & it, Uint32 hops) const {
+DataBuffer<sz, Pool, Type_id>::next(ConstDataBufferIterator & it, Uint32 hops) const
+{
 #if 0
   for (Uint32 i=0; i<hops; i++) {
     if (!this->next(it))
@@ -618,29 +641,31 @@ DataBuffer<sz, Pool>::next(ConstDataBufferIterator & it, Uint32 hops) const {
 #endif
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 Uint32
-DataBuffer<sz, Pool>::getSize() const {
+DataBuffer<sz, Pool, Type_id>::getSize() const
+{
   return head.used;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
-DataBuffer<sz, Pool>::isEmpty() const {
+DataBuffer<sz, Pool, Type_id>::isEmpty() const
+{
   return (head.used == 0);
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 void
-DataBuffer<sz, Pool>::createRecordInfo(Record_info & ri, Uint32 type_id)
+DataBuffer<sz, Pool, Type_id>::createRecordInfo(Record_info & ri, Uint32 type_id)
 {
   Segment tmp;
   const char * off_base = (char*)&tmp;
   const char * off_next = (char*)&tmp.nextPool;
-  const char * off_magic = (char*)&tmp.magic;
+  const char * off_magic = (char*)&tmp.m_magic;
 
   ri.m_size = sizeof(tmp);
   ri.m_offset_next_pool = Uint32(off_next - off_base);
@@ -648,10 +673,10 @@ DataBuffer<sz, Pool>::createRecordInfo(Record_info & ri, Uint32 type_id)
   ri.m_type_id = type_id;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 void
-DataBuffer<sz, Pool>::DataBufferIterator::assign(const ConstDataBufferIterator & src)
+DataBuffer<sz, Pool, Type_id>::DataBufferIterator::assign(const ConstDataBufferIterator & src)
 {
   this->curr.i = src.curr.i;
   this->curr.p = const_cast<Segment*>(src.curr.p);
@@ -660,10 +685,10 @@ DataBuffer<sz, Pool>::DataBufferIterator::assign(const ConstDataBufferIterator &
   this->pos = src.pos;
 }
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 void
-DataBuffer<sz, Pool>::ConstDataBufferIterator::assign(const DataBufferIterator & src)
+DataBuffer<sz, Pool, Type_id>::ConstDataBufferIterator::assign(const DataBufferIterator & src)
 {
   this->curr.i = src.curr.i;
   this->curr.p = src.curr.p;

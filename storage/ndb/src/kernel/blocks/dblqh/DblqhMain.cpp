@@ -14569,7 +14569,8 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
 
   const Uint32 scanPrio = ScanFragReq::getScanPrio(reqinfo);
 
-  if (max_rows == 0 || (max_bytes > 0 && max_rows > max_bytes)){
+  if (unlikely(max_rows == 0 || (max_bytes > 0 && max_rows > max_bytes)))
+  {
     jam();
     return ScanFragRef::ZWRONG_BATCH_SIZE;
   }
@@ -14584,7 +14585,8 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   {
     DEBUG_RES_OWNER_GUARD(refToBlock(reference()) << 16 | 999);
 
-    if (!seize_acc_ptr_list(scanPtr, 0, max_rows)){
+    if (unlikely(!seize_acc_ptr_list(scanPtr, 0, max_rows)))
+    {
       jam();
       return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
     }
@@ -30367,8 +30369,9 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
         m_commitAckMarkerPool.getSize(),
         m_commitAckMarkerPool.getEntrySize(),
         m_commitAckMarkerPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_OPS, CFG_DB_NO_OPS,0,0 }},
-      { NULL, 0,0,0,0,{0,0,0,0} }
+        { CFG_DB_NO_LOCAL_OPS, CFG_DB_NO_OPS,0,0 },
+        RT_DBLQH_COMMIT_ACK_MARKER},
+      { NULL, 0,0,0,0,{0,0,0,0},0 }
     };
 
     const size_t num_config_params =
@@ -30390,6 +30393,8 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
