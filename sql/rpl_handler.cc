@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,52 +159,36 @@ int get_user_var_str(const char *name, char *value, size_t len,
 }
 
 int delegates_init() {
-  static my_aligned_storage<sizeof(Trans_delegate), MY_ALIGNOF(longlong)>
-      trans_mem;
-  static my_aligned_storage<sizeof(Binlog_storage_delegate),
-                            MY_ALIGNOF(longlong)>
-      storage_mem;
-  static my_aligned_storage<sizeof(Server_state_delegate), MY_ALIGNOF(longlong)>
-      server_state_mem;
-  static my_aligned_storage<sizeof(Binlog_transmit_delegate),
-                            MY_ALIGNOF(longlong)>
-      transmit_mem;
-  static my_aligned_storage<sizeof(Binlog_relay_IO_delegate),
-                            MY_ALIGNOF(longlong)>
-      relay_io_mem;
-
-  void *place_trans_mem = trans_mem.data;
-  void *place_storage_mem = storage_mem.data;
-  void *place_state_mem = server_state_mem.data;
+  alignas(Trans_delegate) static char place_trans_mem[sizeof(Trans_delegate)];
+  alignas(Binlog_storage_delegate) static char
+      place_storage_mem[sizeof(Binlog_storage_delegate)];
+  alignas(Server_state_delegate) static char
+      place_state_mem[sizeof(Server_state_delegate)];
+  alignas(Binlog_transmit_delegate) static char
+      place_transmit_mem[sizeof(Binlog_transmit_delegate)];
+  alignas(Binlog_relay_IO_delegate) static char
+      place_relay_io_mem[sizeof(Binlog_relay_IO_delegate)];
 
   transaction_delegate = new (place_trans_mem) Trans_delegate;
-
   if (!transaction_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_TRX_DELEGATES_INIT_FAILED);
     return 1;
   }
 
   binlog_storage_delegate = new (place_storage_mem) Binlog_storage_delegate;
-
   if (!binlog_storage_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_STORAGE_DELEGATES_INIT_FAILED);
     return 1;
   }
 
   server_state_delegate = new (place_state_mem) Server_state_delegate;
-
-  void *place_transmit_mem = transmit_mem.data;
-  void *place_relay_io_mem = relay_io_mem.data;
-
   binlog_transmit_delegate = new (place_transmit_mem) Binlog_transmit_delegate;
-
   if (!binlog_transmit_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_TRANSMIT_DELEGATES_INIT_FAILED);
     return 1;
   }
 
   binlog_relay_io_delegate = new (place_relay_io_mem) Binlog_relay_IO_delegate;
-
   if (!binlog_relay_io_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_RELAY_DELEGATES_INIT_FAILED);
     return 1;

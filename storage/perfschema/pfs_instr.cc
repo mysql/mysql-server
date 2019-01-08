@@ -96,7 +96,7 @@ PFS_statement_stat *global_instr_class_statements_array = NULL;
 PFS_histogram global_statements_histogram;
 std::atomic<PFS_memory_shared_stat *> global_instr_class_memory_array{nullptr};
 
-static PFS_ALIGNED PFS_cacheline_atomic_uint64 thread_internal_id_counter;
+static PFS_cacheline_atomic_uint64 thread_internal_id_counter;
 
 /** Hash table for instrumented files. */
 LF_HASH filename_hash;

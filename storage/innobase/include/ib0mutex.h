@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -346,7 +346,7 @@ struct TTASFutexMutex {
 
   /** lock_word is the target of the atomic test-and-set instruction
   when atomic operations are enabled. */
-  lock_word_t m_lock_word MY_ALIGNED(MY_ALIGNOF(ulint));
+  alignas(ulint) lock_word_t m_lock_word;
 };
 
 #endif /* HAVE_IB_LINUX_FUTEX */

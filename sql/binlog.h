@@ -146,12 +146,7 @@ class Stage_manager {
 
     /** Lock for protecting the queue. */
     mysql_mutex_t m_lock;
-
-    /*
-      This attribute did not have the desired effect, at least not according
-      to -fsanitize=undefined with gcc 5.2.1
-     */
-  };  // MY_ATTRIBUTE((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
+  };
 
  public:
   Stage_manager() {}

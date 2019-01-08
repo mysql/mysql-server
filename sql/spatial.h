@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2473,8 +2473,8 @@ class Gis_geometry_collection : public Geometry {
   inside a Geometry_buffer object, unless used as boost geometry adapter,
   in which case the object may simply placed on stack or new'ed on heap.
  */
-struct Geometry_buffer
-    : public my_aligned_storage<sizeof(Gis_polygon), MY_ALIGNOF(Gis_polygon)> {
+struct Geometry_buffer {
+  alignas(Gis_polygon) char data[sizeof(Gis_polygon)];
 };
 
 class WKB_scanner_event_handler {

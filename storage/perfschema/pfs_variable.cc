@@ -1368,8 +1368,7 @@ void PFS_status_variable_cache::manifest(THD *thd,
   for (const SHOW_VAR *show_var_iter = show_var_array;
        show_var_iter && show_var_iter->name; show_var_iter++) {
     // work buffer, must be aligned to handle long/longlong values
-    my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE + 1, MY_ALIGNOF(longlong)>
-        value_buf;
+    alignas(longlong) char value_buf[SHOW_VAR_FUNC_BUFF_SIZE + 1];
     SHOW_VAR show_var_tmp;
     const SHOW_VAR *show_var_ptr = show_var_iter; /* preserve array pointer */
 
@@ -1386,7 +1385,7 @@ void PFS_status_variable_cache::manifest(THD *thd,
       */
       for (const SHOW_VAR *var = show_var_ptr; var->type == SHOW_FUNC;
            var = &show_var_tmp) {
-        ((mysql_show_var_func)(var->value))(thd, &show_var_tmp, value_buf.data);
+        ((mysql_show_var_func)(var->value))(thd, &show_var_tmp, value_buf);
       }
       show_var_ptr = &show_var_tmp;
     }

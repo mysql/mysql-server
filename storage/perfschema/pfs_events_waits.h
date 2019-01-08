@@ -130,7 +130,7 @@ extern bool flag_global_instrumentation;
 extern bool flag_thread_instrumentation;
 
 extern bool events_waits_history_long_full;
-extern PFS_ALIGNED PFS_cacheline_atomic_uint32 events_waits_history_long_index;
+extern PFS_cacheline_atomic_uint32 events_waits_history_long_index;
 extern PFS_events_waits *events_waits_history_long_array;
 extern ulong events_waits_history_long_size;
 

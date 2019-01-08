@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,7 +161,7 @@ futex_wake(volatile unsigned * addr)
   return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
 }
 
-struct MY_ALIGNED(NDB_CL) thr_wait
+struct alignas(NDB_CL) thr_wait
 {
   volatile unsigned m_futex_state;
   enum {
@@ -251,7 +251,7 @@ try_wakeup(struct thr_wait* wait)
 }
 #else
 
-struct MY_ALIGNED(NDB_CL) thr_wait
+struct alignas(NDB_CL) thr_wait
 {
   NdbMutex *m_mutex;
   NdbCondition *m_cond;
@@ -340,7 +340,7 @@ wakeup(struct thr_wait* wait)
  * thr_safe_pool
  */
 template<typename T>
-struct MY_ALIGNED(NDB_CL) thr_safe_pool
+struct alignas(NDB_CL) thr_safe_pool
 {
   thr_safe_pool(const char * name) : m_lock(name), m_free_list(0), m_cnt(0) {
     assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
@@ -928,7 +928,7 @@ struct thr_send_queue
 #endif
 };
 
-struct MY_ALIGNED(NDB_CL) thr_data
+struct alignas(NDB_CL) thr_data
 {
   thr_data() : m_jba_write_lock("jbalock"),
                m_signal_id_counter(0),
@@ -964,8 +964,8 @@ struct MY_ALIGNED(NDB_CL) thr_data
    * surrounding thread-local variables from CPU cache line sharing
    * with this part.
    */
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock m_jba_write_lock;
-  MY_ALIGNED(NDB_CL) struct thr_job_queue m_jba;
+  alignas(NDB_CL) struct thr_spin_lock m_jba_write_lock;
+  alignas(NDB_CL) struct thr_job_queue m_jba;
   struct thr_job_queue_head m_jba_head;
 
   /*
@@ -975,8 +975,8 @@ struct MY_ALIGNED(NDB_CL) thr_data
    * all the time whereas other neighbour variables are thread-local variables.
    * Avoid false cacheline sharing by require an alignment.
    */
-  MY_ALIGNED(NDB_CL) struct thr_job_queue_head m_in_queue_head[MAX_BLOCK_THREADS];
-  MY_ALIGNED(NDB_CL) struct thr_job_queue m_in_queue[MAX_BLOCK_THREADS];
+  alignas(NDB_CL) struct thr_job_queue_head m_in_queue_head[MAX_BLOCK_THREADS];
+  alignas(NDB_CL) struct thr_job_queue m_in_queue[MAX_BLOCK_THREADS];
 
   /**
    * The remainder of the variables in thr_data are thread-local,
@@ -1241,15 +1241,12 @@ struct thr_repository
    * and also heavily updated.
    * Requiring alignments avoid false cache line sharing.
    */
-  MY_ALIGNED(NDB_CL)
-  struct MY_ALIGNED(NDB_CL) aligned_locks : public thr_spin_lock
-  {
-  } m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
+  alignas(NDB_CL) thr_spin_lock m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
 
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock m_section_lock;
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock m_mem_manager_lock;
-  MY_ALIGNED(NDB_CL) struct thr_safe_pool<thr_job_buffer> m_jb_pool;
-  MY_ALIGNED(NDB_CL) struct thr_safe_pool<thr_send_page> m_sb_pool;
+  alignas(NDB_CL) struct thr_spin_lock m_section_lock;
+  alignas(NDB_CL) struct thr_spin_lock m_mem_manager_lock;
+  alignas(NDB_CL) struct thr_safe_pool<thr_job_buffer> m_jb_pool;
+  alignas(NDB_CL) struct thr_safe_pool<thr_send_page> m_sb_pool;
 
   /* m_mm and m_thread_count are globally shared and read only variables */
   Ndbd_mem_manager * m_mm;
@@ -1260,7 +1257,7 @@ struct thr_repository
    * So sharing cache line with these for these read only variables
    * isn't a good idea
    */
-  MY_ALIGNED(NDB_CL) struct thr_data m_thread[MAX_BLOCK_THREADS];
+  alignas(NDB_CL) struct thr_data m_thread[MAX_BLOCK_THREADS];
 
   /* The buffers that are to be sent */
   struct send_buffer

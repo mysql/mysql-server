@@ -51,7 +51,7 @@ extern bool pfs_initialized;
 #if defined(HAVE_POSIX_MEMALIGN) || defined(HAVE_MEMALIGN) || \
     defined(HAVE_ALIGNED_MALLOC)
 #define PFS_ALIGNEMENT 64
-#define PFS_ALIGNED MY_ALIGNED(PFS_ALIGNEMENT)
+#define PFS_ALIGNED alignas(PFS_ALIGNEMENT)
 #else
 /*
   Known platforms that do not provide aligned memory:
