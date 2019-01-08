@@ -45,6 +45,7 @@
 #include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
 
+class Json_schema_validator;
 class Item_func_like;
 class Json_dom;
 class Json_scalar_holder;
@@ -314,14 +315,22 @@ class Item_func_json_valid final : public Item_int_func {
 */
 class Item_func_json_schema_valid final : public Item_bool_func {
  public:
-  Item_func_json_schema_valid(const POS &pos, Item *a, Item *b)
-      : Item_bool_func(pos, a, b) {}
+  Item_func_json_schema_valid(const POS &pos, Item *a, Item *b);
 
   const char *func_name() const override { return "json_schema_valid"; }
 
   bool val_bool() override;
 
   longlong val_int() override { return val_bool() ? 1 : 0; }
+
+  bool fix_fields(THD *, Item **) override;
+
+  void cleanup() override;
+
+ private:
+  // Wrap the object in a unique_ptr so that the relevant rapidjson destructors
+  // are called.
+  unique_ptr_destroy_only<Json_schema_validator> m_cached_schema_validator;
 };
 
 /**

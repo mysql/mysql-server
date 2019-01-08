@@ -262,3 +262,67 @@ SELECT JSON_SCHEMA_VALID('[]', '{}');
 ERROR 22032: Invalid JSON type in argument 1 to function json_schema_valid; an object is required.
 SELECT JSON_SCHEMA_VALID(CAST('test' AS JSON), '{}');
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 1.
+# Test some various scenarios with cached JSON schema (first argument is const)
+CREATE TABLE t1 (col1 JSON);
+INSERT INTO t1 VALUES ('{"latitude": 0, "longitude": 0}');
+INSERT INTO t1 VALUES ('{"latitude": -90, "longitude": -180}');
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES ('[]');
+INSERT INTO t1 VALUES ('{"latitude": 90, "longitude": 180}');
+# All rows should return SQL NULL
+SELECT JSON_SCHEMA_VALID(NULL, col1) FROM t1;
+JSON_SCHEMA_VALID(NULL, col1)
+NULL
+NULL
+NULL
+NULL
+NULL
+# We should get true, true, null, false, true
+SELECT JSON_SCHEMA_VALID('{"type":"object"}', col1) AS valid FROM t1;
+valid
+1
+1
+NULL
+0
+1
+DROP TABLE t1;
+# Test some scenarios with non-cached JSON schema (first argument is not const)
+CREATE TABLE t1 (col1 JSON);
+INSERT INTO t1 VALUES ('{"type":"object"}');
+INSERT INTO t1 VALUES ('{"type":"array"}');
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES ('{"type":"string"}');
+# All rows should return SQL NULL
+SELECT JSON_SCHEMA_VALID(col1, NULL) FROM t1;
+JSON_SCHEMA_VALID(col1, NULL)
+NULL
+NULL
+NULL
+NULL
+# We should get false, true, null, false
+SELECT JSON_SCHEMA_VALID(col1, '[]') AS valid FROM t1;
+valid
+0
+1
+NULL
+0
+DROP TABLE t1;
+# Ensure that our item tree transformation doesn't get stuck forever when
+# using prepared statements.
+PREPARE stmt FROM 'SELECT JSON_SCHEMA_VALID(?, ''{}'') FROM DUAL';
+SET @json_schema = '{"type":"object"}';
+SET @null = NULL;
+EXECUTE stmt USING @json_schema;
+JSON_SCHEMA_VALID(?, '{}')
+1
+EXECUTE stmt USING @null;
+JSON_SCHEMA_VALID(?, '{}')
+NULL
+EXECUTE stmt USING @json_schema;
+JSON_SCHEMA_VALID(?, '{}')
+1
+#
+# Bug#29366780 WL#11999: SIG6 IN SETUP_FIELDS() AT SQL/SQL_BASE.CC
+#
+SELECT JSON_SCHEMA_VALID(CAST('NULL' AS JSON), CAST('NULL' AS JSON));
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 0.

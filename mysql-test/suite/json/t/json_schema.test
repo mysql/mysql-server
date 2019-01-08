@@ -248,6 +248,7 @@ SELECT JSON_SCHEMA_VALID('{
   "a_string": "8a"
 }') AS should_be_invalid;
 
+
 --echo # The JSON Schema must be an object, so see that we don't accept any
 --echo # other type as the first argument.
 --error ER_INVALID_JSON_TYPE
@@ -255,3 +256,49 @@ SELECT JSON_SCHEMA_VALID('[]', '{}');
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_SCHEMA_VALID(CAST('test' AS JSON), '{}');
+
+--echo # Test some various scenarios with cached JSON schema (first argument is const)
+CREATE TABLE t1 (col1 JSON);
+INSERT INTO t1 VALUES ('{"latitude": 0, "longitude": 0}');
+INSERT INTO t1 VALUES ('{"latitude": -90, "longitude": -180}');
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES ('[]');
+INSERT INTO t1 VALUES ('{"latitude": 90, "longitude": 180}');
+
+--echo # All rows should return SQL NULL
+SELECT JSON_SCHEMA_VALID(NULL, col1) FROM t1;
+
+--echo # We should get true, true, null, false, true
+SELECT JSON_SCHEMA_VALID('{"type":"object"}', col1) AS valid FROM t1;
+
+DROP TABLE t1;
+
+--echo # Test some scenarios with non-cached JSON schema (first argument is not const)
+CREATE TABLE t1 (col1 JSON);
+INSERT INTO t1 VALUES ('{"type":"object"}');
+INSERT INTO t1 VALUES ('{"type":"array"}');
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES ('{"type":"string"}');
+
+--echo # All rows should return SQL NULL
+SELECT JSON_SCHEMA_VALID(col1, NULL) FROM t1;
+
+--echo # We should get false, true, null, false
+SELECT JSON_SCHEMA_VALID(col1, '[]') AS valid FROM t1;
+
+DROP TABLE t1;
+
+--echo # Ensure that our item tree transformation doesn't get stuck forever when
+--echo # using prepared statements.
+PREPARE stmt FROM 'SELECT JSON_SCHEMA_VALID(?, ''{}'') FROM DUAL';
+SET @json_schema = '{"type":"object"}';
+SET @null = NULL;
+EXECUTE stmt USING @json_schema;
+EXECUTE stmt USING @null;
+EXECUTE stmt USING @json_schema;
+
+--echo #
+--echo # Bug#29366780 WL#11999: SIG6 IN SETUP_FIELDS() AT SQL/SQL_BASE.CC
+--echo #
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALID(CAST('NULL' AS JSON), CAST('NULL' AS JSON));

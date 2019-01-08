@@ -484,25 +484,77 @@ longlong Item_func_json_valid::val_int() {
   }
 }
 
+bool Item_func_json_schema_valid::fix_fields(THD *thd, Item **ref) {
+  if (Item_bool_func::fix_fields(thd, ref)) {
+    return true;
+  }
+
+  if (args[0]->const_item()) {
+    String schema_buffer;
+    String *schema_string = args[0]->val_str(&schema_buffer);
+    if (thd->is_error()) return true;
+    if (args[0]->null_value) {
+      DBUG_ASSERT(maybe_null);
+      Item *null_item = new (thd->mem_root) Item_null(item_name);
+      if (null_item == nullptr) return true;
+      thd->change_item_tree(ref, null_item);
+    } else {
+      m_cached_schema_validator =
+          create_json_schema_validator(thd->mem_root, schema_string->ptr(),
+                                       schema_string->length(), func_name());
+
+      if (m_cached_schema_validator == nullptr) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+void Item_func_json_schema_valid::cleanup() {
+  Item_bool_func::cleanup();
+  m_cached_schema_validator = nullptr;
+}
+
+Item_func_json_schema_valid::Item_func_json_schema_valid(const POS &pos,
+                                                         Item *a, Item *b)
+    : Item_bool_func(pos, a, b) {}
+
 bool Item_func_json_schema_valid::val_bool() {
   DBUG_ASSERT(fixed);
 
   String document_buffer;
-  String schema_buffer;
-  String *schema_string = args[0]->val_str(&schema_buffer);
   String *document_string = args[1]->val_str(&document_buffer);
-
-  if (args[0]->null_value || args[1]->null_value) {
+  if (args[1]->null_value) {
     DBUG_ASSERT(maybe_null);
     null_value = true;
     return false;
   }
 
   bool validation_result = false;
-  if (is_valid_json_schema(document_string->ptr(), document_string->length(),
-                           schema_string->ptr(), schema_string->length(),
-                           func_name(), &validation_result)) {
-    return error_bool();
+  if (m_cached_schema_validator != nullptr) {
+    DBUG_ASSERT(args[0]->const_item());
+    if (m_cached_schema_validator->is_valid_json_schema(
+            document_string->ptr(), document_string->length(), func_name(),
+            &validation_result)) {
+      return error_bool();
+    }
+  } else {
+    DBUG_ASSERT(!args[0]->const_item());
+    String schema_buffer;
+    String *schema_string = args[0]->val_str(&schema_buffer);
+    if (args[0]->null_value) {
+      DBUG_ASSERT(maybe_null);
+      null_value = true;
+      return false;
+    }
+
+    if (is_valid_json_schema(document_string->ptr(), document_string->length(),
+                             schema_string->ptr(), schema_string->length(),
+                             func_name(), &validation_result)) {
+      return error_bool();
+    }
   }
 
   null_value = false;

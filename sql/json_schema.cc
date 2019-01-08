@@ -24,10 +24,15 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
-#include <rapidjson/error/en.h>
+#include <rapidjson/document.h>
 #include <rapidjson/error/error.h>
+#include <rapidjson/memorystream.h>
+#include <rapidjson/reader.h>
 #include <rapidjson/schema.h>
+#include <string>
+#include <utility>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -35,44 +40,42 @@
 #include "sql/json_syntax_check.h"
 #include "sql/sql_exception_handler.h"
 
-// This object acts as a handler/callback for the JSON schema validator and it
-// called whenever a schema reference is encountered in the JSON document. Since
-// MySQL doesn't support schema references, this class is only used to detect
-// whether or not we actually found one in the JSON document.
-namespace {
-class My_remote_schema_document_provider
-    : public rapidjson::IRemoteSchemaDocumentProvider {
- public:
-  const rapidjson::SchemaDocument *GetRemoteDocument(
-      const char *, rapidjson::SizeType) override {
-    m_used = true;
-    return nullptr;
-  }
+/**
+  parse_json_schema will parse a JSON input into a JSON Schema. If the input
+  isn't a valid JSON, or if the JSON is too deeply nested, an error will be
+  returned to the user.
 
-  bool used() const { return m_used; }
+  @param json_schema_str A pointer to the JSON Schema input
+  @param json_schema_length The length of the JSON Schema input
+  @param function_name The function name of the caller (to be used in error
+                       reporting)
+  @param[out] schema_document An object where the JSON Schema will be put. This
+              variable MUST be initialized.
 
- private:
-  bool m_used{false};
-};
-}  // namespace
+  @retval true on error (my_error has been called)
+  @retval false on success. The JSON Schema can be found in the output
+          parameter schema_document.
+*/
+static bool parse_json_schema(const char *json_schema_str,
+                              size_t json_schema_length,
+                              const char *function_name,
+                              rapidjson::Document *schema_document) {
+  DBUG_ASSERT(schema_document != nullptr);
 
-bool is_valid_json_schema(const char *documentStr, size_t documentLength,
-                          const char *jsonSchemaStr, size_t jsonSchemaLength,
-                          const char *function_name, bool *is_valid) {
   // Check if the JSON schema is valid. Invalid JSON would be caught by
   // rapidjson::Document::Parse, but it will not catch documents that are too
   // deeply nested.
   size_t error_offset;
   std::string error_message;
-  if (!is_valid_json_syntax(jsonSchemaStr, jsonSchemaLength, &error_offset,
+  if (!is_valid_json_syntax(json_schema_str, json_schema_length, &error_offset,
                             &error_message)) {
     my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0), 1, function_name,
              error_message.c_str(), error_offset, "");
     return true;
   }
 
-  rapidjson::Document sd;
-  if (sd.Parse(jsonSchemaStr, jsonSchemaLength).HasParseError()) {
+  if (schema_document->Parse(json_schema_str, json_schema_length)
+          .HasParseError()) {
     // The document should already be valid, since is_valid_json_syntax
     // succeeded.
     DBUG_ASSERT(false);
@@ -80,25 +83,59 @@ bool is_valid_json_schema(const char *documentStr, size_t documentLength,
   }
 
   // We require the JSON Schema to be an object
-  if (!sd.IsObject()) {
+  if (!schema_document->IsObject()) {
     my_error(ER_INVALID_JSON_TYPE, MYF(0), 1, function_name, "object");
     return true;
   }
 
-  // Set up the JSON Schema validator using:
-  // a) Syntax_check_handler that will catch JSON documents that are too deeply
-  //    nested.
-  // b) My_remote_schema_document_provider that will catch usage of remote
-  //    references.
+  return false;
+}
+
+bool is_valid_json_schema(const char *document_str, size_t document_length,
+                          const char *json_schema_str,
+                          size_t json_schema_length, const char *function_name,
+                          bool *is_valid) {
+  rapidjson::Document schema_document;
+  if (parse_json_schema(json_schema_str, json_schema_length, function_name,
+                        &schema_document)) {
+    return true;
+  }
+
+  return Json_schema_validator(schema_document)
+      .is_valid_json_schema(document_str, document_length, function_name,
+                            is_valid);
+}
+
+Json_schema_validator::Json_schema_validator(
+    const rapidjson::Document &schema_document)
+    : m_cached_schema(schema_document, &m_remote_document_provider) {}
+
+unique_ptr_destroy_only<Json_schema_validator> create_json_schema_validator(
+    MEM_ROOT *mem_root, const char *json_schema_str, size_t json_schema_length,
+    const char *function_name) {
+  rapidjson::Document schema_document;
+  if (parse_json_schema(json_schema_str, json_schema_length, function_name,
+                        &schema_document)) {
+    return nullptr;
+  }
+
+  return make_unique_destroy_only<Json_schema_validator>(mem_root,
+                                                         schema_document);
+}
+
+bool Json_schema_validator::is_valid_json_schema(const char *document_str,
+                                                 size_t document_length,
+                                                 const char *function_name,
+                                                 bool *is_valid) const {
+  // Set up the JSON Schema validator using Syntax_check_handler that will catch
+  // JSON documents that are too deeply nested.
   Syntax_check_handler syntaxCheckHandler;
-  My_remote_schema_document_provider schemaDocumentProvider;
-  rapidjson::SchemaDocument schema(sd, &schemaDocumentProvider);
   rapidjson::GenericSchemaValidator<rapidjson::SchemaDocument,
                                     Syntax_check_handler>
-      validator(schema, syntaxCheckHandler);
+      validator(m_cached_schema, syntaxCheckHandler);
 
   rapidjson::Reader reader;
-  rapidjson::MemoryStream stream(documentStr, documentLength);
+  rapidjson::MemoryStream stream(document_str, document_length);
 
   // Wrap this in a try-catch since rapidjson calls std::regex_search
   // (which isn't noexcept).
@@ -119,7 +156,9 @@ bool is_valid_json_schema(const char *documentStr, size_t documentLength,
     return true;
   }
 
-  if (schemaDocumentProvider.used()) {
+  // If we encountered a remote reference in the JSON schema, report an error
+  // back to the user that this isn't supported.
+  if (m_remote_document_provider.used()) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "references in JSON Schema");
     return true;
   }

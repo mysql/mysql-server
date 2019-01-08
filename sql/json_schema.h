@@ -23,8 +23,102 @@
 #ifndef SQL_JSON_SCHEMA_H_INCLUDED
 #define SQL_JSON_SCHEMA_H_INCLUDED
 
+/**
+  @file json_schema.h
+
+  Functions for validating a string against a JSON Schema
+
+  A JSON Schema is a way to describe the structure of a JSON document. The JSON
+  Schema is a JSON document in itself, and allows you to define required
+  names/attributes, data types etc. As an example, here is a minimal example of
+  a JSON Schema describing that the JSON document MUST be an object:
+
+    {
+      "type": "object"
+    }
+
+  If the JSON document to be validated is anything else than an object (array,
+  scalar), the validation will fail.
+
+  This file contains one class for validation JSON documents against a cached
+  JSON Schema, and free functions for validation any string input against a
+  (unparsed) JSON Schema. We use the rapidjson library to do the actual
+  validation with the following notable behaviors:
+
+  1) Remote references are not supported. If the user provides a JSON Schema
+     with a remote reference, an error will be raised.
+  2) JSON Schema supports regex patterns, and we use std::regex as the regex
+     engine. If an invalid regex pattern is provided in the JSON Schema, the
+     regex pattern will be silently ignored.
+  3) rapidjson currently supports JSON Schema draft-v4, while there are newer
+     versions available (as of writing, draft-v7 is the latest version).
+ */
+
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+
+#include <rapidjson/schema.h>
 #include <cstddef>
-#include <string>
+
+#include "my_alloc.h"
+
+struct MEM_ROOT;
+
+/**
+  Json_schema_validator is an object that contains a JSON Schema that can
+  be re-used multiple times. This is useful in the cases where we have a JSON
+  Schema that doesn't change (which should be quite often).
+*/
+class Json_schema_validator {
+ public:
+  /**
+    Construct the cached JSON Schema with the provided JSON document
+
+    @param schema_document A JSON document that contains the JSON Schema
+                           definition
+  */
+  Json_schema_validator(const rapidjson::Document &schema_document);
+
+  /**
+    Validate a JSON input against the cached JSON Schema
+
+    @param document_str A pointer to the JSON input
+    @param document_length The length of the JSON input
+    @param function_name The function name of the caller (to be used in error
+                         reporting)
+    @param[out] is_valid The result of the validation
+
+    @retval true on error (my_error has been called)
+    @retval false on success (validation result can be found in the output
+            parameter is_valid)
+  */
+  bool is_valid_json_schema(const char *document_str, size_t document_length,
+                            const char *function_name, bool *is_valid) const;
+
+ private:
+  /**
+   This object acts as a handler/callback for the JSON schema validator and is
+   called whenever a schema reference is encountered in the JSON document. Since
+   MySQL doesn't support schema references, this class is only used to detect
+   whether or not we actually found one in the JSON document.
+ */
+  class My_remote_schema_document_provider
+      : public rapidjson::IRemoteSchemaDocumentProvider {
+   public:
+    const rapidjson::SchemaDocument *GetRemoteDocument(
+        const char *, rapidjson::SizeType) override {
+      m_used = true;
+      return nullptr;
+    }
+
+    bool used() const { return m_used; }
+
+   private:
+    bool m_used{false};
+  };
+
+  My_remote_schema_document_provider m_remote_document_provider;
+  rapidjson::SchemaDocument m_cached_schema;
+};
 
 /**
   This function will validate a JSON document against a JSON Schema using the
@@ -49,5 +143,20 @@ bool is_valid_json_schema(const char *document_str, size_t document_length,
                           const char *json_schema_str,
                           size_t json_schema_length, const char *function_name,
                           bool *is_valid);
+
+/**
+  Create a Json_schema_validator, allocated on a given MEM_ROOT
+
+  @param mem_root The MEM_ROOT to allocate the validator on
+  @param json_schema_str A pointer to the JSON Schema
+  @param json_schema_length The length of the JSON Schema input
+  @param function_name The function name of the caller (to be used in error
+                        reporting)
+
+  @retval nullptr on error (my_error has been called)
+*/
+unique_ptr_destroy_only<Json_schema_validator> create_json_schema_validator(
+    MEM_ROOT *mem_root, const char *json_schema_str, size_t json_schema_length,
+    const char *function_name);
 
 #endif
