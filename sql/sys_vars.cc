@@ -4856,12 +4856,14 @@ static Sys_var_harows Sys_select_limit(
 
 static bool update_timestamp(THD *thd, set_var *var) {
   if (var->value) {
-    double fl = floor(var->save_result.double_value);  // Truncate integer part
-    struct timeval tmp;
-    tmp.tv_sec = static_cast<long>(fl);
-    /* Round nanoseconds to nearest microsecond */
-    tmp.tv_usec =
-        static_cast<long>(rint((var->save_result.double_value - fl) * 1000000));
+    double intpart;
+    double fractpart = modf(var->save_result.double_value, &intpart);
+    double micros = fractpart * 1000000.0;
+    // Double multiplication, and conversion to integral may yield
+    // 1000000 rather than 999999.
+    struct timeval tmp {
+      llrint(intpart), std::min(llrint(micros), 999999LL)
+    };
     thd->set_time(&tmp);
   } else  // SET timestamp=DEFAULT
   {
