@@ -1847,213 +1847,167 @@ ST_GEOMFROMTEXT('POINT(1 0)', 4326));
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
-ERROR 22S00: st_distance(POINT, LINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
-ERROR 22S00: st_distance(POINT, POLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
-ERROR 22S00: st_distance(POINT, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
-ERROR 22S00: st_distance(POINT, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
 );
-ERROR 22S00: st_distance(POINT, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
 ST_GEOMFROMTEXT('POINT(1 0)', 4326));
-ERROR 22S00: st_distance(LINESTRING, POINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
-ERROR 22S00: st_distance(LINESTRING, LINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
-ERROR 22S00: st_distance(LINESTRING, POLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
 ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
-ERROR 22S00: st_distance(LINESTRING, MULTIPOINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
-ERROR 22S00: st_distance(LINESTRING, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
-ERROR 22S00: st_distance(LINESTRING, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326),
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
 );
-ERROR 22S00: st_distance(LINESTRING, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
 ST_GEOMFROMTEXT('POINT(1 0)', 4326));
-ERROR 22S00: st_distance(POLYGON, POINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
-ERROR 22S00: st_distance(POLYGON, LINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
-ERROR 22S00: st_distance(POLYGON, POLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
 ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
-ERROR 22S00: st_distance(POLYGON, MULTIPOINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
-ERROR 22S00: st_distance(POLYGON, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
-ERROR 22S00: st_distance(POLYGON, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326),
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
 );
-ERROR 22S00: st_distance(POLYGON, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
 ST_GEOMFROMTEXT('POINT(1 0)', 4326));
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
-ERROR 22S00: st_distance(MULTIPOINT, LINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
-ERROR 22S00: st_distance(MULTIPOINT, POLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
 ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
-ERROR 22S00: st_distance(MULTIPOINT, MULTIPOINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
-ERROR 22S00: st_distance(MULTIPOINT, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
-ERROR 22S00: st_distance(MULTIPOINT, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326),
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
 );
-ERROR 22S00: st_distance(MULTIPOINT, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
 ST_GEOMFROMTEXT('POINT(1 0)', 4326));
-ERROR 22S00: st_distance(MULTILINESTRING, POINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
-ERROR 22S00: st_distance(MULTILINESTRING, LINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
-ERROR 22S00: st_distance(MULTILINESTRING, POLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
 ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
-ERROR 22S00: st_distance(MULTILINESTRING, MULTIPOINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
-ERROR 22S00: st_distance(MULTILINESTRING, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
-ERROR 22S00: st_distance(MULTILINESTRING, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326),
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
 );
-ERROR 22S00: st_distance(MULTILINESTRING, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
 ST_GEOMFROMTEXT('POINT(1 0)', 4326));
-ERROR 22S00: st_distance(MULTIPOLYGON, POINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
-ERROR 22S00: st_distance(MULTIPOLYGON, LINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
-ERROR 22S00: st_distance(MULTIPOLYGON, POLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
 ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
-ERROR 22S00: st_distance(MULTIPOLYGON, MULTIPOINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
-ERROR 22S00: st_distance(MULTIPOLYGON, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
-ERROR 22S00: st_distance(MULTIPOLYGON, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326),
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326)
 );
-ERROR 22S00: st_distance(MULTIPOLYGON, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
 4326),
 ST_GEOMFROMTEXT('POINT(1 0)', 4326));
-ERROR 22S00: st_distance(GEOMCOLLECTION, POINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
 4326),
 ST_GEOMFROMTEXT('LINESTRING(1 0, 1 1)', 4326));
-ERROR 22S00: st_distance(GEOMCOLLECTION, LINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
 4326),
 ST_GEOMFROMTEXT('POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))', 4326));
-ERROR 22S00: st_distance(GEOMCOLLECTION, POLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
 4326),
 ST_GEOMFROMTEXT('MULTIPOINT((1 0))', 4326));
-ERROR 22S00: st_distance(GEOMCOLLECTION, MULTIPOINT) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
 4326),
 ST_GEOMFROMTEXT('MULTILINESTRING((1 0, 1 1))', 4326));
-ERROR 22S00: st_distance(GEOMCOLLECTION, MULTILINESTRING) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
 4326),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0)))', 4326));
-ERROR 22S00: st_distance(GEOMCOLLECTION, MULTIPOLYGON) has not been implemented for geographic spatial reference systems.
 DO ST_DISTANCE(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(-1 -1, -2 -2))',
 4326),
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION(MULTIPOLYGON(((1 0, 2 0, 2 1, 1 1, 1 0))))', 4326));
-ERROR 22S00: st_distance(GEOMCOLLECTION, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
 # All types in a geometrycollection
 SET @pt = ST_GEOMFROMTEXT('POINT(0 0)');
 SET @ls = ST_GEOMFROMTEXT('LINESTRING(0 0, 10 0, 10 10, 0 10, 0 0)');
@@ -2075,7 +2029,6 @@ SET @gc = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(
 );
 DO ST_DISTANCE(ST_SRID(@pt, 0), ST_SRID(@gc, 0));
 DO ST_DISTANCE(ST_SRID(@pt, 4326), ST_SRID(@gc, 4326));
-ERROR 22S00: st_distance(POINT, GEOMCOLLECTION) has not been implemented for geographic spatial reference systems.
 # Polygon ring directions
 DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
 'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'
@@ -2591,3 +2544,18 @@ ROUND(ST_DISTANCE(@A_EPSG4053, @B_EPSG4053, "Clarke's link") , 5)
 78173.65186
 SELECT ST_DISTANCE(@A_SRID0, @B_SRID0, "metre");
 ERROR SU001: The geometry passed to function st_distance is in SRID 0, which doesn't specify a length unit. Can't convert to 'metre'.
+SET @EMPTY_COLLECTION_A = 'GEOMETRYCOLLECTION EMPTY';
+SET @EMPTY_COLLECTION_SRID0_A = ST_GEOMFROMTEXT(@EMPTY_COLLECTION_A);
+SET @EMPTY_COLLECTION_SRID4326_A = ST_GEOMFROMTEXT(@EMPTY_COLLECTION_A,4326);
+SELECT ST_DISTANCE( @EMPTY_COLLECTION_SRID0_A, @A_SRID0);
+ST_DISTANCE( @EMPTY_COLLECTION_SRID0_A, @A_SRID0)
+NULL
+SELECT ST_DISTANCE( @A_SRID0, @EMPTY_COLLECTION_SRID0_A);
+ST_DISTANCE( @A_SRID0, @EMPTY_COLLECTION_SRID0_A)
+NULL
+SELECT ST_DISTANCE( @EMPTY_COLLECTION_SRID4326_A, @A_WGS84);
+ST_DISTANCE( @EMPTY_COLLECTION_SRID4326_A, @A_WGS84)
+NULL
+SELECT ST_DISTANCE( @A_WGS84, @EMPTY_COLLECTION_SRID4326_A);
+ST_DISTANCE( @A_WGS84, @EMPTY_COLLECTION_SRID4326_A)
+NULL
