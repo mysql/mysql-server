@@ -21,3 +21,5 @@ ndb_row_count : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 
 # Fails on slow machines
 ndb.ndb_bushy_joins: Bug#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
+
+ndb.ndb_addnode_restart2: Bug#29192097 IMPROVE ABORT HANDLING OF ALTER TABLE
