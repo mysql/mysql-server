@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3763,6 +3763,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
     if (!initid.const_item && used_tables_cache == 0)
       used_tables_cache = RAND_TABLE_BIT;
     func->decimals = min<uint>(initid.decimals, NOT_FIXED_DEC);
+    func->set_data_type_string(func->max_length, &my_charset_bin);
   }
   initialized = 1;
   if (error) {
@@ -3975,9 +3976,11 @@ bool Item_func_udf_decimal::resolve_type(THD *) {
 /* Default max_length is max argument length */
 
 bool Item_func_udf_str::resolve_type(THD *) {
-  set_data_type(MYSQL_TYPE_VARCHAR);
+  uint result_length = 0;
   for (uint i = 0; i < arg_count; i++)
-    set_if_bigger(max_length, args[i]->max_length);
+    result_length = std::max(result_length, args[i]->max_length);
+  // If the UDF has an init function, this may be overridden later.
+  set_data_type_string(result_length, &my_charset_bin);
   return false;
 }
 
@@ -3985,6 +3988,7 @@ String *Item_func_udf_str::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   String *res = udf.val_str(str, &str_value);
   null_value = !res;
+  if (res) res->set_charset(collation.collation);
   return res;
 }
 
