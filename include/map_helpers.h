@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -300,37 +300,18 @@ class memroot_unordered_set
 };
 
 /**
-  A less function that compares std::strings according to a MySQL collation.
+  std::unordered_map, but collation aware and allocated on a MEM_ROOT.
 */
-template <typename Key>
-class Collation_key_less {
- public:
-  explicit Collation_key_less(const CHARSET_INFO *cs_arg)
-      : cs(cs_arg), strnncollsp(cs->coll->strnncollsp) {}
-
-  size_t operator()(const Key &a, const Key &b) const {
-    return strnncollsp(cs, pointer_cast<const uchar *>(a.data()), a.size(),
-                       pointer_cast<const uchar *>(b.data()), b.size()) < 0;
-  }
-
- private:
-  const CHARSET_INFO *cs;
-  decltype(cs->coll->strnncollsp) strnncollsp;
-};
-
-/**
-  std::map, but collation aware and allocated on a MEM_ROOT.
-*/
-
 template <class Key, class Value>
-class memroot_collation_map
-    : public std::map<Key, Value, Collation_key_less<Key>,
-                      Memroot_allocator<std::pair<const Key, Value>>> {
+class memroot_collation_unordered_map
+    : public std::unordered_map<
+          Key, Value, Collation_hasher, Collation_key_equal,
+          Memroot_allocator<std::pair<const Key, Value>>> {
  public:
-  memroot_collation_map(const CHARSET_INFO *cs, MEM_ROOT *mem_root)
-      : std::map<Key, Value, Collation_key_less<Key>,
-                 Memroot_allocator<std::pair<const Key, Value>>>(
-            Collation_key_less<Key>(cs),
+  memroot_collation_unordered_map(const CHARSET_INFO *cs, MEM_ROOT *mem_root)
+      : std::unordered_map<Key, Value, Collation_hasher, Collation_key_equal,
+                           Memroot_allocator<std::pair<const Key, Value>>>(
+            /*bucket_count=*/10, Collation_hasher(cs), Collation_key_equal(cs),
             Memroot_allocator<std::pair<const Key, Value>>(mem_root)) {}
 };
 

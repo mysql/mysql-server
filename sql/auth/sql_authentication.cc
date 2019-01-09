@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,8 @@
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
-#include "sql/auth/auth_internal.h"   // optimize_plugin_compare_by_pointer
+#include "sql/auth/auth_internal.h"  // optimize_plugin_compare_by_pointer
+#include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_auth_cache.h"  // acl_cache
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
@@ -1717,6 +1718,9 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
            !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
           acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip)) {
         mpvio->acl_user = acl_user_tmp->copy(mpvio->mem_root);
+        *(mpvio->restrictions) =
+            acl_restrictions->find_restrictions(mpvio->acl_user);
+
         /*
           When setting mpvio->acl_user_plugin we can save memory allocation if
           this is a built in plugin.
@@ -2909,6 +2913,7 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->ip = (char *)thd->security_context()->ip().str;
   mpvio->host = (char *)thd->security_context()->host().str;
   mpvio->charset_adapter = charset_adapter;
+  mpvio->restrictions = new (mpvio->mem_root) Restrictions(mpvio->mem_root);
 }
 
 static void server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio) {
@@ -3084,6 +3089,7 @@ static inline bool check_restrictions_for_com_connect_command(THD *thd) {
 */
 int acl_authenticate(THD *thd, enum_server_command command) {
   int res = CR_OK;
+  int ret = 1;
   MPVIO_EXT mpvio;
   LEX_CSTRING auth_plugin_name = default_auth_plugin_name;
   Thd_charset_adapter charset_adapter(thd);
@@ -3118,7 +3124,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                                      mpvio.protocol->get_packet_length())) {
       login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
-      DBUG_RETURN(1);
+      goto end;
     }
 
     DBUG_ASSERT(mpvio.status == MPVIO_EXT::RESTART ||
@@ -3154,324 +3160,335 @@ int acl_authenticate(THD *thd, enum_server_command command) {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_connection_type)(thd->get_vio_type());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
-
-  Security_context *sctx = thd->security_context();
-  const ACL_USER *acl_user = mpvio.acl_user;
-  bool proxy_check = check_proxy_users && !*mpvio.auth_info.authenticated_as;
-
-  DBUG_PRINT("info", ("proxy_check=%s", proxy_check ? "true" : "false"));
-
-  thd->password = mpvio.auth_info.password_used;  // remember for error messages
-
-  // reset authenticated_as because flag value received, but server
-  // proxy mapping is disabled:
-  if ((!check_proxy_users) && acl_user && !*mpvio.auth_info.authenticated_as) {
-    DBUG_PRINT("info",
-               ("setting authenticated_as to %s as check_proxy_user is OFF.",
-                mpvio.auth_info.user_name));
-    strcpy(mpvio.auth_info.authenticated_as,
-           acl_user->user ? acl_user->user : "");
-  }
-  /*
-    Log the command here so that the user can check the log
-    for the tried logins and also to detect break-in attempts.
-
-    if sctx->user is unset it's protocol failure, bad packet.
-  */
-  if (mpvio.auth_info.user_name && !proxy_check) {
-    acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                    mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
-                    command);
-  }
-  if (res == CR_OK && (!mpvio.can_authenticate() || thd->is_error())) {
-    res = CR_ERROR;
-  }
-
-  /*
-    Assign account user/host data to the current THD. This information is used
-    when the authentication fails after this point and we call audit api
-    notification event. Client user/host connects to the existing account is
-    easily distinguished from other connects.
-  */
-  if (mpvio.can_authenticate())
-    assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
-
-  if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS) {
-    Host_errors errors;
-    DBUG_ASSERT(mpvio.status == MPVIO_EXT::FAILURE);
-    switch (res) {
-      case CR_AUTH_PLUGIN_ERROR:
-        errors.m_auth_plugin = 1;
-        break;
-      case CR_AUTH_HANDSHAKE:
-        errors.m_handshake = 1;
-        break;
-      case CR_AUTH_USER_CREDENTIALS:
-        errors.m_authentication = 1;
-        break;
-      case CR_ERROR:
-      default:
-        /* Unknown of unspecified auth plugin error. */
-        errors.m_auth_plugin = 1;
-        break;
-    }
-    inc_host_errors(mpvio.ip, &errors);
-    if (mpvio.auth_info.user_name && proxy_check) {
-      acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                      mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
-                      command);
-    }
-    login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
-    DBUG_RETURN(1);
-  }
-
-  sctx->assign_proxy_user("", 0);
-
-  if (initialized)  // if not --skip-grant-tables
   {
-    bool is_proxy_user = false;
-    bool password_time_expired = false;
-    const char *auth_user = acl_user->user ? acl_user->user : "";
-    ACL_PROXY_USER *proxy_user;
-    /* check if the user is allowed to proxy as another user */
-    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-    if (!acl_cache_lock.lock()) DBUG_RETURN(1);
+    Security_context *sctx = thd->security_context();
+    const ACL_USER *acl_user = mpvio.acl_user;
+    bool proxy_check = check_proxy_users && !*mpvio.auth_info.authenticated_as;
 
-    proxy_user =
-        acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
-                            mpvio.auth_info.authenticated_as, &is_proxy_user);
-    acl_cache_lock.unlock();
-    if (mpvio.auth_info.user_name && proxy_check) {
+    DBUG_PRINT("info", ("proxy_check=%s", proxy_check ? "true" : "false"));
+
+    thd->password =
+        mpvio.auth_info.password_used;  // remember for error messages
+
+    // reset authenticated_as because flag value received, but server
+    // proxy mapping is disabled:
+    if ((!check_proxy_users) && acl_user &&
+        !*mpvio.auth_info.authenticated_as) {
+      DBUG_PRINT("info",
+                 ("setting authenticated_as to %s as check_proxy_user is OFF.",
+                  mpvio.auth_info.user_name));
+      strcpy(mpvio.auth_info.authenticated_as,
+             acl_user->user ? acl_user->user : "");
+    }
+    /*
+      Log the command here so that the user can check the log
+      for the tried logins and also to detect break-in attempts.
+
+      if sctx->user is unset it's protocol failure, bad packet.
+    */
+    if (mpvio.auth_info.user_name && !proxy_check) {
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
                       mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
                       command);
     }
-
-    if (thd->is_error()) DBUG_RETURN(1);
-
-    if (is_proxy_user) {
-      ACL_USER *acl_proxy_user;
-      char proxy_user_buf[USERNAME_LENGTH + MAX_HOSTNAME + 5];
-
-      /* we need to find the proxy user, but there was none */
-      if (!proxy_user) {
-        Host_errors errors;
-        errors.m_proxy_user = 1;
-        inc_host_errors(mpvio.ip, &errors);
-        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
-        DBUG_RETURN(1);
-      }
-
-      snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1, "'%s'@'%s'",
-               auth_user,
-               acl_user->host.get_host() ? acl_user->host.get_host() : "");
-      sctx->assign_proxy_user(proxy_user_buf, strlen(proxy_user_buf));
-
-      /* we're proxying : find the proxy user definition */
-      if (!acl_cache_lock.lock()) DBUG_RETURN(1);
-      acl_proxy_user = find_acl_user(
-          proxy_user->get_proxied_host() ? proxy_user->get_proxied_host() : "",
-          mpvio.auth_info.authenticated_as, true);
-      if (!acl_proxy_user) {
-        Host_errors errors;
-        errors.m_proxy_user_acl = 1;
-        inc_host_errors(mpvio.ip, &errors);
-        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
-        DBUG_RETURN(1);
-      }
-      acl_user = acl_proxy_user->copy(thd->mem_root);
-      DBUG_PRINT("info", ("User %s is a PROXY and will assume a PROXIED"
-                          " identity %s",
-                          auth_user, acl_user->user));
-      acl_cache_lock.unlock();
+    if (res == CR_OK && (!mpvio.can_authenticate() || thd->is_error())) {
+      res = CR_ERROR;
     }
-    sctx->set_master_access(acl_user->access,
-                            const_cast<ACL_USER *>(acl_user)->restrictions());
-    assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
-    /* Assign default role */
+
+    /*
+      Assign account user/host data to the current THD. This information is used
+      when the authentication fails after this point and we call audit api
+      notification event. Client user/host connects to the existing account is
+      easily distinguished from other connects.
+    */
+    if (mpvio.can_authenticate())
+      assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
+
+    if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS) {
+      Host_errors errors;
+      DBUG_ASSERT(mpvio.status == MPVIO_EXT::FAILURE);
+      switch (res) {
+        case CR_AUTH_PLUGIN_ERROR:
+          errors.m_auth_plugin = 1;
+          break;
+        case CR_AUTH_HANDSHAKE:
+          errors.m_handshake = 1;
+          break;
+        case CR_AUTH_USER_CREDENTIALS:
+          errors.m_authentication = 1;
+          break;
+        case CR_ERROR:
+        default:
+          /* Unknown of unspecified auth plugin error. */
+          errors.m_auth_plugin = 1;
+          break;
+      }
+      inc_host_errors(mpvio.ip, &errors);
+      if (mpvio.auth_info.user_name && proxy_check) {
+        acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
+                        mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
+                        command);
+      }
+      login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+      goto end;
+    }
+
+    sctx->assign_proxy_user("", 0);
+
+    if (initialized)  // if not --skip-grant-tables
     {
-      List_of_auth_id_refs default_roles;
+      bool is_proxy_user = false;
+      bool password_time_expired = false;
+      const char *auth_user = acl_user->user ? acl_user->user : "";
+      ACL_PROXY_USER *proxy_user;
+      /* check if the user is allowed to proxy as another user */
+      Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
       if (!acl_cache_lock.lock()) DBUG_RETURN(1);
-      Auth_id_ref authid = create_authid_from(acl_user);
-      if (opt_always_activate_granted_roles) {
-        activate_all_granted_and_mandatory_roles(acl_user, sctx);
-      } else {
-        /* The server policy is to only activate default roles */
-        get_default_roles(authid, default_roles);
-        List_of_auth_id_refs::iterator it = default_roles.begin();
-        for (; it != default_roles.end(); ++it) {
-          if (sctx->activate_role(it->first, it->second, true)) {
-            std::string roleidstr = create_authid_str_from(*it);
-            std::string authidstr = create_authid_str_from(acl_user);
-            LogErr(WARNING_LEVEL, ER_AUTH_CANT_ACTIVATE_ROLE, roleidstr.c_str(),
-                   authidstr.c_str());
+
+      proxy_user =
+          acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
+                              mpvio.auth_info.authenticated_as, &is_proxy_user);
+      acl_cache_lock.unlock();
+      if (mpvio.auth_info.user_name && proxy_check) {
+        acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
+                        mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
+                        command);
+      }
+
+      if (thd->is_error()) DBUG_RETURN(1);
+
+      if (is_proxy_user) {
+        ACL_USER *acl_proxy_user;
+        char proxy_user_buf[USERNAME_LENGTH + MAX_HOSTNAME + 5];
+
+        /* we need to find the proxy user, but there was none */
+        if (!proxy_user) {
+          Host_errors errors;
+          errors.m_proxy_user = 1;
+          inc_host_errors(mpvio.ip, &errors);
+          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+          goto end;
+        }
+
+        snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1, "'%s'@'%s'",
+                 auth_user,
+                 acl_user->host.get_host() ? acl_user->host.get_host() : "");
+        sctx->assign_proxy_user(proxy_user_buf, strlen(proxy_user_buf));
+
+        /* we're proxying : find the proxy user definition */
+        if (!acl_cache_lock.lock()) DBUG_RETURN(1);
+        acl_proxy_user = find_acl_user(proxy_user->get_proxied_host()
+                                           ? proxy_user->get_proxied_host()
+                                           : "",
+                                       mpvio.auth_info.authenticated_as, true);
+        if (!acl_proxy_user) {
+          Host_errors errors;
+          errors.m_proxy_user_acl = 1;
+          inc_host_errors(mpvio.ip, &errors);
+          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+          goto end;
+        }
+        acl_user = acl_proxy_user->copy(thd->mem_root);
+        *(mpvio.restrictions) = acl_restrictions->find_restrictions(acl_user);
+
+        DBUG_PRINT("info", ("User %s is a PROXY and will assume a PROXIED"
+                            " identity %s",
+                            auth_user, acl_user->user));
+        acl_cache_lock.unlock();
+      }
+      DBUG_ASSERT(mpvio.restrictions);
+      sctx->set_master_access(acl_user->access, *(mpvio.restrictions));
+      assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
+      /* Assign default role */
+      {
+        List_of_auth_id_refs default_roles;
+        if (!acl_cache_lock.lock()) DBUG_RETURN(1);
+        Auth_id_ref authid = create_authid_from(acl_user);
+        if (opt_always_activate_granted_roles) {
+          activate_all_granted_and_mandatory_roles(acl_user, sctx);
+        } else {
+          /* The server policy is to only activate default roles */
+          get_default_roles(authid, default_roles);
+          List_of_auth_id_refs::iterator it = default_roles.begin();
+          for (; it != default_roles.end(); ++it) {
+            if (sctx->activate_role(it->first, it->second, true)) {
+              std::string roleidstr = create_authid_str_from(*it);
+              std::string authidstr = create_authid_str_from(acl_user);
+              LogErr(WARNING_LEVEL, ER_AUTH_CANT_ACTIVATE_ROLE,
+                     roleidstr.c_str(), authidstr.c_str());
+            }
           }
+        }
+
+        acl_cache_lock.unlock();
+      }
+      sctx->checkout_access_maps();
+
+      if (!thd->is_error() &&
+          !(sctx->check_access(SUPER_ACL) ||
+            sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN"))
+                .first)) {
+        if (mysqld_offline_mode()) {
+          my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
+          goto end;
         }
       }
 
-      acl_cache_lock.unlock();
-    }
-    sctx->checkout_access_maps();
+      /*
+        OK. Let's check the SSL. Historically it was checked after the password,
+        as an additional layer, not instead of the password
+        (in which case it would've been a plugin too).
+      */
+      if (acl_check_ssl(thd, acl_user)) {
+        Host_errors errors;
+        errors.m_ssl = 1;
+        inc_host_errors(mpvio.ip, &errors);
+        login_failed_error(thd, &mpvio, thd->password);
+        goto end;
+      }
 
-    if (!thd->is_error() &&
-        !(sctx->check_access(SUPER_ACL) ||
-          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first)) {
-      if (mysqld_offline_mode()) {
-        my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
-        DBUG_RETURN(1);
+      /*
+        Check whether the account has been locked.
+      */
+      if (unlikely(mpvio.acl_user->account_locked)) {
+        locked_account_connection_count++;
+
+        my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0), mpvio.acl_user->user,
+                 mpvio.auth_info.host_or_ip);
+        LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED,
+               mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
+        goto end;
+      }
+
+      if (opt_require_secure_transport &&
+          !is_secure_transport(thd->active_vio->type)) {
+        my_error(ER_SECURE_TRANSPORT_REQUIRED, MYF(0));
+        goto end;
+      }
+
+      /* checking password_time_expire for connecting user */
+      password_time_expired = check_password_lifetime(thd, mpvio.acl_user);
+
+      if (unlikely(
+              mpvio.acl_user &&
+              (mpvio.acl_user->password_expired || password_time_expired) &&
+              !(mpvio.protocol->has_client_capability(
+                  CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)) &&
+              disconnect_on_expired_password)) {
+        /*
+          Clients that don't signal password expiration support
+          get a connect error.
+        */
+        Host_errors errors;
+
+        my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
+        query_logger.general_log_print(
+            thd, COM_CONNECT, "%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
+        LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_EXPIRED_PASSWORD);
+
+        errors.m_authentication = 1;
+        inc_host_errors(mpvio.ip, &errors);
+        goto end;
+      }
+
+      /* Don't allow the user to connect if he has done too many queries */
+      if ((acl_user->user_resource.questions ||
+           acl_user->user_resource.updates ||
+           acl_user->user_resource.conn_per_hour ||
+           acl_user->user_resource.user_conn ||
+           global_system_variables.max_user_connections) &&
+          get_or_create_user_conn(
+              thd,
+              (opt_old_style_user_limits ? sctx->user().str
+                                         : sctx->priv_user().str),
+              (opt_old_style_user_limits ? sctx->host_or_ip().str
+                                         : sctx->priv_host().str),
+              &acl_user->user_resource))
+        goto end;  // The error is set by get_or_create_user_conn()
+
+      /*
+        We are copying the connected user's password expired flag to the
+        security context. This allows proxy user to execute queries even if
+        proxied user password expires.
+      */
+      sctx->set_password_expired(mpvio.acl_user->password_expired ||
+                                 password_time_expired);
+    } else {
+      sctx->skip_grants();
+      /*
+        In case of --skip-grant-tables, we already would have set the MPVIO
+        as SUCCESS, it means we are not interested in any of the error set
+        in the diagnostic area, clear them.
+      */
+      thd->get_stmt_da()->reset_diagnostics_area();
+    }
+
+    const USER_CONN *uc;
+    if ((uc = thd->get_user_connect()) &&
+        (uc->user_resources.conn_per_hour || uc->user_resources.user_conn ||
+         global_system_variables.max_user_connections) &&
+        check_for_max_user_connections(thd, uc)) {
+      goto end;  // The error is set in check_for_max_user_connections()
+    }
+
+    DBUG_PRINT("info", ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
+                        "Login user: '%s' Priv_user: '%s'  Using password: %s "
+                        "Access: %lu  db: '%s'",
+                        thd->get_protocol()->get_client_capabilities(),
+                        thd->max_client_packet_length, sctx->host_or_ip().str,
+                        sctx->user().str, sctx->priv_user().str,
+                        thd->password ? "yes" : "no", sctx->master_access(),
+                        mpvio.db.str));
+
+    if (command == COM_CONNECT &&
+        check_restrictions_for_com_connect_command(thd)) {
+      release_user_connection(thd);
+      goto end;
+    }
+
+    /*
+      This is the default access rights for the current database.  It's
+      set to 0 here because we don't have an active database yet (and we
+      may not have an active database to set.
+    */
+    sctx->cache_current_db_access(0);
+
+    /* Change a database if necessary */
+    if (mpvio.db.length) {
+      if (mysql_change_db(thd, to_lex_cstring(mpvio.db), false)) {
+        /* mysql_change_db() has pushed the error message. */
+        release_user_connection(thd);
+        Host_errors errors;
+        errors.m_default_database = 1;
+        inc_host_errors(mpvio.ip, &errors);
+        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+        goto end;
       }
     }
 
-    /*
-      OK. Let's check the SSL. Historically it was checked after the password,
-      as an additional layer, not instead of the password
-      (in which case it would've been a plugin too).
-    */
-    if (acl_check_ssl(thd, acl_user)) {
-      Host_errors errors;
-      errors.m_ssl = 1;
-      inc_host_errors(mpvio.ip, &errors);
-      login_failed_error(thd, &mpvio, thd->password);
-      DBUG_RETURN(1);
-    }
+    if (mpvio.auth_info.external_user[0])
+      sctx->assign_external_user(mpvio.auth_info.external_user,
+                                 strlen(mpvio.auth_info.external_user));
 
-    /*
-      Check whether the account has been locked.
-    */
-    if (unlikely(mpvio.acl_user->account_locked)) {
-      locked_account_connection_count++;
-
-      my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0), mpvio.acl_user->user,
-               mpvio.auth_info.host_or_ip);
-      LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED,
-             mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
-      DBUG_RETURN(1);
-    }
-
-    if (opt_require_secure_transport &&
-        !is_secure_transport(thd->active_vio->type)) {
-      my_error(ER_SECURE_TRANSPORT_REQUIRED, MYF(0));
-      DBUG_RETURN(1);
-    }
-
-    /* checking password_time_expire for connecting user */
-    password_time_expired = check_password_lifetime(thd, mpvio.acl_user);
-
-    if (unlikely(mpvio.acl_user &&
-                 (mpvio.acl_user->password_expired || password_time_expired) &&
-                 !(mpvio.protocol->has_client_capability(
-                     CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)) &&
-                 disconnect_on_expired_password)) {
-      /*
-        Clients that don't signal password expiration support
-        get a connect error.
-      */
-      Host_errors errors;
-
-      my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
-      query_logger.general_log_print(thd, COM_CONNECT, "%s",
-                                     ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_EXPIRED_PASSWORD);
-
-      errors.m_authentication = 1;
-      inc_host_errors(mpvio.ip, &errors);
-      DBUG_RETURN(1);
-    }
-
-    /* Don't allow the user to connect if he has done too many queries */
-    if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
-         acl_user->user_resource.conn_per_hour ||
-         acl_user->user_resource.user_conn ||
-         global_system_variables.max_user_connections) &&
-        get_or_create_user_conn(
-            thd,
-            (opt_old_style_user_limits ? sctx->user().str
-                                       : sctx->priv_user().str),
-            (opt_old_style_user_limits ? sctx->host_or_ip().str
-                                       : sctx->priv_host().str),
-            &acl_user->user_resource))
-      DBUG_RETURN(1);  // The error is set by get_or_create_user_conn()
-
-    /*
-      We are copying the connected user's password expired flag to the security
-      context.
-      This allows proxy user to execute queries even if proxied user password
-      expires.
-    */
-    sctx->set_password_expired(mpvio.acl_user->password_expired ||
-                               password_time_expired);
-  } else {
-    sctx->skip_grants();
-    /*
-      In case of --skip-grant-tables, we already would have set the MPVIO
-      as SUCCESS, it means we are not interested in any of the error set
-      in the diagnostic area, clear them.
-    */
-    thd->get_stmt_da()->reset_diagnostics_area();
+    if (res == CR_OK_HANDSHAKE_COMPLETE)
+      thd->get_stmt_da()->disable_status();
+    else
+      my_ok(thd);
   }
-
-  const USER_CONN *uc;
-  if ((uc = thd->get_user_connect()) &&
-      (uc->user_resources.conn_per_hour || uc->user_resources.user_conn ||
-       global_system_variables.max_user_connections) &&
-      check_for_max_user_connections(thd, uc)) {
-    DBUG_RETURN(1);  // The error is set in check_for_max_user_connections()
-  }
-
-  DBUG_PRINT("info", ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
-                      "Login user: '%s' Priv_user: '%s'  Using password: %s "
-                      "Access: %lu  db: '%s'",
-                      thd->get_protocol()->get_client_capabilities(),
-                      thd->max_client_packet_length, sctx->host_or_ip().str,
-                      sctx->user().str, sctx->priv_user().str,
-                      thd->password ? "yes" : "no", sctx->master_access(),
-                      mpvio.db.str));
-
-  if (command == COM_CONNECT &&
-      check_restrictions_for_com_connect_command(thd)) {
-    release_user_connection(thd);
-    DBUG_RETURN(1);
-  }
-
-  /*
-    This is the default access rights for the current database.  It's
-    set to 0 here because we don't have an active database yet (and we
-    may not have an active database to set.
-  */
-  sctx->cache_current_db_access(0);
-
-  /* Change a database if necessary */
-  if (mpvio.db.length) {
-    if (mysql_change_db(thd, to_lex_cstring(mpvio.db), false)) {
-      /* mysql_change_db() has pushed the error message. */
-      release_user_connection(thd);
-      Host_errors errors;
-      errors.m_default_database = 1;
-      inc_host_errors(mpvio.ip, &errors);
-      login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
-      DBUG_RETURN(1);
-    }
-  }
-
-  if (mpvio.auth_info.external_user[0])
-    sctx->assign_external_user(mpvio.auth_info.external_user,
-                               strlen(mpvio.auth_info.external_user));
-
-  if (res == CR_OK_HANDSHAKE_COMPLETE)
-    thd->get_stmt_da()->disable_status();
-  else
-    my_ok(thd);
-
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
-  LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();
-  PSI_THREAD_CALL(set_thread_account)
-  (main_sctx_user.str, main_sctx_user.length, main_sctx_host_or_ip.str,
-   main_sctx_host_or_ip.length);
+  {
+    LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
+    LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();
+    PSI_THREAD_CALL(set_thread_account)
+    (main_sctx_user.str, main_sctx_user.length, main_sctx_host_or_ip.str,
+     main_sctx_host_or_ip.length);
+  }
 #endif /* HAVE_PSI_THREAD_INTERFACE */
-
+  ret = 0;
+end:
+  if (mpvio.restrictions) mpvio.restrictions->~Restrictions();
   /* Ready to handle queries */
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
 }
 
 bool is_secure_transport(int vio_type) {

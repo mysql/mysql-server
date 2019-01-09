@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 class ACL_USER;
 class Protocol_classic;
 class THD;
+class Restrictions;
 struct MEM_ROOT;
 struct SHOW_VAR;
 
@@ -62,6 +63,7 @@ class Thd_charset_adapter {
 struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   MYSQL_SERVER_AUTH_INFO auth_info;
   const ACL_USER *acl_user;
+  Restrictions *restrictions;
   plugin_ref plugin;  ///< what plugin we're under
   LEX_STRING db;      ///< db name from the handshake packet
   /** when restarting a plugin this caches the last client reply */

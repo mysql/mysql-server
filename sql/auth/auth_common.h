@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,7 @@ template <class T>
 class List;
 typedef struct user_conn USER_CONN;
 class Security_context;
+class ACL_USER;
 struct TABLE;
 struct MEM_ROOT;
 struct TABLE_LIST;
@@ -985,7 +986,8 @@ class Auth_id {
   Auth_id(const Auth_id_ref &id);
   Auth_id(const LEX_CSTRING &user, const LEX_CSTRING &host);
   Auth_id(const std::string &user, const std::string &host);
-  Auth_id(LEX_USER *lex_user);
+  Auth_id(const LEX_USER *lex_user);
+  Auth_id(const ACL_USER *acl_user);
 
   ~Auth_id();
   Auth_id(const Auth_id &id);
@@ -993,7 +995,7 @@ class Auth_id {
 
   bool operator<(const Auth_id &id) const;
   void auth_str(std::string *out) const;
-
+  std::string auth_str() const;
   const std::string &user() const;
   const std::string &host() const;
 

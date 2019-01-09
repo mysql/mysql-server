@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -784,10 +784,24 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       protocol->end_row();
     }
   };
-  auto make_revoke_stmts = [](THD *thd, ACL_USER *role, Protocol *protocol,
-                              const DB_restrictions &restrictions) {
+  auto make_partial_db_revoke_stmts = [](THD *thd, ACL_USER *acl_user,
+                                         Protocol *protocol,
+                                         const DB_restrictions &restrictions) {
     if (mysqld_partial_revokes()) {
+      /*
+       Copy the unordered restrictions into an array.
+       Send the sorted partial revokes to the client.
+      */
+      Mem_root_array<std::pair<std::string, ulong>> restrictions_array(
+          thd->mem_root);
       for (const auto rl_itr : restrictions.get()) {
+        restrictions_array.push_back({rl_itr.first, rl_itr.second});
+      }
+      std::sort(restrictions_array.begin(), restrictions_array.end(),
+                [](const auto &p1, const auto &p2) -> bool {
+                  return (p1.first.compare(p2.first) <= 0);
+                });
+      for (const auto rl_itr : restrictions_array) {
         String db;
         db.length(0);
         db.append(STRING_WITH_LEN("REVOKE "));
@@ -806,12 +820,12 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
         append_identifier(thd, &db, rl_itr.first.c_str(),
                           rl_itr.first.length());
         db.append(STRING_WITH_LEN(".* FROM "));
-        append_identifier(thd, &db, role->user,
-                          role->user ? strlen(role->user) : 0);
+        append_identifier(thd, &db, acl_user->user,
+                          acl_user->user ? strlen(acl_user->user) : 0);
         db.append('@');
         // host and lex_user->host are equal except for case
-        append_identifier(thd, &db, role->host.get_host(),
-                          role->host.get_host_len());
+        append_identifier(thd, &db, acl_user->host.get_host(),
+                          acl_user->host.get_host_len());
         protocol->start_row();
         protocol->store(db.ptr(), db.length(), db.charset());
         protocol->end_row();
@@ -821,7 +835,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
 
   make_grant_stmts(thd, role, protocol, db_map);
   make_grant_stmts(thd, role, protocol, db_wild_map);
-  make_revoke_stmts(thd, role, protocol, restrictions);
+  make_partial_db_revoke_stmts(thd, role, protocol, restrictions);
 }
 
 /**
@@ -1359,14 +1373,14 @@ class Get_access_maps : public boost::default_bfs_visitor {
     /* Add restrictions */
     {
       /* DB Restrictions */
-      Auth_id granter(acl_user.user, strlen(acl_user.user),
-                      acl_user.host.get_host(), acl_user.host.get_host_len());
+      const Auth_id granter(&acl_user);
+      Restrictions restrictions =
+          acl_restrictions->find_restrictions(&acl_user);
       std::unique_ptr<Restrictions_aggregator> aggregator =
           Restrictions_aggregator_factory::create(
               granter, m_grantee, acl_user.access & DB_ACLS,
-              *m_access & DB_ACLS, acl_user.restrictions().db(),
-              m_restrictions->db(), acl_user.access & DB_ACLS, m_db_map,
-              m_db_wild_map);
+              *m_access & DB_ACLS, restrictions.db(), m_restrictions->db(),
+              acl_user.access & DB_ACLS, m_db_map, m_db_wild_map);
       if (aggregator) {
         DB_restrictions db_restrictions(nullptr);
         if (aggregator->generate(db_restrictions)) return;
@@ -1913,8 +1927,9 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   bool db_is_pattern = ((want_access & GRANT_ACL) && dont_check_global_grants);
   ulong dummy;
   DBUG_ENTER("check_access");
-  DBUG_PRINT("enter", ("db: %s  want_access: %lu  master_access: %lu",
-                       db ? db : "", want_access, sctx->master_access(db)));
+  DBUG_PRINT("enter",
+             ("db: %s  want_access: %lu  master_access: %lu", db_name.c_str(),
+              want_access, sctx->master_access(db_name)));
 
   if (save_priv)
     *save_priv = 0;
@@ -4287,7 +4302,7 @@ void get_privilege_access_maps(
   // get dynamic privileges
   get_dynamic_privileges(acl_user, dynamic_acl);
   /* Find out the existing restrictions of the current user. */
-  restrictions = acl_user->acl_restrictions->m_restrictions;
+  restrictions = acl_restrictions->find_restrictions(acl_user);
 
   /* We don't support role hierarchies for anonymous accounts. */
   if (acl_user->user == nullptr) DBUG_VOID_RETURN;
@@ -6273,8 +6288,8 @@ int mysql_set_active_role_none(THD *thd) {
       find_acl_user(thd->security_context()->priv_host().str,
                     thd->security_context()->priv_user().str, true);
   if (user) {
-    thd->security_context()->set_master_access(user->access,
-                                               user->restrictions());
+    thd->security_context()->set_master_access(
+        user->access, acl_restrictions->find_restrictions(user));
   }
   my_ok(thd);
   return 0;

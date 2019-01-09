@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,6 @@ Abstract_restrictions::~Abstract_restrictions() {}
 */
 DB_restrictions::DB_restrictions(MEM_ROOT *mem_root)
     : Abstract_restrictions(mem_root),
-      m_allocator(m_mem_root_base.get_mem_root()),
       m_restrictions(system_charset_info ? system_charset_info
                                          : &my_charset_utf8_general_ci,
                      m_mem_root_base.get_mem_root()) {}
@@ -143,14 +142,12 @@ void DB_restrictions::add(const std::string &db_name,
 */
 void DB_restrictions::add(const std::string &db_name,
                           const ulong revoke_privs) {
-  /* copy the DB name in the MEM_ROOT in order to add it to the container */
-  pr::string name(db_name.c_str(), m_allocator);
-  if (m_restrictions.find(name) != m_restrictions.end()) {
+  if (m_restrictions.find(db_name) != m_restrictions.end()) {
     /* Partial revokes already exists on this DB so update them */
-    m_restrictions[name] |= (revoke_privs);
+    m_restrictions[db_name] |= (revoke_privs);
   } else {
     /* Partial revokes do not exist on this DB so add them */
-    m_restrictions.emplace(name, revoke_privs);
+    m_restrictions.emplace(db_name, revoke_privs);
   }
 }
 
@@ -226,8 +223,7 @@ bool DB_restrictions::add(const Json_object &json_object) {
 */
 void DB_restrictions::remove(const std::string &db_name,
                              const std::set<std::string> &revoke_privs) {
-  const pr::string name(db_name.c_str(), m_allocator);
-  auto rest_itr = m_restrictions.find(name);
+  auto rest_itr = m_restrictions.find(db_name);
   if (rest_itr != m_restrictions.end()) {
     for (auto &priv : revoke_privs) {
       const auto &itr = global_acls_map.find(priv);
@@ -247,8 +243,7 @@ void DB_restrictions::remove(const std::string &db_name,
 */
 void DB_restrictions::remove(const std::string &db_name,
                              const ulong revoke_privs) {
-  const pr::string name(db_name.c_str(), m_allocator);
-  auto rest_itr = m_restrictions.find(name);
+  auto rest_itr = m_restrictions.find(db_name);
   if (rest_itr != m_restrictions.end()) {
     remove(revoke_privs, rest_itr->second);
   }
@@ -297,8 +292,7 @@ void DB_restrictions::remove(const ulong remove_restrictions,
     @retval false Entry not found. Do not rely on access.
 */
 bool DB_restrictions::find(const std::string &db_name, ulong &access) const {
-  const pr::string name(db_name.c_str(), m_allocator);
-  const auto &itr = m_restrictions.find(name);
+  const auto &itr = m_restrictions.find(db_name);
   if (itr != m_restrictions.end()) {
     access = itr->second;
     return true;
@@ -587,8 +581,9 @@ void Restrictions_aggregator_factory::fetch_grantor_access(
 
 void Restrictions_aggregator_factory::fetch_grantee_access(
     const ACL_USER *grantee, ulong &global_access, Restrictions &restrictions) {
+  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
   global_access = grantee->access;
-  restrictions = grantee->restrictions();
+  restrictions = acl_restrictions->find_restrictions(grantee);
 }
 
 /**
@@ -1515,3 +1510,6 @@ void Restrictions::add_db(const DB_restrictions &db_restrictions) {
 
 /** Clear database restrictions */
 void Restrictions::clear_db() { m_db_restrictions.clear(); }
+
+/** Return if restrictions are empty or not */
+bool Restrictions::is_empty() const { return m_db_restrictions.is_empty(); }

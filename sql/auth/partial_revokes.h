@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -44,20 +44,8 @@ class Json_object;
 class Restrictions_aggregator;
 extern MEM_ROOT global_acl_memory;
 
-/*
-  'pr' stands for Partial Revokes. We have overridden the standard string so
-  that we can allocate the string to the MEM_ROOT.
-  The benefit of doing this is that it helps us to keep the memory management
-  dandy. The cost that we are paying for it is that pr::string cannot interact
-  directly with std::string.
-*/
-namespace pr {
-using string =
-    std::basic_string<char, std::char_traits<char>, Memroot_allocator<char>>;
-}  // namespace pr
-
 // Alias declarations
-using db_revocations = memroot_collation_map<pr::string, ulong>;
+using db_revocations = memroot_collation_unordered_map<std::string, ulong>;
 using Db_access_map = std::map<std::string, unsigned long>;
 
 /**
@@ -121,10 +109,6 @@ class DB_restrictions final : public Abstract_restrictions {
       noexcept;
 
  private:
-  /**
-    MEM_ROOT based allocator to allocate the keys of m_restrictrions container
-  */
-  Memroot_allocator<char> m_allocator;
   /** Database restrictions */
   db_revocations m_restrictions;
 };
@@ -147,47 +131,11 @@ class Restrictions {
   void set_db(const DB_restrictions &db_restrictions);
   void add_db(const DB_restrictions &db_restrictions);
   void clear_db();
+  bool is_empty() const;
 
  private:
   /** Database restrictions */
   DB_restrictions m_db_restrictions;
-};
-
-/**
-  A wrapper over Restrictions. It overloads new/delete
-  to use MEM_ROOT.
-*/
-class Acl_restrictions {
- public:
-  Acl_restrictions(MEM_ROOT *mem_root) : m_restrictions(mem_root) {}
-  ~Acl_restrictions() { m_restrictions.clear_db(); }
-  /* Overloaded functions */
-  static void *operator new(size_t size, MEM_ROOT *mem_root) {
-    return alloc_root(mem_root, size);
-  }
-
-  static void *operator new[](size_t size, MEM_ROOT *mem_root) {
-    return alloc_root(mem_root, size);
-  }
-
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
-    if (ptr != nullptr) TRASH(ptr, size);
-  }
-
-  static void operator delete[](void *ptr MY_ATTRIBUTE((unused)),
-                                size_t size MY_ATTRIBUTE((unused))) {
-    if (ptr != nullptr) TRASH(ptr, size);
-  }
-
-  /* Restrict copy constructor and assignment operator */
-  Acl_restrictions(const Acl_restrictions &) = delete;
-  Acl_restrictions(Acl_restrictions &&) = delete;
-  Acl_restrictions &operator=(const Acl_restrictions &) = delete;
-  Acl_restrictions &operator=(Acl_restrictions &&) = delete;
-
-  /** Restriction information */
-  Restrictions m_restrictions;
 };
 
 /**

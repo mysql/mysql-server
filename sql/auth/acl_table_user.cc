@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1860,7 +1860,6 @@ bool Acl_table_user_reader::driver() {
   if (setup_table(is_old_db_layout)) DBUG_RETURN(true);
   allow_all_hosts = 0;
   int read_rec_errcode;
-  num_partial_revokes = 0;
   while (!(read_rec_errcode = m_read_record_info->Read())) {
     if (read_row(is_old_db_layout, super_users_with_empty_plugin))
       DBUG_RETURN(true);

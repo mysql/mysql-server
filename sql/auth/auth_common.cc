@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_utility.h"
+#include "sql/auth/sql_auth_cache.h"
 
 #include <string.h>
 #include <cmath>
@@ -77,8 +78,8 @@ Auth_id::Auth_id() {}
 
 Auth_id::Auth_id(const char *user, size_t user_len, const char *host,
                  size_t host_len) {
-  if (user != nullptr) m_user.append(user, user_len);
-  if (host != nullptr) m_host.append(host, host_len);
+  if (user != nullptr) m_user.assign(user, user_len);
+  if (host != nullptr) m_host.assign(host, host_len);
 }
 
 Auth_id::Auth_id(const Auth_id_ref &id)
@@ -90,8 +91,16 @@ Auth_id::Auth_id(const LEX_CSTRING &user, const LEX_CSTRING &host)
 Auth_id::Auth_id(const std::string &user, const std::string &host)
     : m_user(user), m_host(host) {}
 
-Auth_id::Auth_id(LEX_USER *lex_user)
+Auth_id::Auth_id(const LEX_USER *lex_user)
     : Auth_id(lex_user->user, lex_user->host) {}
+
+Auth_id::Auth_id(const ACL_USER *acl_user) {
+  if (acl_user) {
+    if (acl_user->user != nullptr)  // Not an anonymous user
+      m_user.assign(acl_user->user, strlen(acl_user->user));
+    m_host.assign(acl_user->host.get_host(), acl_user->host.get_host_len());
+  }
+}
 
 Auth_id::~Auth_id() {}
 
@@ -108,6 +117,14 @@ void Auth_id::auth_str(std::string *out) const {
   tmp.append('@');
   append_identifier(&tmp, m_host.c_str(), m_host.length());
   out->append(tmp.ptr());
+}
+
+std::string Auth_id::auth_str() const {
+  String tmp;
+  append_identifier(&tmp, m_user.c_str(), m_user.length());
+  tmp.append('@');
+  append_identifier(&tmp, m_host.c_str(), m_host.length());
+  return tmp.ptr();
 }
 
 const std::string &Auth_id::user() const { return m_user; }

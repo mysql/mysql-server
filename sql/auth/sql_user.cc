@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -1557,9 +1557,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
             my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
             DBUG_RETURN(-1);
           }
-          const DB_restrictions &db_restrictions =
-              acl_user->acl_restrictions->m_restrictions.db();
-          if (db_restrictions.is_not_empty()) --num_partial_revokes;
+          acl_restrictions->remove_restrictions(acl_user);
           acl_users->erase(idx);
           rebuild_cached_acl_users_for_name();
           /*

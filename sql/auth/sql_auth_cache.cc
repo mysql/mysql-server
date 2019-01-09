@@ -92,12 +92,12 @@
 #include <utility>
 #include <vector>
 
+using std::make_unique;
 using std::min;
 using std::move;
 using std::string;
 using std::unique_ptr;
 
-size_t num_partial_revokes = 0;
 PSI_mutex_key key_LOCK_acl_cache_flush;
 PSI_mutex_info all_acl_cache_mutexes[] = {
     {&key_LOCK_acl_cache_flush, "LOCK_acl_cache_flush", PSI_FLAG_SINGLETON, 0,
@@ -144,6 +144,7 @@ unique_ptr<
 malloc_unordered_map<std::string, unique_ptr_my_free<acl_entry>> db_cache{
     key_memory_acl_cache};
 collation_unordered_map<std::string, ACL_USER *> *acl_check_hosts = nullptr;
+unique_ptr<Acl_restrictions> acl_restrictions = nullptr;
 
 /**
   A hashmap on user part of account name for quick lookup.
@@ -320,8 +321,6 @@ ACL_USER::ACL_USER() {
   use_default_password_reuse_interval = false;
   password_require_current = Lex_acl_attrib_udyn::DEFAULT;
   /* Acl_credentials is initialized by its constructor */
-  acl_restrictions =
-      new (&global_acl_memory) Acl_restrictions(&global_acl_memory);
 }
 
 ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
@@ -353,14 +352,7 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   }
   dst->host.update_hostname(safe_strdup_root(root, host.get_host()));
   dst->password_require_current = password_require_current;
-  dst->acl_restrictions = new (root) Acl_restrictions(root);
-  dst->acl_restrictions->m_restrictions = acl_restrictions->m_restrictions;
   return dst;
-}
-
-const Restrictions &ACL_USER::restrictions() const {
-  DBUG_ASSERT(acl_restrictions != nullptr);
-  return acl_restrictions->m_restrictions;
 }
 
 void ACL_PROXY_USER::init(const char *host_arg, const char *user_arg,
@@ -1371,7 +1363,8 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
           }
         }  // end if
       }    // end for
-      sctx->set_master_access(acl_user->access, acl_user->restrictions());
+      sctx->set_master_access(acl_user->access,
+                              acl_restrictions->find_restrictions(acl_user));
     }  // end if
     sctx->assign_priv_user(user, user ? strlen(user) : 0);
     sctx->assign_priv_host(
@@ -1619,20 +1612,22 @@ bool check_partial_revoke_inconsistency(const char *user, const char *host,
   DBUG_ENTER("check_partial_revoke_inconsistency");
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
   bool ignore = false;
+  std::string db_name(db ? db : "");
   ACL_USER *acl_user = find_acl_user(host ? host : "", user ? user : "", true);
   if (!acl_user) DBUG_RETURN(ignore);
-  auto &restrictions = acl_user->acl_restrictions->m_restrictions.db();
-  for (auto &db_entry : restrictions.get()) {
-    if (!wild_compare(db_entry.first.c_str(), (int)db_entry.first.length(),
-                      db ? db : "", db ? strlen(db) : 0, true)) {
-      if (db_entry.second & db_privs)
-        LogErr(WARNING_LEVEL, ER_WARN_PARTIAL_REVOKE_AND_DB_GRANT,
-               user ? user : "", host ? host : "%", db ? db : "");
-      break;
+  Restrictions restrictions = acl_restrictions->find_restrictions(acl_user);
+  if (!restrictions.is_empty()) {
+    for (auto &db_entry : restrictions.db().get()) {
+      if (!wild_compare(db_entry.first.c_str(), (int)db_entry.first.length(),
+                        db_name.c_str(), db_name.length(), true)) {
+        if (db_entry.second & db_privs)
+          LogErr(WARNING_LEVEL, ER_WARN_PARTIAL_REVOKE_AND_DB_GRANT,
+                 user ? user : "", host ? host : "%", db_name.c_str());
+        break;
+      }
     }
   }
 
-  std::string db_name(db);
   bool wildcard_db_grant = has_wildcards_in_db_grant(db_name);
   if (db && wildcard_db_grant) {
     if (mysqld_partial_revokes()) {
@@ -1986,7 +1981,7 @@ bool acl_reload(THD *thd) {
   Role_index_map *old_authid_to_vertex = nullptr;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   User_to_dynamic_privileges_map *old_dyn_priv_map;
-  size_t old_num_partial_revokes = num_partial_revokes;
+  unique_ptr<Acl_restrictions> old_acl_restrictions = nullptr;
   DBUG_ENTER("acl_reload");
 
   // Interchange the global role cache ptrs with the local role cache ptrs.
@@ -2067,6 +2062,7 @@ bool acl_reload(THD *thd) {
   old_acl_users = acl_users;
   old_acl_dbs = acl_dbs;
   old_acl_proxy_users = acl_proxy_users;
+  old_acl_restrictions = move(acl_restrictions);
   swap_role_cache();
   roles_init();
 
@@ -2075,6 +2071,7 @@ bool acl_reload(THD *thd) {
   acl_dbs = new Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
   acl_proxy_users = new Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE>(
       key_memory_acl_mem);
+  acl_restrictions = make_unique<Acl_restrictions>();
 
   // acl_load() overwrites global_acl_memory, so we need to free it.
   // However, we can't do that immediately, because acl_load() might fail,
@@ -2101,7 +2098,7 @@ bool acl_reload(THD *thd) {
     acl_dbs = old_acl_dbs;
     acl_proxy_users = old_acl_proxy_users;
     global_acl_memory = move(old_mem);
-    num_partial_revokes = old_num_partial_revokes;
+    acl_restrictions = move(old_acl_restrictions);
     // Revert to the old role caches
     swap_role_cache();
     // Old caches must be pointing to the global role caches right now
@@ -2668,22 +2665,7 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
           acl_user->password_require_current =
               password_life.update_password_require_current;
         }
-        {
-          Restrictions &user_restrictions =
-              acl_user->acl_restrictions->m_restrictions;
-          if (restrictions.db().is_not_empty()) {
-            if (user_restrictions.db().is_empty()) ++num_partial_revokes;
-            /* If there is restriction list then add that to the global cache */
-            user_restrictions.set_db(restrictions.db());
-          } else {
-            /*
-              No restriction list means we would want to remove that from global
-              cache as well
-            */
-            if (user_restrictions.db().is_not_empty()) --num_partial_revokes;
-            user_restrictions.clear_db();
-          }
-        }
+        acl_restrictions->upsert_restrictions(acl_user, restrictions);
 
         /* search complete: */
         break;
@@ -2784,12 +2766,7 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
     acl_user.password_require_current =
         password_life.update_password_require_current;
   }
-
-  if (restrictions.db().size()) {
-    acl_user.acl_restrictions->m_restrictions = restrictions;
-    ++num_partial_revokes;
-  }
-
+  acl_restrictions->upsert_restrictions(&acl_user, restrictions);
   set_user_salt(&acl_user);
   /* New user is not a role by default. */
   acl_user.is_role = false;
@@ -3504,6 +3481,89 @@ bool ACL_compare::operator()(const ACL_ACCESS *a, const ACL_ACCESS *b) {
   return a->sort > b->sort;
 }
 
+/**
+  Construstor
+*/
+Acl_restrictions::Acl_restrictions() : m_restrictions_map(key_memory_acl_mem) {}
+
+/**
+  Remove the Restrictions of the ACL_USER.
+
+  @param [in] acl_user The ACL_USER for whom to remove the Restrictions
+*/
+void Acl_restrictions::remove_restrictions(const ACL_USER *acl_user) {
+  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
+  const Auth_id auth_id(acl_user);
+  auto itr = m_restrictions_map.find(auth_id.auth_str());
+  if (itr != m_restrictions_map.end()) m_restrictions_map.erase(itr);
+}
+
+/**
+  Update, insert or remove the Restrictions for the ACL_USER.
+
+  If ACL_USER has a Restrictions
+   - If specified Restrictions is not empty then update ACL_USER's Restrictions
+   - Otherwise clear the ACL_USER's restriction
+  Else if there no Restrictions for the ACL_USER then insert the specified
+    Restrictions.
+
+  @param [in] acl_user The ACL_USER for whom to alter the Restrictions
+  @param [in] restrictions Restrictions to be inserted for the ACL_USER
+*/
+void Acl_restrictions::upsert_restrictions(const ACL_USER *acl_user,
+                                           const Restrictions &restrictions) {
+  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
+  const Auth_id auth_id(acl_user);
+  const std::string auth_str = auth_id.auth_str();
+  auto restrictions_itr = m_restrictions_map.find(auth_str);
+  if (restrictions_itr != m_restrictions_map.end()) {
+    if (restrictions.is_empty()) {
+      /* Empty restrictions means we want to remove that from global cache */
+      m_restrictions_map.erase(restrictions_itr);
+    } else {
+      /* If there exists restrictions then update that in the global cache */
+      restrictions_itr->second = restrictions;
+    }
+  } else if (!restrictions.is_empty()) {
+    /* Insert non-empty restrictions object in the global cache */
+    m_restrictions_map.emplace(auth_str, restrictions);
+  }
+}
+
+/**
+  Find the Restrictions of the ACL_USER.
+
+  @param [in]  acl_user The ACL_USER for whom to find the Restrictions
+
+  @returns valid Restrictions if found otherwise empty Restrictions
+*/
+Restrictions Acl_restrictions::find_restrictions(
+    const ACL_USER *acl_user) const {
+  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
+  const Auth_id auth_id(acl_user);
+  auto restrictions_itr = m_restrictions_map.find(auth_id.auth_str());
+  if (restrictions_itr != m_restrictions_map.end())
+    return restrictions_itr->second;
+  else
+    return Restrictions(nullptr);
+}
+
+/**
+  @returns the number of Restrictions present. It is not thread safe method.
+*/
+size_t Acl_restrictions::size() const { return m_restrictions_map.size(); }
+
+/**
+  Method to check if there exists at least one partial revokes in the cache.
+  If the cache is not initialized at the time of the method call then it
+  returns no partial revokes exists.
+
+  @param [in] thd THD handle
+
+  @returns
+   @retval  true  Partial revokes exists
+   @retval  false Otherwise
+*/
 bool is_partial_revoke_exists(THD *thd) {
   bool partial_revoke = false;
   if (thd) {
@@ -3511,14 +3571,15 @@ bool is_partial_revoke_exists(THD *thd) {
     if (!acl_cache_lock.lock(false)) {
       return true;
     }
-    partial_revoke = (num_partial_revokes > 0);
+    DBUG_ASSERT(acl_restrictions);
+    partial_revoke = (acl_restrictions->size() > 0);
   } else {
     /*
       We need to determine the number of partial revokes at the time of server
       start. In that case thd(s) is not be available so it is safe to determine
       the number of partial revokes without lock.
     */
-    partial_revoke = (num_partial_revokes > 0);
+    if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
   }
   return partial_revoke;
 }
