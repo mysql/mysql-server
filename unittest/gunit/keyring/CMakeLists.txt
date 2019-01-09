@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t keyring_test)
 
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
-    gunit_large strings dbug regex mysys sql_main sql_gis sql_dd)
+    gunit_large strings dbug mysys sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
     sql_main binlog rpl master slave sql_gis sql_dd sql_main)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t ${ICU_LIBRARIES})
@@ -97,7 +97,7 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t keyring_test)
 
   TARGET_LINK_LIBRARIES(${test}-t
-    gunit_large strings dbug regex mysys sql_main sql_gis sql_dd)
+    gunit_large strings dbug mysys sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t
     sql_main binlog rpl master slave sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
