@@ -1621,15 +1621,15 @@ DROP TABLE t1,t2;
 --echo #
 
 --echo # --skip-dump-date:
---replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*//
+--replace_regex /-- [^D][^u][^m][^p].*\n// /\/\*!.*\n//
 --exec $MYSQL_DUMP --skip-dump-date test
 
 --echo # --dump-date:
---replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
+--replace_regex /-- [^D][^u][^m][^p].*\n// /\/\*!.*\n// / on [0-9 :-]+/ on DATE/
 --exec $MYSQL_DUMP --dump-date test
 
 --echo # --dump-date (default):
---replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
+--replace_regex /-- [^D][^u][^m][^p].*\n// /\/\*!.*\n// / on [0-9 :-]+/ on DATE/
 --exec $MYSQL_DUMP test
 
 --echo #
@@ -2344,7 +2344,7 @@ INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
 --echo #        order in the output.
 --echo
 --echo #### Dump starts here ####
---replace_regex /-- Server version.*// /-- MySQL dump .*// /-- Dump completed on .*/-- Dump completed/
+--replace_regex /-- Server version.*\n// /-- MySQL dump .*\n// /-- Dump completed on .*\n/-- Dump completed/
 --exec $MYSQL_DUMP --verbose --single-transaction --flush-logs b12809202_db 2> $MYSQLTEST_VARDIR/tmp/b12809202_stderr.sql
 --echo
 --echo ## stderr ##

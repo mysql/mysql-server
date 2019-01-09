@@ -2,7 +2,7 @@
 --echo # Bug#22844987 - SPIN ROUNDS PER WAIT WILL BE NEGATIVE IN INNODB STATUS IF SPIN WAITS > MAX32INT
 --echo #
 
---replace_regex /.*RW-shared spins[[:space:]]*([0-9]+), rounds [[:space:]]*([0-9]+).*/\2/gs
+--replace_regex /\n/<EOL>/ /.*RW-shared spins[[:space:]]*([0-9]+), rounds [[:space:]]*([0-9]+),.*/\2/
 --let $RW_SHARED_ROUNDS_BEFORE=`SHOW ENGINE INNODB STATUS`
 --replace_regex /InnoDB[[:space:]]*//
 --let $RW_SHARED_ROUNDS_BEFORE_VALUE=`SELECT '$RW_SHARED_ROUNDS_BEFORE'`
@@ -14,7 +14,7 @@ UPDATE t SET col1 = 42 WHERE col1 = 2;
 SELECT * FROM t ORDER BY col1;
 DROP TABLE t;
 
---replace_regex /.*RW-shared spins[[:space:]]*([0-9]+), rounds [[:space:]]*([0-9]+).*/\2/gs
+--replace_regex /\n/<EOL>/ /.*RW-shared spins[[:space:]]*([0-9]+), rounds [[:space:]]*([0-9]+),.*/\2/
 --let $RW_SHARED_ROUNDS_AFTER=`SHOW ENGINE INNODB STATUS`
 --replace_regex /InnoDB[[:space:]]*//
 --let $RW_SHARED_ROUNDS_AFTER_VALUE=`SELECT '$RW_SHARED_ROUNDS_AFTER'`

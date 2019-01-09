@@ -7252,13 +7252,12 @@
       sensitive by default. Specify the optional <b>i</b> modifier to
       cause matching to be case insensitive.
 
-      The syntax for allowable patterns is the same as for the
-      <b>REGEXP</b> SQL operator. In addition, the pattern can contain
-      parentheses to mark substrings matched by parts of the pattern.
-      These substrings can be referenced in the replacement string: An
-      instance of <b><em>N</em></b> in the replacement string causes
-      insertion of the <b><em>N</em>-th</b> substring matched by the
-      pattern. For example, the following command matches
+      The syntax for allowable patterns is same as the <b>std::ECMAScript</b>
+      syntax. The pattern can contain parentheses to mark substrings
+      matched by parts of the pattern. These substrings can be referenced in
+      the replacement string: An instance of <b><em>N</em></b> in the
+      replacement string causes insertion of the <b><em>N</em>-th</b> substring
+      matched by the pattern. For example, the following command matches
       <b>strawberry</b> and replaces it with <b>raspberry</b> and
       <b>strawberry</b>:
 

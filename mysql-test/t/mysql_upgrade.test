@@ -9,7 +9,7 @@
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb. Always report check-for-upgrade status as OK, as it depends
 # on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
+--replace_regex /mysql.ndb_binlog_index.*\n// /Table is already up to date/OK/
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir
@@ -27,7 +27,7 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 --echo Force should run it regardless of wether it's been run before
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir
@@ -57,7 +57,7 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 # Test by setting sql_mode before running mysql_upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 
@@ -70,7 +70,7 @@ SET GLOBAL autocommit = 0;
 
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 SET GLOBAL autocommit = default;
@@ -81,13 +81,13 @@ SET GLOBAL autocommit = default;
 
 CREATE USER root_sha256@localhost IDENTIFIED WITH 'sha256_password';
 GRANT ALL ON *.* TO root_sha256@localhost WITH GRANT OPTION;
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --force -uroot_sha256 --protocol=tcp --ssl-mode=disabled 2>&1
 DROP USER root_sha256@localhost;
 
 CREATE USER root_caching_sha2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'abcd';
 GRANT ALL ON *.* TO root_caching_sha2@localhost WITH GRANT OPTION;
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --force -uroot_caching_sha2 -pabcd --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem --protocol=tcp --ssl-mode=disabled 2>&1
 DROP USER root_caching_sha2@localhost;
 
@@ -101,7 +101,7 @@ REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM "mysql.session"@localhost;
 
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --echo # Must have SESSION_VARIABLES_ADMIN;
@@ -115,7 +115,7 @@ SHOW GRANTS FOR "mysql.session"@localhost;
 --source include/restart_mysqld.inc
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 let $restart_parameters = restart: ;

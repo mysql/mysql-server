@@ -65,12 +65,12 @@ SET GTID_NEXT= "AUTOMATIC";
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
---replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^]]*\] */DATE_TIME [ERROR] /
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^\]]*\] */DATE_TIME [ERROR] /
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_transaction_compatibility_basics.err
 --let $grep_pattern=This member has more executed transactions than those present in the group. Local transactions
 --source include/grep_pattern.inc
 
---replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^]]*\] */DATE_TIME [ERROR] /
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^\]]*\] */DATE_TIME [ERROR] /
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_transaction_compatibility_basics.err
 --let $grep_pattern=The member contains transactions not present in the group. The member will now exit the group.
 --source include/grep_pattern.inc

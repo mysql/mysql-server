@@ -4662,3 +4662,114 @@ DELETE FROM t1;
 # Cleanup
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#28235844: REPLACE THE HENRY SPENCER REGEX LIBRARY WITH STD::REGEX
+--echo #               IN MYSQLTEST
+--echo #
+
+# Some common regex errors :-
+
+# Disabling result log since the actual error message displayed
+# might vary on some platforms.
+--disable_result_log
+
+# Unclosed parenthesis, brackets or braces
+--error 1
+--exec echo "replace_regex /(a// ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /a{b// ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /(?:a()// ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /[a-b][a// ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+# Invalid use of quantifiers
+--error 1
+--exec echo "replace_regex /?/#/ ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /*/#/ ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "replace_regex /+/#/ ; SELECT 1; " | $MYSQL_TEST  2>&1
+
+# Invalid ranges
+--error 1
+--exec echo "replace_regex /a{2,1}// ; SELECT 'a'; " | $MYSQL_TEST  2>&1
+
+--enable_result_log
+
+# Miscellaneous use cases
+
+# Using '-', '$', '.'  or '*' inside a character class with a non-range
+# context matches them literally
+--replace_regex /[a-]/#/
+SELECT 'b-','ab';
+--replace_regex /[.*$]/?/
+SELECT "$,*,." as escape_chars;
+
+# Using parenthesis as literals should be fine
+--replace_regex /\(/parenthesis/
+SELECT "(";
+
+--replace_regex /\[/bracket/
+SELECT "[";
+
+# Even null character and non-printable characters should
+# be matchable in replace_regex
+--replace_regex /\0/nul/ /[^ -~]/#/
+SELECT 0x00, 0xff;
+
+--replace_regex /\x00/nul/ /\xff/#/
+SELECT 0x00, 0xff;
+
+--replace_regex /\u0000/nul/
+SELECT 0x00;
+
+# Matching square brackets literally.
+--replace_regex /\[[^\]]+\]/#/
+SELECT "[ MY-012345 ]" as err;
+
+# Removing backslash needs escaping
+--replace_regex /[\\]/\//
+SELECT CONCAT('winpath','\\');
+
+# Patterns with assertions
+--replace_regex /^mt/#/
+SELECT "mtr";
+
+--replace_regex /^tr/#/
+SELECT "mtr";
+
+--replace_regex /tr$/#/
+SELECT "mtr";
+
+--replace_regex /mt$/#/
+SELECT "mtr";
+
+--replace_regex /ab(?=c)/#/
+SELECT "abc", "abd";
+
+--replace_regex /ab(?!c)/#/
+SELECT "abc", "abd";
+
+--replace_regex /words\b/#/ /for\b/#/
+SELECT "many words form a sentence" as text;
+
+--replace_regex /words\B/#/ /for\B/#/
+SELECT "many words form a sentence" as text;
+
+# Pattern with an alternative
+--replace_regex /(ab|ac)/#/
+SELECT "absolute", "accent";
+
+# Patterns with POSIX classes
+--replace_regex /[[:digit:]]/<digit>/ /^[[:upper:]]{3}$/<uppercase>/
+SELECT 1 as num, "abc" as lc, "ABC" as uc;
+
+--replace_regex /^[[:print:]]$/@/ /[^[:print:]]/#/
+SELECT 'a' as letter, 0x00 as nullchar, 0xff as nonprintable;

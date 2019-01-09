@@ -12,8 +12,7 @@
 SET GLOBAL innodb_checkpoint_disabled=1;
 
 --source include/no_checkpoint_start.inc
-CREATE TABLE t1 (a INT NOT NULL, b INT UNIQUE) ENGINE=InnoDB
-TABLESPACE=innodb_file_per_table;
+CREATE TABLE t1 (a INT NOT NULL, b INT UNIQUE) ENGINE=InnoDB TABLESPACE=innodb_file_per_table;
 # MLOG_INDEX_LOAD will not be emitted for empty tables. Insert a row.
 INSERT INTO t1 VALUES (1,2);
 # We should get two MLOG_INDEX_LOAD for this.

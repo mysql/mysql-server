@@ -38,6 +38,7 @@
 #include <functional>
 #include <limits>
 #include <new>
+#include <regex>
 #include <sstream>
 #ifdef _WIN32
 #include <thread>  // std::thread
@@ -69,7 +70,6 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
-#include "extra/regex/my_regex.h"  // Our own version of regex
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_compare
@@ -323,17 +323,105 @@ static ulong connection_retry_sleep = 100000; /* Microseconds */
 
 static char *opt_plugin_dir = 0;
 
-/* Precompiled re's */
-static my_regex_t ps_re;   /* the query can be run using PS protocol */
-static my_regex_t sp_re;   /* the query can be run as a SP */
-static my_regex_t view_re; /* the query can be run as a view*/
-/* the query can be traced with optimizer trace*/
-static my_regex_t opt_trace_re;
-static my_regex_t explain_re; /* the query can be converted to EXPLAIN */
+/*
+  Filter for queries that can be run using the
+  MySQL Prepared Statements C API.
+*/
+static const char *const ps_re_str =
+    "^("
+    "[[:space:]]*REPLACE[[:space:]]|"
+    "[[:space:]]*INSERT[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]|"
+    "[[:space:]]*SELECT[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+DATABASE[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+INDEX[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+USER[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+DATABASE[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+INDEX[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+USER[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+VIEW[[:space:]]|"
+    "[[:space:]]*DROP[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*ALTER[[:space:]]+USER[[:space:]]|"
+    "[[:space:]]*RENAME[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*RENAME[[:space:]]+USER[[:space:]]|"
+    "[[:space:]]*TRUNCATE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*ANALYZE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*CHECKSUM[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*CHECKSUM[[:space:]]+TABLES[[:space:]]|"
+    "[[:space:]]*OPTIMIZE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*REPAIR[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*GRANT[[:space:]]|"
+    "[[:space:]]*KILL[[:space:]]|"
+    "[[:space:]]*REVOKE[[:space:]]+ALL[[:space:]]+PRIVILEGES[[:space:]]|"
+    "[[:space:]]*DO[[:space:]]|"
+    "[[:space:]]*CALL[[:space:]]|"
+    "[[:space:]]*COMMIT[[:space:]]|"
+    "[[:space:]]*SET[[:space:]]+OPTION[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+PROCEDURE[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+FUNCTION[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+VIEW[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+EVENT[[:space:]]|"
+    "[[:space:]]*INSTALL[[:space:]]+PLUGIN[[:space:]]|"
+    "[[:space:]]*UNINSTALL[[:space:]]+PLUGIN[[:space:]]|"
+    "[[:space:]]*RESET[[:space:]]+MASTER[[:space:]]|"
+    "[[:space:]]*RESET[[:space:]]+SLAVE[[:space:]]|"
+    "[[:space:]]*RESET[[:space:]]+QUERY[[:space:]]+CACHE[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+BINLOG[[:space:]]+EVENTS[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+MASTER[[:space:]]+LOGS[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+MASTER[[:space:]]+STATUS[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+BINARY[[:space:]]+LOGS[[:space:]]|"
+    "[[:space:]]*SHOW[[:space:]]+SLAVE[[:space:]]+STATUS[[:space:]]|"
+    "[[:space:]]*SLAVE[[:space:]]+START[[:space:]]|"
+    "[[:space:]]*SLAVE[[:space:]]+STOP[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]+MULTI[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
+    "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])";
 
-static void init_re(void);
-static int match_re(my_regex_t *, char *);
-static void free_re(void);
+/*
+  Filter for queries that can be run using the
+  Stored procedures.
+*/
+static const char *const sp_re_str = ps_re_str;
+
+/*
+  Filter for queries that can be run as views.
+*/
+static const char *const view_re_str =
+    "^("
+    "[[:space:]]*SELECT[[:space:]])";
+
+const char *const opt_trace_re_str =
+    "^("
+    "[[:space:]]*INSERT[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]|"
+    "[[:space:]]*EXPLAIN[[:space:]]|"
+    "[[:space:]]*SELECT[[:space:]])";
+
+/* Filter for queries that can be converted to EXPLAIN. */
+static const char *const explain_re_str =
+    "^("
+    "[[:space:]]*(SELECT|DELETE|UPDATE|INSERT|REPLACE)[[:space:]])";
+
+/* Precompiled regular expressions. */
+static std::regex ps_re(ps_re_str, std::regex_constants::nosubs |
+                                       std::regex_constants::icase);
+static std::regex sp_re(sp_re_str, std::regex_constants::nosubs |
+                                       std::regex_constants::icase);
+static std::regex view_re(view_re_str, std::regex_constants::nosubs |
+                                           std::regex_constants::icase);
+static std::regex opt_trace_re(opt_trace_re_str,
+                               std::regex_constants::nosubs |
+                                   std::regex_constants::icase);
+static std::regex explain_re(explain_re_str, std::regex_constants::nosubs |
+                                                 std::regex_constants::icase);
+
+static int search_protocol_re(std::regex *re, char *str);
 
 /* To retrieve a filename from a filepath */
 const char *get_filename_from_path(const char *path) {
@@ -631,7 +719,7 @@ void str_to_file(const char *fname, char *str, size_t size);
 void str_to_file2(const char *fname, char *str, size_t size, bool append);
 
 void fix_win_paths(const char *val, size_t len);
-int multi_reg_replace(struct st_replace_regex *r, char *val);
+int multi_reg_replace(struct st_replace_regex *r, char *val, size_t *len);
 
 #ifdef _WIN32
 void free_win_path_patterns();
@@ -1366,7 +1454,6 @@ static void free_used_memory() {
   if (ds_warn) dynstr_free(ds_warn);
   free_all_replace();
   my_free(opt_pass);
-  free_re();
 #ifdef _WIN32
   free_win_path_patterns();
 #endif
@@ -2349,10 +2436,12 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
         size_t len = lengths[i];
 
         if (glob_replace_regex) {
-          /* Regex replace */
-          if (!multi_reg_replace(glob_replace_regex, (char *)val)) {
+          size_t orig_len = len;
+          // Regex replace
+          if (!multi_reg_replace(glob_replace_regex, (char *)val, &len)) {
             val = glob_replace_regex->buf;
-            len = std::strlen(val);
+          } else {
+            len = orig_len;
           }
         }
         DYNAMIC_STRING ds_temp;
@@ -7553,15 +7642,6 @@ void str_to_file(const char *fname, char *str, size_t size) {
   str_to_file2(fname, str, size, false);
 }
 
-static void check_regerr(my_regex_t *r, int err) {
-  char err_buf[1024];
-
-  if (err) {
-    my_regerror(err, r, err_buf, sizeof(err_buf));
-    die("Regex error: %s\n", err_buf);
-  }
-}
-
 #ifdef _WIN32
 
 typedef Prealloced_array<const char *, 16> Patterns;
@@ -8476,7 +8556,8 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     dynstr_append_mem(ds, "\n", 1);
   }
 
-  if (view_protocol_enabled && complete_query && match_re(&view_re, query)) {
+  if (view_protocol_enabled && complete_query &&
+      search_protocol_re(&view_re, query)) {
     /*
       Create the query as a view.
       Use replace since view can exist from a failed mysqltest run
@@ -8516,7 +8597,8 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     dynstr_free(&query_str);
   }
 
-  if (sp_protocol_enabled && complete_query && match_re(&sp_re, query)) {
+  if (sp_protocol_enabled && complete_query &&
+      search_protocol_re(&sp_re, query)) {
     /*
       Create the query as a stored procedure
       Drop first since sp can exist from a failed mysqltest run
@@ -8570,7 +8652,8 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     If it is a '?' in the query it may be a SQL level prepared
     statement already and we can't do it twice
   */
-  if (ps_protocol_enabled && complete_query && match_re(&ps_re, query))
+  if (ps_protocol_enabled && complete_query &&
+      search_protocol_re(&ps_re, query))
     run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
   else
     run_query_normal(cn, command, flags, query, query_len, ds, &ds_warnings);
@@ -8613,7 +8696,8 @@ static void run_query(struct st_connection *cn, struct st_command *command,
 static void display_opt_trace(struct st_connection *cn,
                               struct st_command *command, int flags) {
   if (!disable_query_log && opt_trace_protocol_enabled && !cn->pending &&
-      !expected_errors->count() && match_re(&opt_trace_re, command->query)) {
+      !expected_errors->count() &&
+      search_protocol_re(&opt_trace_re, command->query)) {
     st_command save_command = *command;
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
@@ -8639,7 +8723,7 @@ static void display_opt_trace(struct st_connection *cn,
 static void run_explain(struct st_connection *cn, struct st_command *command,
                         int flags, bool json) {
   if ((flags & QUERY_REAP_FLAG) && !expected_errors->count() &&
-      match_re(&explain_re, command->query)) {
+      search_protocol_re(&explain_re, command->query)) {
     st_command save_command = *command;
     DYNAMIC_STRING query_str;
     DYNAMIC_STRING ds_warning_messages;
@@ -8663,124 +8747,18 @@ static void run_explain(struct st_connection *cn, struct st_command *command,
   }
 }
 
-/****************************************************************************/
-/*
-  Functions to detect different SQL statements
+/**
+  Function to check if a protocol's regular expression matches the query
+  string.
+
+  @param re  Pointer to a precompiled regular expression.
+  @param str Pointer to character string in which the pattern needs to be
+             searched.
+
+  @retval 1 If the pattern is found.
+  @retval 0 If the pattern is not found.
 */
-
-static char *re_eprint(int err) {
-  static char epbuf[100];
-  size_t len MY_ATTRIBUTE((unused)) =
-      my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
-  assert(len <= sizeof(epbuf));
-  return (epbuf);
-}
-
-static void init_re_comp(my_regex_t *re, const char *str) {
-  int err = my_regcomp(re, str, (MY_REG_EXTENDED | MY_REG_ICASE | MY_REG_NOSUB),
-                       &my_charset_latin1);
-  if (err) {
-    char erbuf[100];
-    size_t len = my_regerror(err, re, erbuf, sizeof(erbuf));
-    die("error %s, %d/%d `%s'\n", re_eprint(err), (int)len, (int)sizeof(erbuf),
-        erbuf);
-  }
-}
-
-void init_re(void) {
-  /*
-    Filter for queries that can be run using the
-    MySQL Prepared Statements C API
-  */
-  const char *ps_re_str =
-      "^("
-      "[[:space:]]*REPLACE[[:space:]]|"
-      "[[:space:]]*INSERT[[:space:]]|"
-      "[[:space:]]*UPDATE[[:space:]]|"
-      "[[:space:]]*DELETE[[:space:]]|"
-      "[[:space:]]*SELECT[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+DATABASE[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+INDEX[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+USER[[:space:]]|"
-      "[[:space:]]*CREATE[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+DATABASE[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+INDEX[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+USER[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+VIEW[[:space:]]|"
-      "[[:space:]]*DROP[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*ALTER[[:space:]]+USER[[:space:]]|"
-      "[[:space:]]*RENAME[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*RENAME[[:space:]]+USER[[:space:]]|"
-      "[[:space:]]*TRUNCATE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*ANALYZE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*CHECKSUM[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*CHECKSUM[[:space:]]+TABLES[[:space:]]|"
-      "[[:space:]]*OPTIMIZE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*REPAIR[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*GRANT[[:space:]]|"
-      "[[:space:]]*KILL[[:space:]]|"
-      "[[:space:]]*REVOKE[[:space:]]+ALL[[:space:]]+PRIVILEGES[[:space:]]|"
-      "[[:space:]]*DO[[:space:]]|"
-      "[[:space:]]*CALL[[:space:]]|"
-      "[[:space:]]*COMMIT[[:space:]]|"
-      "[[:space:]]*SET[[:space:]]+OPTION[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+TABLE[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+PROCEDURE[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+FUNCTION[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+VIEW[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+CREATE[[:space:]]+EVENT[[:space:]]|"
-      "[[:space:]]*INSTALL[[:space:]]+PLUGIN[[:space:]]|"
-      "[[:space:]]*UNINSTALL[[:space:]]+PLUGIN[[:space:]]|"
-      "[[:space:]]*RESET[[:space:]]+MASTER[[:space:]]|"
-      "[[:space:]]*RESET[[:space:]]+SLAVE[[:space:]]|"
-      "[[:space:]]*RESET[[:space:]]+QUERY[[:space:]]+CACHE[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+BINLOG[[:space:]]+EVENTS[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+MASTER[[:space:]]+LOGS[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+MASTER[[:space:]]+STATUS[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+BINARY[[:space:]]+LOGS[[:space:]]|"
-      "[[:space:]]*SHOW[[:space:]]+SLAVE[[:space:]]+STATUS[[:space:]]|"
-      "[[:space:]]*SLAVE[[:space:]]+START[[:space:]]|"
-      "[[:space:]]*SLAVE[[:space:]]+STOP[[:space:]]|"
-      "[[:space:]]*DELETE[[:space:]]+MULTI[[:space:]]|"
-      "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
-      "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])[^;]*$";
-
-  /*
-    Filter for queries that can be run using the
-    Stored procedures
-  */
-  const char *sp_re_str = ps_re_str;
-
-  /*
-    Filter for queries that can be run as views
-  */
-  const char *view_re_str =
-      "^("
-      "[[:space:]]*SELECT[[:space:]])";
-
-  const char *opt_trace_re_str =
-      "^("
-      "[[:space:]]*INSERT[[:space:]]|"
-      "[[:space:]]*UPDATE[[:space:]]|"
-      "[[:space:]]*DELETE[[:space:]]|"
-      "[[:space:]]*EXPLAIN[[:space:]]|"
-      "[[:space:]]*SELECT[[:space:]])";
-
-  /* Filter for queries that can be converted to EXPLAIN */
-  const char *explain_re_str =
-      "^("
-      "[[:space:]]*(SELECT|DELETE|UPDATE|INSERT|REPLACE)[[:space:]])";
-
-  init_re_comp(&ps_re, ps_re_str);
-  init_re_comp(&sp_re, sp_re_str);
-  init_re_comp(&view_re, view_re_str);
-  init_re_comp(&opt_trace_re, opt_trace_re_str);
-  init_re_comp(&explain_re, explain_re_str);
-}
-
-int match_re(my_regex_t *re, char *str) {
+static int search_protocol_re(std::regex *re, char *str) {
   while (my_isspace(charset_info, *str)) str++;
   if (str[0] == '/' && str[1] == '*') {
     char *comm_end = strstr(str, "*/");
@@ -8788,32 +8766,22 @@ int match_re(my_regex_t *re, char *str) {
     str = comm_end + 2;
   }
 
-  int err = my_regexec(re, str, (size_t)0, NULL, 0);
+  // Check if statement matches the pattern string
+  if (std::regex_search(str, *re, std::regex_constants::match_continuous)) {
+    /*
+      Simulate the "[^;]*$" check which follows the SQL prefix
+      in the regex used to filter statements to be run with ps/
+      sp protocol as using it directly in the regex is currently
+      not possible due to an issue in the standard regex library.
+    */
+    if ((re == &ps_re || re == &sp_re) && strchr(str, ';') != NULL) return 0;
 
-  if (err == 0)
+    // Match found
     return 1;
-  else if (err == MY_REG_NOMATCH)
+  } else {
     return 0;
-
-  {
-    char erbuf[100];
-    size_t len = my_regerror(err, re, erbuf, sizeof(erbuf));
-    die("error %s, %d/%d `%s'\n", re_eprint(err), (int)len, (int)sizeof(erbuf),
-        erbuf);
   }
-  return 0;
 }
-
-void free_re(void) {
-  my_regfree(&ps_re);
-  my_regfree(&sp_re);
-  my_regfree(&view_re);
-  my_regfree(&opt_trace_re);
-  my_regfree(&explain_re);
-  my_regex_end();
-}
-
-/****************************************************************************/
 
 static void get_command_type(struct st_command *command) {
   char save;
@@ -9220,7 +9188,6 @@ int main(int argc, char **argv) {
   }
 
   var_set_string("MYSQLTEST_FILE", cur_file->file_name);
-  init_re();
 
   /* Cursor protcol implies ps protocol */
   if (cursor_protocol) ps_protocol = 1;
@@ -10248,42 +10215,40 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
   }
 }
 
-/*
-  Regex replace  functions
-*/
-
-int reg_replace(char **buf_p, int *buf_len_p, char *pattern, char *replace,
-                char *string, int icase);
-
-/*
-  Finds the next (non-escaped) '/' in the expression.
-  (If the character '/' is needed, it can be escaped using '\'.)
-*/
-
-#define PARSE_REGEX_ARG                                                 \
-  while (p < expr_end) {                                                \
-    char c = *p;                                                        \
-    if (c == '/') {                                                     \
-      if (last_c == '\\') {                                             \
-        buf_p[-1] = '/';                                                \
-      } else {                                                          \
-        *buf_p++ = 0;                                                   \
-        break;                                                          \
-      }                                                                 \
-    } else                                                              \
-      *buf_p++ = c;                                                     \
-                                                                        \
-    last_c = c;                                                         \
-    p++;                                                                \
-  }                                                                     \
-                                                                        \
-  /*                                                                    \
-    Initializes the regular substitution expression to be used in the   \
-    result output of test.                                              \
-                                                                      \ \
-    Returns: st_replace_regex struct with pairs of substitutions        \
+  /*
+    Regex replace  functions
   */
 
+  /*
+    Finds the next (non-escaped) '/' in the expression.
+    (If the character '/' is needed, it can be escaped using '\'.)
+  */
+
+#define PARSE_REGEX_ARG     \
+  while (p < expr_end) {    \
+    char c = *p;            \
+    if (c == '/') {         \
+      if (last_c == '\\') { \
+        buf_p[-1] = '/';    \
+      } else {              \
+        *buf_p++ = 0;       \
+        break;              \
+      }                     \
+    } else                  \
+      *buf_p++ = c;         \
+                            \
+    last_c = c;             \
+    p++;                    \
+  }
+
+/**
+  Initializes the regular substitution expression to be used in the
+  result output of test.
+
+  @param  expr  Pointer to string having regular expression to be used
+                for substitution.
+  @retval st_replace_regex structure with pairs of substitutions.
+*/
 static struct st_replace_regex *init_replace_regex(char *expr) {
   struct st_replace_regex *res;
   char *buf, *expr_end;
@@ -10358,26 +10323,28 @@ err:
   return 0;
 }
 
-/*
+/**
   Execute all substitutions on val.
 
-  Returns: true if substituition was made, false otherwise
-  Side-effect: Sets r->buf to be the buffer with all substitutions done.
+  @param[in]      val  Pointer to the character string to be used as
+                       input for the regex replace operation.
+  @param[in,out]  r    Pointer to the st_replace_regex structure which
+                       holds arguments and information for the command.
+  @param[in,out]  len  Pointer to variable holding length of input string.
 
-  IN:
-  struct st_replace_regex* r
-  char* val
-  Out:
-  struct st_replace_regex* r
-  r->buf points at the resulting buffer
-  r->even_buf and r->odd_buf might have been reallocated
-  r->even_buf_len and r->odd_buf_len might have been changed
+  @retval True  If substituition was made.
+  @retval False If no substituition was made.
 
-  TODO:  at some point figure out if there is a way to do everything
-  in one pass
+  @note
+  r->buf points at the resulting buffer with all substitutions done.
+  len points at length of resulting buffer.
+  r->even_buf and r->odd_buf might have been reallocated.
+  r->even_buf_len and r->odd_buf_len might have been changed.
+
+  @todo
+  At some point figure out if there is a way to do everything in one pass.
 */
-
-int multi_reg_replace(struct st_replace_regex *r, char *val) {
+int multi_reg_replace(struct st_replace_regex *r, char *val, size_t *len) {
   size_t i;
   char *in_buf, *out_buf;
   int *buf_len_p;
@@ -10387,27 +10354,68 @@ int multi_reg_replace(struct st_replace_regex *r, char *val) {
   buf_len_p = &r->even_buf_len;
   r->buf = 0;
 
-  /* For each substitution, do the replace */
-  for (i = 0; i < r->regex_arr.size(); i++) {
-    struct st_regex re(r->regex_arr[i]);
-    char *save_out_buf = out_buf;
+  /*
+    For each substitution, perform replacement only if the input buffer
+    is not empty.
+  */
+  if (*len > 0) {
+    for (i = 0; i < r->regex_arr.size(); i++) {
+      try {
+        struct st_regex re(r->regex_arr[i]);
+        char *save_out_buf = out_buf;
 
-    if (!reg_replace(&out_buf, buf_len_p, re.pattern, re.replace, in_buf,
-                     re.icase)) {
-      /* if the buffer has been reallocated, make adjustements */
-      if (save_out_buf != out_buf) {
-        if (save_out_buf == r->even_buf)
-          r->even_buf = out_buf;
-        else
-          r->odd_buf = out_buf;
+        std::regex rpat(re.pattern, (re.icase == 0)
+                                        ? std::regex_constants::ECMAScript
+                                        : std::regex_constants::icase);
+
+        std::string sin = std::string(in_buf, *len);
+        std::string sout;
+
+        /*
+          We use iterators instead of using the input buffer directly as
+          it may include the null character (0x00) and characters succeeding
+          them will be ignored unless we specify the start and end positions
+          of the input string explicitly.
+        */
+        std::regex_replace(std::back_inserter(sout), sin.begin(), sin.end(),
+                           rpat, re.replace, std::regex_constants::format_sed);
+
+        /*
+          If some replacement is performed, write the replaced string into the
+          output buffer.
+        */
+        if (sout.compare(sin) != 0) {
+          *len = sout.length();
+          if (*len >= (uint)*buf_len_p) {
+            uint need_buf_len = (*len) + 1;
+            out_buf = (char *)my_realloc(PSI_NOT_INSTRUMENTED, out_buf,
+                                         need_buf_len, MYF(MY_WME + MY_FAE));
+            *buf_len_p = need_buf_len;
+          }
+
+          // Copy result to output buffer.
+          strncpy(out_buf, sout.c_str(), *len + 1);
+
+          // If the buffer has been reallocated, make adjustements
+          if (save_out_buf != out_buf) {
+            if (save_out_buf == r->even_buf)
+              r->even_buf = out_buf;
+            else
+              r->odd_buf = out_buf;
+          }
+
+          r->buf = out_buf;
+          if (in_buf == val) in_buf = r->odd_buf;
+
+          std::swap(in_buf, out_buf);
+
+          buf_len_p =
+              (out_buf == r->even_buf) ? &r->even_buf_len : &r->odd_buf_len;
+        }
+      } catch (const std::regex_error &e) {
+        die("Error in replace_regex for `/%s/%s/` : %s",
+            (r->regex_arr[i]).pattern, (r->regex_arr[i]).replace, e.what());
       }
-
-      r->buf = out_buf;
-      if (in_buf == val) in_buf = r->odd_buf;
-
-      std::swap(in_buf, out_buf);
-
-      buf_len_p = (out_buf == r->even_buf) ? &r->even_buf_len : &r->odd_buf_len;
     }
   }
 
@@ -10444,180 +10452,6 @@ void free_replace_regex() {
     my_free(glob_replace_regex);
     glob_replace_regex = NULL;
   }
-}
-
-/*
-  auxiluary macro used by reg_replace
-  makes sure the result buffer has sufficient length
-*/
-#define SECURE_REG_BUF                                                         \
-  if (buf_len < need_buf_len) {                                                \
-    my_ptrdiff_t off = res_p - buf;                                            \
-    buf = (char *)my_realloc(PSI_NOT_INSTRUMENTED, buf, need_buf_len,          \
-                             MYF(MY_WME + MY_FAE));                            \
-    res_p = buf + off;                                                         \
-    buf_len = need_buf_len;                                                    \
-  }                                                                            \
-                                                                               \
-/*                                                                             \
-  Performs a regex substitution                                                \
-                                                                             \ \
-  IN:                                                                          \
-                                                                             \ \
-  buf_p - result buffer pointer. Will change if reallocated                    \
-  buf_len_p - result buffer length. Will change if the buffer is reallocated   \
-  pattern - regexp pattern to match                                            \
-  replace - replacement expression                                             \
-  string - the string to perform substituions in                               \
-  icase - flag, if set to 1 the match is case insensitive                      \
-*/
-int reg_replace(char **buf_p, int *buf_len_p, char *pattern, char *replace,
-                char *string, int icase) {
-  my_regex_t r;
-  my_regmatch_t *subs;
-  char *replace_end;
-  char *buf = *buf_p;
-  size_t len;
-  size_t buf_len, need_buf_len;
-  int cflags = MY_REG_EXTENDED;
-  int err_code;
-  char *res_p, *str_p, *str_end;
-
-  buf_len = *buf_len_p;
-  len = std::strlen(string);
-  str_end = string + len;
-
-  /* start with a buffer of a reasonable size that hopefully will not
-     need to be reallocated
-  */
-  need_buf_len = len * 2 + 1;
-  res_p = buf;
-
-  SECURE_REG_BUF
-
-  if (icase) cflags |= MY_REG_ICASE;
-
-  if ((err_code = my_regcomp(&r, pattern, cflags, &my_charset_latin1))) {
-    check_regerr(&r, err_code);
-    return 1;
-  }
-
-  subs = (my_regmatch_t *)my_malloc(PSI_NOT_INSTRUMENTED,
-                                    sizeof(my_regmatch_t) * (r.re_nsub + 1),
-                                    MYF(MY_WME + MY_FAE));
-
-  *res_p = 0;
-  str_p = string;
-  replace_end = replace + std::strlen(replace);
-
-  /* for each pattern match instance perform a replacement */
-  while (!err_code) {
-    /* find the match */
-    err_code = my_regexec(&r, str_p, r.re_nsub + 1, subs,
-                          (str_p != string) ? MY_REG_NOTBOL : 0);
-
-    /* if regular expression error (eg. bad syntax, or out of memory) */
-    if (err_code && err_code != MY_REG_NOMATCH) {
-      check_regerr(&r, err_code);
-      my_regfree(&r);
-      return 1;
-    }
-
-    /* if match found */
-    if (!err_code) {
-      char *expr_p = replace;
-      int c;
-
-      /*
-        we need at least what we have so far in the buffer + the part
-        before this match
-      */
-      need_buf_len = (res_p - buf) + (int)subs[0].rm_so;
-
-      /* on this pass, calculate the memory for the result buffer */
-      while (expr_p < replace_end) {
-        int back_ref_num = -1;
-        c = *expr_p;
-
-        if (c == '\\' && expr_p + 1 < replace_end) {
-          back_ref_num = (int)(expr_p[1] - '0');
-        }
-
-        /* found a valid back_ref (eg. \1)*/
-        if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub) {
-          my_regoff_t start_off, end_off;
-          if ((start_off = subs[back_ref_num].rm_so) > -1 &&
-              (end_off = subs[back_ref_num].rm_eo) > -1) {
-            need_buf_len += (int)(end_off - start_off);
-          }
-          expr_p += 2;
-        } else {
-          expr_p++;
-          need_buf_len++;
-        }
-      }
-      need_buf_len++;
-      /*
-        now that we know the size of the buffer,
-        make sure it is big enough
-      */
-      SECURE_REG_BUF
-
-      /* copy the pre-match part */
-      if (subs[0].rm_so) {
-        memcpy(res_p, str_p, (size_t)subs[0].rm_so);
-        res_p += subs[0].rm_so;
-      }
-
-      expr_p = replace;
-
-      /* copy the match and expand back_refs */
-      while (expr_p < replace_end) {
-        int back_ref_num = -1;
-        c = *expr_p;
-
-        if (c == '\\' && expr_p + 1 < replace_end) {
-          back_ref_num = expr_p[1] - '0';
-        }
-
-        if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub) {
-          my_regoff_t start_off, end_off;
-          if ((start_off = subs[back_ref_num].rm_so) > -1 &&
-              (end_off = subs[back_ref_num].rm_eo) > -1) {
-            int block_len = (int)(end_off - start_off);
-            memcpy(res_p, str_p + start_off, block_len);
-            res_p += block_len;
-          }
-          expr_p += 2;
-        } else {
-          *res_p++ = *expr_p++;
-        }
-      }
-
-      /* handle the post-match part */
-      if (subs[0].rm_so == subs[0].rm_eo) {
-        if (str_p + subs[0].rm_so >= str_end) break;
-        str_p += subs[0].rm_eo;
-        *res_p++ = *str_p++;
-      } else {
-        str_p += subs[0].rm_eo;
-      }
-    } else /* no match this time, just copy the string as is */
-    {
-      size_t left_in_str = str_end - str_p;
-      need_buf_len = (res_p - buf) + left_in_str;
-      SECURE_REG_BUF
-      memcpy(res_p, str_p, left_in_str);
-      res_p += left_in_str;
-      str_p = str_end;
-    }
-  }
-  my_free(subs);
-  my_regfree(&r);
-  *res_p = 0;
-  *buf_p = buf;
-  *buf_len_p = static_cast<int>(buf_len);
-  return 0;
 }
 
 #ifndef WORD_BIT
@@ -11171,10 +11005,12 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   }
 
   if (glob_replace_regex) {
-    /* Regex replace */
-    if (!multi_reg_replace(glob_replace_regex, (char *)val)) {
+    size_t orig_len = len;
+    // Regex replace
+    if (!multi_reg_replace(glob_replace_regex, (char *)val, &len)) {
       val = glob_replace_regex->buf;
-      len = std::strlen(val);
+    } else {
+      len = orig_len;
     }
   }
 

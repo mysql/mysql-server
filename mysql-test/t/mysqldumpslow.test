@@ -47,7 +47,7 @@ while($2)
 # Run mysqldumpslow
 --echo "Running mysqldumpslow on the slow-query-log"
 # Masking out the non-deterministic parameters from the results.
---replace_regex /Time.*//
+--replace_regex /Time.*\n//
 --exec $MYSQLDUMPSLOW '$MYSQLTEST_VARDIR/log/slow_query_temp.log' -a -s c
 
 # clean-up

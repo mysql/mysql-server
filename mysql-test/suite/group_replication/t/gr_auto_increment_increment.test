@@ -109,7 +109,7 @@ SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 3;
 --echo #    the auto_increment_increment value, an error is logged.
 --echo ############################################################
 
---replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^]]*\] */DATE_TIME [ERROR] /
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^\]]*\] */DATE_TIME [ERROR] /
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_auto_increment_increment_log.err
 --let $grep_pattern=Group contains 4 members which is greater than group_replication_auto_increment_increment value of 3. This can lead to an higher rate of transactional aborts.
 --source include/grep_pattern.inc

@@ -34,20 +34,20 @@ DROP PREPARE create_stmt;
 --replace_result 'Table is already up to date' OK
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_CHECK --all-databases --analyze
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_CHECK --all-databases --optimize
 --replace_result 'Table is already up to date' OK
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_CHECK --analyze --databases test information_schema mysql
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_CHECK --optimize  --databases test information_schema mysql
 --exec $MYSQL_CHECK --analyze information_schema schemata
 --exec $MYSQL_CHECK --optimize information_schema schemata

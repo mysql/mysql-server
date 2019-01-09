@@ -82,5 +82,6 @@ Connecting to mgmsrv at no_such_host
 Unable to connect with connect string: nodeid=0,no_such_host:1186
 Retrying every 1 seconds. Attempts left: 2 1, failed.
 latest_error=1011, line=no_such_host
+
 NDBT_ProgramExit: 1 - Failed
 

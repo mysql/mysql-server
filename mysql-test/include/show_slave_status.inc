@@ -115,7 +115,7 @@ while ($_show_slave_status_items)
       --let $_show_slave_status_value= $escape_string
   }
 
-  --let $_slave_field_result_replace= /[\\]/\// $slave_field_result_replace
+  --let $_slave_field_result_replace= /[\\\\]/\// $slave_field_result_replace
   --replace_regex $_slave_field_result_replace
   --let $_show_slave_status_value= `SELECT REPLACE("$_show_slave_status_value", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
   --echo $_show_slave_status_name = '$_show_slave_status_value'

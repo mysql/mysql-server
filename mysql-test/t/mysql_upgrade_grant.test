@@ -21,7 +21,7 @@ GRANT ALL ON *.* TO mysqltest1@'%';
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb. Always report check-for-upgrade status as OK, as it depends
 # on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// #/Table is already up to date/OK/
+--replace_regex /mysql.ndb_binlog_index.*\n// #/Table is already up to date/OK/
 --exec $MYSQL_UPGRADE --skip-verbose --force --user=mysqltest1 --password=sakila 2>&1
 
 DROP USER mysqltest1@'%';
@@ -37,7 +37,7 @@ GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 --echo Run mysql_upgrade with all privileges on a user
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 SHOW GRANTS FOR 'user3'@'%';
 
@@ -96,7 +96,7 @@ let SEARCH_FILE= $test_error_log;
 --echo # repair the user's plugin
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --echo # expect mysql_native_password
@@ -253,7 +253,7 @@ connection default;
 --echo #dropped columns from the begining of the test
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force --user=user_nat_pass_pn --password=lala 2>&1
 
 call mtr.add_suppression("User entry 'user_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
@@ -347,7 +347,7 @@ let SEARCH_FILE= $test_error_log;
 --echo # end of check for the presense of the warning
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 call mtr.add_suppression("User entry 'B20614545'@'localhost' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
@@ -402,7 +402,7 @@ SHOW GRANTS FOR u1;
 --echo # Start upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --echo # Show privileges granted to the users root@localhost and u1
@@ -427,7 +427,7 @@ REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 --echo # Start upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --echo # It is expected that after upgrade be finished the privilege
@@ -470,7 +470,7 @@ SHOW GRANTS FOR u2;
 --echo # Start upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --echo # Check that the user u1 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted
@@ -503,7 +503,7 @@ SHOW GRANTS FOR user1;
 --echo # Start upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --echo # After upgrade users root@localhost and user1 has privilege RESOURCE_GROUP_ADMIN.
@@ -544,7 +544,7 @@ SHOW GRANTS FOR u1;
 --echo # Start upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --echo # Show privileges granted to the users root@localhost and u1
@@ -569,7 +569,7 @@ REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM `mysql.session`@localhost;
 --echo # Start upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --echo # It is expected that after upgrade be finished the privilege

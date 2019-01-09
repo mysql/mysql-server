@@ -73,7 +73,7 @@ SELECT @@innodb_file_per_table;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1), (2), (3), (4);
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -193,7 +193,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_1";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -209,7 +209,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_2";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -224,7 +224,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_3";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -239,7 +239,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_4";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -254,7 +254,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_5";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -270,7 +270,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_6";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -286,7 +286,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_7";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -302,7 +302,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_8";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -317,7 +317,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_9";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -333,7 +333,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_10";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -349,7 +349,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_11";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 
@@ -365,7 +365,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure_12";
 
---replace_regex /, .*).*t1.cfg/, Bad file descriptor) t1.cfg/
+--replace_regex /, .*\).*t1.cfg/, Bad file descriptor) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 

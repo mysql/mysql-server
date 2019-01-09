@@ -15,7 +15,7 @@ call mtr.add_suppression("Column count of mysql.* is wrong. "
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb. Always report check-for-upgrade status as OK, as it depends
 # on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
+--replace_regex /mysql.ndb_binlog_index.*\n// /Table is already up to date/OK/
 --exec $MYSQL_UPGRADE --skip-verbose --ssl-mode=REQUIRED --force 2>&1
 
 --echo #
@@ -48,7 +48,7 @@ FLUSH PRIVILEGES;
 --echo #the begining of the test
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force --ssl-mode=REQUIRED --user=user_sha_pass_wp --password=lala 2>&1
 
 DROP USER 'user_sha_pass_wp'@'%';

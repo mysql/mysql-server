@@ -34,7 +34,7 @@ if (!$VERSION)
 --source include/mysql_upgrade_preparation.inc
   # Filter out ndb_binlog_index to mask differences due to running with or
   # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*\n//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 --source include/mysql_upgrade_cleanup.inc
 

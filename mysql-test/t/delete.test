@@ -673,7 +673,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (b INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1), (2), (5);
 INSERT INTO t2 VALUES (1), (5);
---replace_regex /#sql-[[0-9a-f]*_[0-9a-f]*]*/#sql-temporary/
+--replace_regex /#sql-(?:[0-9a-f]*_[0-9a-f]*)*/#sql-temporary/
 ALTER TABLE t2 ADD CONSTRAINT FOREIGN KEY(b) REFERENCES t1(a);
 SELECT * FROM t2;
 DELETE IGNORE FROM t1;

@@ -1980,3 +1980,67 @@ Warning	1264	Out of range value for column 'c3' at row 1
 DELETE FROM t1;
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1;
+#
+# Bug#28235844: REPLACE THE HENRY SPENCER REGEX LIBRARY WITH STD::REGEX
+#               IN MYSQLTEST
+#
+SELECT 'b#','#b';
+b#	#b
+b#	#b
+SELECT "?,?,?" as escape_chars;
+escape_chars
+?,?,?
+SELECT "parenthesis";
+parenthesis
+parenthesis
+SELECT "bracket";
+bracket
+bracket
+SELECT 0x00, 0xff;
+0x00	0xff
+nul	#
+SELECT 0x00, 0xff;
+0x00	0xff
+nul	#
+SELECT 0x00;
+0x00
+nul
+SELECT "#" as err;
+err
+#
+SELECT CONCAT('winpath','//');
+CONCAT('winpath','//')
+winpath/
+SELECT "mtr";
+#r
+#r
+SELECT "mtr";
+mtr
+mtr
+SELECT "mtr";
+m#
+m#
+SELECT "mtr";
+mtr
+mtr
+SELECT "#c", "abd";
+#c	abd
+#c	abd
+SELECT "abc", "#d";
+abc	#d
+abc	#d
+SELECT "many # form a sentence" as text;
+text
+many # form a sentence
+SELECT "many words #m a sentence" as text;
+text
+many words #m a sentence
+SELECT "#solute", "#cent";
+#solute	#cent
+#solute	#cent
+SELECT <digit> as num, "abc" as lc, "ABC" as uc;
+num	lc	uc
+<digit>	abc	<uppercase>
+SELECT 'a' as letter, 0x00 as nullchar, 0xff as nonprintable;
+letter	nullchar	nonprintable
+@	#	#
