@@ -146,7 +146,7 @@ def			TABLES	Check_time	Check_time	12	19	0	Y	128	0	63
 def	mysql	collations	TABLES	Collation	Collation	253	256	0	Y	4096	0	255
 def			TABLES	Checksum	Checksum	8	21	0	Y	32768	0	63
 def			TABLES	Create_options	Create_options	253	1024	0	Y	0	0	255
-def			TABLES	Comment	Comment	253	1024	0	Y	0	0	255
+def			TABLES	Comment	Comment	252	24576	0	Y	16	0	255
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -955,7 +955,7 @@ def		TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	31	33
 def	mysql	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	254	30	7	Y	384	0	33
 def	mysql	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	192	18	Y	20484	0	33
 def		TABLES	TABLES	CREATE_OPTIONS	CREATE_OPTIONS	253	768	0	Y	0	31	33
-def		TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	768	0	Y	0	31	33
+def		TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	6144	0	Y	0	31	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_COLLATION	CREATE_OPTIONS	TABLE_COMMENT
 def	test	t1	BASE TABLE	InnoDB	Dynamic	utf8mb4_0900_ai_ci		
 ----------------------------------------------------------------
