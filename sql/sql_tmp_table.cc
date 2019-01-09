@@ -863,7 +863,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
               (int)distinct, (int)save_sum_fields, (ulong)rows_limit,
               static_cast<bool>(group)));
   if (group) {
-    if (!param->quick_group)
+    if (!param->allow_group_via_temp_table)
       group = 0;  // Can't use group key
     else
       for (ORDER *tmp = group; tmp; tmp = tmp->next) {

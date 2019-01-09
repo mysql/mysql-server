@@ -118,7 +118,17 @@ class Temp_table_param {
   uint sum_func_count;
   uint hidden_field_count;
   uint group_parts, group_length, group_null_parts;
-  uint quick_group;
+  /**
+    Whether we allow running GROUP BY processing into a temporary table,
+    i.e., keeping many different aggregations going at once without
+    having ordered input. This is usually the case, but is currently not
+    supported for aggregation UDFs, aggregates with DISTINCT, or ROLLUP.
+
+    Note that even if this is true, the optimizer may choose to not use
+    a temporary table, as it is often more efficient to just read along
+    an index.
+   */
+  bool allow_group_via_temp_table{true};
   /**
     Number of outer_sum_funcs i.e the number of set functions that are
     aggregated in a query block outer to this subquery.
@@ -183,7 +193,6 @@ class Temp_table_param {
         group_parts(0),
         group_length(0),
         group_null_parts(0),
-        quick_group(1),
         outer_sum_func_count(0),
         using_outer_summary_function(false),
         table_charset(NULL),

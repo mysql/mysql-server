@@ -428,7 +428,7 @@ Item_sum::Item_sum(THD *thd, Item_sum *item)
       next_sum(nullptr),
       base_select(item->base_select),
       aggr_select(item->aggr_select),
-      quick_group(item->quick_group),
+      allow_group_via_temp_table(item->allow_group_via_temp_table),
       arg_count(item->arg_count),
       used_tables_cache(item->used_tables_cache),
       forced_const(item->forced_const) {
@@ -1064,7 +1064,7 @@ bool Aggregator_distinct::setup(THD *thd) {
     if (field_list.push_back(&field_def)) DBUG_RETURN(true);
 
     item_sum->null_value = item_sum->maybe_null = 1;
-    item_sum->quick_group = 0;
+    item_sum->allow_group_via_temp_table = false;
 
     DBUG_ASSERT(item_sum->get_arg(0)->fixed);
 
@@ -4017,7 +4017,7 @@ Item_func_group_concat::Item_func_group_concat(
   Item *item_select;
   Item **arg_ptr;
 
-  quick_group = false;
+  allow_group_via_temp_table = false;
   arg_count = arg_count_field + arg_count_order;
 
   if (!(args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count)))
@@ -4068,7 +4068,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
       always_null(item->always_null),
       force_copy_fields(item->force_copy_fields),
       original(item) {
-  quick_group = item->quick_group;
+  allow_group_via_temp_table = item->allow_group_via_temp_table;
   result.set_charset(collation.collation);
 
   /*

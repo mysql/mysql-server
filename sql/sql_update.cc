@@ -2008,7 +2008,7 @@ bool Query_result_update::optimize() {
     group.direction = ORDER_ASC;
     group.item = temp_fields.head_ref();
 
-    tmp_param->quick_group = 1;
+    tmp_param->allow_group_via_temp_table = true;
     tmp_param->field_count = temp_fields.elements;
     tmp_param->group_parts = 1;
     tmp_param->group_length = table->file->ref_length;

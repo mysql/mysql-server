@@ -569,11 +569,14 @@ int JOIN::optimize() {
       recalculate the number of fields and functions for this query block.
     */
 
-    // JOIN::optimize_rollup() may set quick_group=0, and we must not undo that.
-    const uint save_quick_group = tmp_table_param.quick_group;
+    // JOIN::optimize_rollup() may set allow_group_via_temp_table = false,
+    // and we must not undo that.
+    const bool save_allow_group_via_temp_table =
+        tmp_table_param.allow_group_via_temp_table;
 
     count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
-    tmp_table_param.quick_group = save_quick_group;
+    tmp_table_param.allow_group_via_temp_table =
+        save_allow_group_via_temp_table;
   }
 
   // See if this subquery can be evaluated with subselect_indexsubquery_engine
@@ -1254,7 +1257,7 @@ bool JOIN::optimize_distinct_group_order() {
             Force MySQL to read the table in sorted order to get result in
             ORDER BY order.
           */
-          tmp_table_param.quick_group = 0;
+          tmp_table_param.allow_group_via_temp_table = false;
         }
         grouped = true;  // For end_write_group
         trace_opt.add("changed_distinct_to_group_by", true);
@@ -1351,10 +1354,10 @@ void JOIN::test_skip_sort() {
         on the selected index scan to be used.  If index is not used
         for the GROUP BY, we risk that sorting is put on the LooseScan
         table.  In order to avoid this, force use of temporary table.
-        TODO: Explain the quick_group part of the test below.
+        TODO: Explain the allow_group_via_temp_table part of the test below.
        */
       if ((m_ordered_index_usage != ORDERED_INDEX_GROUP_BY) &&
-          (tmp_table_param.quick_group ||
+          (tmp_table_param.allow_group_via_temp_table ||
            (tab->emb_sj_nest &&
             tab->position()->sj_strategy == SJ_OPT_LOOSE_SCAN))) {
         need_tmp_before_win = true;
@@ -10556,7 +10559,7 @@ double calculate_subquery_executions(const Item_subselect *subquery,
 */
 
 bool JOIN::optimize_rollup() {
-  tmp_table_param.quick_group = 0;  // Can't create groups in tmp table
+  tmp_table_param.allow_group_via_temp_table = false;
   rollup.state = ROLLUP::STATE_INITED;
 
   /*

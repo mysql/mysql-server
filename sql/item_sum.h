@@ -81,7 +81,7 @@ struct TABLE;
   Note that update_field/reset_field are not in that
   class, because they're simply not called when
   GROUP BY/DISTINCT can be handled with help of index on grouped
-  fields (quick_group is false);
+  fields (allow_group_via_temp_table is false);
 */
 
 class Aggregator {
@@ -476,7 +476,8 @@ class Item_sum : public Item_result_field {
   int8 max_aggr_level;  ///< max level of unbound column references
   int8
       max_sum_func_level;  ///< max level of aggregation for contained functions
-  bool quick_group;        ///< If incremental update of fields
+  bool allow_group_via_temp_table;  ///< If incremental update of fields is
+                                    ///< supported.
   /**
     WFs are forbidden when resolving Item_sum; this member is used to restore
     WF allowance status afterwards.
@@ -499,7 +500,7 @@ class Item_sum : public Item_result_field {
         m_window(w),
         m_window_resolved(false),
         next_sum(nullptr),
-        quick_group(true),
+        allow_group_via_temp_table(true),
         arg_count(0),
         args(nullptr),
         used_tables_cache(0),
@@ -511,7 +512,7 @@ class Item_sum : public Item_result_field {
       : m_window(NULL),
         m_window_resolved(false),
         next_sum(nullptr),
-        quick_group(true),
+        allow_group_via_temp_table(true),
         arg_count(1),
         args(tmp_args),
         used_tables_cache(0),
@@ -526,7 +527,7 @@ class Item_sum : public Item_result_field {
         m_window(w),
         m_window_resolved(false),
         next_sum(nullptr),
-        quick_group(true),
+        allow_group_via_temp_table(true),
         arg_count(1),
         args(tmp_args),
         used_tables_cache(0),
@@ -540,7 +541,7 @@ class Item_sum : public Item_result_field {
         m_window(w),
         m_window_resolved(false),
         next_sum(nullptr),
-        quick_group(true),
+        allow_group_via_temp_table(true),
         arg_count(2),
         args(tmp_args),
         used_tables_cache(0),
@@ -581,7 +582,7 @@ class Item_sum : public Item_result_field {
     value to its default and aggregates the value of its
     attribute(s), but must also store it in result_field.
     This set of methods (result_item(), reset_field, update_field()) of
-    Item_sum is used only if quick_group is not null. Otherwise
+    Item_sum is used only if allow_group_via_temp_table is true. Otherwise
     copy_or_same() is used to obtain a copy of this item.
   */
   virtual void reset_field() = 0;
@@ -666,7 +667,7 @@ class Item_sum : public Item_result_field {
   /* stores the declared DISTINCT flag (from the parser) */
   void set_distinct(bool distinct) {
     with_distinct = distinct;
-    quick_group = !with_distinct;
+    allow_group_via_temp_table = !with_distinct;
   }
 
   /*
@@ -1857,7 +1858,7 @@ class Item_udf_sum : public Item_sum {
  public:
   Item_udf_sum(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
       : Item_sum(pos, opt_list, NULL), udf(udf_arg) {
-    quick_group = false;
+    allow_group_via_temp_table = false;
   }
   Item_udf_sum(THD *thd, Item_udf_sum *item)
       : Item_sum(thd, item), udf(item->udf) {

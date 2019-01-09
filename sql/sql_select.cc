@@ -3349,9 +3349,9 @@ bool const_expression_in_where(Item *cond, Item *comp_item, Field *comp_field,
   This function counts the number of fields, functions and sum
   functions (items with type SUM_FUNC_ITEM) for use by
   create_tmp_table() and stores it in the Temp_table_param object. It
-  also resets and calculates the quick_group property, which may have
-  to be reverted if this function is called after deciding to use
-  ROLLUP (see JOIN::optimize_rollup()).
+  also resets and calculates the allow_group_via_temp_table property, which may
+  have to be reverted if this function is called after deciding to use ROLLUP
+  (see JOIN::optimize_rollup()).
 
   @param select_lex           SELECT_LEX of query
   @param param                Description of temp table
@@ -3373,7 +3373,7 @@ void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
   param->func_count = 0;
   param->hidden_field_count = 0;
   param->outer_sum_func_count = 0;
-  param->quick_group = 1;
+  param->allow_group_via_temp_table = true;
   /*
     Loose index scan guarantees that all grouping is done and MIN/MAX
     functions are computed, so create_tmp_table() treats this as if
@@ -3391,8 +3391,8 @@ void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
       if (!field->const_item()) {
         Item_sum *sum_item = down_cast<Item_sum *>(field->real_item());
         if (sum_item->aggr_select == select_lex) {
-          if (!sum_item->quick_group)
-            param->quick_group = 0;  // UDF SUM function
+          if (!sum_item->allow_group_via_temp_table)
+            param->allow_group_via_temp_table = false;  // UDF SUM function
           param->sum_func_count++;
 
           for (uint i = 0; i < sum_item->get_arg_count();
