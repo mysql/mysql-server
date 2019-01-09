@@ -1782,7 +1782,7 @@ show create event ee1;
 
 ## prove three works (with spaces and tabs on the end)
 # start with one from the previous restore
-create event ee2 on schedule at '2018-12-31 21:01:23' do set @a=5;	      
+create event ee2 on schedule at '2029-12-31 21:01:23' do set @a=5;
 create event ee3 on schedule at '2030-12-31 22:01:23' do set @a=5;    		
 show events;
 --exec $MYSQL_DUMP --events second > $MYSQLTEST_VARDIR/tmp/bug16853-2.sql
