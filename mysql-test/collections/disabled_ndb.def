@@ -95,7 +95,7 @@ ndb.ndb_truncate_nologging : BUG#14845851 Could not acquire global schema lock
 # database name, affects lower_case_table_names=2 platform
 ndb.ndb_addnode_restart @darwin: BUG#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
 
-ndb.ndb_addnode_restart2: BUG#27165918 NDB_ADDNODE_RESTART2 TEST FAIL
+ndb.ndb_addnode_restart2: Bug#29192097 IMPROVE ABORT HANDLING OF ALTER TABLE
 
 # The below two tests runs extra/rpl_tests/rpl_mixed_implicit_commit_binlog
 # which is maintained upstream and easily breaks due to the inherent
