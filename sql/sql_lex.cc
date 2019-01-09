@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3436,31 +3436,6 @@ void LEX::clear_privileges() {
   memset(&mqh, 0, sizeof(mqh));
   dynamic_privileges.empty();
   default_roles = 0;
-}
-
-/**
-  @brief Restore the LEX and THD in case of a parse error.
-
-  This is a clean up call that is invoked by the Bison generated
-  parser before returning an error from THD::sql_parser(). If your
-  semantic actions manipulate with the global thread state (which
-  is a very bad practice and should not normally be employed) and
-  need a clean-up in case of error, and you can not use %destructor
-  rule in the grammar file itself, this function should be used
-  to implement the clean up.
-*/
-
-void LEX::cleanup_lex_after_parse_error(THD *thd) {
-  sp_head *sp = thd->lex->sphead;
-
-  if (sp) {
-    sp->m_parser_data.finish_parsing_sp_body(thd);
-    //  Do not delete sp_head if is invoked in the context of sp execution.
-    if (thd->sp_runtime_ctx == NULL) {
-      sp_head::destroy(sp);
-      thd->lex->sphead = NULL;
-    }
-  }
 }
 
 /*

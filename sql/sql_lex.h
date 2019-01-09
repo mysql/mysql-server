@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4109,10 +4109,6 @@ struct LEX : public Query_tables_list {
   }
 
   Name_resolution_context *current_context() { return context_stack.head(); }
-  /*
-    Restore the LEX and THD in case of a parse error.
-  */
-  static void cleanup_lex_after_parse_error(THD *thd);
 
   void reset_n_backup_query_tables_list(Query_tables_list *backup);
   void restore_backup_query_tables_list(Query_tables_list *backup);

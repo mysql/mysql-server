@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,7 @@
 #include "sql/rpl_slave.h"  // rpl_master_erroneous_autoinc
 #include "sql/rpl_transaction_write_set_ctx.h"
 #include "sql/sp_cache.h"         // sp_cache_clear
+#include "sql/sp_head.h"          // sp_head
 #include "sql/sql_audit.h"        // mysql_audit_free_thd
 #include "sql/sql_backup_lock.h"  // release_backup_lock
 #include "sql/sql_base.h"         // close_temporary_tables
@@ -2734,6 +2735,12 @@ bool THD::sql_parser() {
 
   Parse_tree_root *root = nullptr;
   if (MYSQLparse(this, &root) || is_error()) {
+    /*
+      Restore the original LEX if it was replaced when parsing
+      a stored procedure. We must ensure that a parsing error
+      does not leave any side effects in the THD.
+    */
+    cleanup_after_parse_error();
     return true;
   }
   if (root != nullptr && lex->make_sql_cmd(root)) {
@@ -2748,4 +2755,29 @@ bool THD::secondary_storage_engine_eligible() const {
          variables.use_secondary_engine != SECONDARY_ENGINE_OFF &&
          locked_tables_mode == LTM_NONE && !in_multi_stmt_transaction_mode() &&
          sp_runtime_ctx == nullptr;
+}
+
+/**
+  Restore session state in case of parse error.
+
+  This is a clean up function that is invoked after the Bison generated
+  parser before returning an error from THD::sql_parser(). If your
+  semantic actions manipulate with the session state (which
+  is a very bad practice and should not normally be employed) and
+  need a clean-up in case of error, and you can not use %destructor
+  rule in the grammar file itself, this function should be used
+  to implement the clean up.
+*/
+
+void THD::cleanup_after_parse_error() {
+  sp_head *sp = lex->sphead;
+
+  if (sp) {
+    sp->m_parser_data.finish_parsing_sp_body(this);
+    //  Do not delete sp_head if is invoked in the context of sp execution.
+    if (sp_runtime_ctx == NULL) {
+      sp_head::destroy(sp);
+      lex->sphead = NULL;
+    }
+  }
 }

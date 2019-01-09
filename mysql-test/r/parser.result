@@ -2374,3 +2374,8 @@ Bug #27714748: @@PARSER_MAX_MEM_SIZE DOES NOT WORK FOR ROUTINES
 SET parser_max_mem_size = 10000000;
 ERROR HY000: Memory capacity of 10000000 bytes for 'parser_max_mem_size' exceeded. Parser bailed out for this query.
 SET parser_max_mem_size = default;
+#
+# Bug #28968848: SIMPLIFY MYSQL_YYABORT
+#
+CREATE PROCEDURE p1 () wrong syntax;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'syntax' at line 1

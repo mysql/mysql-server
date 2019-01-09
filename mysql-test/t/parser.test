@@ -2297,3 +2297,10 @@ SET parser_max_mem_size = 10000000; # minimum allowed value
 --eval CREATE PROCEDURE p() SELECT 1 FROM (SELECT '$s') a
 --enable_query_log
 SET parser_max_mem_size = default;
+
+--echo #
+--echo # Bug #28968848: SIMPLIFY MYSQL_YYABORT
+--echo #
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1 () wrong syntax;

@@ -142,12 +142,7 @@ int yylex(void *yylval, void *yythd);
     }                                         \
   }
 
-#define MYSQL_YYABORT                         \
-  do                                          \
-  {                                           \
-    LEX::cleanup_lex_after_parse_error(YYTHD);\
-    YYABORT;                                  \
-  } while (0)
+#define MYSQL_YYABORT YYABORT
 
 #define MYSQL_YYABORT_ERROR(...)              \
   do                                          \
@@ -244,13 +239,6 @@ int yylex(void *yylval, void *yythd);
 
 static void MYSQLerror(YYLTYPE *, THD *thd, Parse_tree_root **, const char *s)
 {
-  /*
-    Restore the original LEX if it was replaced when parsing
-    a stored procedure. We must ensure that a parsing error
-    does not leave any side effects in the THD.
-  */
-  LEX::cleanup_lex_after_parse_error(thd);
-
   if (strcmp(s, "syntax error") == 0)
     s= ER_THD(thd, ER_SYNTAX_ERROR);
   thd->syntax_error("%s", s);

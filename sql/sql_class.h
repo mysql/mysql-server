@@ -4068,6 +4068,8 @@ class THD : public MDL_context_owner,
   */
   Secondary_engine_optimization m_secondary_engine_optimization =
       Secondary_engine_optimization::PRIMARY_ONLY;
+
+  void cleanup_after_parse_error();
 };
 
 /**
