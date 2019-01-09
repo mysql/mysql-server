@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,6 +102,7 @@ struct gr_modules {
     REGISTRY_MODULE,
     WAIT_ON_START,
     COMPATIBILITY_MANAGER,
+    GCS_EVENTS_HANDLER,
     NUM_MODULES
   };
   using mask = std::bitset<NUM_MODULES>;

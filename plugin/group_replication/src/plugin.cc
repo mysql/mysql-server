@@ -1231,6 +1231,15 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
     group_action_coordinator->reset_coordinator_process();
   }
 
+  /*
+    The GCS events handler module.
+  */
+  if (modules_to_init[gr_modules::GCS_EVENTS_HANDLER]) {
+    events_handler = new Plugin_gcs_events_handler(
+        applier_module, recovery_module, compatibility_mgr,
+        components_stop_timeout_var);
+  }
+
   DBUG_RETURN(ret);
 }
 
@@ -1411,6 +1420,16 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
     }
   }
 
+  /*
+    The GCS events handler module.
+  */
+  if (modules_to_terminate[gr_modules::GCS_EVENTS_HANDLER]) {
+    if (events_handler) {
+      delete events_handler;
+      events_handler = nullptr;
+    }
+  }
+
   return error;
 }
 
@@ -1428,6 +1447,7 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::APPLIER_MODULE, true);
   modules_mask.set(gr_modules::ASYNC_REPL_CHANNELS, true);
   modules_mask.set(gr_modules::GROUP_ACTION_COORDINATOR, true);
+  modules_mask.set(gr_modules::GCS_EVENTS_HANDLER, true);
 
   /*
     The first step is to issue a GCS leave() operation. This is done because
@@ -1469,8 +1489,6 @@ bool attempt_rejoin() {
   } else {
     goto end;
   }
-  delete events_handler;
-  events_handler = nullptr;
 
   /*
     The next step is to prepare the new member for the join.
@@ -1502,9 +1520,6 @@ bool attempt_rejoin() {
   /*
     Finally we attempt the join itself.
   */
-  events_handler = new Plugin_gcs_events_handler(
-      applier_module, recovery_module, compatibility_mgr,
-      components_stop_timeout_var);
   view_change_notifier->start_view_modification();
   join_state =
       gcs_module->join(*events_handler, *events_handler, view_change_notifier);
@@ -2138,10 +2153,6 @@ end:
 
 int start_group_communication() {
   DBUG_ENTER("start_group_communication");
-
-  events_handler = new Plugin_gcs_events_handler(
-      applier_module, recovery_module, compatibility_mgr,
-      components_stop_timeout_var);
 
   view_change_notifier->start_view_modification();
 
