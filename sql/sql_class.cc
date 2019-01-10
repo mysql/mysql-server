@@ -1463,6 +1463,8 @@ void THD::cleanup_after_query() {
   @param from           String to convert
   @param from_length    Length of string to convert
   @param from_cs        Original character set
+  @param report_error   Raise error (when true) or warning (when false) if
+                        there is problem when doing conversion
 
   @note to will be 0-terminated to make it easy to pass to system funcs
 
@@ -1473,14 +1475,14 @@ void THD::cleanup_after_query() {
 
 bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
                          const char *from, size_t from_length,
-                         const CHARSET_INFO *from_cs) {
+                         const CHARSET_INFO *from_cs, bool report_error) {
   DBUG_ENTER("convert_string");
   size_t new_length = to_cs->mbmaxlen * from_length;
-  uint errors = 0;
   if (!(to->str = (char *)alloc(new_length + 1))) {
     to->length = 0;  // Safety fix
     DBUG_RETURN(1);  // EOM
   }
+  uint errors = 0;
   to->length = copy_and_convert(to->str, new_length, to_cs, from, from_length,
                                 from_cs, &errors);
   to->str[to->length] = 0;  // Safety
@@ -1488,10 +1490,16 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
     char printable_buff[32];
     convert_to_printable(printable_buff, sizeof(printable_buff), from,
                          from_length, from_cs, 6);
-    push_warning_printf(this, Sql_condition::SL_WARNING,
-                        ER_INVALID_CHARACTER_STRING,
-                        ER_THD(this, ER_INVALID_CHARACTER_STRING),
-                        from_cs->csname, printable_buff);
+    if (report_error) {
+      my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff,
+               from_cs->csname, to_cs->csname);
+      DBUG_RETURN(1);
+    } else {
+      push_warning_printf(this, Sql_condition::SL_WARNING,
+                          ER_INVALID_CHARACTER_STRING,
+                          ER_THD(this, ER_CANNOT_CONVERT_STRING),
+                          printable_buff, from_cs->csname, to_cs->csname);
+    }
   }
 
   DBUG_RETURN(0);

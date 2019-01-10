@@ -58,3 +58,59 @@ ALTER TABLE t1 MODIFY a VARCHAR(10) COLLATE filename;
 ERROR HY000: Unknown collation: 'filename'
 ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET cp932;
 DROP DATABASE db21958734;
+#
+# Bug#29110613: UNICODE STRING INCORRECTLY MARKED AS INVALID
+#
+USE test;
+SET NAMES utf8mb4;
+SELECT 'x' AS '🐬';
+ERROR HY000: Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+SELECT '🐬';
+?
+🐬
+CREATE TABLE 🐬(a INT);
+Warnings:
+Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+CREATE TABLE t1(🐬 INT);
+Warnings:
+Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+CREATE TABLE t2(a INT COMMENT "🐬");
+Warnings:
+Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+CREATE TABLE t3(a INT);
+CREATE VIEW v1 AS SELECT 'x' AS'🐬';
+ERROR HY000: Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+DROP TABLE 🐬;
+Warnings:
+Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+DROP TABLE t1, t2, t3;
+PREPARE stmt FROM "SELECT 'x' AS '🐬'";
+EXECUTE stmt;
+?
+x
+SET NAMES utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT 'x' AS '🐬';
+🐬
+x
+SELECT '🐬';
+🐬
+🐬
+Warnings:
+Warning	1300	Invalid utf8 character string: 'F09F90'
+CREATE TABLE 🐬(a INT);
+ERROR HY000: Invalid utf8 character string: '\xF0\x9F\x90\xAC'
+CREATE TABLE t1(🐬 INT);
+ERROR HY000: Invalid utf8 character string: '\xF0\x9F\x90\xAC'
+CREATE TABLE t2(a INT COMMENT "🐬");
+ERROR HY000: Invalid utf8 character string: 'F09F90'
+CREATE TABLE t3(a INT);
+CREATE VIEW v1 AS SELECT 'x' AS'🐬';
+ERROR HY000: Invalid utf8 character string: 'F09F90'
+DROP TABLE t3;
+PREPARE stmt FROM "SELECT 'x' AS '🐬'";
+EXECUTE stmt;
+🐬
+x
+SET NAMES default;

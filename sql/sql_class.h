@@ -2744,7 +2744,7 @@ class THD : public MDL_context_owner,
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
                       const char *from, size_t from_length,
-                      const CHARSET_INFO *from_cs);
+                      const CHARSET_INFO *from_cs, bool report_error = false);
 
   int send_explain_fields(Query_result *result);
 

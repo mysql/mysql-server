@@ -1272,6 +1272,7 @@ void warn_about_deprecated_national(THD *thd)
         NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
         TEXT_STRING_sys_nonewline TEXT_STRING_password TEXT_STRING_hash
+        TEXT_STRING_validated
         filter_wild_db_table_string
         opt_constraint
         ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name opt_ts_datafile_name
@@ -9195,9 +9196,9 @@ select_item:
 select_alias:
           /* empty */ { $$=null_lex_str;}
         | AS ident { $$=$2; }
-        | AS TEXT_STRING_sys { $$=$2; }
+        | AS TEXT_STRING_validated { $$=$2; }
         | ident { $$=$1; }
-        | TEXT_STRING_sys { $$=$1; }
+        | TEXT_STRING_validated { $$=$1; }
         ;
 
 optional_braces:
@@ -13804,6 +13805,22 @@ TEXT_STRING_password:
 
 TEXT_STRING_hash:
           TEXT_STRING_sys
+        ;
+
+TEXT_STRING_validated:
+          TEXT_STRING
+          {
+            THD *thd= YYTHD;
+
+            if (thd->charset_is_system_charset)
+              $$= $1;
+            else
+            {
+              if (thd->convert_string(&$$, system_charset_info,
+                                  $1.str, $1.length, thd->charset(), true))
+                MYSQL_YYABORT;
+            }
+          }
         ;
 
 ident:
