@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -242,43 +242,6 @@ public:
 
   bool have_auto_inc(Uint32 id) const {
     return (m_auto_val_attrib ? m_auto_val_attrib->attrId == id : false);
-  };
-
-  Uint64 get_max_auto_val() const {
-    return m_max_auto_val;
-  };
-
-  void update_max_auto_val(const char *data, int size) {
-    union {
-      Uint8  u8;
-      Uint16 u16;
-      Uint32 u32;
-    } val;
-    Uint64 v;
-    switch(size){
-    case 64:
-      memcpy(&v,data,8);
-      break;
-    case 32:
-      memcpy(&val.u32,data,4);
-      v= val.u32;
-      break;
-    case 24:
-      v= uint3korr((unsigned char*)data);
-      break;
-    case 16:
-      memcpy(&val.u16,data,2);
-      v= val.u16;
-      break;
-    case 8:
-      memcpy(&val.u8,data,1);
-      v= val.u8;
-      break;
-    default:
-      return;
-    };
-    if(v > m_max_auto_val)
-      m_max_auto_val= v;
   };
 
   bool get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) const;
