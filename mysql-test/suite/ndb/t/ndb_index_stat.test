@@ -476,6 +476,10 @@ drop index idxcol on t1;
 --echo #cleanup
 drop table t1;
 
+# Suppress errors which can occur when disconnecting + reconnecting
+call mtr.add_suppression("Failed to acquire global schema lock");
+call mtr.add_suppression("Failed to release global schema lock");
+
 set @is_enable = @is_enable_default;
 source ndb_index_stat_enable.inc;
 --remove_file $NDB_TOOLS_OUTPUT

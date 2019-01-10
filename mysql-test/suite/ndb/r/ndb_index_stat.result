@@ -640,6 +640,8 @@ test.t1	analyze	status	OK
 drop index idxcol on t1;
 #cleanup
 drop table t1;
+call mtr.add_suppression("Failed to acquire global schema lock");
+call mtr.add_suppression("Failed to release global schema lock");
 set @is_enable = @is_enable_default;
 set @is_enable = NULL;
 # is_enable_on=0 is_enable_off=0
