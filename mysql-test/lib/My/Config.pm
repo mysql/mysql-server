@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@ package My::Config::Option;
 
 use strict;
 use warnings;
-use mtr_report;
 use Carp;
 
 sub new {
@@ -53,17 +52,9 @@ sub option {
   my $name   = $self->{name};
   my $value  = $self->{value};
 
-  if ($name =~ /^--/) {
-    mtr_error("Options in a config file must not begin with --");
-  }
-
-  my $opt;
-  if ($value) {
-    $opt = "--$name=$value";
-  } else {
-    $opt = "--$name";
-  }
-
+  my $opt = $name;
+  $opt = "$name=$value" if ($value);
+  $opt = "--$opt" unless ($opt =~ /^--/);
   return $opt;
 }
 
@@ -257,17 +248,6 @@ sub new {
         unless $group_name;
 
       $self->insert($group_name, $option, undef);
-    }
-
-    # initialize=<option>=<value>
-    elsif ($line =~ /^initialize(\s*=\s*|\s+)([\@\w-]+)\s*=\s*(.*?)\s*$/) {
-      my $option = $2;
-      my $value  = $3;
-
-      croak "Found option '$option=$value' outside of group"
-        unless $group_name;
-
-      $self->insert($group_name, "initialize=--" . $option, $value);
     }
 
     # <option>=<value>

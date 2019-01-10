@@ -31,7 +31,6 @@ DROP DATABASE B37656;
 SET SQL_LOG_BIN=1;
 SHOW DATABASES LIKE '%37656';
 Database (%37656)
-CALL mtr.add_suppression("The master\'s UUID has changed.*");
 DROP DATABASE BUG37656;
 SHOW DATABASES LIKE '%37656';
 Database (%37656)

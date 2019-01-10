@@ -1,1 +1,1 @@
---initialize=--default-authentication-plugin=mysql_native_password
+--bootstrap=--default-authentication-plugin=mysql_native_password

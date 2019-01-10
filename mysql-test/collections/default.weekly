@@ -73,10 +73,10 @@ perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-time
 
 #######SECTION 4 : EXTENDED RUNS FOR INNODB SUITES #####
 # Run innodb suite including big-test with innodb-page-size=4k
-perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60   --comment=innodb-page-size-4k --vardir=var-innodb-page-size-4k   --initialize=--innodb-page-size=4k --suite=innodb,innodb_undo --no-skip
+perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60   --comment=innodb-page-size-4k --vardir=var-innodb-page-size-4k   --mysqld=--innodb-page-size=4k --suite=innodb,innodb_undo --no-skip
 
 # Run innodb suite with innodb-page-size=8k
-perl mysql-test-run.pl --debug-server --timer --force  --comment=innodb-page-size-8k --vardir=var-innodb-page-size-8k   --initialize=--innodb-page-size=8k --suite=innodb,innodb_undo --no-skip
+perl mysql-test-run.pl --debug-server --timer --force  --comment=innodb-page-size-8k --vardir=var-innodb-page-size-8k   --mysqld=--innodb-page-size=8k --suite=innodb,innodb_undo --no-skip
 
 ####END OF SECTION4(EXTENDED INNODB) ####################
 ####### END OF SECTION - REPEAT DAILY###############################
@@ -101,12 +101,12 @@ perl mysql-test-run.pl --comment=all-skiplogbin --vardir=var-skiplogbin --force 
 # Runs with innodb-page-size=4k and 8k are covered in SECTION 4
 
 # Run innodb suite including big-test with innodb-page-size=32k and 64k
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_32k_size --vardir=var-innodb_32k   --initialize=--innodb-page-size=32k --suite=innodb,innodb_undo,innodb_zip --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_32k_size --vardir=var-innodb_32k   --mysqld=--innodb-page-size=32k --suite=innodb,innodb_undo,innodb_zip --no-skip
 
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_64k_size --vardir=var-innodb-64k  --initialize=--innodb-page-size=64k --suite=innodb,innodb_undo,innodb_zip --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_64k_size --vardir=var-innodb-64k  --mysqld=--innodb-page-size=64k --suite=innodb,innodb_undo,innodb_zip --no-skip
 
 # Run innodb_gis suite including big-test with innodb-page-size=4k
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_gis_4k_size --vardir=var-innodb_gis-4k   --initialize=--innodb-page-size=4k --suite=innodb_gis --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=innodb_gis_4k_size --vardir=var-innodb_gis-4k   --mysqld=--innodb-page-size=4k --suite=innodb_gis --no-skip
 
 # Run innodb compression tests
 # Run innodb_zip suite with innodb-log-compressed-pages, innodb-compression-level and innodb_page_size=4k and 8k and the default 16k
@@ -119,21 +119,21 @@ perl mysql-test-run.pl --vardir=var-innodb-zip-log0_level1 --force --big-test --
 
 perl mysql-test-run.pl --vardir=var-innodb-zip-log1_level9 --force --big-test --comment=compressed_log1_level9 --testcase-timeout=60 --debug-server   --mysqld=--innodb-log-compressed-pages=1 --mysqld=--innodb-compression-level=9 --suite=innodb_zip --no-skip
 
-perl mysql-test-run.pl --vardir=var-innodb-zip-log0_level9_4k --force --big-test --comment=compressed_log0_level9_4k --testcase-timeout=60 --debug-server   --mysqld=--innodb-log-compressed-pages=0 --mysqld=--innodb-compression-level=9 --initialize=--innodb-page-size=4k --suite=innodb_zip --no-skip
+perl mysql-test-run.pl --vardir=var-innodb-zip-log0_level9_4k --force --big-test --comment=compressed_log0_level9_4k --testcase-timeout=60 --debug-server   --mysqld=--innodb-log-compressed-pages=0 --mysqld=--innodb-compression-level=9 --mysqld=--innodb-page-size=4k --suite=innodb_zip --no-skip
 
-perl mysql-test-run.pl --vardir=var-innodb-zip-log1_level1_8k --force --big-test --comment=compressed_log1_level1_8k --testcase-timeout=60 --debug-server   --mysqld=--innodb-log-compressed-pages=1 --mysqld=--innodb-compression-level=1 --initialize=--innodb-page-size=8k --suite=innodb_zip --no-skip
+perl mysql-test-run.pl --vardir=var-innodb-zip-log1_level1_8k --force --big-test --comment=compressed_log1_level1_8k --testcase-timeout=60 --debug-server   --mysqld=--innodb-log-compressed-pages=1 --mysqld=--innodb-compression-level=1 --mysqld=--innodb-page-size=8k --suite=innodb_zip --no-skip
 
 # Run explicit undo tablespaces with pagesize=smallest, default and largest
 # Do not add/run innodb_undo suite with 32 explicit undos, test would fail
 
 # Run innodb suites with explicit undo tablespaces >0  and pagesize=4k
-perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_4k --vardir=var-innodb-undo-32-4k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --initialize=--innodb-page-size=4k --no-skip
+perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_4k --vardir=var-innodb-undo-32-4k  --suite=innodb_zip,innodb --bootstrap=--init-file=std_data/explicit_undo_32.sql --mysqld=--innodb-page-size=4k --no-skip
 
 # Run innodb suites with explicit undo tablespaces >0  and pagesize=default
-perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_16k --vardir=var-innodb-undo-32-16k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --no-skip
+perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_16k --vardir=var-innodb-undo-32-16k  --suite=innodb_zip,innodb --bootstrap=--init-file=std_data/explicit_undo_32.sql --no-skip
 
 # Run innodb suites with explicit undo tablespaces >0  and pagesize=64k
-perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_64k --vardir=var-innodb-undo-32-64k  --suite=innodb_zip,innodb --initialize=--init-file=std_data/explicit_undo_32.sql --initialize=--innodb-page-size=64k --no-skip
+perl mysql-test-run.pl --timer  --force  --comment=innodb_undo_32_64k --vardir=var-innodb-undo-32-64k  --suite=innodb_zip,innodb --bootstrap=--init-file=std_data/explicit_undo_32.sql --mysqld=--innodb-page-size=64k --no-skip
 
 ######################END OF SECTION 6 (INNODB(EXTENDED-WEEKLY))#######
 #

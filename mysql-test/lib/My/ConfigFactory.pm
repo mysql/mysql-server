@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -195,12 +195,6 @@ sub fix_log_error {
   }
 }
 
-sub fix_need_reinit {
-  my ($self, $group) = @_;
-  my $reinit = $self->{ARGS}->{'need_reinit'};
-  return $reinit;
-}
-
 sub fix_log {
   my ($self, $config, $group_name, $group) = @_;
   my $dir = dirname($group->value('datadir'));
@@ -275,7 +269,6 @@ my @mysqld_rules = (
   { '#abs_datadir'                                 => \&fix_abs_datadir },
   { '#host'                                        => \&fix_host },
   { '#log-error'                                   => \&fix_log_error },
-  { '#need_reinit'                                 => \&fix_need_reinit },
   { 'caching_sha2_password_private_key_path'       => \&fix_rsa_private_key },
   { 'caching_sha2_password_public_key_path'        => \&fix_rsa_public_key },
   { 'character-sets-dir'                           => \&fix_charset_dir },

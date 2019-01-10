@@ -11,8 +11,8 @@ perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90    --co
 perl mysql-test-run.pl --force --timer    --comment=ps --vardir=var-ps --ps-protocol --no-skip
 
 # Run innodb suites with different pagesizes
-perl mysql-test-run.pl --timer  --force  --comment=innodb_4k --vardir=var-innodb-4k  --suite=innodb_undo,innodb_zip,innodb --initialize=--innodb-page-size=4k --no-skip --max-test-fail=30
-perl mysql-test-run.pl --timer  --force  --comment=innodb_64k --vardir=var-innodb-64k  --suite=innodb_undo,innodb_zip,innodb --initialize=--innodb-page-size=64k --no-skip --max-test-fail=30
+perl mysql-test-run.pl --timer  --force  --comment=innodb_4k --vardir=var-innodb-4k  --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb-page-size=4k --no-skip --max-test-fail=30
+perl mysql-test-run.pl --timer  --force  --comment=innodb_64k --vardir=var-innodb-64k  --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb-page-size=64k --no-skip --max-test-fail=30
 
 # Additional modes for rpl. Multi-Threaded Slave
 perl mysql-test-run.pl --timer  --force  --comment=rpl_binlog_n_mix_MTS --vardir=var-mts-rpl-binlog-n_mix --mysqld=--binlog-format=mixed  --mysqld=--slave-parallel-workers=4 --suite=rpl,rpl_gtid,rpl_nogtid --no-skip --max-test-fail=30

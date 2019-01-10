@@ -830,13 +830,9 @@ sub collect_one_suite($$$$) {
           next if ($test->{'skip'});
 
           # Skip this combination if the values it provides already
-          # are set in master_opt or slave_opt. Check for bootstrap
-          # options also. Skip combination if the value is already
-          # passed on the command line.
+          # are set in master_opt or slave_opt.
           if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) ||
-            My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ||
-            My::Options::is_set(\@::opt_extra_bootstrap_opt, $comb->{comb_opt}))
-          {
+              My::Options::is_set($test->{slave_opt}, $comb->{comb_opt})) {
             next;
           }
 
@@ -1357,6 +1353,10 @@ sub collect_one_test_case {
     $defaults_extra_file = get_bld_path($defaults_extra_file);
     $tinfo->{extra_template_path} = $defaults_extra_file;
   }
+
+  # Append mysqld extra options to both master and slave
+  push(@{ $tinfo->{'master_opt'} }, @::opt_extra_mysqld_opt);
+  push(@{ $tinfo->{'slave_opt'} },  @::opt_extra_mysqld_opt);
 
   if (!$::start_only or @::opt_cases) {
     # Add master opts, extra options only for master

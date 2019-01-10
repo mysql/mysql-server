@@ -303,7 +303,7 @@
         of the server can be passed in both
         <b><em>test_name</em>-master.opt</b> and
         <b><em>test_name</em>-slave.opt</b>. Each bootstrap variable
-        must be passed as the value of a <b>`--initialize`</b> option so
+        must be passed as the value of a <b>--bootstrap</b> option so
         that @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" can
         recognize that the variable should be used during server
         initialization, remove the existing data directory, and
@@ -2041,11 +2041,8 @@
       For test runs specific to a given test suite, an alternative to
       the use of the <b>`--combination`</b> option is to create a
       <b>combinations</b> file in the suite directory. The file
-      should contain a section of options for each test run.
-      Combination files can support bootstrap variables too. The
-      bootstrap variable has to be passed as a value to the
-      <b>`initialize`</b> keyword. For an example,
-      see @ref PAGE_BINARY_LOG_FORMAT.
+      should contain a section of options for each test run. For an
+      example, see @ref PAGE_BINARY_LOG_FORMAT.
     </li>
 
     <li>
@@ -2142,32 +2139,45 @@
   with <b>`--innodb-page-size`=8k</b>. The test can be run like this:
 
   @verbatim
-  shell> ./mysql-test-run.pl test_name_8k --initialize=--innodb-page-size=8k
+  shell> ./mysql-test-run.pl test_name_8k
+           --bootstrap=--innodb-page-size=8k --mysqld=--innodb-page-size=8k
   @endverbatim
 
-  This will initialize the data directory with 8k page size, and start the
-  server with that value.
-
-  It is also possible to pass bootstrap options in the
-  <b>master.opt</b> file of the test, so that the test can run with
-  the specified value of the bootstrap options without using any
-  command line arguments. The usage is:
+  To ensure the test runs with only a particular page size, an include
+  file is used to make it skip during runs with other page sizes.
 
   @verbatim
-  --initialize --innodb-page-size=8k
+  --source include/have_innodb_8k.inc
+  @endverbatim
+
+  One limitation of using this include file is that the test is skipped
+  unless the required option is passed on the command line.
+
+  Another way to run a test with a bootstrap variable is to delete the
+  existing data directory, and initialize a new data directory with
+  the bootstrap options, inside the test. When the server is started
+  with the bootstrap options after this, the SQL queries will run with
+  the specified options.
+
+  Now it is possible to pass bootstrap options in the
+  <b>master.opt</b> file of the test, so that the test can run with
+  the specified value of the bootstrap options without using any
+  command line arguments, or reinitializing the server within the
+  test. Specifying bootstrap variables in the opt file is the
+  preferred method. The usage is:
+
+  @verbatim
+  --bootstrap --innodb-page-size=8k
   @endverbatim
 
   or
 
   @verbatim
-  --initialize=--innodb-page-size=8k
+  --bootstrap=--innodb-page-size=8k
   @endverbatim
 
-  Specifying bootstrap variables in the opt file is the preferred
-  method.
-
   Each bootstrap variable must be specified as the value of a
-  <b>`--initialize`</b> option in the opt file to ensure @ref
+  <b>`--bootstrap`</b> option in the opt file to ensure @ref
   PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" recognizes that the
   variable must be used during server initialization. If there are
   bootstrap options in the file, the current data directory is
@@ -2178,30 +2188,11 @@
   Similarly, bootstrap options passed in the <b>slave.opt</b> will be
   used to reinitialize the slave server in replication scenarios.
 
-  Bootstrap options set in the opt file are passed to the server
-  first, followed by the server options. So, server start up options
-  have precedence over bootstrap options, regardless of the order in
-  which they are set in the opt file.
-
-  Note that since the bootstrap options are passed in the opt files,
-  they have precedence over the command line bootstrap options. So,
-  if a test has a master.opt file containing <b>`--innodb-page-size`=8k</b>,
-  and while it is being run, <b>`--innodb-page-size`=4k</b> is passed on
-  the command line, the test will run with <b>8k</b> page size.
-
-  Some tests require the server to be restarted multiple times with
-  different server options, as well different bootstrap options. In
-  such cases, the existing data directory is deleted inside the test
-  and a new data directory is initialized with the bootstrap options.
-  When the server is started with the bootstrap options after this,
-  the SQL queries will run with the specified options.
-
-  @verbatim
-  --exec $MYSQLD --no-defaults --initialize-insecure
-  --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=8K
-  --basedir=$MYSQLD_BASEDIR --datadir=$MYSQL_TMP_DIR/datadir1/data
-  --init-file=$BOOTSTRAP_SQL --secure-file-priv=""
-  @endverbatim
+  Note that since the options are passed in the opt files, they have
+  precedence over the command line options. So, if a test has a
+  master.opt file containing <b>`--innodb-page-size`=8k</b>, and while
+  it is being run, <b>`--innodb-page-size`=4k</b> is passed on the
+  command line, the test will run with <b>8k</b> page size.
 */
 
 ###############################################################################
@@ -3734,9 +3725,9 @@
 
   To perform setup prior to running tests, @ref PAGE_MYSQL_TEST_RUN_PL
   "mysql-test-run.pl" needs to invoke <b>mysqld</b> with the
-  <b>`--initialize`</b> and <b>`--skip-grant-tables`</b> options.
+  <b>`--bootstrap`</b> and <b>`--skip-grant-tables`</b> options.
   If MySQL was built with the compiler flag
-  <b>-DDISABLE_GRANT_OPTIONS</b>, then <b>`--initialize`</b>,
+  <b>-DDISABLE_GRANT_OPTIONS</b>, then <b>`--bootstrap`</b>,
   <b>`--skip-grant-tables`</b>, and <b>`--init-file`</b> will be
   disabled. To handle this, set the <b>MYSQLD_BOOTSTRAP</b>
   environment variable to the full path name of a server that has all
@@ -4447,22 +4438,6 @@
       <tt>`--include-ndbcluster`, `--include-ndb`</tt>
 
       Run also tests that need Cluster.
-    </li>
-
-    <li>
-      <tt>`--initialize`=<b>value</b></tt>
-
-      Extra bootstrap options that need be to be passed during
-      the server initialization process can be passed as a value
-      to <b>`--initialize`</b>. The server is then started with
-      the specified value. Only one option may be specified in
-      <b>value</b>; to specify more than one, use additional
-      <b>`--initialize`</b> options.
-
-      Options passed as a value to <b>`--mysqld`</b> will have
-      precedence over the options passed to <b>`--initialize`</b>,
-      regardless of the order in which they passed on the command
-      line.
     </li>
 
     <li>

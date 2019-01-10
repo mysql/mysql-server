@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -540,7 +540,6 @@ sub mtr_report_stats ($$;$) {
   my $found_problems = 0;
   my $tot_failed     = 0;
   my $tot_passed     = 0;
-  my $tot_reinits    = 0;
   my $tot_restarts   = 0;
   my $tot_skipdetect = 0;
   my $tot_skipped    = 0;
@@ -579,11 +578,6 @@ sub mtr_report_stats ($$;$) {
       $tot_restarts++;
     }
 
-    if ($tinfo->{'reinitialized'}) {
-      # Server was reinitialized
-      $tot_reinits++;
-    }
-
     # Add counts for repeated runs, if any. Note that the last run has
     # already been counted above.
     my $num_repeat = $tinfo->{'repeat'} - 1;
@@ -606,7 +600,6 @@ sub mtr_report_stats ($$;$) {
 
   # Print out a summary report to screen
   print "The servers were restarted $tot_restarts times\n";
-  print "The servers were reinitialized $tot_reinits times\n";
 
   if ($timer) {
     use English;
