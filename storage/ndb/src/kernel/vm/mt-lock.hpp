@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,6 +143,22 @@ struct thr_mutex
 
   NdbMutex m_mutex;
 };
+
+/**
+ * For receive threads we have an array of thr_spin_lock, they need all be
+ * aligned with NDB_CL.
+ *
+ * thr_aligned_spin_lock is defined as an aligned and therefore padded version
+ * of thr_spin_lock.
+ *
+ * Beware not to use pointer arithmetic on thr_spin_lock pointer pointing to a
+ * thr_spin_aligned_lock object, although they look logical the same the
+ * padding is different.
+ *
+ * A proper solution would be to define thr_spin_aligned_lock as its own type
+ * and do needed refactoring of code.
+ */
+struct alignas(NDB_CL) thr_aligned_spin_lock: public thr_spin_lock { };
 
 static
 inline

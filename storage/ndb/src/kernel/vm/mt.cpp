@@ -1241,7 +1241,7 @@ struct thr_repository
    * and also heavily updated.
    * Requiring alignments avoid false cache line sharing.
    */
-  alignas(NDB_CL) thr_spin_lock m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
+  thr_aligned_spin_lock m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
 
   alignas(NDB_CL) struct thr_spin_lock m_section_lock;
   alignas(NDB_CL) struct thr_spin_lock m_mem_manager_lock;
