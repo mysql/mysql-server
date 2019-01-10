@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -214,6 +214,26 @@ class Gcs_xcom_proxy {
   virtual bool xcom_client_get_synode_app_data(
       connection_descriptor *fd, uint32_t group_id, synode_no_array &synodes,
       synode_app_data_array &reply) = 0;
+
+  /**
+    This member function is responsible for setting a new value for the maximum
+    size of the XCom cache.
+
+    This function is asynchronous, so the return value indicates only whether
+    the request to change the value was successfully pushed to XCom or not.
+    However, since the cache size is set only for the local node, and makes no
+    further verifications on the value, if XCom processes the request, it will
+    accept the new value. The callers of this function must validate that the
+    value set is within the limits set to the maximum size of the XCom cache.
+
+    This function REQUIRES a prior call to @c xcom_open_handlers to establish a
+    connection to XCom.
+
+    @param size The new value for the maximum size of the XCom cache.
+    @returns true (false) on success (failure). Success means that XCom will
+             process our request, failure means it wont.
+  */
+  virtual bool xcom_client_set_cache_size(uint64_t size) = 0;
 
   /**
     This member function is responsible for pushing data into consensus on
@@ -664,6 +684,14 @@ class Gcs_xcom_proxy {
   */
   virtual bool xcom_set_event_horizon(uint32_t group_id_hash,
                                       xcom_event_horizon event_horizon) = 0;
+  /**
+    Function to reconfigure the maximum size of the XCom cache.
+
+    @param size Cache size limit.
+    @return true if the operation is successfully pushed to XCom's queue,
+                 false otherwise
+  */
+  virtual bool xcom_set_cache_size(uint64_t size) = 0;
 
   /**
     Function to force the set of nodes in XCOM's configuration.
@@ -780,6 +808,7 @@ class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
       Gcs_xcom_node_information const &xcom_instance, uint32_t group_id_hash,
       const std::unordered_set<Gcs_xcom_synode> &synode_set,
       synode_app_data_array &reply);
+  bool xcom_set_cache_size(uint64_t size);
   bool xcom_force_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
 
  private:
@@ -821,6 +850,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
                                        synode_no_array &synodes,
                                        synode_app_data_array &reply);
 
+  bool xcom_client_set_cache_size(uint64_t size);
   bool xcom_client_boot(node_list *nl, uint32_t group_id);
   connection_descriptor *xcom_client_open_connection(std::string,
                                                      xcom_port port);
@@ -939,6 +969,12 @@ class Gcs_xcom_app_cfg {
     @param loops the number of spins.
    */
   void set_poll_spin_loops(unsigned int loops);
+
+  /**
+    Configures the maximum size of the xcom cache.
+    @param size the maximum size of the cache.
+   */
+  void set_xcom_cache_size(uint64_t size);
 
   /**
     Must be called when XCom is not engaged anymore.

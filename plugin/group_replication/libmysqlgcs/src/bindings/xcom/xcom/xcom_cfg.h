@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef XCOM_CFG_H
 #define XCOM_CFG_H
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #ifdef __cplusplus
@@ -39,7 +40,7 @@ typedef struct cfg_app_xcom {
   /*
    cache size limit and interval
   */
-  size_t cache_limit;
+  uint64_t m_cache_limit;
 } cfg_app_xcom_st;
 
 /*

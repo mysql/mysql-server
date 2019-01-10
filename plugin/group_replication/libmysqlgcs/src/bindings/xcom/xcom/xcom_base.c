@@ -350,6 +350,7 @@ static int proposer_task(task_arg arg);
 static int executor_task(task_arg arg);
 static int sweeper_task(task_arg arg);
 extern int alive_task(task_arg arg);
+extern int cache_manager_task(task_arg arg);
 extern int detector_task(task_arg arg);
 
 static int finished(pax_machine *p);
@@ -395,6 +396,7 @@ static task_env *sweeper = NULL;
 static task_env *retry = NULL;
 static task_env *proposer[PROPOSERS];
 static task_env *alive_t = NULL;
+static task_env *cache_task = NULL;
 
 static uint32_t my_id = 0;        /* Unique id of this instance */
 static synode_no current_message; /* Current message number */
@@ -873,6 +875,7 @@ static void init_tasks() {
   init_proposers();
   set_task(&alive_t, NULL);
   set_task(&sweeper, NULL);
+  set_task(&cache_task, NULL);
 }
 
 /* Initialize the xcom thread */
@@ -887,12 +890,13 @@ void xcom_thread_init() {
 
   init_xcom_base();
   init_tasks();
-  init_cache();
 
   /* Initialize input queue */
   channel_init(&prop_input_queue, type_hash("msg_link"));
   init_link_list();
   task_sys_init();
+
+  init_cache();
 }
 
 /* Empty the proposer input queue */
@@ -1025,6 +1029,8 @@ void start_run_tasks() {
                                XCOM_THREAD_DEBUG));
   set_task(&alive_t,
            task_new(alive_task, null_arg, "alive_task", XCOM_THREAD_DEBUG));
+  set_task(&cache_task, task_new(cache_manager_task, null_arg,
+                                 "cache_manager_task", XCOM_THREAD_DEBUG));
 }
 
 /* Create tasks and enter the task main loop */
@@ -2438,36 +2444,6 @@ static bool_t reconfigurable_event_horizon(xcom_proto protocol_version) {
   return protocol_version >= first_event_horizon_aware_protocol;
 }
 
-static bool_t config_unsafe_against_nr_cache_entries(
-    u_int nr_nodes, xcom_event_horizon event_horizon) {
-  return CACHED <= event_horizon * nr_nodes;
-}
-
-static bool_t add_node_unsafe_against_nr_cache_entries(app_data_ptr a) {
-  assert(a->body.c_t == add_node_type);
-  site_def const *latest_config = get_site_def();
-  xcom_event_horizon const event_horizon = latest_config->event_horizon;
-  u_int const nr_nodes_in_config = latest_config->nodes.node_list_len;
-  u_int const nr_nodes_to_add = a->body.app_u_u.nodes.node_list_len;
-  u_int const nr_nodes_in_new_config = nr_nodes_in_config + nr_nodes_to_add;
-  if (config_unsafe_against_nr_cache_entries(nr_nodes_in_new_config,
-                                             event_horizon)) {
-    /*
-     * We should revisit the log message when add_node_type messages contain
-     * more than one address.
-     */
-    assert(a->body.app_u_u.nodes.node_list_len > 0);
-    G_INFO(
-        "The request to add %s to the group was rejected because the invariant "
-        "event_horizon * nr_members < nr_cache_entries would be violated: "
-        "%" PRIu32 " * %u < %d",
-        a->body.app_u_u.nodes.node_list_val[0].address, event_horizon,
-        nr_nodes_in_new_config, CACHED);
-    return TRUE;
-  }
-  return FALSE;
-}
-
 static bool_t add_node_unsafe_against_ipv4_old_nodes(app_data_ptr a) {
   assert(a->body.c_t == add_node_type);
 
@@ -2567,16 +2543,6 @@ site_def *handle_add_node(app_data_ptr a) {
     return NULL;
   }
 
-  if (add_node_unsafe_against_nr_cache_entries(a)) {
-    /*
-     * Note that the result of this function is only applicable to
-     * unused and not-fully-implemented code paths where add_node_type is used
-     * forcibly.
-     * Should this fact change, this obviously does not work.
-     */
-    return NULL;
-  }
-
   site_def *site = clone_site_def(get_site_def());
   DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)););
   MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)););
@@ -2611,8 +2577,7 @@ site_def *handle_add_node(app_data_ptr a) {
 enum allow_event_horizon_result {
   EVENT_HORIZON_ALLOWED,
   EVENT_HORIZON_INVALID,
-  EVENT_HORIZON_UNCHANGEABLE,
-  EVENT_HORIZON_UNSAFE_AGAINST_CACHE
+  EVENT_HORIZON_UNCHANGEABLE
 };
 typedef enum allow_event_horizon_result allow_event_horizon_result;
 
@@ -2632,14 +2597,6 @@ static void log_event_horizon_reconfiguration_failure(
                 "reconfiguring the event horizon",
                 attempted_event_horizon);
       break;
-    case EVENT_HORIZON_UNSAFE_AGAINST_CACHE:
-      G_WARNING("The event horizon was not reconfigured to %" PRIu32
-                " because the invariant "
-                "event_horizon * nr_members < nr_cache_entries would be "
-                "violated: %" PRIu32 " * %u < %d",
-                attempted_event_horizon, attempted_event_horizon,
-                get_site_def()->nodes.node_list_len, CACHED);
-      break;
     case EVENT_HORIZON_ALLOWED:
       break;
   }
@@ -2655,11 +2612,6 @@ static allow_event_horizon_result allow_event_horizon(
     assert(backwards_compatible(latest_config->event_horizon));
     return EVENT_HORIZON_UNCHANGEABLE;
   }
-
-  u_int const nr_nodes = latest_config->nodes.node_list_len;
-  if (config_unsafe_against_nr_cache_entries(nr_nodes, event_horizon))
-    return EVENT_HORIZON_UNSAFE_AGAINST_CACHE;
-
   return EVENT_HORIZON_ALLOWED;
 }
 
@@ -2672,7 +2624,6 @@ static bool_t unsafe_event_horizon_reconfiguration(app_data_ptr a) {
   switch (error_code) {
     case EVENT_HORIZON_INVALID:
     case EVENT_HORIZON_UNCHANGEABLE:
-    case EVENT_HORIZON_UNSAFE_AGAINST_CACHE:
       log_event_horizon_reconfiguration_failure(error_code, new_event_horizon);
       result = TRUE;
       break;
@@ -4084,8 +4035,6 @@ static u_int allow_add_node(app_data_ptr a) {
 
   if (add_node_unsafe_against_event_horizon(a)) return 0;
 
-  if (add_node_unsafe_against_nr_cache_entries(a)) return 0;
-
   if (add_node_unsafe_against_ipv4_old_nodes(a)) {
     G_MESSAGE(
         "This server is unable to join the group as the NIC used is configured "
@@ -4370,7 +4319,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
         DBGOUT(FN; STRLIT("Got set_cache_limit from client");
                SYCEXP(p->synode););
         if (the_app_xcom_cfg) {
-          set_max_cache_size((size_t)p->a->body.app_u_u.cache_limit);
+          set_max_cache_size(p->a->body.app_u_u.cache_limit);
           reply->cli_err = REQUEST_OK;
         } else {
           reply->cli_err = REQUEST_FAIL;
@@ -5101,6 +5050,13 @@ static app_data_ptr init_get_synode_app_data_msg(
   return a;
 }
 
+app_data_ptr init_set_cache_size_msg(app_data *a, uint64_t cache_limit) {
+  init_app_data(a);
+  a->body.c_t = set_cache_limit;
+  a->body.app_u_u.cache_limit = cache_limit;
+  return a;
+}
+
 /* purecov: begin deadcode */
 app_data_ptr create_config_with_group(node_list *nl, cargo_type type,
                                       uint32_t group_id) {
@@ -5359,6 +5315,7 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
         if (action == xa_init) {
           xcom_shutdown = 0;
           sent_alive = 0.0;
+          if (state != 0) init_cache();
         }
         if (action == xa_u_boot) {
           /* purecov: begin deadcode */
@@ -5462,6 +5419,8 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
                                    XCOM_THREAD_DEBUG));
       set_task(&alive_t,
                task_new(alive_task, null_arg, "alive_task", XCOM_THREAD_DEBUG));
+      set_task(&cache_task, task_new(cache_manager_task, null_arg,
+                                     "cache_manager_task", XCOM_THREAD_DEBUG));
 
       for (;;) {
         if (action == xa_terminate) {
@@ -5479,6 +5438,8 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
           set_task(&detector, NULL);
           task_terminate(alive_t);
           set_task(&alive_t, NULL);
+          task_terminate(cache_task);
+          set_task(&cache_task, NULL);
 
           init_xcom_base(); /* Reset shared variables */
           free_site_defs();

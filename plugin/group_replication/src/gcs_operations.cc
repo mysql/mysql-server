@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -665,6 +665,23 @@ std::pair<bool, std::future<void>> Gcs_operations::set_protocol_version(
   gcs_operations_lock->unlock();
 
   DBUG_RETURN(std::make_pair(will_change_protocol, std::move(future)));
+}
+
+enum enum_gcs_error Gcs_operations::set_xcom_cache_size(uint64_t new_size) {
+  DBUG_ENTER("Gcs_operations::set_xcom_cache_size");
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->wrlock();
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
+    std::string group_name(group_name_var);
+    Gcs_group_identifier group_id(group_name);
+    Gcs_control_interface *gcs_control =
+        gcs_interface->get_control_session(group_id);
+    if (gcs_control != nullptr) {
+      result = gcs_control->set_xcom_cache_size(new_size);
+    }
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(result);
 }
 
 const std::string &Gcs_operations::get_gcs_engine() { return gcs_engine; }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,7 @@ class Gcs_suspicions_manager {
       std::vector<Gcs_member_identifier *> left_nodes,
       std::vector<Gcs_member_identifier *> member_suspect_nodes,
       std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
-      bool is_killer_node);
+      bool is_killer_node, synode_no max_synode);
 
   /**
     Invoked periodically by the suspicions processing thread, it picks a
@@ -220,6 +220,14 @@ class Gcs_suspicions_manager {
   */
   bool has_majority();
 
+  /*
+    Updates the synode_no of the last message removed from the XCom cache.
+
+    @param[in] last_removed The synode_no of the last message removed from the
+                            cache.
+  */
+  void update_last_removed(synode_no last_removed);
+
  private:
   /**
     Invoked by Gcs_suspicions_manager::process_view, it verifies if any
@@ -246,7 +254,8 @@ class Gcs_suspicions_manager {
   bool add_suspicions(
       Gcs_xcom_nodes *xcom_nodes,
       std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
-      std::vector<Gcs_member_identifier *> member_suspect_nodes);
+      std::vector<Gcs_member_identifier *> member_suspect_nodes,
+      synode_no max_synode);
 
   /*
     XCom proxy pointer
@@ -312,6 +321,14 @@ class Gcs_suspicions_manager {
     Signals if group has a majority of alive nodes.
   */
   bool m_has_majority;
+
+  /*
+    The synode_no of the last message removed from the XCom cache.
+    The suspicions manager will use this to verify if a suspected node has
+    gone too far behind the group to be recoverable; when that happens, it
+    will print a warning message.
+  */
+  synode_no m_cache_last_removed;
 
   /*
     Disabling the copy constructor and assignment operator.
@@ -423,7 +440,8 @@ class Gcs_xcom_control : public Gcs_control_interface {
   */
 
   bool xcom_receive_global_view(synode_no message_id,
-                                Gcs_xcom_nodes *xcom_nodes, bool same_view);
+                                Gcs_xcom_nodes *xcom_nodes, bool same_view,
+                                synode_no max_synode);
 
   /*
     This method is called in order to give a hint on what the node thinks
@@ -432,7 +450,8 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @param[in] xcom_nodes Set of nodes that participated in the consensus
                             to deliver the message
   */
-  bool xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes);
+  bool xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes,
+                               synode_no max_synode);
 
   /*
     This method is called in order to inform that the node has left the
@@ -524,6 +543,15 @@ class Gcs_xcom_control : public Gcs_control_interface {
   */
   void set_join_behavior(unsigned int join_attempts,
                          unsigned int join_sleep_time);
+
+  /**
+    Sets a new value for the maximum size of the XCom cache.
+
+    @param[in] size the new maximum size of the XCom cache
+    @retval - GCS_OK if request was successfully scheduled in XCom,
+              GCS_NOK otherwise.
+  */
+  enum_gcs_error set_xcom_cache_size(uint64_t size);
 
   /**
     Notify that the current member has left the group and whether it left

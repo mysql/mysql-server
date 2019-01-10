@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,6 +149,12 @@ const char *IP_WHITELIST_DEFAULT = "AUTOMATIC";
 
 char *communication_protocol_join_var = NULL;
 const char *COMMUNICATION_PROTOCOL_JOIN_DEFAULT = "";
+
+// XCom cache size options
+#define DEFAULT_MESSAGE_CACHE_SIZE 1073741824
+#define MIN_MESSAGE_CACHE_SIZE DEFAULT_MESSAGE_CACHE_SIZE
+#define MAX_MESSAGE_CACHE_SIZE ULONG_MAX
+ulong message_cache_size_var = DEFAULT_MESSAGE_CACHE_SIZE;
 
 // The plugin auto increment handler
 Plugin_group_replication_auto_increment *auto_increment_handler = NULL;
@@ -1943,6 +1949,8 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters,
   member_expel_timeout_stream_buffer << member_expel_timeout_var;
   gcs_module_parameters.add_parameter("member_expel_timeout",
                                       member_expel_timeout_stream_buffer.str());
+  gcs_module_parameters.add_parameter("xcom_cache_size",
+                                      std::to_string(message_cache_size_var));
 
   // Compression parameter
   if (compression_threshold_var > 0) {
@@ -2122,7 +2130,7 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables,
                compression_threshold_var, ip_whitelist_var,
                communication_debug_options_var, member_expel_timeout_var,
                communication_max_message_size_var,
-               communication_protocol_join_var);
+               communication_protocol_join_var, message_cache_size_var);
 
 end:
   DBUG_RETURN(err);
@@ -3443,6 +3451,60 @@ static void update_autorejoin_tries(MYSQL_THD, SYS_VAR *, void *var_ptr,
   DBUG_VOID_RETURN;
 }
 
+static int check_message_cache_size(MYSQL_THD, SYS_VAR *var, void *save,
+                                    struct st_mysql_value *value) {
+  DBUG_ENTER("check_message_cache_size");
+
+  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+
+  longlong orig;
+  ulonglong in_val;
+  bool is_negative = false;
+
+  value->val_int(value, &orig);
+  in_val = orig;
+
+  /* Check if value is negative */
+  if (!value->is_unsigned(value) && orig < 0) {
+    is_negative = true;
+  }
+
+  if (is_negative || in_val > MAX_MESSAGE_CACHE_SIZE ||
+      in_val < MIN_MESSAGE_CACHE_SIZE) {
+    std::stringstream ss;
+    ss << "The value "
+       << (is_negative ? std::to_string(orig) : std::to_string(in_val))
+       << " is not within the range of accepted values for the option "
+       << var->name << ". The value must be between " << MIN_MESSAGE_CACHE_SIZE
+       << " and " << MAX_MESSAGE_CACHE_SIZE << " inclusive.";
+    my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
+    mysql_mutex_unlock(&plugin_running_mutex);
+    DBUG_RETURN(1);
+  }
+
+  *(ulong *)save = (ulong)in_val;
+
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_RETURN(0);
+}
+
+static void update_message_cache_size(MYSQL_THD, SYS_VAR *, void *var_ptr,
+                                      const void *save) {
+  DBUG_ENTER("update_message_cache_size");
+
+  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+
+  (*(ulong *)var_ptr) = (*(ulong *)save);
+  ulonglong in_val = *static_cast<const ulonglong *>(save);
+
+  if (gcs_module != NULL) {
+    gcs_module->set_xcom_cache_size(in_val);
+  }
+
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_VOID_RETURN;
+}
+
 // Base plugin variables
 
 static MYSQL_SYSVAR_STR(group_name,     /* name */
@@ -3549,6 +3611,20 @@ static MYSQL_SYSVAR_STR(communication_protocol_join,     /* name */
                         NULL,                               /* check func*/
                         NULL,                               /* update func*/
                         COMMUNICATION_PROTOCOL_JOIN_DEFAULT /* default*/
+);
+
+static MYSQL_SYSVAR_ULONG(
+    message_cache_size,                                    /* name */
+    message_cache_size_var,                                /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "The maximum size (in bytes) of Group Replication's internal message "
+    "cache (the XCom cache).",
+    check_message_cache_size,   /* check func. */
+    update_message_cache_size,  /* update func. */
+    DEFAULT_MESSAGE_CACHE_SIZE, /* default */
+    MIN_MESSAGE_CACHE_SIZE,     /* min */
+    MAX_MESSAGE_CACHE_SIZE,     /* max */
+    0                           /* block */
 );
 
 // Recovery module variables
@@ -4161,6 +4237,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(flow_control_release_percent),
     MYSQL_SYSVAR(member_expel_timeout),
     MYSQL_SYSVAR(communication_protocol_join),
+    MYSQL_SYSVAR(message_cache_size),
     NULL,
 };
 

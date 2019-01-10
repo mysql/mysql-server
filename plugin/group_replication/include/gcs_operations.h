@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -302,7 +302,17 @@ class Gcs_operations {
   Gcs_protocol_version get_maximum_protocol_version();
 
   /**
-   @return the communication engine being used
+    Requests GCS to change the maximum size of the XCom cache.
+
+    @param size The new maximum size of the XCom cache.
+
+    @retval GCS_OK if request successfully scheduled
+    @retval GCS_NOK if GCS is unable to schedule the request
+  */
+  enum enum_gcs_error set_xcom_cache_size(uint64_t new_size);
+
+  /**
+   * @return the communication engine being used
    */
   static const std::string &get_gcs_engine();
 

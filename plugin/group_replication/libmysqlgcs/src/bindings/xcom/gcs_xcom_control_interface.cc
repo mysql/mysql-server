@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_view_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 
 using std::map;
 using std::set;
@@ -190,6 +191,15 @@ void Gcs_xcom_control::set_join_behavior(unsigned int join_attempts,
   m_join_sleep_time = join_sleep_time;
   MYSQL_GCS_LOG_DEBUG("Configured time between attempts to join: %u",
                       m_join_sleep_time)
+}
+
+enum_gcs_error Gcs_xcom_control::set_xcom_cache_size(uint64_t size) {
+  MYSQL_GCS_LOG_DEBUG(
+      "The member is attempting to reconfigure the xcom cache "
+      "with value %luu.",
+      size);
+  bool const success = m_xcom_proxy->xcom_set_cache_size(size);
+  return success ? GCS_OK : GCS_NOK;
 }
 
 void do_function_join(Gcs_control_interface *control_if) {
@@ -1045,7 +1055,8 @@ bool Gcs_xcom_control::is_killer_node(
   return ret;
 }
 
-bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes) {
+bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes,
+                                               synode_no max_synode) {
   std::map<int, const Gcs_control_event_listener &>::const_iterator callback_it;
   std::vector<Gcs_member_identifier> members;
   std::vector<Gcs_member_identifier> unreachable;
@@ -1140,7 +1151,7 @@ bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes) {
     // Remove and add suspicions
     m_suspicions_manager->process_view(
         xcom_nodes, alive_members, left_members, member_suspect_nodes,
-        non_member_suspect_nodes, is_killer_node(alive_members));
+        non_member_suspect_nodes, is_killer_node(alive_members), max_synode);
 
     MYSQL_GCS_TRACE_EXECUTE(
         unsigned int node_no = xcom_nodes->get_node_no();
@@ -1170,7 +1181,6 @@ bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes) {
                                 "suspicious in the "
                                 "cluster: %s",
                                 node_no, (*it)->get_member_id().c_str());
-
         for (it = non_member_suspect_nodes.begin();
              it != non_member_suspect_nodes.end(); it++)
             MYSQL_GCS_LOG_TRACE("My node_id is (%d) Non-member node considered "
@@ -1276,7 +1286,8 @@ bool Gcs_xcom_control::is_this_node_in(
 
 bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
                                                 Gcs_xcom_nodes *xcom_nodes,
-                                                bool same_view) {
+                                                bool same_view,
+                                                synode_no max_synode) {
   bool ret = false;
   bool free_built_members = false;
 
@@ -1354,7 +1365,7 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
   // Remove and add suspicions
   m_suspicions_manager->process_view(
       xcom_nodes, alive_members, left_members, member_suspect_nodes,
-      non_member_suspect_nodes, is_killer_node(alive_members));
+      non_member_suspect_nodes, is_killer_node(alive_members), max_synode);
 
   /*
    We save the information on the nodes reported by the global view.
@@ -1820,7 +1831,8 @@ Gcs_suspicions_manager::Gcs_suspicions_manager(Gcs_xcom_proxy *proxy,
       m_suspicions_mutex(),
       m_suspicions_cond(),
       m_suspicions_parameters_mutex(),
-      m_is_killer_node(false) {
+      m_is_killer_node(false),
+      m_cache_last_removed(null_synode) {
   m_suspicions_mutex.init(
       key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_mutex, NULL);
   m_suspicions_cond.init(key_GCS_COND_Gcs_suspicions_manager_m_suspicions_cond);
@@ -1873,7 +1885,7 @@ void Gcs_suspicions_manager::process_view(
     std::vector<Gcs_member_identifier *> left_nodes,
     std::vector<Gcs_member_identifier *> member_suspect_nodes,
     std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
-    bool is_killer_node) {
+    bool is_killer_node, synode_no max_synode) {
   bool should_wake_up_manager = false;
 
   m_suspicions_mutex.lock();
@@ -1904,7 +1916,7 @@ void Gcs_suspicions_manager::process_view(
 
   if (!non_member_suspect_nodes.empty() || !member_suspect_nodes.empty()) {
     should_wake_up_manager = add_suspicions(
-        xcom_nodes, non_member_suspect_nodes, member_suspect_nodes);
+        xcom_nodes, non_member_suspect_nodes, member_suspect_nodes, max_synode);
   }
 
   if (should_wake_up_manager) {
@@ -1916,7 +1928,8 @@ void Gcs_suspicions_manager::process_view(
 bool Gcs_suspicions_manager::add_suspicions(
     Gcs_xcom_nodes *xcom_nodes,
     std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
-    std::vector<Gcs_member_identifier *> member_suspect_nodes) {
+    std::vector<Gcs_member_identifier *> member_suspect_nodes,
+    synode_no max_synode) {
   const Gcs_xcom_node_information *xcom_node = NULL;
   std::vector<Gcs_member_identifier *>::iterator susp_it;
   bool member_suspicions_added = false;
@@ -1954,6 +1967,8 @@ bool Gcs_suspicions_manager::add_suspicions(
       const_cast<Gcs_xcom_node_information *>(xcom_node)
           ->set_suspicion_creation_timestamp(current_ts);
       const_cast<Gcs_xcom_node_information *>(xcom_node)->set_member(true);
+      const_cast<Gcs_xcom_node_information *>(xcom_node)->set_max_synode(
+          max_synode);
       m_suspicions.add_node(*xcom_node);
       member_suspicions_added = true;
     } else {
@@ -2051,8 +2066,20 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
       m_suspicions.remove_node(*susp_it);
       /* purecov: end */
     } else {
+      std::string node_id = susp_it->get_member_id().get_member_id();
+      if (susp_it->is_member() && !susp_it->has_lost_messages() &&
+          synode_gt(m_cache_last_removed, susp_it->get_max_synode())) {
+        const_cast<Gcs_xcom_node_information *>(m_suspicions.get_node(node_id))
+            ->set_lost_messages(true);
+        MYSQL_GCS_LOG_WARN(
+            "Messages that are needed to recover node "
+            << node_id.c_str()
+            << " have been evicted from the message "
+               " cache. Consider resizing the maximum size of the cache by "
+               " setting group_replication_message_cache_size.")
+      }
       MYSQL_GCS_LOG_TRACE("process_suspicions: Suspect %s hasn't timed out.",
-                          susp_it->get_member_id().get_member_id().c_str())
+                          node_id.c_str())
     }
   }
 
@@ -2164,4 +2191,10 @@ bool Gcs_suspicions_manager::has_majority() {
   ret = m_has_majority;
   m_suspicions_mutex.unlock();
   return ret;
+}
+
+void Gcs_suspicions_manager::update_last_removed(synode_no last_removed) {
+  m_suspicions_mutex.lock();
+  m_cache_last_removed = last_removed;
+  m_suspicions_mutex.unlock();
 }

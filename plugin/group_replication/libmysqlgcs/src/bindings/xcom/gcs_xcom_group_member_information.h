@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -282,6 +282,35 @@ class Gcs_xcom_node_information {
 
   void set_member(bool m);
 
+  /**
+    Get whether the local XCom cache has removed messages that the remote
+    node represented by this object has missed. When this happens, the remote
+    node will no longer be able to recover the missed messages from the local
+    node and a corresponding message will be printed to the local node's error
+    log. The message will only be printed the first time a missed message is
+    lost.
+
+   */
+  bool has_lost_messages() const;
+
+  /**
+    Set whether the local XCom cache has removed messages that the node has
+    missed.
+  */
+  void set_lost_messages(bool lost_msgs);
+
+  /**
+    Gets the highest synode_no known by the group when the node became
+    unreachable.
+  */
+  synode_no get_max_synode() const;
+
+  /**
+    Sets the highest synode_no known by the group when the node became
+    unreachable.
+  */
+  void set_max_synode(synode_no synode);
+
  private:
   Gcs_member_identifier m_member_id;
 
@@ -309,6 +338,18 @@ class Gcs_xcom_node_information {
     Stores the timestamp of the creation of the suspicion.
   */
   uint64_t m_suspicion_creation_timestamp;
+
+  /**
+    Indicates whether the local XCom cache has removed messages that the remote
+    node represented by this object has missed. Used to avoid printing the
+    corresponding error message more than once.
+  */
+  bool m_lost_messages;
+
+  /**
+    The highest synode known by the group when the node became unreachable.
+  */
+  synode_no m_max_synode;
 };
 
 /**

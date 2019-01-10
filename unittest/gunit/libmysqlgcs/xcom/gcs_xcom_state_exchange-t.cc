@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,7 @@ class mock_gcs_control_interface : public Gcs_control_interface {
                enum_gcs_error(uint32_t &write_concurrency));
   MOCK_METHOD1(set_write_concurrency,
                enum_gcs_error(uint32_t write_concurrency));
+  MOCK_METHOD1(set_xcom_cache_size, enum_gcs_error(uint64_t));
   MOCK_METHOD1(add_event_listener,
                int(const Gcs_control_event_listener &event_listener));
   MOCK_METHOD1(remove_event_listener, void(int event_listener_handle));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 
 Gcs_xcom_node_address::Gcs_xcom_node_address(std::string member_address)
     : m_member_address(member_address), m_member_ip(), m_member_port(0) {
@@ -69,7 +70,9 @@ Gcs_xcom_node_information::Gcs_xcom_node_information(
       m_node_no(VOID_NODE_NO),
       m_alive(alive),
       m_member(false),
-      m_suspicion_creation_timestamp(0) {}
+      m_suspicion_creation_timestamp(0),
+      m_lost_messages(false),
+      m_max_synode(null_synode) {}
 
 Gcs_xcom_node_information::Gcs_xcom_node_information(
     const std::string &member_id, const Gcs_xcom_uuid &uuid,
@@ -79,7 +82,9 @@ Gcs_xcom_node_information::Gcs_xcom_node_information(
       m_node_no(node_no),
       m_alive(alive),
       m_member(false),
-      m_suspicion_creation_timestamp(0) {}
+      m_suspicion_creation_timestamp(0),
+      m_lost_messages(false),
+      m_max_synode(null_synode) {}
 
 void Gcs_xcom_node_information::set_suspicion_creation_timestamp(uint64_t ts) {
   m_suspicion_creation_timestamp = ts;
@@ -122,6 +127,22 @@ void Gcs_xcom_node_information::set_member(bool m) { m_member = m; }
 bool Gcs_xcom_node_information::has_timed_out(uint64_t now_ts,
                                               uint64_t timeout) {
   return (m_suspicion_creation_timestamp + timeout) < now_ts;
+}
+
+bool Gcs_xcom_node_information::has_lost_messages() const {
+  return m_lost_messages;
+}
+
+void Gcs_xcom_node_information::set_lost_messages(bool lost_msgs) {
+  m_lost_messages = lost_msgs;
+}
+
+synode_no Gcs_xcom_node_information::get_max_synode() const {
+  return m_max_synode;
+}
+
+void Gcs_xcom_node_information::set_max_synode(synode_no synode) {
+  m_max_synode = synode;
 }
 
 Gcs_xcom_uuid Gcs_xcom_uuid::create_uuid() {

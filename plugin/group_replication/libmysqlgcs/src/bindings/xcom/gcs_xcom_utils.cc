@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cerrno>     // errno
 #include <cinttypes>  // std::strtoumax
+#include <cstdlib>
 #include <sstream>
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
 #ifndef _WIN32
@@ -51,6 +52,11 @@ static const unsigned int JOIN_ATTEMPTS = 0;
   Sleep time between attempts defined in seconds.
 */
 static const uint64_t JOIN_SLEEP_TIME = 5;
+
+/*
+  Default and Min value for the maximum size of the XCom cache.
+*/
+static const uint64_t DEFAULT_XCOM_MAX_CACHE_SIZE = 1073741824;
 
 Gcs_xcom_utils::~Gcs_xcom_utils() {}
 
@@ -157,6 +163,8 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
       interface_params.get_parameter("fragmentation_threshold"));
   std::string *protocol_join_str = const_cast<std::string *>(
       interface_params.get_parameter("communication_protocol_join"));
+  std::string *xcom_cache_size_str = const_cast<std::string *>(
+      interface_params.get_parameter("xcom_cache_size"));
 
   // sets the default value for compression (ON by default)
   if (!compression_str) {
@@ -243,6 +251,12 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
                                    std::to_string(static_cast<unsigned short>(
                                        Gcs_protocol_version::HIGHEST_KNOWN)));
   }
+
+  // sets the default XCom cache size
+  if (!xcom_cache_size_str) {
+    interface_params.add_parameter("xcom_cache_size",
+                                   std::to_string(DEFAULT_XCOM_MAX_CACHE_SIZE));
+  }
 }
 
 static enum_gcs_error is_valid_flag(const std::string param,
@@ -278,6 +292,7 @@ bool is_valid_protocol(std::string const &protocol_string) {
   if (!is_number(protocol_string)) goto end;
 
   // Try to convert.
+  errno = 0;
   protocol_number = std::strtoumax(protocol_c_str, &end, BASE_10);
   couldnt_convert = (protocol_c_str == end);
   out_of_range = (errno == ERANGE);
@@ -339,6 +354,8 @@ bool is_parameters_syntax_correct(
       interface_params.get_parameter("fragmentation");
   const std::string *protocol_join_str =
       interface_params.get_parameter("communication_protocol_join");
+  const std::string *xcom_cache_size_str =
+      interface_params.get_parameter("xcom_cache_size");
 
   /*
     -----------------------------------------------------
@@ -571,6 +588,25 @@ bool is_parameters_syntax_correct(
   if (protocol_join_str != nullptr && !is_valid_protocol(*protocol_join_str)) {
     MYSQL_GCS_LOG_ERROR("The communication_protocol_join parameter ("
                         << *protocol_join_str << ") is not valid.")
+    error = GCS_NOK;
+    goto end;
+  }
+
+  // Validate XCom cache size
+  errno = 0;
+  if (xcom_cache_size_str != NULL &&
+      // Verify if the input value is a valid number
+      (xcom_cache_size_str->size() == 0 || !is_number(*xcom_cache_size_str) ||
+       // Check that it is not lower than the min value allowed for the var
+       strtoull(xcom_cache_size_str->c_str(), nullptr, 10) <
+           DEFAULT_XCOM_MAX_CACHE_SIZE ||
+       // Check that it is not higher than the max value allowed
+       strtoull(xcom_cache_size_str->c_str(), nullptr, 10) > ULONG_MAX ||
+       // Check that it is within the range of values allowed for the var type.
+       // This is need in addition to the check above because of overflows.
+       errno == ERANGE)) {
+    MYSQL_GCS_LOG_ERROR("The xcom_cache_size parameter ("
+                        << xcom_cache_size_str->c_str() << ") is not valid.")
     error = GCS_NOK;
     goto end;
   }

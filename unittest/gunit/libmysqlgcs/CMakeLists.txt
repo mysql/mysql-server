@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -85,6 +85,8 @@ SET(GCS_XCOM_TESTS
     xcom/gcs_xcom_xcom_base
     xcom/gcs_xcom_xcom_transport
     xcom/gcs_xcom_communication_protocol_changer
+    xcom/gcs_xcom_xcom_cache
+    xcom/gcs_xcom_control_interface_unit
    )
 
 ###

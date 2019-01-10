@@ -25,6 +25,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_psi.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/app_data.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 
@@ -123,7 +124,18 @@ bool Gcs_xcom_proxy_impl::xcom_client_get_synode_app_data(
 
   successful =
       (::xcom_client_get_synode_app_data(fd, gid, &synodes, &reply) == 1);
+  return successful;
+}
 
+bool Gcs_xcom_proxy_impl::xcom_client_set_cache_size(uint64_t size) {
+  app_data_ptr data = new_app_data();
+  data = init_set_cache_size_msg(data, size);
+  /* Takes ownership of data. */
+  bool const successful = xcom_input_try_push(data);
+  if (!successful) {
+    MYSQL_GCS_LOG_DEBUG(
+        "xcom_client_set_cache_size: Failed to push into XCom.");
+  }
   return successful;
 }
 
@@ -580,6 +592,10 @@ void Gcs_xcom_app_cfg::set_poll_spin_loops(unsigned int loops) {
   if (the_app_xcom_cfg) the_app_xcom_cfg->m_poll_spin_loops = loops;
 }
 
+void Gcs_xcom_app_cfg::set_xcom_cache_size(uint64_t size) {
+  if (the_app_xcom_cfg) the_app_xcom_cfg->m_cache_limit = size;
+}
+
 bool Gcs_xcom_proxy_impl::xcom_client_force_config(node_list *nl,
                                                    uint32_t group_id) {
   app_data_ptr data = new_app_data();
@@ -716,6 +732,11 @@ bool Gcs_xcom_proxy_base::xcom_get_synode_app_data(
 
 end:
   return successful;
+}
+
+bool Gcs_xcom_proxy_base::xcom_set_cache_size(uint64_t size) {
+  MYSQL_GCS_LOG_DEBUG("Reconfiguring cache size limit to %luu", size);
+  return xcom_client_set_cache_size(size);
 }
 
 bool Gcs_xcom_proxy_base::xcom_force_nodes(Gcs_xcom_nodes &nodes,

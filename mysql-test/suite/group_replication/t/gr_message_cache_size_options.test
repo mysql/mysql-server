@@ -1,0 +1,107 @@
+################################################################################
+# WL#11615 - MySQL GCS: Improve XCom Cache Management
+#
+# This test checks the setting of value of the
+# group_replication_message_cache_size parameter.
+#
+# Test:
+# 0. The test requires one server with GR started.
+# 1. Set group_replication_message_cache_size=<INVALID_VALUE>. Expect error.
+# 2. Set group_replication_message_cache_size=<INVALID_TYPE>. Expect error.
+# 3. Set group_replication_message_cache_size=<INVALID_VALUE>. Expect error.
+# 4. Set group_replication_message_cache_size=<VALID_VALUE>. Assert check the value.
+# 5. Stop GR.
+# 6. Set group_replication_message_cache_size=<INVALID_VALUE>. Expect error.
+# 7. Set group_replication_message_cache_size=<INVALID_TYPE>. Expect error.
+# 8. Set group_replication_message_cache_size=<INVALID_VALUE>. Expect error.
+# 9. Set group_replication_message_cache_size=<VALID_VALUE>. Assert check the value.
+#10. Clean up.
+################################################################################
+
+--source include/have_64bit.inc
+# Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+--source include/linux.inc
+--let $group_replication_group_name= aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_message_cache_size= -200;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_message_cache_size= 5.5;
+
+# This is a valid value for the parameter
+--eval SET GLOBAL group_replication_message_cache_size= 3221225472
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= The value of group_replication_message_cache_size should be 3221225472
+--let $assert_cond= "[SELECT @@group_replication_message_cache_size]" = 3221225472
+--source include/assert.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_message_cache_size= -100000000000000000;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_message_cache_size= 0.5;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_message_cache_size= 1000000000;
+
+# Check for overflows
+## Long long
+SET GLOBAL group_replication_message_cache_size= 9223372036854775808;
+--let $assert_text= The value of group_replication_message_cache_size should be 9223372036854775808
+--let $assert_cond= "[SELECT @@group_replication_message_cache_size]" = 9223372036854775808
+--source include/assert.inc
+
+SET GLOBAL group_replication_message_cache_size= 18446744073709551615;
+--let $assert_text= The value of group_replication_message_cache_size should be 18446744073709551615
+--let $assert_cond= "[SELECT @@group_replication_message_cache_size]" = 18446744073709551615
+--source include/assert.inc
+
+## Unsigned long long
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_message_cache_size= 18446744073709551616;
+
+# This is a valid value for the parameter
+SET GLOBAL group_replication_message_cache_size= 2147483648;
+
+--source include/stop_group_replication.inc
+
+--let $assert_text= The value of group_replication_message_cache_size should be 2147483648
+--let $assert_cond= "[SELECT @@group_replication_message_cache_size]" = 2147483648
+--source include/assert.inc
+
+########################
+# Test for permissions #
+########################
+CREATE user 'group_rpl_user'@localhost;
+grant ALL on *.* to 'group_rpl_user'@localhost;
+--disable_warnings
+revoke SUPER, SYSTEM_VARIABLES_ADMIN on *.* from 'group_rpl_user'@localhost;
+--enable_warnings
+--connect (group_rpl_user_con, localhost, group_rpl_user, , )
+--let $rpl_connection_name= group_rpl_user_con
+--source include/rpl_connection.inc
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL group_replication_message_cache_size= default;
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+grant SYSTEM_VARIABLES_ADMIN on *.* to 'group_rpl_user'@localhost;
+--let $rpl_connection_name= group_rpl_user_con
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_message_cache_size= default;
+-- disconnect group_rpl_user_con
+
+# Reset parameter value to default
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'group_rpl_user'@localhost;
+DROP USER 'group_rpl_user'@localhost;
+flush privileges;
+--source include/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -326,8 +326,8 @@ class Initialize_notification : public Parameterized_notification<false> {
   Initialize_notification &operator=(Initialize_notification const &);
 };
 
-typedef void(xcom_receive_data_functor)(synode_no, Gcs_xcom_nodes *, u_int,
-                                        char *);
+typedef void(xcom_receive_data_functor)(synode_no, Gcs_xcom_nodes *, synode_no,
+                                        u_int, char *);
 /**
   Notification used to inform that data has been totally ordered.
 */
@@ -342,12 +342,14 @@ class Data_notification : public Parameterized_notification<false> {
     @param xcom_nodes Set of nodes that participated in the consensus
                   to deliver the message.
     @param size Size of the message's content.
+    @param last_removed The synode_no of the last message removed from the
+                        XCom cache. Used to update the suspicions manager.
     @param data This is the message's content.
   */
 
   explicit Data_notification(xcom_receive_data_functor *functor,
                              synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
-                             u_int size, char *data);
+                             synode_no last_removed, u_int size, char *data);
 
   /**
     Destructor for Data_notification
@@ -379,6 +381,13 @@ class Data_notification : public Parameterized_notification<false> {
     message.
   */
   Gcs_xcom_nodes *m_xcom_nodes;
+
+  /*
+    The synode_no of the last message removed from the XCom cache. Used to
+    update the suspicions manager, which needs this value to know if a
+    suspected node has gone too far behind the group.
+  */
+  synode_no m_last_removed;
 
   /*
     Size of the message's content.
@@ -446,7 +455,7 @@ class Status_notification : public Parameterized_notification<false> {
 };
 
 typedef void(xcom_global_view_functor)(synode_no, synode_no, Gcs_xcom_nodes *,
-                                       xcom_event_horizon);
+                                       xcom_event_horizon, synode_no);
 /**
   Notification used to inform there have been change to the configuration,
   i.e. nodes have been added, removed or considered dead/faulty.
@@ -468,7 +477,8 @@ class Global_view_notification : public Parameterized_notification<false> {
   explicit Global_view_notification(xcom_global_view_functor *functor,
                                     synode_no config_id, synode_no message_id,
                                     Gcs_xcom_nodes *xcom_nodes,
-                                    xcom_event_horizon event_horizon);
+                                    xcom_event_horizon event_horizon,
+                                    synode_no max_synode);
 
   /**
     Destructor for Global_view_notification.
@@ -512,13 +522,20 @@ class Global_view_notification : public Parameterized_notification<false> {
   xcom_event_horizon m_event_horizon;
 
   /*
+    The highest synode_no seen by the group at the time the view is thrown.
+    Used by the suspicions manager to identify when suspected nodes have
+    lost messages that they need to recover.
+  */
+  synode_no m_max_synode;
+
+  /*
     Disabling the copy constructor and assignment operator.
   */
   Global_view_notification(Global_view_notification const &);
   Global_view_notification &operator=(Global_view_notification const &);
 };
 
-typedef void(xcom_local_view_functor)(synode_no, Gcs_xcom_nodes *);
+typedef void(xcom_local_view_functor)(synode_no, Gcs_xcom_nodes *, synode_no);
 /**
   Notification used to provide hints on nodes' availability.
 */
@@ -536,7 +553,8 @@ class Local_view_notification : public Parameterized_notification<false> {
 
   explicit Local_view_notification(xcom_local_view_functor *functor,
                                    synode_no message_id,
-                                   Gcs_xcom_nodes *xcom_nodes);
+                                   Gcs_xcom_nodes *xcom_nodes,
+                                   synode_no max_synode);
 
   /**
     Destructor for Local_view_notification.
@@ -565,6 +583,13 @@ class Local_view_notification : public Parameterized_notification<false> {
     Set of nodes that were defined when the notification happened.
   */
   Gcs_xcom_nodes *m_xcom_nodes;
+
+  /*
+    The highest synode_no seen by the group at the time the view is thrown.
+    Used by the suspicions manager to identify when suspected nodes have
+    lost messages that they need to recover.
+  */
+  synode_no m_max_synode;
 
   /*
     Disabling the copy constructor and assignment operator.

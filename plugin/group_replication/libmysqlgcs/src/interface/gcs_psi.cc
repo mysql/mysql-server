@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,7 +173,7 @@ void register_xcom_memory_psi_keys() {
   the value shown in the "CURRENT_NUMBER_OF_BYTES_USED" row of the
   "performance_schema.memory_summary_global_by_event_name" table.
 */
-static long long current_count = 0;
+static uint64_t current_count = 0;
 
 /**
   Reports to PSI the allocation of 'size' bytes of data.

@@ -1,0 +1,56 @@
+################################################################################
+# WL#11615 - MySQL GCS: Improve XCom Cache Management
+#
+# Performs additional boundary checks for the
+# group_replication_message_cache_size option in 32bit.
+#
+# Test:
+# 0. The test requires one server with GR started.
+# 1. Set group_replication_message_cache_size=<INVALID_VALUE>. Expect error.
+# 2. Set group_replication_message_cache_size=<INVALID_TYPE>. Expect error.
+# 3. Set group_replication_message_cache_size=<INVALID_VALUE>. Expect error.
+# 4. Set group_replication_message_cache_size=<VALID_VALUE>. Assert check the value.
+# 5. Stop GR.
+# 6. Set group_replication_message_cache_size=<INVALID_VALUE>. Expect error.
+# 7. Set group_replication_message_cache_size=<INVALID_TYPE>. Expect error.
+# 8. Set group_replication_message_cache_size=<INVALID_VALUE>. Expect error.
+# 9. Set group_replication_message_cache_size=<VALID_VALUE>. Assert check the value.
+#10. Clean up.
+################################################################################
+
+--source include/have_32bit.inc
+--let $group_replication_group_name= aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_message_cache_size= -100000000;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_message_cache_size= -100000000000000000;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= The value of group_replication_message_cache_size should be 1073741824
+--let $assert_cond= "[SELECT @@group_replication_message_cache_size]" = 1073741824
+--source include/assert.inc
+
+# Check for overflows
+SET GLOBAL group_replication_message_cache_size= 4294967295;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_message_cache_size= 4294967296;
+
+--source include/stop_group_replication.inc
+
+--let $assert_text= The value of group_replication_message_cache_size should be 4294967295
+--let $assert_cond= "[SELECT @@group_replication_message_cache_size]" = 4294967295
+--source include/assert.inc
+
+# Reset parameter value to default
+SET GLOBAL group_replication_message_cache_size= default;
+
+--source include/group_replication_end.inc

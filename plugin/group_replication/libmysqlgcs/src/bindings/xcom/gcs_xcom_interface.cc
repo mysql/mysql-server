@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,19 +112,20 @@ static Gcs_xcom_proxy *xcom_proxy;
 static Gcs_xcom_engine *gcs_engine;
 
 void cb_xcom_receive_data(synode_no message_id, node_set nodes, u_int size,
-                          char *data);
+                          synode_no last_removed, char *data);
 void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
-                             u_int size, char *data);
-
+                             synode_no last_removed, u_int size, char *data);
 void cb_xcom_receive_local_view(synode_no message_id, node_set nodes);
 void do_cb_xcom_receive_local_view(synode_no message_id,
-                                   Gcs_xcom_nodes *xcom_nodes);
+                                   Gcs_xcom_nodes *xcom_nodes,
+                                   synode_no max_synode);
 void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
                                  node_set nodes,
                                  xcom_event_horizon event_horizon);
 void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
                                     Gcs_xcom_nodes *xcom_nodes,
-                                    xcom_event_horizon event_horizon);
+                                    xcom_event_horizon event_horizon,
+                                    synode_no max_synode);
 void cb_xcom_comms(int status);
 void cb_xcom_ready(int status);
 void cb_xcom_exit(int status);
@@ -849,6 +850,8 @@ bool Gcs_xcom_interface::initialize_xcom(
       interface_params.get_parameter("ip_whitelist");
   const std::string *protocol_join_str =
       interface_params.get_parameter("communication_protocol_join");
+  const std::string *xcom_cache_size_str =
+      interface_params.get_parameter("xcom_cache_size");
 
   set_xcom_group_information(*group_name);
 
@@ -871,6 +874,14 @@ bool Gcs_xcom_interface::initialize_xcom(
   if (poll_spin_loops_str != NULL) {
     m_gcs_xcom_app_cfg.set_poll_spin_loops(
         (unsigned int)atoi(poll_spin_loops_str->c_str()));
+  }
+
+  // configure cache size
+  if (xcom_cache_size_str != NULL) {
+    m_gcs_xcom_app_cfg.set_xcom_cache_size(
+        (uint64_t)atoll(xcom_cache_size_str->c_str()));
+    MYSQL_GCS_LOG_DEBUG("Configured XCom cache size: %s",
+                        xcom_cache_size_str->c_str());
   }
 
   // configure whitelist
@@ -1214,7 +1225,7 @@ const Gcs_ip_whitelist &Gcs_xcom_interface::get_ip_whitelist() {
 }
 
 void cb_xcom_receive_data(synode_no message_id, node_set nodes, u_int size,
-                          char *data) {
+                          synode_no last_removed, char *data) {
   const site_def *site = find_site_def(message_id);
 
   if (site->nodeno == VOID_NODE_NO) {
@@ -1227,8 +1238,9 @@ void cb_xcom_receive_data(synode_no message_id, node_set nodes, u_int size,
   assert(xcom_nodes->is_valid());
   free_node_set(&nodes);
 
-  Gcs_xcom_notification *notification = new Data_notification(
-      do_cb_xcom_receive_data, message_id, xcom_nodes, size, data);
+  Gcs_xcom_notification *notification =
+      new Data_notification(do_cb_xcom_receive_data, message_id, xcom_nodes,
+                            last_removed, size, data);
   bool scheduled = gcs_engine->push(notification);
   if (!scheduled) {
     MYSQL_GCS_LOG_DEBUG(
@@ -1266,7 +1278,8 @@ static inline void do_cb_xcom_receive_data_user(
 }
 
 void do_cb_xcom_receive_data(synode_no message_id,
-                             Gcs_xcom_nodes *xcom_nodes_raw_ptr, u_int size,
+                             Gcs_xcom_nodes *xcom_nodes_raw_ptr,
+                             synode_no cache_last_removed, u_int size,
                              char *data_raw_ptr) {
   std::unique_ptr<Gcs_xcom_nodes> xcom_nodes(xcom_nodes_raw_ptr);
   Gcs_packet::buffer_ptr data(reinterpret_cast<unsigned char *>(data_raw_ptr),
@@ -1303,6 +1316,10 @@ void do_cb_xcom_receive_data(synode_no message_id,
         "stopped.")
     return;
   }
+
+  // Update suspicions manager
+  xcom_control->get_suspicions_manager()->update_last_removed(
+      cache_last_removed);
 
   /*
     This information is used to synchronize the reception of data and global
@@ -1366,6 +1383,7 @@ void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
                                  node_set nodes,
                                  xcom_event_horizon event_horizon) {
   const site_def *site = find_site_def(message_id);
+  const synode_no max_synode = get_max_synode();
 
   if (site->nodeno == VOID_NODE_NO) {
     free_node_set(&nodes);
@@ -1377,9 +1395,9 @@ void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
   assert(xcom_nodes->is_valid());
   free_node_set(&nodes);
 
-  Gcs_xcom_notification *notification =
-      new Global_view_notification(do_cb_xcom_receive_global_view, config_id,
-                                   message_id, xcom_nodes, event_horizon);
+  Gcs_xcom_notification *notification = new Global_view_notification(
+      do_cb_xcom_receive_global_view, config_id, message_id, xcom_nodes,
+      event_horizon, max_synode);
   bool scheduled = gcs_engine->push(notification);
   if (!scheduled) {
     MYSQL_GCS_LOG_DEBUG(
@@ -1393,7 +1411,8 @@ void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
 
 void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
                                     Gcs_xcom_nodes *xcom_nodes,
-                                    xcom_event_horizon event_horizon) {
+                                    xcom_event_horizon event_horizon,
+                                    synode_no max_synode) {
   Gcs_xcom_interface *intf =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
 
@@ -1501,7 +1520,7 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
   });
 
   if (!(xcom_control_if->xcom_receive_global_view(message_id, xcom_nodes,
-                                                  same_view))) {
+                                                  same_view, max_synode))) {
     // Copy node set and config id if the view is not rejected...
     last_accepted_xcom_config.update(config_id, *xcom_nodes, event_horizon);
   } else {
@@ -1516,6 +1535,7 @@ int cb_xcom_match_port(xcom_port if_port) { return xcom_local_port == if_port; }
 
 void cb_xcom_receive_local_view(synode_no message_id, node_set nodes) {
   const site_def *site = find_site_def(message_id);
+  const synode_no max_synode = get_max_synode();
 
   if (site->nodeno == VOID_NODE_NO) {
     free_node_set(&nodes);
@@ -1527,7 +1547,7 @@ void cb_xcom_receive_local_view(synode_no message_id, node_set nodes) {
   free_node_set(&nodes);
 
   Gcs_xcom_notification *notification = new Local_view_notification(
-      do_cb_xcom_receive_local_view, message_id, xcom_nodes);
+      do_cb_xcom_receive_local_view, message_id, xcom_nodes, max_synode);
   bool scheduled = gcs_engine->push(notification);
   if (!scheduled) {
     MYSQL_GCS_LOG_DEBUG(
@@ -1540,7 +1560,8 @@ void cb_xcom_receive_local_view(synode_no message_id, node_set nodes) {
 }
 
 void do_cb_xcom_receive_local_view(synode_no message_id,
-                                   Gcs_xcom_nodes *xcom_nodes) {
+                                   Gcs_xcom_nodes *xcom_nodes,
+                                   synode_no max_synode) {
   Gcs_xcom_interface *gcs = NULL;
   Gcs_control_interface *ctrl = NULL;
   Gcs_xcom_control *xcom_ctrl = NULL;
@@ -1566,7 +1587,7 @@ void do_cb_xcom_receive_local_view(synode_no message_id,
     goto end;  // ignore this local view
   }
 
-  xcom_ctrl->xcom_receive_local_view(xcom_nodes);
+  xcom_ctrl->xcom_receive_local_view(xcom_nodes, max_synode);
 
 end:
   delete xcom_nodes;

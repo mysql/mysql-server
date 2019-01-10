@@ -125,7 +125,7 @@ struct addrinfo *does_node_have_v4_address(struct addrinfo *retrieved);
 
 #define XAPP ep->p->learner.msg->a
 
-#define FIND_MAX (CACHED / 10)
+#define FIND_MAX (MIN_LENGTH / 10)
 
 /* Set type and object pointer */
 #define PLP msg->payload.manager_message_payload_u
@@ -166,6 +166,8 @@ struct add_args {
 };
 typedef struct add_args add_args;
 
+synode_no xcom_get_last_removed_from_cache();
+
 void xcom_add_node(char *addr, xcom_port port, node_list *nl);
 
 xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs);
@@ -176,7 +178,8 @@ void send_client_add_node(char *srv, xcom_port port, node_list *nl);
 void send_client_remove_node(char *srv, xcom_port port, node_list *nl);
 
 typedef void (*xcom_data_receiver)(synode_no message_id, node_set nodes,
-                                   u_int size, char *data);
+                                   u_int size, synode_no last_removed,
+                                   char *data);
 void set_xcom_data_receiver(xcom_data_receiver x);
 
 typedef void (*xcom_local_view_receiver)(synode_no message_id, node_set nodes);
@@ -210,6 +213,7 @@ app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
                                     uint32_t group_id);
 app_data_ptr init_set_event_horizon_msg(app_data *a, uint32_t group_id,
                                         xcom_event_horizon event_horizon);
+app_data_ptr init_set_cache_size_msg(app_data *a, uint64_t cache_limit);
 app_data_ptr init_get_event_horizon_msg(app_data *a, uint32_t group_id);
 app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size);
 app_data_ptr init_terminate_command(app_data *a);
