@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,8 +109,6 @@ public:
   virtual void tuple_free();
   virtual void tuple_a(restore_callback_t *cb);
   virtual void tuple_SYSTAB_0(restore_callback_t *cb, const TableS &);
-  virtual int restoreAutoIncrement(restore_callback_t *cb,
-                                    Uint32 tableId, Uint64 value);
   virtual void cback(int result, restore_callback_t *cb);
   virtual bool errorHandler(restore_callback_t *cb);
   virtual void exitHandler();
@@ -206,6 +204,10 @@ public:
   get_convert_func(const NDBCOL::Type &old_type,
                    const NDBCOL::Type &new_type);
 
+  void update_next_auto_val(Uint32 orig_table_id,
+                            Uint64 next_val);
+
+
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
   const char* m_ndb_connectstring;
@@ -254,6 +256,7 @@ public:
   } m_cache;
   const NdbDictionary::Table* get_table(const TableS &);
 
+  Vector<Uint64> m_auto_values;
   Vector<const NdbDictionary::Table*> m_indexes;
   Vector<Vector<NdbDictionary::Index *> > m_index_per_table; //
   Vector<NdbDictionary::Tablespace*> m_tablespaces;    // Index by id
