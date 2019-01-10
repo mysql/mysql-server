@@ -758,7 +758,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     { CFG_DB_NO_TRIGGER_OPS, &noOfTriggerOperations, true },
     { CFG_DB_RESERVED_TRIGGER_OPS, &reservedTriggerOperations, true },
     { CFG_DB_TRANS_BUFFER_MEM, &transactionBufferBytes, false },
-    { CFG_DB_RESERVED_TRANS_BUFFER_MEM, &reservedTransactionBufferBytes, false },
+    { CFG_DB_RESERVED_TRANS_BUFFER_MEM, &reservedTransactionBufferBytes, true },
   };
 
   ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
