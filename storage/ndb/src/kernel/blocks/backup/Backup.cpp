@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10191,8 +10191,6 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
 
-  ptr.p->slaveState.setState(STOPPING);
-  ptr.p->m_gsn = GSN_STOP_BACKUP_REQ;
   ptr.p->startGCP= startGCP;
   ptr.p->stopGCP= stopGCP;
 
@@ -10234,6 +10232,15 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
   synchronize_path(signal,
                    path,
                    cb);
+  if (ERROR_INSERTED(10049) && (ptr.p->masterRef == reference()))
+  {
+    AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
+    ord->backupId = ptr.p->backupId;
+    ord->backupPtr = ptr.i;
+    ord->requestType = AbortBackupOrd::LogBufferFull;
+    ord->senderData= ptr.i;
+    execABORT_BACKUP_ORD(signal);
+  }
 }
 
 void
@@ -10246,8 +10253,9 @@ Backup::startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
   
-  ndbrequire(ptr.p->m_gsn == GSN_STOP_BACKUP_REQ);
-  
+  ptr.p->slaveState.setState(STOPPING);
+  ptr.p->m_gsn = GSN_STOP_BACKUP_REQ;
+
   /**
    * Now drop the triggers
    */
