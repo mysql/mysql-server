@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -961,13 +961,13 @@ class Rows_event : public Binary_log_event {
 
     int get_partition_id() const { return m_partition_id; }
     void set_partition_id(int partition_id) {
-      BAPI_ASSERT(partition_id < 65535);
+      BAPI_ASSERT(partition_id <= 65535);
       m_partition_id = partition_id;
     }
 
     int get_source_partition_id() const { return m_source_partition_id; }
     void set_source_partition_id(int source_partition_id) {
-      BAPI_ASSERT(source_partition_id < 65535);
+      BAPI_ASSERT(source_partition_id <= 65535);
       m_source_partition_id = source_partition_id;
     }
 
