@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1644,6 +1644,11 @@ bool Sql_cmd_logfile_group::execute(THD *thd) {
   handlerton *hton = nullptr;
   if (get_stmt_hton(thd, m_options->engine_name, m_logfile_group_name.str,
                     "CREATE/ALTER/DROP LOGFILE GROUP", &hton)) {
+    return true;
+  }
+
+  // Lock tablespace(since the logfile group is stored as such)
+  if (lock_tablespace_names(thd, m_logfile_group_name)) {
     return true;
   }
 

@@ -18497,6 +18497,11 @@ int ndbcluster_alter_tablespace(handlerton*,
   Ndb_schema_dist_client schema_dist_client(thd);
   const Thd_ndb* thd_ndb = get_thd_ndb(thd);
 
+  // Function should be called with GSL held
+  if (!thd_ndb->has_required_global_schema_lock("ndbcluster_alter_tablespace")){
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  }
+
   switch (alter_info->ts_cmd_type) {
   case CREATE_TABLESPACE:
   {
@@ -18655,16 +18660,6 @@ int ndbcluster_alter_tablespace(handlerton*,
   }
   case CREATE_LOGFILE_GROUP:
   {
-    // Acquire MDL locks on the logfile group
-    Ndb_dd_client dd_client(thd);
-    if (!dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name))
-    {
-      thd_ndb->push_warning("MDL lock could not be acquired for logfile group "
-                            "'%s'", alter_info->logfile_group_name);
-      my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
-      DBUG_RETURN(1);
-    }
-
     if (alter_info->undo_file_name == nullptr)
     {
       thd_ndb->push_warning("REDO files in LOGFILE GROUP are not supported");
@@ -18703,6 +18698,7 @@ int ndbcluster_alter_tablespace(handlerton*,
     }
 
     // Add Logfile Group entry to the DD as a tablespace
+    Ndb_dd_client dd_client(thd);
     std::vector<std::string> undofile_names = {alter_info->undo_file_name};
     if (!dd_client.install_logfile_group(alter_info->logfile_group_name,
                                          undofile_names, object_id,
@@ -18741,16 +18737,6 @@ int ndbcluster_alter_tablespace(handlerton*,
   }
   case ALTER_LOGFILE_GROUP:
   {
-    // Acquire MDL locks on logfile group
-    Ndb_dd_client dd_client(thd);
-    if (!dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name))
-    {
-      thd_ndb->push_warning("MDL lock could not be acquired for logfile group "
-                            "'%s'", alter_info->logfile_group_name);
-      my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
-      DBUG_RETURN(1);
-    }
-
     if (alter_info->undo_file_name == nullptr)
     {
       thd_ndb->push_warning("REDO files in LOGFILE GROUP are not supported");
@@ -18774,6 +18760,7 @@ int ndbcluster_alter_tablespace(handlerton*,
     }
 
     // Update Logfile Group entry in the DD
+    Ndb_dd_client dd_client(thd);
     if (!dd_client.install_undo_file(alter_info->logfile_group_name,
                                      alter_info->undo_file_name) ||
         DBUG_EVALUATE_IF("ndb_dd_client_install_undo_file_fail",
@@ -18858,16 +18845,6 @@ int ndbcluster_alter_tablespace(handlerton*,
   }
   case DROP_LOGFILE_GROUP:
   {
-    // Acquire MDL locks on logfile group
-    Ndb_dd_client dd_client(thd);
-    if (!dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name))
-    {
-      thd_ndb->push_warning("MDL lock could not be acquired for logfile group "
-                            "'%s'", alter_info->logfile_group_name);
-      my_error(ER_DROP_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
-      DBUG_RETURN(1);
-    }
-
     if (!schema_dist_client.prepare("", alter_info->logfile_group_name))
     {
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
@@ -18887,6 +18864,7 @@ int ndbcluster_alter_tablespace(handlerton*,
     }
 
     // Drop Logfile Group entry from the DD
+    Ndb_dd_client dd_client(thd);
     if (!dd_client.drop_logfile_group(alter_info->logfile_group_name) ||
         DBUG_EVALUATE_IF("ndb_dd_client_drop_logfile_group_fail",
                          true, false))
