@@ -7,3 +7,13 @@ INSERT INTO t1 SELECT NULL FROM t1;
 ALTER TABLE t1 ADD COLUMN c3 INT COLUMN_FORMAT DYNAMIC;
 ERROR HY000: Got error 762 'Unable to alter table as backup is in progress' from NDBCLUSTER
 DROP TABLE t1;
+Test for Bug#28563639: Backup aborts during cleanup of log-event-related triggers
+use test;
+create table t1(id int unsigned primary key, val varchar(100) unique, val2 varchar(100) unique, val3 varchar(100) unique, val4 varchar(100) unique, val5 varchar(100) unique, updates int unsigned) engine=ndb;
+Start backup nowait
+Starting backup
+Backup started
+Wait for backup to complete
+Starting backup
+Backup started
+drop table t1;
