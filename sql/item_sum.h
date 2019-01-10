@@ -32,7 +32,7 @@
 #include <sys/types.h>
 #include <utility>  // std::forward
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"

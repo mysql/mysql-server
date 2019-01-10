@@ -38,8 +38,8 @@
 #include <string>
 #include <type_traits>
 
-#include "binary_log_types.h"
 #include "binlog_event.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"  // my_stpncpy

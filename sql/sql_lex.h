@@ -38,7 +38,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -2118,7 +2117,7 @@ union YYSTYPE {
   const CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
-  timestamp_type date_time_type;
+  enum_mysql_timestamp_type date_time_type;
   SELECT_LEX *select_lex;
   chooser_compare_func_creator boolfunc2creator;
   class sp_condition_value *spcondvalue;

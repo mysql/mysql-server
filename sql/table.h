@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <string>
 
-#include "binary_log_types.h"
+#include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
@@ -2181,7 +2181,7 @@ struct ST_FIELD_INFO {
      be one entry in the enum for each SQL data type, although there seem to
      be a number of additional entries in the enum.
   */
-  enum enum_field_types field_type;
+  enum_field_types field_type;
   int value;
   /**
      This is used to set column attributes. By default, columns are @c NOT

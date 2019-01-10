@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,15 +173,6 @@ struct MEM_ROOT;
 /* Internal error numbers (for assembler functions) */
 #define MY_ERRNO_EDOM 33
 #define MY_ERRNO_ERANGE 34
-
-/* Bits for get_date timeflag */
-#define GETDATE_DATE_TIME 1
-#define GETDATE_SHORT_DATE 2
-#define GETDATE_HHMMSSTIME 4
-#define GETDATE_GMT 8
-#define GETDATE_FIXEDLENGTH 16
-#define GETDATE_T_DELIMITER 32
-#define GETDATE_SHORT_DATE_FULL_YEAR 64
 
 /* defines when allocating data */
 extern void *my_multi_malloc(PSI_memory_key key, myf flags, ...);
@@ -733,7 +724,6 @@ extern char *my_load_path(char *to, const char *path,
                           const char *own_path_prefix);
 extern bool array_append_string_unique(const char *str, const char **array,
                                        size_t size);
-extern void get_date(char *to, int timeflag, time_t use_time);
 
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
@@ -821,23 +811,9 @@ extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
                                 size_t *complen);
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem, size_t count);
 
-/* Wait a given number of microseconds */
-static inline void my_sleep(time_t m_seconds) {
-#if defined(_WIN32)
-  Sleep((DWORD)m_seconds / 1000 + 1); /* Sleep() has millisecond arg */
-#else
-  struct timeval t;
-  t.tv_sec = m_seconds / 1000000L;
-  t.tv_usec = m_seconds % 1000000L;
-  select(0, 0, 0, 0, &t); /* sleep */
-#endif
-}
-
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
-extern time_t my_time(myf flags);
-extern ulonglong my_micro_time();
 extern bool my_gethwaddr(uchar *to);
 
 #ifdef HAVE_SYS_MMAN_H

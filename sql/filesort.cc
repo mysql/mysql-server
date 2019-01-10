@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +48,9 @@
 #include <vector>
 
 #include "add_with_saturate.h"
-#include "binary_log_types.h"
 #include "binlog_config.h"
 #include "decimal.h"
+#include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_basename.h"

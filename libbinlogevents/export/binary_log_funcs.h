@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,13 +28,13 @@
 #ifndef BINARY_LOG_FUNCS_INCLUDED
 #define BINARY_LOG_FUNCS_INCLUDED
 
-#include "binary_log_types.h"
-
 // We use cstdint if this is 2011 standard (or later)
 #if __cplusplus > 201100L
 #include <cstdint>
+enum enum_field_types : int;
 #else
 #include <stdint.h>
+#include "field_types.h"  // enum_field_types
 #endif
 
 #ifdef __cplusplus

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,10 @@
   Implements ::mysql_locking_service_st
 */
 
+#ifndef MYSQL_ABI_CHECK
+#include <stdint.h>
+#endif /* MYSQL_ABI_CHECK */
+
 #ifdef __cplusplus
 class THD;
 #define MYSQL_THD THD *
@@ -51,7 +55,7 @@ enum enum_locking_service_lock_type {
 typedef int (*mysql_acquire_locks_t)(
     MYSQL_THD opaque_thd, const char *lock_namespace, const char **lock_names,
     size_t lock_num, enum enum_locking_service_lock_type lock_type,
-    unsigned long lock_timeout);
+    uint64_t lock_timeout);
 
 typedef int (*mysql_release_locks_t)(MYSQL_THD opaque_thd,
                                      const char *lock_namespace);
@@ -118,7 +122,7 @@ extern "C" struct mysql_locking_service_st {
 int mysql_acquire_locking_service_locks(
     MYSQL_THD opaque_thd, const char *lock_namespace, const char **lock_names,
     size_t lock_num, enum enum_locking_service_lock_type lock_type,
-    unsigned long lock_timeout);
+    uint64_t lock_timeout);
 
 int mysql_release_locking_service_locks(MYSQL_THD opaque_thd,
                                         const char *lock_namespace);

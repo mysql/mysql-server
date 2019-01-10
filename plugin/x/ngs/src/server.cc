@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,8 @@
 #include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
 #include "plugin/x/src/xpl_log.h"
+
+#include "my_systime.h"  // my_sleep()
 
 namespace ngs {
 

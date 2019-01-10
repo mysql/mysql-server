@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include "my_dbug.h"
 #include "my_io.h"
+#include "my_systime.h"  // my_sleep
 
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/log.h"

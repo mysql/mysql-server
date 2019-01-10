@@ -45,7 +45,6 @@
 #include <string>
 #include <vector>
 
-#include "binary_log_types.h"
 #include "binlog_event.h"
 #include "keycache.h"
 #include "m_ctype.h"

@@ -28,7 +28,6 @@
 #include <cctype>  // std::isspace
 #include <limits>
 
-#include "binary_log_types.h"
 #include "binlog_event.h"  // UNDEFINED_SERVER_VERSION
 #include "lex_string.h"
 #include "m_ctype.h"

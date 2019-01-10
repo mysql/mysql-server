@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,9 @@
 #include <gtest/gtest.h>
 #include <limits>
 #include "m_string.h"
+#include "my_systime.h"
 #include "my_time.h"
+#include "unittest/gunit/benchmark.h"
 
 // Unit tests for mysys time functions
 
@@ -409,5 +411,47 @@ TEST(MysysMyTime, MyPackedTimeMakeIntNeg) {
 
   EXPECT_EQ(-9149918308668014592LL, DRV_my_packed_time_make_int(pt));
 }
+
+/*
+  Microbenchmark which tests the performance of clock-reading functions.
+*/
+static void BM_my_getsystime(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    my_getsystime();
+  }
+
+  StopBenchmarkTiming();
+}
+BENCHMARK(BM_my_getsystime)
+
+static void BM_my_time(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    my_time(0);
+  }
+
+  StopBenchmarkTiming();
+}
+BENCHMARK(BM_my_time)
+
+static void BM_my_micro_time(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    my_micro_time();
+  }
+
+  StopBenchmarkTiming();
+}
+BENCHMARK(BM_my_micro_time)
 
 }  // namespace mysys_my_time

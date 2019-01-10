@@ -194,7 +194,7 @@ static const Date_time_format time_24hrs_format = {{0},
 
 static bool extract_date_time(const Date_time_format *format, const char *val,
                               size_t length, MYSQL_TIME *l_time,
-                              timestamp_type cached_timestamp_type,
+                              enum_mysql_timestamp_type cached_timestamp_type,
                               const char **sub_pattern_end,
                               const char *date_time_type) {
   int weekday = 0, yearday = 0, daypart = 0;
@@ -505,7 +505,7 @@ err : {
 */
 
 bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
-                    timestamp_type type, String *str) {
+                    enum_mysql_timestamp_type type, String *str) {
   char intbuff[15];
   uint hours_i;
   uint weekday;

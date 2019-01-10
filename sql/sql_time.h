@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,13 +40,13 @@
 #endif
 #include <sys/types.h>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
-#include "mysql_time.h"    /* timestamp_type */
+#include "mysql_time.h"    /* enum_mysql_timestamp_type */
 #include "sql/sql_error.h" /* Sql_condition */
 #include "sql_string.h"
 
@@ -94,11 +94,11 @@ void time_to_datetime(THD *thd, const MYSQL_TIME *tm, MYSQL_TIME *dt);
 bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
                                   const ErrConvString &val,
-                                  timestamp_type time_type,
+                                  enum_mysql_timestamp_type time_type,
                                   const char *field_name);
 
 const char *get_date_time_format_str(const Known_date_time_format *format,
-                                     timestamp_type type);
+                                     enum_mysql_timestamp_type type);
 void make_date(const Date_time_format *format, const MYSQL_TIME *l_time,
                String *str);
 void make_time(const Date_time_format *format, const MYSQL_TIME *l_time,
@@ -190,7 +190,8 @@ my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
    @param type field type
    @return corresponding timestamp type
  */
-inline timestamp_type field_type_to_timestamp_type(enum enum_field_types type) {
+inline enum_mysql_timestamp_type field_type_to_timestamp_type(
+    enum enum_field_types type) {
   switch (type) {
     case MYSQL_TYPE_TIME:
       return MYSQL_TIMESTAMP_TIME;

@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,7 @@ SET(NDBCLIENT_LIBS
   ndbconf)
 
 SET(LIBS_TO_MERGE
-  mysys dbug strings mysys_ssl
+  mysys dbug mytime strings mysys_ssl
   ndbapi
   ndbtransport
   ndbtrace

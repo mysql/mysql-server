@@ -38,8 +38,8 @@
 #include <sys/types.h>                     // uint
 #include <cstring>                         // memset
 #include <utility>                         // swap
-#include "binary_log_types.h"              // MYSQL_TYPE_DATE
 #include "decimal.h"                       // E_DEC_FATAL_ERROR
+#include "field_types.h"                   // MYSQL_TYPE_DATE
 #include "my_dbug.h"                       // DBUG_ASSERT
 #include "my_decimal.h"                    // my_decimal, my_decimal_cmp
 #include "my_inttypes.h"                   // longlong, ulonglong

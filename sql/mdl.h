@@ -35,6 +35,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "my_systime.h"  // Timout_type
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
@@ -1398,10 +1399,11 @@ class MDL_context {
   void destroy();
 
   bool try_acquire_lock(MDL_request *mdl_request);
-  bool acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout);
-  bool acquire_locks(MDL_request_list *requests, ulong lock_wait_timeout);
+  bool acquire_lock(MDL_request *mdl_request, Timeout_type lock_wait_timeout);
+  bool acquire_locks(MDL_request_list *requests,
+                     Timeout_type lock_wait_timeout);
   bool upgrade_shared_lock(MDL_ticket *mdl_ticket, enum_mdl_type new_type,
-                           ulong lock_wait_timeout);
+                           Timeout_type lock_wait_timeout);
 
   bool clone_ticket(MDL_request *mdl_request);
 

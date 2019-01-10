@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -34,23 +34,24 @@
 
 #include "my_config.h"
 
-#include <limits.h>
-#include <stddef.h>
-#include <sys/types.h>
+#include <assert.h>  // assert
+#include <cstddef>   // std::size_t
+#include <cstdint>   // std::int32_t
+#include <limits>    // std::numeric_limits
+
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>  // struct timeval
 #endif                 /* HAVE_SYS_TIME_H */
 #ifdef _WIN32
-#include <winsock2.h>
-#endif /* _WIN32 */
+#include <winsock2.h>  // struct timeval
+#endif                 /* _WIN32 */
 
-#include "binary_log_types.h"  // enum_field_types
-#include "my_dbug.h"           // DBUG_ASSERT
-#include "my_inttypes.h"       // ulong
-#include "mysql_time.h"        // struct MYSQL_TIME, shared with client code
+#include "mysql_time.h"  // struct MYSQL_TIME, shared with client code
 
-extern const ulonglong log_10_int[20];
-extern const uchar days_in_month[];
+enum enum_field_types : int;
+
+extern const unsigned long long int log_10_int[20];
+extern const unsigned char days_in_month[];
 extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
 
 /**
@@ -61,70 +62,75 @@ extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
   Using the system built in time_t is not an option as
   we rely on the above requirements in the time functions
 */
-typedef long my_time_t;
+using my_time_t = long int;
 
-typedef enum enum_mysql_timestamp_type timestamp_type;
-
-#define MY_TIME_T_MAX LONG_MAX
-#define MY_TIME_T_MIN LONG_MIN
+constexpr const my_time_t MY_TIME_T_MAX = std::numeric_limits<my_time_t>::max();
+constexpr const my_time_t MY_TIME_T_MIN = std::numeric_limits<my_time_t>::min();
 
 /** Time handling defaults */
-#define TIMESTAMP_MAX_YEAR 2038
-#define TIMESTAMP_MIN_YEAR (1900 + YY_PART_YEAR - 1)
-#define TIMESTAMP_MAX_VALUE INT_MAX32
-#define TIMESTAMP_MIN_VALUE 1
+constexpr const int TIMESTAMP_MAX_YEAR = 2038;
 
 /** Two-digit years < this are 20XX; >= this are 19XX */
-#define YY_PART_YEAR 70
+constexpr const int YY_PART_YEAR = 70;
+constexpr const int TIMESTAMP_MIN_YEAR = (1900 + YY_PART_YEAR - 1);
+
+constexpr const int TIMESTAMP_MAX_VALUE =
+    std::numeric_limits<std::int32_t>::max();
+constexpr const int TIMESTAMP_MIN_VALUE = 1;
 
 /** Flags to str_to_datetime and number_to_datetime */
-typedef uint my_time_flags_t;
+using my_time_flags_t = unsigned int;
 
 /** Allow zero day and zero month */
-static const my_time_flags_t TIME_FUZZY_DATE = 1;
+constexpr const my_time_flags_t TIME_FUZZY_DATE = 1;
 
 /** Only allow full datetimes. */
-static const my_time_flags_t TIME_DATETIME_ONLY = 2;
+constexpr const my_time_flags_t TIME_DATETIME_ONLY = 2;
 
-static const my_time_flags_t TIME_FRAC_TRUNCATE = 4;
-static const my_time_flags_t TIME_NO_DATE_FRAC_WARN = 8;
+constexpr const my_time_flags_t TIME_FRAC_TRUNCATE = 4;
+constexpr const my_time_flags_t TIME_NO_DATE_FRAC_WARN = 8;
 
 /** Don't allow zero day or zero month */
-static const my_time_flags_t TIME_NO_ZERO_IN_DATE = 16;
+constexpr const my_time_flags_t TIME_NO_ZERO_IN_DATE = 16;
 
 /** Don't allow 0000-00-00 date */
-static const my_time_flags_t TIME_NO_ZERO_DATE = 32;
+constexpr const my_time_flags_t TIME_NO_ZERO_DATE = 32;
 
 /** Allow 2000-02-31 */
-static const my_time_flags_t TIME_INVALID_DATES = 64;
+constexpr const my_time_flags_t TIME_INVALID_DATES = 64;
 
 /** Conversion warnings */
-#define MYSQL_TIME_WARN_TRUNCATED 1
-#define MYSQL_TIME_WARN_OUT_OF_RANGE 2
-#define MYSQL_TIME_WARN_INVALID_TIMESTAMP 4
-#define MYSQL_TIME_WARN_ZERO_DATE 8
-#define MYSQL_TIME_NOTE_TRUNCATED 16
-#define MYSQL_TIME_WARN_ZERO_IN_DATE 32
-#define MYSQL_TIME_WARN_DATETIME_OVERFLOW 64
+constexpr const int MYSQL_TIME_WARN_TRUNCATED = 1;
+constexpr const int MYSQL_TIME_WARN_OUT_OF_RANGE = 2;
+constexpr const int MYSQL_TIME_WARN_INVALID_TIMESTAMP = 4;
+constexpr const int MYSQL_TIME_WARN_ZERO_DATE = 8;
+constexpr const int MYSQL_TIME_NOTE_TRUNCATED = 16;
+constexpr const int MYSQL_TIME_WARN_ZERO_IN_DATE = 32;
+constexpr const int MYSQL_TIME_WARN_DATETIME_OVERFLOW = 64;
 
 /** Usefull constants */
-#define SECONDS_IN_24H 86400L
+constexpr const long int SECONDS_IN_24H = 86400L;
 
 /** Limits for the TIME data type */
-#define TIME_MAX_HOUR 838
-#define TIME_MAX_MINUTE 59
-#define TIME_MAX_SECOND 59
-#define TIME_MAX_VALUE \
-  (TIME_MAX_HOUR * 10000 + TIME_MAX_MINUTE * 100 + TIME_MAX_SECOND)
-#define TIME_MAX_VALUE_SECONDS \
-  (TIME_MAX_HOUR * 3600L + TIME_MAX_MINUTE * 60L + TIME_MAX_SECOND)
+constexpr const int TIME_MAX_HOUR = 838;
+constexpr const int TIME_MAX_MINUTE = 59;
+constexpr const int TIME_MAX_SECOND = 59;
 
-#define DATETIME_MAX_DECIMALS 6
+/**
+ Note that this MUST be a signed type, as we use the unary - operator on it.
+ */
+constexpr const int TIME_MAX_VALUE =
+    TIME_MAX_HOUR * 10000 + TIME_MAX_MINUTE * 100 + TIME_MAX_SECOND;
+
+constexpr const int TIME_MAX_VALUE_SECONDS =
+    TIME_MAX_HOUR * 3600 + TIME_MAX_MINUTE * 60 + TIME_MAX_SECOND;
+
+constexpr const int DATETIME_MAX_DECIMALS = 6;
 
 /** Flags for calc_week() function.  */
-#define WEEK_MONDAY_FIRST 1
-#define WEEK_YEAR 2
-#define WEEK_FIRST_WEEKDAY 4
+constexpr const unsigned int WEEK_MONDAY_FIRST = 1;
+constexpr const unsigned int WEEK_YEAR = 2;
+constexpr const unsigned int WEEK_FIRST_WEEKDAY = 4;
 
 /**
   Structure to return status from
@@ -133,8 +139,8 @@ static const my_time_flags_t TIME_INVALID_DATES = 64;
 */
 struct MYSQL_TIME_STATUS {
   int warnings{0};
-  uint fractional_digits{0};
-  uint nanoseconds{0};
+  unsigned int fractional_digits{0};
+  unsigned int nanoseconds{0};
 };
 
 /**
@@ -142,27 +148,28 @@ struct MYSQL_TIME_STATUS {
    but member variables are unsigned.
  */
 struct Interval {
-  ulong year;
-  ulong month;
-  ulong day;
-  ulong hour;
-  ulonglong minute;
-  ulonglong second;
-  ulonglong second_part;
+  unsigned long int year;
+  unsigned long int month;
+  unsigned long int day;
+  unsigned long int hour;
+  unsigned long long int minute;
+  unsigned long long int second;
+  unsigned long long int second_part;
   bool neg;
 };
 
 void my_init_time();
 
-long calc_daynr(uint year, uint month, uint day);
-uint calc_days_in_year(uint year);
-uint year_2000_handling(uint year);
+long calc_daynr(unsigned int year, unsigned int month, unsigned int day);
+unsigned int calc_days_in_year(unsigned int year);
+unsigned int year_2000_handling(unsigned int year);
 
-void get_date_from_daynr(long daynr, uint *year, uint *month, uint *day);
+void get_date_from_daynr(long daynr, unsigned int *year, unsigned int *month,
+                         unsigned int *day);
 int calc_weekday(long daynr, bool sunday_first_day_of_week);
-bool valid_period(ulong period);
-ulong convert_period_to_month(ulong period);
-ulong convert_month_to_period(ulong month);
+bool valid_period(unsigned long int period);
+unsigned long int convert_period_to_month(unsigned long int period);
+unsigned long int convert_month_to_period(unsigned long int month);
 
 /**
   Check for valid times only if the range of time_t is greater than
@@ -174,23 +181,24 @@ inline bool is_time_t_valid_for_timestamp(time_t x) {
   return x <= TIMESTAMP_MAX_VALUE && x >= TIMESTAMP_MIN_VALUE;
 }
 
-uint calc_week(const MYSQL_TIME &l_time, uint week_behaviour, uint *year);
+unsigned int calc_week(const MYSQL_TIME &l_time, unsigned int week_behaviour,
+                       unsigned int *year);
 
 bool check_date(const MYSQL_TIME &ltime, bool not_zero_date,
                 my_time_flags_t flags, int *was_cut);
-bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
+bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
                      my_time_flags_t flags, MYSQL_TIME_STATUS *status);
-longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
-                            my_time_flags_t flags, int *was_cut);
-bool number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings);
-ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME &my_time);
-ulonglong TIME_to_ulonglong_date(const MYSQL_TIME &my_time);
-ulonglong TIME_to_ulonglong_time(const MYSQL_TIME &my_time);
-ulonglong TIME_to_ulonglong(const MYSQL_TIME &my_time);
+long long int number_to_datetime(long long int nr, MYSQL_TIME *time_res,
+                                 my_time_flags_t flags, int *was_cut);
+bool number_to_time(long long int nr, MYSQL_TIME *ltime, int *warnings);
+unsigned long long int TIME_to_ulonglong_datetime(const MYSQL_TIME &my_time);
+unsigned long long int TIME_to_ulonglong_date(const MYSQL_TIME &my_time);
+unsigned long long int TIME_to_ulonglong_time(const MYSQL_TIME &my_time);
+unsigned long long int TIME_to_ulonglong(const MYSQL_TIME &my_time);
 
-ulonglong TIME_to_ulonglong_datetime_round(const MYSQL_TIME &my_time,
-                                           int *warnings);
-ulonglong TIME_to_ulonglong_time_round(const MYSQL_TIME &my_time);
+unsigned long long int TIME_to_ulonglong_datetime_round(
+    const MYSQL_TIME &my_time, int *warnings);
+unsigned long long int TIME_to_ulonglong_time_round(const MYSQL_TIME &my_time);
 
 /**
    Round any MYSQL_TIME timepoint and convert to ulonglong.
@@ -198,8 +206,8 @@ ulonglong TIME_to_ulonglong_time_round(const MYSQL_TIME &my_time);
    @param[out] warnings warning vector
    @return time point as ulonglong
  */
-inline ulonglong TIME_to_ulonglong_round(const MYSQL_TIME &my_time,
-                                         int *warnings) {
+inline unsigned long long int TIME_to_ulonglong_round(const MYSQL_TIME &my_time,
+                                                      int *warnings) {
   switch (my_time.time_type) {
     case MYSQL_TIMESTAMP_TIME:
       return TIME_to_ulonglong_time_round(my_time);
@@ -208,7 +216,7 @@ inline ulonglong TIME_to_ulonglong_round(const MYSQL_TIME &my_time,
     case MYSQL_TIMESTAMP_DATE:
       return TIME_to_ulonglong_date(my_time);
     default:
-      DBUG_ASSERT(0);
+      assert(false);
       return 0;
   }
 }
@@ -269,32 +277,38 @@ inline double TIME_to_double(const MYSQL_TIME &my_time) {
    @param i timepoint as longlong
    @return frational part of an timepoint represented as an (u)longlong
 */
-inline longlong my_packed_time_get_frac_part(longlong i) {
+inline long long int my_packed_time_get_frac_part(long long int i) {
   return (i % (1LL << 24));
 }
 
-longlong year_to_longlong_datetime_packed(long year);
-longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME &my_time);
-longlong TIME_to_longlong_date_packed(const MYSQL_TIME &my_time);
-longlong TIME_to_longlong_time_packed(const MYSQL_TIME &my_time);
-longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time);
+long long int year_to_longlong_datetime_packed(long year);
+long long int TIME_to_longlong_datetime_packed(const MYSQL_TIME &my_time);
+long long int TIME_to_longlong_date_packed(const MYSQL_TIME &my_time);
+long long int TIME_to_longlong_time_packed(const MYSQL_TIME &my_time);
+long long int TIME_to_longlong_packed(const MYSQL_TIME &my_time);
 
-void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong nr);
-void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong nr);
-void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong nr);
-void TIME_set_yymmdd(MYSQL_TIME *ltime, uint yymmdd);
-void TIME_set_hhmmss(MYSQL_TIME *ltime, uint hhmmss);
+void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, long long int nr);
+void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, long long int nr);
+void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, long long int nr);
+void TIME_set_yymmdd(MYSQL_TIME *ltime, unsigned int yymmdd);
+void TIME_set_hhmmss(MYSQL_TIME *ltime, unsigned int hhmmss);
 
-void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec);
-longlong my_datetime_packed_from_binary(const uchar *ptr, uint dec);
+void my_datetime_packed_to_binary(long long int nr, unsigned char *ptr,
+                                  unsigned int dec);
+long long int my_datetime_packed_from_binary(const unsigned char *ptr,
+                                             unsigned int dec);
 
-void my_time_packed_to_binary(longlong nr, uchar *ptr, uint dec);
-longlong my_time_packed_from_binary(const uchar *ptr, uint dec);
+void my_time_packed_to_binary(long long int nr, unsigned char *ptr,
+                              unsigned int dec);
+long long int my_time_packed_from_binary(const unsigned char *ptr,
+                                         unsigned int dec);
 
-void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec);
-void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec);
+void my_timestamp_to_binary(const struct timeval *tm, unsigned char *ptr,
+                            unsigned int dec);
+void my_timestamp_from_binary(struct timeval *tm, const unsigned char *ptr,
+                              unsigned int dec);
 
-bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
+bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
                  MYSQL_TIME_STATUS *status);
 
 bool check_time_mmssff_range(const MYSQL_TIME &my_time);
@@ -340,14 +354,14 @@ void set_max_hhmmss(MYSQL_TIME *tm);
   be not enough. We also rely on the fact that even wrong values
   sent using binary protocol fit in this buffer.
 */
-#define MAX_DATE_STRING_REP_LENGTH 30
+constexpr const std::size_t MAX_DATE_STRING_REP_LENGTH = 30;
 
-int my_time_to_str(const MYSQL_TIME &my_time, char *to, uint dec);
+int my_time_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 int my_date_to_str(const MYSQL_TIME &my_time, char *to);
-int my_datetime_to_str(const MYSQL_TIME &my_time, char *to, uint dec);
-int my_TIME_to_str(const MYSQL_TIME &my_time, char *to, uint dec);
+int my_datetime_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
+int my_TIME_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 
-int my_timeval_to_str(const struct timeval *tm, char *to, uint dec);
+int my_timeval_to_str(const struct timeval *tm, char *to, unsigned int dec);
 
 /**
   Available interval types used in any statement.
@@ -399,8 +413,8 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
    @param decimals desired precision
    @return nr rounded according to the desired precision.
 */
-inline long my_time_fraction_remainder(long nr, uint decimals) {
-  DBUG_ASSERT(decimals <= DATETIME_MAX_DECIMALS);
+inline long my_time_fraction_remainder(long nr, unsigned int decimals) {
+  assert(decimals <= DATETIME_MAX_DECIMALS);
   return nr % static_cast<long>(log_10_int[DATETIME_MAX_DECIMALS - decimals]);
 }
 
@@ -411,7 +425,7 @@ inline long my_time_fraction_remainder(long nr, uint decimals) {
    @param ltime time point
    @param decimals desired precision
 */
-inline void my_time_trunc(MYSQL_TIME *ltime, uint decimals) {
+inline void my_time_trunc(MYSQL_TIME *ltime, unsigned int decimals) {
   ltime->second_part -=
       my_time_fraction_remainder(ltime->second_part, decimals);
 }
@@ -422,7 +436,7 @@ inline void my_time_trunc(MYSQL_TIME *ltime, uint decimals) {
    @param ltime time point
    @param decimals desired precision
  */
-inline void my_datetime_trunc(MYSQL_TIME *ltime, uint decimals) {
+inline void my_datetime_trunc(MYSQL_TIME *ltime, unsigned int decimals) {
   return my_time_trunc(ltime, decimals);
 }
 
@@ -433,7 +447,7 @@ inline void my_datetime_trunc(MYSQL_TIME *ltime, uint decimals) {
    @param tv timepoint/duration
    @param decimals desired precision
  */
-inline void my_timeval_trunc(struct timeval *tv, uint decimals) {
+inline void my_timeval_trunc(struct timeval *tv, unsigned int decimals) {
   tv->tv_usec -= my_time_fraction_remainder(tv->tv_usec, decimals);
 }
 
@@ -513,45 +527,51 @@ inline void date_to_datetime(MYSQL_TIME *ltime) {
   ltime->time_type = MYSQL_TIMESTAMP_DATETIME;
 }
 
-bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds,
+bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
+                                        unsigned int nanoseconds,
                                         int *warnings);
 bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
-                                            uint nanoseconds);
-bool time_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
-                                     int *warnings);
+                                            unsigned int nanoseconds);
+bool time_add_nanoseconds_with_round(MYSQL_TIME *ltime,
+                                     unsigned int nanoseconds, int *warnings);
 
-bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
+bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
+                                         unsigned int nanoseconds,
                                          int *warnings);
 
-bool time_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
-                                      int *warnings, bool truncate);
+bool time_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime,
+                                      unsigned int nanoseconds, int *warnings,
+                                      bool truncate);
 
-bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
+bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime,
+                                          unsigned int nanoseconds,
                                           int *warnings, bool truncate);
 
-bool my_time_adjust_frac(MYSQL_TIME *ltime, uint dec, bool truncate);
-bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint dec, int *warnings,
+bool my_time_adjust_frac(MYSQL_TIME *ltime, unsigned int dec, bool truncate);
+bool my_datetime_adjust_frac(MYSQL_TIME *ltime, unsigned int dec, int *warnings,
                              bool truncate);
-bool my_timeval_round(struct timeval *tv, uint decimals);
+bool my_timeval_round(struct timeval *tv, unsigned int decimals);
 void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME &my_time);
 
 void localtime_to_TIME(MYSQL_TIME *to, const struct tm *from);
-void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds);
+void calc_time_from_sec(MYSQL_TIME *to, long long int seconds,
+                        long microseconds);
 bool calc_time_diff(const MYSQL_TIME &my_time1, const MYSQL_TIME &my_time2,
-                    int l_sign, longlong *seconds_out, long *microseconds_out);
+                    int l_sign, long long int *seconds_out,
+                    long *microseconds_out);
 int my_time_compare(const MYSQL_TIME &my_time_a, const MYSQL_TIME &my_time_b);
 
-longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time,
-                                 enum enum_field_types type);
+long long int TIME_to_longlong_packed(const MYSQL_TIME &my_time,
+                                      enum enum_field_types type);
 
 void TIME_from_longlong_packed(MYSQL_TIME *ltime, enum enum_field_types type,
-                               longlong packed_value);
+                               long long int packed_value);
 
-longlong longlong_from_datetime_packed(enum enum_field_types type,
-                                       longlong packed_value);
+long long int longlong_from_datetime_packed(enum enum_field_types type,
+                                            long long int packed_value);
 
 double double_from_datetime_packed(enum enum_field_types type,
-                                   longlong packed_value);
+                                   long long int packed_value);
 
 /**
   @} (end of ingroup MY_TIME)

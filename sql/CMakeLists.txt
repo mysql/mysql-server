@@ -815,6 +815,7 @@ IF(NOT DISABLE_SHARED)
       "$<TARGET_FILE:dbug>"
       "$<TARGET_FILE:mysys>"
       "$<TARGET_FILE:mysys_ssl>"
+      "$<TARGET_FILE:mytime>"
       "$<TARGET_FILE:slave>"
       "$<TARGET_FILE:sql_main>"
       "$<TARGET_FILE:strings>"

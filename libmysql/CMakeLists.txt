@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -203,7 +203,7 @@ ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 ADD_DEPENDENCIES(clientlib GenError)
 
 SET(LIBS_TO_MERGE
-  clientlib dbug strings vio mysys mysys_ssl
+  clientlib dbug mytime strings vio mysys mysys_ssl
   )
 SET(LIBS_TO_LINK ${LIBDL})
 

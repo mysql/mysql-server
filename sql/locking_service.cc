@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ int acquire_locking_service_locks(MYSQL_THD opaque_thd,
                                   const char *lock_namespace,
                                   const char **lock_names, size_t lock_num,
                                   enum_locking_service_lock_type lock_type,
-                                  ulong lock_timeout) {
+                                  Timeout_type lock_timeout) {
   if (lock_num == 0) return 0;
 
   // Check that namespace length is acceptable
@@ -177,7 +177,7 @@ void release_all_locking_service_locks(THD *thd) {
 int mysql_acquire_locking_service_locks(
     MYSQL_THD opaque_thd, const char *lock_namespace, const char **lock_names,
     size_t lock_num, enum_locking_service_lock_type lock_type,
-    ulong lock_timeout) {
+    Timeout_type lock_timeout) {
   return acquire_locking_service_locks(opaque_thd, lock_namespace, lock_names,
                                        lock_num, lock_type, lock_timeout);
 }

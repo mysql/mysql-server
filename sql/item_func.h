@@ -29,7 +29,6 @@
 #include <cmath>  // isfinite
 #include <functional>
 
-#include "binary_log_types.h"
 #include "decimal.h"
 #include "ft_global.h"
 #include "lex_string.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "lex_string.h"
 #include "m_ctype.h"  // my_charset_latin1, my_charset_bin
 #include "my_inttypes.h"
+#include "my_systime.h"                  // my_micro_time()
 #include "my_time.h"                     // MYSQL_TIME
 #include "sql/field.h"                   // my_charset_numeric
 #include "sql/histograms/equi_height.h"  // Equi_height

@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "my_getopt.h"  // get_opt_arg_type
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "my_systime.h"  // my_micro_time()
 #include "mysql/components/services/system_variable_source_type.h"
 #include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"

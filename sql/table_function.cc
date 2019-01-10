@@ -27,7 +27,6 @@
 #include <memory>
 #include <new>
 
-#include "binary_log_types.h"
 #include "m_string.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"

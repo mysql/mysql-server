@@ -27,7 +27,6 @@
 #include <memory>  // std:unique_ptr
 #include <string>
 
-#include "binary_log_types.h"  // enum_field_types
 #include "my_inttypes.h"
 #include "sql/dd/result_type.h"  // dd::ResultType
 #include "sql/dd/string_type.h"

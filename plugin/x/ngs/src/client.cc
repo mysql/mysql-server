@@ -37,6 +37,7 @@
 #include "my_dbug.h"
 
 #include "my_macros.h"
+#include "my_systime.h"  // my_sleep
 
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"

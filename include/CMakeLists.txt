@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ SET(HEADERS
   mysql_time.h
   ${CMAKE_CURRENT_BINARY_DIR}/mysql_version.h
   ${CMAKE_CURRENT_BINARY_DIR}/mysqld_error.h
-  ../libbinlogevents/export/binary_log_types.h
+  field_types.h
 )
 SET(HEADERS_MYSQL_DIR
   mysql/client_plugin.h

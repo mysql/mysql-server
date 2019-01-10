@@ -1,8 +1,8 @@
 typedef unsigned long long my_ulonglong;
 typedef int my_socket;
-#include "binary_log_types.h"
-typedef enum enum_field_types {
-  MYSQL_TYPE_DECIMAL,
+#include "field_types.h"
+enum enum_field_types
+{ MYSQL_TYPE_DECIMAL,
   MYSQL_TYPE_TINY,
   MYSQL_TYPE_SHORT,
   MYSQL_TYPE_LONG,
@@ -32,8 +32,8 @@ typedef enum enum_field_types {
   MYSQL_TYPE_BLOB = 252,
   MYSQL_TYPE_VAR_STRING = 253,
   MYSQL_TYPE_STRING = 254,
-  MYSQL_TYPE_GEOMETRY = 255
-} enum_field_types;
+  MYSQL_TYPE_GEOMETRY = 255 };
+typedef enum enum_field_types enum_field_types;
 #include "my_list.h"
 typedef struct LIST {
   struct LIST *prev, *next;
@@ -243,7 +243,7 @@ bool my_thread_init(void);
 void my_thread_end(void);
 unsigned long net_field_length(unsigned char **packet);
 unsigned long net_field_length_checked(unsigned char **packet,
-                                       unsigned long max_length);
+                                               unsigned long max_length);
 unsigned long long net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);

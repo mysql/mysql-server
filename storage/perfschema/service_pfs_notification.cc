@@ -32,6 +32,7 @@
 #include <string.h>
 #include <atomic>
 
+#include "my_systime.h"  // my_sleep()
 #include "pfs_thread_provider.h"
 #include "storage/perfschema/pfs_server.h"
 

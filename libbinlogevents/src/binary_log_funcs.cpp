@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,8 @@
 #include "binary_log_funcs.h"
 
 #include "byteorder.h"
-#include "my_time.h"  // DATETIME_MAX_DECIMALS
+#include "field_types.h"  // enum_field_types
+#include "my_time.h"      // DATETIME_MAX_DECIMALS
 #include "wrapper_functions.h"
 
 #include <stdint.h>

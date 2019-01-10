@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "my_systime.h"  // TIMEOUT_INF, Timeout_type
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
@@ -1022,7 +1023,8 @@ PLUGIN_EXPORT long long version_tokens_lock_shared(UDF_INIT *, UDF_ARGS *args,
   // For the UDF 1 == success, 0 == failure.
   return !acquire_locking_service_locks(
       NULL, VTOKEN_LOCKS_NAMESPACE, const_cast<const char **>(&args->args[0]),
-      args->arg_count - 1, LOCKING_SERVICE_READ, (unsigned long)timeout);
+      args->arg_count - 1, LOCKING_SERVICE_READ,
+      (timeout == -1 ? TIMEOUT_INF : static_cast<Timeout_type>(timeout)));
 }
 
 PLUGIN_EXPORT bool version_tokens_lock_exclusive_init(UDF_INIT *initid,
@@ -1048,7 +1050,8 @@ PLUGIN_EXPORT long long version_tokens_lock_exclusive(UDF_INIT *,
   // For the UDF 1 == success, 0 == failure.
   return !acquire_locking_service_locks(
       NULL, VTOKEN_LOCKS_NAMESPACE, const_cast<const char **>(&args->args[0]),
-      args->arg_count - 1, LOCKING_SERVICE_WRITE, (unsigned long)timeout);
+      args->arg_count - 1, LOCKING_SERVICE_WRITE,
+      (timeout == -1 ? TIMEOUT_INF : static_cast<Timeout_type>(timeout)));
 }
 
 PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT *, UDF_ARGS *args,

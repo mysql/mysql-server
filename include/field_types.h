@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file binary_log_types.h
+  @file field_types.h
 
   @brief This file contains the field type.
 
@@ -35,12 +35,12 @@
   definitions have to be constructed to support this.
 */
 
-#ifndef BINARY_LOG_TYPES_INCLUDED
-#define BINARY_LOG_TYPES_INCLUDED
+#ifndef FIELD_TYPES_INCLUDED
+#define FIELD_TYPES_INCLUDED
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* __cplusplus */
 
 /*
  * Constants exported from this package.
@@ -49,8 +49,12 @@ extern "C" {
 /**
   Column types for MySQL
 */
-typedef enum enum_field_types {
-  MYSQL_TYPE_DECIMAL,
+enum enum_field_types
+#if defined(__cplusplus) && __cplusplus > 201103L
+    // N2764: Forward enum declarations, added in C++11
+    : int
+#endif /* __cplusplus */
+{ MYSQL_TYPE_DECIMAL,
   MYSQL_TYPE_TINY,
   MYSQL_TYPE_SHORT,
   MYSQL_TYPE_LONG,
@@ -80,11 +84,12 @@ typedef enum enum_field_types {
   MYSQL_TYPE_BLOB = 252,
   MYSQL_TYPE_VAR_STRING = 253,
   MYSQL_TYPE_STRING = 254,
-  MYSQL_TYPE_GEOMETRY = 255
-} enum_field_types;
+  MYSQL_TYPE_GEOMETRY = 255 };
 
 #ifdef __cplusplus
-}
-#endif  // __cplusplus
+}  // extern "C"
+#else
+typedef enum enum_field_types enum_field_types;
+#endif /* __cplusplus */
 
-#endif /* BINARY_LOG_TYPES_INCLUDED */
+#endif /* FIELD_TYPES_INCLUDED */

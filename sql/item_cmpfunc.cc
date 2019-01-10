@@ -814,7 +814,8 @@ bool get_mysql_time_from_str_no_warn(THD *thd, String *str, MYSQL_TIME *l_time,
   @retval True Indicates failure.
 */
 
-bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
+bool get_mysql_time_from_str(THD *thd, String *str,
+                             enum_mysql_timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time) {
   bool value;
   MYSQL_TIME_STATUS status;
@@ -869,7 +870,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
     converted value. 0 on error and on zero-dates -- check 'failure'
 */
 static ulonglong get_date_from_str(THD *thd, String *str,
-                                   timestamp_type warn_type,
+                                   enum_mysql_timestamp_type warn_type,
                                    const char *warn_name, bool *error_arg) {
   MYSQL_TIME l_time;
   *error_arg = get_mysql_time_from_str(thd, str, warn_type, warn_name, &l_time);
@@ -911,7 +912,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
       DBUG_ASSERT(str_arg->result_type() == STRING_RESULT);
       bool error;
       String tmp, *str_val = 0;
-      timestamp_type t_type =
+      enum_mysql_timestamp_type t_type =
           (date_arg->data_type() == MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE
                                                     : MYSQL_TIMESTAMP_DATETIME);
       str_val = str_arg->val_str(&tmp);
@@ -1278,9 +1279,9 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (str) {
     bool error;
     enum_field_types f_type = warn_item->data_type();
-    timestamp_type t_type = f_type == MYSQL_TYPE_DATE
-                                ? MYSQL_TIMESTAMP_DATE
-                                : MYSQL_TIMESTAMP_DATETIME;
+    enum_mysql_timestamp_type t_type = f_type == MYSQL_TYPE_DATE
+                                           ? MYSQL_TIMESTAMP_DATE
+                                           : MYSQL_TIMESTAMP_DATETIME;
     value = (longlong)get_date_from_str(thd, str, t_type,
                                         warn_item->item_name.ptr(), &error);
     /*

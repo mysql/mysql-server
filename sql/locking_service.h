@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,8 @@
 
 #include <stddef.h>
 
+#include "my_systime.h"             // Timout_type
 #include "mysql/service_locking.h"  // enum_locking_service_lock_type
-
 class THD;
 
 /**
@@ -49,7 +49,7 @@ int acquire_locking_service_locks(MYSQL_THD opaque_thd,
                                   const char *lock_namespace,
                                   const char **lock_names, size_t lock_num,
                                   enum enum_locking_service_lock_type lock_type,
-                                  unsigned long lock_timeout);
+                                  Timeout_type lock_timeout);
 
 /**
   Release all lock service locks taken by the given connection

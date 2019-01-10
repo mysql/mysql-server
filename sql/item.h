@@ -32,7 +32,7 @@
 #include <new>
 #include <string>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -3672,7 +3672,8 @@ class Item_param final : public Item, private Settable_routine_parameter {
   void set_decimal(const my_decimal *dv);
   bool set_str(const char *str, size_t length);
   bool set_longdata(const char *str, ulong length);
-  void set_time(MYSQL_TIME *tm, timestamp_type type, uint32 max_length_arg);
+  void set_time(MYSQL_TIME *tm, enum_mysql_timestamp_type type,
+                uint32 max_length_arg);
   bool set_from_user_var(THD *thd, const user_var_entry *entry);
   void reset();
   /*

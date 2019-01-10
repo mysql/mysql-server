@@ -49,7 +49,6 @@
 #include <new>
 #include <string>
 
-#include "binary_log_types.h"
 #include "control_events.h"
 #include "debug_vars.h"
 #include "dur_prop.h"

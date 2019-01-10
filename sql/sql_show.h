@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 
 #include <stddef.h>
 
-#include "binary_log_types.h"
 #include "m_ctype.h"
 #include "my_inttypes.h"
 #include "mysql/status_var.h"
@@ -48,6 +47,7 @@ typedef struct MYSQL_LEX_CSTRING LEX_CSTRING;
 enum enum_schema_table_state : int;
 enum enum_schema_tables : int;
 enum enum_var_type : int;
+enum enum_field_types : int;
 
 bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                        HA_CREATE_INFO *create_info_arg, bool show_database);

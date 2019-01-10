@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -584,7 +584,7 @@ void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2) {
    @return False on success, true on error.
 */
 const char *get_date_time_format_str(const Known_date_time_format *format,
-                                     timestamp_type type) {
+                                     enum_mysql_timestamp_type type) {
   switch (type) {
     case MYSQL_TIMESTAMP_DATE:
       return format->date_format;
@@ -679,7 +679,7 @@ bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec) {
 bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
                                   const ErrConvString &val,
-                                  timestamp_type time_type,
+                                  enum_mysql_timestamp_type time_type,
                                   const char *field_name) {
   char warn_buff[MYSQL_ERRMSG_SIZE];
   const char *type_str;

@@ -33,8 +33,8 @@
 #include <string>
 
 #include "binary_log_funcs.h"  // my_time_binary_length
-#include "binary_log_types.h"
-#include "decimal.h"  // E_DEC_OOM
+#include "decimal.h"           // E_DEC_OOM
+#include "field_types.h"       // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -2756,7 +2756,8 @@ class Field_temporal : public Field {
     @retval true   Function reported error
   */
   bool set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
-                            const ErrConvString &val, timestamp_type ts_type,
+                            const ErrConvString &val,
+                            enum_mysql_timestamp_type ts_type,
                             int truncate_increment)
       MY_ATTRIBUTE((warn_unused_result));
 

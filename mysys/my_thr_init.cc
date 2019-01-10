@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@
 static bool my_thread_global_init_done = false;
 #ifndef DBUG_OFF
 static uint THR_thread_count = 0;
-static uint my_thread_end_wait_time = 5;
+static Timeout_type my_thread_end_wait_time = 5;
 static my_thread_id thread_id = 0;
 struct st_my_thread_var;
 static thread_local st_my_thread_var *THR_mysys = nullptr;

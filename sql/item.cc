@@ -3371,7 +3371,7 @@ void Item_param::set_decimal(const my_decimal *dv) {
     the fact that even wrong value sent over binary protocol fits into
     MAX_DATE_STRING_REP_LENGTH buffer.
 */
-void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
+void Item_param::set_time(MYSQL_TIME *tm, enum_mysql_timestamp_type time_type,
                           uint32 max_length_arg) {
   DBUG_ENTER("Item_param::set_time");
 

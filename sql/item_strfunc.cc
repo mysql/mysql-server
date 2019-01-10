@@ -44,7 +44,6 @@
 #include <utility>
 
 #include "base64.h"  // base64_encode_max_arg_length
-#include "binary_log_types.h"
 #include "decimal.h"
 #include "m_string.h"
 #include "my_aes.h"  // MY_AES_IV_SIZE

@@ -39,7 +39,7 @@
 #include <new>
 #include <utility>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "ft_global.h"
 #include "m_ctype.h"
 #include "memory_debugging.h"

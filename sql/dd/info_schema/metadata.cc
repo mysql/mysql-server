@@ -39,7 +39,7 @@
 #include <string>
 #include <vector>
 
-#include "binary_log_types.h"
+#include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"

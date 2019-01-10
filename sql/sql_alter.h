@@ -27,7 +27,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "binary_log_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_io.h"
@@ -52,6 +51,8 @@ class Key_spec;
 class String;
 class THD;
 struct TABLE_LIST;
+
+enum enum_field_types : int;
 
 using Mysql::Nullable;
 

@@ -76,7 +76,7 @@ typedef int my_socket;
 #endif
 #endif /* MY_COMPILER_INCLUDED */
 
-#include "binary_log_types.h"
+#include "field_types.h"
 #include "my_list.h"
 #include "mysql_com.h"
 

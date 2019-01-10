@@ -3341,7 +3341,7 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx,
 */
 
 bool MDL_context::acquire_lock(MDL_request *mdl_request,
-                               ulong lock_wait_timeout) {
+                               Timeout_type lock_wait_timeout) {
   if (lock_wait_timeout == 0) {
     /*
       Resort to try_acquire_lock() in case of zero timeout.
@@ -3569,7 +3569,7 @@ class MDL_request_cmp : public std::binary_function<const MDL_request *,
 */
 
 bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
-                                ulong lock_wait_timeout) {
+                                Timeout_type lock_wait_timeout) {
   MDL_request_list::Iterator it(*mdl_requests);
   MDL_request **p_req;
   MDL_savepoint mdl_svp = mdl_savepoint();
@@ -3677,7 +3677,7 @@ bool MDL_context::clone_tickets(const MDL_context *ticket_owner,
 
 bool MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
                                       enum_mdl_type new_type,
-                                      ulong lock_wait_timeout) {
+                                      Timeout_type lock_wait_timeout) {
   MDL_request mdl_new_lock_request;
   MDL_savepoint mdl_svp = mdl_savepoint();
   bool is_new_ticket;

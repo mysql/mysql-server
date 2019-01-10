@@ -30,7 +30,6 @@
 #include <stddef.h>
 #include <algorithm>
 
-#include "binary_log_types.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

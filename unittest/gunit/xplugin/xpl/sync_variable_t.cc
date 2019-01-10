@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <gtest/gtest.h>
 #include "my_sys.h"
+#include "my_systime.h"  // my_sleep()
 
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/sync_variable.h"

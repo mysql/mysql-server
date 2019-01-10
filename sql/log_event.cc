@@ -41,7 +41,6 @@
 
 #include "base64.h"
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
-#include "binary_log_types.h"
 #include "debug_vars.h"
 #include "decimal.h"
 #include "m_ctype.h"

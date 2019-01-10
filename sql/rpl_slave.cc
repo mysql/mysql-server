@@ -66,7 +66,6 @@
 #include <utility>
 #include <vector>
 
-#include "binary_log_types.h"
 #include "binlog_event.h"
 #include "control_events.h"
 #include "debug_vars.h"

@@ -28,7 +28,8 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "binary_log_types.h"
+//#include "extra/regex/my_regex.h"  // my_regex_t
+
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -2254,7 +2255,9 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 // TODO: the next two functions should be moved to sql_time.{h,cc}
 bool get_mysql_time_from_str_no_warn(THD *thd, String *str, MYSQL_TIME *l_time,
                                      MYSQL_TIME_STATUS *status);
-bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
+
+bool get_mysql_time_from_str(THD *thd, String *str,
+                             enum_mysql_timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
 /*
   These need definitions from this file but the variables are defined

@@ -29,7 +29,6 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "binary_log_types.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -1565,8 +1564,9 @@ enum date_time_format {
 
 class Item_func_get_format final : public Item_str_ascii_func {
  public:
-  const timestamp_type type;  // keep it public
-  Item_func_get_format(const POS &pos, timestamp_type type_arg, Item *a)
+  const enum_mysql_timestamp_type type;  // keep it public
+  Item_func_get_format(const POS &pos, enum_mysql_timestamp_type type_arg,
+                       Item *a)
       : Item_str_ascii_func(pos, a), type(type_arg) {}
   String *val_str_ascii(String *str) override;
   const char *func_name() const override { return "get_format"; }
@@ -1580,7 +1580,7 @@ class Item_func_get_format final : public Item_str_ascii_func {
 };
 
 class Item_func_str_to_date final : public Item_temporal_hybrid_func {
-  timestamp_type cached_timestamp_type;
+  enum_mysql_timestamp_type cached_timestamp_type;
   void fix_from_format(const char *format, size_t length);
 
  protected:
@@ -1629,6 +1629,6 @@ class Item_func_internal_check_time final : public Item_datetime_func {
 /* Function prototypes */
 
 bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
-                    timestamp_type type, String *str);
+                    enum_mysql_timestamp_type type, String *str);
 
 #endif /* ITEM_TIMEFUNC_INCLUDED */

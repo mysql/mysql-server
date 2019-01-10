@@ -31,7 +31,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "binary_log_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"

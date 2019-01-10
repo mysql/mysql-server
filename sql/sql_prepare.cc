@@ -103,8 +103,8 @@ When one supplies long data for a placeholder:
 #include <unordered_map>
 #include <utility>
 
-#include "binary_log_types.h"
 #include "decimal.h"
+#include "field_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
