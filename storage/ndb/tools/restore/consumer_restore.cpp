@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1094,10 +1094,13 @@ BackupRestore::prepare_staging(const TableS & tableS)
 				    tablename, dict->getNdbError().code, dict->getNdbError().message);
   }
 
-  const NdbDictionary::Table* null = 0;
-  m_new_tables.fill(tableS.m_dictTable->getTableId(), null);
-  m_new_tables[tableS.m_dictTable->getTableId()] = tab;
-  m_n_tables++; //??
+  /* Replace real target table with staging table in m_new_tables */
+  const Uint32 orig_table_id = tableS.m_dictTable->getTableId();
+  assert(m_new_tables[orig_table_id] != NULL);
+
+  m_new_tables[orig_table_id] = tab;
+  m_cache.m_old_table = NULL;
+
   return true;
 }
 
@@ -1241,6 +1244,14 @@ BackupRestore::finalize_staging(const TableS & tableS)
     restoreLogger.log_info("Dropped staging source %s", stablename);
     break;
   }
+
+  /* Replace staging table with real target table in m_new_tables */
+  const Uint32 orig_table_id = tableS.m_dictTable->getTableId();
+  assert(m_new_tables[orig_table_id] == source);
+  
+  m_new_tables[orig_table_id] = target;
+  m_cache.m_old_table = NULL;
+  
   return true;
 }
 
@@ -1251,29 +1262,36 @@ BackupRestore::finalize_table(const TableS & table){
     return ret;
   if (!table.have_auto_inc())
     return ret;
-  // no point for staging table and below code as such would crash
-  if (table.m_staging)
-    return ret;
 
-  Uint64 max_val= table.get_max_auto_val();
+  const Uint32 orig_table_id = table.m_dictTable->getTableId();
+  const Uint64 restore_next_val = m_auto_values[orig_table_id];
   do
   {
-    Uint64 auto_val = ~(Uint64)0;
-    int r= m_ndb->readAutoIncrementValue(get_table(table), auto_val);
-    if (r == -1 && m_ndb->getNdbError().status == NdbError::TemporaryError)
+    Uint64 db_next_val = ~(Uint64)0;
+    int r= m_ndb->readAutoIncrementValue(get_table(table), db_next_val);
+    if (r == -1)
     {
-      NdbSleep_MilliSleep(50);
-      continue; // retry
+      if (m_ndb->getNdbError().status == NdbError::TemporaryError)
+      {
+        NdbSleep_MilliSleep(50);
+        continue; // retry
+      }
+      err << "Finalize_table failed to read auto increment value for table "
+          << get_table(table)->getName()
+          << " Error : " 
+          << m_ndb->getNdbError()
+          << endl;
+      return false;
     }
-    else if (r == -1 && m_ndb->getNdbError().code != 626)
+    if (restore_next_val > db_next_val)
     {
-      ret= false;
-    }
-    else if ((r == -1 && m_ndb->getNdbError().code == 626) ||
-             max_val+1 > auto_val || auto_val == ~(Uint64)0)
-    {
+      Ndb::TupleIdRange emptyRange;
+      emptyRange.reset();
+      
       r= m_ndb->setAutoIncrementValue(get_table(table),
-                                      max_val+1, false);
+                                      emptyRange,
+                                      restore_next_val, 
+                                      true);
       if (r == -1 &&
             m_ndb->getNdbError().status == NdbError::TemporaryError)
       {
@@ -2886,10 +2904,40 @@ BackupRestore::table(const TableS & table){
         table_name.c_str(), dict->getNdbError().code, dict->getNdbError().message);
     return false;
   }
+  if (m_restore_meta)
+  {
+    if (tab->getNoOfAutoIncrementColumns())
+    {
+      // Ensure that auto-inc metadata is created in database
+      Uint32 retries = 10;
+      while (retries--)
+      {
+        int res = m_ndb->setAutoIncrementValue(tab,
+                                               Uint64(1),
+                                               false);
+        if (res == 0)
+        {
+          break;
+        }
 
+        if (m_ndb->getNdbError().status == NdbError::TemporaryError)
+        {
+          NdbSleep_MilliSleep(50);
+          continue;
+        }
+        err << "Failed to create auto increment value for table : "
+            << table_name << " error : " << m_ndb->getNdbError()
+            << endl;
+        return false;
+      }
+    }
+  }
+  const Uint32 orig_table_id = table.m_dictTable->getTableId();
   const NdbDictionary::Table* null = 0;
-  m_new_tables.fill(table.m_dictTable->getTableId(), null);
-  m_new_tables[table.m_dictTable->getTableId()] = tab;
+  m_new_tables.fill(orig_table_id, null);
+  m_new_tables[orig_table_id] = tab;
+  Uint64 zeroAutoVal = 0;
+  m_auto_values.fill(orig_table_id, zeroAutoVal);
 
   m_n_tables++;
 
@@ -3230,6 +3278,52 @@ BackupRestore::endOfTablesFK()
   return true;
 }
 
+static Uint64 extract_auto_val(const char *data, int size)
+{
+  union {
+    Uint8  u8;
+    Uint16 u16;
+    Uint32 u32;
+  } val;
+  Uint64 v;
+  switch(size){
+  case 64:
+    memcpy(&v,data,8);
+    break;
+  case 32:
+    memcpy(&val.u32,data,4);
+    v= val.u32;
+    break;
+  case 24:
+    v= uint3korr((unsigned char*)data);
+    break;
+  case 16:
+    memcpy(&val.u16,data,2);
+    v= val.u16;
+    break;
+  case 8:
+    memcpy(&val.u8,data,1);
+    v= val.u8;
+    break;
+  default:
+    return 0;
+  };
+  return v;
+};
+
+void
+BackupRestore::update_next_auto_val(Uint32 orig_table_id,
+                                    Uint64 next_val)
+{
+  if (orig_table_id < m_auto_values.size())
+  {
+    if (next_val > m_auto_values[orig_table_id])
+    {
+      m_auto_values[orig_table_id] = next_val;
+    }
+  }
+}
+
 void BackupRestore::tuple(const TupleS & tup, Uint32 fragmentId)
 {
   const TableS * tab = tup.getTable();
@@ -3372,7 +3466,11 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
           }
         }
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
-	  tup.getTable()->update_max_auto_val(dataPtr,size*arraySize);
+        {
+          Uint64 usedAutoVal = extract_auto_val(dataPtr, size * arraySize);
+          Uint32 orig_table_id = tup.getTable()->m_dictTable->getTableId();
+          update_next_auto_val(orig_table_id, usedAutoVal + 1);
+        }
 	
         if (attr_desc->convertFunc)
         {
@@ -3463,44 +3561,10 @@ void BackupRestore::tuple_SYSTAB_0(restore_callback_t *cb,
       We found a valid auto_increment value in SYSTAB_0
       where syskey is a table_id and nextid is next auto_increment
       value.
+      Update next auto val metadata
      */
-    if (restoreAutoIncrement(cb, syskey, nextid) ==  -1)
-      exitHandler();
+    update_next_auto_val(syskey, nextid);
   }
-}
-
-int BackupRestore::restoreAutoIncrement(restore_callback_t *cb,
-                                        Uint32 tableId, Uint64 value)
-{
-  /*
-    Restore the auto_increment value found in SYSTAB_0 from
-    backup. First map the old table id to the new table while
-    also checking that it is an actual table will some auto_increment
-    column. Note that the SYSTAB_0 table in the backup can contain
-    stale information from dropped tables.
-   */
-  int result = 0;
-  const NdbDictionary::Table* tab = (tableId < m_new_tables.size())? m_new_tables[tableId] : NULL;
-  if (tab && tab->getNoOfAutoIncrementColumns() > 0)
-  {
-    /*
-      Write the auto_increment value back into SYSTAB_0.
-      This is done in a separate transaction and could possibly
-      fail, so we retry if a temporary error is received.
-     */
-    while (cb->retries < 10)
-    {
-      if ((result = m_ndb->setAutoIncrementValue(tab, value, false) == -1))
-      {
-        if (errorHandler(cb)) 
-        {
-          continue;
-        }
-      }
-      break;
-    }
-  }
-  return result;
 }
 
 bool BackupRestore::isMissingTable(const TableS& table)
@@ -3680,6 +3744,11 @@ BackupRestore::logEntry(const LogEntry & tup)
   if (!m_restore)
     return;
 
+  if (tup.m_table->isSYSTAB_0())
+  {
+    /* We don't restore from SYSTAB_0 log entries */
+    return;
+  }
 
   Uint32 retries = 0;
   NdbError errobj;
@@ -3768,7 +3837,11 @@ retry:
       continue;
     
     if (tup.m_table->have_auto_inc(attr->Desc->attrId))
-      tup.m_table->update_max_auto_val(dataPtr,size*arraySize);
+    {
+      Uint64 usedAutoVal = extract_auto_val(dataPtr, size * arraySize);
+      Uint32 orig_table_id = tup.m_table->m_dictTable->getTableId();
+      update_next_auto_val(orig_table_id, usedAutoVal + 1);
+    }
 
     const Uint32 length = (size / 8) * arraySize;
     n_bytes+= length;

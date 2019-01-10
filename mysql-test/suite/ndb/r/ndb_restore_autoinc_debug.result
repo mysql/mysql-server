@@ -1,0 +1,52 @@
+Check some behaviours around restoring autoinc
+tables where autoinc values are used in the log
+use test;
+create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
+create table test.t2 (a int auto_increment primary key, b int) engine=ndb;
+insert into test.t1 (b) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+insert into test.t2 (b) values (1), (2);
+Cause backup stall
+Starting backup
+Backup started
+insert into test.t1 (b) values (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+insert into test.t2 (b) values (3), (4);
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+AUTO_INCREMENT
+21
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
+AUTO_INCREMENT
+5
+Waiting for backup to complete
+Backup completed
+drop table test.t1;
+drop table test.t2;
+Recreate tables in opposite order so they swap table ids
+create table test.t2 (a int auto_increment primary key, b int) engine=ndb;
+create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
+Restore data in order 1,2
+Node 1
+Node 2
+Check restored auto-inc metadata :
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+AUTO_INCREMENT
+21
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
+AUTO_INCREMENT
+5
+drop table test.t1;
+drop table test.t2;
+Recreate tables in opposite order so they swap table ids
+create table test.t2 (a int auto_increment primary key, b int) engine=ndb;
+create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
+Restore data in order 2,1
+Node 2
+Node 1
+Check restored auto-inc metadata :
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+AUTO_INCREMENT
+21
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
+AUTO_INCREMENT
+5
+drop table test.t1;
+drop table test.t2;
