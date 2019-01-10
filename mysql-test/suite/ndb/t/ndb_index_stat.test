@@ -501,6 +501,10 @@ analyze table test.t1;
 --echo #poison the index_stat_sample table
 update mysql.ndb_index_stat_sample set stat_value = repeat('T', 2000) limit 50;
 
+# Suppress errors which can occur when disconnecting + reconnecting
+call mtr.add_suppression("Failed to acquire global schema lock");
+call mtr.add_suppression("Failed to release global schema lock");
+
 --echo #disconnect the mysqld from ndb to force it to reload the index stats
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 900 49"  >> $NDB_TOOLS_OUTPUT
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 900 63"  >> $NDB_TOOLS_OUTPUT

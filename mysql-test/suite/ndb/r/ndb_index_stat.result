@@ -652,6 +652,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 #poison the index_stat_sample table
 update mysql.ndb_index_stat_sample set stat_value = repeat('T', 2000) limit 50;
+call mtr.add_suppression("Failed to acquire global schema lock");
+call mtr.add_suppression("Failed to release global schema lock");
 #disconnect the mysqld from ndb to force it to reload the index stats
 #wait for it to reconnect
 #run query to confirm that the invalid stats doesn't break mysqld
