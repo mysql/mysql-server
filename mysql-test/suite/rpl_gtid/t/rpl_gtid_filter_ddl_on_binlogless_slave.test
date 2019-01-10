@@ -1,0 +1,39 @@
+# ==== Purpose ====
+#
+# Verify that the server does not raise an assertion in debug mode when
+# applying a DDL statement on a blnlogless slave, the statement is
+# filtered out and gtids are enabled.
+#
+# ==== Implementation ====
+#
+# 1. Set --replicate-ignore-table=test.t1 to filter the table t1
+#    on a binlogless slave.
+# 2. CREATE TABLE t1 (c1 INT PRIMARY KEY) on master.
+# 3. Replicate the above DDL statement to slave.
+# 4. Sync slave with master to verify that the server does not
+#    raise an assertion any more.
+#
+# ==== References ====
+#
+# Bug #28965972  ATOMIC DDL + TABLE FILTER + BINLOGLESS SLAVE + GTID = DEBUG ASSERTION
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+--source include/sync_slave_sql_with_master.inc
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
+
+--let $assert_text= Table "t1" does not exist, because it is filtered out
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_NAME = "t1"]" = 0
+--source include/assert.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc
