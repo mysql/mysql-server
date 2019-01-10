@@ -2379,3 +2379,37 @@ SET parser_max_mem_size = default;
 #
 CREATE PROCEDURE p1 () wrong syntax;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'syntax' at line 1
+#
+# Bug #25220656: THE "PERSIST" EXTENSION IS A RESERVED KEYWORD
+#
+SELECT 1 AS PERSIST, 2 AS PERSIST_ONLY;
+PERSIST	PERSIST_ONLY
+1	2
+CREATE ROLE EVENT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EVENT' at line 1
+CREATE ROLE FILE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FILE' at line 1
+CREATE ROLE NONE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NONE' at line 1
+CREATE ROLE PROCESS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PROCESS' at line 1
+CREATE ROLE PROXY;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PROXY' at line 1
+CREATE ROLE RELOAD;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELOAD' at line 1
+CREATE ROLE REPLICATION;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'REPLICATION' at line 1
+CREATE ROLE RESOURCE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RESOURCE' at line 1
+CREATE ROLE SUPER;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUPER' at line 1
+SET GLOBAL = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1
+SET LOCAL = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1
+SET PERSIST = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1
+SET PERSIST_ONLY = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1
+SET SESSION = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= DEFAULT' at line 1

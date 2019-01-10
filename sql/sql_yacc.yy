@@ -439,7 +439,7 @@ void warn_about_deprecated_national(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 107
+%expect 104
 
 /*
    MAINTAINER:
@@ -1149,7 +1149,7 @@ void warn_about_deprecated_national(THD *thd)
    Tokens from MySQL 8.0
 */
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
-%token  PERSIST_SYM
+%token<keyword> PERSIST_SYM           /* MYSQL */
 %token<keyword> ROLE_SYM              /* SQL-1999-R */
 %token<keyword> ADMIN_SYM             /* SQL-2003-N */
 %token<keyword> INVISIBLE_SYM
@@ -1168,7 +1168,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> LOCKED_SYM            /* MYSQL */
 %token<keyword> NOWAIT_SYM            /* MYSQL */
 %token  GROUPING_SYM                  /* SQL-2011-R */
-%token  PERSIST_ONLY_SYM              /* MYSQL */
+%token<keyword> PERSIST_ONLY_SYM      /* MYSQL */
 %token<keyword> HISTOGRAM_SYM         /* MYSQL */
 %token<keyword> BUCKETS_SYM           /* MYSQL */
 %token<keyword> OBSOLETE_TOKEN_930    /* was: REMOTE_SYM */
@@ -1269,6 +1269,7 @@ void warn_about_deprecated_national(THD *thd)
         ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name opt_ts_datafile_name
         opt_describe_column
         opt_datadir_ssl default_encryption
+        lvalue_ident
 
 %type <lex_cstr>
         opt_table_alias
@@ -1430,7 +1431,12 @@ void warn_about_deprecated_national(THD *thd)
 %type <cast_type> cast_type
 
 %type <keyword> ident_keyword label_keyword role_keyword
-        role_or_label_keyword role_or_ident_keyword
+        lvalue_keyword
+        ident_keywords_unambiguous
+        ident_keywords_ambiguous_1_roles_and_labels
+        ident_keywords_ambiguous_2_labels
+        ident_keywords_ambiguous_3_roles
+        ident_keywords_ambiguous_4_system_variables
 
 %type <lex_user> user create_user alter_user user_func role
 
@@ -11812,7 +11818,7 @@ drop_tablespace_stmt:
             Lex->m_sql_cmd= cmd;
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
-        
+
 drop_undo_tablespace_stmt:
           DROP UNDO_SYM TABLESPACE_SYM ident opt_undo_tablespace_options
           {
@@ -13825,6 +13831,17 @@ label_ident:
           }
         ;
 
+lvalue_ident:
+          IDENT_sys
+        | lvalue_keyword
+          {
+            $$.str= YYTHD->strmake($1.str, $1.length);
+            if ($$.str == NULL)
+              MYSQL_YYABORT;
+            $$.length= $1.length;
+          }
+        ;
+
 ident_or_text:
           ident           { $$=$1;}
         | TEXT_STRING_sys { $$=$1;}
@@ -13875,28 +13892,41 @@ role:
         ;
 
 /*
-  Non-reserved keywords that we allow for identifiers (except SP labels).
+  Non-reserved keywords are allowed as unquoted identifiers in general.
 
-  Also see statement-specific rules:
-    * label_keyword,
-    * role_keyword
+  OTOH, in a few particular cases statement-specific rules are used
+  instead of `ident_keyword` to avoid grammar ambiguities:
 
-  We allow the use of some non-reserved keywords as identifiers, SP labels and
-  roles, but the three sets of keywords are different and yet
-  overlapping. Hence we need a somewhat complicated set of rules for all
-  possible intersections of these sets: role_or_ident_keyword,
-  role_or_label_keyword.
+    * `label_keyword` for SP label names
+    * `role_keyword` for role names
+    * `lvalue_keyword` for variable prefixes and names in left sides of
+                       assignments in SET statements
+
+  Normally, new non-reserved words should be added to the
+  the rule `ident_keywords_unambiguous`. If they cause grammar conflicts, try
+  one of `ident_keywords_ambiguous_...` rules instead.
 */
 ident_keyword:
-          label_keyword
-        | role_or_ident_keyword
-        | EXECUTE_SYM
+          ident_keywords_unambiguous
+        | ident_keywords_ambiguous_1_roles_and_labels
+        | ident_keywords_ambiguous_2_labels
+        | ident_keywords_ambiguous_3_roles
+        | ident_keywords_ambiguous_4_system_variables
+        ;
+
+/*
+  These non-reserved words cannot be used as role names and SP label names:
+*/
+ident_keywords_ambiguous_1_roles_and_labels:
+          EXECUTE_SYM
         | RESTART_SYM
         | SHUTDOWN
         ;
 
-// These are the non-reserved keywords which may be used for roles or idents.
-role_or_ident_keyword:
+/*
+  These non-reserved keywords cannot be used as unquoted SP label names:
+*/
+ident_keywords_ambiguous_2_labels:
           ACCOUNT_SYM
         | ALWAYS_SYM
         | ASCII_SYM
@@ -13962,14 +13992,27 @@ role_or_ident_keyword:
         ;
 
 /*
-  Keywords that we allow for labels in SPs.
-  Anything that's the beginning of a statement or characteristics
-  must be in keyword above, otherwise we get (harmful) shift/reduce
-  conflicts.
+  Keywords that we allow for labels in SPs in the unquoted form.
+  Any keyword that is allowed to begin a statement or routine characteristics
+  must be in `ident_keywords_ambiguous_2_labels` above, otherwise
+  we get (harmful) shift/reduce conflicts.
+
+  Not allowed:
+
+    ident_keywords_ambiguous_1_roles_and_labels
+    ident_keywords_ambiguous_2_labels
 */
 label_keyword:
-          role_or_label_keyword
-        | EVENT_SYM
+          ident_keywords_unambiguous
+        | ident_keywords_ambiguous_3_roles
+        | ident_keywords_ambiguous_4_system_variables
+        ;
+
+/*
+  These non-reserved keywords cannot be used as unquoted role names:
+*/
+ident_keywords_ambiguous_3_roles:
+          EVENT_SYM
         | FILE_SYM
         | NONE_SYM
         | PROCESS
@@ -13980,8 +14023,11 @@ label_keyword:
         | SUPER_SYM
         ;
 
-// These are the non-reserved keywords which may be used for roles or SP labels.
-role_or_label_keyword:
+/*
+  These are the non-reserved keywords which may be used for unquoted
+  identifiers everywhere without introducing grammar conflicts:
+*/
+ident_keywords_unambiguous:
           ACTION
         | ACTIVE_SYM
         | ADDDATE_SYM
@@ -14088,7 +14134,6 @@ role_or_label_keyword:
         | GEOMETRY_SYM
         | GET_FORMAT
         | GET_MASTER_PUBLIC_KEY_SYM
-        | GLOBAL_SYM
         | GRANTS
         | HASH_SYM
         | HISTOGRAM_SYM
@@ -14115,7 +14160,6 @@ role_or_label_keyword:
         | LEVEL_SYM
         | LINESTRING_SYM
         | LIST_SYM
-        | LOCAL_SYM
         | LOCKED_SYM
         | LOCKS_SYM
         | LOGFILE_SYM
@@ -14250,7 +14294,6 @@ role_or_label_keyword:
         | SECOND_SYM
         | SERIALIZABLE_SYM
         | SERIAL_SYM
-        | SESSION_SYM
         | SHARE_SYM
         | SIMPLE_SYM
         | SKIP_SYM
@@ -14327,26 +14370,45 @@ role_or_label_keyword:
         ;
 
 /*
-  Non-reserved keywords that we allow for role names.
+  Non-reserved keywords that we allow for unquoted role names:
 
-  In order not to introduce new grammar conflicts, the following keyword tokens are
-  not welcome as role names:
+  Not allowed:
 
-    EVENT_SYM
-    EXECUTE_SYM
-    FILE_SYM
-    PROCESS
-    PROXY_SYM
-    RELOAD
-    REPLICATION
-    RESOURCE_SYM
-    RESTART_SYM
-    SHUTDOWN
-    SUPER_SYM
+    ident_keywords_ambiguous_1_roles_and_labels
+    ident_keywords_ambiguous_3_roles
 */
 role_keyword:
-          role_or_label_keyword
-        | role_or_ident_keyword
+          ident_keywords_unambiguous
+        | ident_keywords_ambiguous_2_labels
+        | ident_keywords_ambiguous_4_system_variables
+        ;
+
+/*
+  Non-reserved words allowed for unquoted unprefixed variable names and
+  unquoted variable prefixes in the left side of assignments in SET statements:
+
+  Not allowed:
+
+    ident_keywords_ambiguous_4_system_variables
+*/
+lvalue_keyword:
+          ident_keywords_unambiguous
+        | ident_keywords_ambiguous_1_roles_and_labels
+        | ident_keywords_ambiguous_2_labels
+        | ident_keywords_ambiguous_3_roles
+        ;
+
+/*
+  These non-reserved keywords cannot be used as unquoted unprefixed
+  variable names and unquoted variable prefixes in the left side of
+  assignments in SET statements:
+*/
+ident_keywords_ambiguous_4_system_variables:
+          GLOBAL_SYM
+        | LOCAL_SYM
+        | PERSIST_SYM
+        | PERSIST_ONLY_SYM
+        | SESSION_SYM
         ;
 
 /*
@@ -14587,11 +14649,11 @@ option_value_no_option_type:
         ;
 
 internal_variable_name:
-          ident
+          lvalue_ident
           {
             $$= NEW_PTN PT_internal_variable_name_1d($1);
           }
-        | ident '.' ident
+        | lvalue_ident '.' ident
           {
             $$= NEW_PTN PT_internal_variable_name_2d(@$, $1, $3);
           }

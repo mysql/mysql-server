@@ -2304,3 +2304,45 @@ SET parser_max_mem_size = default;
 
 --error ER_PARSE_ERROR
 CREATE PROCEDURE p1 () wrong syntax;
+
+--echo #
+--echo # Bug #25220656: THE "PERSIST" EXTENSION IS A RESERVED KEYWORD
+--echo #
+
+# PERSIST and PERSIST_ONLY are not reserved words any more:
+
+SELECT 1 AS PERSIST, 2 AS PERSIST_ONLY;
+
+# Negative checks for non-reserved words not allowed as role names:
+
+--error ER_PARSE_ERROR
+CREATE ROLE EVENT;
+--error ER_PARSE_ERROR
+CREATE ROLE FILE;
+--error ER_PARSE_ERROR
+CREATE ROLE NONE;
+--error ER_PARSE_ERROR
+CREATE ROLE PROCESS;
+--error ER_PARSE_ERROR
+CREATE ROLE PROXY;
+--error ER_PARSE_ERROR
+CREATE ROLE RELOAD;
+--error ER_PARSE_ERROR
+CREATE ROLE REPLICATION;
+--error ER_PARSE_ERROR
+CREATE ROLE RESOURCE;
+--error ER_PARSE_ERROR
+CREATE ROLE SUPER;
+
+# Negative checks for non-reserved words not allowed as system variable names:
+
+--error ER_PARSE_ERROR
+SET GLOBAL = DEFAULT;
+--error ER_PARSE_ERROR
+SET LOCAL = DEFAULT;
+--error ER_PARSE_ERROR
+SET PERSIST = DEFAULT;
+--error ER_PARSE_ERROR
+SET PERSIST_ONLY = DEFAULT;
+--error ER_PARSE_ERROR
+SET SESSION = DEFAULT;
