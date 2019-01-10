@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,17 @@ case "$1" in
 	purge)
 		set -e
 		db_purge
+
+		# remove dirs/files Router binary created
+		DIR=/run/mysqlrouter
+		if [ -d ${DIR} ] || [ -L ${DIR} ]; then
+			rm -rf ${DIR}
+		fi
+		DIR=/var/lib/mysqlrouter
+		if [ -d ${DIR} ] || [ -L ${DIR} ]; then
+			rm -rf ${DIR}
+		fi
+
 		set +e
 		;;
 esac
