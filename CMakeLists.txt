@@ -411,7 +411,6 @@ INCLUDE(character_sets)
 INCLUDE(cpu_info)
 INCLUDE(zlib)
 INCLUDE(lz4)
-INCLUDE(lzma)
 INCLUDE(re2)
 INCLUDE(icu)
 INCLUDE(libevent)
@@ -923,7 +922,6 @@ SET(SYSTEM_LIBRARIES
   ICU
   LIBEVENT
   LZ4
-# LZMA     use bundled by default here
   PROTOBUF
   RAPIDJSON
   RE2
@@ -979,8 +977,6 @@ MYSQL_CHECK_EDITLINE()
 MYSQL_CHECK_LIBEVENT()
 # Add lz4 library
 MYSQL_CHECK_LZ4()
-# Add lzma library
-MYSQL_CHECK_LZMA()
 # Add re2 library
 MYSQL_CHECK_RE2()
 # Add icu library
@@ -1043,10 +1039,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     return ret;
   }"
   HAVE_PTHREAD_SETNAME_NP)
-ENDIF()
-
-IF (BUILD_BUNDLED_LZMA)
-  ADD_SUBDIRECTORY(extra/lzma)
 ENDIF()
 
 IF (BUILD_BUNDLED_RE2)
