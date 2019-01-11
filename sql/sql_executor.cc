@@ -6972,13 +6972,16 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
   Change old item_field to use a new field with points at saved fieldvalue
   This function is only called before use of send_result_set_metadata.
 
-  @param thd                   THD pointer
-  @param param                 temporary table parameters
-  @param ref_item_array        array of pointers to top elements of filed list
-  @param res_selected_fields   new list of items of select item list
-  @param res_all_fields        new list of all items
-  @param elements              number of elements in select item list
-  @param all_fields            all fields list
+  @param all_fields                  all fields list; should really be const,
+                                       but Item does not always respect
+                                       constness
+  @param num_select_elements         number of elements in select item list
+  @param thd                         THD pointer
+  @param [in,out] param              temporary table parameters
+  @param [out] ref_item_array        array of pointers to top elements of field
+                                       list
+  @param [out] res_selected_fields   new list of items of select item list
+  @param [out] res_all_fields        new list of all items
 
   @todo
     In most cases this result will be sent to the user.
@@ -6989,19 +6992,16 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
   @returns false if success, true if error
 */
 
-bool setup_copy_fields(THD *thd, Temp_table_param *param,
+bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
+                       THD *thd, Temp_table_param *param,
                        Ref_item_array ref_item_array,
-                       List<Item> &res_selected_fields,
-                       List<Item> &res_all_fields, uint elements,
-                       List<Item> &all_fields) {
+                       List<Item> *res_selected_fields,
+                       List<Item> *res_all_fields) {
   DBUG_ENTER("setup_copy_fields");
 
-  Item *pos;
-  List_iterator_fast<Item> li(all_fields);
-  res_selected_fields.empty();
-  res_all_fields.empty();
-  List_iterator_fast<Item> itr(res_all_fields);
-  uint i, border = all_fields.elements - elements;
+  res_selected_fields->empty();
+  res_all_fields->empty();
+  size_t border = all_fields.size() - num_select_elements;
   Memroot_vector<Item_copy *> extra_funcs(
       Memroot_allocator<Item_copy *>(thd->mem_root));
 
@@ -7009,21 +7009,20 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
   DBUG_ASSERT(param->copy_fields.empty());
 
   try {
-    param->grouped_expressions.reserve(all_fields.elements);
+    param->grouped_expressions.reserve(all_fields.size());
     param->copy_fields.reserve(param->field_count);
     extra_funcs.reserve(border);
   } catch (std::bad_alloc &) {
     DBUG_RETURN(true);
   }
 
-  for (i = 0; (pos = li++); i++) {
-    Field *field;
-    uchar *tmp;
+  List_iterator_fast<Item> li(all_fields);
+  Item *pos;
+  for (size_t i = 0; (pos = li++); i++) {
     Item *real_pos = pos->real_item();
     if (real_pos->type() == Item::FIELD_ITEM) {
-      Item_field *item;
-      if (!(item = new Item_field(thd, ((Item_field *)real_pos))))
-        DBUG_RETURN(true);
+      Item_field *item = new Item_field(thd, ((Item_field *)real_pos));
+      if (item == nullptr) DBUG_RETURN(true);
       if (pos->type() == Item::REF_ITEM) {
         /* preserve the names of the ref when dereferncing */
         Item_ref *ref = (Item_ref *)pos;
@@ -7051,13 +7050,13 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
            set up save buffer and change result_field to point at
            saved value
         */
-        field = item->field;
+        Field *field = item->field;
         item->result_field = field->new_field(thd->mem_root, field->table, 1);
         /*
           We need to allocate one extra byte for null handling.
         */
-        if (!(tmp = static_cast<uchar *>(sql_alloc(field->pack_length() + 1))))
-          DBUG_RETURN(true);
+        uchar *tmp = new (*THR_MALLOC) uchar[field->pack_length() + 1];
+        if (tmp == nullptr) DBUG_RETURN(true);
 
         DBUG_ASSERT(param->field_count > param->copy_fields.size());
         param->copy_fields.emplace_back(tmp, item->result_field);
@@ -7101,13 +7100,14 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
       else
         param->grouped_expressions.push_back(item_copy);
     }
-    res_all_fields.push_back(pos);
-    ref_item_array[((i < border) ? all_fields.elements - i - 1 : i - border)] =
+    res_all_fields->push_back(pos);
+    ref_item_array[((i < border) ? all_fields.size() - i - 1 : i - border)] =
         pos;
   }
 
-  for (i = 0; i < border; i++) itr++;
-  itr.sublist(res_selected_fields, elements);
+  List_iterator_fast<Item> itr(*res_all_fields);
+  for (size_t i = 0; i < border; i++) itr++;
+  itr.sublist(*res_selected_fields, num_select_elements);
   /*
     Put elements from HAVING, ORDER BY and GROUP BY last to ensure that any
     reference used in these will resolve to a item that is already calculated
@@ -7157,29 +7157,34 @@ bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
   Change all funcs and sum_funcs to fields in tmp table, and create
   new list of all items.
 
-  @param thd                   THD pointer
-  @param ref_item_array        array of pointers to top elements of filed list
-  @param res_selected_fields   new list of items of select item list
-  @param res_all_fields        new list of all items
-  @param elements              number of elements in select item list
-  @param all_fields            all fields list
+  @param all_fields                  all fields list; should really be const,
+                                       but Item does not always respect
+                                       constness
+  @param num_select_elements         number of elements in select item list
+  @param thd                         THD pointer
+  @param [out] ref_item_array        array of pointers to top elements of filed
+  list
+  @param [out] res_selected_fields   new list of items of select item list
+  @param [out] res_all_fields        new list of all items
 
   @returns false if success, true if error
 */
 
-bool change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
-                              List<Item> &res_selected_fields,
-                              List<Item> &res_all_fields, uint elements,
-                              List<Item> &all_fields) {
-  List_iterator_fast<Item> it(all_fields);
-  Item *item_field, *item;
+bool change_to_use_tmp_fields(List<Item> &all_fields,
+                              size_t num_select_elements, THD *thd,
+                              Ref_item_array ref_item_array,
+                              List<Item> *res_selected_fields,
+                              List<Item> *res_all_fields) {
   DBUG_ENTER("change_to_use_tmp_fields");
 
-  res_selected_fields.empty();
-  res_all_fields.empty();
+  res_selected_fields->empty();
+  res_all_fields->empty();
 
-  uint border = all_fields.elements - elements;
-  for (uint i = 0; (item = it++); i++) {
+  List_iterator_fast<Item> li(all_fields);
+  size_t border = all_fields.size() - num_select_elements;
+  Item *item;
+  for (size_t i = 0; (item = li++); i++) {
+    Item *item_field;
     Field *field;
     if (item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM)
       item_field = item;
@@ -7231,19 +7236,19 @@ bool change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
     } else
       item_field = item;
 
-    res_all_fields.push_back(item_field);
+    res_all_fields->push_back(item_field);
     /*
       Cf. comment explaining the reordering going on below in
       similar section of change_refs_to_tmp_fields
     */
-    ref_item_array[((i < border) ? all_fields.elements - i - 1 : i - border)] =
+    ref_item_array[((i < border) ? all_fields.size() - i - 1 : i - border)] =
         item_field;
     item_field->set_orig_field(item->get_orig_field());
   }
 
-  List_iterator_fast<Item> itr(res_all_fields);
-  for (uint i = 0; i < border; i++) itr++;
-  itr.sublist(res_selected_fields, elements);
+  List_iterator_fast<Item> itr(*res_all_fields);
+  for (size_t i = 0; i < border; i++) itr++;
+  itr.sublist(*res_selected_fields, num_select_elements);
   DBUG_RETURN(false);
 }
 
@@ -7251,28 +7256,32 @@ bool change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
   Change all sum_func refs to fields to point at fields in tmp table.
   Change all funcs to be fields in tmp table.
 
-  @param thd                   THD pointer
-  @param ref_item_array        array of pointers to top elements of filed list
-  @param res_selected_fields   new list of items of select item list
-  @param res_all_fields        new list of all items
-  @param elements              number of elements in select item list
-  @param all_fields            all fields list
+  @param all_fields                  all fields list; should really be const,
+                                       but Item does not always respect
+                                       constness
+  @param num_select_elements         number of elements in select item list
+  @param thd                         THD pointer
+  @param [out] ref_item_array        array of pointers to top elements of filed
+  list
+  @param [out] res_selected_fields   new list of items of select item list
+  @param [out] res_all_fields        new list of all items
 
   @returns false if success, true if error
 */
 
-bool change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
-                               List<Item> &res_selected_fields,
-                               List<Item> &res_all_fields, uint elements,
-                               List<Item> &all_fields) {
+bool change_refs_to_tmp_fields(List<Item> &all_fields,
+                               size_t num_select_elements, THD *thd,
+                               Ref_item_array ref_item_array,
+                               List<Item> *res_selected_fields,
+                               List<Item> *res_all_fields) {
   DBUG_ENTER("change_refs_to_tmp_fields");
-  List_iterator_fast<Item> it(all_fields);
-  Item *item, *new_item;
-  res_selected_fields.empty();
-  res_all_fields.empty();
+  res_selected_fields->empty();
+  res_all_fields->empty();
 
-  uint border = all_fields.elements - elements;
-  for (uint i = 0; (item = it++); i++) {
+  List_iterator_fast<Item> li(all_fields);
+  size_t border = all_fields.size() - num_select_elements;
+  Item *item;
+  for (size_t i = 0; (item = li++); i++) {
     /*
       Below we create "new_item" using get_tmp_table_item
       based on all_fields[i] and assign them to res_all_fields[i].
@@ -7305,14 +7314,15 @@ bool change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
       i==2   ->   afe-2-1 == 7
       i==3   ->   afe-3-1 == 6     i==9 -> 9-4 == 5
     */
-    res_all_fields.push_back(new_item = item->get_tmp_table_item(thd));
-    ref_item_array[((i < border) ? all_fields.elements - i - 1 : i - border)] =
+    Item *new_item = item->get_tmp_table_item(thd);
+    res_all_fields->push_back(new_item);
+    ref_item_array[((i < border) ? all_fields.size() - i - 1 : i - border)] =
         new_item;
   }
 
-  List_iterator_fast<Item> itr(res_all_fields);
-  for (uint i = 0; i < border; i++) itr++;
-  itr.sublist(res_selected_fields, elements);
+  List_iterator_fast<Item> itr(*res_all_fields);
+  for (size_t i = 0; i < border; i++) itr++;
+  itr.sublist(*res_selected_fields, num_select_elements);
 
   DBUG_RETURN(thd->is_fatal_error());
 }

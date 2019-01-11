@@ -92,6 +92,8 @@ class SQL_I_List {
     }
   }
 
+  inline uint size() const { return elements; }
+
   SQL_I_List &operator=(SQL_I_List &) = default;
   SQL_I_List &operator=(SQL_I_List &&) = default;
 };
@@ -263,6 +265,7 @@ class base_list {
   inline void *back() { return (*last)->info; }
   inline bool is_empty() const { return first == &end_of_list; }
   inline list_node *last_ref() { return &end_of_list; }
+  inline uint size() const { return elements; }
   friend class base_list_iterator;
   friend class error_list;
   friend class error_list_iterator;

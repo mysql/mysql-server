@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4143,14 +4143,16 @@ bool JOIN::make_tmp_tables_info() {
     // Change sum_fields reference to calculated fields in tmp_table
     if (streaming_aggregation || qep_tab[curr_tmp_table].table()->group ||
         tmp_table_param.precomputed_group_by) {
-      if (change_to_use_tmp_fields(
-              thd, ref_items[REF_SLICE_TMP1], tmp_fields_list[REF_SLICE_TMP1],
-              tmp_all_fields[REF_SLICE_TMP1], fields_list.elements, all_fields))
+      if (change_to_use_tmp_fields(all_fields, fields_list.size(), thd,
+                                   ref_items[REF_SLICE_TMP1],
+                                   &tmp_fields_list[REF_SLICE_TMP1],
+                                   &tmp_all_fields[REF_SLICE_TMP1]))
         DBUG_RETURN(true);
     } else {
-      if (change_refs_to_tmp_fields(
-              thd, ref_items[REF_SLICE_TMP1], tmp_fields_list[REF_SLICE_TMP1],
-              tmp_all_fields[REF_SLICE_TMP1], fields_list.elements, all_fields))
+      if (change_refs_to_tmp_fields(all_fields, fields_list.size(), thd,
+                                    ref_items[REF_SLICE_TMP1],
+                                    &tmp_fields_list[REF_SLICE_TMP1],
+                                    &tmp_all_fields[REF_SLICE_TMP1]))
         DBUG_RETURN(true);
     }
     curr_all_fields = &tmp_all_fields[REF_SLICE_TMP1];
@@ -4297,9 +4299,9 @@ bool JOIN::make_tmp_tables_info() {
 
       // No sum funcs anymore
       if (change_to_use_tmp_fields(
-              thd, ref_items[REF_SLICE_TMP2], tmp_fields_list[REF_SLICE_TMP2],
-              tmp_all_fields[REF_SLICE_TMP2], fields_list.elements,
-              tmp_all_fields[REF_SLICE_TMP1]))
+              tmp_all_fields[REF_SLICE_TMP1], fields_list.size(), thd,
+              ref_items[REF_SLICE_TMP2], &tmp_fields_list[REF_SLICE_TMP2],
+              &tmp_all_fields[REF_SLICE_TMP2]))
         DBUG_RETURN(true);
 
       curr_fields_list = &tmp_fields_list[REF_SLICE_TMP2];
@@ -4387,11 +4389,10 @@ bool JOIN::make_tmp_tables_info() {
     */
     if (alloc_ref_item_slice(thd, REF_SLICE_ORDERED_GROUP_BY))
       DBUG_RETURN(true);
-    setup_copy_fields(thd, &tmp_table_param,
-                      ref_items[REF_SLICE_ORDERED_GROUP_BY],
-                      tmp_fields_list[REF_SLICE_ORDERED_GROUP_BY],
-                      tmp_all_fields[REF_SLICE_ORDERED_GROUP_BY],
-                      curr_fields_list->elements, *curr_all_fields);
+    setup_copy_fields(*curr_all_fields, curr_fields_list->size(), thd,
+                      &tmp_table_param, ref_items[REF_SLICE_ORDERED_GROUP_BY],
+                      &tmp_fields_list[REF_SLICE_ORDERED_GROUP_BY],
+                      &tmp_all_fields[REF_SLICE_ORDERED_GROUP_BY]);
 
     curr_fields_list = &tmp_fields_list[REF_SLICE_ORDERED_GROUP_BY];
     curr_all_fields = &tmp_all_fields[REF_SLICE_ORDERED_GROUP_BY];
@@ -4572,10 +4573,10 @@ bool JOIN::make_tmp_tables_info() {
 
         if (alloc_ref_item_slice(thd, fbidx)) DBUG_RETURN(true);
 
-        if (change_to_use_tmp_fields(
-                thd, ref_items[fbidx], tmp_fields_list[fbidx],
-                tmp_all_fields[fbidx], curr_fields_list->elements,
-                *curr_all_fields))
+        if (change_to_use_tmp_fields(*curr_all_fields, curr_fields_list->size(),
+                                     thd, ref_items[fbidx],
+                                     &tmp_fields_list[fbidx],
+                                     &tmp_all_fields[fbidx]))
           DBUG_RETURN(true);
 
         m_windows[wno]->set_frame_buffer_param(par);
@@ -4598,11 +4599,11 @@ bool JOIN::make_tmp_tables_info() {
       if (alloc_ref_item_slice(thd, widx)) DBUG_RETURN(true);
 
       if (change_to_use_tmp_fields(
-              thd, ref_items[widx], tmp_fields_list[widx], tmp_all_fields[widx],
-              fields_list.elements,
               (last_slice_before_windowing == REF_SLICE_ACTIVE
                    ? all_fields
-                   : tmp_all_fields[last_slice_before_windowing])))
+                   : tmp_all_fields[last_slice_before_windowing]),
+              fields_list.size(), thd, ref_items[widx], &tmp_fields_list[widx],
+              &tmp_all_fields[widx]))
         DBUG_RETURN(true);
 
       curr_fields_list = &tmp_fields_list[widx];

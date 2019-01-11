@@ -381,21 +381,25 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int update_item_cache_if_changed(List<Cached_item> &list);
 
 // Create list for using with tempory table
-bool change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
-                              List<Item> &new_list1, List<Item> &new_list2,
-                              uint elements, List<Item> &items);
+bool change_to_use_tmp_fields(List<Item> &all_fields,
+                              size_t num_select_elements, THD *thd,
+                              Ref_item_array ref_item_array,
+                              List<Item> *res_selected_fields,
+                              List<Item> *res_all_fields);
 // Create list for using with tempory table
-bool change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
-                               List<Item> &new_list1, List<Item> &new_list2,
-                               uint elements, List<Item> &items);
+bool change_refs_to_tmp_fields(List<Item> &all_fields,
+                               size_t num_select_elements, THD *thd,
+                               Ref_item_array ref_item_array,
+                               List<Item> *res_selected_fields,
+                               List<Item> *res_all_fields);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
-bool setup_copy_fields(THD *thd, Temp_table_param *param,
+bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
+                       THD *thd, Temp_table_param *param,
                        Ref_item_array ref_item_array,
-                       List<Item> &res_selected_fields,
-                       List<Item> &res_all_fields, uint elements,
-                       List<Item> &all_fields);
+                       List<Item> *res_selected_fields,
+                       List<Item> *res_all_fields);
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(Field *field, ulonglong *hash);
 
