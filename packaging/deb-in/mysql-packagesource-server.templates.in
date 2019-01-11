@@ -1,20 +1,20 @@
-Template: mysql-server/root-pass
+Template: mysql-@DEB_PRODUCTNAME@-server/root-pass
 Type: password
 Description: Enter root password:
  Please provide a strong password that will be set for the root account of your MySQL database.
  Leave it blank to enable password less login using UNIX socket based authentication.
 
-Template: mysql-server/re-root-pass
+Template: mysql-@DEB_PRODUCTNAME@-server/re-root-pass
 Type: password
 Description: Re-enter root password:
  Now that you have selected a password for the root account, please confirm by typing it again. Do not share the password with anyone.
 
-Template: mysql-server/root-pass-mismatch
+Template: mysql-@DEB_PRODUCTNAME@-server/root-pass-mismatch
 Type: error
 Description: The two passwords did not match
  Please try again. Make sure you type the exact same password twice.
 
-Template: mysql-server/remove-data-dir
+Template: mysql-@DEB_PRODUCTNAME@-server/remove-data-dir
 Type: boolean
 Default: false
 Description: Remove data directories ?
@@ -23,7 +23,7 @@ Description: Remove data directories ?
  Finally, any files in '/var/lib/mysql-keyring' will be deleted.
  It is highly recommended to take data backup before removing the data directories.
 
-Template: mysql-server/data-dir
+Template: mysql-@DEB_PRODUCTNAME@-server/data-dir
 Type: note
 Description: Data directory found when no MySQL server package is installed
  A data directory '/var/lib/mysql' is present on this system when no MySQL server
