@@ -526,15 +526,24 @@ union
 select sum(hash_index_l2pmap_alloc_bytes) as l2p_sum, 'ACC' as block 
 from ndbinfo.ndb$frag_mem_use;
 
+# Dump some extra info for solving Bug #28892753
+let $DUMP_INFO=0;
+
 # Check that we get the same result from the common pool as when we add up
 # the values for each fragment.
 
 select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
 where pool_name='Index memory';
 
-select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+select @diff:=used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
   from pool_sum, frag_sum 
   where pool_name='Data memory';
+
+let $DIFF=query_get_value("select @diff as d", d, 1);
+if ($DIFF)
+{
+  let $DUMP_INFO=1;
+}
 
 select l2p_sum-used_bytes from l2p_frag_sum, pool_sum 
   where pool_name='L2PMap nodes' and ((block='ACC' and block_number=248) or 
@@ -543,6 +552,17 @@ select l2p_sum-used_bytes from l2p_frag_sum, pool_sum
 select * from check_l2pmap_pools;
 
 select * from sum_per_tab;
+if ($DUMP_INFO)
+{
+  # Extra debugging info
+  select * from sum_per_tab;
+  select * from frag_sum;
+  select * from pool_sum;
+  select * from check_l2pmap_pools;
+  select * from l2p_frag_sum;
+  select * from ndbinfo.ndb$pools;
+  select * from ndbinfo.resources;
+}
 
 # Now delete som scattered rows and check memory usage again.
 delete from t1 where a%10=0;
@@ -561,6 +581,17 @@ select l2p_sum-used_bytes from l2p_frag_sum, pool_sum
 select * from check_l2pmap_pools;
 
 select * from sum_per_tab;
+if ($DUMP_INFO)
+{
+  # Extra debugging info
+  select * from sum_per_tab;
+  select * from frag_sum;
+  select * from pool_sum;
+  select * from check_l2pmap_pools;
+  select * from l2p_frag_sum;
+  select * from ndbinfo.ndb$pools;
+  select * from ndbinfo.resources;
+}
 
 # Now update some var-sized fields and check memory usage again.
 update t1 set vc1=repeat('x', a%300), tx1=repeat('y', a*2);
@@ -579,6 +610,17 @@ select l2p_sum-used_bytes from l2p_frag_sum, pool_sum
 select * from check_l2pmap_pools;
 
 select * from sum_per_tab;
+if ($DUMP_INFO)
+{
+  # Extra debugging info
+  select * from sum_per_tab;
+  select * from frag_sum;
+  select * from pool_sum;
+  select * from check_l2pmap_pools;
+  select * from l2p_frag_sum;
+  select * from ndbinfo.ndb$pools;
+  select * from ndbinfo.resources;
+}
 
 drop table t1;
 drop view l2p_frag_sum;
