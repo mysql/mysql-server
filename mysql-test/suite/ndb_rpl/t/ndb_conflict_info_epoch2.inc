@@ -35,4 +35,19 @@ SELECT (@ndb_max_replicated_epoch+0) < (@ndb_last_conflict_epoch+0) AS conflict_
 
 SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS stable_epoch_is_older_than_max_replicated;
 
+if ($EXPECT_STABILITY)
+{
+  let $UNSTABLE=query_get_value(SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS u, u, 1);
+  if ($UNSTABLE)
+  {
+    # Debugging output
+    --echo Expected stability but failed
+    --echo Dumping info
+      select @ndb_max_replicated_epoch as max_replicated_epoch,
+               @ndb_last_conflict_epoch as last_conflict_epoch,
+      @init_ndb_last_conflict_epoch as init_last_conflict_epoch;
+      SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT%";
+      SHOW BINLOG EVENTS;
+  }
+}
 --enable_query_log
