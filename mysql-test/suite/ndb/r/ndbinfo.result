@@ -1042,16 +1042,18 @@ union
 select sum(hash_index_l2pmap_alloc_bytes) as l2p_sum, 'ACC' as block 
 from ndbinfo.ndb$frag_mem_use;
 
+
 select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
 where pool_name='Index memory';
 used_bytes - hash_index_alloc_bytes
 0
 
-select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+select @diff:=used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
   from pool_sum, frag_sum 
   where pool_name='Data memory';
-used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+@diff:=used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
 0
+
 
 select l2p_sum-used_bytes from l2p_frag_sum, pool_sum 
   where pool_name='L2PMap nodes' and ((block='ACC' and block_number=248) or 
