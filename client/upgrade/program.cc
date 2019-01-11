@@ -22,38 +22,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <errno.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <algorithm>
-#include <cctype>
-#include <functional>
 #include <iostream>
-#include <memory>
-#include <sstream>
 #include <string>
 #include <vector>
 
 #include "client/base/abstract_connection_program.h"
-#include "client/base/abstract_options_provider.h"
-#include "client/base/mysql_query_runner.h"
-#include "client/base/show_variable_query_extractor.h"
-#include "client/check/mysqlcheck.h"
-#include "client/client_priv.h"
-#include "my_default.h"
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "mysqld_error.h"
-#include "scripts/mysql_fix_privilege_tables_sql.c"
-#include "scripts/sql_commands_sys_schema.h"
-#include "scripts/sql_commands_system_tables_data_fix.h"
-#include "sql_string.h"
 
 using namespace Mysql::Tools::Base;
-using std::placeholders::_1;
 using std::string;
-using std::stringstream;
 using std::vector;
 
 const char *load_default_groups[] = {
@@ -65,13 +41,9 @@ namespace Mysql {
 namespace Tools {
 namespace Upgrade {
 
-using std::string;
-using std::stringstream;
-using std::vector;
-
 string deprecation_msg =
     "The mysql_upgrade client is now deprecated. The actions executed by the "
-    "upgrade client is now done by the server.\nTo upgrade, please start the "
+    "upgrade client are now done by the server.\nTo upgrade, please start the "
     "new MySQL binary with the older data directory. Repairing user tables is "
     "done automatically. Restart is not required after upgrade.\nThe upgrade "
     "process automatically starts on running a new MySQL binary with an older "
