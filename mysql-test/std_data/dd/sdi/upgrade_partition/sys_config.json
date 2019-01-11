@@ -307,7 +307,7 @@
         "foreign_keys": [],
         "check_constraints": [],
         "partitions": [],
-        "collation_id": 33
+        "collation_id": 255
     }
 }
 }

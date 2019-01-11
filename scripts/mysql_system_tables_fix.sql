@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,6 @@ SET @old_sql_mode = @@session.sql_mode, @@session.sql_mode = '';
 INSERT IGNORE INTO mysql.user
 (host, user, select_priv, plugin, authentication_string, ssl_cipher, x509_issuer, x509_subject)
 VALUES ('localhost','mysql.infoschema','Y','caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','','','');
-
-FLUSH PRIVILEGES;
 
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
@@ -663,8 +661,6 @@ COMMIT;
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
 
-flush privileges;
-
 ALTER TABLE slave_master_info ADD Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)';
 ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files';
 ALTER TABLE slave_master_info STATS_PERSISTENT=0;
@@ -1001,8 +997,6 @@ INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SE
 # the SYSTEM_USER privilege to this user at the time of initialization or
 # upgrade.
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SYSTEM_USER', 'N');
-
-FLUSH PRIVILEGES;
 
 # Move all system tables with InnoDB storage engine to mysql tablespace.
 SET @cmd="ALTER TABLE mysql.db TABLESPACE = mysql";

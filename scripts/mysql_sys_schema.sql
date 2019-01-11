@@ -1,4 +1,4 @@
--- Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,6 @@ REPLACE INTO mysql.user VALUES ('localhost','mysql.sys','N','N','N','N','N','N',
 REPLACE INTO mysql.db VALUES ('localhost','sys','mysql.sys','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y');
 
 REPLACE INTO mysql.tables_priv VALUES ('localhost','sys','mysql.sys','sys_config','root@localhost', CURRENT_TIMESTAMP, 'Select', '');
-
-FLUSH PRIVILEGES;
 
 SET NAMES utf8mb4;
 

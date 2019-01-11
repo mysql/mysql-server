@@ -37,7 +37,7 @@
 #include "mysqld_error.h"
 #include "sql/dd/cache/multi_map_base.h"
 #include "sql/dd/dd_schema.h"                           // dd::Schema_MDL_locker
-#include "sql/dd/impl/bootstrap_ctx.h"                  // bootstrap_stage
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"        // bootstrap_stage
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"  // get(), release(), ...
 #include "sql/dd/impl/cache/storage_adapter.h"          // store(), drop(), ...
 #include "sql/dd/impl/dictionary_impl.h"
@@ -2857,10 +2857,16 @@ template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
 template bool Dictionary_client::fetch_schema_component_names<Event>(
     const Schema *, std::vector<String_type> *) const;
 
+template bool Dictionary_client::fetch_schema_component_names<Trigger>(
+    const Schema *, std::vector<String_type> *) const;
+
 template bool Dictionary_client::fetch_global_component_ids<Table>(
     std::vector<Object_id> *) const;
 
 template bool Dictionary_client::fetch_global_component_names<Tablespace>(
+    std::vector<String_type> *) const;
+
+template bool Dictionary_client::fetch_global_component_names<Schema>(
     std::vector<String_type> *) const;
 
 template bool Dictionary_client::fetch_referencing_views_object_id<View_table>(

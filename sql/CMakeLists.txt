@@ -93,8 +93,6 @@ SET(DD_SOURCES
   dd/dd_utility.cc
   dd/properties.cc
 
-  dd/impl/bootstrap_ctx.cc
-  dd/impl/bootstrapper.cc
   dd/impl/dd.cc
   dd/impl/dictionary_impl.cc
   dd/impl/properties_impl.cc
@@ -106,6 +104,9 @@ SET(DD_SOURCES
   dd/impl/sdi_file.cc
   dd/impl/sdi_tablespace.cc
   dd/impl/string_type.cc
+
+  dd/impl/bootstrap/bootstrap_ctx.cc
+  dd/impl/bootstrap/bootstrapper.cc
 
   dd/impl/cache/dictionary_client.cc
   dd/impl/cache/local_multi_map.cc
@@ -218,6 +219,9 @@ SET(DD_SOURCES
   dd/impl/types/view_table_impl.cc
   dd/impl/types/weak_object_impl.cc
 
+  dd/impl/upgrade/server.cc
+  dd/impl/upgrade/dd.cc
+
   dd/info_schema/metadata.cc
   dd/info_schema/show.cc
   dd/info_schema/show_query_builder.cc
@@ -226,12 +230,12 @@ SET(DD_SOURCES
 
   dd/performance_schema/init.cc
 
-  dd/upgrade/event.cc
-  dd/upgrade/global.cc
-  dd/upgrade/routine.cc
-  dd/upgrade/schema.cc
-  dd/upgrade/table.cc
-  dd/upgrade/upgrade.cc
+  dd/upgrade_57/event.cc
+  dd/upgrade_57/global.cc
+  dd/upgrade_57/routine.cc
+  dd/upgrade_57/schema.cc
+  dd/upgrade_57/table.cc
+  dd/upgrade_57/upgrade.cc
 )
 
 SET(SQL_GIS_SOURCES

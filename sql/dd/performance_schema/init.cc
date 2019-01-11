@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,10 +39,10 @@
 #include "sql/dd/dd.h"                       // enum_dd_init_type
 #include "sql/dd/dd_schema.h"                // dd::schema_exists
 #include "sql/dd/dd_table.h"                 // dd::table_exists
-#include "sql/dd/impl/bootstrapper.h"        // execute_query
 #include "sql/dd/impl/dictionary_impl.h"     // dd::Dictionary_impl
 #include "sql/dd/impl/system_registry.h"     // dd::System_tables
 #include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::UNKNOWN_P_S_VERSION
+#include "sql/dd/impl/utils.h"                 // execute_query
 #include "sql/dd/properties.h"                 // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/object_table.h"
@@ -84,12 +84,12 @@ bool create_pfs_schema(THD *thd) {
 
   bool ret = false;
   if (!exists)
-    ret =
-        execute_query(thd, dd::String_type("CREATE SCHEMA ") +
-                               dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
-                               dd::String_type(" CHARACTER SET utf8mb4"));
+    ret = dd::execute_query(
+        thd, dd::String_type("CREATE SCHEMA ") +
+                 dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
+                 dd::String_type(" CHARACTER SET utf8mb4"));
 
-  return ret || execute_query(
+  return ret || dd::execute_query(
                     thd, dd::String_type("USE ") +
                              dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str));
 }
@@ -166,7 +166,7 @@ bool create_pfs_tables(THD *thd) {
     const Object_table_definition *table_def = nullptr;
     if (exists ||
         (table_def = (*it)->entity()->target_table_definition()) == nullptr ||
-        execute_query(thd, table_def->get_ddl())) {
+        dd::execute_query(thd, table_def->get_ddl())) {
       ret = true;
       break;
     }
@@ -219,7 +219,7 @@ bool drop_old_pfs_tables(THD *thd) {
 
   bool error = false;
   for (const dd::String_type &pfs_table_name : pfs_table_names_to_drop) {
-    error = execute_query(thd, build_ddl_drop_ps_table(pfs_table_name));
+    error = dd::execute_query(thd, build_ddl_drop_ps_table(pfs_table_name));
     if (error) break;
   }
 

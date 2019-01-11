@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
-#include "sql/dd/cache/dictionary_client.h"  // Dictionary_client
-#include "sql/dd/impl/bootstrap_ctx.h"       // bootstrap::DD_bootstrap_ctx
+#include "sql/dd/cache/dictionary_client.h"       // Dictionary_client
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // bootstrap::DD_bootstrap_ctx
 #include "sql/dd/impl/cache/cache_element.h"
 #include "sql/dd/impl/raw/object_keys.h"           // Primary_id_key
 #include "sql/dd/impl/raw/raw_record.h"            // Raw_record
@@ -67,7 +67,7 @@
 #include "sql/dd/types/table_stat.h"                // Table_stat
 #include "sql/dd/types/tablespace.h"                // Tablespace
 #include "sql/dd/types/view.h"                      // View
-#include "sql/dd/upgrade/upgrade.h"                 // allow_sdi_creation
+#include "sql/dd/upgrade_57/upgrade.h"              // allow_sdi_creation
 #include "sql/debug_sync.h"                         // DEBUG_SYNC
 #include "sql/log.h"
 #include "sql/sql_class.h"  // THD

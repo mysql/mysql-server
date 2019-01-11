@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 #include <mysqld_error.h>
 
-#include "sql/dd/impl/bootstrap_ctx.h"            // DD_bootstrap_ctx
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // DD_bootstrap_ctx
 #include "sql/dd/impl/types/object_table_impl.h"  // Object_table_impl
 #include "sql/table.h"
 

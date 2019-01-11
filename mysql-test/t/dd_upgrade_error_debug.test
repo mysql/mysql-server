@@ -13,7 +13,7 @@
 --echo # Stop the running server.
 --echo ########################################################################
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
+--shutdown_server 300
 --source include/wait_until_disconnected.inc
 
 --echo ########################################################################
@@ -37,17 +37,8 @@ let $BUGDATA_80011_DATADIR = $MYSQL_TMP_DIR/bugdata_80011;
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011_1.log;
 --exec echo "restart: --datadir=$BUGDATA_80011_DATADIR --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
-
---echo ########################################################################
---echo # Execute mysql_upgrade.
---echo ########################################################################
---source include/mysql_upgrade_preparation.inc
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --user=root --skip-verbose --force 2>&1
 --source include/mysql_upgrade_cleanup.inc
 
 --echo # Bug #28554157: TABLES UPGRADED FROM 8.0.11 ALGORITHM=INSTANT
@@ -91,11 +82,10 @@ WHERE mysql.tables.name = 'users' AND
 --echo ########################################################################
 --echo # Remove copied files and stop the server.
 --echo ########################################################################
+--let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQL_TMP_DIR/bugdata_80011.zip
 --force-rmdir $MYSQL_TMP_DIR/bugdata_80011
-
-
 
 --echo ########################################################################
 --echo # Bug#27960500: Upgrade fails due to FTS tables with 0 timestamps
@@ -116,17 +106,8 @@ WHERE mysql.tables.name = 'users' AND
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011_2.log
 --exec echo "restart: --datadir=$BUGDATA_80011_DATADIR --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
-
---echo ########################################################################
---echo # Execute mysql_upgrade.
---echo ########################################################################
---source include/mysql_upgrade_preparation.inc
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --user=root --skip-verbose --force 2>&1
 --source include/mysql_upgrade_cleanup.inc
 
 --echo ########################################################################
@@ -145,10 +126,9 @@ let $assert_cond = "[SELECT COUNT(name) FROM mysql.tables WHERE created = 0 OR l
 --echo ########################################################################
 --echo # Remove copied files and stop the server.
 --echo ########################################################################
+--let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 --force-rmdir $BUGDATA_80011_DATADIR
-
-
 
 --echo ########################################################################
 --echo # Cleanup: Restart with default options.

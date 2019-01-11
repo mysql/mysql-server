@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,20 @@
 
 struct CHARSET_INFO;
 
+class THD;
+
 namespace dd {
+/**
+  Create a lex string for the query from the string supplied
+  and execute the query.
+
+  @param thd     Thread handle.
+  @param q_buf   String containing the query text.
+
+  @retval false  Success.
+  @retval true   Error.
+*/
+bool execute_query(THD *thd, const dd::String_type &q_buf);
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -144,6 +157,19 @@ ulonglong my_time_t_to_ull_datetime(my_time_t seconds_since_epoch);
 bool is_string_in_lowercase(const String_type &str, const CHARSET_INFO *cs);
 
 ///////////////////////////////////////////////////////////////////////////
+
+/**
+  Helper function to do rollback or commit, depending on
+  error. Also closes tables and releases transactional
+  locks, regardless of error.
+
+  @param thd   Thread
+  @param error If true, the transaction will be rolledback.
+               otherwise, it is committed.
+
+  @returns false on success, otherwise true.
+*/
+bool end_transaction(THD *thd, bool error);
 
 }  // namespace dd
 

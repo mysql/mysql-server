@@ -26,21 +26,14 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --force-rmdir $MYSQL_TMP_DIR/data57/mismatch_frms
 
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/innodb_upgrade_compressed.log;
-let $MYSQL_UPGRADE_LOG= $MYSQL_TMP_DIR/mysql_upgrade_compressed.log;
 
 --source include/shutdown_mysqld.inc
 
 --echo # start mysqld on the 5.7 datadir
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
 let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG --innodb_page_size=16k";
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/start_mysqld.inc
-
---echo # Execute mysql_upgrade
-
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1 > $MYSQL_UPGRADE_LOG
---source include/mysql_upgrade_cleanup.inc
 
 SELECT * FROM test.t_compressed;
 SHOW CREATE TABLE test.t_compressed;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,13 +36,13 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"  // acl_init
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/auto_thd.h"                    // Auto_thd
-#include "sql/bootstrap.h"                   // bootstrap::bootstrap_functor
-#include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
-#include "sql/dd/dd.h"                       // enum_dd_init_type
-#include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
-#include "sql/dd/dd_version.h"               // dd::DD_VERSION
-#include "sql/dd/impl/bootstrapper.h"        // dd::Bootstrapper
+#include "sql/auto_thd.h"                        // Auto_thd
+#include "sql/bootstrap.h"                       // bootstrap::bootstrap_functor
+#include "sql/dd/cache/dictionary_client.h"      // dd::Dictionary_client
+#include "sql/dd/dd.h"                           // enum_dd_init_type
+#include "sql/dd/dd_schema.h"                    // dd::Schema_MDL_locker
+#include "sql/dd/dd_version.h"                   // dd::DD_VERSION
+#include "sql/dd/impl/bootstrap/bootstrapper.h"  // dd::Bootstrapper
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"  // Shared_dictionary_cache
 #include "sql/dd/impl/system_registry.h"                // dd::System_tables
 #include "sql/dd/impl/tables/columns.h"                 // dd::tables::Columns
@@ -51,6 +51,7 @@
 #include "sql/dd/impl/tables/table_partitions.h"  // dd::tables::Table_partitions
 #include "sql/dd/impl/tables/tables.h"            // dd::tables::Tables
 #include "sql/dd/impl/tables/tablespaces.h"       // dd::tables::Tablespaces
+#include "sql/dd/impl/utils.h"                    // dd::tables::Tablespaces
 #include "sql/dd/info_schema/metadata.h"  // dd::info_schema::store_dynamic...
 #include "sql/dd/types/abstract_table.h"  // dd::Abstract_table::DD_table
 #include "sql/dd/types/column.h"          // dd::Column::DD_table
@@ -58,9 +59,9 @@
 #include "sql/dd/types/object_table_definition.h"
 #include "sql/dd/types/partition.h"  // dd::Partition::DD_table
 #include "sql/dd/types/system_view.h"
-#include "sql/dd/types/table.h"       // dd::Table::DD_table
-#include "sql/dd/types/tablespace.h"  // dd::Tablespace::DD_table
-#include "sql/dd/upgrade/upgrade.h"   // dd::upgrade
+#include "sql/dd/types/table.h"         // dd::Table::DD_table
+#include "sql/dd/types/tablespace.h"    // dd::Tablespace::DD_table
+#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade
 #include "sql/derror.h"
 #include "sql/handler.h"
 #include "sql/mdl.h"
@@ -585,7 +586,7 @@ bool create_native_table(THD *thd, const Plugin_table *pt) {
                                        pt->get_schema_name(), pt->get_name());
   }
 
-  if (!error) error = execute_query(thd, pt->get_ddl());
+  if (!error) error = dd::execute_query(thd, pt->get_ddl());
 
   thd->security_context()->set_master_access(master_access);
   thd->mark_plugin_fake_ddl(false);

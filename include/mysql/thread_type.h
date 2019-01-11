@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,8 @@ enum enum_thread_type {
   SYSTEM_THREAD_DD_INITIALIZE = 512,
   SYSTEM_THREAD_DD_RESTART = 1024,
   SYSTEM_THREAD_SERVER_INITIALIZE = 2048,
-  SYSTEM_THREAD_INIT_FILE = 4096
+  SYSTEM_THREAD_INIT_FILE = 4096,
+  SYSTEM_THREAD_SERVER_UPGRADE = 8192
 };
 
 #endif /* THREAD_TYPE_INCLUDED */

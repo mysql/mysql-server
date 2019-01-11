@@ -43,12 +43,10 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to u
 --echo # Recreate the user with an upgrade and see that X plugin works
 --echo #
 
---source include/mysql_upgrade_preparation.inc
 --echo Run mysql_upgrade
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--let $restart_parameters = restart:--force-upgrade
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 --source include/mysql_upgrade_cleanup.inc
 
 --source include/xplugin_wait_for_interfaces.inc

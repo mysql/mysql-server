@@ -273,8 +273,6 @@ DROP DATABASE shared;
 # Executing 'mysqladmin'
 mysqld is alive
 # Executing 'mysqldump'
-# Executing 'mysql_upgrade'
-The --upgrade-system-tables option was used, databases won't be touched.
 #
 # Bug #59657: Move the client authentication_pam plugin into the 
 #  server repository
@@ -358,42 +356,7 @@ NO	plugin
 ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
-mysql.columns_priv                                 OK
-mysql.component                                    OK
-mysql.db                                           OK
-mysql.default_roles                                OK
-mysql.engine_cost                                  OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.global_grants                                OK
-mysql.gtid_executed                                OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.innodb_index_stats                           OK
-mysql.innodb_table_stats                           OK
-mysql.password_history                             OK
-mysql.plugin                                       OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.role_edges                                   OK
-mysql.server_cost                                  OK
-mysql.servers                                      OK
-mysql.slave_master_info                            OK
-mysql.slave_relay_log_info                         OK
-mysql.slave_worker_info                            OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
-sys.sys_config                                     OK
+# restart:--force-upgrade
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
 COLUMN_NAME IN ('plugin', 'authentication_string')

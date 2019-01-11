@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,6 +90,8 @@ DD_properties::DD_properties() : m_properties() {
                                 upgrade.
       UPGRADE_ACTUAL_SCHEMA     Temporary schema used during
                                 upgrade.
+      MYSQLD_VERSION_UPGRADED   The server version of the last
+                                completed successful upgrade.
   */
   m_property_desc = {
       {"DD_VERSION", Property_type::UNSIGNED_INT_32},
@@ -103,7 +105,8 @@ DD_properties::DD_properties() : m_properties() {
       {"MINOR_DOWNGRADE_THRESHOLD", Property_type::UNSIGNED_INT_32},
       {"SYSTEM_TABLES", Property_type::PROPERTIES},
       {"UPGRADE_TARGET_SCHEMA", Property_type::CHARACTER_STRING},
-      {"UPGRADE_ACTUAL_SCHEMA", Property_type::CHARACTER_STRING}};
+      {"UPGRADE_ACTUAL_SCHEMA", Property_type::CHARACTER_STRING},
+      {"MYSQLD_VERSION_UPGRADED", Property_type::UNSIGNED_INT_32}};
 }
 
 // Read all properties from disk and populate the cache.

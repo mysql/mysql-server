@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,14 +24,37 @@
 
 #include <string>
 
+#include "lex_string.h"
 #include "m_ctype.h"  // CHARSET_INFO
 #include "m_string.h"
-#include "my_time.h"            // TIME_to_ulonglong_datetime
-#include "mysql_com.h"          // NAME_LEN
-#include "sql/dd/properties.h"  // dd::Properties
+#include "my_time.h"  // TIME_to_ulonglong_datetime
+#include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysql_com.h"                               // NAME_LEN
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"     // DD_bootstrap_ctx
+#include "sql/dd/properties.h"                       // dd::Properties
+#include "sql/sql_base.h"                            // close_thread_tables
+#include "sql/sql_prepare.h"                         // Ed_connection
 #include "sql/stateless_allocator.h"
+#include "sql/strfunc.h"
+#include "sql/transaction.h"  // trans_rollback
 
 namespace dd {
+// Execute a single SQL query.
+bool execute_query(THD *thd, const dd::String_type &q_buf) {
+  Ed_connection con(thd);
+  LEX_STRING str;
+  lex_string_strmake(thd->mem_root, &str, q_buf.c_str(), q_buf.length());
+  if (con.execute_direct(str)) {
+    // Report error to log file during bootstrap.
+    if (dd::bootstrap::DD_bootstrap_ctx::instance().get_stage() <
+        dd::bootstrap::Stage::FINISHED) {
+      LogErr(ERROR_LEVEL, ER_DD_INITIALIZE_SQL_ERROR, q_buf.c_str(),
+             con.get_last_errno(), con.get_last_error());
+    }
+    return true;
+  }
+  return false;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -153,5 +176,21 @@ bool is_string_in_lowercase(const String_type &str, const CHARSET_INFO *cs) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Helper function to do rollback or commit, depending on error.
+bool end_transaction(THD *thd, bool error) {
+  if (error) {
+    // Rollback the statement before we can rollback the real transaction.
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
+  } else if (trans_commit_stmt(thd) || trans_commit(thd)) {
+    error = true;
+    trans_rollback(thd);
+  }
+
+  // Close tables etc. and release MDL locks, regardless of error.
+  close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
+  return error;
+}
 
 }  // namespace dd

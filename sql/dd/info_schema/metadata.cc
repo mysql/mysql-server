@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,10 +52,11 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // dd::get_sql_type_by_field_info
-#include "sql/dd/impl/bootstrapper.h"        // dd::Column
-#include "sql/dd/impl/dictionary_impl.h"     // dd::Dictionary_impl
-#include "sql/dd/impl/system_registry.h"     // dd::System_views
-#include "sql/dd/properties.h"               // dd::Properties
+#include "sql/dd/impl/bootstrap/bootstrapper.h"  // dd::Column
+#include "sql/dd/impl/dictionary_impl.h"         // dd::Dictionary_impl
+#include "sql/dd/impl/system_registry.h"         // dd::System_views
+#include "sql/dd/impl/utils.h"                   // dd::System_views
+#include "sql/dd/properties.h"                   // dd::Properties
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"  // dd::Column
 #include "sql/dd/types/schema.h"
@@ -562,7 +563,7 @@ bool create_system_views(THD *thd) {
 
     // Build the CREATE VIEW DDL statement and execute it.
     if (view_def == nullptr ||
-        execute_query(thd, view_def->build_ddl_create_view())) {
+        dd::execute_query(thd, view_def->build_ddl_create_view())) {
       error = true;
       break;
     }

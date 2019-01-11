@@ -30,13 +30,12 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --copy_file $MYSQL_TMP_DIR/data57/sakila/actor.frm $MYSQL_TMP_DIR/data57/sakila/zzz.frm
 
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/innodb_upgrade_orphan.log;
-let $MYSQL_UPGRADE_LOG= $MYSQL_TMP_DIR/mysql_upgrade_orphan.log;
 
 --source include/shutdown_mysqld.inc
 
 --echo # start server and we expect failure because of orphan .frm(sakila/zzz.frm)
 --error 1
---exec $MYSQLD --loose-skip-log-bin --read-only --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG --innodb-page-size=16k
+--exec $MYSQLD --secure-file-priv="" --loose-skip-log-bin --read-only --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG --innodb-page-size=16k
 
 --echo # Remove orphan .frm
 --remove_file $MYSQL_TMP_DIR/data57/sakila/zzz.frm
@@ -44,7 +43,7 @@ let $MYSQL_UPGRADE_LOG= $MYSQL_TMP_DIR/mysql_upgrade_orphan.log;
 --echo # Retry upgrade on the failed datadir
 --exec echo "restart: --loose-skip-log-bin --read-only --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG --innodb-page-size=16k" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
 --echo # Sanity Testing after Server start
@@ -53,12 +52,6 @@ CREATE TABLE test123.t1(a int);
 INSERT INTO test123.t1 values(1);
 SELECT * FROM test123.t1;
 DROP SCHEMA test123;
-
---echo # Execute mysql_upgrade
-
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1 > $MYSQL_UPGRADE_LOG
---source include/mysql_upgrade_cleanup.inc
 
 SHOW DATABASES;
 --echo # Check table structures

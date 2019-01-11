@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dictionary.h"
-#include "sql/dd/impl/bootstrapper.h"
+#include "sql/dd/impl/utils.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"
 
@@ -690,7 +690,7 @@ void Fixup_tables::fix_tables(THD *thd, const Const_table_iter &begin,
     snprintf(sql_stmt, sizeof(sql_stmt), "TRUNCATE TABLE %s.%s", schema_name,
              table_name);
 
-    if (execute_query(thd, sql_stmt)) {
+    if (dd::execute_query(thd, sql_stmt)) {
       ++m_num_errors;
       ib::error(ER_IB_MSG_150)
           << "Clone: Failed to fix Table: " << schema_name << "." << table_name

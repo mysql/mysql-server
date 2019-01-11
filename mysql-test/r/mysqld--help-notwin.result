@@ -329,6 +329,7 @@ The following options may be given as the first argument:
  --flush             Flush MyISAM tables to disk between SQL commands
  --flush-time=#      A dedicated thread is created to flush all tables at the
  given interval
+ --force-upgrade     Force upgrade of system tables.
  --ft-boolean-syntax=name 
  List of operators for MATCH ... AGAINST ( ... IN BOOLEAN
  MODE)
@@ -625,6 +626,8 @@ The following options may be given as the first argument:
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
+ --minimal-upgrade   Start the server, but skip upgrade steps that are not
+ absolutely necessary.
  --myisam-block-size=# 
  Block size to be used for MyISAM index pages
  --myisam-data-pointer-size=# 
@@ -671,7 +674,10 @@ The following options may be given as the first argument:
  connection before aborting the write
  -n, --new           Use very new possible "unsafe" functions
  --no-dd-upgrade     Abort restart if automatic upgrade or downgrade of the
- data dictionary is needed.
+ data dictionary is needed. Deprecated option. Use
+ --no-upgrade instead.
+ --no-upgrade        Abort restart if automatic upgrade or downgrade of the
+ server is needed.
  --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
@@ -1432,6 +1438,7 @@ explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE
 flush-time 0
+force-upgrade FALSE
 ft-boolean-syntax + -><()~*:""&|
 ft-max-word-len 84
 ft-min-word-len 4
@@ -1524,6 +1531,7 @@ max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
 min-examined-row-limit 0
+minimal-upgrade FALSE
 myisam-block-size 1024
 myisam-data-pointer-size 6
 myisam-max-sort-file-size 9223372036853727232
@@ -1540,6 +1548,7 @@ net-retry-count 10
 net-write-timeout 60
 new FALSE
 no-dd-upgrade FALSE
+no-upgrade FALSE
 offline-mode FALSE
 old FALSE
 old-alter-table FALSE

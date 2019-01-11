@@ -2268,17 +2268,9 @@ ORDER BY table_name;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb. Always report check-for-upgrade status as OK, as it depends
 # on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*\n// /Table is already up to date/OK/
---exec $MYSQL_UPGRADE --force 2>&1
-
---echo
---echo # Shutting down mysqld...
---source include/shutdown_mysqld.inc
-
---echo
---echo # Starting mysqld in the regular mode...
---let $restart_parameters =
---source include/start_mysqld.inc
+--let $restart_parameters = restart:--force-upgrade
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 
 --echo
 --echo # The ACL tables must have been upgraded.

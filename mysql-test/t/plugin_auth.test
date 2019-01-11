@@ -1,6 +1,5 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_plugin_auth.inc
---source include/mysql_upgrade_preparation.inc
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 
 # Official builds include separate debug enabled plugins to be used by
@@ -345,9 +344,6 @@ DROP DATABASE shared;
 --echo # Executing 'mysqldump'
 --exec $MYSQL_DUMP -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --compact --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT test
 
---echo # Executing 'mysql_upgrade'
---exec $MYSQL_UPGRADE -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT --skip-verbose --force --upgrade-system-tables
-
 --echo #
 --echo # Bug #59657: Move the client authentication_pam plugin into the 
 --echo #  server repository
@@ -444,8 +440,9 @@ ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb. Always report check-for-upgrade status as OK, as it depends
 # on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*\n// /Table is already up to date/OK/
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--let $restart_parameters = restart:--force-upgrade
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
 
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
   WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND

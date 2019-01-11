@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3416,14 +3416,11 @@ bool Protocol_local::store_null() {
 bool Protocol_local::store_column(const void *data, size_t length) {
   if (m_current_column == NULL)
     return true; /* start_row() failed to allocate memory. */
-  /*
-    alloc_root() automatically aligns memory, so we don't need to
-    do any extra alignment if we're pointing to, say, an integer.
-  */
-  m_current_column->str =
-      (char *)memdup_root(&m_rset_root, data, length + 1 /* Safety */);
+
+  m_current_column->str = new (&m_rset_root) char[length + 1];
   if (!m_current_column->str) return true;
-  m_current_column->str[length] = '\0'; /* Safety */
+  memcpy(m_current_column->str, data, length);
+  m_current_column->str[length + 1] = '\0'; /* Safety */
   m_current_column->length = length;
   ++m_current_column;
   return false;
@@ -3447,7 +3444,15 @@ bool Protocol_local::store_string(const char *str, size_t length,
     str = convert.ptr();
     length = convert.length();
   }
-  return store_column(str, length);
+
+  if (m_current_column == NULL)
+    return true; /* start_row() failed to allocate memory. */
+
+  m_current_column->str = strmake_root(&m_rset_root, str, length);
+  if (!m_current_column->str) return true;
+  m_current_column->length = length;
+  ++m_current_column;
+  return false;
 }
 
 /** Store a tiny int as is (1 byte) in a result set column. */

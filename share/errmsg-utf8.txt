@@ -19017,6 +19017,63 @@ ER_GRP_RPL_FINISHED_AUTO_REJOIN
 ER_GRP_RPL_DEFAULT_TABLE_ENCRYPTION_DIFF_FROM_GRP
   eng "The member is configured with a default_table_encryption option value '%d' different from the group '%d'. The member will now exit the group."
 
+ER_SERVER_UPGRADE_OFF
+  eng "Server shutting down because upgrade is required, yet prohibited by the command line option '--no-upgrade'."
+
+ER_SERVER_UPGRADE_SKIP
+  eng "Server upgrade is required, but skipped by command line option '--minimal-upgrade'."
+
+ER_SERVER_UPGRADE_PENDING
+  eng "Server upgrade started with version %d, but server upgrade of version %d is still pending."
+
+ER_SERVER_UPGRADE_FAILED
+  eng "Failed to upgrade server."
+
+ER_SERVER_UPGRADE_STATUS
+  eng "Server upgrade to %d has %s."
+
+ER_SERVER_UPGRADE_REPAIR_REQUIRED
+  eng "Table '%s' requires repair."
+
+ER_SERVER_UPGRADE_REPAIR_STATUS
+  eng "Table '%s' repair %s."
+
+ER_SERVER_UPGRADE_BAD_OPTION
+  eng "Options '--minimal-upgrade', '--no-upgrade' and '--force-upgrade' are mutually exclusive."
+
+ER_SERVER_UPGRADE_INFO_FILE
+  eng "Could not create server upgrade info file at '%s'."
+
+ER_SERVER_UPGRADE_SYS_SCHEMA
+  eng "Upgrading the sys schema."
+
+ER_SERVER_UPGRADE_MYSQL_TABLES
+  eng "Running queries to upgrade MySQL server."
+
+ER_SERVER_UPGRADE_SYSTEM_TABLES
+  eng "Upgrading system table data."
+
+ER_SERVER_UPGRADE_EMPTY_SYS
+  eng "Found empty sys database. Installing the sys schema."
+
+ER_SERVER_UPGRADE_NO_SYS_VERSION
+  eng "A sys schema exists with no sys.version view. If you have a user created sys schema, this must be renamed for the upgrade to succeed."
+
+ER_SERVER_UPGRADE_SYS_VERSION_EMPTY
+  eng "A sys schema exists with a sys.version view, but it returns no results."
+
+ER_SERVER_UPGRADE_SYS_SCHEMA_OUTDATED
+  eng "Found outdated sys schema version %s."
+
+ER_SERVER_UPGRADE_SYS_SCHEMA_UP_TO_DATE
+  eng "The sys schema is already up to date (version %s)."
+
+ER_SERVER_UPGRADE_SYS_SCHEMA_OBJECT_COUNT
+  eng "Found %d sys %s, but expected %d. Re-installing the sys schema."
+
+ER_SERVER_UPGRADE_CHECKING_DB
+  eng "Checking '%s' schema."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

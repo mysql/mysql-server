@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,14 +35,14 @@
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql_com.h"
-#include "mysqld_error.h"                  // ER_*
-#include "sql/dd/dd.h"                     // create_object
-#include "sql/dd/impl/bootstrap_ctx.h"     // dd::bootstrap::DD_bootstrap_ctx
-#include "sql/dd/impl/dictionary_impl.h"   // Dictionary_impl
-#include "sql/dd/impl/raw/raw_record.h"    // Raw_record
-#include "sql/dd/impl/sdi_impl.h"          // sdi read/write functions
-#include "sql/dd/impl/tables/schemata.h"   // Schemata
-#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "mysqld_error.h"                         // ER_*
+#include "sql/dd/dd.h"                            // create_object
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::DD_bootstrap_ctx
+#include "sql/dd/impl/dictionary_impl.h"          // Dictionary_impl
+#include "sql/dd/impl/raw/raw_record.h"           // Raw_record
+#include "sql/dd/impl/sdi_impl.h"                 // sdi read/write functions
+#include "sql/dd/impl/tables/schemata.h"          // Schemata
+#include "sql/dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/impl/utils.h"       // dd::my_time_t_to_ull_datetime()
 #include "sql/dd/types/event.h"      // Event

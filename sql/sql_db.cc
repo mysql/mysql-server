@@ -71,11 +71,11 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/schema.h"
-#include "sql/dd/upgrade/upgrade.h"  // dd::upgrade::in_progress
-#include "sql/debug_sync.h"          // DEBUG_SYNC
-#include "sql/derror.h"              // ER_THD
-#include "sql/error_handler.h"       // Drop_table_error_handler
-#include "sql/events.h"              // Events
+#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade::in_progress
+#include "sql/debug_sync.h"             // DEBUG_SYNC
+#include "sql/derror.h"                 // ER_THD
+#include "sql/error_handler.h"          // Drop_table_error_handler
+#include "sql/events.h"                 // Events
 #include "sql/handler.h"
 #include "sql/lock.h"       // lock_schema_name
 #include "sql/log.h"        // log_*()

@@ -2,30 +2,8 @@
 
 #mysql_upgrade test for user and priviledge tables.
 -- source include/no_valgrind_without_big.inc
--- source include/mysql_upgrade_preparation.inc
 
 --let $test_error_log= $MYSQL_TMP_DIR/mysql_upgrade_grant.err
---let $restart_parameters=restart:--log-error=$test_error_log
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---source include/restart_mysqld.inc
-
-#
-# Bug #25452 mysql_upgrade access denied.
-#
-
-# Password protect a root account and run mysql_upgrade
-
-CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
-GRANT ALL ON *.* TO mysqltest1@'%';
---echo Run mysql_upgrade with password protected account
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb. Always report check-for-upgrade status as OK, as it depends
-# on the order in which tests are run.
---replace_regex /mysql.ndb_binlog_index.*\n// #/Table is already up to date/OK/
---exec $MYSQL_UPGRADE --skip-verbose --force --user=mysqltest1 --password=sakila 2>&1
-
-DROP USER mysqltest1@'%';
-
 
 --echo #
 --echo # Bug #53613: mysql_upgrade incorrectly revokes
@@ -35,10 +13,12 @@ DROP USER mysqltest1@'%';
 CREATE USER 'user3'@'%';
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 --echo Run mysql_upgrade with all privileges on a user
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
+
 SHOW GRANTS FOR 'user3'@'%';
 
 DROP USER 'user3'@'%';
@@ -93,11 +73,10 @@ let SEARCH_FILE= $test_error_log;
 --source include/search_pattern.inc
 --echo # end of check for the presense of the warning
 
---echo # repair the user's plugin
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
 
 --echo # expect mysql_native_password
 SELECT plugin FROM mysql.user WHERE user='B19011337_nhash';
@@ -251,10 +230,11 @@ connection default;
 --echo #column and 4.1 hash password. After mysql_upgrade finishes the
 --echo #mysql.user table should have 5.7 layout thus no need to restore the
 --echo #dropped columns from the begining of the test
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force --user=user_nat_pass_pn --password=lala 2>&1
+
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
 
 call mtr.add_suppression("User entry 'user_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 call mtr.add_suppression("User entry 'su_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
@@ -273,10 +253,6 @@ let SEARCH_FILE= $test_error_log;
 disconnect con0;
 disconnect con3;
 disconnect con4;
-
---echo #Restart the server
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---source include/restart_mysqld.inc
 
 --echo #After the update all acl commands should be working fine. Trying out
 --echo #some of them
@@ -345,10 +321,11 @@ let SEARCH_FILE= $test_error_log;
 --source include/search_pattern.inc
 
 --echo # end of check for the presense of the warning
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
 
 call mtr.add_suppression("User entry 'B20614545'@'localhost' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 
@@ -400,10 +377,11 @@ SHOW GRANTS FOR root@localhost;
 SHOW GRANTS FOR u1;
 
 --echo # Start upgrade
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
 
 --echo # Show privileges granted to the users root@localhost and u1
 --echo # after upgrade has been finished.
@@ -425,10 +403,11 @@ REVOKE XA_RECOVER_ADMIN ON *.* FROM u1;
 REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 --echo # Start upgrade
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
 
 --echo # It is expected that after upgrade be finished the privilege
 --echo # XA_RECOVER_ADMIN won't be granted to the user u1 since
@@ -441,9 +420,6 @@ SHOW GRANTS FOR u1;
 DROP USER u1;
 
 --echo # End of tests for WL#7194
-
---source include/mysql_upgrade_cleanup.inc
-
 
 --echo #
 --echo # Bug#26667007 - MYSQL UPGRADE TO 8.0.3 USER WITH RELOAD GRANTED BACKUP_ADMIN WITH GRANT OPTION
@@ -468,10 +444,11 @@ SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
 
 --echo # Start upgrade
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
 
 --echo # Check that the user u1 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted
 SHOW GRANTS FOR u1;
@@ -501,10 +478,11 @@ SHOW GRANTS FOR root@localhost;
 SHOW GRANTS FOR user1;
 
 --echo # Start upgrade
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
 
 --echo # After upgrade users root@localhost and user1 has privilege RESOURCE_GROUP_ADMIN.
 SHOW GRANTS FOR root@localhost;
@@ -514,8 +492,6 @@ DROP USER user1;
 # Revoke privilege RESOURCE_GROUP_ADMIN from the user mysql.session@localhost in order to
 # match contol checksum for mysql.global_grants
 REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
-
---source include/mysql_upgrade_cleanup.inc
 
 --echo #
 --echo # Tests for WL#12138
@@ -541,11 +517,10 @@ REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM `mysql.session`@localhost;
 SHOW GRANTS FOR root@localhost;
 SHOW GRANTS FOR u1;
 
---echo # Start upgrade
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
 
 --echo # Show privileges granted to the users root@localhost and u1
 --echo # after upgrade has been finished.
@@ -567,10 +542,11 @@ REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM u1;
 REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 --echo # Start upgrade
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
 
 --echo # It is expected that after upgrade be finished the privilege
 --echo # SERVICE_CONNECTION_ADMIN won't be granted to the user u1 since

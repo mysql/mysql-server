@@ -27,7 +27,7 @@
 --echo # Stop the running server.
 --echo ########################################################################
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
+--shutdown_server 300
 --source include/wait_until_disconnected.inc
 
 --echo ########################################################################
@@ -48,17 +48,9 @@ let $BUGDATA_57025_DATADIR = $MYSQL_TMP_DIR/data_57025;
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_57025.log;
 --exec echo "restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$BUGDATA_57025_DATADIR/mysecret_keyring $KEYRING_PLUGIN_OPT --datadir=$BUGDATA_57025_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
---echo ########################################################################
---echo # Execute mysql_upgrade.
---echo ########################################################################
---source include/mysql_upgrade_preparation.inc
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --user=root --skip-verbose --force 2>&1
 --source include/mysql_upgrade_cleanup.inc
 
 SET DEBUG='+d,skip_dd_table_access_check';
@@ -75,6 +67,7 @@ SHOW GRANTS FOR 'root'@'localhost';
 --echo ########################################################################
 --echo # Remove copied files and stop the server.
 --echo ########################################################################
+--let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 --file_exists $MYSQL_TMP_DIR/wl12261_upgrade_57025.zip
 --force-rmdir $MYSQL_TMP_DIR/data_57025
@@ -98,17 +91,9 @@ let $BUGDATA_80012_DATADIR = $MYSQL_TMP_DIR/data_80012;
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80012.log;
 --exec echo "restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$BUGDATA_80012_DATADIR/mysecret_keyring $KEYRING_PLUGIN_OPT --datadir=$BUGDATA_80012_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
---echo ########################################################################
---echo # Execute mysql_upgrade.
---echo ########################################################################
---source include/mysql_upgrade_preparation.inc
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --user=root --skip-verbose --force 2>&1
 --source include/mysql_upgrade_cleanup.inc
 
 SET DEBUG='+d,skip_dd_table_access_check';
@@ -125,6 +110,7 @@ SHOW GRANTS FOR 'root'@'localhost';
 --echo ########################################################################
 --echo # Remove copied files and stop the server.
 --echo ########################################################################
+--let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 --file_exists $MYSQL_TMP_DIR/wl12261_upgrade_80012.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80012
@@ -148,17 +134,9 @@ let $BUGDATA_80013_DATADIR = $MYSQL_TMP_DIR/data_80013;
 let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80013.log;
 --exec echo "restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$BUGDATA_80013_DATADIR/mysecret_keyring $KEYRING_PLUGIN_OPT --datadir=$BUGDATA_80013_DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
---echo ########################################################################
---echo # Execute mysql_upgrade.
---echo ########################################################################
---source include/mysql_upgrade_preparation.inc
-# Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*\n//
---exec $MYSQL_UPGRADE --user=root --skip-verbose --force 2>&1
 --source include/mysql_upgrade_cleanup.inc
 
 SET DEBUG='+d,skip_dd_table_access_check';
@@ -175,6 +153,7 @@ SHOW GRANTS FOR 'root'@'localhost';
 --echo ########################################################################
 --echo # Remove copied files and stop the server.
 --echo ########################################################################
+--let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 --file_exists $MYSQL_TMP_DIR/wl12261_upgrade_80013.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80013

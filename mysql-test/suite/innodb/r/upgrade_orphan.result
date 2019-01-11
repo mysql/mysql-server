@@ -19,7 +19,6 @@ SELECT * FROM test123.t1;
 a
 1
 DROP SCHEMA test123;
-# Execute mysql_upgrade
 SHOW DATABASES;
 Database
 aview

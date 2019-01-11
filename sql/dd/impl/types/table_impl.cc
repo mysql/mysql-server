@@ -35,15 +35,15 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysqld_error.h"                    // ER_*
-#include "sql/current_thd.h"                 // current_thd
-#include "sql/dd/impl/bootstrap_ctx.h"       // dd::bootstrap::DD_bootstrap_ctx
-#include "sql/dd/impl/dictionary_impl.h"     // Dictionary_impl
-#include "sql/dd/impl/properties_impl.h"     // Properties_impl
-#include "sql/dd/impl/raw/raw_record.h"      // Raw_record
-#include "sql/dd/impl/raw/raw_record_set.h"  // Raw_record_set
-#include "sql/dd/impl/raw/raw_table.h"       // Raw_table
-#include "sql/dd/impl/sdi_impl.h"            // sdi read/write functions
+#include "mysqld_error.h"                         // ER_*
+#include "sql/current_thd.h"                      // current_thd
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::DD_bootstrap_ctx
+#include "sql/dd/impl/dictionary_impl.h"          // Dictionary_impl
+#include "sql/dd/impl/properties_impl.h"          // Properties_impl
+#include "sql/dd/impl/raw/raw_record.h"           // Raw_record
+#include "sql/dd/impl/raw/raw_record_set.h"       // Raw_record_set
+#include "sql/dd/impl/raw/raw_table.h"            // Raw_table
+#include "sql/dd/impl/sdi_impl.h"                 // sdi read/write functions
 #include "sql/dd/impl/tables/check_constraints.h"  // Check_constraints
 #include "sql/dd/impl/tables/columns.h"            // Columns
 #include "sql/dd/impl/tables/foreign_keys.h"       // Foreign_keys
