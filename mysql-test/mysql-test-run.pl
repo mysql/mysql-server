@@ -4595,15 +4595,6 @@ sub run_testcase ($) {
     }
   }
 
-  if ($opt_manual_gdb ||
-      $opt_manual_lldb  ||
-      $opt_manual_ddd   ||
-      $opt_manual_debug ||
-      $opt_manual_dbx) {
-    # Set $MTR_MANUAL_DEBUG environment variable
-    $ENV{'MTR_MANUAL_DEBUG'} = 1;
-  }
-
   my $test_timeout = start_timer(testcase_timeout($tinfo));
 
   do_before_run_mysqltest($tinfo);
@@ -4641,22 +4632,13 @@ sub run_testcase ($) {
 
     if (!$keep_waiting_proc) {
       if ($test_timeout > $print_timeout) {
-        $proc = My::SafeProcess->wait_any_timeout(start_timer(2));
+        $proc = My::SafeProcess->wait_any_timeout($print_timeout);
         if ($proc->{timeout}) {
-          if (has_expired($print_timeout)) {
-            # Print out that the test is still on
-            mtr_print("Test still running: $tinfo->{name}");
-            # Reset the timer
-            $print_timeout = start_timer($print_freq * 60);
-            next;
-          } elsif ($opt_manual_gdb ||
-                   $opt_manual_lldb  ||
-                   $opt_manual_ddd   ||
-                   $opt_manual_debug ||
-                   $opt_manual_dbx) {
-            check_expected_crash_and_restart($proc, $tinfo);
-            next;
-          }
+          # Print out that the test is still on
+          mtr_print("Test still running: $tinfo->{name}");
+          # Reset the timer
+          $print_timeout = start_timer($print_freq * 60);
+          next;
         }
       } else {
         $proc = My::SafeProcess->wait_any_timeout($test_timeout);
@@ -4669,8 +4651,6 @@ sub run_testcase ($) {
     unless (defined $proc) {
       mtr_error("wait_any failed");
     }
-
-    next if $proc->{'SAFE_NAME'} eq 'timer';
 
     mtr_verbose("Got $proc");
     mark_time_used('test');
@@ -5400,9 +5380,7 @@ sub check_expected_crash_and_restart($$) {
   my $tinfo = shift;
 
   foreach my $mysqld (mysqlds()) {
-    next
-      unless (($mysqld->{proc} and $mysqld->{proc} eq $proc) or
-              ($proc->{'SAFE_NAME'} eq 'timer'));
+    next unless ($mysqld->{proc} and $mysqld->{proc} eq $proc);
 
     # If a test was started with bootstrap options, make sure
     # the restart happens with the same options.
