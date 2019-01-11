@@ -44,6 +44,7 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"
 #include "sql/sql_plist.h"
+#include "template_utils.h"
 
 class MDL_context;
 class MDL_lock;
@@ -402,7 +403,7 @@ struct MDL_key {
     NAMESPACE_END
   };
 
-  const uchar *ptr() const { return (uchar *)m_ptr; }
+  const uchar *ptr() const { return pointer_cast<const uchar *>(m_ptr); }
   uint length() const { return m_length; }
 
   const char *db_name() const { return m_ptr + 1; }

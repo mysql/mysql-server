@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,13 +65,13 @@
 #define WARN_PREFIX "WARN_"
 #define OBSOLETE_ER_PREFIX "OBSOLETE_ER_"
 #define OBSOLETE_WARN_PREFIX "OBSOLETE_WARN_"
-static char *OUTFILE = (char *)"errmsg.sys";
-static char *HEADERFILE = (char *)"mysqld_error.h";
-static char *NAMEFILE = (char *)"mysqld_ername.h";
-static char *TXTFILE = (char *)"../share/errmsg-utf8.txt";
-static char *DATADIRECTORY = (char *)"../share/";
+static const char *OUTFILE = "errmsg.sys";
+static const char *HEADERFILE = "mysqld_error.h";
+static const char *NAMEFILE = "mysqld_ername.h";
+static const char *TXTFILE = "../share/errmsg-utf8.txt";
+static const char *DATADIRECTORY = "../share/";
 #ifndef DBUG_OFF
-static char *default_dbug_option = (char *)"d:t:O,/tmp/comp_err.trace";
+static const char *default_dbug_option = "d:t:O,/tmp/comp_err.trace";
 #endif
 
 /*
@@ -815,7 +815,7 @@ static ha_checksum checksum_format_specifier(const char *msg) {
         case 'u':
         case 'x':
         case 's':
-          chksum = my_checksum(chksum, (uchar *)start, (uint)(p + 1 - start));
+          chksum = my_checksum(chksum, start, (uint)(p + 1 - start));
           start = 0; /* Not in format specifier anymore */
           break;
 

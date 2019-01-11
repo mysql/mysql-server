@@ -163,9 +163,9 @@ int STDCALL mysql_server_init(int argc MY_ATTRIBUTE((unused)),
     if (!mysql_unix_port) {
       char *env;
 #ifdef _WIN32
-      mysql_unix_port = (char *)MYSQL_NAMEDPIPE;
+      mysql_unix_port = const_cast<char *>(MYSQL_NAMEDPIPE);
 #else
-      mysql_unix_port = (char *)MYSQL_UNIX_ADDR;
+      mysql_unix_port = const_cast<char *>(MYSQL_UNIX_ADDR);
 #endif
       if ((env = getenv("MYSQL_UNIX_PORT"))) mysql_unix_port = env;
     }
@@ -759,7 +759,7 @@ int STDCALL mysql_shutdown(MYSQL *mysql,
   if (mysql_get_server_version(mysql) < 50709)
     return simple_command(mysql, COM_DEPRECATED_1, 0, 1, 0);
   else
-    return mysql_real_query(mysql, C_STRING_WITH_LEN("shutdown"));
+    return mysql_real_query(mysql, STRING_WITH_LEN("shutdown"));
 }
 
 int STDCALL mysql_refresh(MYSQL *mysql, uint options) {
@@ -840,9 +840,7 @@ uint STDCALL mysql_get_proto_info(MYSQL *mysql) {
   return (mysql->protocol_version);
 }
 
-const char *STDCALL mysql_get_client_info(void) {
-  return (char *)MYSQL_SERVER_VERSION;
-}
+const char *STDCALL mysql_get_client_info(void) { return MYSQL_SERVER_VERSION; }
 
 ulong STDCALL mysql_get_client_version(void) { return MYSQL_VERSION_ID; }
 
@@ -2248,13 +2246,14 @@ bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
       break;
     case STMT_ATTR_CURSOR_TYPE: {
       ulong cursor_type;
-      cursor_type = value ? *(ulong *)value : 0UL;
+      cursor_type = value ? *static_cast<const ulong *>(value) : 0UL;
       if (cursor_type > (ulong)CURSOR_TYPE_READ_ONLY) goto err_not_implemented;
       stmt->flags = cursor_type;
       break;
     }
     case STMT_ATTR_PREFETCH_ROWS: {
-      ulong prefetch_rows = value ? *(ulong *)value : DEFAULT_PREFETCH_ROWS;
+      ulong prefetch_rows =
+          value ? *static_cast<const ulong *>(value) : DEFAULT_PREFETCH_ROWS;
       if (value == 0) return true;
       stmt->prefetch_rows = prefetch_rows;
       break;
@@ -2832,9 +2831,9 @@ bool STDCALL mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
       Note that we don't get any ok packet from the server in this case
       This is intentional to save bandwidth.
     */
-    if ((*mysql->methods->advanced_command)(mysql, COM_STMT_SEND_LONG_DATA,
-                                            buff, sizeof(buff), (uchar *)data,
-                                            length, 1, stmt)) {
+    if ((*mysql->methods->advanced_command)(
+            mysql, COM_STMT_SEND_LONG_DATA, buff, sizeof(buff),
+            pointer_cast<const uchar *>(data), length, 1, stmt)) {
       /*
         Don't set stmt error if stmt->mysql is NULL, as the error in this case
         has already been set by mysql_prune_stmt_list().
