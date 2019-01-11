@@ -56,14 +56,6 @@ using std::string;
 using std::stringstream;
 using std::vector;
 
-int mysql_check_errors;
-
-const int SYS_TABLE_COUNT = 1;
-const int SYS_VIEW_COUNT = 100;
-const int SYS_TRIGGER_COUNT = 2;
-const int SYS_FUNCTION_COUNT = 22;
-const int SYS_PROCEDURE_COUNT = 26;
-
 const char *load_default_groups[] = {
     "client",        /* Read settings how to connect to server */
     "mysql_upgrade", /* Read special settings for mysql_upgrade*/
@@ -100,16 +92,6 @@ enum exit_codes {
   EXIT_UPGRADING_QUERIES_ERROR = 5
 };
 
-class Mysql_connection_holder {
-  MYSQL *m_mysql_connection;
-
- public:
-  explicit Mysql_connection_holder(MYSQL *mysql_connection)
-      : m_mysql_connection(mysql_connection) {}
-
-  ~Mysql_connection_holder() { mysql_close(this->m_mysql_connection); }
-};
-
 class Program : public Base::Abstract_connection_program {
  public:
   Program()
@@ -133,56 +115,6 @@ class Program : public Base::Abstract_connection_program {
 
   int get_error_code() { return 0; }
 
-  /**
-    @param query             Query to execute
-    @param value_to_compare  The value the query should output
-    @return -1 if error, 1 if equal to value, 0 if different from value
-  */
-  int execute_conditional_query(const char *query,
-                                const char *value_to_compare) {
-    int condition_result = -1;
-    if (!mysql_query(this->m_mysql_connection, query)) {
-      MYSQL_RES *result = mysql_store_result(this->m_mysql_connection);
-      if (result) {
-        MYSQL_ROW row;
-        if ((row = mysql_fetch_row(result))) {
-          condition_result = (strcmp(row[0], value_to_compare) == 0);
-        }
-        mysql_free_result(result);
-      }
-    }
-    return condition_result;
-  }
-
-  /**
-    @return -1 if error, 1 if user is not there, 0 if it is
-  */
-  int check_session_user_absence() {
-    int no_session_user = execute_conditional_query(
-        "SELECT COUNT(*) FROM mysql.user WHERE user = 'mysql.session'", "0");
-    return no_session_user;
-  }
-
-  /**
-    @return -1 if error, 1 if the user is correctly configured, 0 if not
-  */
-  int check_session_user_configuration() {
-    int is_user_configured = 0;
-    is_user_configured = execute_conditional_query(
-        "SELECT SUM(count)=3 FROM ( "
-        "SELECT COUNT(*) as count FROM mysql.tables_priv WHERE "
-        "Table_priv='Select' and User='mysql.session' and Db='mysql' and "
-        "Table_name='user' "
-        "UNION ALL "
-        "SELECT COUNT(*) as count FROM mysql.db WHERE "
-        "Select_priv='Y' and User='mysql.session' and Db in "
-        "('performance\\_schema', 'performance_schema') "
-        "UNION ALL "
-        "SELECT COUNT(*) as count FROM mysql.user WHERE "
-        "Super_priv='Y' and User='mysql.session') as user_priv;",
-        "1");
-    return is_user_configured;
-  }
   /**
     Error codes:
     EXIT_INIT_ERROR - Initialization error.
@@ -256,163 +188,7 @@ class Program : public Base::Abstract_connection_program {
     return exit_code;
   }
 
-  /**
-    Gets path to file to write upgrade info into. Path is based on datadir of
-    server.
-   */
-  int64 get_upgrade_info_file_name(char *name) {
-    bool exists;
-
-    if (m_datadir.empty()) {
-      int64 res = Show_variable_query_extractor::get_variable_value(
-          this->m_query_runner, "datadir", m_datadir, exists);
-
-      res |= !exists;
-      if (res != 0) {
-        return res;
-      }
-    }
-
-    fn_format(name, "mysql_upgrade_info", m_datadir.c_str(), "", MYF(0));
-
-    return 0;
-  }
-  /**
-    Read the content of mysql_upgrade_info file and
-    compare the version number form file against
-    version number which mysql_upgrade was compiled for.
-
-    NOTE
-    This is an optimization to avoid running mysql_upgrade
-    when it's already been performed for the particular
-    version of MySQL.
-
-    In case the MySQL server can't return the upgrade info
-    file it's always better to report that the upgrade hasn't
-    been performed.
-   */
-  bool is_upgrade_already_done() {
-    FILE *in;
-    char upgrade_info_file[FN_REFLEN] = {0};
-    char buf[sizeof(MYSQL_SERVER_VERSION) + 1];
-    char *res;
-
-    this->print_verbose_message("Checking if update is needed.");
-
-    if (this->get_upgrade_info_file_name(upgrade_info_file) != 0)
-      return false; /* Could not get filename => not sure */
-
-    if (!(in = my_fopen(upgrade_info_file, O_RDONLY, MYF(0))))
-      return false; /* Could not open file => not sure */
-
-    /*
-      Read from file, don't care if it fails since it
-      will be detected by the strncmp
-    */
-    memset(buf, 0, sizeof(buf));
-    res = fgets(buf, sizeof(buf), in);
-
-    my_fclose(in, MYF(0));
-
-    if (!res) return false; /* Could not read from file => not sure */
-
-    return (strncmp(res, MYSQL_SERVER_VERSION,
-                    sizeof(MYSQL_SERVER_VERSION) - 1) == 0);
-  }
-
-  /**
-    Write mysql_upgrade_info file in servers data dir indicating that
-    upgrade has been done for this version
-
-    NOTE
-    This might very well fail but since it's just an optimization
-    to run mysql_upgrade only when necessary the error can be
-    ignored.
-   */
-  void create_mysql_upgrade_info_file() {
-    FILE *out;
-    char upgrade_info_file[FN_REFLEN] = {0};
-
-    if (this->get_upgrade_info_file_name(upgrade_info_file) != 0)
-      return; /* Could not get filename => skip */
-
-    if (!(out = my_fopen(upgrade_info_file, O_TRUNC | O_WRONLY, MYF(0)))) {
-      fprintf(stderr,
-              "Could not create the upgrade info file '%s' in "
-              "the MySQL Servers datadir, errno: %d\n",
-              upgrade_info_file, errno);
-      return;
-    }
-
-    /* Write new version to file */
-    fputs(MYSQL_SERVER_VERSION, out);
-    my_fclose(out, MYF(0));
-
-    /*
-      Check if the upgrade_info_file was properly created/updated
-      It's not a fatal error -> just print a message if it fails.
-    */
-    if (!this->is_upgrade_already_done())
-      fprintf(stderr,
-              "Could not write to the upgrade info file '%s' in "
-              "the MySQL Servers datadir, errno: %d\n",
-              upgrade_info_file, errno);
-    return;
-  }
-
-  /**
-    Check if the server version matches with the server version mysql_upgrade
-    was compiled with.
-
-    @return true match successful
-            false failed
-   */
-  bool is_version_matching() {
-    string version;
-    bool exists;
-
-    this->print_verbose_message("Checking server version.");
-
-    if (Show_variable_query_extractor::get_variable_value(
-            this->m_query_runner, "version", version, exists) != 0) {
-      return false;
-    }
-
-    if (this->calc_server_version(version.c_str()) != MYSQL_VERSION_ID) {
-      fprintf(stderr,
-              "Error: Server version (%s) does not match with the "
-              "version of\nthe server (%s) with which this program was built/"
-              "distributed. You can\nuse --skip-version-check to skip this "
-              "check.\n",
-              version.c_str(), MYSQL_SERVER_VERSION);
-      return false;
-    } else
-      return true;
-  }
-
-  /**
-    Convert the specified version string into the numeric format.
-   */
-  ulong calc_server_version(const char *some_version) {
-    uint major, minor, version;
-    const char *point = some_version, *end_point;
-    major = (uint)strtoul(point, (char **)&end_point, 10);
-    point = end_point + 1;
-    minor = (uint)strtoul(point, (char **)&end_point, 10);
-    point = end_point + 1;
-    version = (uint)strtoul(point, (char **)&end_point, 10);
-    return (ulong)major * 10000L + (ulong)(minor * 100 + version);
-  }
-
-  void print_verbose_message(string message) {
-    if (!this->m_verbose) return;
-
-    std::cout << message << std::endl;
-  }
-
   MYSQL *m_mysql_connection;
-  Mysql_query_runner *m_query_runner;
-  string m_datadir;
   bool m_write_binlog;
   bool m_upgrade_systables_only;
   bool m_skip_sys_schema;
