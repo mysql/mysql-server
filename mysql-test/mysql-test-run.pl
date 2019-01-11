@@ -157,6 +157,7 @@ my $mysql_base_version;
 my $mysqlx_baseport;
 my $path_config_file;       # The generated config file, var/my.cnf
 my $path_vardir_trace;      # Unix formatted opt_vardir for trace files
+my $test_fail;
 
 my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
@@ -1302,7 +1303,6 @@ sub set_vardir {
 }
 
 sub print_global_resfile {
-  resfile_global("bootstrap",        \@opt_extra_bootstrap_opt);
   resfile_global("callgrind",        $opt_callgrind ? 1 : 0);
   resfile_global("check-testcases",  $opt_check_testcases ? 1 : 0);
   resfile_global("compress",         $opt_compress ? 1 : 0);
@@ -1313,6 +1313,7 @@ sub print_global_resfile {
   resfile_global("gcov",             $opt_gcov ? 1 : 0);
   resfile_global("gprof",            $opt_gprof ? 1 : 0);
   resfile_global("helgrind",         $opt_helgrind ? 1 : 0);
+  resfile_global("initialize",       \@opt_extra_bootstrap_opt);
   resfile_global("max-connections",  $opt_max_connections);
   resfile_global("mem",              $opt_mem ? 1 : 0);
   resfile_global("mysqld",           \@opt_extra_mysqld_opt);
@@ -1425,7 +1426,7 @@ sub command_line_setup {
     'mysqld-env=s' => \@opt_mysqld_envs,
 
     # Extra options used when bootstrapping mysqld
-    'bootstrap=s' => \@opt_extra_bootstrap_opt,
+    'initialize=s' => \@opt_extra_bootstrap_opt,
 
     # Run test on running server
     'extern=s' => \%opts_extern,    # Append to hash
@@ -2788,10 +2789,11 @@ sub environment_setup {
   my $exe_mysqld = find_mysqld($basedir);
   $ENV{'MYSQLD'} = $exe_mysqld;
 
-  my $extra_opts = join(" ", @opt_extra_mysqld_opt);
+  my $extra_opts           = join(" ", @opt_extra_mysqld_opt);
+  my $extra_bootstrap_opts = join(" ", @opt_extra_bootstrap_opt);
   $ENV{'MYSQLD_CMD'} =
     "$exe_mysqld --defaults-group-suffix=.1 " .
-    "--defaults-file=$path_config_file $extra_opts";
+    "--defaults-file=$path_config_file $extra_bootstrap_opts $extra_opts";
 
   # bug25714 executable may _not_ exist in some versions, test using
   # it should be skipped.
@@ -3803,23 +3805,6 @@ sub mysql_install_db {
   mtr_add_arg($args,
               "--loose-caching_sha2_password_auto_generate_rsa_keys=OFF");
 
-  # InnoDB arguments that affect file location and sizes may need to be
-  # given to the bootstrap process as well as the server process.
-  foreach my $extra_opt (@opt_extra_mysqld_opt) {
-    (my $temp_extra_opt = $extra_opt) =~ s/_/-/g;
-    if ($temp_extra_opt =~ /--innodb-page-size/ ||
-        $temp_extra_opt =~ /--innodb-log-file-size/ ||
-        $temp_extra_opt =~ /--innodb-undo-tablespaces/) {
-      mtr_add_arg($args, $extra_opt);
-    }
-
-    # Plugin arguments need to be given to the bootstrap process as
-    # well as the server process.
-    if ($extra_opt =~ /--default-authentication-plugin/) {
-      mtr_add_arg($args, $extra_opt);
-    }
-  }
-
   # Arguments to bootstrap process.
   my $init_file;
   foreach my $extra_opt (@opt_extra_bootstrap_opt) {
@@ -4325,28 +4310,95 @@ sub resfile_report_test ($) {
   resfile_test_info("start_time", isotime time);
 }
 
-# Search the opt file for '--bootstrap' key word. For each instance of
-# '--bootstrap', save the option immediately after it into an array so
+# Extracts bootstrap options from opt file.
+sub extract_bootstrap_opts {
+  my ($option, $bootstrap_opts, $i, $command_boot_opts, $opt_file_options) = @_;
+
+  # If the same option is being passed multiple times in the opt file,
+  # consider only the last value that is set.
+  my ($option_name, $value) = My::Options::split_option($option);
+  $option_name =~ s/_/-/g;
+  @$bootstrap_opts = grep { !/$option_name/ } @$bootstrap_opts;
+
+  # Do not add the bootstrap option if it is already being passed on
+  # the command line.
+  if (defined $command_boot_opts->{$option_name} and defined $value
+      and ($command_boot_opts->{$option_name} ne $value)) {
+    push(@$bootstrap_opts, "--" . $option_name . "=" . $value);
+    splice(@$opt_file_options, $i, 1);
+    $i--;
+  } elsif (defined $command_boot_opts->{$option_name} and not defined
+           $value) {
+    push(@$bootstrap_opts, "--" . $option_name);
+    splice(@$opt_file_options, $i, 1);
+    $i--;
+  } elsif (not defined $command_boot_opts->{$option_name}
+           and defined $value) {
+    push(@$bootstrap_opts, "--" . $option_name . "=" . $value);
+    splice(@$opt_file_options, $i, 1);
+    $i--;
+  } elsif (defined $command_boot_opts->{$option_name} and defined $value
+           and ($command_boot_opts->{$option_name} eq $value)) {
+    splice(@$opt_file_options, $i, 1);
+    $i--;
+  } elsif (!grep($option_name eq $_, keys %$command_boot_opts)
+           and not defined $value) {
+    push (@$bootstrap_opts, "--" . $option_name);
+    splice(@$opt_file_options, $i, 1);
+    $i--;
+  } elsif (not defined $command_boot_opts->{$option_name}
+           and not defined $value) {
+    splice(@$opt_file_options, $i, 1);
+    $i--;
+  }
+  return $bootstrap_opts, $i;
+}
+
+# Search the opt file for '--initialize' key word. For each instance of
+# '--initialize', save the option immediately after it into an array so
 # that datadir can be reinitialized with those options.
 sub find_bootstrap_opts {
-  my ($opt_file) = @_;
+  my ($opt_file_options) = @_;
 
-  my $bootstrap_opt = 0;
+  # Remove duplicate options from the command line options
+  # passed to initialize, and keep only the last one.
+  my %command_boot_opts;
+  foreach my $opt (@opt_extra_bootstrap_opt) {
+  my ($option_name, $value) = My::Options::split_option($opt);
+    $option_name =~ s/_/-/g;
+    $command_boot_opts{$option_name} = $value;
+  }
+
   my $bootstrap_opts;
 
-  foreach my $opt (@$opt_file) {
-    if ($opt =~ /^--bootstrap=/) {
-      $opt =~ s/--bootstrap=//;
-      push(@$bootstrap_opts, $opt);
-    } elsif ($opt eq "--bootstrap") {
-      $bootstrap_opt = 1;
-      next;
-    } elsif ($bootstrap_opt == 1) {
-      push(@$bootstrap_opts, $opt);
-      $bootstrap_opt = 0;
+  for (my $i = 0 ; $i <= $#$opt_file_options ; $i++) {
+    my $option = $opt_file_options->[$i];
+    # Check both "--initialize --option" and "--initialize=--option" formats.
+    if ($option =~ /^--initialize=/) {
+      $option =~ s/--initialize=//;
+      ($bootstrap_opts, $i) =
+        extract_bootstrap_opts($option, $bootstrap_opts, $i,
+                               \%command_boot_opts, $opt_file_options);
+    } elsif ($option eq "--initialize") {
+      splice(@$opt_file_options, $i, 1);
+      $option = $opt_file_options->[$i];
+      ($bootstrap_opts, $i) =
+        extract_bootstrap_opts($option, $bootstrap_opts, $i,
+                               \%command_boot_opts, $opt_file_options);
     }
   }
-  return $bootstrap_opts if defined $bootstrap_opts;
+
+  # Ensure that the bootstrap options are at the beginning of the array
+  # so that mysqld options have precedence over bootstrap options.
+  if (defined $bootstrap_opts and @$bootstrap_opts) {
+    unshift(@$opt_file_options, @$bootstrap_opts);
+  }
+
+  # Command line mysqld options should not have precedence over the opt
+  # file options.
+  unshift(@$opt_file_options, @opt_extra_mysqld_opt);
+
+  return $bootstrap_opts if (defined $bootstrap_opts and @$bootstrap_opts);
 }
 
 # This involves checking if the server needs to be restarted after the
@@ -4388,21 +4440,18 @@ sub run_testcase ($) {
   $ENV{'TZ'} = $timezone;
   mtr_verbose("Setting timezone: $timezone");
 
-  # If there are bootstrap options in the opt file, add them. On retry,
-  # bootstrap_master_opt will already be set, so do not call
-  # find_bootstrap_opts again.
-  $tinfo->{bootstrap_master_opt} = find_bootstrap_opts($tinfo->{master_opt})
-    if (!$tinfo->{bootstrap_master_opt});
-  $tinfo->{bootstrap_slave_opt} = find_bootstrap_opts($tinfo->{slave_opt})
-    if (!$tinfo->{bootstrap_slave_opt});
-
-  # The keyword "--bootstrap" is passed in the opt file to identify
-  # the bootstrap variables. Remove this keyword before sending
-  # these options to the server.
-  @{ $tinfo->{master_opt} } = grep { !/--bootstrap/ } @{ $tinfo->{master_opt} };
-  @{ $tinfo->{slave_opt} }  = grep { !/--bootstrap/ } @{ $tinfo->{slave_opt} };
-
   if (!using_extern()) {
+    # If there are bootstrap options in the opt file, add them. On retry,
+    # bootstrap_master_opt will already be set, so do not call
+    # find_bootstrap_opts again.
+    $tinfo->{bootstrap_master_opt} = find_bootstrap_opts($tinfo->{master_opt})
+      if (!$tinfo->{bootstrap_master_opt});
+    $tinfo->{bootstrap_slave_opt} = find_bootstrap_opts($tinfo->{slave_opt})
+      if (!$tinfo->{bootstrap_slave_opt});
+
+    # Check if servers need to be reinitialized for the test.
+    my $server_need_reinit = servers_need_reinitialization($tinfo);
+
     my @restart = servers_need_restart($tinfo);
     if (@restart != 0) {
       stop_secondary_engine_servers() if $tinfo->{'secondary-engine'};
@@ -4411,7 +4460,7 @@ sub run_testcase ($) {
 
     if (started(all_servers()) == 0) {
       # Remove old datadirs
-      clean_datadir() unless $opt_start_dirty;
+      clean_datadir($tinfo) unless $opt_start_dirty;
 
       # Restore old ENV
       while (my ($option, $value) = each(%old_env)) {
@@ -4435,6 +4484,7 @@ sub run_testcase ($) {
                            baseport            => $baseport,
                            extra_template_path => $tinfo->{extra_template_path},
                            mysqlxbaseport      => $mysqlx_baseport,
+                           need_reinit         => $server_need_reinit,
                            password            => '',
                            template_path       => $tinfo->{template_path},
                            testdir             => $glob_mysql_test_dir,
@@ -4456,6 +4506,25 @@ sub run_testcase ($) {
         $old_env{ $option->name() } = $ENV{ $option->name() };
         mtr_verbose($option->name(), "=", $option->value());
         $ENV{ $option->name() } = $option->value();
+      }
+
+      # Restore the value of the reinitialization flag after new config
+      # is generated.
+      foreach my $mysqld (mysqlds()) {
+        if (!defined $server_need_reinit) {
+          $mysqld->{need_reinitialization} = undef;
+        } else {
+          $mysqld->{need_reinitialization} = $mysqld->value('#need_reinit');
+        }
+        # If server has been started for the first time,
+        # set a flag to check if reinitialization is needed.
+        if (!defined $mysqld->{need_reinitialization}) {
+          # If master needs reinitialization, then even the slave should
+          # be reinitialized, and vice versa.
+          if ($tinfo->{bootstrap_slave_opt} or $tinfo->{bootstrap_master_opt}) {
+            $mysqld->{need_reinitialization} = 1;
+          }
+        }
       }
     }
 
@@ -5335,6 +5404,10 @@ sub check_expected_crash_and_restart($$) {
       unless (($mysqld->{proc} and $mysqld->{proc} eq $proc) or
               ($proc->{'SAFE_NAME'} eq 'timer'));
 
+    # If a test was started with bootstrap options, make sure
+    # the restart happens with the same options.
+    my $bootstrap_opts = get_bootstrap_opts($mysqld, $tinfo);
+
     # Check if crash expected by looking at the .expect file in var/tmp
     my $expect_file = "$opt_vardir/tmp/" . $mysqld->name() . ".expect";
     if (-f $expect_file) {
@@ -5380,7 +5453,7 @@ sub check_expected_crash_and_restart($$) {
         }
 
         # Start server with same settings as last time
-        mysqld_start($mysqld, $mysqld->{'started_opts'}, $tinfo);
+        mysqld_start($mysqld, $mysqld->{'started_opts'}, $tinfo, $bootstrap_opts);
 
         if ($tinfo->{'secondary-engine'}) {
           my $restart_flag = 1;
@@ -5430,6 +5503,8 @@ sub clean_dir {
 }
 
 sub clean_datadir {
+  my ($tinfo) = @_;
+
   mtr_verbose("Cleaning datadirs...");
 
   if (started(all_servers()) != 0) {
@@ -5443,8 +5518,14 @@ sub clean_datadir {
   }
 
   foreach my $mysqld (mysqlds()) {
+    my $bootstrap_opts = get_bootstrap_opts($mysqld, $tinfo);
     my $mysqld_dir = dirname($mysqld->value('datadir'));
-    if (-d $mysqld_dir) {
+
+    # Clean datadir if server is restarted between tests
+    # that do not have bootstrap options.
+    if (-d $mysqld_dir and
+        !$mysqld->{need_reinitialization} and
+        !$bootstrap_opts) {
       mtr_verbose(" - removing '$mysqld_dir'");
       rmtree($mysqld_dir);
     }
@@ -5454,6 +5535,10 @@ sub clean_datadir {
   clean_dir("$opt_vardir/tmp");
   if ($opt_tmpdir ne "$opt_vardir/tmp") {
     clean_dir($opt_tmpdir);
+  }
+
+  if (-e "$default_vardir/tmp/bootstrap.sql") {
+    unlink("$default_vardir/tmp/bootstrap.sql");
   }
 }
 
@@ -5569,6 +5654,7 @@ sub report_failure_and_restart ($) {
     }
   }
 
+  $test_fail = $tinfo->{'result'};
   after_failure($tinfo);
   mtr_report_test($tinfo);
 }
@@ -5640,6 +5726,7 @@ sub mysqld_arguments ($$$) {
   my @options = ("--no-defaults",   "--defaults-extra-file",
                  "--defaults-file", "--login-path",
                  "--print-defaults");
+
   arrange_option_files_options($args, $mysqld, $extra_opts, @options);
 
   # When mysqld is run by a root user(euid is 0), it will fail
@@ -5736,10 +5823,17 @@ sub mysqld_arguments ($$$) {
   return $args;
 }
 
-sub mysqld_start ($$$) {
-  my $mysqld     = shift;
-  my $extra_opts = shift;
-  my $tinfo      = shift;
+sub mysqld_start ($$$$) {
+  my $mysqld         = shift;
+  my $extra_opts     = shift;
+  my $tinfo          = shift;
+  my $bootstrap_opts = shift;
+
+  # Give precedence to opt file bootstrap options over command line
+  # bootstrap options.
+  if (@opt_extra_bootstrap_opt) {
+    unshift(@$extra_opts, @opt_extra_bootstrap_opt);
+  }
 
   mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
@@ -5769,11 +5863,11 @@ sub mysqld_start ($$$) {
   if (exists $mysqld->{'restart_opts'}) {
     foreach my $extra_opt (@$extra_opts) {
       next if $extra_opt eq '';
-      my ($opt_name1, $value1) = My::Options::_split_option($extra_opt);
+      my ($opt_name1, $value1) = My::Options::split_option($extra_opt);
       my $found = 0;
       foreach my $restart_opt (@{ $mysqld->{'restart_opts'} }) {
-        next if $restart_opt eq '';
-        my ($opt_name2, $value2) = My::Options::_split_option($restart_opt);
+	next if $restart_opt eq '';
+        my ($opt_name2, $value2) = My::Options::split_option($restart_opt);
         $found = 1 if (My::Options::option_equals($opt_name1, $opt_name2));
         last if $found == 1;
       }
@@ -5872,6 +5966,10 @@ sub mysqld_start ($$$) {
   # Remember options used when starting
   $mysqld->{'started_opts'} = $extra_opts;
 
+  # Save the bootstrap options to compare with the next run.
+  # Reinitialization of the datadir should happen only if
+  # the bootstrap options of the next test are different.
+  $mysqld->{'save_bootstrap_opts'} = $bootstrap_opts;
   return;
 }
 
@@ -5899,6 +5997,61 @@ sub is_slave {
   # mysqld is master or slave. Best guess is to treat all which haven't
   # got '#!use-slave-opt' as masters. At least be consistent.
   return $server->option('#!use-slave-opt');
+}
+
+# Get the bootstrap options from the opt file depending on
+# whether it is a master or a slave.
+sub get_bootstrap_opts {
+  my ($server, $tinfo) = @_;
+
+  my $bootstrap_opts = (is_slave($server) ? $tinfo->{bootstrap_slave_opt} :
+                          $tinfo->{bootstrap_master_opt});
+  return $bootstrap_opts;
+}
+
+# Determine whether the server needs to be reinitialized.
+sub server_need_reinitialization {
+  my ($tinfo, $server) = @_;
+  my $bootstrap_opts = get_bootstrap_opts($server, $tinfo);
+  my $started_boot_opts = $server->{'save_bootstrap_opts'};
+
+  # If previous test and current test have the same bootstrap
+  # options, do not reinitialize.
+  if ($bootstrap_opts and $started_boot_opts) {
+    if (My::Options::same($started_boot_opts, $bootstrap_opts)) {
+      if (defined $test_fail and $test_fail eq 'MTR_RES_FAILED') {
+        $server->{need_reinitialization} = 1;
+      } else {
+        $server->{need_reinitialization} = 0;
+      }
+    } else {
+      $server->{need_reinitialization} = 1;
+    }
+  } elsif ($bootstrap_opts) {
+    $server->{need_reinitialization} = 1;
+  } else {
+    $server->{need_reinitialization} = undef;
+  }
+}
+
+# Check whether the server needs to be reinitialized.
+sub servers_need_reinitialization {
+  my ($tinfo) = @_;
+  my $server_need_reinit;
+
+  foreach my $mysqld (mysqlds()) {
+    server_need_reinitialization($tinfo, $mysqld);
+    if (defined $mysqld->{need_reinitialization} and
+        $mysqld->{need_reinitialization} eq 1) {
+      $server_need_reinit = 1;
+      last;
+    } elsif (defined $mysqld->{need_reinitialization} and
+             $mysqld->{need_reinitialization} eq 0) {
+      $server_need_reinit = 0;
+    }
+  }
+
+  return $server_need_reinit;
 }
 
 # Find out if server should be restarted for this test
@@ -5944,7 +6097,6 @@ sub server_need_restart {
       return 1;
     }
   }
-
   my $is_mysqld = grep ($server eq $_, mysqlds());
   if ($is_mysqld) {
     # Check that running process was started with same options
@@ -5998,7 +6150,6 @@ sub server_need_restart {
 
 sub servers_need_restart($) {
   my ($tinfo) = @_;
-
   my @restart_servers;
 
   # Build list of master and slave mysqlds to be able to restart
@@ -6157,8 +6308,8 @@ sub start_servers($) {
   }
 
   my $server_id = 0;
-
   # Start mysqlds
+
   foreach my $mysqld (mysqlds()) {
     # Group Replication requires a local port to be open on each server
     # in order to receive messages from the group, Store the reserved
@@ -6183,6 +6334,7 @@ sub start_servers($) {
       next;
     }
 
+    my $bootstrap_opts = get_bootstrap_opts($mysqld, $tinfo);
     my $datadir = $mysqld->value('datadir');
     if ($opt_start_dirty) {
       # Don't delete anything if starting dirty
@@ -6199,7 +6351,11 @@ sub start_servers($) {
         unlink($file_name) or die("unable to remove file '$file_name'");
       }
 
-      if (-d $datadir) {
+      # Clean datadir if server is restarted between tests
+      # that do not have bootstrap options.
+      if (-d $datadir and
+          !$mysqld->{need_reinitialization} and
+          !$bootstrap_opts) {
         mtr_verbose(" - removing '$datadir'");
         rmtree($datadir);
       }
@@ -6212,9 +6368,14 @@ sub start_servers($) {
         # Copy datadir from installed system db
         my $path = ($opt_parallel == 1) ? "$opt_vardir" : "$opt_vardir/..";
         my $install_db = "$path/data/";
-        copytree($install_db, $datadir) if -d $install_db;
-        mtr_error("Failed to copy system db to '$datadir'")
-          unless -d $datadir;
+        if (!-d $datadir or
+            (!$bootstrap_opts and
+             !$mysqld->{need_reinitialization})
+        ) {
+          copytree($install_db, $datadir) if -d $install_db;
+          mtr_error("Failed to copy system db to '$datadir'")
+            unless -d $datadir;
+        }
 
         # Restore the value of bootstrap command for the next run.
         if ($initial_bootstrap_cmd ne $ENV{'MYSQLD_BOOTSTRAP_CMD'}) {
@@ -6229,13 +6390,10 @@ sub start_servers($) {
 
     # Reinitialize the data directory if there are bootstrap options
     # in the opt file.
-    my $bootstrap_opts = (is_slave($mysqld) ? $tinfo->{bootstrap_slave_opt} :
-                            $tinfo->{bootstrap_master_opt});
-
-    if ($bootstrap_opts) {
+    if ($mysqld->{need_reinitialization}) {
       clean_dir($datadir);
       mysql_install_db($mysqld, $datadir, $bootstrap_opts);
-
+      $tinfo->{'reinitialized'} = 1;
       # Remove the bootstrap.sql file so that a duplicate set of
       # SQL statements do not get written to the same file.
       unlink("$opt_vardir/tmp/bootstrap.sql")
@@ -6264,7 +6422,7 @@ sub start_servers($) {
     }
 
     my $extra_opts = get_extra_opts($mysqld, $tinfo);
-    mysqld_start($mysqld, $extra_opts, $tinfo);
+    mysqld_start($mysqld, $extra_opts, $tinfo, $bootstrap_opts);
 
     # Save this test case information, so next can examine it
     $mysqld->{'started_tinfo'} = $tinfo;
@@ -7132,8 +7290,11 @@ Options for test case authoring
 
 Options that pass on options (these may be repeated)
 
-  mysqld=ARGS           Specify additional arguments to "mysqld".
-  mysqld-env=VAR=VAL    Specify additional environment settings for "mysqld".
+  initialize=ARGS       Specify additional arguments that will be used to
+                        initialize and start the mysqld server.
+
+  mysqld=ARGS           Specify additional arguments to "mysqld"
+  mysqld-env=VAR=VAL    Specify additional environment settings for "mysqld"
 
 Options for mysqltest
   mysqltest=ARGS        Extra options used when running test clients.

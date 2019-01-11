@@ -1,1 +1,1 @@
---bootstrap --innodb_page_size=64k
+--initialize --innodb_page_size=64k

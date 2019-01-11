@@ -26,6 +26,7 @@
 -- eval show databases like '$dbname_upper'
 sync_slave_with_master;
 -- echo ******** [ SLAVE ] ********
+CALL mtr.add_suppression("The master\'s UUID has changed*");
 --eval show databases like '$dbname_lower'
 
 -- connection master

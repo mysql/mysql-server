@@ -1,1 +1,1 @@
---bootstrap --innodb_page_size=16k --event_scheduler=OFF
+--initialize --innodb_page_size=16k --event_scheduler=OFF

@@ -1,2 +1,2 @@
 --innodb_rollback_segments=1
---bootstrap --innodb_page_size=4k
+--initialize --innodb_page_size=4k

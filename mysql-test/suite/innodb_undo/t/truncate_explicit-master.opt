@@ -2,5 +2,5 @@
 --innodb_undo_log_truncate=1
 --innodb_max_undo_log_size=11M
 --innodb_purge_rseg_truncate_frequency=1
---bootstrap --innodb_page_size=16k
+--initialize --innodb_page_size=16k
 --log-error-verbosity=3
