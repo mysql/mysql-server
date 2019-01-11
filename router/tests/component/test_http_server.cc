@@ -62,6 +62,7 @@ const size_t placeholder_datadir_length{strlen(kPlaceholderDatadir)};
 const size_t placeholder_stddatadir_length{strlen(kPlaceholderStddataDir)};
 const size_t placeholder_httpbasedir_length{strlen(kPlaceholderHttpBaseDir)};
 
+#if 0
 // invalid bind-address must be chosen wisely to
 //
 // - ensure getaddrinfo() doesn't try to resolve it and lead to timeouts
@@ -73,6 +74,7 @@ const size_t placeholder_httpbasedir_length{strlen(kPlaceholderHttpBaseDir)};
 const char kInvalidBindAddress[]{"::::::::::"};
 static_assert(sizeof(kInvalidBindAddress) > 7 + 1,
               "kInvalidBindAddress is too short");
+#endif
 
 const std::string kHttpBasedir(kPlaceholderHttpBaseDir);
 
