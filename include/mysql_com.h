@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1001,7 +1001,6 @@ bool net_write_command(struct NET *net, unsigned char command,
 bool net_write_packet(struct NET *net, const unsigned char *packet,
                       size_t length);
 unsigned long my_net_read(struct NET *net);
-
 void my_net_set_write_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_read_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_retry_count(struct NET *net, unsigned int retry_count);

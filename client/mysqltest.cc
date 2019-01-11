@@ -34,6 +34,7 @@
 #include "client/mysqltest/utils.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>  // std::isinf
 #include <functional>
 #include <limits>
@@ -54,6 +55,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <mysql_async.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <signal.h>
@@ -62,6 +64,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #ifndef _WIN32
+#include <poll.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 #endif
 #ifdef _WIN32
@@ -219,6 +223,15 @@ static const char *load_default_groups[] = {"mysqltest", "client", 0};
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
 
+/*
+  These variables control the behavior of the asynchronous operations for
+  mysqltest client. If --async-client is specified, use_async_client is true.
+  Each command checks enable_async_client (which can be forced off or
+  disabled for a single command) to decide the mode it uses to run.
+*/
+static bool use_async_client = false;
+static bool enable_async_client = false;
+
 // Secondary engine options
 static const char *opt_load_pool = 0;
 static const char *opt_offload_count_file;
@@ -253,7 +266,8 @@ static struct Property prop_list[] = {
     {&ps_protocol_enabled, 0, 0, 0, "$ENABLE_PS_PROTOCOL"},
     {&disable_query_log, 0, 0, 1, "$ENABLE_QUERY_LOG"},
     {&disable_result_log, 0, 0, 1, "$ENABLE_RESULT_LOG"},
-    {&disable_warnings, 0, 0, 1, "$ENABLE_WARNINGS"}};
+    {&disable_warnings, 0, 0, 1, "$ENABLE_WARNINGS"},
+    {&enable_async_client, 0, 0, 0, "$ENABLE_ASYNC_CLIENT"}};
 
 static bool once_property = false;
 
@@ -267,6 +281,7 @@ enum enum_prop {
   P_QUERY,
   P_RESULT,
   P_WARN,
+  P_ASYNC,
   P_MAX
 };
 
@@ -542,6 +557,8 @@ enum enum_commands {
   Q_DISABLE_SESSION_TRACK_INFO,
   Q_ENABLE_METADATA,
   Q_DISABLE_METADATA,
+  Q_ENABLE_ASYNC_CLIENT,
+  Q_DISABLE_ASYNC_CLIENT,
   Q_EXEC,
   Q_EXECW,
   Q_EXEC_BACKGROUND,
@@ -615,15 +632,15 @@ const char *command_names[] = {
     "disable_connect_log", "wait_for_slave_to_stop", "enable_warnings",
     "disable_warnings", "enable_info", "disable_info",
     "enable_session_track_info", "disable_session_track_info",
-    "enable_metadata", "disable_metadata", "exec", "execw",
-    "exec_in_background", "delimiter", "disable_abort_on_error",
-    "enable_abort_on_error", "vertical_results", "horizontal_results",
-    "query_vertical", "query_horizontal", "sorted_result", "lowercase_result",
-    "start_timer", "end_timer", "character_set", "disable_ps_protocol",
-    "enable_ps_protocol", "disable_reconnect", "enable_reconnect", "if",
-    "disable_testcase", "enable_testcase", "replace_regex",
-    "replace_numeric_round", "remove_file", "file_exists", "write_file",
-    "copy_file", "perl", "die",
+    "enable_metadata", "disable_metadata", "enable_async_client",
+    "disable_async_client", "exec", "execw", "exec_in_background", "delimiter",
+    "disable_abort_on_error", "enable_abort_on_error", "vertical_results",
+    "horizontal_results", "query_vertical", "query_horizontal", "sorted_result",
+    "lowercase_result", "start_timer", "end_timer", "character_set",
+    "disable_ps_protocol", "enable_ps_protocol", "disable_reconnect",
+    "enable_reconnect", "if", "disable_testcase", "enable_testcase",
+    "replace_regex", "replace_numeric_round", "remove_file", "file_exists",
+    "write_file", "copy_file", "perl", "die",
 
     /* Don't execute any more commands, compare result */
     "exit", "skip", "chmod", "append_file", "cat_file", "diff_files",
@@ -759,6 +776,334 @@ static void free_all_replace() {
   free_replace_column();
   free_replace_numeric_round();
 }
+
+/*
+  To run tests via the async API, invoke mysqltest with --async-client.
+*/
+class AsyncTimer {
+ public:
+  explicit AsyncTimer(std::string label)
+      : label_(label), time_(std::chrono::system_clock::now()), start_(time_) {}
+
+  ~AsyncTimer() {
+    auto now = std::chrono::system_clock::now();
+    auto delta = now - start_;
+    ulonglong MY_ATTRIBUTE((unused)) micros =
+        std::chrono::duration_cast<std::chrono::microseconds>(delta).count();
+    DBUG_PRINT("async_timing",
+               ("%s total micros: %llu", label_.c_str(), micros));
+  }
+
+  void check() {
+    auto now = std::chrono::system_clock::now();
+    auto delta = now - time_;
+    time_ = now;
+    ulonglong MY_ATTRIBUTE((unused)) micros =
+        std::chrono::duration_cast<std::chrono::microseconds>(delta).count();
+    DBUG_PRINT("async_timing", ("%s op micros: %llu", label_.c_str(), micros));
+  }
+
+ private:
+  std::string label_;
+  std::chrono::system_clock::time_point time_;
+  std::chrono::system_clock::time_point start_;
+};
+
+#ifdef _WIN32
+/*
+  Check if any data is available in the socket to be read or written.
+*/
+static int socket_event_listen(net_async_block_state async_blocking_state,
+                               my_socket fd) {
+  int result;
+  fd_set readfds, writefds, exceptfds;
+
+  FD_ZERO(&readfds);
+  FD_ZERO(&writefds);
+  FD_ZERO(&exceptfds);
+
+  FD_SET(fd, &exceptfds);
+
+  switch (async_blocking_state) {
+    case NET_NONBLOCKING_READ:
+      FD_SET(fd, &readfds);
+      break;
+    case NET_NONBLOCKING_WRITE:
+    case NET_NONBLOCKING_CONNECT:
+      FD_SET(fd, &writefds);
+      break;
+    default:
+      DBUG_ASSERT(false);
+  }
+  result = select((int)(fd + 1), &readfds, &writefds, &exceptfds, NULL);
+  if (result < 0) {
+    perror("select");
+  }
+  return result;
+}
+#else
+static int socket_event_listen(net_async_block_state async_blocking_state,
+                               my_socket fd) {
+  int result;
+  pollfd pfd;
+  pfd.fd = fd;
+  switch (async_blocking_state) {
+    case NET_NONBLOCKING_READ:
+      pfd.events = POLLIN;
+      break;
+    case NET_NONBLOCKING_WRITE:
+      pfd.events = POLLOUT;
+      break;
+    case NET_NONBLOCKING_CONNECT:
+      pfd.events = POLLIN | POLLOUT;
+      break;
+    default:
+      DBUG_ASSERT(false);
+  }
+  result = poll(&pfd, 1, -1);
+  if (result < 0) {
+    perror("poll");
+  }
+  return result;
+}
+#endif
+
+/*
+  Below async_mysql_*_wrapper functions are used to measure how much time
+  each nonblocking call spends before completing the operations.
+i*/
+static MYSQL_ROW async_mysql_fetch_row_wrapper(MYSQL_RES *res) {
+  MYSQL_ROW row;
+  MYSQL *mysql = res->handle;
+  AsyncTimer t(__func__);
+  while (mysql_fetch_row_nonblocking(res, &row) == NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA((&(mysql->net)));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return NULL;
+  }
+  return row;
+}
+
+static MYSQL_RES *async_mysql_store_result_wrapper(MYSQL *mysql) {
+  MYSQL_RES *result;
+  AsyncTimer t(__func__);
+  while (mysql_store_result_nonblocking(mysql, &result) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return NULL;
+  }
+  return result;
+}
+
+static int async_mysql_real_query_wrapper(MYSQL *mysql, const char *query,
+                                          ulong length) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+  while ((status = mysql_real_query_nonblocking(mysql, query, length)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return 1;
+  }
+  if (status == NET_ASYNC_ERROR) {
+    return 1;
+  }
+  return 0;
+}
+
+static int async_mysql_send_query_wrapper(MYSQL *mysql, const char *query,
+                                          ulong length) {
+  net_async_status status;
+  ASYNC_DATA(mysql)->async_query_length = length;
+  ASYNC_DATA(mysql)->async_query_state = QUERY_SENDING;
+
+  AsyncTimer t(__func__);
+  while ((status = mysql_send_query_nonblocking(mysql, query, length)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return 1;
+  }
+  if (status == NET_ASYNC_ERROR) {
+    return 1;
+  }
+  return 0;
+}
+
+static bool async_mysql_read_query_result_wrapper(MYSQL *mysql) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+  while ((status = (*mysql->methods->read_query_result_nonblocking)(mysql)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return true;
+  }
+  if (status == NET_ASYNC_ERROR) {
+    return true;
+  }
+  return false;
+}
+
+static int async_mysql_next_result_wrapper(MYSQL *mysql) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+  while ((status = mysql_next_result_nonblocking(mysql)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return 1;
+  }
+  if (status == NET_ASYNC_ERROR)
+    return 1;
+  else if (status == NET_ASYNC_COMPLETE_WITH_MORE_RESULTS)
+    return -1;
+  else
+    return 0;
+}
+
+static MYSQL *async_mysql_real_connect_wrapper(
+    MYSQL *mysql, const char *host, const char *user, const char *passwd,
+    const char *db, uint port, const char *unix_socket, ulong client_flag) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+
+  while ((status = mysql_real_connect_nonblocking(
+              mysql, host, user, passwd, db, port, unix_socket, client_flag)) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    socket_event_listen(net_async->async_blocking_state,
+                        mysql_get_socket_descriptor(mysql));
+  }
+  if (status == NET_ASYNC_ERROR)
+    return nullptr;
+  else
+    return mysql;
+}
+
+static int async_mysql_query_wrapper(MYSQL *mysql, const char *query) {
+  net_async_status status;
+  AsyncTimer t(__func__);
+  while ((status = mysql_real_query_nonblocking(mysql, query, strlen(query))) ==
+         NET_ASYNC_NOT_READY) {
+    t.check();
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return 1;
+  }
+  if (status == NET_ASYNC_ERROR) {
+    return 1;
+  }
+  return 0;
+}
+
+static void async_mysql_free_result_wrapper(MYSQL_RES *result) {
+  AsyncTimer t(__func__);
+  while (mysql_free_result_nonblocking(result) == NET_ASYNC_NOT_READY) {
+    t.check();
+    MYSQL *mysql = result->handle;
+    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
+    int result = socket_event_listen(net_async->async_blocking_state,
+                                     mysql_get_socket_descriptor(mysql));
+    if (result == -1) return;
+  }
+  return;
+}
+
+/*
+  Below are the wrapper functions which are defined on top of standard C APIs
+  to make a decision on whether to call blocking or non blocking API based on
+  --async-client option is set or not.
+*/
+static MYSQL_ROW mysql_fetch_row_wrapper(MYSQL_RES *res) {
+  if (enable_async_client)
+    return async_mysql_fetch_row_wrapper(res);
+  else
+    return mysql_fetch_row(res);
+}
+
+static MYSQL_RES *mysql_store_result_wrapper(MYSQL *mysql) {
+  if (enable_async_client)
+    return async_mysql_store_result_wrapper(mysql);
+  else
+    return mysql_store_result(mysql);
+}
+
+static int mysql_real_query_wrapper(MYSQL *mysql, const char *query,
+                                    ulong length) {
+  if (enable_async_client)
+    return async_mysql_real_query_wrapper(mysql, query, length);
+  else
+    return mysql_real_query(mysql, query, length);
+}
+
+static int mysql_send_query_wrapper(MYSQL *mysql, const char *query,
+                                    ulong length) {
+  if (enable_async_client)
+    return async_mysql_send_query_wrapper(mysql, query, length);
+  else
+    return mysql_send_query(mysql, query, length);
+}
+
+static bool mysql_read_query_result_wrapper(MYSQL *mysql) {
+  bool ret;
+  if (enable_async_client)
+    ret = async_mysql_read_query_result_wrapper(mysql);
+  else
+    ret = mysql_read_query_result(mysql);
+  return ret;
+}
+
+static int mysql_query_wrapper(MYSQL *mysql, const char *query) {
+  if (enable_async_client)
+    return async_mysql_query_wrapper(mysql, query);
+  else
+    return mysql_query(mysql, query);
+}
+
+static int mysql_next_result_wrapper(MYSQL *mysql) {
+  if (enable_async_client)
+    return async_mysql_next_result_wrapper(mysql);
+  else
+    return mysql_next_result(mysql);
+}
+
+static MYSQL *mysql_real_connect_wrapper(MYSQL *mysql, const char *host,
+                                         const char *user, const char *passwd,
+                                         const char *db, uint port,
+                                         const char *unix_socket,
+                                         ulong client_flag) {
+  if (enable_async_client)
+    return async_mysql_real_connect_wrapper(mysql, host, user, passwd, db, port,
+                                            unix_socket, client_flag);
+  else
+    return mysql_real_connect(mysql, host, user, passwd, db, port, unix_socket,
+                              client_flag);
+}
+
+static void mysql_free_result_wrapper(MYSQL_RES *result) {
+  if (enable_async_client)
+    return async_mysql_free_result_wrapper(result);
+  else
+    return mysql_free_result(result);
+}
+
+/* async client test code (end) */
 
 class LogFile {
   FILE *m_file;
@@ -984,13 +1329,13 @@ static void show_query(MYSQL *mysql, const char *query) {
 
   if (!mysql) DBUG_VOID_RETURN;
 
-  if (mysql_query(mysql, query)) {
+  if (mysql_query_wrapper(mysql, query)) {
     log_msg("Error running query '%s': %d %s", query, mysql_errno(mysql),
             mysql_error(mysql));
     DBUG_VOID_RETURN;
   }
 
-  if ((res = mysql_store_result(mysql)) == NULL) {
+  if ((res = mysql_store_result_wrapper(mysql)) == NULL) {
     /* No result set returned */
     DBUG_VOID_RETURN;
   }
@@ -1003,7 +1348,7 @@ static void show_query(MYSQL *mysql, const char *query) {
     MYSQL_FIELD *fields = mysql_fetch_fields(res);
 
     fprintf(stderr, "=== %s ===\n", query);
-    while ((row = mysql_fetch_row(res))) {
+    while ((row = mysql_fetch_row_wrapper(res))) {
       unsigned long *lengths = mysql_fetch_lengths(res);
       row_num++;
 
@@ -1018,7 +1363,7 @@ static void show_query(MYSQL *mysql, const char *query) {
     for (i = 0; i < std::strlen(query) + 8; i++) fprintf(stderr, "=");
     fprintf(stderr, "\n\n");
   }
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   DBUG_VOID_RETURN;
 }
@@ -1043,13 +1388,13 @@ static void show_warnings_before_error(MYSQL *mysql) {
 
   if (!mysql) DBUG_VOID_RETURN;
 
-  if (mysql_query(mysql, query)) {
+  if (mysql_query_wrapper(mysql, query)) {
     log_msg("Error running query '%s': %d %s", query, mysql_errno(mysql),
             mysql_error(mysql));
     DBUG_VOID_RETURN;
   }
 
-  if ((res = mysql_store_result(mysql)) == NULL) {
+  if ((res = mysql_store_result_wrapper(mysql)) == NULL) {
     /* No result set returned */
     DBUG_VOID_RETURN;
   }
@@ -1062,7 +1407,7 @@ static void show_warnings_before_error(MYSQL *mysql) {
     unsigned int num_fields = mysql_num_fields(res);
 
     fprintf(stderr, "\nWarnings from just before the error:\n");
-    while ((row = mysql_fetch_row(res))) {
+    while ((row = mysql_fetch_row_wrapper(res))) {
       unsigned int i;
       unsigned long *lengths = mysql_fetch_lengths(res);
 
@@ -1079,7 +1424,7 @@ static void show_warnings_before_error(MYSQL *mysql) {
       fprintf(stderr, "\n");
     }
   }
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   DBUG_VOID_RETURN;
 }
@@ -2405,8 +2750,8 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
   init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
   do_eval(&ds_query, query, end, false);
 
-  if (mysql_real_query(mysql, ds_query.str,
-                       static_cast<ulong>(ds_query.length))) {
+  if (mysql_real_query_wrapper(mysql, ds_query.str,
+                               static_cast<ulong>(ds_query.length))) {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
     /* If error was acceptable, return empty string */
@@ -2415,11 +2760,11 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
     DBUG_VOID_RETURN;
   }
 
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("Query '%s' didn't return a result set", ds_query.str);
   dynstr_free(&ds_query);
 
-  if ((row = mysql_fetch_row(res)) && row[0]) {
+  if ((row = mysql_fetch_row_wrapper(res)) && row[0]) {
     /*
       Concatenate all fields in the first row with tab in between
       and assign that string to the $variable
@@ -2486,7 +2831,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
   } else
     eval_expr(var, "", 0);
 
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
   DBUG_VOID_RETURN;
 }
 
@@ -2638,8 +2983,8 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     die("Mismatched \"'s around query '%s'", ds_query.str);
 
   /* Run the query */
-  if (mysql_real_query(mysql, ds_query.str,
-                       static_cast<ulong>(ds_query.length))) {
+  if (mysql_real_query_wrapper(mysql, ds_query.str,
+                               static_cast<ulong>(ds_query.length))) {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
     /* If error was acceptable, return empty string */
@@ -2649,7 +2994,7 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     DBUG_VOID_RETURN;
   }
 
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("Query '%s' didn't return a result set", ds_query.str);
 
   {
@@ -2666,7 +3011,7 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
       }
     }
     if (col_no == -1) {
-      mysql_free_result(res);
+      mysql_free_result_wrapper(res);
       die("Could not find column '%s' in the result of '%s'", ds_col.str,
           ds_query.str);
     }
@@ -2680,7 +3025,7 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     long rows = 0;
     const char *value = "No such row";
 
-    while ((row = mysql_fetch_row(res))) {
+    while ((row = mysql_fetch_row_wrapper(res))) {
       if (++rows == row_no) {
         DBUG_PRINT("info", ("At row %ld, column %d is '%s'", row_no, col_no,
                             row[col_no]));
@@ -2696,7 +3041,7 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     eval_expr(var, value, 0, false, false);
   }
   dynstr_free(&ds_query);
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   DBUG_VOID_RETURN;
 }
@@ -4643,23 +4988,23 @@ static void do_wait_for_slave_to_stop(
     MYSQL_ROW row;
     int done;
 
-    if (mysql_query(
+    if (mysql_query_wrapper(
             mysql,
             "SELECT 'Slave_running' as Variable_name,"
             " IF(count(*)>0,'ON','OFF') as Value FROM"
             " performance_schema.replication_applier_status ras,"
             "performance_schema.replication_connection_status rcs WHERE "
             "ras.SERVICE_STATE='ON' AND rcs.SERVICE_STATE='ON'") ||
-        !(res = mysql_store_result(mysql)))
+        !(res = mysql_store_result_wrapper(mysql)))
 
       die("Query failed while probing slave for stop: %s", mysql_error(mysql));
 
-    if (!(row = mysql_fetch_row(res)) || !row[1]) {
-      mysql_free_result(res);
+    if (!(row = mysql_fetch_row_wrapper(res)) || !row[1]) {
+      mysql_free_result_wrapper(res);
       die("Strange result from query while probing slave for stop");
     }
     done = !std::strcmp(row[1], "OFF");
-    mysql_free_result(res);
+    mysql_free_result_wrapper(res);
     if (done) break;
     my_sleep(SLAVE_POLL_INTERVAL);
   }
@@ -4679,14 +5024,14 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
   sprintf(query_buf, "select master_pos_wait('%s', %ld, %d)", master_pos.file,
           master_pos.pos + offset, timeout);
 
-  if (mysql_query(mysql, query_buf))
+  if (mysql_query_wrapper(mysql, query_buf))
     die("failed in '%s': %d: %s", query_buf, mysql_errno(mysql),
         mysql_error(mysql));
 
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("mysql_store_result() returned NULL for '%s'", query_buf);
-  if (!(row = mysql_fetch_row(res))) {
-    mysql_free_result(res);
+  if (!(row = mysql_fetch_row_wrapper(res))) {
+    mysql_free_result_wrapper(res);
     die("empty result in %s", query_buf);
   }
 
@@ -4694,7 +5039,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
   const char *result_str = row[0];
   if (result_str) result = atoi(result_str);
 
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   if (!result_str || result < 0) {
     /* master_pos_wait returned NULL or < 0 */
@@ -4755,18 +5100,18 @@ static void ndb_wait_for_binlog_injector(void) {
   MYSQL *mysql = &cur_con->mysql;
   const char *query;
   ulong have_ndbcluster;
-  if (mysql_query(mysql, query =
-                             "select count(*) from information_schema.engines"
-                             "  where engine = 'ndbcluster' and"
-                             "        support in ('YES', 'DEFAULT')"))
+  if (mysql_query_wrapper(
+          mysql, query = "select count(*) from information_schema.engines"
+                         "  where engine = 'ndbcluster' and"
+                         "        support in ('YES', 'DEFAULT')"))
     die("'%s' failed: %d %s", query, mysql_errno(mysql), mysql_error(mysql));
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("mysql_store_result() returned NULL for '%s'", query);
-  if (!(row = mysql_fetch_row(res)))
+  if (!(row = mysql_fetch_row_wrapper(res)))
     die("Query '%s' returned empty result", query);
 
   have_ndbcluster = std::strcmp(row[0], "1") == 0;
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
 
   if (!have_ndbcluster) {
     return;
@@ -4785,14 +5130,14 @@ static void ndb_wait_for_binlog_injector(void) {
         "latest_handled_binlog_epoch=";
     if (count) my_sleep(100 * 1000); /* 100ms */
 
-    if (mysql_query(mysql, query = "show engine ndb status"))
+    if (mysql_query_wrapper(mysql, query = "show engine ndb status"))
       die("failed in '%s': %d %s", query, mysql_errno(mysql),
           mysql_error(mysql));
 
-    if (!(res = mysql_store_result(mysql)))
+    if (!(res = mysql_store_result_wrapper(mysql)))
       die("mysql_store_result() returned NULL for '%s'", query);
 
-    while ((row = mysql_fetch_row(res))) {
+    while ((row = mysql_fetch_row_wrapper(res))) {
       if (std::strcmp(row[1], binlog) == 0) {
         const char *status = row[2];
 
@@ -4846,7 +5191,7 @@ static void ndb_wait_for_binlog_injector(void) {
           start_handled_binlog_epoch & 0xffffffff);
     }
 
-    mysql_free_result(res);
+    mysql_free_result_wrapper(res);
   }
 }
 
@@ -4862,16 +5207,17 @@ static int do_save_master_pos() {
   */
   ndb_wait_for_binlog_injector();
 
-  if (mysql_query(mysql, query = "show master status"))
+  if (mysql_query_wrapper(mysql, query = "show master status"))
     die("failed in 'show master status': %d %s", mysql_errno(mysql),
         mysql_error(mysql));
 
-  if (!(res = mysql_store_result(mysql)))
+  if (!(res = mysql_store_result_wrapper(mysql)))
     die("mysql_store_result() retuned NULL for '%s'", query);
-  if (!(row = mysql_fetch_row(res))) die("empty result in show master status");
+  if (!(row = mysql_fetch_row_wrapper(res)))
+    die("empty result in show master status");
   my_stpnmov(master_pos.file, row[0], sizeof(master_pos.file) - 1);
   master_pos.pos = strtoul(row[1], (char **)0, 10);
-  mysql_free_result(res);
+  mysql_free_result_wrapper(res);
   DBUG_RETURN(0);
 }
 
@@ -5503,7 +5849,7 @@ static void do_shutdown_server(struct st_command *command) {
     }
 
     // Tell server to shutdown if timeout > 0.
-    if (timeout > 0 && mysql_query(mysql, "shutdown")) {
+    if (timeout > 0 && mysql_query_wrapper(mysql, "shutdown")) {
       // Failed to issue shutdown command.
       error = 1;
       goto end;
@@ -6137,9 +6483,9 @@ static void safe_connect(MYSQL *mysql, const char *name, const char *host,
                  "mysqltest");
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_expired_passwords);
-  while (
-      !mysql_real_connect(mysql, host, user, pass, db, port, sock,
-                          CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS)) {
+  while (!mysql_real_connect_wrapper(
+      mysql, host, user, pass, db, port, sock,
+      CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS)) {
     /*
       Connect failed
 
@@ -6230,8 +6576,9 @@ static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
   mysql_options4(con, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysqltest");
   mysql_options(con, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_expired_passwords);
-  while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock : 0,
-                             CLIENT_MULTI_STATEMENTS)) {
+  while (!mysql_real_connect_wrapper(con, host, user, pass, db, port,
+                                     sock ? sock : 0,
+                                     CLIENT_MULTI_STATEMENTS)) {
     /*
       If we have used up all our connections check whether this
       is expected (by --error). If so, handle the error right away.
@@ -6456,6 +6803,10 @@ static void do_connect(struct st_command *command) {
 
   if (con_pipe && !con_ssl) {
     opt_protocol = MYSQL_PROTOCOL_PIPE;
+  }
+
+  if (opt_compress || con_compress) {
+    enable_async_client = false;
   }
 
   if (opt_protocol) {
@@ -7416,6 +7767,9 @@ static struct my_option my_long_options[] = {
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
      &view_protocol, &view_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"async-client", '*', "Use async client.", &use_async_client,
+     &use_async_client, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static void usage() {
@@ -7803,7 +8157,7 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res) {
   MYSQL_FIELD *fields = mysql_fetch_fields(res);
   ulong *lengths;
 
-  while ((row = mysql_fetch_row(res))) {
+  while ((row = mysql_fetch_row_wrapper(res))) {
     uint i;
     lengths = mysql_fetch_lengths(res);
     for (i = 0; i < num_fields; i++) {
@@ -8094,16 +8448,16 @@ static int append_warnings(DYNAMIC_STRING *ds, MYSQL *mysql) {
   DBUG_ASSERT(!mysql_more_results(mysql));
 
   MYSQL_RES *warn_res;
-  if (mysql_real_query(mysql, "SHOW WARNINGS", 13))
+  if (mysql_real_query_wrapper(mysql, "SHOW WARNINGS", 13))
     die("Error running query \"SHOW WARNINGS\": %s", mysql_error(mysql));
 
-  if (!(warn_res = mysql_store_result(mysql)))
+  if (!(warn_res = mysql_store_result_wrapper(mysql)))
     die("Warning count is %u but didn't get any warnings", count);
 
   DYNAMIC_STRING ds_warnings;
   init_dynamic_string(&ds_warnings, "", 1024, 1024);
   append_result(&ds_warnings, warn_res);
-  mysql_free_result(warn_res);
+  mysql_free_result_wrapper(warn_res);
 
   if (disable_warnings &&
       (disabled_warnings->count() || enabled_warnings->count()))
@@ -8146,8 +8500,9 @@ static void run_query_normal(struct st_connection *cn,
   }
 
   if (flags & QUERY_SEND_FLAG) {
-    // Send the query
-    if (mysql_send_query(&cn->mysql, query, static_cast<ulong>(query_len))) {
+    /* Send the query */
+    if (mysql_send_query_wrapper(&cn->mysql, query,
+                                 static_cast<ulong>(query_len))) {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                    mysql_sqlstate(mysql), ds);
       goto end;
@@ -8160,18 +8515,23 @@ static void run_query_normal(struct st_connection *cn,
   }
 
   do {
-    // When  on first result set, call mysql_read_query_result to
-    // retrieve answer to the query sent earlier.
-    if ((counter == 0) && mysql_read_query_result(&cn->mysql)) {
-      // We've failed to collect the result set.
+    /*
+      When  on first result set, call mysql_read_query_result_wrapper to
+      retrieve answer to the query sent earlier
+    */
+    if ((counter == 0) && mysql_read_query_result_wrapper(&cn->mysql)) {
+      /* we've failed to collect the result set */
       cn->pending = true;
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                    mysql_sqlstate(mysql), ds);
       goto end;
     }
 
-    // Store the result of the query if it will return any fields.
-    if (mysql_field_count(mysql) && ((res = mysql_store_result(mysql)) == 0)) {
+    /*
+      Store the result of the query if it will return any fields
+    */
+    if (mysql_field_count(mysql) &&
+        ((res = mysql_store_result_wrapper(mysql)) == 0)) {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                    mysql_sqlstate(mysql), ds);
       goto end;
@@ -8211,12 +8571,11 @@ static void run_query_normal(struct st_connection *cn,
     }
 
     if (res) {
-      mysql_free_result(res);
+      mysql_free_result_wrapper(res);
       res = 0;
     }
     counter++;
-  } while (!(error = mysql_next_result(mysql)));
-
+  } while (!(error = mysql_next_result_wrapper(mysql)));
   if (error > 0) {
     // We got an error from mysql_next_result, maybe expected.
     handle_error(command, mysql_errno(mysql), mysql_error(mysql),
@@ -8366,7 +8725,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
         append_stmt_result(ds, stmt, fields, num_fields);
 
         // Free normal result set with meta data
-        mysql_free_result(res);
+        mysql_free_result_wrapper(res);
 
         // Clear prepare warnings if there are execute warnings,
         // since they are probably duplicated.
@@ -8479,7 +8838,7 @@ static int util_query(MYSQL *org_mysql, const char *query) {
     cur_con->util_mysql = mysql;
   }
 
-  DBUG_RETURN(mysql_query(mysql, query));
+  DBUG_RETURN(mysql_query_wrapper(mysql, query));
 }
 
 /*
@@ -9141,6 +9500,7 @@ int main(int argc, char **argv) {
   var_set_int("$ENABLE_WARNINGS", 1);
   var_set_int("$ENABLE_INFO", 0);
   var_set_int("$ENABLE_METADATA", 0);
+  var_set_int("$ENABLE_ASYNC_CLIENT", 0);
 
   DBUG_PRINT("info",
              ("result_file: '%s'", result_file_name ? result_file_name : ""));
@@ -9158,6 +9518,7 @@ int main(int argc, char **argv) {
 
   log_file.open(opt_logdir, result_file_name, ".log");
   verbose_msg("Logging to '%s'.", log_file.file_name());
+  enable_async_client = use_async_client;
 
   /*
     Creating a temporary log file using current file name if
@@ -9220,6 +9581,9 @@ int main(int argc, char **argv) {
       opt_ssl_mode = SSL_MODE_VERIFY_CA;
   }
 #endif
+  if (opt_compress) {
+    enable_async_client = false;
+  }
   if (SSL_SET_OPTIONS(&con->mysql)) die("%s", SSL_SET_OPTIONS_ERROR);
 #if defined(_WIN32)
   if (shared_memory_base_name)
@@ -9639,8 +10003,8 @@ int main(int argc, char **argv) {
               cleanup_and_exit(1);
           }
 
-          handle_command_error(command,
-                               mysql_query(&cur_con->mysql, "shutdown"));
+          handle_command_error(
+              command, mysql_query_wrapper(&cur_con->mysql, "shutdown"));
           break;
         case Q_SHUTDOWN_SERVER:
           do_shutdown_server(command);
@@ -9678,8 +10042,15 @@ int main(int argc, char **argv) {
           break;
         case Q_ENABLE_RECONNECT:
           set_reconnect(&cur_con->mysql, 1);
+          enable_async_client = false;
           /* Close any open statements - no reconnect, need new prepare */
           close_statements();
+          break;
+        case Q_ENABLE_ASYNC_CLIENT:
+          set_property(command, P_ASYNC, 1);
+          break;
+        case Q_DISABLE_ASYNC_CLIENT:
+          set_property(command, P_ASYNC, 0);
           break;
         case Q_DISABLE_TESTCASE:
           if (testcase_disabled == 0)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -360,4 +360,4 @@ EXIT:
 mysql_declare_client_plugin(AUTHENTICATION) "authentication_ldap_sasl_client",
     "Yashwant Sahu", "LDAP SASL Client Authentication Plugin", {0, 1, 0},
     "PROPRIETARY", NULL, NULL, NULL, NULL,
-    sasl_authenticate mysql_end_client_plugin;
+    sasl_authenticate, NULL mysql_end_client_plugin;

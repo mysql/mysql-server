@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1958,4 +1958,89 @@
    fun:*
    fun:*
    fun:*
+}
+
+# Suppress all issues related to libcrypto library
+{
+   Conditional jump or move in BN_bin2bn
+   Memcheck:Cond
+   fun:BN_bin2bn
+   obj:/usr/lib64/libcrypto.so.*
+   fun:*
+   ...
+}
+{
+   Conditional jump or move in BN_ucmp
+   Memcheck:Cond
+   fun:BN_ucmp
+   ...
+   obj:/usr/lib64/libcrypto.so.*
+   fun:*
+   ...
+}
+{
+   Conditional jump or move in libcrypto
+   Memcheck:Cond
+   obj:/usr/lib64/libcrypto.so.*
+   fun:*
+   ...
+}
+{
+   Conditional jump or move in BN_mod_exp_mont
+   Memcheck:Cond
+   fun:BN_mod_exp_mont
+   obj:/usr/lib64/libcrypto.so.*
+   fun:*
+   ...
+}
+{
+   Use of uninitialised value of size 8 in libcrypto
+   Memcheck:Value8
+   obj:/usr/lib64/libcrypto.so.*
+   ...
+}
+{
+   Conditional jump or move in BN_mod_mul_montgomery
+   Memcheck:Cond
+   fun:BN_mod_mul_montgomery
+   fun:BN_mod_exp_mont
+   obj:/usr/lib64/libcrypto.so.*
+   fun:*
+   ...
+}
+{
+   Use of uninitialised value of size 8 in libcrypto
+   Memcheck:Value8
+   obj:/usr/lib64/libcrypto.so.*
+   fun:BN_from_montgomery
+   fun:BN_mod_exp_mont
+   obj:*
+   ...
+}
+{
+   Conditional jump or move in BN_num_bits_word
+   Memcheck:Cond
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   obj:/usr/lib64/libcrypto.so.*
+   fun:*
+   ...
+}
+{
+   Use of uninitialised value of size 8 in BN_num_bits_word
+   Memcheck:Value8
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   fun:BN_bn2bin
+   obj:/usr/lib64/libcrypto.so.*
+   fun:*
+   ...
+}
+{
+   Syscall param socketcall.sendto(msg) points to uninitialised byte(s)
+   Memcheck:Param
+   socketcall.sendto(msg)
+   fun:send
+   fun:*
+   ...
 }

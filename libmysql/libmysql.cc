@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4540,6 +4540,40 @@ int STDCALL mysql_next_result(MYSQL *mysql) {
   }
 
   DBUG_RETURN(-1); /* No more results */
+}
+
+/*
+  This API reads the next statement result and returns a status to indicate
+  whether more results exist
+
+  @param[in]    mysql                                    connection handle
+
+  @retval       NET_ASYNC_ERROR                          Error
+  @retval       NET_ASYNC_NOT_READY                      reading next result not
+                                                         yet completed, call
+                                                         this API again
+  @retval       NET_ASYNC_COMPLETE                       finished reading result
+  @retval       NET_ASYNC_COMPLETE_WITH_MORE_RESULTS     status to indicate if
+                                                         more results exist
+*/
+net_async_status STDCALL mysql_next_result_nonblocking(MYSQL *mysql) {
+  DBUG_ENTER(__func__);
+  net_async_status status;
+  if (mysql->status != MYSQL_STATUS_READY) {
+    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+    DBUG_RETURN(NET_ASYNC_ERROR);
+  }
+  net_clear_error(&mysql->net);
+  mysql->affected_rows = ~(my_ulonglong)0;
+
+  if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS) {
+    status = (*mysql->methods->next_result_nonblocking)(mysql);
+    DBUG_RETURN(status);
+  } else {
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+  }
+
+  DBUG_RETURN(NET_ASYNC_COMPLETE_WITH_MORE_RESULTS); /* No more results */
 }
 
 int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt) {

@@ -3118,6 +3118,12 @@
     </li>
 
     <li>
+      <tt>`--async-client`</tt>
+
+      Enable asynchronous communication support in mysql protocol.
+    </li>
+
+    <li>
       <tt>`--basedir`=<b>dir_name</b>, -b <b>dir_name</b></tt>
 
       The base directory for tests.

@@ -88,6 +88,7 @@ my $opt_boot_gdb;
 my $opt_callgrind;
 my $opt_charset_for_testdb;
 my $opt_compress;
+my $opt_async_client;
 my $opt_cursor_protocol;
 my $opt_debug_common;
 my $opt_do_suite;
@@ -1306,6 +1307,7 @@ sub print_global_resfile {
   resfile_global("callgrind",        $opt_callgrind ? 1 : 0);
   resfile_global("check-testcases",  $opt_check_testcases ? 1 : 0);
   resfile_global("compress",         $opt_compress ? 1 : 0);
+  resfile_global("async-client",     $opt_async_client ? 1 : 0);
   resfile_global("cursor-protocol",  $opt_cursor_protocol ? 1 : 0);
   resfile_global("debug",            $opt_debug ? 1 : 0);
   resfile_global("fast",             $opt_fast ? 1 : 0);
@@ -1368,6 +1370,7 @@ sub command_line_setup {
   my %options = (
     # Control what engine/variation to run
     'compress'              => \$opt_compress,
+    'async-client'          => \$opt_async_client,
     'cursor-protocol'       => \$opt_cursor_protocol,
     'explain-protocol'      => \$opt_explain_protocol,
     'json-explain-protocol' => \$opt_json_explain_protocol,
@@ -6596,6 +6599,10 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--compress");
   }
 
+  if ($opt_async_client ) {
+    mtr_add_arg($args, "--async-client");
+  }
+
   if ($opt_sleep) {
     mtr_add_arg($args, "--sleep=%d", $opt_sleep);
   }
@@ -7148,6 +7155,7 @@ Options to control what engine/variation to run
   combination=<opt>     Use at least twice to run tests with specified
                         options to mysqld.
   compress              Use the compressed protocol between client and server.
+  async-client          Use async-client with select() to run the test case
   cursor-protocol       Use the cursor protocol between client and server
                         (implies --ps-protocol).
   defaults-extra-file=<config template>

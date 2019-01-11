@@ -1,0 +1,24 @@
+# Turn on ssl between the client and server and run some big queries
+--source include/have_ssl.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+connect (ssl_con,localhost,root,,,,,SSL);
+
+let $str = `SELECT REPEAT('X', 33554432)`;
+let $str = zzzzzzzzzzzzzzzz$str;
+
+--disable_query_log
+--eval SELECT MD5("$str")
+--eval SELECT LENGTH("$str")
+--replace_column 1 verylongstring
+--eval SELECT "Q $str END"
+
+connection default;
+disconnect ssl_con;
+
+--enable_query_log
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
