@@ -543,9 +543,11 @@ let $DUMP_INFO=0;
 select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
 where pool_name='Index memory';
 
-select @diff:=used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  into @diff
   from pool_sum, frag_sum 
   where pool_name='Data memory';
+select @diff;
 
 let $DIFF=query_get_value("select @diff as d", d, 1);
 if ($DIFF)

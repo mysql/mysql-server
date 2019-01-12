@@ -1048,10 +1048,12 @@ where pool_name='Index memory';
 used_bytes - hash_index_alloc_bytes
 0
 
-select @diff:=used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  into @diff
   from pool_sum, frag_sum 
   where pool_name='Data memory';
-@diff:=used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+select @diff;
+@diff
 0
 
 
