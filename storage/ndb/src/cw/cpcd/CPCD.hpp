@@ -71,7 +71,6 @@ enum RequestStatusCode {
   AlreadyStopped = 4
 };
 
-std::string getCpcdVersion();
 /**
  *  @class CPCD
  *  @brief Manages processes, letting them be controlled with a TCP connection.

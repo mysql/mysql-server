@@ -41,11 +41,8 @@
 
 #include "common.hpp"
 
-#define CPCD_VERSION_NUMBER 1
-
 static const char *work_dir = CPCD_DEFAULT_WORK_DIR;
 static int unsigned port;
-static int unsigned show_version = 0;
 static int use_syslog;
 static const char *logfile = NULL;
 static const char *user = 0;
@@ -66,9 +63,6 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "debug", 'D', "Enable debug mode",
     (uchar**) &debug, (uchar**) &debug, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "version", 'V', "Output version information and exit",
-    (uchar**) &show_version, (uchar**) &show_version, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "user", 'u', "Run as user",
     (uchar**) &user, (uchar**) &user, 0,
@@ -103,11 +97,6 @@ int main(int argc, char** argv){
   logger.setCategory("ndb_cpcd");
   logger.enable(Logger::LL_ALL);
 
-  if (show_version) {
-    ndbout.print("%s\n", getCpcdVersion().c_str());
-    exit(0);
-  }
-
   if(debug)
     logger.createConsoleHandler();
 
@@ -131,7 +120,7 @@ int main(int argc, char** argv){
     logger.addHandler(new SysLogHandler());
 #endif
 
-  logger.info("Starting CPCD version : %s", getCpcdVersion().c_str());
+  logger.info("Starting");
 
 #if defined SIGPIPE && !defined _WIN32
   (void)signal(SIGPIPE, SIG_IGN);
@@ -187,13 +176,4 @@ int main(int argc, char** argv){
 
   delete ss;
   return 0;
-}
-
-std::string getCpcdVersion() {
-  int mysql_version = ndbGetOwnVersion();
-  std::string version = std::to_string(ndbGetMajor(mysql_version)) + "." +
-                        std::to_string(ndbGetMinor(mysql_version)) + "." +
-                        std::to_string(ndbGetBuild(mysql_version)) + "." +
-                        std::to_string(CPCD_VERSION_NUMBER);
-  return version;
 }

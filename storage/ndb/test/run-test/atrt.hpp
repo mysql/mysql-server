@@ -204,8 +204,6 @@ NdbOut& operator<<(NdbOut& out, const atrt_process& proc);
  */
 bool setup_db(atrt_config&);
 
-std::string getAtrtVersion();
-
 /**
  * Global variables...
  */
