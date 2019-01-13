@@ -91,10 +91,6 @@ set session sql_log_bin=1;
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
 
-## Wait for server-2 to join group, needed to get group lower_case_table_names
---let $group_replication_number_of_members=2
---source ../inc/gr_wait_for_number_of_members.inc
-
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="OFFLINE"
 --source include/wait_condition.inc
 
