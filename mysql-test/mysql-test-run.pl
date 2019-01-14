@@ -1304,46 +1304,46 @@ sub set_vardir {
 }
 
 sub print_global_resfile {
-  resfile_global("callgrind",        $opt_callgrind ? 1 : 0);
-  resfile_global("check-testcases",  $opt_check_testcases ? 1 : 0);
-  resfile_global("compress",         $opt_compress ? 1 : 0);
-  resfile_global("async-client",     $opt_async_client ? 1 : 0);
-  resfile_global("cursor-protocol",  $opt_cursor_protocol ? 1 : 0);
-  resfile_global("debug",            $opt_debug ? 1 : 0);
-  resfile_global("fast",             $opt_fast ? 1 : 0);
-  resfile_global("force-restart",    $opt_force_restart ? 1 : 0);
-  resfile_global("gcov",             $opt_gcov ? 1 : 0);
-  resfile_global("gprof",            $opt_gprof ? 1 : 0);
-  resfile_global("helgrind",         $opt_helgrind ? 1 : 0);
+  resfile_global("callgrind",        $opt_callgrind        ? 1 : 0);
+  resfile_global("check-testcases",  $opt_check_testcases  ? 1 : 0);
+  resfile_global("compress",         $opt_compress         ? 1 : 0);
+  resfile_global("async-client",     $opt_async_client     ? 1 : 0);
+  resfile_global("cursor-protocol",  $opt_cursor_protocol  ? 1 : 0);
+  resfile_global("debug",            $opt_debug            ? 1 : 0);
+  resfile_global("fast",             $opt_fast             ? 1 : 0);
+  resfile_global("force-restart",    $opt_force_restart    ? 1 : 0);
+  resfile_global("gcov",             $opt_gcov             ? 1 : 0);
+  resfile_global("gprof",            $opt_gprof            ? 1 : 0);
+  resfile_global("helgrind",         $opt_helgrind         ? 1 : 0);
   resfile_global("initialize",       \@opt_extra_bootstrap_opt);
   resfile_global("max-connections",  $opt_max_connections);
-  resfile_global("mem",              $opt_mem ? 1 : 0);
+  resfile_global("mem",              $opt_mem              ? 1 : 0);
   resfile_global("mysqld",           \@opt_extra_mysqld_opt);
   resfile_global("mysqltest",        \@opt_extra_mysqltest_opt);
-  resfile_global("no-skip",          $opt_no_skip ? 1 : 0);
+  resfile_global("no-skip",          $opt_no_skip          ? 1 : 0);
   resfile_global("parallel",         $opt_parallel);
   resfile_global("product",          "MySQL");
-  resfile_global("ps-protocol",      $opt_ps_protocol ? 1 : 0);
-  resfile_global("reorder",          $opt_reorder ? 1 : 0);
+  resfile_global("ps-protocol",      $opt_ps_protocol      ? 1 : 0);
+  resfile_global("reorder",          $opt_reorder          ? 1 : 0);
   resfile_global("repeat",           $opt_repeat);
-  resfile_global("sanitize",         $opt_sanitize ? 1 : 0);
+  resfile_global("sanitize",         $opt_sanitize         ? 1 : 0);
   resfile_global("shutdown-timeout", $opt_shutdown_timeout ? 1 : 0);
   resfile_global("sleep",            $opt_sleep);
-  resfile_global("sp-protocol",      $opt_sp_protocol ? 1 : 0);
-  resfile_global("ssl",              $opt_ssl ? 1 : 0);
+  resfile_global("sp-protocol",      $opt_sp_protocol      ? 1 : 0);
+  resfile_global("ssl",              $opt_ssl              ? 1 : 0);
   resfile_global("start_time",       isotime $^T);
   resfile_global("suite-opt",        $opt_suite_opt);
   resfile_global("suite-timeout",    $opt_suite_timeout);
   resfile_global("summary-report",   $opt_summary_report);
-  resfile_global("test-progress",    $opt_test_progress ? 1 : 0);
+  resfile_global("test-progress",    $opt_test_progress    ? 1 : 0);
   resfile_global("testcase-timeout", $opt_testcase_timeout);
   resfile_global("tmpdir",           $opt_tmpdir);
   resfile_global("user",             $opt_user);
   resfile_global("user_id",          $<);
-  resfile_global("valgrind",         $opt_valgrind ? 1 : 0);
+  resfile_global("valgrind",         $opt_valgrind         ? 1 : 0);
   resfile_global("vardir",           $opt_vardir);
-  resfile_global("view-protocol",    $opt_view_protocol ? 1 : 0);
-  resfile_global("warnings",         $opt_warnings ? 1 : 0);
+  resfile_global("view-protocol",    $opt_view_protocol    ? 1 : 0);
+  resfile_global("warnings",         $opt_warnings         ? 1 : 0);
   resfile_global("xml-report",       $opt_xml_report);
 
   # Somewhat hacky code to convert numeric version back to dot notation
@@ -4325,32 +4325,33 @@ sub extract_bootstrap_opts {
 
   # Do not add the bootstrap option if it is already being passed on
   # the command line.
-  if (defined $command_boot_opts->{$option_name} and defined $value
-      and ($command_boot_opts->{$option_name} ne $value)) {
+  if (defined $command_boot_opts->{$option_name} and
+      defined $value and
+      ($command_boot_opts->{$option_name} ne $value)) {
     push(@$bootstrap_opts, "--" . $option_name . "=" . $value);
     splice(@$opt_file_options, $i, 1);
     $i--;
-  } elsif (defined $command_boot_opts->{$option_name} and not defined
-           $value) {
+  } elsif (defined $command_boot_opts->{$option_name} and not defined $value) {
     push(@$bootstrap_opts, "--" . $option_name);
     splice(@$opt_file_options, $i, 1);
     $i--;
-  } elsif (not defined $command_boot_opts->{$option_name}
-           and defined $value) {
+  } elsif (not defined $command_boot_opts->{$option_name} and
+           defined $value) {
     push(@$bootstrap_opts, "--" . $option_name . "=" . $value);
     splice(@$opt_file_options, $i, 1);
     $i--;
-  } elsif (defined $command_boot_opts->{$option_name} and defined $value
-           and ($command_boot_opts->{$option_name} eq $value)) {
+  } elsif (defined $command_boot_opts->{$option_name} and
+           defined $value and
+           ($command_boot_opts->{$option_name} eq $value)) {
     splice(@$opt_file_options, $i, 1);
     $i--;
-  } elsif (!grep($option_name eq $_, keys %$command_boot_opts)
-           and not defined $value) {
-    push (@$bootstrap_opts, "--" . $option_name);
+  } elsif (!grep($option_name eq $_, keys %$command_boot_opts) and
+           not defined $value) {
+    push(@$bootstrap_opts, "--" . $option_name);
     splice(@$opt_file_options, $i, 1);
     $i--;
-  } elsif (not defined $command_boot_opts->{$option_name}
-           and not defined $value) {
+  } elsif (not defined $command_boot_opts->{$option_name} and
+           not defined $value) {
     splice(@$opt_file_options, $i, 1);
     $i--;
   }
@@ -4367,7 +4368,7 @@ sub find_bootstrap_opts {
   # passed to initialize, and keep only the last one.
   my %command_boot_opts;
   foreach my $opt (@opt_extra_bootstrap_opt) {
-  my ($option_name, $value) = My::Options::split_option($opt);
+    my ($option_name, $value) = My::Options::split_option($opt);
     $option_name =~ s/_/-/g;
     $command_boot_opts{$option_name} = $value;
   }
@@ -4598,6 +4599,15 @@ sub run_testcase ($) {
     }
   }
 
+  if ($opt_manual_gdb ||
+      $opt_manual_lldb  ||
+      $opt_manual_ddd   ||
+      $opt_manual_debug ||
+      $opt_manual_dbx) {
+    # Set $MTR_MANUAL_DEBUG environment variable
+    $ENV{'MTR_MANUAL_DEBUG'} = 1;
+  }
+
   my $test_timeout = start_timer(testcase_timeout($tinfo));
 
   do_before_run_mysqltest($tinfo);
@@ -4635,13 +4645,24 @@ sub run_testcase ($) {
 
     if (!$keep_waiting_proc) {
       if ($test_timeout > $print_timeout) {
-        $proc = My::SafeProcess->wait_any_timeout($print_timeout);
+        my $timer = $ENV{'MTR_MANUAL_DEBUG'} ? start_timer(2) : $print_timeout;
+        $proc = My::SafeProcess->wait_any_timeout($timer);
         if ($proc->{timeout}) {
-          # Print out that the test is still on
-          mtr_print("Test still running: $tinfo->{name}");
-          # Reset the timer
-          $print_timeout = start_timer($print_freq * 60);
-          next;
+          if (has_expired($print_timeout)) {
+            # Print out that the test is still on
+            mtr_print("Test still running: $tinfo->{name}");
+            # Reset the timer
+            $print_timeout = start_timer($print_freq * 60);
+            next;
+          } elsif ($ENV{'MTR_MANUAL_DEBUG'}) {
+            my $check_crash = check_expected_crash_and_restart($proc);
+            if ($check_crash) {
+              # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
+              $keep_waiting_proc = 0     if $check_crash == 1;
+              $keep_waiting_proc = $proc if $check_crash == 2;
+              next;
+            }
+          }
         }
       } else {
         $proc = My::SafeProcess->wait_any_timeout($test_timeout);
@@ -5209,7 +5230,7 @@ sub start_check_warnings ($$) {
 
   my $name      = "warnings-" . $exe->name();
   my $log_error = $exe->value('#log-error');
-  my ($group_prefix) = split(/\./, $exe->name()); # First part of name
+  my ($group_prefix) = split(/\./, $exe->name());    # First part of name
 
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR} = $log_error;
@@ -5383,7 +5404,9 @@ sub check_expected_crash_and_restart($$) {
   my $tinfo = shift;
 
   foreach my $mysqld (mysqlds()) {
-    next unless ($mysqld->{proc} and $mysqld->{proc} eq $proc);
+    next
+      unless (($mysqld->{proc} and $mysqld->{proc} eq $proc) or
+              ($proc->{'SAFE_NAME'} eq 'timer' and $ENV{'MTR_MANUAL_DEBUG'}));
 
     # If a test was started with bootstrap options, make sure
     # the restart happens with the same options.
@@ -5434,7 +5457,8 @@ sub check_expected_crash_and_restart($$) {
         }
 
         # Start server with same settings as last time
-        mysqld_start($mysqld, $mysqld->{'started_opts'}, $tinfo, $bootstrap_opts);
+        mysqld_start($mysqld, $mysqld->{'started_opts'},
+                     $tinfo, $bootstrap_opts);
 
         if ($tinfo->{'secondary-engine'}) {
           my $restart_flag = 1;
@@ -5848,7 +5872,7 @@ sub mysqld_start ($$$$) {
       my ($opt_name1, $value1) = My::Options::split_option($extra_opt);
       my $found = 0;
       foreach my $restart_opt (@{ $mysqld->{'restart_opts'} }) {
-	next if $restart_opt eq '';
+        next if $restart_opt eq '';
         my ($opt_name2, $value2) = My::Options::split_option($restart_opt);
         $found = 1 if (My::Options::option_equals($opt_name1, $opt_name2));
         last if $found == 1;
@@ -6600,7 +6624,7 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--compress");
   }
 
-  if ($opt_async_client ) {
+  if ($opt_async_client) {
     mtr_add_arg($args, "--async-client");
   }
 
