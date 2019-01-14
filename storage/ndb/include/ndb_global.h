@@ -45,9 +45,6 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
 
 /* Legacy definitions. */
 #ifndef TRUE
@@ -90,7 +87,6 @@
 
 #ifdef _WIN32
 #define DIR_SEPARATOR "\\"
-#include <my_systime.h>
 #else
 #define DIR_SEPARATOR "/"
 #endif
@@ -143,10 +139,6 @@
 
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
-#endif
-
-#ifdef TIME_WITH_SYS_TIME
-#include <time.h>
 #endif
 
 #ifdef HAVE_FCNTL_H

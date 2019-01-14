@@ -23,6 +23,9 @@
 */
 
 #include <ndb_global.h>
+
+#include <time.h>
+
 #include "NdbSleep.h"
 
 #ifdef _WIN32

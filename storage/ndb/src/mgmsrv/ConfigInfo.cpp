@@ -24,6 +24,8 @@
 
 #include <ndb_global.h>
 
+#include <time.h>
+
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
 #include <ndb_limits.h>

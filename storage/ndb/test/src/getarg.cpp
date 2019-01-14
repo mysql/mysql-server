@@ -23,6 +23,8 @@
 
 #include <ndb_global.h>
 
+#include <time.h>
+
 #include "getarg.h"
 
 #ifndef HAVE_STRLCPY

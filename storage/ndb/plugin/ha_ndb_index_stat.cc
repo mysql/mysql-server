@@ -27,6 +27,7 @@
 #include <ctype.h>
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_thread.h>
+#include <time.h>
 
 #include "my_dbug.h"
 #include "sql/field.h"

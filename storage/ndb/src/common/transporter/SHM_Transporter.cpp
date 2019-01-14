@@ -25,6 +25,8 @@
 
 #include <ndb_global.h>
 
+#include <time.h>
+
 #include "SHM_Transporter.hpp"
 #include "TransporterInternalDefinitions.hpp"
 #include <TransporterCallback.hpp>

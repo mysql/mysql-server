@@ -24,6 +24,8 @@
 
 #include "BufferedLogHandler.hpp"
 
+#include <time.h>
+
 struct ThreadData
 {
   BufferedLogHandler* buf_loghandler;

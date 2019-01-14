@@ -25,6 +25,8 @@
 #ifndef FILELOGHANDLER_H
 #define FILELOGHANDLER_H
 
+#include <time.h>
+
 #include "LogHandler.hpp"
 
 class File_class;

@@ -24,6 +24,9 @@
 
 
 #include "ndbd_malloc_impl.hpp"
+
+#include <time.h>
+
 #include <ndb_global.h>
 #include <EventLogger.hpp>
 #include <portlib/NdbMem.h>

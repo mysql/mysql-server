@@ -26,6 +26,7 @@
 #define Logger_H
 
 #include <ndb_global.h>
+#include <time.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
 

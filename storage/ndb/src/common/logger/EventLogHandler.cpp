@@ -25,6 +25,9 @@
 #ifdef _WIN32
 
 #include "EventLogHandler.hpp"
+
+#include <time.h>
+
 #include "message.h"
 
 EventLogHandler::EventLogHandler(const char* source_name)

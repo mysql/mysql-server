@@ -23,6 +23,8 @@
 */
 
 #include <cstdint>
+#include <time.h>
+
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoOperations.hpp>

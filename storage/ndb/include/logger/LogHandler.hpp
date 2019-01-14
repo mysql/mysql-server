@@ -25,6 +25,8 @@
 #ifndef LOGHANDLER_H
 #define LOGHANDLER_H
 
+#include <time.h>
+
 #include "Logger.hpp"
 
 /**

@@ -24,6 +24,8 @@
 
 #include "LogHandler.hpp"
 
+#include <time.h>
+
 #include <NdbTick.h>
 
 //

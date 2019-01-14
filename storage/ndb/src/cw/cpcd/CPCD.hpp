@@ -25,6 +25,8 @@
 #ifndef CPCD_HPP
 #define CPCD_HPP
 
+#include <time.h>
+
 #include <NdbCondition.h>
 #include <NdbThread.h>
 #include <BaseString.hpp>

@@ -26,6 +26,8 @@
 
 #include "Logger.hpp"
 
+#include <time.h>
+
 #include <LogHandler.hpp>
 #include <ConsoleLogHandler.hpp>
 #include <FileLogHandler.hpp>

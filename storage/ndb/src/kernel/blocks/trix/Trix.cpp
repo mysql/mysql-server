@@ -26,6 +26,7 @@
 
 #include <cstring>
 #include <string.h>
+#include <time.h>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
 

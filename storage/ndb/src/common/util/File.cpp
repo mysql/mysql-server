@@ -24,6 +24,8 @@
 
 #include <ndb_global.h>
 
+#include <time.h>
+
 #include <util/File.hpp>
 #include <NdbOut.hpp>
 

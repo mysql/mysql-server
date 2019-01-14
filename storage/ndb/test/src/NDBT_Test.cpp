@@ -23,6 +23,9 @@
 */
 
 #include <ndb_global.h>
+
+#include <time.h>
+
 #include <ndb_opts.h>
 
 #include "NDBT.hpp"

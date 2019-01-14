@@ -25,6 +25,8 @@
 
 #include <ndb_global.h>
 
+#include <time.h>
+
 #include "mt-asm.h"
 #include "WatchDog.hpp"
 #include "GlobalData.hpp"
