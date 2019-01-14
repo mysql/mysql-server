@@ -69,3 +69,4 @@ DROP TABLE t1;
 
 --connection server_1
 DROP TABLE t1;
+--source include/stop_dump_threads.inc

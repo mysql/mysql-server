@@ -33,3 +33,6 @@ STOP SLAVE FOR CHANNEL 'ch_a';
 
 --source include/rpl_connection_slave.inc
 RESET SLAVE ALL;
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
