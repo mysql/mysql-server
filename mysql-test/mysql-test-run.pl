@@ -5813,6 +5813,7 @@ sub mysqld_start ($$$$) {
   # Give precedence to opt file bootstrap options over command line
   # bootstrap options.
   if (@opt_extra_bootstrap_opt) {
+    @opt_extra_bootstrap_opt = grep {!/--init-file/} @opt_extra_bootstrap_opt;
     unshift(@$extra_opts, @opt_extra_bootstrap_opt);
   }
 
