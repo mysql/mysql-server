@@ -1965,17 +1965,12 @@
    Conditional jump or move in BN_bin2bn
    Memcheck:Cond
    fun:BN_bin2bn
-   obj:/usr/lib64/libcrypto.so.*
-   fun:*
    ...
 }
 {
    Conditional jump or move in BN_ucmp
    Memcheck:Cond
    fun:BN_ucmp
-   ...
-   obj:/usr/lib64/libcrypto.so.*
-   fun:*
    ...
 }
 {
@@ -1989,8 +1984,6 @@
    Conditional jump or move in BN_mod_exp_mont
    Memcheck:Cond
    fun:BN_mod_exp_mont
-   obj:/usr/lib64/libcrypto.so.*
-   fun:*
    ...
 }
 {
@@ -2004,8 +1997,18 @@
    Memcheck:Cond
    fun:BN_mod_mul_montgomery
    fun:BN_mod_exp_mont
-   obj:/usr/lib64/libcrypto.so.*
-   fun:*
+   ...
+}
+{
+   Conditional jump or move in bn_bn2binpad
+   Memcheck:Cond
+   fun:bn_bn2binpad
+   ...
+}
+{
+   Conditional jump or move in BN_from_montgomery
+   Memcheck:Cond
+   fun:BN_from_montgomery
    ...
 }
 {
@@ -2018,12 +2021,18 @@
    ...
 }
 {
+   Use of uninitialised value of size 8 in BN_from_montgomery/BN_mod_exp_mont
+   Memcheck:Value8
+   fun:BN_from_montgomery
+   fun:BN_mod_exp_mont
+   obj:*
+   ...
+}
+{
    Conditional jump or move in BN_num_bits_word
    Memcheck:Cond
    fun:BN_num_bits_word
    fun:BN_num_bits
-   obj:/usr/lib64/libcrypto.so.*
-   fun:*
    ...
 }
 {
@@ -2032,8 +2041,6 @@
    fun:BN_num_bits_word
    fun:BN_num_bits
    fun:BN_bn2bin
-   obj:/usr/lib64/libcrypto.so.*
-   fun:*
    ...
 }
 {
@@ -2041,6 +2048,13 @@
    Memcheck:Param
    socketcall.sendto(msg)
    fun:send
+   fun:*
+   ...
+}
+{
+   Conditional jump or move in RSA_eay_public_encrypt
+   Memcheck:Cond
+   fun:RSA_eay_public_encrypt
    fun:*
    ...
 }
