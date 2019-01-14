@@ -80,6 +80,7 @@
 
 #ifdef _WIN32
 #define DIR_SEPARATOR "\\"
+#include <my_systime.h>
 #else
 #define DIR_SEPARATOR "/"
 #endif
