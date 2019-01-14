@@ -138,6 +138,7 @@ if ($rpl_group_replication)
     {
       --source include/stop_group_replication.inc
     }
+    --source include/stop_dump_threads.inc
     --dec $_rpl_server
   }
 }
@@ -186,6 +187,12 @@ while ($_rpl_server)
     --source include/gtid_utils_end.inc
     --connection default
   }
+  # Stop the Binlog Dump thread
+  --let $rpl_connection_name= server_$_rpl_server
+  --source include/rpl_connection.inc
+  --source include/stop_dump_threads.inc
+  --connection default
+
   # Unconfigure connections
   --disconnect server_$_rpl_server
   --disconnect server_$_rpl_server$_rpl_one

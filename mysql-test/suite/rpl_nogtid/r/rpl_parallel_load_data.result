@@ -21,5 +21,5 @@ COUNT(*)
 10
 DROP DATABASE db1;
 DROP DATABASE db2;
-include/stop_slave.inc
 SET @@global.slave_parallel_workers= @save_slave_parallel_workers;
+include/rpl_end.inc

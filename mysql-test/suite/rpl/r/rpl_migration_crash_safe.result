@@ -26,3 +26,4 @@ ERROR HY000: This operation cannot be performed with running replication threads
 include/sync_slave_sql_with_master.inc
 DROP TABLE test;
 include/sync_slave_sql_with_master.inc
+include/rpl_end.inc
