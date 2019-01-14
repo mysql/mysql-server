@@ -48188,32 +48188,32 @@ EXPLAIN  SELECT * FROM tbl_date WHERE d <  '2038-01-19 12:45:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` < TIMESTAMP'2038-01-19 12:45:00')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <= DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d <= '2038-01-19 12:45:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <= TIMESTAMP'2038-01-19 12:45:00')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <= DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >  '2038-01-19 12:45:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` > TIMESTAMP'2038-01-19 12:45:00')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` > DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >= '2038-01-19 12:45:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` >= TIMESTAMP'2038-01-19 12:45:00')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` > DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d =  '2038-01-19 12:45:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` = TIMESTAMP'2038-01-19 12:45:00')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where 0
 EXPLAIN  SELECT * FROM tbl_date WHERE d <> '2038-01-19 12:45:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> TIMESTAMP'2038-01-19 12:45:00')
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` is not null)
 Zero date?
 SELECT * FROM tbl_date WHERE d <  '0000-00-00';
 d
