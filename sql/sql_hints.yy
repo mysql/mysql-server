@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,7 +122,7 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 
 %type <hint_list> hint_list
 
-%type <hint_string> hint_param_index
+%type <lexer.hint_string> hint_param_index
 
 %type <hint_param_index_list> hint_param_index_list opt_hint_param_index_list
 
@@ -137,7 +137,7 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
   hint_param_table_list_empty_qb
   opt_hint_param_table_list_empty_qb
 
-%type <hint_string>
+%type <lexer.hint_string>
   HINT_ARG_IDENT
   HINT_ARG_NUMBER
   HINT_ARG_QB_NAME

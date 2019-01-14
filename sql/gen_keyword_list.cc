@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ int main(int argc, const char *argv[]) {
 
   UnicodeString rx(
       "^%(token|left|right|nonassoc)[[:space:]]*"
-      "(<[_[:alnum:]]+>)?[[:space:]]*([_[:alnum:]]+).*$");
+      "(<[._[:alnum:]]+>)?[[:space:]]*([_[:alnum:]]+).*$");
   RegexMatcher match(rx, 0, status);
   if (icu_error(status)) {
     return EXIT_FAILURE;
@@ -85,7 +85,7 @@ int main(int argc, const char *argv[]) {
         return EXIT_FAILURE;
       }
 
-      static const UnicodeString keyword_semantic_type("<keyword>");
+      static const UnicodeString keyword_semantic_type("<lexer.keyword>");
       if (uc_semantic_type == keyword_semantic_type)
         keyword_tokens.insert(token_num);
     }

@@ -504,289 +504,289 @@ void warn_about_deprecated_national(THD *thd)
 
 %token  ABORT_SYM                     /* INTERNAL (used in lex) */
 %token  ACCESSIBLE_SYM
-%token<keyword> ACCOUNT_SYM
-%token<keyword> ACTION                /* SQL-2003-N */
+%token<lexer.keyword> ACCOUNT_SYM
+%token<lexer.keyword> ACTION                /* SQL-2003-N */
 %token  ADD                           /* SQL-2003-R */
-%token<keyword> ADDDATE_SYM           /* MYSQL-FUNC */
-%token<keyword> AFTER_SYM             /* SQL-2003-N */
-%token<keyword> AGAINST
-%token<keyword> AGGREGATE_SYM
-%token<keyword> ALGORITHM_SYM
+%token<lexer.keyword> ADDDATE_SYM           /* MYSQL-FUNC */
+%token<lexer.keyword> AFTER_SYM             /* SQL-2003-N */
+%token<lexer.keyword> AGAINST
+%token<lexer.keyword> AGGREGATE_SYM
+%token<lexer.keyword> ALGORITHM_SYM
 %token  ALL                           /* SQL-2003-R */
 %token  ALTER                         /* SQL-2003-R */
-%token<keyword> ALWAYS_SYM
+%token<lexer.keyword> ALWAYS_SYM
 %token  OBSOLETE_TOKEN_271            /* was: ANALYSE_SYM */
 %token  ANALYZE_SYM
 %token  AND_AND_SYM                   /* OPERATOR */
 %token  AND_SYM                       /* SQL-2003-R */
-%token<keyword> ANY_SYM               /* SQL-2003-R */
+%token<lexer.keyword> ANY_SYM               /* SQL-2003-R */
 %token  AS                            /* SQL-2003-R */
 %token  ASC                           /* SQL-2003-N */
-%token<keyword> ASCII_SYM             /* MYSQL-FUNC */
+%token<lexer.keyword> ASCII_SYM             /* MYSQL-FUNC */
 %token  ASENSITIVE_SYM                /* FUTURE-USE */
-%token<keyword> AT_SYM                /* SQL-2003-R */
-%token<keyword> AUTOEXTEND_SIZE_SYM
-%token<keyword> AUTO_INC
-%token<keyword> AVG_ROW_LENGTH
-%token<keyword> AVG_SYM               /* SQL-2003-N */
-%token<keyword> BACKUP_SYM
+%token<lexer.keyword> AT_SYM                /* SQL-2003-R */
+%token<lexer.keyword> AUTOEXTEND_SIZE_SYM
+%token<lexer.keyword> AUTO_INC
+%token<lexer.keyword> AVG_ROW_LENGTH
+%token<lexer.keyword> AVG_SYM               /* SQL-2003-N */
+%token<lexer.keyword> BACKUP_SYM
 %token  BEFORE_SYM                    /* SQL-2003-N */
-%token<keyword> BEGIN_SYM             /* SQL-2003-R */
+%token<lexer.keyword> BEGIN_SYM             /* SQL-2003-R */
 %token  BETWEEN_SYM                   /* SQL-2003-R */
 %token  BIGINT_SYM                    /* SQL-2003-R */
 %token  BINARY_SYM                    /* SQL-2003-R */
-%token<keyword> BINLOG_SYM
+%token<lexer.keyword> BINLOG_SYM
 %token  BIN_NUM
 %token  BIT_AND                       /* MYSQL-FUNC */
 %token  BIT_OR                        /* MYSQL-FUNC */
-%token<keyword> BIT_SYM               /* MYSQL-FUNC */
+%token<lexer.keyword> BIT_SYM               /* MYSQL-FUNC */
 %token  BIT_XOR                       /* MYSQL-FUNC */
 %token  BLOB_SYM                      /* SQL-2003-R */
-%token<keyword> BLOCK_SYM
-%token<keyword> BOOLEAN_SYM           /* SQL-2003-R */
-%token<keyword> BOOL_SYM
+%token<lexer.keyword> BLOCK_SYM
+%token<lexer.keyword> BOOLEAN_SYM           /* SQL-2003-R */
+%token<lexer.keyword> BOOL_SYM
 %token  BOTH                          /* SQL-2003-R */
-%token<keyword> BTREE_SYM
+%token<lexer.keyword> BTREE_SYM
 %token  BY                            /* SQL-2003-R */
-%token<keyword> BYTE_SYM
-%token<keyword> CACHE_SYM
+%token<lexer.keyword> BYTE_SYM
+%token<lexer.keyword> CACHE_SYM
 %token  CALL_SYM                      /* SQL-2003-R */
 %token  CASCADE                       /* SQL-2003-N */
-%token<keyword> CASCADED              /* SQL-2003-R */
+%token<lexer.keyword> CASCADED              /* SQL-2003-R */
 %token  CASE_SYM                      /* SQL-2003-R */
 %token  CAST_SYM                      /* SQL-2003-R */
-%token<keyword> CATALOG_NAME_SYM      /* SQL-2003-N */
-%token<keyword> CHAIN_SYM             /* SQL-2003-N */
+%token<lexer.keyword> CATALOG_NAME_SYM      /* SQL-2003-N */
+%token<lexer.keyword> CHAIN_SYM             /* SQL-2003-N */
 %token  CHANGE
-%token<keyword> CHANGED
-%token<keyword> CHANNEL_SYM
-%token<keyword> CHARSET
+%token<lexer.keyword> CHANGED
+%token<lexer.keyword> CHANNEL_SYM
+%token<lexer.keyword> CHARSET
 %token  CHAR_SYM                      /* SQL-2003-R */
-%token<keyword> CHECKSUM_SYM
+%token<lexer.keyword> CHECKSUM_SYM
 %token  CHECK_SYM                     /* SQL-2003-R */
-%token<keyword> CIPHER_SYM
-%token<keyword> CLASS_ORIGIN_SYM      /* SQL-2003-N */
-%token<keyword> CLIENT_SYM
-%token<keyword> CLOSE_SYM             /* SQL-2003-R */
-%token<keyword> COALESCE              /* SQL-2003-N */
-%token<keyword> CODE_SYM
+%token<lexer.keyword> CIPHER_SYM
+%token<lexer.keyword> CLASS_ORIGIN_SYM      /* SQL-2003-N */
+%token<lexer.keyword> CLIENT_SYM
+%token<lexer.keyword> CLOSE_SYM             /* SQL-2003-R */
+%token<lexer.keyword> COALESCE              /* SQL-2003-N */
+%token<lexer.keyword> CODE_SYM
 %token  COLLATE_SYM                   /* SQL-2003-R */
-%token<keyword> COLLATION_SYM         /* SQL-2003-N */
-%token<keyword> COLUMNS
+%token<lexer.keyword> COLLATION_SYM         /* SQL-2003-N */
+%token<lexer.keyword> COLUMNS
 %token  COLUMN_SYM                    /* SQL-2003-R */
-%token<keyword> COLUMN_FORMAT_SYM
-%token<keyword> COLUMN_NAME_SYM       /* SQL-2003-N */
-%token<keyword> COMMENT_SYM
-%token<keyword> COMMITTED_SYM         /* SQL-2003-N */
-%token<keyword> COMMIT_SYM            /* SQL-2003-R */
-%token<keyword> COMPACT_SYM
-%token<keyword> COMPLETION_SYM
-%token<keyword> COMPRESSED_SYM
-%token<keyword> COMPRESSION_SYM
-%token<keyword> ENCRYPTION_SYM
-%token<keyword> CONCURRENT
+%token<lexer.keyword> COLUMN_FORMAT_SYM
+%token<lexer.keyword> COLUMN_NAME_SYM       /* SQL-2003-N */
+%token<lexer.keyword> COMMENT_SYM
+%token<lexer.keyword> COMMITTED_SYM         /* SQL-2003-N */
+%token<lexer.keyword> COMMIT_SYM            /* SQL-2003-R */
+%token<lexer.keyword> COMPACT_SYM
+%token<lexer.keyword> COMPLETION_SYM
+%token<lexer.keyword> COMPRESSED_SYM
+%token<lexer.keyword> COMPRESSION_SYM
+%token<lexer.keyword> ENCRYPTION_SYM
+%token<lexer.keyword> CONCURRENT
 %token  CONDITION_SYM                 /* SQL-2003-R, SQL-2008-R */
-%token<keyword> CONNECTION_SYM
-%token<keyword> CONSISTENT_SYM
+%token<lexer.keyword> CONNECTION_SYM
+%token<lexer.keyword> CONSISTENT_SYM
 %token  CONSTRAINT                    /* SQL-2003-R */
-%token<keyword> CONSTRAINT_CATALOG_SYM /* SQL-2003-N */
-%token<keyword> CONSTRAINT_NAME_SYM   /* SQL-2003-N */
-%token<keyword> CONSTRAINT_SCHEMA_SYM /* SQL-2003-N */
-%token<keyword> CONTAINS_SYM          /* SQL-2003-N */
-%token<keyword> CONTEXT_SYM
+%token<lexer.keyword> CONSTRAINT_CATALOG_SYM /* SQL-2003-N */
+%token<lexer.keyword> CONSTRAINT_NAME_SYM   /* SQL-2003-N */
+%token<lexer.keyword> CONSTRAINT_SCHEMA_SYM /* SQL-2003-N */
+%token<lexer.keyword> CONTAINS_SYM          /* SQL-2003-N */
+%token<lexer.keyword> CONTEXT_SYM
 %token  CONTINUE_SYM                  /* SQL-2003-R */
 %token  CONVERT_SYM                   /* SQL-2003-N */
 %token  COUNT_SYM                     /* SQL-2003-N */
-%token<keyword> CPU_SYM
+%token<lexer.keyword> CPU_SYM
 %token  CREATE                        /* SQL-2003-R */
 %token  CROSS                         /* SQL-2003-R */
 %token  CUBE_SYM                      /* SQL-2003-R */
 %token  CURDATE                       /* MYSQL-FUNC */
-%token<keyword> CURRENT_SYM           /* SQL-2003-R */
+%token<lexer.keyword> CURRENT_SYM           /* SQL-2003-R */
 %token  CURRENT_USER                  /* SQL-2003-R */
 %token  CURSOR_SYM                    /* SQL-2003-R */
-%token<keyword> CURSOR_NAME_SYM       /* SQL-2003-N */
+%token<lexer.keyword> CURSOR_NAME_SYM       /* SQL-2003-N */
 %token  CURTIME                       /* MYSQL-FUNC */
 %token  DATABASE
 %token  DATABASES
-%token<keyword> DATAFILE_SYM
-%token<keyword> DATA_SYM              /* SQL-2003-N */
-%token<keyword> DATETIME_SYM          /* MYSQL */
+%token<lexer.keyword> DATAFILE_SYM
+%token<lexer.keyword> DATA_SYM              /* SQL-2003-N */
+%token<lexer.keyword> DATETIME_SYM          /* MYSQL */
 %token  DATE_ADD_INTERVAL             /* MYSQL-FUNC */
 %token  DATE_SUB_INTERVAL             /* MYSQL-FUNC */
-%token<keyword> DATE_SYM              /* SQL-2003-R */
+%token<lexer.keyword> DATE_SYM              /* SQL-2003-R */
 %token  DAY_HOUR_SYM
 %token  DAY_MICROSECOND_SYM
 %token  DAY_MINUTE_SYM
 %token  DAY_SECOND_SYM
-%token<keyword> DAY_SYM               /* SQL-2003-R */
-%token<keyword> DEALLOCATE_SYM        /* SQL-2003-R */
+%token<lexer.keyword> DAY_SYM               /* SQL-2003-R */
+%token<lexer.keyword> DEALLOCATE_SYM        /* SQL-2003-R */
 %token  DECIMAL_NUM
 %token  DECIMAL_SYM                   /* SQL-2003-R */
 %token  DECLARE_SYM                   /* SQL-2003-R */
 %token  DEFAULT_SYM                   /* SQL-2003-R */
-%token<keyword> DEFAULT_AUTH_SYM      /* INTERNAL */
-%token<keyword> DEFINER_SYM
+%token<lexer.keyword> DEFAULT_AUTH_SYM      /* INTERNAL */
+%token<lexer.keyword> DEFINER_SYM
 %token  DELAYED_SYM
-%token<keyword> DELAY_KEY_WRITE_SYM
+%token<lexer.keyword> DELAY_KEY_WRITE_SYM
 %token  DELETE_SYM                    /* SQL-2003-R */
 %token  DESC                          /* SQL-2003-N */
 %token  DESCRIBE                      /* SQL-2003-R */
 %token  OBSOLETE_TOKEN_388            /* was: DES_KEY_FILE */
 %token  DETERMINISTIC_SYM             /* SQL-2003-R */
-%token<keyword> DIAGNOSTICS_SYM       /* SQL-2003-N */
-%token<keyword> DIRECTORY_SYM
-%token<keyword> DISABLE_SYM
-%token<keyword> DISCARD_SYM           /* MYSQL */
-%token<keyword> DISK_SYM
+%token<lexer.keyword> DIAGNOSTICS_SYM       /* SQL-2003-N */
+%token<lexer.keyword> DIRECTORY_SYM
+%token<lexer.keyword> DISABLE_SYM
+%token<lexer.keyword> DISCARD_SYM           /* MYSQL */
+%token<lexer.keyword> DISK_SYM
 %token  DISTINCT                      /* SQL-2003-R */
 %token  DIV_SYM
 %token  DOUBLE_SYM                    /* SQL-2003-R */
-%token<keyword> DO_SYM
+%token<lexer.keyword> DO_SYM
 %token  DROP                          /* SQL-2003-R */
 %token  DUAL_SYM
-%token<keyword> DUMPFILE
-%token<keyword> DUPLICATE_SYM
-%token<keyword> DYNAMIC_SYM           /* SQL-2003-R */
+%token<lexer.keyword> DUMPFILE
+%token<lexer.keyword> DUPLICATE_SYM
+%token<lexer.keyword> DYNAMIC_SYM           /* SQL-2003-R */
 %token  EACH_SYM                      /* SQL-2003-R */
 %token  ELSE                          /* SQL-2003-R */
 %token  ELSEIF_SYM
-%token<keyword> ENABLE_SYM
+%token<lexer.keyword> ENABLE_SYM
 %token  ENCLOSED
-%token<keyword> END                   /* SQL-2003-R */
-%token<keyword> ENDS_SYM
+%token<lexer.keyword> END                   /* SQL-2003-R */
+%token<lexer.keyword> ENDS_SYM
 %token  END_OF_INPUT                  /* INTERNAL */
-%token<keyword> ENGINES_SYM
-%token<keyword> ENGINE_SYM
-%token<keyword> ENUM_SYM              /* MYSQL */
+%token<lexer.keyword> ENGINES_SYM
+%token<lexer.keyword> ENGINE_SYM
+%token<lexer.keyword> ENUM_SYM              /* MYSQL */
 %token  EQ                            /* OPERATOR */
 %token  EQUAL_SYM                     /* OPERATOR */
-%token<keyword> ERROR_SYM
-%token<keyword> ERRORS
+%token<lexer.keyword> ERROR_SYM
+%token<lexer.keyword> ERRORS
 %token  ESCAPED
-%token<keyword> ESCAPE_SYM            /* SQL-2003-R */
-%token<keyword> EVENTS_SYM
-%token<keyword> EVENT_SYM
-%token<keyword> EVERY_SYM             /* SQL-2003-N */
-%token<keyword> EXCHANGE_SYM
-%token<keyword> EXECUTE_SYM           /* SQL-2003-R */
+%token<lexer.keyword> ESCAPE_SYM            /* SQL-2003-R */
+%token<lexer.keyword> EVENTS_SYM
+%token<lexer.keyword> EVENT_SYM
+%token<lexer.keyword> EVERY_SYM             /* SQL-2003-N */
+%token<lexer.keyword> EXCHANGE_SYM
+%token<lexer.keyword> EXECUTE_SYM           /* SQL-2003-R */
 %token  EXISTS                        /* SQL-2003-R */
 %token  EXIT_SYM
-%token<keyword> EXPANSION_SYM
-%token<keyword> EXPIRE_SYM
-%token<keyword> EXPORT_SYM
-%token<keyword> EXTENDED_SYM
-%token<keyword> EXTENT_SIZE_SYM
+%token<lexer.keyword> EXPANSION_SYM
+%token<lexer.keyword> EXPIRE_SYM
+%token<lexer.keyword> EXPORT_SYM
+%token<lexer.keyword> EXTENDED_SYM
+%token<lexer.keyword> EXTENT_SIZE_SYM
 %token  EXTRACT_SYM                   /* SQL-2003-N */
 %token  FALSE_SYM                     /* SQL-2003-R */
-%token<keyword> FAST_SYM
-%token<keyword> FAULTS_SYM
+%token<lexer.keyword> FAST_SYM
+%token<lexer.keyword> FAULTS_SYM
 %token  FETCH_SYM                     /* SQL-2003-R */
-%token<keyword> FILE_SYM
-%token<keyword> FILE_BLOCK_SIZE_SYM
-%token<keyword> FILTER_SYM
-%token<keyword> FIRST_SYM             /* SQL-2003-N */
-%token<keyword> FIXED_SYM
+%token<lexer.keyword> FILE_SYM
+%token<lexer.keyword> FILE_BLOCK_SIZE_SYM
+%token<lexer.keyword> FILTER_SYM
+%token<lexer.keyword> FIRST_SYM             /* SQL-2003-N */
+%token<lexer.keyword> FIXED_SYM
 %token  FLOAT_NUM
 %token  FLOAT_SYM                     /* SQL-2003-R */
-%token<keyword> FLUSH_SYM
-%token<keyword> FOLLOWS_SYM           /* MYSQL */
+%token<lexer.keyword> FLUSH_SYM
+%token<lexer.keyword> FOLLOWS_SYM           /* MYSQL */
 %token  FORCE_SYM
 %token  FOREIGN                       /* SQL-2003-R */
 %token  FOR_SYM                       /* SQL-2003-R */
-%token<keyword> FORMAT_SYM
-%token<keyword> FOUND_SYM             /* SQL-2003-R */
+%token<lexer.keyword> FORMAT_SYM
+%token<lexer.keyword> FOUND_SYM             /* SQL-2003-R */
 %token  FROM
-%token<keyword> FULL                  /* SQL-2003-R */
+%token<lexer.keyword> FULL                  /* SQL-2003-R */
 %token  FULLTEXT_SYM
 %token  FUNCTION_SYM                  /* SQL-2003-R */
 %token  GE
-%token<keyword> GENERAL
+%token<lexer.keyword> GENERAL
 %token  GENERATED
-%token<keyword> GROUP_REPLICATION
-%token<keyword> GEOMETRYCOLLECTION_SYM /* MYSQL */
-%token<keyword> GEOMETRY_SYM
-%token<keyword> GET_FORMAT            /* MYSQL-FUNC */
+%token<lexer.keyword> GROUP_REPLICATION
+%token<lexer.keyword> GEOMETRYCOLLECTION_SYM /* MYSQL */
+%token<lexer.keyword> GEOMETRY_SYM
+%token<lexer.keyword> GET_FORMAT            /* MYSQL-FUNC */
 %token  GET_SYM                       /* SQL-2003-R */
-%token<keyword> GLOBAL_SYM            /* SQL-2003-R */
+%token<lexer.keyword> GLOBAL_SYM            /* SQL-2003-R */
 %token  GRANT                         /* SQL-2003-R */
-%token<keyword> GRANTS
+%token<lexer.keyword> GRANTS
 %token  GROUP_SYM                     /* SQL-2003-R */
 %token  GROUP_CONCAT_SYM
 %token  GT_SYM                        /* OPERATOR */
-%token<keyword> HANDLER_SYM
-%token<keyword> HASH_SYM
+%token<lexer.keyword> HANDLER_SYM
+%token<lexer.keyword> HASH_SYM
 %token  HAVING                        /* SQL-2003-R */
-%token<keyword> HELP_SYM
+%token<lexer.keyword> HELP_SYM
 %token  HEX_NUM
 %token  HIGH_PRIORITY
-%token<keyword> HOST_SYM
-%token<keyword> HOSTS_SYM
+%token<lexer.keyword> HOST_SYM
+%token<lexer.keyword> HOSTS_SYM
 %token  HOUR_MICROSECOND_SYM
 %token  HOUR_MINUTE_SYM
 %token  HOUR_SECOND_SYM
-%token<keyword> HOUR_SYM              /* SQL-2003-R */
+%token<lexer.keyword> HOUR_SYM              /* SQL-2003-R */
 %token  IDENT
-%token<keyword> IDENTIFIED_SYM
+%token<lexer.keyword> IDENTIFIED_SYM
 %token  IDENT_QUOTED
 %token  IF
 %token  IGNORE_SYM
-%token<keyword> IGNORE_SERVER_IDS_SYM
-%token<keyword> IMPORT
-%token<keyword> INDEXES
+%token<lexer.keyword> IGNORE_SERVER_IDS_SYM
+%token<lexer.keyword> IMPORT
+%token<lexer.keyword> INDEXES
 %token  INDEX_SYM
 %token  INFILE
-%token<keyword> INITIAL_SIZE_SYM
+%token<lexer.keyword> INITIAL_SIZE_SYM
 %token  INNER_SYM                     /* SQL-2003-R */
 %token  INOUT_SYM                     /* SQL-2003-R */
 %token  INSENSITIVE_SYM               /* SQL-2003-R */
 %token  INSERT_SYM                    /* SQL-2003-R */
-%token<keyword> INSERT_METHOD
-%token<keyword> INSTANCE_SYM
-%token<keyword> INSTALL_SYM
+%token<lexer.keyword> INSERT_METHOD
+%token<lexer.keyword> INSTANCE_SYM
+%token<lexer.keyword> INSTALL_SYM
 %token  INTERVAL_SYM                  /* SQL-2003-R */
 %token  INTO                          /* SQL-2003-R */
 %token  INT_SYM                       /* SQL-2003-R */
-%token<keyword> INVOKER_SYM
+%token<lexer.keyword> INVOKER_SYM
 %token  IN_SYM                        /* SQL-2003-R */
 %token  IO_AFTER_GTIDS                /* MYSQL, FUTURE-USE */
 %token  IO_BEFORE_GTIDS               /* MYSQL, FUTURE-USE */
-%token<keyword> IO_SYM
-%token<keyword> IPC_SYM
+%token<lexer.keyword> IO_SYM
+%token<lexer.keyword> IPC_SYM
 %token  IS                            /* SQL-2003-R */
-%token<keyword> ISOLATION             /* SQL-2003-R */
-%token<keyword> ISSUER_SYM
+%token<lexer.keyword> ISOLATION             /* SQL-2003-R */
+%token<lexer.keyword> ISSUER_SYM
 %token  ITERATE_SYM
 %token  JOIN_SYM                      /* SQL-2003-R */
 %token  JSON_SEPARATOR_SYM            /* MYSQL */
-%token<keyword> JSON_SYM              /* MYSQL */
+%token<lexer.keyword> JSON_SYM              /* MYSQL */
 %token  KEYS
-%token<keyword> KEY_BLOCK_SIZE
+%token<lexer.keyword> KEY_BLOCK_SIZE
 %token  KEY_SYM                       /* SQL-2003-N */
 %token  KILL_SYM
-%token<keyword> LANGUAGE_SYM          /* SQL-2003-R */
-%token<keyword> LAST_SYM              /* SQL-2003-N */
+%token<lexer.keyword> LANGUAGE_SYM          /* SQL-2003-R */
+%token<lexer.keyword> LAST_SYM              /* SQL-2003-N */
 %token  LE                            /* OPERATOR */
 %token  LEADING                       /* SQL-2003-R */
-%token<keyword> LEAVES
+%token<lexer.keyword> LEAVES
 %token  LEAVE_SYM
 %token  LEFT                          /* SQL-2003-R */
-%token<keyword> LESS_SYM
-%token<keyword> LEVEL_SYM
+%token<lexer.keyword> LESS_SYM
+%token<lexer.keyword> LEVEL_SYM
 %token  LEX_HOSTNAME
 %token  LIKE                          /* SQL-2003-R */
 %token  LIMIT
 %token  LINEAR_SYM
 %token  LINES
-%token<keyword> LINESTRING_SYM        /* MYSQL */
-%token<keyword> LIST_SYM
+%token<lexer.keyword> LINESTRING_SYM        /* MYSQL */
+%token<lexer.keyword> LIST_SYM
 %token  LOAD
-%token<keyword> LOCAL_SYM             /* SQL-2003-R */
+%token<lexer.keyword> LOCAL_SYM             /* SQL-2003-R */
 %token  OBSOLETE_TOKEN_538            /* was: LOCATOR_SYM */
-%token<keyword> LOCKS_SYM
+%token<lexer.keyword> LOCKS_SYM
 %token  LOCK_SYM
-%token<keyword> LOGFILE_SYM
-%token<keyword> LOGS_SYM
+%token<lexer.keyword> LOGFILE_SYM
+%token<lexer.keyword> LOGS_SYM
 %token  LONGBLOB_SYM                  /* MYSQL */
 %token  LONGTEXT_SYM                  /* MYSQL */
 %token  LONG_NUM
@@ -794,96 +794,96 @@ void warn_about_deprecated_national(THD *thd)
 %token  LOOP_SYM
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
-%token<keyword> MASTER_AUTO_POSITION_SYM
+%token<lexer.keyword> MASTER_AUTO_POSITION_SYM
 %token  MASTER_BIND_SYM
-%token<keyword> MASTER_CONNECT_RETRY_SYM
-%token<keyword> MASTER_DELAY_SYM
-%token<keyword> MASTER_HOST_SYM
-%token<keyword> MASTER_LOG_FILE_SYM
-%token<keyword> MASTER_LOG_POS_SYM
-%token<keyword> MASTER_PASSWORD_SYM
-%token<keyword> MASTER_PORT_SYM
-%token<keyword> MASTER_RETRY_COUNT_SYM
-%token<keyword> MASTER_SERVER_ID_SYM
-%token<keyword> MASTER_SSL_CAPATH_SYM
-%token<keyword> MASTER_TLS_VERSION_SYM
-%token<keyword> MASTER_SSL_CA_SYM
-%token<keyword> MASTER_SSL_CERT_SYM
-%token<keyword> MASTER_SSL_CIPHER_SYM
-%token<keyword> MASTER_SSL_CRL_SYM
-%token<keyword> MASTER_SSL_CRLPATH_SYM
-%token<keyword> MASTER_SSL_KEY_SYM
-%token<keyword> MASTER_SSL_SYM
+%token<lexer.keyword> MASTER_CONNECT_RETRY_SYM
+%token<lexer.keyword> MASTER_DELAY_SYM
+%token<lexer.keyword> MASTER_HOST_SYM
+%token<lexer.keyword> MASTER_LOG_FILE_SYM
+%token<lexer.keyword> MASTER_LOG_POS_SYM
+%token<lexer.keyword> MASTER_PASSWORD_SYM
+%token<lexer.keyword> MASTER_PORT_SYM
+%token<lexer.keyword> MASTER_RETRY_COUNT_SYM
+%token<lexer.keyword> MASTER_SERVER_ID_SYM
+%token<lexer.keyword> MASTER_SSL_CAPATH_SYM
+%token<lexer.keyword> MASTER_TLS_VERSION_SYM
+%token<lexer.keyword> MASTER_SSL_CA_SYM
+%token<lexer.keyword> MASTER_SSL_CERT_SYM
+%token<lexer.keyword> MASTER_SSL_CIPHER_SYM
+%token<lexer.keyword> MASTER_SSL_CRL_SYM
+%token<lexer.keyword> MASTER_SSL_CRLPATH_SYM
+%token<lexer.keyword> MASTER_SSL_KEY_SYM
+%token<lexer.keyword> MASTER_SSL_SYM
 %token  MASTER_SSL_VERIFY_SERVER_CERT_SYM
-%token<keyword> MASTER_SYM
-%token<keyword> MASTER_USER_SYM
-%token<keyword> MASTER_HEARTBEAT_PERIOD_SYM
+%token<lexer.keyword> MASTER_SYM
+%token<lexer.keyword> MASTER_USER_SYM
+%token<lexer.keyword> MASTER_HEARTBEAT_PERIOD_SYM
 %token  MATCH                         /* SQL-2003-R */
-%token<keyword> MAX_CONNECTIONS_PER_HOUR
-%token<keyword> MAX_QUERIES_PER_HOUR
-%token<keyword> MAX_ROWS
-%token<keyword> MAX_SIZE_SYM
+%token<lexer.keyword> MAX_CONNECTIONS_PER_HOUR
+%token<lexer.keyword> MAX_QUERIES_PER_HOUR
+%token<lexer.keyword> MAX_ROWS
+%token<lexer.keyword> MAX_SIZE_SYM
 %token  MAX_SYM                       /* SQL-2003-N */
-%token<keyword> MAX_UPDATES_PER_HOUR
-%token<keyword> MAX_USER_CONNECTIONS_SYM
+%token<lexer.keyword> MAX_UPDATES_PER_HOUR
+%token<lexer.keyword> MAX_USER_CONNECTIONS_SYM
 %token  MAX_VALUE_SYM                 /* SQL-2003-N */
 %token  MEDIUMBLOB_SYM                /* MYSQL */
 %token  MEDIUMINT_SYM                 /* MYSQL */
 %token  MEDIUMTEXT_SYM                /* MYSQL */
-%token<keyword> MEDIUM_SYM
-%token<keyword> MEMORY_SYM
-%token<keyword> MERGE_SYM             /* SQL-2003-R */
-%token<keyword> MESSAGE_TEXT_SYM      /* SQL-2003-N */
-%token<keyword> MICROSECOND_SYM       /* MYSQL-FUNC */
-%token<keyword> MIGRATE_SYM
+%token<lexer.keyword> MEDIUM_SYM
+%token<lexer.keyword> MEMORY_SYM
+%token<lexer.keyword> MERGE_SYM             /* SQL-2003-R */
+%token<lexer.keyword> MESSAGE_TEXT_SYM      /* SQL-2003-N */
+%token<lexer.keyword> MICROSECOND_SYM       /* MYSQL-FUNC */
+%token<lexer.keyword> MIGRATE_SYM
 %token  MINUTE_MICROSECOND_SYM
 %token  MINUTE_SECOND_SYM
-%token<keyword> MINUTE_SYM            /* SQL-2003-R */
-%token<keyword> MIN_ROWS
+%token<lexer.keyword> MINUTE_SYM            /* SQL-2003-R */
+%token<lexer.keyword> MIN_ROWS
 %token  MIN_SYM                       /* SQL-2003-N */
-%token<keyword> MODE_SYM
+%token<lexer.keyword> MODE_SYM
 %token  MODIFIES_SYM                  /* SQL-2003-R */
-%token<keyword> MODIFY_SYM
+%token<lexer.keyword> MODIFY_SYM
 %token  MOD_SYM                       /* SQL-2003-N */
-%token<keyword> MONTH_SYM             /* SQL-2003-R */
-%token<keyword> MULTILINESTRING_SYM   /* MYSQL */
-%token<keyword> MULTIPOINT_SYM        /* MYSQL */
-%token<keyword> MULTIPOLYGON_SYM      /* MYSQL */
-%token<keyword> MUTEX_SYM
-%token<keyword> MYSQL_ERRNO_SYM
-%token<keyword> NAMES_SYM             /* SQL-2003-N */
-%token<keyword> NAME_SYM              /* SQL-2003-N */
-%token<keyword> NATIONAL_SYM          /* SQL-2003-R */
+%token<lexer.keyword> MONTH_SYM             /* SQL-2003-R */
+%token<lexer.keyword> MULTILINESTRING_SYM   /* MYSQL */
+%token<lexer.keyword> MULTIPOINT_SYM        /* MYSQL */
+%token<lexer.keyword> MULTIPOLYGON_SYM      /* MYSQL */
+%token<lexer.keyword> MUTEX_SYM
+%token<lexer.keyword> MYSQL_ERRNO_SYM
+%token<lexer.keyword> NAMES_SYM             /* SQL-2003-N */
+%token<lexer.keyword> NAME_SYM              /* SQL-2003-N */
+%token<lexer.keyword> NATIONAL_SYM          /* SQL-2003-R */
 %token  NATURAL                       /* SQL-2003-R */
 %token  NCHAR_STRING
-%token<keyword> NCHAR_SYM             /* SQL-2003-R */
-%token<keyword> NDBCLUSTER_SYM
+%token<lexer.keyword> NCHAR_SYM             /* SQL-2003-R */
+%token<lexer.keyword> NDBCLUSTER_SYM
 %token  NE                            /* OPERATOR */
 %token  NEG
-%token<keyword> NEVER_SYM
-%token<keyword> NEW_SYM               /* SQL-2003-R */
-%token<keyword> NEXT_SYM              /* SQL-2003-N */
-%token<keyword> NODEGROUP_SYM
-%token<keyword> NONE_SYM              /* SQL-2003-R */
+%token<lexer.keyword> NEVER_SYM
+%token<lexer.keyword> NEW_SYM               /* SQL-2003-R */
+%token<lexer.keyword> NEXT_SYM              /* SQL-2003-N */
+%token<lexer.keyword> NODEGROUP_SYM
+%token<lexer.keyword> NONE_SYM              /* SQL-2003-R */
 %token  NOT2_SYM
 %token  NOT_SYM                       /* SQL-2003-R */
 %token  NOW_SYM
-%token<keyword> NO_SYM                /* SQL-2003-R */
-%token<keyword> NO_WAIT_SYM
+%token<lexer.keyword> NO_SYM                /* SQL-2003-R */
+%token<lexer.keyword> NO_WAIT_SYM
 %token  NO_WRITE_TO_BINLOG
 %token  NULL_SYM                      /* SQL-2003-R */
 %token  NUM
-%token<keyword> NUMBER_SYM            /* SQL-2003-N */
+%token<lexer.keyword> NUMBER_SYM            /* SQL-2003-N */
 %token  NUMERIC_SYM                   /* SQL-2003-R */
-%token<keyword> NVARCHAR_SYM
-%token<keyword> OFFSET_SYM
+%token<lexer.keyword> NVARCHAR_SYM
+%token<lexer.keyword> OFFSET_SYM
 %token  ON_SYM                        /* SQL-2003-R */
-%token<keyword> ONE_SYM
-%token<keyword> ONLY_SYM              /* SQL-2003-R */
-%token<keyword> OPEN_SYM              /* SQL-2003-R */
+%token<lexer.keyword> ONE_SYM
+%token<lexer.keyword> ONLY_SYM              /* SQL-2003-R */
+%token<lexer.keyword> OPEN_SYM              /* SQL-2003-R */
 %token  OPTIMIZE
 %token  OPTIMIZER_COSTS_SYM
-%token<keyword> OPTIONS_SYM
+%token<lexer.keyword> OPTIONS_SYM
 %token  OPTION                        /* SQL-2003-N */
 %token  OPTIONALLY
 %token  OR2_SYM
@@ -893,276 +893,276 @@ void warn_about_deprecated_national(THD *thd)
 %token  OUTER
 %token  OUTFILE
 %token  OUT_SYM                       /* SQL-2003-R */
-%token<keyword> OWNER_SYM
-%token<keyword> PACK_KEYS_SYM
-%token<keyword> PAGE_SYM
+%token<lexer.keyword> OWNER_SYM
+%token<lexer.keyword> PACK_KEYS_SYM
+%token<lexer.keyword> PAGE_SYM
 %token  PARAM_MARKER
-%token<keyword> PARSER_SYM
+%token<lexer.keyword> PARSER_SYM
 %token  OBSOLETE_TOKEN_654            /* was: PARSE_GCOL_EXPR_SYM */
-%token<keyword> PARTIAL                       /* SQL-2003-N */
+%token<lexer.keyword> PARTIAL                       /* SQL-2003-N */
 %token  PARTITION_SYM                 /* SQL-2003-R */
-%token<keyword> PARTITIONS_SYM
-%token<keyword> PARTITIONING_SYM
-%token<keyword> PASSWORD
-%token<keyword> PHASE_SYM
-%token<keyword> PLUGIN_DIR_SYM        /* INTERNAL */
-%token<keyword> PLUGIN_SYM
-%token<keyword> PLUGINS_SYM
-%token<keyword> POINT_SYM
-%token<keyword> POLYGON_SYM           /* MYSQL */
-%token<keyword> PORT_SYM
+%token<lexer.keyword> PARTITIONS_SYM
+%token<lexer.keyword> PARTITIONING_SYM
+%token<lexer.keyword> PASSWORD
+%token<lexer.keyword> PHASE_SYM
+%token<lexer.keyword> PLUGIN_DIR_SYM        /* INTERNAL */
+%token<lexer.keyword> PLUGIN_SYM
+%token<lexer.keyword> PLUGINS_SYM
+%token<lexer.keyword> POINT_SYM
+%token<lexer.keyword> POLYGON_SYM           /* MYSQL */
+%token<lexer.keyword> PORT_SYM
 %token  POSITION_SYM                  /* SQL-2003-N */
-%token<keyword> PRECEDES_SYM          /* MYSQL */
+%token<lexer.keyword> PRECEDES_SYM          /* MYSQL */
 %token  PRECISION                     /* SQL-2003-R */
-%token<keyword> PREPARE_SYM           /* SQL-2003-R */
-%token<keyword> PRESERVE_SYM
-%token<keyword> PREV_SYM
+%token<lexer.keyword> PREPARE_SYM           /* SQL-2003-R */
+%token<lexer.keyword> PRESERVE_SYM
+%token<lexer.keyword> PREV_SYM
 %token  PRIMARY_SYM                   /* SQL-2003-R */
-%token<keyword> PRIVILEGES            /* SQL-2003-N */
+%token<lexer.keyword> PRIVILEGES            /* SQL-2003-N */
 %token  PROCEDURE_SYM                 /* SQL-2003-R */
-%token<keyword> PROCESS
-%token<keyword> PROCESSLIST_SYM
-%token<keyword> PROFILE_SYM
-%token<keyword> PROFILES_SYM
-%token<keyword> PROXY_SYM
+%token<lexer.keyword> PROCESS
+%token<lexer.keyword> PROCESSLIST_SYM
+%token<lexer.keyword> PROFILE_SYM
+%token<lexer.keyword> PROFILES_SYM
+%token<lexer.keyword> PROXY_SYM
 %token  PURGE
-%token<keyword> QUARTER_SYM
-%token<keyword> QUERY_SYM
-%token<keyword> QUICK
+%token<lexer.keyword> QUARTER_SYM
+%token<lexer.keyword> QUERY_SYM
+%token<lexer.keyword> QUICK
 %token  RANGE_SYM                     /* SQL-2003-R */
 %token  READS_SYM                     /* SQL-2003-R */
-%token<keyword> READ_ONLY_SYM
+%token<lexer.keyword> READ_ONLY_SYM
 %token  READ_SYM                      /* SQL-2003-N */
 %token  READ_WRITE_SYM
 %token  REAL_SYM                      /* SQL-2003-R */
-%token<keyword> REBUILD_SYM
-%token<keyword> RECOVER_SYM
+%token<lexer.keyword> REBUILD_SYM
+%token<lexer.keyword> RECOVER_SYM
 %token  OBSOLETE_TOKEN_693            /* was: REDOFILE_SYM */
-%token<keyword> REDO_BUFFER_SIZE_SYM
-%token<keyword> REDUNDANT_SYM
+%token<lexer.keyword> REDO_BUFFER_SIZE_SYM
+%token<lexer.keyword> REDUNDANT_SYM
 %token  REFERENCES                    /* SQL-2003-R */
 %token  REGEXP
-%token<keyword> RELAY
-%token<keyword> RELAYLOG_SYM
-%token<keyword> RELAY_LOG_FILE_SYM
-%token<keyword> RELAY_LOG_POS_SYM
-%token<keyword> RELAY_THREAD
+%token<lexer.keyword> RELAY
+%token<lexer.keyword> RELAYLOG_SYM
+%token<lexer.keyword> RELAY_LOG_FILE_SYM
+%token<lexer.keyword> RELAY_LOG_POS_SYM
+%token<lexer.keyword> RELAY_THREAD
 %token  RELEASE_SYM                   /* SQL-2003-R */
-%token<keyword> RELOAD
-%token<keyword> REMOVE_SYM
+%token<lexer.keyword> RELOAD
+%token<lexer.keyword> REMOVE_SYM
 %token  RENAME
-%token<keyword> REORGANIZE_SYM
-%token<keyword> REPAIR
-%token<keyword> REPEATABLE_SYM        /* SQL-2003-N */
+%token<lexer.keyword> REORGANIZE_SYM
+%token<lexer.keyword> REPAIR
+%token<lexer.keyword> REPEATABLE_SYM        /* SQL-2003-N */
 %token  REPEAT_SYM                    /* MYSQL-FUNC */
 %token  REPLACE_SYM                   /* MYSQL-FUNC */
-%token<keyword> REPLICATION
-%token<keyword> REPLICATE_DO_DB
-%token<keyword> REPLICATE_IGNORE_DB
-%token<keyword> REPLICATE_DO_TABLE
-%token<keyword> REPLICATE_IGNORE_TABLE
-%token<keyword> REPLICATE_WILD_DO_TABLE
-%token<keyword> REPLICATE_WILD_IGNORE_TABLE
-%token<keyword> REPLICATE_REWRITE_DB
+%token<lexer.keyword> REPLICATION
+%token<lexer.keyword> REPLICATE_DO_DB
+%token<lexer.keyword> REPLICATE_IGNORE_DB
+%token<lexer.keyword> REPLICATE_DO_TABLE
+%token<lexer.keyword> REPLICATE_IGNORE_TABLE
+%token<lexer.keyword> REPLICATE_WILD_DO_TABLE
+%token<lexer.keyword> REPLICATE_WILD_IGNORE_TABLE
+%token<lexer.keyword> REPLICATE_REWRITE_DB
 %token  REQUIRE_SYM
-%token<keyword> RESET_SYM
+%token<lexer.keyword> RESET_SYM
 %token  RESIGNAL_SYM                  /* SQL-2003-R */
-%token<keyword> RESOURCES
-%token<keyword> RESTORE_SYM
+%token<lexer.keyword> RESOURCES
+%token<lexer.keyword> RESTORE_SYM
 %token  RESTRICT
-%token<keyword> RESUME_SYM
-%token<keyword> RETURNED_SQLSTATE_SYM /* SQL-2003-N */
-%token<keyword> RETURNS_SYM           /* SQL-2003-R */
+%token<lexer.keyword> RESUME_SYM
+%token<lexer.keyword> RETURNED_SQLSTATE_SYM /* SQL-2003-N */
+%token<lexer.keyword> RETURNS_SYM           /* SQL-2003-R */
 %token  RETURN_SYM                    /* SQL-2003-R */
-%token<keyword> REVERSE_SYM
+%token<lexer.keyword> REVERSE_SYM
 %token  REVOKE                        /* SQL-2003-R */
 %token  RIGHT                         /* SQL-2003-R */
-%token<keyword> ROLLBACK_SYM          /* SQL-2003-R */
-%token<keyword> ROLLUP_SYM            /* SQL-2003-R */
-%token<keyword> ROTATE_SYM
-%token<keyword> ROUTINE_SYM           /* SQL-2003-N */
+%token<lexer.keyword> ROLLBACK_SYM          /* SQL-2003-R */
+%token<lexer.keyword> ROLLUP_SYM            /* SQL-2003-R */
+%token<lexer.keyword> ROTATE_SYM
+%token<lexer.keyword> ROUTINE_SYM           /* SQL-2003-N */
 %token  ROWS_SYM                      /* SQL-2003-R */
-%token<keyword> ROW_FORMAT_SYM
+%token<lexer.keyword> ROW_FORMAT_SYM
 %token  ROW_SYM                       /* SQL-2003-R */
-%token<keyword> ROW_COUNT_SYM         /* SQL-2003-N */
-%token<keyword> RTREE_SYM
-%token<keyword> SAVEPOINT_SYM         /* SQL-2003-R */
-%token<keyword> SCHEDULE_SYM
-%token<keyword> SCHEMA_NAME_SYM       /* SQL-2003-N */
+%token<lexer.keyword> ROW_COUNT_SYM         /* SQL-2003-N */
+%token<lexer.keyword> RTREE_SYM
+%token<lexer.keyword> SAVEPOINT_SYM         /* SQL-2003-R */
+%token<lexer.keyword> SCHEDULE_SYM
+%token<lexer.keyword> SCHEMA_NAME_SYM       /* SQL-2003-N */
 %token  SECOND_MICROSECOND_SYM
-%token<keyword> SECOND_SYM            /* SQL-2003-R */
-%token<keyword> SECURITY_SYM          /* SQL-2003-N */
+%token<lexer.keyword> SECOND_SYM            /* SQL-2003-R */
+%token<lexer.keyword> SECURITY_SYM          /* SQL-2003-N */
 %token  SELECT_SYM                    /* SQL-2003-R */
 %token  SENSITIVE_SYM                 /* FUTURE-USE */
 %token  SEPARATOR_SYM
-%token<keyword> SERIALIZABLE_SYM      /* SQL-2003-N */
-%token<keyword> SERIAL_SYM
-%token<keyword> SESSION_SYM           /* SQL-2003-N */
-%token<keyword> SERVER_SYM
+%token<lexer.keyword> SERIALIZABLE_SYM      /* SQL-2003-N */
+%token<lexer.keyword> SERIAL_SYM
+%token<lexer.keyword> SESSION_SYM           /* SQL-2003-N */
+%token<lexer.keyword> SERVER_SYM
 %token  OBSOLETE_TOKEN_755            /* was: SERVER_OPTIONS */
 %token  SET_SYM                       /* SQL-2003-R */
 %token  SET_VAR
-%token<keyword> SHARE_SYM
+%token<lexer.keyword> SHARE_SYM
 %token  SHIFT_LEFT                    /* OPERATOR */
 %token  SHIFT_RIGHT                   /* OPERATOR */
 %token  SHOW
-%token<keyword> SHUTDOWN
+%token<lexer.keyword> SHUTDOWN
 %token  SIGNAL_SYM                    /* SQL-2003-R */
-%token<keyword> SIGNED_SYM
-%token<keyword> SIMPLE_SYM            /* SQL-2003-N */
-%token<keyword> SLAVE
-%token<keyword> SLOW
+%token<lexer.keyword> SIGNED_SYM
+%token<lexer.keyword> SIMPLE_SYM            /* SQL-2003-N */
+%token<lexer.keyword> SLAVE
+%token<lexer.keyword> SLOW
 %token  SMALLINT_SYM                  /* SQL-2003-R */
-%token<keyword> SNAPSHOT_SYM
-%token<keyword> SOCKET_SYM
-%token<keyword> SONAME_SYM
-%token<keyword> SOUNDS_SYM
-%token<keyword> SOURCE_SYM
+%token<lexer.keyword> SNAPSHOT_SYM
+%token<lexer.keyword> SOCKET_SYM
+%token<lexer.keyword> SONAME_SYM
+%token<lexer.keyword> SOUNDS_SYM
+%token<lexer.keyword> SOURCE_SYM
 %token  SPATIAL_SYM
 %token  SPECIFIC_SYM                  /* SQL-2003-R */
 %token  SQLEXCEPTION_SYM              /* SQL-2003-R */
 %token  SQLSTATE_SYM                  /* SQL-2003-R */
 %token  SQLWARNING_SYM                /* SQL-2003-R */
-%token<keyword> SQL_AFTER_GTIDS       /* MYSQL */
-%token<keyword> SQL_AFTER_MTS_GAPS    /* MYSQL */
-%token<keyword> SQL_BEFORE_GTIDS      /* MYSQL */
+%token<lexer.keyword> SQL_AFTER_GTIDS       /* MYSQL */
+%token<lexer.keyword> SQL_AFTER_MTS_GAPS    /* MYSQL */
+%token<lexer.keyword> SQL_BEFORE_GTIDS      /* MYSQL */
 %token  SQL_BIG_RESULT
-%token<keyword> SQL_BUFFER_RESULT
+%token<lexer.keyword> SQL_BUFFER_RESULT
 %token  OBSOLETE_TOKEN_784            /* was: SQL_CACHE_SYM */
 %token  SQL_CALC_FOUND_ROWS
-%token<keyword> SQL_NO_CACHE_SYM
+%token<lexer.keyword> SQL_NO_CACHE_SYM
 %token  SQL_SMALL_RESULT
 %token  SQL_SYM                       /* SQL-2003-R */
-%token<keyword> SQL_THREAD
+%token<lexer.keyword> SQL_THREAD
 %token  SSL_SYM
-%token<keyword> STACKED_SYM           /* SQL-2003-N */
+%token<lexer.keyword> STACKED_SYM           /* SQL-2003-N */
 %token  STARTING
-%token<keyword> STARTS_SYM
-%token<keyword> START_SYM             /* SQL-2003-R */
-%token<keyword> STATS_AUTO_RECALC_SYM
-%token<keyword> STATS_PERSISTENT_SYM
-%token<keyword> STATS_SAMPLE_PAGES_SYM
-%token<keyword> STATUS_SYM
+%token<lexer.keyword> STARTS_SYM
+%token<lexer.keyword> START_SYM             /* SQL-2003-R */
+%token<lexer.keyword> STATS_AUTO_RECALC_SYM
+%token<lexer.keyword> STATS_PERSISTENT_SYM
+%token<lexer.keyword> STATS_SAMPLE_PAGES_SYM
+%token<lexer.keyword> STATUS_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
-%token<keyword> STOP_SYM
-%token<keyword> STORAGE_SYM
+%token<lexer.keyword> STOP_SYM
+%token<lexer.keyword> STORAGE_SYM
 %token  STORED_SYM
 %token  STRAIGHT_JOIN
-%token<keyword> STRING_SYM
-%token<keyword> SUBCLASS_ORIGIN_SYM   /* SQL-2003-N */
-%token<keyword> SUBDATE_SYM
-%token<keyword> SUBJECT_SYM
-%token<keyword> SUBPARTITIONS_SYM
-%token<keyword> SUBPARTITION_SYM
+%token<lexer.keyword> STRING_SYM
+%token<lexer.keyword> SUBCLASS_ORIGIN_SYM   /* SQL-2003-N */
+%token<lexer.keyword> SUBDATE_SYM
+%token<lexer.keyword> SUBJECT_SYM
+%token<lexer.keyword> SUBPARTITIONS_SYM
+%token<lexer.keyword> SUBPARTITION_SYM
 %token  SUBSTRING                     /* SQL-2003-N */
 %token  SUM_SYM                       /* SQL-2003-N */
-%token<keyword> SUPER_SYM
-%token<keyword> SUSPEND_SYM
-%token<keyword> SWAPS_SYM
-%token<keyword> SWITCHES_SYM
+%token<lexer.keyword> SUPER_SYM
+%token<lexer.keyword> SUSPEND_SYM
+%token<lexer.keyword> SWAPS_SYM
+%token<lexer.keyword> SWITCHES_SYM
 %token  SYSDATE
-%token<keyword> TABLES
-%token<keyword> TABLESPACE_SYM
+%token<lexer.keyword> TABLES
+%token<lexer.keyword> TABLESPACE_SYM
 %token  OBSOLETE_TOKEN_820            /* was: TABLE_REF_PRIORITY */
 %token  TABLE_SYM                     /* SQL-2003-R */
-%token<keyword> TABLE_CHECKSUM_SYM
-%token<keyword> TABLE_NAME_SYM        /* SQL-2003-N */
-%token<keyword> TEMPORARY             /* SQL-2003-N */
-%token<keyword> TEMPTABLE_SYM
+%token<lexer.keyword> TABLE_CHECKSUM_SYM
+%token<lexer.keyword> TABLE_NAME_SYM        /* SQL-2003-N */
+%token<lexer.keyword> TEMPORARY             /* SQL-2003-N */
+%token<lexer.keyword> TEMPTABLE_SYM
 %token  TERMINATED
 %token  TEXT_STRING
-%token<keyword> TEXT_SYM
-%token<keyword> THAN_SYM
+%token<lexer.keyword> TEXT_SYM
+%token<lexer.keyword> THAN_SYM
 %token  THEN_SYM                      /* SQL-2003-R */
-%token<keyword> TIMESTAMP_SYM         /* SQL-2003-R */
-%token<keyword> TIMESTAMP_ADD
-%token<keyword> TIMESTAMP_DIFF
-%token<keyword> TIME_SYM              /* SQL-2003-R */
+%token<lexer.keyword> TIMESTAMP_SYM         /* SQL-2003-R */
+%token<lexer.keyword> TIMESTAMP_ADD
+%token<lexer.keyword> TIMESTAMP_DIFF
+%token<lexer.keyword> TIME_SYM              /* SQL-2003-R */
 %token  TINYBLOB_SYM                  /* MYSQL */
 %token  TINYINT_SYM                   /* MYSQL */
 %token  TINYTEXT_SYN                  /* MYSQL */
 %token  TO_SYM                        /* SQL-2003-R */
 %token  TRAILING                      /* SQL-2003-R */
-%token<keyword> TRANSACTION_SYM
-%token<keyword> TRIGGERS_SYM
+%token<lexer.keyword> TRANSACTION_SYM
+%token<lexer.keyword> TRIGGERS_SYM
 %token  TRIGGER_SYM                   /* SQL-2003-R */
 %token  TRIM                          /* SQL-2003-N */
 %token  TRUE_SYM                      /* SQL-2003-R */
-%token<keyword> TRUNCATE_SYM
-%token<keyword> TYPES_SYM
-%token<keyword> TYPE_SYM              /* SQL-2003-N */
+%token<lexer.keyword> TRUNCATE_SYM
+%token<lexer.keyword> TYPES_SYM
+%token<lexer.keyword> TYPE_SYM              /* SQL-2003-N */
 %token  OBSOLETE_TOKEN_848            /* was:  UDF_RETURNS_SYM */
 %token  ULONGLONG_NUM
-%token<keyword> UNCOMMITTED_SYM       /* SQL-2003-N */
-%token<keyword> UNDEFINED_SYM
+%token<lexer.keyword> UNCOMMITTED_SYM       /* SQL-2003-N */
+%token<lexer.keyword> UNDEFINED_SYM
 %token  UNDERSCORE_CHARSET
-%token<keyword> UNDOFILE_SYM
-%token<keyword> UNDO_BUFFER_SIZE_SYM
+%token<lexer.keyword> UNDOFILE_SYM
+%token<lexer.keyword> UNDO_BUFFER_SIZE_SYM
 %token  UNDO_SYM                      /* FUTURE-USE */
-%token<keyword> UNICODE_SYM
-%token<keyword> UNINSTALL_SYM
+%token<lexer.keyword> UNICODE_SYM
+%token<lexer.keyword> UNINSTALL_SYM
 %token  UNION_SYM                     /* SQL-2003-R */
 %token  UNIQUE_SYM
-%token<keyword> UNKNOWN_SYM           /* SQL-2003-R */
+%token<lexer.keyword> UNKNOWN_SYM           /* SQL-2003-R */
 %token  UNLOCK_SYM
 %token  UNSIGNED_SYM                  /* MYSQL */
-%token<keyword> UNTIL_SYM
+%token<lexer.keyword> UNTIL_SYM
 %token  UPDATE_SYM                    /* SQL-2003-R */
-%token<keyword> UPGRADE_SYM
+%token<lexer.keyword> UPGRADE_SYM
 %token  USAGE                         /* SQL-2003-N */
-%token<keyword> USER                  /* SQL-2003-R */
-%token<keyword> USE_FRM
+%token<lexer.keyword> USER                  /* SQL-2003-R */
+%token<lexer.keyword> USE_FRM
 %token  USE_SYM
 %token  USING                         /* SQL-2003-R */
 %token  UTC_DATE_SYM
 %token  UTC_TIMESTAMP_SYM
 %token  UTC_TIME_SYM
-%token<keyword> VALIDATION_SYM        /* MYSQL */
+%token<lexer.keyword> VALIDATION_SYM        /* MYSQL */
 %token  VALUES                        /* SQL-2003-R */
-%token<keyword> VALUE_SYM             /* SQL-2003-R */
+%token<lexer.keyword> VALUE_SYM             /* SQL-2003-R */
 %token  VARBINARY_SYM                 /* SQL-2008-R */
 %token  VARCHAR_SYM                   /* SQL-2003-R */
-%token<keyword> VARIABLES
+%token<lexer.keyword> VARIABLES
 %token  VARIANCE_SYM
 %token  VARYING                       /* SQL-2003-R */
 %token  VAR_SAMP_SYM
-%token<keyword> VIEW_SYM              /* SQL-2003-N */
+%token<lexer.keyword> VIEW_SYM              /* SQL-2003-N */
 %token  VIRTUAL_SYM
-%token<keyword> WAIT_SYM
-%token<keyword> WARNINGS
-%token<keyword> WEEK_SYM
-%token<keyword> WEIGHT_STRING_SYM
+%token<lexer.keyword> WAIT_SYM
+%token<lexer.keyword> WARNINGS
+%token<lexer.keyword> WEEK_SYM
+%token<lexer.keyword> WEIGHT_STRING_SYM
 %token  WHEN_SYM                      /* SQL-2003-R */
 %token  WHERE                         /* SQL-2003-R */
 %token  WHILE_SYM
 %token  WITH                          /* SQL-2003-R */
 %token  OBSOLETE_TOKEN_893            /* was: WITH_CUBE_SYM */
 %token  WITH_ROLLUP_SYM               /* INTERNAL */
-%token<keyword> WITHOUT_SYM           /* SQL-2003-R */
-%token<keyword> WORK_SYM              /* SQL-2003-N */
-%token<keyword> WRAPPER_SYM
+%token<lexer.keyword> WITHOUT_SYM           /* SQL-2003-R */
+%token<lexer.keyword> WORK_SYM              /* SQL-2003-N */
+%token<lexer.keyword> WRAPPER_SYM
 %token  WRITE_SYM                     /* SQL-2003-N */
-%token<keyword> X509_SYM
-%token<keyword> XA_SYM
-%token<keyword> XID_SYM               /* MYSQL */
-%token<keyword> XML_SYM
+%token<lexer.keyword> X509_SYM
+%token<lexer.keyword> XA_SYM
+%token<lexer.keyword> XID_SYM               /* MYSQL */
+%token<lexer.keyword> XML_SYM
 %token  XOR
 %token  YEAR_MONTH_SYM
-%token<keyword> YEAR_SYM              /* SQL-2003-R */
+%token<lexer.keyword> YEAR_SYM              /* SQL-2003-R */
 %token  ZEROFILL_SYM                  /* MYSQL */
 
 /*
    Tokens from MySQL 8.0
 */
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
-%token<keyword> PERSIST_SYM           /* MYSQL */
-%token<keyword> ROLE_SYM              /* SQL-1999-R */
-%token<keyword> ADMIN_SYM             /* SQL-2003-N */
-%token<keyword> INVISIBLE_SYM
-%token<keyword> VISIBLE_SYM
+%token<lexer.keyword> PERSIST_SYM           /* MYSQL */
+%token<lexer.keyword> ROLE_SYM              /* SQL-1999-R */
+%token<lexer.keyword> ADMIN_SYM             /* SQL-2003-N */
+%token<lexer.keyword> INVISIBLE_SYM
+%token<lexer.keyword> VISIBLE_SYM
 %token  EXCEPT_SYM                    /* SQL-1999-R */
-%token<keyword> COMPONENT_SYM         /* MYSQL */
+%token<lexer.keyword> COMPONENT_SYM         /* MYSQL */
 %token  RECURSIVE_SYM                 /* SQL-1999-R */
 %token  GRAMMAR_SELECTOR_EXPR         /* synthetic token: starts single expr. */
 %token  GRAMMAR_SELECTOR_GCOL       /* synthetic token: starts generated col. */
@@ -1171,68 +1171,68 @@ void warn_about_deprecated_national(THD *thd)
 %token  JSON_OBJECTAGG                /* SQL-2015-R */
 %token  JSON_ARRAYAGG                 /* SQL-2015-R */
 %token  OF_SYM                        /* SQL-1999-R */
-%token<keyword> SKIP_SYM              /* MYSQL */
-%token<keyword> LOCKED_SYM            /* MYSQL */
-%token<keyword> NOWAIT_SYM            /* MYSQL */
+%token<lexer.keyword> SKIP_SYM              /* MYSQL */
+%token<lexer.keyword> LOCKED_SYM            /* MYSQL */
+%token<lexer.keyword> NOWAIT_SYM            /* MYSQL */
 %token  GROUPING_SYM                  /* SQL-2011-R */
-%token<keyword> PERSIST_ONLY_SYM      /* MYSQL */
-%token<keyword> HISTOGRAM_SYM         /* MYSQL */
-%token<keyword> BUCKETS_SYM           /* MYSQL */
-%token<keyword> OBSOLETE_TOKEN_930    /* was: REMOTE_SYM */
-%token<keyword> CLONE_SYM             /* MYSQL */
+%token<lexer.keyword> PERSIST_ONLY_SYM      /* MYSQL */
+%token<lexer.keyword> HISTOGRAM_SYM         /* MYSQL */
+%token<lexer.keyword> BUCKETS_SYM           /* MYSQL */
+%token<lexer.keyword> OBSOLETE_TOKEN_930    /* was: REMOTE_SYM */
+%token<lexer.keyword> CLONE_SYM             /* MYSQL */
 %token  CUME_DIST_SYM                 /* SQL-2003-R */
 %token  DENSE_RANK_SYM                /* SQL-2003-R */
-%token<keyword> EXCLUDE_SYM           /* SQL-2003-N */
+%token<lexer.keyword> EXCLUDE_SYM           /* SQL-2003-N */
 %token  FIRST_VALUE_SYM               /* SQL-2011-R */
-%token<keyword> FOLLOWING_SYM         /* SQL-2003-N */
+%token<lexer.keyword> FOLLOWING_SYM         /* SQL-2003-N */
 %token  GROUPS_SYM                    /* SQL-2011-R */
 %token  LAG_SYM                       /* SQL-2011-R */
 %token  LAST_VALUE_SYM                /* SQL-2011-R */
 %token  LEAD_SYM                      /* SQL-2011-R */
 %token  NTH_VALUE_SYM                 /* SQL-2011-R */
 %token  NTILE_SYM                     /* SQL-2011-R */
-%token<keyword> NULLS_SYM             /* SQL-2003-N */
-%token<keyword> OTHERS_SYM            /* SQL-2003-N */
+%token<lexer.keyword> NULLS_SYM             /* SQL-2003-N */
+%token<lexer.keyword> OTHERS_SYM            /* SQL-2003-N */
 %token  OVER_SYM                      /* SQL-2003-R */
 %token  PERCENT_RANK_SYM              /* SQL-2003-R */
-%token<keyword> PRECEDING_SYM         /* SQL-2003-N */
+%token<lexer.keyword> PRECEDING_SYM         /* SQL-2003-N */
 %token  RANK_SYM                      /* SQL-2003-R */
-%token<keyword> RESPECT_SYM           /* SQL_2011-N */
+%token<lexer.keyword> RESPECT_SYM           /* SQL_2011-N */
 %token  ROW_NUMBER_SYM                /* SQL-2003-R */
-%token<keyword> TIES_SYM              /* SQL-2003-N */
-%token<keyword> UNBOUNDED_SYM         /* SQL-2003-N */
+%token<lexer.keyword> TIES_SYM              /* SQL-2003-N */
+%token<lexer.keyword> UNBOUNDED_SYM         /* SQL-2003-N */
 %token  WINDOW_SYM                    /* SQL-2003-R */
 %token  EMPTY_SYM                     /* SQL-2016-R */
 %token  JSON_TABLE_SYM                /* SQL-2016-R */
-%token<keyword> NESTED_SYM            /* SQL-2016-N */
-%token<keyword> ORDINALITY_SYM        /* SQL-2003-N */
-%token<keyword> PATH_SYM              /* SQL-2003-N */
-%token<keyword> HISTORY_SYM           /* MYSQL */
-%token<keyword> REUSE_SYM             /* MYSQL */
-%token<keyword> SRID_SYM              /* MYSQL */
-%token<keyword> THREAD_PRIORITY_SYM   /* MYSQL */
-%token<keyword> RESOURCE_SYM          /* MYSQL */
+%token<lexer.keyword> NESTED_SYM            /* SQL-2016-N */
+%token<lexer.keyword> ORDINALITY_SYM        /* SQL-2003-N */
+%token<lexer.keyword> PATH_SYM              /* SQL-2003-N */
+%token<lexer.keyword> HISTORY_SYM           /* MYSQL */
+%token<lexer.keyword> REUSE_SYM             /* MYSQL */
+%token<lexer.keyword> SRID_SYM              /* MYSQL */
+%token<lexer.keyword> THREAD_PRIORITY_SYM   /* MYSQL */
+%token<lexer.keyword> RESOURCE_SYM          /* MYSQL */
 %token  SYSTEM_SYM                    /* SQL-2003-R */
-%token<keyword> VCPU_SYM              /* MYSQL */
-%token<keyword> MASTER_PUBLIC_KEY_PATH_SYM    /* MYSQL */
-%token<keyword> GET_MASTER_PUBLIC_KEY_SYM     /* MYSQL */
-%token<keyword> RESTART_SYM                   /* SQL-2003-N */
-%token<keyword> DEFINITION_SYM                /* MYSQL */
-%token<keyword> DESCRIPTION_SYM               /* MYSQL */
-%token<keyword> ORGANIZATION_SYM              /* MYSQL */
-%token<keyword> REFERENCE_SYM                 /* MYSQL */
-%token<keyword> ACTIVE_SYM                    /* MYSQL */
-%token<keyword> INACTIVE_SYM                  /* MYSQL */
+%token<lexer.keyword> VCPU_SYM              /* MYSQL */
+%token<lexer.keyword> MASTER_PUBLIC_KEY_PATH_SYM    /* MYSQL */
+%token<lexer.keyword> GET_MASTER_PUBLIC_KEY_SYM     /* MYSQL */
+%token<lexer.keyword> RESTART_SYM                   /* SQL-2003-N */
+%token<lexer.keyword> DEFINITION_SYM                /* MYSQL */
+%token<lexer.keyword> DESCRIPTION_SYM               /* MYSQL */
+%token<lexer.keyword> ORGANIZATION_SYM              /* MYSQL */
+%token<lexer.keyword> REFERENCE_SYM                 /* MYSQL */
+%token<lexer.keyword> ACTIVE_SYM                    /* MYSQL */
+%token<lexer.keyword> INACTIVE_SYM                  /* MYSQL */
 %token          LATERAL_SYM                   /* SQL-1999-R */
-%token<keyword> OPTIONAL_SYM                  /* MYSQL */
-%token<keyword> SECONDARY_SYM                 /* MYSQL */
-%token<keyword> SECONDARY_ENGINE_SYM          /* MYSQL */
-%token<keyword> SECONDARY_LOAD_SYM            /* MYSQL */
-%token<keyword> SECONDARY_UNLOAD_SYM          /* MYSQL */
-%token<keyword> RETAIN_SYM                    /* MYSQL */
-%token<keyword> OLD_SYM                       /* SQL-2003-R */
-%token<keyword> ENFORCED_SYM                  /* SQL-2015-N */
-%token<keyword> OJ_SYM                        /* ODBC */
+%token<lexer.keyword> OPTIONAL_SYM                  /* MYSQL */
+%token<lexer.keyword> SECONDARY_SYM                 /* MYSQL */
+%token<lexer.keyword> SECONDARY_ENGINE_SYM          /* MYSQL */
+%token<lexer.keyword> SECONDARY_LOAD_SYM            /* MYSQL */
+%token<lexer.keyword> SECONDARY_UNLOAD_SYM          /* MYSQL */
+%token<lexer.keyword> RETAIN_SYM                    /* MYSQL */
+%token<lexer.keyword> OLD_SYM                       /* SQL-2003-R */
+%token<lexer.keyword> ENFORCED_SYM                  /* SQL-2015-N */
+%token<lexer.keyword> OJ_SYM                        /* ODBC */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1264,7 +1264,7 @@ void warn_about_deprecated_national(THD *thd)
 %left EMPTY_FROM_CLAUSE
 %right INTO
 
-%type <lex_str>
+%type <lexer.lex_str>
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
         LEX_HOSTNAME ULONGLONG_NUM select_alias ident opt_ident ident_or_text
         role_ident role_ident_or_text
@@ -1438,7 +1438,7 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <cast_type> cast_type
 
-%type <keyword> ident_keyword label_keyword role_keyword
+%type <lexer.keyword> ident_keyword label_keyword role_keyword
         lvalue_keyword
         ident_keywords_unambiguous
         ident_keywords_ambiguous_1_roles_and_labels
@@ -1448,7 +1448,7 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <lex_user> user create_user alter_user user_func role
 
-%type <charset>
+%type <lexer.charset>
         opt_collate
         charset_name
         old_or_new_charset_name
@@ -1695,7 +1695,7 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <column_row_value_list_pair> insert_from_constructor
 
-%type <optimizer_hints> SELECT_SYM INSERT_SYM REPLACE_SYM UPDATE_SYM DELETE_SYM
+%type <lexer.optimizer_hints> SELECT_SYM INSERT_SYM REPLACE_SYM UPDATE_SYM DELETE_SYM
 
 %type <join_type> outer_join_type natural_join_type inner_join_type
 

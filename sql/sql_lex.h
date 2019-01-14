@@ -67,6 +67,7 @@
 #include "sql/item_subselect.h"  // chooser_compare_func_creator
 #include "sql/key_spec.h"        // KEY_CREATE_INFO
 #include "sql/lex_symbol.h"      // LEX_SYMBOL
+#include "sql/lexer_yystype.h"   // Lexer_yystype
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/opt_hints.h"
@@ -215,8 +216,6 @@ struct sys_var_with_base {
 
 #define YYSTYPE_IS_DECLARED 1
 union YYSTYPE;
-
-typedef YYSTYPE *LEX_YYSTYPE;
 
 /*
   If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
@@ -2064,11 +2063,11 @@ struct Value_or_default {
 enum class Explain_format_type { TRADITIONAL, JSON, TREE };
 
 union YYSTYPE {
+  Lexer_yystype lexer;  // terminal values from the lexical scanner
   /*
     Hint parser section (sql_hints.yy)
   */
   opt_hints_enum hint_type;
-  LEX_CSTRING hint_string;
   class PT_hint *hint;
   class PT_hint_list *hint_list;
   Hint_param_index_list hint_param_index_list;
@@ -2082,9 +2081,7 @@ union YYSTYPE {
   ulong ulong_num;
   ulonglong ulonglong_number;
   LEX_CSTRING lex_cstr;
-  LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
-  LEX_SYMBOL keyword;
   Table_ident *table;
   char *simple_string;
   Item *item;
@@ -2114,7 +2111,6 @@ union YYSTYPE {
     const char *dec;
   } precision;
   struct Cast_type cast_type;
-  const CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
   enum_mysql_timestamp_type date_time_type;
@@ -2227,7 +2223,6 @@ union YYSTYPE {
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
-  class PT_hint_list *optimizer_hints;
   enum alter_instance_action_enum alter_instance_action;
   class PT_create_index_stmt *create_index_stmt;
   class PT_table_constraint_def *table_constraint_def;
@@ -3408,7 +3403,7 @@ class Lex_input_stream {
   uint yytoklen;
 
   /** Interface with bison, value of the last token parsed. */
-  LEX_YYSTYPE yylval;
+  Lexer_yystype *yylval;
 
   /**
     LALR(2) resolution, look ahead token.
@@ -3419,7 +3414,7 @@ class Lex_input_stream {
   int lookahead_token;
 
   /** LALR(2) resolution, value of the look ahead token.*/
-  LEX_YYSTYPE lookahead_yylval;
+  Lexer_yystype *lookahead_yylval;
 
   /// Skip adding of the current token's digest since it is already added
   ///
@@ -3440,7 +3435,7 @@ class Lex_input_stream {
   /// help of skip_digest flag.
   bool skip_digest;
 
-  void add_digest_token(uint token, LEX_YYSTYPE yylval);
+  void add_digest_token(uint token, Lexer_yystype *yylval);
 
   void reduce_digest_token(uint token_left, uint token_right);
 
@@ -4358,12 +4353,6 @@ class Common_table_expr_parser_state : public Parser_state {
   PT_subquery *result;
 };
 
-extern sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
-                                          LEX_YYSTYPE yylval);
-
-extern sql_digest_state *digest_reduce_token(sql_digest_state *state,
-                                             uint token_left, uint token_right);
-
 struct st_lex_local : public LEX {
   static void *operator new(size_t size) noexcept { return sql_alloc(size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
@@ -4384,8 +4373,7 @@ extern bool lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);
-extern int MYSQLlex(union YYSTYPE *yylval, struct YYLTYPE *yylloc,
-                    class THD *thd);
+extern int MYSQLlex(union YYSTYPE *, struct YYLTYPE *, class THD *);
 
 extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 
