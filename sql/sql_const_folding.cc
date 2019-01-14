@@ -1015,7 +1015,7 @@ static bool analyze_field_constant(THD *thd, Item_field *f, Item **const_val,
 
                    !top_level_item        top_level_item
                 ------------------------------------------
-     nullable   |  IS NOT NULL        |   IS NOT NULL    |
+     nullable   |  IF(NULL, NULL, 1)  |   IS NOT NULL    |
     !nullable   |  TRUE (1)           |   COND_TRUE      |
                 ------------------------------------------
 
@@ -1053,7 +1053,17 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
       down_cast<Item_bool_func2 *>(*retcond)->is_top_level_item();
   if (always_true) {
     if (ref_or_field->maybe_null) {
-      i = new (thd->mem_root) Item_func_isnotnull(ref_or_field);
+      if (is_top_level) {
+        i = new (thd->mem_root) Item_func_isnotnull(ref_or_field);
+      } else {
+        Item *arg0 = new (thd->mem_root) Item_func_isnull(ref_or_field);
+        if (arg0 == nullptr) return true;
+        Item *arg1 = new (thd->mem_root) Item_null();
+        if (arg1 == nullptr) return true;
+        Item *arg2 = new (thd->mem_root) Item_int(1, 1);
+        if (arg2 == nullptr) return true;
+        i = new (thd->mem_root) Item_func_if(arg0, arg1, arg2);
+      }
     } else {
       if (is_top_level && !manifest_result) {
         *cond_value = Item::COND_TRUE;
