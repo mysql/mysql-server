@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -88,6 +88,20 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
       WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, var);
     }
   }
+  {
+    char var[160];
+    char *pvar;
+    size_t len = sizeof(var) - 1;
+
+    pvar = &var[0];
+    if (mysql_service_component_sys_variable_register->get_variable(
+            "mysql_server", "datadir", (void **)&pvar, &len)) {
+      WRITE_LOG("%s\n", "get_variable mysql_server.datadir failed.");
+    } else {
+      WRITE_LOG("%s\n", "get_variable mysql_server.datadir success.");
+    }
+  }
+
   WRITE_LOG("%s\n", "test_component_sys_var_str end of init:");
 
   fclose(outfile);

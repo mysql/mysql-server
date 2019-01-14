@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
+#include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/persisted_variable.h"  // Persisted_variables_cache
@@ -372,8 +373,8 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
   show->value = (char *)system_var;
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  value = get_one_variable(NULL, show, OPT_GLOBAL, show->type, NULL, &fromcs,
-                           val_buf, val_length);
+  value = get_one_variable(current_thd, show, OPT_GLOBAL, show->type, NULL,
+                           &fromcs, val_buf, val_length);
   mysql_mutex_unlock(&LOCK_global_system_variables);
   val_buf[*val_length] = '\0';
 
