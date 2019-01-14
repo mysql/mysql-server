@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -536,13 +536,26 @@ class List : public base_list {
   // For C++11 range-based for loops.
   using iterator = List_STL_Iterator<T>;
   iterator begin() { return iterator(first); }
-  iterator end() { return iterator(*last); }
+  iterator end() {
+    // If the list overlaps another list, last isn't actually
+    // the last element, and if so, we'd give a different result from
+    // List_iterator_fast.
+    DBUG_ASSERT((*last)->next == &end_of_list);
+
+    return iterator(*last);
+  }
 
   using const_iterator = List_STL_Iterator<const T>;
   const_iterator begin() const { return const_iterator(first); }
-  const_iterator end() const { return const_iterator(*last); }
+  const_iterator end() const {
+    DBUG_ASSERT((*last)->next == &end_of_list);
+    return const_iterator(*last);
+  }
   const_iterator cbegin() const { return const_iterator(first); }
-  const_iterator cend() const { return const_iterator(*last); }
+  const_iterator cend() const {
+    DBUG_ASSERT((*last)->next == &end_of_list);
+    return const_iterator(*last);
+  }
 };
 
 template <class T>
