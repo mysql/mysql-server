@@ -735,8 +735,8 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
 
   /*
     The lists with element wrappers are mem root allocated. The wrapped
-    instances are allocated dynamically in the DDSE, and will be owned
-    by the System_tables registry.
+    instances are allocated dynamically in the DDSE. These instances will be
+    owned by the System_tables registry by the end of this function.
   */
   List<const Object_table> ddse_tables;
   List<const Plugin_tablespace> ddse_tablespaces;
@@ -746,8 +746,29 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
     return true;
 
   /*
+    Iterate over the table definitions and add them to the System_tables
+    registry. The Object_table instances will later be used to execute
+    CREATE TABLE statements to actually create the tables.
+
+    If Object_table::is_hidden(), then we add the tables as type DDSE_PRIVATE
+    (not available neither for DDL nor DML), otherwise, we add them as type
+    DDSE_PROTECTED (available for DML, not for DDL).
+  */
+  List_iterator<const Object_table> table_it(ddse_tables);
+  const Object_table *ddse_table = nullptr;
+  while ((ddse_table = table_it++)) {
+    System_tables::Types table_type = System_tables::Types::DDSE_PROTECTED;
+    if (ddse_table->is_hidden()) {
+      table_type = System_tables::Types::DDSE_PRIVATE;
+    }
+    System_tables::instance()->add(MYSQL_SCHEMA_NAME.str, ddse_table->name(),
+                                   table_type, ddse_table);
+  }
+
+  /*
     Get the server version number from the DD tablespace header and verify
-    that we are allowed to upgrade from that version.
+    that we are allowed to upgrade from that version. The error handling is done
+    after adding the ddse tables into the system registry to avoid memory leaks.
   */
   if (!opt_initialize) {
     uint server_version = 0;
@@ -769,26 +790,6 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
         return true;
       }
     }
-  }
-
-  /*
-    Iterate over the table definitions and add them to the System_tables
-    registry. The Object_table instances will later be used to execute
-    CREATE TABLE statements to actually create the tables.
-
-    If Object_table::is_hidden(), then we add the tables as type DDSE_PRIVATE
-    (not available neither for DDL nor DML), otherwise, we add them as type
-    DDSE_PROTECTED (available for DML, not for DDL).
-  */
-  List_iterator<const Object_table> table_it(ddse_tables);
-  const Object_table *ddse_table = nullptr;
-  while ((ddse_table = table_it++)) {
-    System_tables::Types table_type = System_tables::Types::DDSE_PROTECTED;
-    if (ddse_table->is_hidden()) {
-      table_type = System_tables::Types::DDSE_PRIVATE;
-    }
-    System_tables::instance()->add(MYSQL_SCHEMA_NAME.str, ddse_table->name(),
-                                   table_type, ddse_table);
   }
 
   /*

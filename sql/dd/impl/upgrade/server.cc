@@ -856,9 +856,21 @@ bool upgrade_system_schemas(THD *thd) {
   Server_option_guard<bool> slow_log_guard(&opt_slow_log, false);
   Server_option_guard<bool> bin_log_guard(&thd->variables.sql_log_bin, false);
 
+  uint server_version = MYSQL_VERSION_ID;
+  bool exists_version = false;
+
+  if (dd::tables::DD_properties::instance().get(
+          thd, "MYSQLD_VERSION_UPGRADED", &server_version, &exists_version) ||
+      !exists_version)
+    if (dd::tables::DD_properties::instance().get(
+            thd, "MYSQLD_VERSION", &server_version, &exists_version) ||
+        !exists_version)
+      return true;
+
   MySQL_check check;
 
-  LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, MYSQL_VERSION_ID, "started");
+  LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
+         MYSQL_VERSION_ID, "started");
   bootstrap_error_handler.set_log_error(false);
   bool err =
       fix_mysql_tables(thd) || check_and_fix_sys_schema(thd) ||
@@ -875,8 +887,8 @@ bool upgrade_system_schemas(THD *thd) {
   bootstrap_error_handler.set_log_error(true);
 
   if (!err)
-    LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, MYSQL_VERSION_ID,
-           "completed");
+    LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
+           MYSQL_VERSION_ID, "completed");
 
   /*
    * During server startup, dd::reset_tables_and_tablespaces is called, which
