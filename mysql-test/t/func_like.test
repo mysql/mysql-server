@@ -247,3 +247,51 @@ SELECT 'aa' LIKE '%a' COLLATE gb2312_bin;
 SET NAMES DEFAULT;
 # Unicode wildcmp
 SELECT 'aa' LIKE CONVERT('%a' USING utf8);
+
+--echo #
+--echo # Bug#29175461: LIKE RESULT ERROR IF ESCAPE IS % OF WILDCARD CHARACTERS
+--echo #
+# Multibyte wildcmp
+SET NAMES big5;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# UCA wildcmp
+SET NAMES utf8mb4;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# GB18030 wildcmp
+SET NAMES gb18030;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# Binary wildcmp
+SET NAMES binary;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# 8bit wildcmp
+SET NAMES latin1;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# Multibyte binary wildcmp
+SET NAMES gb2312;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# Unicode wildcmp
+SET NAMES utf8;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+
+SET NAMES default;

@@ -5474,9 +5474,12 @@ longlong Item_func_like::val_int() {
     return 0;
   }
   null_value = 0;
+
   return my_wildcmp(cmp.cmp_collation.collation, res->ptr(),
                     res->ptr() + res->length(), res2->ptr(),
-                    res2->ptr() + res2->length(), escape, wild_one, wild_many)
+                    res2->ptr() + res2->length(), escape,
+                    (escape == wild_one) ? -1 : wild_one,
+                    (escape == wild_many) ? -1 : wild_many)
              ? 0
              : 1;
 }
@@ -5613,9 +5616,9 @@ bool Item_func_like::eval_escape_clause(THD *thd) {
         size_t cnvlen =
             copy_and_convert(&ch, 1, cs, escape_str_ptr, escape_str->length(),
                              escape_str->charset(), &errors);
-        escape = cnvlen ? ch : '\\';
+        escape = cnvlen ? static_cast<uchar>(ch) : '\\';
       } else
-        escape = escape_str_ptr ? *escape_str_ptr : '\\';
+        escape = escape_str_ptr ? static_cast<uchar>(*escape_str_ptr) : '\\';
     }
   } else
     escape = '\\';
