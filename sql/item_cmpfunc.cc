@@ -4824,7 +4824,8 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     if (remove_condition) continue;
 
     /*
-      Do this optimization only for first execution.
+      Do this optimization if fix_fields is allowed to change the condition
+      and if this is the first execution.
       Check if the const item does not contain param's, SP args etc.  We also
       cannot optimize conditions if its a view. The condition has to be a
       top_level_item to get optimized as they can have only two return values,
@@ -4834,7 +4835,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
       in the call to init_ftfuncs() from JOIN::reset.
       TODO: Lift this restriction once init_ft_funcs gets moved to JOIN::exec
     */
-    if (select->first_execution && item->const_item() &&
+    if (ref != NULL && select->first_execution && item->const_item() &&
         !item->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
                     NULL) &&
         !thd->lex->is_view_context_analysis() && is_top_level_item() &&
