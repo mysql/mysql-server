@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,6 @@ usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/connection_control.so
 # support files
 usr/share/mysql-@MYSQL_BASE_VERSION@/dictionary.txt
-usr/share/mysql-@MYSQL_BASE_VERSION@/magic
 usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-log-rotate
 # localized error msgs
 usr/share/mysql-@MYSQL_BASE_VERSION@/*/errmsg.sys
