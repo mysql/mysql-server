@@ -22,6 +22,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+/*
+ * !! DO NOT ADD ANYTHING TO THIS FILE !!
+ *
+ * Header files should be included in source files that needs them.
+ * That is, follow IWYU (include-what-you-use).
+ *
+ * New symbols should be added in other relevant header files.
+ */
+
 #ifndef NDB_GLOBAL_H
 #define NDB_GLOBAL_H
 
