@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -33,8 +33,7 @@
 #include "mysql_utils_jtie.hpp"
 #include "mgmapi_jtie.hpp"
 #include "ndbapi_jtie.hpp"
-#include <mutex>
-
+#include "NdbMutex.h"
 
 // ---------------------------------------------------------------------------
 // API Global Symbol Definitions & Template Instantiations
@@ -169,13 +168,13 @@ JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(NdbTransaction::ExecType)
 JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(NdbTransaction::CommitStatusType)
 
 
-class JTie_NdbInit
+class JTie_NdbInit : protected NdbLockable
 {
 public:
 
   int initOnLoad()
   {
-    m_mutex.lock();
+    Guard guard(m_mutex);
     if(!is_init)
     {
       VERBOSE("initializing the NDBAPI resources ...");
@@ -192,7 +191,6 @@ public:
       return 0;
       is_init = true;
     }
-    m_mutex.unlock();
     return 0;
   }
 
@@ -204,11 +202,10 @@ public:
 
 private:
   static bool is_init;
-  static std::mutex m_mutex;
 
   void uninitOnUnLoad()
   {
-    m_mutex.lock();
+    Guard guard(m_mutex);
     if(is_init)
     {
       VERBOSE("releasing the MySQL Utilities resources ...");
@@ -220,13 +217,11 @@ private:
       VERBOSE("... released NDBAPI resources");
       is_init = false;
     }
-    m_mutex.unlock();
   }
 
 };
 
 bool JTie_NdbInit::is_init = false;
-std::mutex JTie_NdbInit::m_mutex;
 static JTie_NdbInit ndbInitHelper;
 
 // ---------------------------------------------------------------------------
