@@ -227,25 +227,36 @@ int AggregateIterator::Read() {
   // get the wrong version.
   {
     Switch_ref_item_slice slice_switch(m_join, m_output_slice);
-    if (copy_fields(m_temp_table_param, m_join->thd)) {
-      return 1;
-    }
 
     // m_temp_table_param->items_to_copy, copied through copy_funcs(),
     // can contain two distinct kinds of Items:
     //
-    //  - Group expressions, similar to the ones we just in copy_fields(),
-    //    e.g. GROUP BY f1 + 1. It does not matter whether we copy them here
-    //    or just before outputting the row; if we copy them here, they will
-    //    refer to the Item_fields we just copied from, and if we copy them
-    //    later, they will refer to the Item_fields we just copied _to_.
-    //    (This is done through the slice system.)
+    //  - Group expressions, similar to the ones we are copying in copy_fields()
+    //    (by way of copy_fields_and_funcs()), e.g. GROUP BY f1 + 1. If we are
+    //    materializing, and setup_copy_fields() was never called (which happens
+    //    when we materialize due to ORDER BY and set up copy_funcs() via
+    //    ConvertItemsToCopy -- the difference is largely due to historical
+    //    accident), these expressions will point to the input fields, whose
+    //    values are lost when we start the next group. If, on the other hand,
+    //    setup_copy_fields() _was_ called, we can copy them later, and due to
+    //    the slice system, they'll refer to the Item_fields we just copied
+    //    _to_, but we can't rely on that.
     //  - When outputting to a materialized table only: Non-group expressions.
-    //    We can _not_ copy them here, since they can refer to aggregates that
-    //    are not ready before output time; e.g., SUM(f1) + 1.
+    //    When we copy them here, they can refer to aggregates that
+    //    are not ready before output time (e.g., SUM(f1) + 1), and will thus
+    //    get the wrong value.
     //
-    // Thus, we need to delay calling copy_funcs() until we actually return
-    // rows.
+    // We solve the case of #1 by calling copy_funcs() here (through
+    // copy_fields_and_funcs()), and then the case of #2 by calling copy_funcs()
+    // again later for only those expressions containing aggregates, once those
+    // aggregates have their final value. This works even for cases that
+    // reference group expressions (e.g. SELECT f1 + SUM(f2) GROUP BY f1),
+    // because setup_fields() has done special splitting of such expressions and
+    // replaced the group fields by Item_refs pointing to saved copies of them.
+    // It's complicated, and it's really a problem we brought on ourselves.
+    if (copy_fields_and_funcs(m_temp_table_param, m_join->thd)) {
+      return 1;
+    }
 
     (void)update_item_cache_if_changed(m_join->group_fields);
     // TODO: Implement rollup.
@@ -268,7 +279,8 @@ int AggregateIterator::Read() {
       copy_sum_funcs(m_join->sum_funcs,
                      m_join->sum_funcs_end[m_join->send_group_parts]);
       if (m_temp_table_param->items_to_copy != nullptr) {
-        if (copy_funcs(m_temp_table_param, m_join->thd)) {
+        if (copy_funcs(m_temp_table_param, m_join->thd,
+                       CFT_DEPENDING_ON_AGGREGATE)) {
           return 1;
         }
       }
@@ -288,7 +300,8 @@ int AggregateIterator::Read() {
       copy_sum_funcs(m_join->sum_funcs,
                      m_join->sum_funcs_end[m_join->send_group_parts]);
       if (m_temp_table_param->items_to_copy != nullptr) {
-        if (copy_funcs(m_temp_table_param, m_join->thd)) {
+        if (copy_funcs(m_temp_table_param, m_join->thd,
+                       CFT_DEPENDING_ON_AGGREGATE)) {
           return 1;
         }
       }
