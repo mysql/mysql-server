@@ -94,10 +94,15 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 
 int my_close(File fd, myf MyFlags) {
   int err;
+  char *name = NULL;
   DBUG_ENTER("my_close");
   DBUG_PRINT("my", ("fd: %d  MyFlags: %d", fd, MyFlags));
 
-  mysql_mutex_lock(&THR_LOCK_open);
+  if ((uint)fd < my_file_limit && my_file_info[fd].type != UNOPEN) {
+    name = my_file_info[fd].name;
+    my_file_info[fd].type = UNOPEN;
+    my_file_info[fd].name = NULL;
+  }
 #ifndef _WIN32
   do {
     err = close(fd);
@@ -110,16 +115,14 @@ int my_close(File fd, myf MyFlags) {
     set_my_errno(errno);
     if (MyFlags & (MY_FAE | MY_WME)) {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_BADCLOSE, MYF(0), my_filename(fd), my_errno(),
+      my_error(EE_BADCLOSE, MYF(0), name, my_errno(),
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
+  } else
+    my_file_opened--;
+  if (name) {
+    my_free(name);
   }
-  if ((uint)fd < my_file_limit && my_file_info[fd].type != UNOPEN) {
-    my_free(my_file_info[fd].name);
-    my_file_info[fd].type = UNOPEN;
-  }
-  my_file_opened--;
-  mysql_mutex_unlock(&THR_LOCK_open);
   DBUG_RETURN(err);
 } /* my_close */
 
@@ -150,20 +153,16 @@ File my_register_filename(File fd, const char *FileName,
 #if defined(_WIN32)
       set_my_errno(EMFILE);
 #else
-      mysql_mutex_lock(&THR_LOCK_open);
       my_file_opened++;
-      mysql_mutex_unlock(&THR_LOCK_open);
       DBUG_RETURN(fd); /* safeguard */
 #endif
     } else {
       dup_filename = my_strdup(key_memory_my_file_info, FileName, MyFlags);
       if (dup_filename != NULL) {
-        mysql_mutex_lock(&THR_LOCK_open);
         my_file_info[fd].name = dup_filename;
         my_file_opened++;
         my_file_total_opened++;
         my_file_info[fd].type = type_of_file;
-        mysql_mutex_unlock(&THR_LOCK_open);
         DBUG_PRINT("exit", ("fd: %d", fd));
         DBUG_RETURN(fd);
       }

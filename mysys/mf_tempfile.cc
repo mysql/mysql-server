@@ -147,9 +147,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   }
 #endif
   if (file >= 0) {
-    mysql_mutex_lock(&THR_LOCK_open);
     my_tmp_file_created++;
-    mysql_mutex_unlock(&THR_LOCK_open);
   }
   DBUG_RETURN(file);
 }
