@@ -472,7 +472,7 @@ File my_win_fileno(FILE *file) {
 FILE *my_win_fopen(const char *filename, const char *type) {
   FILE *file;
   int flags = 0;
-  DBUG_ENTER("my_win_open");
+  DBUG_ENTER("my_win_fopen");
 
   /*
     If we are not creating, then we need to use my_access to make sure
@@ -520,7 +520,7 @@ FILE *my_win_fdopen(File fd, const char *type) {
 int my_win_fclose(FILE *file) {
   File fd;
 
-  DBUG_ENTER("my_win_close");
+  DBUG_ENTER("my_win_fclose");
   fd = my_fileno(file);
   if (fd < 0) DBUG_RETURN(-1);
   if (fclose(file) < 0) DBUG_RETURN(-1);
