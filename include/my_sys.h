@@ -671,12 +671,6 @@ extern char *my_filename(File fd);
 extern MY_MODE get_file_perm(ulong perm_flags);
 extern bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
 
-#ifdef EXTRA_DEBUG
-void my_print_open_files(void);
-#else
-#define my_print_open_files()
-#endif
-
 extern bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
 extern char *my_tmpdir(MY_TMPDIR *tmpdir);
 extern void free_tmpdir(MY_TMPDIR *tmpdir);

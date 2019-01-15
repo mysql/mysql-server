@@ -179,6 +179,7 @@ void my_end(int infoflag) {
     operational, so we cannot use DBUG_RETURN.
   */
 
+  ulong file_opened = 0, stream_opened = 0;
   FILE *info_file = (DBUG_FILE ? DBUG_FILE : stderr);
 
   if (!my_init_done) return;
@@ -186,13 +187,31 @@ void my_end(int infoflag) {
   if ((infoflag & MY_CHECK_ERROR) || (info_file != stderr))
 
   { /* Test if some file is left open */
-    if (my_file_opened | my_stream_opened) {
-      char ebuff[512];
-      snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING), my_file_opened,
-               my_stream_opened);
+    uint i;
+    char ebuff[512];
+    for (i = 0; i < my_file_limit; i++) {
+      if (my_file_info[i].type != UNOPEN) {
+#ifdef EXTRA_DEBUG
+        my_message_local(INFORMATION_LEVEL, EE_FILE_NOT_CLOSED,
+                         my_file_info[i].name, i);
+#endif
+        switch (my_file_info[i].type)
+        {
+          case STREAM_BY_FOPEN:
+          case STREAM_BY_FDOPEN:
+            stream_opened++;
+            break;
+          default:
+            file_opened++;
+        }
+      }
+
+    }
+    if (file_opened || stream_opened) {
+      snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING), file_opened,
+               stream_opened);
       my_message_stderr(EE_OPEN_WARNING, ebuff, MYF(0));
       DBUG_PRINT("error", ("%s", ebuff));
-      my_print_open_files();
     }
   }
   my_error_unregister_all();

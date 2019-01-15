@@ -182,19 +182,3 @@ File my_register_filename(File fd, const char *FileName,
   }
   DBUG_RETURN(-1);
 }
-
-#ifdef EXTRA_DEBUG
-
-void my_print_open_files(void) {
-  if (my_file_opened | my_stream_opened) {
-    uint i;
-    for (i = 0; i < my_file_limit; i++) {
-      if (my_file_info[i].type != UNOPEN) {
-        my_message_local(INFORMATION_LEVEL, EE_FILE_NOT_CLOSED,
-                         my_file_info[i].name, i);
-      }
-    }
-  }
-}
-
-#endif
