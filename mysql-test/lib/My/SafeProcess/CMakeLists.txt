@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,21 +20,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF (INSTALL_MYSQLTESTDIR)
-  SET(INSTALL_ARGS
-    DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess"
-    COMPONENT Test
-    )
-ENDIF()
-
 IF (WIN32)
-  MYSQL_ADD_EXECUTABLE(my_safe_process safe_process_win.cc ${INSTALL_ARGS}
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  MYSQL_ADD_EXECUTABLE(my_safe_kill safe_kill_win.cc ${INSTALL_ARGS}
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  MYSQL_ADD_EXECUTABLE(mysqltest_safe_process safe_process_win.cc
+    COMPONENT Test)
+  MYSQL_ADD_EXECUTABLE(mysqltest_safe_kill safe_kill_win.cc
+    COMPONENT Test)
 ELSE()
-  MYSQL_ADD_EXECUTABLE(my_safe_process safe_process.cc ${INSTALL_ARGS}
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  MYSQL_ADD_EXECUTABLE(mysqltest_safe_process safe_process.cc
+    COMPONENT Test)
 ENDIF()
 
 IF(LINUX AND HAVE_ASAN)
@@ -46,7 +39,7 @@ ENDIF()
 # As a workaround, do LD_PRELOAD=/lib64/libtirpc.so
 # For dynamically linked libasan (default for gcc), we must preload that as well
 IF(HAVE_ASAN AND TIRPC_FOUND)
-  TARGET_INCLUDE_DIRECTORIES(my_safe_process
+  TARGET_INCLUDE_DIRECTORIES(mysqltest_safe_process
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
   ADD_CUSTOM_COMMAND(
@@ -70,23 +63,11 @@ IF(HAVE_ASAN AND TIRPC_FOUND)
     -P ${CMAKE_CURRENT_SOURCE_DIR}/read_ldd_output.cmake
     )
 
-  ADD_DEPENDENCIES(my_safe_process extract_asan_library_name)
+  ADD_DEPENDENCIES(mysqltest_safe_process extract_asan_library_name)
 ENDIF()
 
-IF (NOT INSTALL_MYSQLTESTDIR)
-  RETURN()
-ENDIF()
-
-INSTALL(TARGETS my_safe_process
-  DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test
-)
-
-IF(WIN32)
-  INSTALL(TARGETS my_safe_kill
+IF(INSTALL_MYSQLTESTDIR)
+  INSTALL(FILES Base.pm
     DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test
-  )
+    )
 ENDIF()
-
-INSTALL(FILES Base.pm
-  DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test
-)
