@@ -700,6 +700,10 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
       case CFT_WF:
         do_copy = item->m_is_window_function;
         break;
+      case CFT_DEPENDING_ON_AGGREGATE:
+        do_copy =
+            item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM;
+        break;
     }
 
     if (do_copy) {

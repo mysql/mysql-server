@@ -3807,3 +3807,31 @@ i	SUM(j)
 6	2
 DROP TABLE t1;
 # End of tests for WL#8693
+#
+# Bug #29214970: WRONG RESULTS FOR GROUP EXPRESSIONS WITH THE ITERATOR EXECUTOR
+#
+CREATE TABLE t1 (
+f1 INTEGER,
+f2 INTEGER,
+KEY k1 ( f1 )
+);
+INSERT INTO t1 VALUES ( 1, 1 );
+INSERT INTO t1 VALUES ( 1, 2 );
+INSERT INTO t1 VALUES ( 1, 3 );
+INSERT INTO t1 VALUES ( 2, 1 );
+INSERT INTO t1 VALUES ( 2, 2 );
+INSERT INTO t1 VALUES ( 3, 5 );
+EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
+EXPLAIN
+-> Sort: <temporary>.x
+    -> Table scan on <temporary>
+        -> Temporary table
+            -> Group aggregate: count(distinct t1.f2)
+                -> Index scan on t1 using k1
+
+SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
+f1	f1 + 1	x
+3	4	1
+2	3	2
+1	2	3
+DROP TABLE t1;

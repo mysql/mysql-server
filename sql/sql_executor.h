@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -336,7 +336,15 @@ enum Copy_func_type {
   /**
     Copies all window functions.
   */
-  CFT_WF
+  CFT_WF,
+  /**
+    Copies all items that are expressions containing aggregates, but are not
+    themselves aggregates. Such expressions are typically split into their
+    constituent parts during setup_fields(), such that the parts that are
+    _not_ aggregates are replaced by Item_refs that point into a slice.
+    See AggregateIterator::Read() for more details.
+   */
+  CFT_DEPENDING_ON_AGGREGATE
 };
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
