@@ -191,7 +191,10 @@ int my_fclose(FILE *fd, myf MyFlags) {
   mysql_mutex_lock(&THR_LOCK_open);
   file = my_fileno(fd);
 #ifndef _WIN32
-  err = fclose(fd);
+  do
+  {
+    err = fclose(fd);
+  } while (err == -1 && errno == EINTR);
 #else
   err = my_win_fclose(fd);
 #endif
