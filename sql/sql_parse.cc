@@ -103,6 +103,7 @@
 #include "sql/parse_location.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h"
+#include "sql/parser_yystype.h"
 #include "sql/persisted_variable.h"
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
