@@ -51,6 +51,9 @@ SET SESSION sql_log_bin= 1;
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
 
+# Will be used to hide the version of the server later on.
+--let $mysql_version= `SELECT SUBSTRING_INDEX(VERSION(), '-', 1)`
+
 --echo ###############################################################################
 --echo # 2. Decrease communication_protocol.
 --let $rpl_connection_name= server1
@@ -144,13 +147,16 @@ SELECT group_replication_set_communication_protocol("5.7.14a");
 
 # Out of [5.7.14, this-mysql-version] domain
 # We are using 99.99.99 as a placeholder for a version > than this-mysql-version
+--replace_result $mysql_version MYSQL_VERSION
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_set_communication_protocol("5.7.13");
 
+--replace_result $mysql_version MYSQL_VERSION
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_set_communication_protocol("99.99.99");
 
 # Exercise error handling in the main UDF function.
+--replace_result $mysql_version MYSQL_VERSION
 SELECT group_replication_set_communication_protocol(s) FROM t1;
 
 # Stop GR on server2

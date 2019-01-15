@@ -63,9 +63,9 @@ ERROR HY000: Can't initialize function 'group_replication_set_communication_prot
 SELECT group_replication_set_communication_protocol("5.7.14a");
 ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; '5.7.14a' is not version string argument with format major.minor.patch
 SELECT group_replication_set_communication_protocol("5.7.13");
-ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; 5.7.13 is not between 5.7.14 and 8.0.15
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; 5.7.13 is not between 5.7.14 and MYSQL_VERSION
 SELECT group_replication_set_communication_protocol("99.99.99");
-ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; 99.99.99 is not between 5.7.14 and 8.0.15
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; 99.99.99 is not between 5.7.14 and MYSQL_VERSION
 SELECT group_replication_set_communication_protocol(s) FROM t1;
 group_replication_set_communication_protocol(s)
 UDF takes one version string argument with format major.minor.patch
@@ -73,8 +73,8 @@ UDF takes one version string argument with format major.minor.patch
 '5' is not version string argument with format major.minor.patch
 '5.7' is not version string argument with format major.minor.patch
 '5.7.14a' is not version string argument with format major.minor.patch
-5.7.13 is not between 5.7.14 and 8.0.15
-99.99.99 is not between 5.7.14 and 8.0.15
+5.7.13 is not between 5.7.14 and MYSQL_VERSION
+99.99.99 is not between 5.7.14 and MYSQL_VERSION
 [connection server2]
 include/stop_group_replication.inc
 ###############################################################################
