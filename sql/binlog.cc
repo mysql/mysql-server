@@ -3290,6 +3290,12 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     }
 
     /*
+      Adjust the pos to the correct starting offset of an event after the
+      specified position if it is an invalid starting offset.
+    */
+    pos = binlog_file_reader.position();
+
+    /*
       For 'in-active' binlog file, it is safe to read all events in it. But
       for 'active' binlog file, it is only safe to read the events before
       get_binlog_end_pos().
