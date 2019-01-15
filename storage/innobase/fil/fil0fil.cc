@@ -2932,6 +2932,17 @@ static bool fil_space_free(space_id_t space_id, bool x_latched) {
   return (true);
 }
 
+#ifdef UNIV_HOTBACKUP
+/** Frees a space object from the tablespace memory cache.
+Closes a tablespaces' files but does not delete them.
+There must not be any pending i/o's or flushes on the files.
+@param[in]	space_id	Tablespace ID
+@return true if success */
+bool meb_fil_space_free(space_id_t space_id) {
+  return fil_space_free(space_id, false);
+}
+#endif /* UNIV_HOTBACKUP */
+
 /** Create a space memory object and put it to the fil_system hash table.
 The tablespace name is independent from the tablespace file-name.
 Error messages are issued to the server log.
@@ -6297,6 +6308,11 @@ void Fil_shard::meb_extend_tablespaces_to_stored_len() {
   for (auto &elem : m_spaces) {
     auto space = elem.second;
 
+    if (space->purpose == FIL_TYPE_LOG) {
+      /* ignore redo log tablespace */
+      continue;
+    }
+
     ut_a(space->purpose == FIL_TYPE_TABLESPACE);
 
     /* No need to protect with a mutex, because this is
@@ -7165,7 +7181,6 @@ dberr_t Fil_shard::get_file_for_io(const IORequest &req_type,
   return (DB_ERROR);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Read or write log file data synchronously.
 @param[in]	type		IO context
 @param[in]	page_id		page id
@@ -7192,6 +7207,7 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   ut_ad(byte_offset < UNIV_PAGE_SIZE);
   ut_ad(UNIV_PAGE_SIZE == (ulong)(1 << UNIV_PAGE_SIZE_SHIFT));
 
+#ifndef UNIV_HOTBACKUP
   if (req_type.is_read()) {
     srv_stats.data_read.add(len);
 
@@ -7199,6 +7215,7 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
     ut_ad(!srv_read_only_mode);
     srv_stats.data_written.add(len);
   }
+#endif
 
   fil_space_t *space = get_space_by_id(page_id.space());
 
@@ -7256,7 +7273,6 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
 
   return (err);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Read or write data. This operation could be asynchronous (aio).
 @param[in]	type		IO context
@@ -7526,7 +7542,6 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   return (err);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Read or write redo log data (synchronous buffered IO).
 @param[in]	type		IO context
 @param[in]	page_id		where to read or write
@@ -7552,6 +7567,7 @@ dberr_t fil_redo_io(const IORequest &type, const page_id_t &page_id,
 #endif /* _WIN32  || WIN_ASYNC_IO*/
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Waits for an AIO operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
 into segments (see os0file.cc for more info). The thread specifies which

@@ -1364,20 +1364,28 @@ log scanned.
 lsn
 @param[in,out]	scanned_checkpoint_no	4 lowest bytes of the highest scanned
 checkpoint number so far
-@param[out]	scanned_checkpoint_no	highest block no in scanned buffer.
+@param[out]	block_no	highest block no in scanned buffer.
 @param[out]	n_bytes_scanned		how much we were able to scan, smaller
-than buf_len if log data ended here */
+than buf_len if log data ended here
++@param[out]	has_encrypted_log	set true, if buffer contains encrypted
++redo log, set false otherwise */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
                       ulint *scanned_checkpoint_no, ulint *block_no,
-                      ulint *n_bytes_scanned) {
+                      ulint *n_bytes_scanned, bool *has_encrypted_log) {
   *n_bytes_scanned = 0;
+  *has_encrypted_log = false;
 
   for (auto log_block = buf; log_block < buf + buf_len;
        log_block += OS_FILE_LOG_BLOCK_SIZE) {
     ulint no = log_block_get_hdr_no(log_block);
+    bool is_encrypted = log_block_get_encrypt_bit(log_block);
+
+    if (is_encrypted) {
+      *has_encrypted_log = true;
+    }
 
     if (no != log_block_convert_lsn_to_no(*scanned_lsn) ||
-        !log_block_checksum_is_ok(log_block)) {
+        (!is_encrypted && !log_block_checksum_is_ok(log_block))) {
       ib::trace_2() << "Scanned lsn: " << *scanned_lsn << " header no: " << no
                     << " converted no: "
                     << log_block_convert_lsn_to_no(*scanned_lsn)
@@ -3425,6 +3433,82 @@ bool meb_scan_log_recs(
 
   return (finished);
 }
+
+#ifdef UNIV_HOTBACKUP
+bool meb_read_log_encryption(IORequest &encryption_request,
+                             byte *encryption_info)
+{
+  space_id_t log_space_id = dict_sys_t::s_log_space_first_id;
+  const page_id_t page_id(log_space_id, 0);
+  byte *log_block_buf_ptr;
+  byte *log_block_buf;
+  byte key[ENCRYPTION_KEY_LEN];
+  byte iv[ENCRYPTION_KEY_LEN];
+  fil_space_t *space = fil_space_get(log_space_id);
+  dberr_t err;
+
+  log_block_buf_ptr =
+      static_cast<byte *>(ut_malloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
+  memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
+  log_block_buf =
+      static_cast<byte *>(ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+
+  if (encryption_info != nullptr) {
+    /* encryption info was given as a parameter */
+    memcpy(log_block_buf + LOG_HEADER_CREATOR_END, encryption_info,
+           ENCRYPTION_INFO_MAX_SIZE);
+  } else {
+    /* encryption info was not given as a parameter, read it from the
+       header of "ib_logfile0" */
+
+    err = fil_redo_io(IORequestLogRead, page_id, univ_page_size,
+                      LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+                      OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
+    ut_a(err == DB_SUCCESS);
+  }
+
+  if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, ENCRYPTION_KEY_MAGIC_V3,
+             ENCRYPTION_MAGIC_SIZE) == 0) {
+    encryption_request = IORequestLogRead;
+
+    if (Encryption::decode_encryption_info(
+            key, iv, log_block_buf + LOG_HEADER_CREATOR_END)) {
+      /* If redo log encryption is enabled, set the
+      space flag. Otherwise, we just fill the encryption
+      information to space object for decrypting old
+      redo log blocks. */
+      FSP_FLAGS_SET_ENCRYPTION(space->flags);
+      err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+
+      if (err == DB_SUCCESS) {
+        ib::info(ER_IB_MSG_1239) << "Read redo log encryption"
+                                 << " metadata successful.";
+      } else {
+        ut_free(log_block_buf_ptr);
+        ib::error(ER_IB_MSG_1240) << "Can't set redo log tablespace"
+                                  << " encryption metadata.";
+        return (false);
+      }
+
+      encryption_request.encryption_key(space->encryption_key,
+                                        space->encryption_klen,
+                                        space->encryption_iv);
+
+      encryption_request.encryption_algorithm(Encryption::AES);
+    } else {
+      ut_free(log_block_buf_ptr);
+      ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
+                                   " information in log file header, please"
+                                   " check if keyring plugin loaded and"
+                                   " the key file exists.";
+      return (false);
+    }
+  }
+
+  ut_free(log_block_buf_ptr);
+  return (true);
+}
+#endif  /* UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
 /** Reads a specified log segment to a buffer.
