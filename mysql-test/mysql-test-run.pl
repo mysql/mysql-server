@@ -375,7 +375,7 @@ sub main {
   close(FH);
 
   # --help will not reach here, so now it's safe to assume we have binaries
-  My::SafeProcess::find_bin();
+  My::SafeProcess::find_bin($bindir);
 
   if ($opt_gcov) {
     gcov_prepare($basedir);

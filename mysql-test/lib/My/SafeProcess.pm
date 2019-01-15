@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -66,16 +66,8 @@ my %running;
 my $_verbose   = 0;
 my $start_exit = 0;
 
-my $bindir;
 my $safe_kill;
 my @safe_process_cmd;
-if (defined $ENV{MTR_BINDIR}) {
-  # This is an out-of-source build. Build directory
-  # is given in MTR_BINDIR env.variable
-  $bindir = $ENV{MTR_BINDIR} . "/mysql-test";
-} else {
-  $bindir = ".";
-}
 
 END {
   # Kill any children still running
@@ -97,18 +89,20 @@ sub is_child {
 
 # Find the safe process binary or script
 sub find_bin {
+  my ($bindir) = @_;
   if (IS_WIN32PERL or IS_CYGWIN) {
-    # Use my_safe_process.exe
-    my $exe = my_find_bin($bindir, [ "lib/My/SafeProcess", "My/SafeProcess" ],
-                          "my_safe_process");
+    # Use mysqltest_safe_process.exe
+    my $exe = my_find_bin($bindir, [ "runtime_output_directory", "bin" ],
+                          "mysqltest_safe_process");
     push(@safe_process_cmd, $exe);
 
-    # Use my_safe_kill.exe
-    $safe_kill = my_find_bin($bindir, "lib/My/SafeProcess", "my_safe_kill");
+    # Use mysqltest_safe_kill.exe
+    $safe_kill = my_find_bin($bindir,  [ "runtime_output_directory", "bin" ],
+			     "mysqltest_safe_kill");
   } else {
-    # Use my_safe_process
-    my $exe = my_find_bin($bindir, [ "lib/My/SafeProcess", "My/SafeProcess" ],
-                          "my_safe_process");
+    # Use mysqltest_safe_process
+    my $exe = my_find_bin($bindir,  [ "runtime_output_directory", "bin" ],
+                          "mysqltest_safe_process");
     push(@safe_process_cmd, $exe);
   }
 }
@@ -270,7 +264,7 @@ sub _winpid ($) {
   return $pid unless IS_CYGWIN;
 
   # In cygwin, the pid is the pseudo process ->
-  # get the real winpid of my_safe_process
+  # get the real winpid of mysqltest_safe_process
   return Cygwin::pid_to_winpid($pid);
 }
 
