@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
-# Test#1: Basic check that there are 51 GR variables.
-include/assert.inc [There are 51 GR variables at present.]
+# Test#1: Basic check that there are 50 GR variables.
+include/assert.inc [There are 50 GR variables at present.]
 
 # Test#2: Verify group replication related variables at GLOBAL scope.
 SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
@@ -85,8 +85,6 @@ SET @@SESSION.group_replication_member_expel_timeout= 120;
 ERROR HY000: Variable 'group_replication_member_expel_timeout' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_communication_max_message_size= 2048;
 ERROR HY000: Variable 'group_replication_communication_max_message_size' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@SESSION.group_replication_communication_protocol_join= "";
-ERROR HY000: Variable 'group_replication_communication_protocol_join' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_autorejoin_tries = 3;
 ERROR HY000: Variable 'group_replication_autorejoin_tries' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_message_cache_size= 10000000000;
@@ -250,9 +248,6 @@ include/assert.inc [Verify GLOBAL value of group_replication_communication_max_m
 include/assert.inc [Verify GLOBAL value of group_replication_communication_max_message_size]
 include/assert.inc [Verify SESSION value of group_replication_communication_max_message_size]
 include/assert.inc [Verify SESSION value of group_replication_communication_max_message_size]
-include/assert.inc [Verify GLOBAL value of group_replication_communication_protocol_join]
-include/assert.inc [Verify GLOBAL value of group_replication_communication_protocol_join]
-include/assert.inc [Verify SESSION value of group_replication_communication_protocol_join]
 include/assert.inc [Verify GLOBAL value of group_replication_autorejoin_tries]
 include/assert.inc [Verify GLOBAL value of group_replication_autorejoin_tries]
 include/assert.inc [Verify SESSION value of group_replication_autorejoin_tries]

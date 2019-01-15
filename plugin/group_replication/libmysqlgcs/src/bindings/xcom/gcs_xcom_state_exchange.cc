@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -733,43 +733,130 @@ Gcs_xcom_state_exchange::compute_incompatible_members() {
   return incompatible_members;
 }
 
+std::pair<bool, Gcs_protocol_version>
+Gcs_xcom_state_exchange::members_announce_same_version() const {
+  /* Validate preconditions. */
+  DBUG_ASSERT(m_member_versions.size() > 1);
+
+  bool constexpr SAME_VERSION = true;
+  bool constexpr DIFFERENT_VERSIONS = false;
+  std::pair<bool, Gcs_protocol_version> result =
+      std::make_pair(DIFFERENT_VERSIONS, Gcs_protocol_version::UNKNOWN);
+
+  /* Get the protocol announced by the first node that is not me. */
+  auto const &me = m_local_information;
+  auto is_me_predicate = [&me](auto &pair) { return pair.first == me; };
+  auto it = std::find_if_not(m_member_versions.begin(), m_member_versions.end(),
+                             is_me_predicate);
+  auto const &group_version = it->second;
+
+  /*
+   Check whether all the other members, myself excluded, announce the same
+   protocol.
+  */
+  for (it = std::find_if_not(++it, m_member_versions.end(), is_me_predicate);
+       it != m_member_versions.end();
+       it = std::find_if_not(++it, m_member_versions.end(), is_me_predicate)) {
+    auto const &member_version = it->second;
+    bool const different_version = (group_version != member_version);
+    if (different_version) goto end;
+  }
+
+  result = std::make_pair(SAME_VERSION, group_version);
+
+end:
+  return result;
+}
+
 bool Gcs_xcom_state_exchange::incompatible_with_group() const {
   bool constexpr INCOMPATIBLE = true;
   bool constexpr COMPATIBLE = false;
   bool result = INCOMPATIBLE;
 
-  /* Get the protocol version that is in use. */
   Gcs_xcom_communication &comm =
       static_cast<Gcs_xcom_communication &>(*m_broadcaster);
   Gcs_message_pipeline &pipeline = comm.get_msg_pipeline();
-  Gcs_protocol_version const protocol_version = pipeline.get_version();
 
-  /* Compare my protocol version against the versions of the other members. */
-  for (auto const &pair : m_member_versions) {
-    auto const &member_version = pair.second;
-    bool const incompatible_with_member = (member_version != protocol_version);
+  /*
+   Confirm we are trying to join while the group is in a quiescent state, i.e.
+   everyone is announcing the same protocol.
 
-    if (incompatible_with_member) {
-      auto my_protocol = gcs_protocol_to_mysql_version(protocol_version);
-      auto member_protocol = gcs_protocol_to_mysql_version(member_version);
-      auto &member = pair.first.get_member_id();
+   Here is the reasoning for why the code below is correct.
+   A protocol change occurs in the same logical instant in all the group's
+   members. A membership change also occurs in the same logical instant in all
+   the group's member. This means that there is a total order between a protocol
+   change and a membership change, even if they are concurrent.
+   Denote a "protocol change to x" event by P(x) and a "membership change where
+   this node joins" event by M.
+   The possibilities are:
 
-      MYSQL_GCS_LOG_WARN("This server is running communication protocol "
-                         << my_protocol
-                         << ", which is incompatible with the group member "
-                         << member << " running protocol " << member_protocol
-                         << ". This server will be expelled from the group.");
+   a. P(x) < M, such that this node supports x.
+      In this situation, we support the group's protocol, x. If every group
+      member announces x, then can join successfully by adapting to protocol x.
+      However, it is possible for the protocols announced by all members to be
+      different. This can happen if two, or more, nodes join the group in the
+      same membership change event because a node that joins announces the
+      highest protocol it knows. Therefore, the existing group members will
+      announce the group's current protocol, and joining members will announce
+      the highest protocol they know. If these protocols do not match, we have
+      different nodes announcing different protocols.
+      A joining node does not have a previous membership information to compare
+      against, so from the joining node's point of view it cannot distinguish
+      existing members from other joining members, besides itself. For this
+      reason, we can only join safely if every node announces the same protocol.
 
+   b. P(y) < M, such that this node does *not* support y.
+      In this situation the joining node expels itself immediately, because the
+      group is potentially using unsupported functionality.
+
+   If we are the sole member, then by definition the group is in a quiescent
+   state.
+  */
+  bool const we_are_sole_member = (m_member_versions.size() == 1);
+  if (!we_are_sole_member) {
+    /* Get the group's protocol version. */
+    bool same_version;
+    Gcs_protocol_version group_version;
+    std::tie(same_version, group_version) = members_announce_same_version();
+
+    if (!same_version) {
+      MYSQL_GCS_LOG_WARN(
+          "This server could not adjust its communication protocol to match "
+          "the group's. This server will be expelled from the group. This "
+          "could be due to two or more servers joining simultaneously. Please "
+          "ensure that this server joins the group in isolation and try "
+          "again.");
       goto end;
-
     } else {
-      MYSQL_GCS_LOG_TRACE(
-          "i_am_incompatible_with_group: compatible with member=%s using "
-          "protocol version=%d = %d",
-          pair.first.get_member_id().c_str(),
-          static_cast<unsigned int>(member_version),
-          static_cast<unsigned int>(protocol_version));
+      DBUG_ASSERT(group_version != Gcs_protocol_version::UNKNOWN);
     }
+
+    /*
+     Every member announced the same protocol, so set our protocol to match the
+     group's if we support it.
+    */
+    bool const supports_protocol =
+        (group_version <= Gcs_protocol_version::HIGHEST_KNOWN);
+    if (supports_protocol) {
+#ifndef DBUG_OFF
+      bool const failed =
+#endif
+          pipeline.set_version(group_version);
+      DBUG_ASSERT(!failed &&
+                  "Setting the pipeline version should not have failed");
+      MYSQL_GCS_LOG_INFO("This server adjusted its communication protocol to "
+                         << gcs_protocol_to_mysql_version(group_version)
+                         << " in order to join the group.");
+    } else {
+      MYSQL_GCS_LOG_WARN(
+          "This server does not support the group's newer communication "
+          "protocol "
+          << gcs_protocol_to_mysql_version(group_version)
+          << ". This server will be expelled from the group.");
+      goto end;
+    }
+  } else {
+    DBUG_ASSERT(m_member_versions.begin()->first == m_local_information);
   }
 
   result = COMPATIBLE;
@@ -813,11 +900,10 @@ Gcs_xcom_state_exchange::compute_incompatible_joiners() {
 
       MYSQL_GCS_LOG_WARN("The server "
                          << joiner
-                         << ", which is attempting to join the group, is "
-                            "running communication protocol "
+                         << ", which is attempting to join the group, only "
+                            "supports communication protocol "
                          << joiner_protocol
-                         << ", which is incompatible with the protocol this "
-                            "server is running ("
+                         << ", which is incompatible with the group's ("
                          << my_protocol << "). The server " << joiner
                          << " will be expelled from the group.");
 

@@ -29,7 +29,7 @@
 
 --sleep 30
 
---let $gr_var_count= 51
+--let $gr_var_count= 50
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
@@ -79,7 +79,6 @@
 --let $saved_gr_member_expel_timeout = `SELECT @@GLOBAL.group_replication_member_expel_timeout`
 --let $saved_gr_consistency = `SELECT @@GLOBAL.group_replication_consistency`
 --let $saved_gr_communication_max_message_size = `SELECT @@GLOBAL.group_replication_communication_max_message_size`
---let $saved_gr_communication_protocol_join = `SELECT @@GLOBAL.group_replication_communication_protocol_join`
 --let $saved_gr_autorejoin_tries = `SELECT @@GLOBAL.group_replication_autorejoin_tries`
 --let $saved_gr_message_cache_size = `SELECT @@GLOBAL.group_replication_message_cache_size`
 --enable_query_log
@@ -164,8 +163,6 @@ SET @@SESSION.group_replication_member_expel_timeout= 120;
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_communication_max_message_size= 2048;
 --error ER_GLOBAL_VARIABLE
-SET @@SESSION.group_replication_communication_protocol_join= "";
---error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_autorejoin_tries = 3;
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_message_cache_size= 10000000000;
@@ -210,7 +207,6 @@ SET GLOBAL group_replication_exit_state_action= "READ_ONLY";
 SET GLOBAL group_replication_member_expel_timeout= 1000;
 SET GLOBAL group_replication_consistency= "EVENTUAL";
 SET GLOBAL group_replication_communication_max_message_size= 2048;
-SET GLOBAL group_replication_communication_protocol_join= "";
 SET GLOBAL group_replication_autorejoin_tries = 3;
 SET GLOBAL group_replication_message_cache_size= 2000000000;
 --enable_query_log
@@ -878,22 +874,6 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_communication_max_message_size\', VARIABLE_VALUE, 1]" = 2048
 --source include/assert.inc
 
-# group_replication_communication_protocol_join
---let $assert_text= Verify GLOBAL value of group_replication_communication_protocol_join
---let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_communication_protocol_join\', Value, 1]" = ""
---source include/assert.inc
-
---let $assert_text= Verify GLOBAL value of group_replication_communication_protocol_join
---let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_communication_protocol_join\', VARIABLE_VALUE, 1]" = ""
---source include/assert.inc
-
---let $assert_text= Verify SESSION value of group_replication_communication_protocol_join
---let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_communication_protocol_join\', Value, 1]" = ""
---source include/assert.inc
-
---let $assert_text= Verify SESSION value of group_replication_communication_protocol_join
---let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_communication_protocol_join\', VARIABLE_VALUE, 1]" = ""
-
 # group_replication_autorejoin_tries
 --let $assert_text= Verify GLOBAL value of group_replication_autorejoin_tries
 --let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_autorejoin_tries\', Value, 1]" = 3
@@ -972,7 +952,6 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --eval SET @@GLOBAL.group_replication_member_expel_timeout= $saved_gr_member_expel_timeout
 --eval SET @@GLOBAL.group_replication_consistency= "$saved_gr_consistency"
 --eval SET @@GLOBAL.group_replication_communication_max_message_size= $saved_gr_communication_max_message_size
---eval SET @@GLOBAL.group_replication_communication_protocol_join= "$saved_gr_communication_protocol_join"
 --eval SET @@GLOBAL.group_replication_autorejoin_tries= $saved_gr_autorejoin_tries
 --eval SET @@GLOBAL.group_replication_message_cache_size= $saved_gr_message_cache_size
 --enable_query_log

@@ -47,8 +47,6 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 
-static int constexpr BASE_10 = 10;
-
 using std::map;
 using std::string;
 using std::vector;
@@ -699,9 +697,6 @@ gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
         m_initialization_parameters.get_parameter("join_attempts");
     const std::string *join_sleep_time_str =
         m_initialization_parameters.get_parameter("join_sleep_time");
-    const std::string *protocol_join_str =
-        m_initialization_parameters.get_parameter(
-            "communication_protocol_join");
 
     /*
       If the group interfaces do not exist, create and add them to
@@ -748,22 +743,6 @@ gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
     group_interface->se = se;
 
     configure_message_stages(group_identifier);
-
-    /*
-     * Override initial protocol. Must happen after configure_message_stages
-     * otherwise setting the pipeline version fails.
-     */
-    if (protocol_join_str != nullptr) {
-      auto const protocol_number =
-          std::strtoul(protocol_join_str->c_str(), nullptr, BASE_10);
-      Gcs_protocol_version protocol =
-          static_cast<Gcs_protocol_version>(protocol_number);
-#ifndef DBUG_OFF
-      bool const failed =
-#endif
-          xcom_communication->get_msg_pipeline().set_version(protocol);
-      DBUG_ASSERT(!failed);
-    }
   } else {
     group_interface = registered_group->second;
   }
@@ -867,8 +846,6 @@ bool Gcs_xcom_interface::initialize_xcom(
       interface_params.get_parameter("poll_spin_loops");
   const std::string *ip_whitelist_str =
       interface_params.get_parameter("ip_whitelist");
-  const std::string *protocol_join_str =
-      interface_params.get_parameter("communication_protocol_join");
   const std::string *xcom_cache_size_str =
       interface_params.get_parameter("xcom_cache_size");
 
@@ -905,16 +882,6 @@ bool Gcs_xcom_interface::initialize_xcom(
 
   // configure whitelist
   if (ip_whitelist_str) m_ip_whitelist.configure(*ip_whitelist_str);
-
-  // configure protocol announced when joining
-  if (protocol_join_str) {
-    auto const protocol_number =
-        std::strtoul(protocol_join_str->c_str(), nullptr, BASE_10);
-    MYSQL_GCS_LOG_DEBUG("Configured protocol to announce at join: %s",
-                        gcs_protocol_to_mysql_version(
-                            static_cast<Gcs_protocol_version>(protocol_number))
-                            .c_str());
-  }
 
   // Register XCom callbacks
   ::set_xcom_data_receiver(cb_xcom_receive_data);

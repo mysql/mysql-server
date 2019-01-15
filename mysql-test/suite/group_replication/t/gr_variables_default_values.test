@@ -33,7 +33,6 @@ SET @@GLOBAL.group_replication_gtid_assignment_block_size= default;
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_ip_whitelist= default;
 SET @@GLOBAL.group_replication_communication_max_message_size= default;
-SET @@GLOBAL.group_replication_communication_protocol_join= default;
 
 --source include/stop_group_replication.inc
 
@@ -77,12 +76,11 @@ SET @@GLOBAL.group_replication_communication_protocol_join= default;
 --let $saved_gr_replication_consistency_g = `SELECT @@GLOBAL.group_replication_consistency;`
 --let $saved_gr_replication_consistency_s = `SELECT @@SESSION.group_replication_consistency;`
 --let $saved_gr_communication_max_message_size = `SELECT @@GLOBAL.group_replication_communication_max_message_size;`
---let $saved_gr_communication_protocol_join = `SELECT @@GLOBAL.group_replication_communication_protocol_join;`
 --let $saved_gr_autorejoin_tries = `SELECT @@GLOBAL.group_replication_autorejoin_tries;`
 --let $saved_gr_message_cache_size = `SELECT @@GLOBAL.group_replication_message_cache_size;`
 
 # Total number of GR variables.
---let $total_gr_vars= 51
+--let $total_gr_vars= 50
 
 --echo #
 --echo # Test Unit#1
@@ -143,7 +141,6 @@ SET @@GLOBAL.group_replication_exit_state_action= default;
 SET @@GLOBAL.group_replication_member_expel_timeout= default;
 SET @@GLOBAL.group_replication_consistency= default;
 SET @@GLOBAL.group_replication_communication_max_message_size= default;
-SET @@GLOBAL.group_replication_communication_protocol_join= default;
 SET @@GLOBAL.group_replication_autorejoin_tries= default;
 SET @@GLOBAL.group_replication_message_cache_size= default;
 
@@ -329,10 +326,6 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_max_message_size]" = 10485760
 --source include/assert.inc
 
-# group_replication_communication_protocol_join
---let $assert_text= Default group_replication_communication_protocol_join is ""(EMPTY)
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_protocol_join]" = ""
-
 #group_replication_autorejoin_tries
 --let $assert_text= Default group_replication_autorejoin_tries is 0
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_autorejoin_tries]" = 0
@@ -390,7 +383,6 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_autorejoin_tries= $saved_gr_autorejoin_tries
 --eval SET @@SESSION.group_replication_consistency= "$saved_gr_replication_consistency_s"
 --eval SET @@GLOBAL.group_replication_communication_max_message_size= $saved_gr_communication_max_message_size
---eval SET @@GLOBAL.group_replication_communication_protocol_join= "$saved_gr_communication_protocol_join";
 --eval SET @@GLOBAL.group_replication_message_cache_size= $saved_gr_message_cache_size
 --enable_query_log
 

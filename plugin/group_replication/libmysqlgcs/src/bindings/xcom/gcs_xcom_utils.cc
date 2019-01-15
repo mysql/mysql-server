@@ -161,8 +161,6 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
       interface_params.get_parameter("fragmentation"));
   std::string *fragmentation_threshold_str = const_cast<std::string *>(
       interface_params.get_parameter("fragmentation_threshold"));
-  std::string *protocol_join_str = const_cast<std::string *>(
-      interface_params.get_parameter("communication_protocol_join"));
   std::string *xcom_cache_size_str = const_cast<std::string *>(
       interface_params.get_parameter("xcom_cache_size"));
 
@@ -243,13 +241,6 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
     std::stringstream ss;
     ss << Gcs_message_stage_split_v2::DEFAULT_THRESHOLD;
     interface_params.add_parameter("fragmentation_threshold", ss.str());
-  }
-
-  // sets the default protocol announced when joining (max. we know by default)
-  if (!protocol_join_str) {
-    interface_params.add_parameter("communication_protocol_join",
-                                   std::to_string(static_cast<unsigned short>(
-                                       Gcs_protocol_version::HIGHEST_KNOWN)));
   }
 
   // sets the default XCom cache size
@@ -352,8 +343,6 @@ bool is_parameters_syntax_correct(
       interface_params.get_parameter("fragmentation_threshold");
   const std::string *fragmentation_str =
       interface_params.get_parameter("fragmentation");
-  const std::string *protocol_join_str =
-      interface_params.get_parameter("communication_protocol_join");
   const std::string *xcom_cache_size_str =
       interface_params.get_parameter("xcom_cache_size");
 
@@ -581,13 +570,6 @@ bool is_parameters_syntax_correct(
        !is_number(*fragmentation_threshold_str))) {
     MYSQL_GCS_LOG_ERROR("The fragmentation_threshold parameter ("
                         << fragmentation_threshold_str << ") is not valid.")
-    error = GCS_NOK;
-    goto end;
-  }
-
-  if (protocol_join_str != nullptr && !is_valid_protocol(*protocol_join_str)) {
-    MYSQL_GCS_LOG_ERROR("The communication_protocol_join parameter ("
-                        << *protocol_join_str << ") is not valid.")
     error = GCS_NOK;
     goto end;
   }

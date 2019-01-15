@@ -147,9 +147,6 @@ static TYPELIB plugin_bool_typelib = {
 char *ip_whitelist_var = NULL;
 const char *IP_WHITELIST_DEFAULT = "AUTOMATIC";
 
-char *communication_protocol_join_var = NULL;
-const char *COMMUNICATION_PROTOCOL_JOIN_DEFAULT = "";
-
 // XCom cache size options
 #define DEFAULT_MESSAGE_CACHE_SIZE 1073741824
 #define MIN_MESSAGE_CACHE_SIZE DEFAULT_MESSAGE_CACHE_SIZE
@@ -1940,10 +1937,6 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters,
   int result = 0;
   st_server_ssl_variables sv;
   bool need_to_free_st_server_ssl_variables = false;
-  bool const user_specified_join_protocol =
-      (communication_protocol_join_var != NULL &&
-       strcmp(communication_protocol_join_var,
-              COMMUNICATION_PROTOCOL_JOIN_DEFAULT) != 0);
 
   if (ssl_variables == nullptr) {
     char *hostname = nullptr;
@@ -2091,35 +2084,6 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters,
   gcs_module_parameters.add_parameter("communication_debug_path",
                                       mysql_real_data_home);
 
-  /*
-   * Convert the MySQL version specified by communication_protocol_join into the
-   * GCS protocol version and pass it along to GCS.
-   */
-  if (user_specified_join_protocol) {
-    if (valid_mysql_version_string(communication_protocol_join_var)) {
-      Member_version const mysql_server_version =
-          convert_to_member_version(communication_protocol_join_var);
-      Gcs_protocol_version gcs_protocol = convert_to_gcs_protocol(
-          mysql_server_version, Member_version(server_version));
-      bool const invalid_protocol =
-          (gcs_protocol == Gcs_protocol_version::UNKNOWN);
-      if (!invalid_protocol) {
-        gcs_module_parameters.add_parameter(
-            "communication_protocol_join",
-            std::to_string(static_cast<unsigned short>(gcs_protocol)));
-      } else {
-        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_COMMUNICATION_PROTOCOL,
-                     communication_protocol_join_var);
-        result = GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR;
-        goto end;
-      }
-    } else {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_COMMUNICATION_PROTOCOL,
-                   communication_protocol_join_var);
-      result = GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR;
-    }
-  }
-
 end:
   if (need_to_free_st_server_ssl_variables) {
     my_free(sv.ssl_ca);
@@ -2156,8 +2120,7 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables,
                bootstrap_group_var ? "true" : "false", poll_spin_loops_var,
                compression_threshold_var, ip_whitelist_var,
                communication_debug_options_var, member_expel_timeout_var,
-               communication_max_message_size_var,
-               communication_protocol_join_var, message_cache_size_var);
+               communication_max_message_size_var, message_cache_size_var);
 
 end:
   DBUG_RETURN(err);
@@ -3624,18 +3587,6 @@ static MYSQL_SYSVAR_ULONG(
     0                             /* block */
 );
 
-static MYSQL_SYSVAR_STR(communication_protocol_join,     /* name */
-                        communication_protocol_join_var, /* var */
-                        /* optional var | malloc string */
-                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
-                            PLUGIN_VAR_PERSIST_AS_READ_ONLY,
-                        "The communication protocol version announced by the "
-                        "server when joining a group",
-                        NULL,                               /* check func*/
-                        NULL,                               /* update func*/
-                        COMMUNICATION_PROTOCOL_JOIN_DEFAULT /* default*/
-);
-
 static MYSQL_SYSVAR_ULONG(
     message_cache_size,                                    /* name */
     message_cache_size_var,                                /* var */
@@ -4259,7 +4210,6 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(flow_control_hold_percent),
     MYSQL_SYSVAR(flow_control_release_percent),
     MYSQL_SYSVAR(member_expel_timeout),
-    MYSQL_SYSVAR(communication_protocol_join),
     MYSQL_SYSVAR(message_cache_size),
     NULL,
 };
