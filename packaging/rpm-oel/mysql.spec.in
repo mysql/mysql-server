@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1138,7 +1138,6 @@ fi
 %attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql-*/magic
 %if 0%{?systemd}
 %attr(644, root, root) %{_unitdir}/mysqld.service
 %attr(644, root, root) %{_unitdir}/mysqld@.service
