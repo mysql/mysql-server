@@ -1543,16 +1543,10 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
     */
     try {
       DBUG_ASSERT(thd->stmt_arena->mem_root);
-      void *view_sctx_memory =
-          alloc_root(thd->stmt_arena->mem_root, sizeof(Security_context));
-      if (view_sctx_memory == nullptr) {
-        result = true;
-        DBUG_RETURN(true);
-      }
-      view_ref->view_sctx =
-          new (view_sctx_memory) Security_context(thd->stmt_arena->mem_root);
+      view_ref->view_sctx = new (thd->stmt_arena->mem_root)
+          Security_context(thd->stmt_arena->mem_root);
+      if (view_ref->view_sctx == nullptr) DBUG_RETURN(true);
     } catch (...) {
-      result = true;
       DBUG_RETURN(true);
     }
     security_ctx = view_ref->view_sctx;

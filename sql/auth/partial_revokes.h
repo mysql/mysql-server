@@ -69,6 +69,9 @@ class Abstract_restrictions {
   It uses memroot based, collation aware map to store
   (\<dbname\>, \<restricted_access\>) mapping.
 
+  Each object created in the MEM_ROOT has to be destroyed manually.
+  It will be the client's responsibility that create the objects.
+
   It also provides functions to:
   - Manage DB restrictions
   - Status functions
@@ -115,6 +118,9 @@ class DB_restrictions final : public Abstract_restrictions {
 
 /**
   Container of all restrictions for a given user.
+
+  Each object created in the MEM_ROOT has to be destroyed manually.
+  It will be the client's responsibility that create the objects.
 */
 class Restrictions {
  public:
