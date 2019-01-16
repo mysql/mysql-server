@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -980,7 +980,9 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   table_map ref_depend_map = 0;
   uint used_key_parts = 0;
 
-  if (tab->keyuse() != NULL)
+  // Look for the best ref access if the storage engine supports index access.
+  if (tab->keyuse() != nullptr &&
+      (table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0)
     best_ref =
         find_best_ref(tab, remaining_tables, idx, prefix_rowcount,
                       &found_condition, &ref_depend_map, &used_key_parts);

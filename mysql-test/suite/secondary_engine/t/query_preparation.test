@@ -80,8 +80,7 @@ SELECT * FROM v1, t2 WHERE v1.id = t2.id;
 SELECT SUM(x) FROM v1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
-# A forced index scan cannot be offloaded, since the secondary storage
-# engine doesn't have indexes.
+# A forced index scan can be offloaded, since it's just a hint.
 FLUSH STATUS;
 SELECT x FROM t1 FORCE INDEX (t1_x);
 PREPARE ps FROM 'SELECT x FROM t1 FORCE INDEX (t1_x)';
@@ -89,7 +88,6 @@ EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SET @my_use_secondary_engine = @@use_secondary_engine;
 SET @@use_secondary_engine = FORCED;
---error ER_SECONDARY_ENGINE
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SET @@use_secondary_engine = @my_use_secondary_engine;

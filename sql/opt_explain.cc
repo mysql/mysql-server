@@ -854,6 +854,8 @@ bool Explain_table_base::explain_partitions() {
 bool Explain_table_base::explain_possible_keys() {
   if (usable_keys.is_clear_all()) return false;
 
+  if ((table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) != 0) return false;
+
   for (uint j = 0; j < table->s->keys; j++) {
     if (usable_keys.is_set(j) &&
         fmt->entry()->col_possible_keys.push_back(table->key_info[j].name))

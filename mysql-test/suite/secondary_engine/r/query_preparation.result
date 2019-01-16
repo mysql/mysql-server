@@ -115,25 +115,19 @@ Secondary_engine_execution_count	7
 FLUSH STATUS;
 SELECT x FROM t1 FORCE INDEX (t1_x);
 x
-2
-5
-8
 PREPARE ps FROM 'SELECT x FROM t1 FORCE INDEX (t1_x)';
 EXECUTE ps;
 x
-2
-5
-8
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	2
 SET @my_use_secondary_engine = @@use_secondary_engine;
 SET @@use_secondary_engine = FORCED;
 EXECUTE ps;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+x
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	3
 SET @@use_secondary_engine = @my_use_secondary_engine;
 FLUSH STATUS;
 PREPARE ps FROM 'SELECT * FROM t1';
