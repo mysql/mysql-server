@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "mysql_utils_jtie.hpp"
 #include "mgmapi_jtie.hpp"
 #include "ndbapi_jtie.hpp"
+#include "NdbMutex.h"
 
 // ---------------------------------------------------------------------------
 // API Global Symbol Definitions & Template Instantiations
@@ -166,6 +167,63 @@ JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(NdbScanOperation::ScanOptions::Type)
 JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(NdbTransaction::ExecType)
 JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(NdbTransaction::CommitStatusType)
 
+
+class JTie_NdbInit : protected NdbLockable
+{
+public:
+
+  int initOnLoad()
+  {
+    Guard guard(m_mutex);
+    if(!is_init)
+    {
+      VERBOSE("initializing the NDBAPI resources ...");
+      int stat = ndb_init();
+      if (stat != 0) {
+        PRINT_ERROR_CODE("ndb_init() returned: ", stat);
+        ndb_end(0);
+        return 1;
+      }
+      VERBOSE("... initialized the NDBAPI resources");
+      VERBOSE("initializing the MySQL Utilities resources ...");
+      CharsetMap::init();
+      VERBOSE("... initialized the MySQL Utilities resources");
+      return 0;
+      is_init = true;
+    }
+    return 0;
+  }
+
+
+  ~JTie_NdbInit()
+  {
+    uninitOnUnLoad();
+  }
+
+private:
+  static bool is_init;
+
+  void uninitOnUnLoad()
+  {
+    Guard guard(m_mutex);
+    if(is_init)
+    {
+      VERBOSE("releasing the MySQL Utilities resources ...");
+      CharsetMap::unload();
+      VERBOSE("... released the MySQL Utilities resources");
+
+      VERBOSE("releasing NDBAPI resources ...");
+      ndb_end(0);
+      VERBOSE("... released NDBAPI resources");
+      is_init = false;
+    }
+  }
+
+};
+
+bool JTie_NdbInit::is_init = false;
+static JTie_NdbInit ndbInitHelper;
+
 // ---------------------------------------------------------------------------
 // Library Load and Unload Handlers
 // ---------------------------------------------------------------------------
@@ -184,25 +242,11 @@ JNI_OnLoad(JavaVM * jvm, void * reserved)
         PRINT_ERROR("JTie_OnLoad() returned: JNI_ERR");
         return JNI_ERR;
     }
-    
-    VERBOSE("initializing the NDBAPI resources ...");
-    int stat = ndb_init();
-    if (stat != 0) {
-        PRINT_ERROR_CODE("ndb_init() returned: ", stat);
-        ndb_end(0);
+
+    if (ndbInitHelper.initOnLoad())
+    {
         return JNI_ERR;
     }
-    VERBOSE("... initialized the NDBAPI resources");
-
-    VERBOSE("initializing the MySQL Utilities resources ...");
-    // XXX add a return status to init_global_charset_map()
-    //int stat = init_global_charset_map();
-    CharsetMap::init();
-    //if (stat != 0) {
-    //    PRINT_ERROR_CODE("init_global_charset_map() returned: ", stat);
-    //    return JNI_ERR;
-    //}
-    VERBOSE("... initialized the MySQL Utilities resources");
 
     VERBOSE("... loaded the NDB JTie library");
     return required_jni_version;
@@ -216,14 +260,6 @@ JNI_OnUnload(JavaVM * jvm, void * reserved)
 {
     TRACE("void JNI_OnUnload(JavaVM *, void *)");
     VERBOSE("unloading the NDB JTie library...");
-
-    VERBOSE("releasing the MySQL Utilities resources ...");
-    CharsetMap::unload();
-    VERBOSE("... released the MySQL Utilities resources");
-
-    VERBOSE("releasing NDBAPI resources ...");
-    ndb_end(0);
-    VERBOSE("... released NDBAPI resources");
 
     JTie_OnUnload(jvm, reserved);
 
