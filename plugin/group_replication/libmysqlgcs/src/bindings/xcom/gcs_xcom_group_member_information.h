@@ -154,6 +154,14 @@ class Gcs_xcom_uuid {
 
   bool decode(const uchar *buffer, const unsigned int size);
 
+  /**
+   Converts this UUID into its corresponding XCom blob type.
+
+   @retval {true, _} if there was an error creating the blob
+   @retval {false, blob} if the blob was created successfully
+   */
+  std::pair<bool, blob> make_xcom_blob() const;
+
   /*
     Unique identifier which currently only accommodates 64 bits but
     can easily be extended to 128 bits and become a truly UUID in
@@ -162,6 +170,8 @@ class Gcs_xcom_uuid {
 
   std::string actual_value;
 };
+
+class Gcs_xcom_proxy;
 
 /**
   @class Gcs_xcom_node_information
@@ -310,6 +320,17 @@ class Gcs_xcom_node_information {
     unreachable.
   */
   void set_max_synode(synode_no synode);
+
+  /**
+   Converts this node information into its corresponding XCom node_address type.
+
+   @param xcom_proxy XCom proxy
+   @retval {true, nullptr} if there was an error creating the node_address
+   @retval {false, node_address*} if the node_address was successfully created
+   */
+
+  std::pair<bool, node_address *> make_xcom_identity(
+      Gcs_xcom_proxy &xcom_proxy) const;
 
  private:
   Gcs_member_identifier m_member_id;

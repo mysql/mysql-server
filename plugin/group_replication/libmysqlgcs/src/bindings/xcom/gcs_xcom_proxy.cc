@@ -596,6 +596,16 @@ void Gcs_xcom_app_cfg::set_xcom_cache_size(uint64_t size) {
   if (the_app_xcom_cfg) the_app_xcom_cfg->m_cache_limit = size;
 }
 
+bool Gcs_xcom_app_cfg::set_identity(node_address *identity) {
+  bool constexpr kError = true;
+  bool constexpr kSuccess = false;
+
+  if (identity == nullptr) return kError;
+
+  ::cfg_app_xcom_set_identity(identity);
+  return kSuccess;
+}
+
 bool Gcs_xcom_proxy_impl::xcom_client_force_config(node_list *nl,
                                                    uint32_t group_id) {
   app_data_ptr data = new_app_data();

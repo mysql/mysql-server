@@ -22,6 +22,8 @@
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
 
+#include <assert.h>
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 
 /* Reasonable initial cache limit */
@@ -35,9 +37,38 @@ void init_cfg_app_xcom() {
 
   the_app_xcom_cfg->m_poll_spin_loops = 0;
   the_app_xcom_cfg->m_cache_limit = DEFAULT_CACHE_LIMIT;
+  the_app_xcom_cfg->identity = NULL;
 }
 
 void deinit_cfg_app_xcom() {
+  /* Delete the identity because we own it. */
+  if (the_app_xcom_cfg != NULL && the_app_xcom_cfg->identity != NULL) {
+    delete_node_address(1, the_app_xcom_cfg->identity);
+  }
   free(the_app_xcom_cfg);
   the_app_xcom_cfg = NULL;
+}
+
+node_address *cfg_app_xcom_get_identity() {
+  node_address *identity = NULL;
+  if (the_app_xcom_cfg != NULL) identity = the_app_xcom_cfg->identity;
+  return identity;
+}
+
+void cfg_app_xcom_set_identity(node_address *identity) {
+  /* Validate preconditions. */
+  assert(identity != NULL);
+
+  /*
+   If the configuration structure was setup, store the identity.
+   If not, delete the identity because we own it.
+  */
+  if (the_app_xcom_cfg != NULL) {
+    if (the_app_xcom_cfg->identity != NULL) {
+      delete_node_address(1, the_app_xcom_cfg->identity);
+    }
+    the_app_xcom_cfg->identity = identity;
+  } else {
+    delete_node_address(1, identity);
+  }
 }

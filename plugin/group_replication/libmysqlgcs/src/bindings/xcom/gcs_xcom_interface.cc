@@ -817,6 +817,25 @@ void Gcs_xcom_interface::initialize_ssl() {
   m_wait_for_ssl_init_mutex.unlock();
 }
 
+bool Gcs_xcom_interface::set_xcom_identity(
+    Gcs_xcom_node_information const &node_information,
+    Gcs_xcom_proxy &xcom_proxy) {
+  bool error = true;
+
+  // Initialize XCom's unique identifier.
+  bool error_creating_identity;
+  node_address *xcom_identity;
+  std::tie(error_creating_identity, xcom_identity) =
+      node_information.make_xcom_identity(xcom_proxy);
+  if (error_creating_identity) goto end;
+
+  // Takes ownership of xcom_identity.
+  error = m_gcs_xcom_app_cfg.set_identity(xcom_identity);
+
+end:
+  return error;
+}
+
 bool Gcs_xcom_interface::initialize_xcom(
     const Gcs_interface_parameters &interface_params) {
   /*

@@ -3901,6 +3901,82 @@ static int accept_site(site_def const *site) {
 }
 #endif
 
+/* Handle incoming "need boot" message. */
+static inline void handle_boot(site_def const *site, pax_msg *p) {
+  /* This should never be true, but validate it instead of asserting. */
+  if (site == NULL || site->nodes.node_list_len < 1) {
+    G_DEBUG(
+        "handle_boot: Received an unexpected need_boot_op when site == NULL or "
+        "site->nodes.node_list_len < 1");
+    return;
+  }
+
+  if (should_handle_boot(site, p)) {
+    XCOM_FSM(xa_need_snapshot, void_arg(p));
+  } else {
+    G_DEBUG(
+        "Ignoring a need_boot_op message from an XCom incarnation that does "
+        "not belong to the group.");
+  }
+}
+bool should_handle_boot(site_def const *site, pax_msg *p) {
+  bool should_handle = false;
+  bool const sender_advertises_identity =
+      (p->a != NULL && p->a->body.c_t == xcom_boot_type);
+
+  /*
+   If the message advertises the sender's identity, check if it matches the
+   membership information.
+
+   The sender's identity may not match if, e.g.:
+
+     a. The member was already removed, or
+     b. It is a new incarnation of a crashed member that is yet to be removed.
+
+   ...or some other reason.
+
+   If it is due to reason (b), we do not want to boot the sender because XCom
+   only implements a simple fail-stop model. Allowing the sender to rejoin the
+   group without going through the full remove+add node path could violate
+   safety because the sender does not remember any previous Paxos acceptances it
+   acknowledged before crashing.
+   Since the pre-crash incarnation may have accepted a value for a given synod
+   but the post-crash incarnation has forgotten that fact, the post-crash
+   incarnation will fail to propagate the previously accepted value to a higher
+   ballot. Since majorities can overlap on a single node, if the overlap node
+   is the post-crash incarnation which has forgotten about the previously
+   accepted value, a higher ballot proposer may get a different value accepted,
+   leading to conflicting values to be accepted for different proposers, which
+   is a violation of the safety properties of the Paxos protocol.
+
+   If the sender does not advertise its identity, we boot it unconditionally.
+   This is for backwards compatibility.
+  */
+  if (sender_advertises_identity) {
+    bool const sender_advertises_one_identity =
+        (p->a->body.app_u_u.nodes.node_list_len == 1);
+
+    /* Defensively accept only messages with a single identity. */
+    if (sender_advertises_one_identity) {
+      node_address *sender_identity = p->a->body.app_u_u.nodes.node_list_val;
+      should_handle = node_exists_with_uid(sender_identity, &site->nodes);
+    }
+  } else {
+    should_handle = true;
+  }
+
+  return should_handle;
+}
+
+void init_need_boot_op(pax_msg *p, node_address *identity) {
+  p->op = need_boot_op;
+  if (identity != NULL) {
+    p->a = new_app_data();
+    p->a->body.c_t = xcom_boot_type;
+    init_node_list(1, identity, &p->a->body.app_u_u.nodes);
+  }
+}
+
 /* Handle incoming alive message */
 static double sent_alive = 0.0;
 static inline void handle_alive(site_def const *site, linkage *reply_queue,
@@ -3935,7 +4011,7 @@ static inline void handle_alive(site_def const *site, linkage *reply_queue,
     double t = task_now();
     if (t - sent_alive > 1.0) {
       CREATE_REPLY(pm);
-      reply->op = need_boot_op;
+      init_need_boot_op(reply, cfg_app_xcom_get_identity());
       SEND_REPLY;
       sent_alive = t;
       DBGOUT(FN; STRLIT("sent need_boot_op"););
@@ -4415,9 +4491,28 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       pm->last_modified = task_now();
       MAY_DBG(FN; dbg_pax_msg(p));
 
-      if (client_boot_done) handle_alive(site, reply_queue, p);
+      /*
+       We can only be a productive Paxos Acceptor if we have been booted, i.e.
+       added to the group and received an up-to-date snapshot from some member.
 
-      handle_prepare(site, pm, reply_queue, p);
+       We do not allow non-booted members to participate in Paxos because they
+       might be a reincarnation of a member that crashed and was then brought up
+       without having gone through the remove+add node path.
+       Since the pre-crash incarnation may have accepted a value for a given
+       synod but the post-crash incarnation has forgotten that fact, the
+       post-crash incarnation will fail to propagate the previously accepted
+       value to a higher ballot. Since majorities can overlap on a single node,
+       if the overlap node is the post-crash incarnation which has forgotten
+       about the previously accepted value, the higher ballot proposer may get
+       a different value accepted, leading to conflicting values to be accepted
+       for different proposers, which is a violation of the safety requirements
+       of the Paxos protocol.
+      */
+      if (client_boot_done) {
+        handle_alive(site, reply_queue, p);
+
+        handle_prepare(site, pm, reply_queue, p);
+      }
       break;
     case ack_prepare_op:
     case ack_prepare_empty_op:
@@ -4435,9 +4530,28 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       pm->last_modified = task_now();
       MAY_DBG(FN; dbg_pax_msg(p));
 
-      handle_alive(site, reply_queue, p);
+      /*
+       We can only be a productive Paxos Acceptor if we have been booted, i.e.
+       added to the group and received an up-to-date snapshot from some member.
 
-      handle_accept(site, pm, reply_queue, p);
+       We do not allow non-booted members to participate in Paxos because they
+       might be a reincarnation of a member that crashed and was then brought up
+       without having gone through the remove+add node path.
+       Since the pre-crash incarnation may have accepted a value for a given
+       synod but the post-crash incarnation has forgotten that fact, the
+       post-crash incarnation will fail to propagate the previously accepted
+       value to a higher ballot. Since majorities can overlap on a single node,
+       if the overlap node is the post-crash incarnation which has forgotten
+       about the previously accepted value, the higher ballot proposer may get
+       a different value accepted, leading to conflicting values to be accepted
+       for different proposers, which is a violation of the safety requirements
+       of the Paxos protocol.
+      */
+      if (client_boot_done) {
+        handle_alive(site, reply_queue, p);
+
+        handle_accept(site, pm, reply_queue, p);
+      }
       break;
     case ack_accept_op:
       if (in_front || !is_cached(p->synode)) break;
@@ -4492,7 +4606,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       break;
     case need_boot_op:
       /* purecov: begin deadcode */
-      XCOM_FSM(xa_need_snapshot, void_arg(p));
+      handle_boot(site, p);
       break;
     /* purecov: end */
     case snapshot_op:
