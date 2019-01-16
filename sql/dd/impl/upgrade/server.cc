@@ -33,7 +33,7 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "mysql/components/services/log_builtins.h"
-#include "scripts/mysql_fix_privilege_tables_sql.c"
+#include "scripts/mysql_fix_privilege_tables_sql.h"
 #include "scripts/sql_commands_system_tables_data_fix.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
@@ -59,6 +59,7 @@
 
 typedef ulonglong sql_mode_t;
 extern const char *mysql_sys_schema[];
+extern const char *fill_help_tables[];
 
 namespace dd {
 namespace upgrade {
@@ -532,6 +533,22 @@ bool fix_mysql_tables(THD *thd) {
   return false;
 }
 
+bool upgrade_help_tables(THD *thd) {
+  if (dd::execute_query(thd, "USE mysql")) {
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR);
+    return true;
+  }
+  LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "started");
+  for (const char **query_ptr = &fill_help_tables[0]; *query_ptr != NULL;
+       query_ptr++)
+    if (dd::execute_query(thd, *query_ptr)) {
+      LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "failed");
+      return true;
+    }
+  LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "completed");
+  return false;
+}
+
 bool create_upgrade_file() {
   FILE *out;
   char upgrade_info_file[FN_REFLEN] = {0};
@@ -874,6 +891,7 @@ bool upgrade_system_schemas(THD *thd) {
   bootstrap_error_handler.set_log_error(false);
   bool err =
       fix_mysql_tables(thd) || check_and_fix_sys_schema(thd) ||
+      upgrade_help_tables(thd) ||
       (DBUG_EVALUATE_IF(
            "force_fix_user_schemas", true,
            dd::bootstrap::DD_bootstrap_ctx::instance()

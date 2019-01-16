@@ -54,6 +54,18 @@ Pattern "Server shutting down because upgrade is required, yet prohibited by the
 # There should be no errors
 Pattern "\[ERROR\]" not found
 ###########################################################################
+# Test upgrade of help tables
+###########################################################################
+# Truncate a help table
+TRUNCATE TABLE mysql.help_topic;
+SELECT COUNT(*) = 0 FROM mysql.help_topic;
+COUNT(*) = 0
+1
+# restart: --force-upgrade --log-error=MYSQLD_LOG
+SELECT COUNT(*) != 0 FROM mysql.help_topic;
+COUNT(*) != 0
+1
+###########################################################################
 # Cleanup
 ###########################################################################
 ###########################################################################
