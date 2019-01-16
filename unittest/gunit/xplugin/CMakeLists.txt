@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -71,8 +71,8 @@ ADD_COMPILE_FLAGS(${XPL_TEST_SRC}
 )
 
 IF(DISABLE_MYSQLX_PROTOBUF_LITE)
-  ADD_COMPILE_FLAGS(${XPL_TEST_SRC}
-    COMPILE_FLAGS "-DUSE_MYSQLX_FULL_PROTO")
+  ADD_COMPILE_DEFINITIONS(${XPL_TEST_SRC}
+    COMPILE_DEFINITIONS USE_MYSQLX_FULL_PROTO)
 ENDIF()
 
 ADD_DEPENDENCIES(${XPL_UNIT_TESTS}
@@ -127,8 +127,8 @@ FILE(GLOB XCL_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/xcl/*_t.cc"
 )
 
-ADD_COMPILE_FLAGS(${XCL_SRC}
-  COMPILE_FLAGS "-DUSE_MYSQLX_FULL_PROTO"
+ADD_COMPILE_DEFINITIONS(${XCL_SRC}
+  COMPILE_DEFINITIONS USE_MYSQLX_FULL_PROTO
 )
 
 MYSQL_ADD_EXECUTABLE(${XCL_UNIT_TESTS}

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 # This is the CMakeLists for InnoDB
 
 INCLUDE(innodb.cmake)
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="InnoDB")
 
@@ -238,7 +237,6 @@ ENDIF()
 
 # Avoid generating Hardware Capabilities due to crc32 instructions
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
   MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
   IF(HAVE_WA_NH)
     ADD_COMPILE_FLAGS(
@@ -252,7 +250,6 @@ ENDIF()
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
   IF(HAVE_LOGICAL_OP)
-    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
     ADD_COMPILE_FLAGS(fts/fts0pars.cc
                       COMPILE_FLAGS "-Wno-logical-op")
   ENDIF()
@@ -270,7 +267,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
   EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
                   OUTPUT_VARIABLE GCC_VERSION)
   IF(GCC_VERSION VERSION_LESS 5.2)
-    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
     ADD_COMPILE_FLAGS(
       btr/btr0btr.cc
       btr/btr0cur.cc

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ ADD_CONVENIENCE_LIBRARY(${PROTOCOL_LITE_LIB_NAME}
 SET_PROPERTY(TARGET ${PROTOCOL_LITE_LIB_NAME} PROPERTY EXCLUDE_FROM_ALL TRUE)
 
 SET(XPROTOCOL_FLAGS "")
-SET(PUBLIC_XPROTOCOL_FLAGS "-DGOOGLE_PROTOBUF_NO_STATIC_INITIALIZER")
+SET(PUBLIC_XPROTOCOL_FLAGS "")
 
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(PUBLIC_XPROTOCOL_FLAGS

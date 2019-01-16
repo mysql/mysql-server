@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -156,11 +156,13 @@ ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
 ENDIF()
 
-ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
-ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
-ADD_COMPILE_FLAGS(../../../extra/lz4/xxhash.c
-  COMPILE_FLAGS
-  -DXXH_NAMESPACE=GCS_)
+ADD_COMPILE_DEFINITIONS(
+  ${XCOM_SOURCES}
+  ${GCS_SOURCES}
+  COMPILE_DEFINITIONS MYSQL_DYNAMIC_PLUGIN)
+
+ADD_COMPILE_DEFINITIONS(../../../extra/lz4/xxhash.c
+  COMPILE_DEFINITIONS "XXH_NAMESPACE=GCS_")
 
 ADD_CONVENIENCE_LIBRARY(${GCS_LIBRARY} ${XCOM_SOURCES} ${GCS_SOURCES})
 
