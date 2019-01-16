@@ -37,9 +37,11 @@
 #include <NdbSleep.h>
 #include "my_alloc.h"  // MEM_ROOT
 #include <vector>
+#include <ndb_version.h>
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
+#define ATRT_VERSION_NUMBER 1
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -127,7 +129,7 @@ static struct my_option g_options[] = {
     {"help", '?', "Display this help and exit.", (uchar **)&g_help,
      (uchar **)&g_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"version", 'V', "Output version information and exit.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"site", 256, "Site", (uchar **)&g_site, (uchar **)&g_site, 0, GET_STR,
      REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"clusters", 256, "Cluster", (uchar **)&g_clusters, (uchar **)&g_clusters,
@@ -228,7 +230,7 @@ int main(int argc, char **argv) {
     goto end;
   }
 
-  g_logger.info("Starting...");
+  g_logger.info("Starting ATRT version : %s", getAtrtVersion().c_str());
 
   if (!find_binaries()) {
     g_logger.critical("Failed to find required binaries for execution");
@@ -659,6 +661,13 @@ extern "C" bool get_one_option(int arg, const struct my_option *opt,
 bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
   bool fail_after_help = false;
   char buf[2048];
+
+  if (argc >= 2 && (strcmp(argv[1], "--version") == 0 ||
+     strcmp(argv[1], "-V") == 0)) {
+    ndbout << getAtrtVersion().c_str() << endl;
+    exit(0);
+  }
+
   if (getcwd(buf, sizeof(buf)) == 0) {
     g_logger.error("Unable to get current working directory");
     return false;
@@ -896,6 +905,15 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
   }
 
   return true;
+}
+
+std::string getAtrtVersion() {
+  int mysql_version = ndbGetOwnVersion();
+  std::string version = std::to_string(ndbGetMajor(mysql_version)) + "." +
+                        std::to_string(ndbGetMinor(mysql_version)) + "." +
+                        std::to_string(ndbGetBuild(mysql_version)) + "." +
+                        std::to_string(ATRT_VERSION_NUMBER);
+  return version;
 }
 
 bool connect_hosts(atrt_config &config) {
