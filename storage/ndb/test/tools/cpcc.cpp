@@ -29,9 +29,11 @@
 
 #include <portlib/NdbEnv.h>
 #include <util/NdbOut.hpp>
+#include <ndb_version.h>
 
 #define DEFAULT_PORT 1234
 #define ENV_HOSTS "NDB_CPCC_HOSTS"
+#define CPCC_VERSION_NUMBER 1
 
 struct settings {
   int m_longl;
@@ -184,12 +186,22 @@ add_hosts(Vector<SimpleCpcClient*> & hosts, BaseString list){
   }
 }
 
+std::string getCpccVersion()
+{
+  int mysql_version = ndbGetOwnVersion();
+  std::string version = std::to_string(ndbGetMajor(mysql_version))
+                   + "." + std::to_string(ndbGetMinor(mysql_version))
+                   + "." + std::to_string(ndbGetBuild(mysql_version))
+                   + "." + std::to_string(CPCC_VERSION_NUMBER);
+  return version;
+}
+
 int 
 main(int argc, const char** argv){
   ndb_init();
   int help = 0;
   const char *cmd=0, *name=0, *group=0, *owner=0;
-  int list = 0, start = 0, stop = 0, rm = 0;
+  int list = 0, start = 0, stop = 0, rm = 0, show_version = 0;
   struct getargs args[] = {
     { "cmd", 'c', arg_string, &cmd, "command", "command to run (default ls)" }
     ,{ "name", 'n', arg_string, &name, 
@@ -201,11 +213,12 @@ main(int argc, const char** argv){
     ,{ "long", 'l', arg_flag, &g_settings.m_longl, "long", "long listing"}
     ,{ "usage", '?', arg_flag, &help, "Print help", "" }
     ,{ "ls",  0, arg_flag, &list, "-c list", "list process(es)" }
+    ,{ "version", 'V', arg_flag, &show_version, "Print the version and exit", "" }
     ,{ "start", 0, arg_flag, &start, "-c start", "start process(es)" }
     ,{ "stop",  0, arg_flag, &stop, "-c stop", "stop process(es)" }
     ,{ "rm",    0, arg_flag, &rm, "-c rm", "undefine process(es)" }
   };
-  const int num_args = 10;
+  const int num_args = 11;
   int i; 
   int optind = 0;
   char desc[] = "[host:[port]]\n";
@@ -214,6 +227,13 @@ main(int argc, const char** argv){
     arg_printusage(args, num_args, argv[0], desc);
     return 1;
   }
+
+  if (show_version == 1) {
+    ndbout << getCpccVersion().c_str() << endl;
+    return 0;
+  }
+
+  ndbout.print("Starting CPCC version %s\n", getCpccVersion().c_str());
 
   if(list + start + stop + rm > 1){
     ndbout_c("Can only specify one command");
