@@ -468,8 +468,18 @@ bool plugin_get_group_members(
                                 channel_name);
 }
 
+/*
+  If the local member is already OFFLINE but still has the previous
+  membership because is waiting for the leave view, do not report
+  the other members.
+*/
 uint plugin_get_group_members_number() {
-  return group_member_mgr == NULL
+  bool unitialized_or_offline = group_member_mgr == NULL ||
+                                local_member_info == NULL ||
+                                local_member_info->get_recovery_status() ==
+                                    Group_member_info::MEMBER_OFFLINE;
+
+  return unitialized_or_offline
              ? 1
              : (uint)group_member_mgr->get_number_of_members();
 }
@@ -739,7 +749,9 @@ err:
     if (delayed_init_thd) delayed_init_thd->signal_read_mode_ready();
 
     DBUG_EXECUTE_IF("group_replication_wait_before_leave_on_error", {
-      const char act[] = "now wait_for signal.continue_leave_process";
+      const char act[] =
+          "now signal signal.wait_leave_process "
+          "wait_for signal.continue_leave_process";
       DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
 

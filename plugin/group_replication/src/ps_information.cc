@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,8 +59,19 @@ bool get_group_members_info(
     /* purecov: end */
   }
 
-  Group_member_info *member_info =
-      group_member_manager->get_group_member_info_by_index(index);
+  Group_member_info *member_info = NULL;
+  /*
+    If the local member is already OFFLINE but still has the previous
+    membership because is waiting for the leave view, do not report
+    the other members.
+  */
+  if (local_member_info != NULL && local_member_info->get_recovery_status() ==
+                                       Group_member_info::MEMBER_OFFLINE) {
+    member_info = group_member_manager->get_group_member_info(
+        local_member_info->get_uuid());
+  } else {
+    member_info = group_member_manager->get_group_member_info_by_index(index);
+  }
 
   if (member_info == NULL)  // The requested member is not managed...
   {
@@ -124,8 +135,19 @@ bool get_group_member_stats(
     return false;
   }
 
-  Group_member_info *member_info =
-      group_member_manager->get_group_member_info_by_index(index);
+  Group_member_info *member_info = NULL;
+  /*
+    If the local member is already OFFLINE but still has the previous
+    membership because is waiting for the leave view, do not report
+    the other members.
+  */
+  if (local_member_info != NULL && local_member_info->get_recovery_status() ==
+                                       Group_member_info::MEMBER_OFFLINE) {
+    member_info = group_member_manager->get_group_member_info(
+        local_member_info->get_uuid());
+  } else {
+    member_info = group_member_manager->get_group_member_info_by_index(index);
+  }
 
   if (member_info == NULL)  // The requested member is not managed...
   {

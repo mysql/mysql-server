@@ -26,7 +26,7 @@ SET GTID_NEXT= "AUTOMATIC";
 # 2) Restart M2 with start_on_boot enabled.
 #########################################################################
 
-# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_start_on_boot=1
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_start_on_boot=1 --loose-debug=+d,group_replication_wait_before_leave_on_error
 include/rpl_reconnect.inc
 
 #########################################################################
@@ -35,7 +35,8 @@ include/rpl_reconnect.inc
 #########################################################################
 
 [connection server2]
-include/rpl_gr_wait_for_number_of_members.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.wait_leave_process";
+SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 include/gr_wait_for_member_state.inc
 include/assert_grep.inc [GR reported expected transaction mismatch]
 [connection server1]
