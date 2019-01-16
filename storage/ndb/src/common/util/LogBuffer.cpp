@@ -26,6 +26,7 @@
 #include <portlib/NdbCondition.h>
 #include <portlib/NdbThread.h>
 #include <BaseString.hpp>
+#include <NdbSleep.h>
 
 size_t
 ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs)
@@ -511,7 +512,7 @@ void* thread_producer1(void* dummy)
   {
     if(i%40 == 0)
     {
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     string = string.assfmt("Log %*d\n", 5, i);
     buf_t2->append((void*)string.c_str(), string.length());
@@ -526,7 +527,7 @@ void* thread_producer2(void* dummy)
   {
     if(i%40 == 0)
     {
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     fun("Log %*d\n", 5, -i);
   }
@@ -545,7 +546,7 @@ void* thread_producer3(void* dummy)
   {
     if(i % sleep_when == 0)
     {
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     to_write_bytes = rand() % 10 + 1;
     total_to_write_t3 += to_write_bytes;
@@ -578,7 +579,7 @@ void* thread_consumer1(void* dummy)
     get_bytes= 256;
     if(i == 20)
     {
-      sleep(3); // simulate slow IO
+      NdbSleep_SecSleep(3); // simulate slow IO
     }
     if((bytes = buf_t2->get(buf, get_bytes)))
     {

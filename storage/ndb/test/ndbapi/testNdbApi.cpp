@@ -30,6 +30,7 @@
 #include <NdbRestarts.hpp>
 #include <Vector.hpp>
 #include <random.h>
+#include <NdbSleep.h>
 #include <NdbTick.h>
 #include <my_sys.h>
 #include "../../src/ndbapi/SignalSender.hpp"
@@ -3231,7 +3232,7 @@ int testApiFailReqImpl(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty(ApiFailTestRun, (Uint32)0);
 
   /* Wait a little */
-  sleep(1);
+  NdbSleep_SecSleep(1);
 
   /* Active more stringent checking of behaviour after
    * API_FAILREQ
@@ -3245,7 +3246,7 @@ int testApiFailReqImpl(NDBT_Context* ctx, NDBT_Step* step)
   restarter.insertErrorInAllNodes(8078);
   
   /* Wait a little longer */
-  sleep(1);
+  NdbSleep_SecSleep(1);
   
   /* Now cause our connection to disconnect
    * This results in TC receiving an API_FAILREQ
@@ -3755,7 +3756,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty(ApiFailTestRun, (Uint32)0);
 
   /* Wait a little */
-  sleep(1);
+  NdbSleep_SecSleep(1);
 
   /* Now cause our connection to disconnect
    * This results in NDBD running API failure

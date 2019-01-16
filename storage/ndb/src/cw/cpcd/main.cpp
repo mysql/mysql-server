@@ -173,7 +173,7 @@ int main(int argc, char** argv){
   unsigned short real_port= port; // correct type
   if(!ss->setup(serv, &real_port)){
     logger.critical("Cannot setup server: %s", strerror(errno));
-    sleep(1);
+    NdbSleep_SecSleep(1);
     delete ss;
     delete serv;
     return 1;

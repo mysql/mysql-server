@@ -33,6 +33,7 @@
 #include <NodeBitmask.hpp>
 #include <NdbSqlUtil.hpp>
 #include <BlockNumbers.h>
+#include "portlib/NdbSleep.h"
 
 #define CHECK(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
@@ -2819,7 +2820,7 @@ runBug56829(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "delete records" << endl;
     CHECK2(trans.clearTable(pNdb) == 0, trans.getNdbError());
     memset(rowmask, 0, rows);
-    sleep(2);
+    NdbSleep_SecSleep(2);
     CHECK2(get_data_memory_pages(h, dbmask, &pages[4]) == NDBT_OK, "failed");
     g_err << "delete records pages " << pages[4] << endl;
 

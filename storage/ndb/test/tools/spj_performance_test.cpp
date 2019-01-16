@@ -36,6 +36,7 @@
 #include "../../src/ndbapi/NdbQueryBuilder.hpp"
 #include "../../src/ndbapi/NdbQueryOperation.hpp"
 #include <pthread.h>
+#include <NdbSleep.h>
 #include <NdbTick.h>
 
 #if 0
@@ -715,7 +716,7 @@ int main(int argc, char* argv[]){
     for(int i = 0; i<threadCount; i++){
       threads[i] = new TestThread(con, host, port);
     }
-    sleep(1);
+    NdbSleep_SecSleep(1);
 
 
     //testScanLookupDepth(1);

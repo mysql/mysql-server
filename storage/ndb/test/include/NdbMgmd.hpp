@@ -38,6 +38,8 @@
 
 #include <InputStream.hpp>
 
+#include "NdbSleep.h"
+
 class NdbMgmd {
   BaseString m_connect_str;
   NdbMgmHandle m_handle;
@@ -526,7 +528,7 @@ public:
 
     // TODO: Instead of using flaky sleep, try reconnect and
     // determine whether the config is changed.
-    sleep(10); //Give MGM server time to restart
+    NdbSleep_SecSleep(10); //Give MGM server time to restart
 
     return true;
   }
@@ -588,7 +590,7 @@ public:
 
     // TODO: Instead of using flaky sleep, try reconnect and
     // determine whether the config is changed.
-    sleep(10); //Give MGM server time to restart
+    NdbSleep_SecSleep(10); //Give MGM server time to restart
 
     return true;
   }

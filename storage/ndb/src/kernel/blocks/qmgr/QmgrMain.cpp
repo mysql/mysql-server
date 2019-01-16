@@ -25,6 +25,7 @@
 #define QMGR_C
 #include "Qmgr.hpp"
 #include <pc.hpp>
+#include <NdbSleep.h>
 #include <NdbTick.h>
 #include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/EventReport.hpp>
@@ -3584,7 +3585,7 @@ void Qmgr::sendHeartbeat(Signal* signal)
 
   if(ERROR_INSERTED(946))
   {
-    sleep(180);
+    NdbSleep_SecSleep(180);
     return;
   }
 

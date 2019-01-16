@@ -35,6 +35,7 @@
 #include <BlockNumbers.h>
 #include <NdbHost.h>
 #include <NdbMgmd.hpp>
+#include <NdbSleep.h>
 
 #define CHK1(b) \
   if (!(b)) { \
@@ -198,7 +199,7 @@ int runPkRead(NDBT_Context* ctx, NDBT_Step* step){
 
 int runTimer(NDBT_Context* ctx, NDBT_Step* step)
 {
-  sleep(120);
+  NdbSleep_SecSleep(120);
   ctx->stopTest();
   return NDBT_OK;
 }
@@ -1371,7 +1372,7 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }      
     pDict->dropTable(copy.getName());
-    sleep(2);
+    NdbSleep_SecSleep(2);
     struct ndb_mgm_events * after =
       ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
     if (after == 0)
@@ -1444,7 +1445,7 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
     pDict->dropTable(copy.getName());
-    sleep(2);
+    NdbSleep_SecSleep(2);
     struct ndb_mgm_events * after =
       ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
 
@@ -1533,7 +1534,7 @@ runBug25090(NDBT_Context* ctx, NDBT_Step* step){
     ops.startTransaction(pNdb);
     ops.pkReadRecord(pNdb, 1, 1);
     ops.execute_Commit(pNdb, AO_IgnoreError);
-    sleep(10);
+    NdbSleep_SecSleep(10);
     ops.closeTransaction(pNdb);
   }
   

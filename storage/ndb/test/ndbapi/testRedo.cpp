@@ -31,6 +31,7 @@
 #include <NdbRestarter.hpp>
 #include <mgmapi.h>
 #include <ndb_logevent.h>
+#include <NdbSleep.h>
 #include <NdbTick.h>
 #include <NDBT_Stats.hpp>
 #include <random.h>
@@ -193,7 +194,7 @@ runLongtrans(NDBT_Context* ctx, NDBT_Step* step)
         if (sleep410 > 0)
         {
           info("longtrans: sleep " << sleep410);
-          sleep(sleep410);
+          NdbSleep_SecSleep(sleep410);
         }
 
         CHK2(ops.execute_Rollback(pNdb) == 0, ops.getNdbError());
@@ -212,11 +213,11 @@ runLongtrans(NDBT_Context* ctx, NDBT_Step* step)
             info("longtrans: 410 cleared");
             break;
           }
-          sleep(1);
+          NdbSleep_SecSleep(1);
         }
         break;
       }
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     CHK1(result == NDBT_OK);
 
@@ -348,7 +349,7 @@ runWrite410(NDBT_Context* ctx, NDBT_Step* step)
         info("write: longtrans rollback seen");
         break;
       }
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
 
     while (!ctx->isTestStopped())
@@ -989,7 +990,7 @@ runRestartOK(NDBT_Context* ctx, NDBT_Step* step)
     info("restart01: cluster up again");
 
     // let write run until redo wraps (no check yet)
-    sleep(300);
+    NdbSleep_SecSleep(300);
     loop++;
   }
 
@@ -1263,7 +1264,7 @@ runRestartFD(NDBT_Context* ctx, NDBT_Step* step)
     }
     CHK1(result == NDBT_OK);
 
-    sleep(1 + myRandom48(10));
+    NdbSleep_SecSleep(1 + myRandom48(10));
     loop++;
   }
 
@@ -1380,7 +1381,7 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     g_err << "Restarting nodes to apply config change..." << endl;
-    sleep(3); //Give MGM server time to restart
+    NdbSleep_SecSleep(3); //Give MGM server time to restart
     if (restarter.restartAll(true))
     {
       g_err << "Failed to restart node." << endl;

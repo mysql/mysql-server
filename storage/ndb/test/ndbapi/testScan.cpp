@@ -32,6 +32,7 @@
 #include <random.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbConfig.hpp>
+#include <NdbSleep.h>
 
 const NdbDictionary::Table *
 getTable(Ndb* pNdb, int i){
@@ -488,7 +489,7 @@ int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
   int savesnapshot= DumpStateOrd::TcResourceSnapshot;
   Uint32 checksnapshot= DumpStateOrd::TcResourceCheckLeak;
 
-  sleep(2);
+  NdbSleep_SecSleep(2);
   restarter.dumpStateAllNodes(&savesnapshot, 1);
   Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
 
@@ -1649,7 +1650,7 @@ int checkResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
   Ndb *pNdb = GETNDB(step);
   NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
 
-  sleep(2);
+  NdbSleep_SecSleep(2);
   Uint32 checksnapshot = DumpStateOrd::TcResourceCheckLeak;
   pDict->forceGCPWait(1);
   if (Ndb_internal::send_dump_state_all(pNdb, &checksnapshot, 1) != 0)
@@ -2364,7 +2365,7 @@ sizeFragment0DbaccHashTable(Ndb* ndb,
   require(NULL != trans->insertTuple(record, row, record, row));
   require(0 == trans->execute(Commit));
   trans->close();
-  sleep(1);
+  NdbSleep_SecSleep(1);
 
   return 0;
 }
@@ -2547,7 +2548,7 @@ runScanDuringExpandAndShrinkBack(NDBT_Context* ctx, NDBT_Step* step)
 
   // 1. Start with table with just above 2^n buckets in fragment 0.
   require(0 == populateFragment0(ndb, pTab, fragment_rows, low_bucket));
-  sleep(1);
+  NdbSleep_SecSleep(1);
 
   // 2. Start scan and read about half of the rows in fragment 0.
 

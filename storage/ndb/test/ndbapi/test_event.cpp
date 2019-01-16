@@ -30,6 +30,7 @@
 #include <NdbAutoPtr.hpp>
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
+#include <NdbSleep.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
@@ -694,7 +695,7 @@ int runEventOperation(NDBT_Context* ctx, NDBT_Step* step)
 
   g_info << "***** start Id " << tId << endl;
 
-  //  sleep(tId);
+  //  NdbSleep_SecSleep(tId);
 
   if (eventOperation(GETNDB(step), *ctx->getTab(), (void*)&stats, 3*records) != 0){
     return NDBT_FAILED;
@@ -734,10 +735,10 @@ int runEventLoad(NDBT_Context* ctx, NDBT_Step* step)
   if (ctx->getProperty("AllowEmptyUpdates"))
     hugoTrans.setAllowEmptyUpdates(true);
 
-  sleep(1);
+  NdbSleep_SecSleep(1);
 #if 0
-  sleep(5);
-  sleep(theThreadIdCounter);
+  NdbSleep_SecSleep(5);
+  NdbSleep_SecSleep(theThreadIdCounter);
 #endif
   if (hugoTrans.loadTable(GETNDB(step), records, 1, true, loops) != 0){
     return NDBT_FAILED;
@@ -2117,7 +2118,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
 	DBUG_RETURN(NDBT_FAILED);
       }
 
-      sleep(5);
+      NdbSleep_SecSleep(5);
       // update all tables
       for (i= 0; pTabs[i]; i++)
       {
@@ -3903,7 +3904,7 @@ runBug57886_create_drop(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
   NdbDictionary::Table tab = * ctx->getTab();
 
-  sleep(5);
+  NdbSleep_SecSleep(5);
 
   while (loops --)
   {
@@ -3917,7 +3918,7 @@ runBug57886_create_drop(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
 
-    sleep(1);
+    NdbSleep_SecSleep(1);
   }
 
   ctx->stopTest();

@@ -315,7 +315,7 @@ kill(pid_t pid, int sig)
     }
 
     if (retry_open_event--)
-      Sleep(100);
+      NdbSleep_MilliSleep(100);
     else
     {
       g_eventLogger->error("Failed to open shutdown_event '%s', error: %d",

@@ -625,7 +625,7 @@ void CPCD::Process::do_exec() {
 }
 
 #ifdef _WIN32
-void sched_yield() { Sleep(100); }
+void sched_yield() { NdbSleep_MilliSleep(100); }
 #endif
 
 int CPCD::Process::start() {

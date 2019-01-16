@@ -32,7 +32,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
-
+#include "portlib/NdbSleep.h"
 
 #define DBG(x) \
   do { g_info << x << " at line " << __LINE__ << endl; } while (0)
@@ -922,7 +922,7 @@ runRSSsnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
   g_info << "check all resource usage" << endl;
-  sleep(2);
+  NdbSleep_SecSleep(2);
   int dump1[] = { DumpStateOrd::SchemaResourceCheckLeak };
   restarter.dumpStateAllNodes(dump1, 1);
   return NDBT_OK;

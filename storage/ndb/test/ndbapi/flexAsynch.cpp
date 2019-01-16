@@ -1636,11 +1636,11 @@ main_thread(RunType start_type, NdbTimer & timer)
 
   if (!insert_delete)
   {
-    sleep(tWarmupTime);
+    NdbSleep_SecSleep(tWarmupTime);
     tRunState = EXECUTING;
-    sleep(tExecutionTime);
+    NdbSleep_SecSleep(tExecutionTime);
     tRunState = COOLDOWN;
-    sleep(tCooldownTime);
+    NdbSleep_SecSleep(tCooldownTime);
     signal_definer_threads_to_stop();
   }
   wait_for_threads_ready(tNoOfDefinerThreads);
