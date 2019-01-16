@@ -217,6 +217,14 @@ static PSI_stage_info *srv_stages[] = {
 };
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
+/** Sleep time in loops which wait for pending tasks during shutdown. */
+static constexpr uint32_t SHUTDOWN_SLEEP_TIME_US = 100;
+
+/** Number of wait rounds during shutdown, after which error is produced,
+or other policy for timed out wait is applied. */
+static constexpr uint32_t SHUTDOWN_SLEEP_ROUNDS =
+    60 * 1000 * 1000 / SHUTDOWN_SLEEP_TIME_US;
+
 /** Check if a file can be opened in read-write mode.
  @return true if it doesn't exist or can be opened in rw mode. */
 static bool srv_file_check_mode(const char *name) /*!< in: filename to check */
@@ -1656,7 +1664,7 @@ void srv_shutdown_all_bg_threads() {
   /* All threads end up waiting for certain events. Put those events
   to the signaled state. Then the threads will exit themselves after
   os_event_wait(). */
-  for (i = 0; i < 1000; i++) {
+  for (i = 0; i < SHUTDOWN_SLEEP_ROUNDS; i++) {
     /* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
     HERE OR EARLIER */
 
@@ -1715,14 +1723,14 @@ void srv_shutdown_all_bg_threads() {
 
     bool active = os_thread_any_active();
 
-    os_thread_sleep(100000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
 
     if (!active) {
       break;
     }
   }
 
-  if (i == 1000) {
+  if (i == SHUTDOWN_SLEEP_ROUNDS) {
     ib::warn(ER_IB_MSG_1103, os_thread_count.load());
 
 #ifdef UNIV_DEBUG
@@ -1789,7 +1797,7 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
 
     flushed_lsn = log_get_lsn(*log_sys);
 
-    {
+    if (count == 0) {
       std::ostringstream info;
 
       if (srv_log_file_size == 0) {
@@ -1822,12 +1830,12 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
       count++;
       /* Print a message every 60 seconds if we
       are waiting to clean the buffer pools */
-      if (count >= 600) {
+      if (count >= SHUTDOWN_SLEEP_ROUNDS) {
         ib::info(ER_IB_MSG_1106, ulonglong{pending_io});
         count = 0;
       }
     }
-    os_thread_sleep(100000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
 
   } while (buf_pool_check_no_pending_io());
 
@@ -2981,7 +2989,7 @@ void srv_pre_dd_shutdown() {
   while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
     /* we should wait until rollback after recovery end
     for slow shutdown */
-    os_thread_sleep(100000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
 
   /* Here, we will only shut down the tasks that may be looking up
@@ -3005,7 +3013,7 @@ void srv_pre_dd_shutdown() {
 
     if (wait) {
       srv_purge_wakeup();
-      if (count % 600 == 0) {
+      if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
         ib::info(ER_IB_MSG_1152) << "Waiting for purge to complete";
       }
     } else {
@@ -3026,14 +3034,14 @@ void srv_pre_dd_shutdown() {
 
       os_event_set(dict_stats_event);
 
-      if (count % 600 == 0) {
+      if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
         ib::info(ER_IB_MSG_1153);
       }
     }
 
     if (srv_threads.m_ts_alter_encrypt_thread_active) {
       wait = true;
-      if ((count % 600) == 0) {
+      if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
         ib::info(ER_IB_MSG_WAIT_FOR_ENCRYPT_THREAD)
             << "Waiting for"
                " tablespace_alter_encrypt_thread to"
@@ -3046,7 +3054,7 @@ void srv_pre_dd_shutdown() {
     }
 
     count++;
-    os_thread_sleep(100000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
 
   if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
@@ -3057,7 +3065,7 @@ void srv_pre_dd_shutdown() {
 }
 
 static void srv_shutdown_arch() {
-  int count = 0;
+  uint32_t count = 0;
 
   while (log_archiver_is_active || page_archiver_is_active) {
     ++count;
@@ -3068,9 +3076,9 @@ static void srv_shutdown_arch() {
       os_event_set(page_archiver_thread_event);
     }
 
-    os_thread_sleep(100000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
 
-    if (count > 600) {
+    if (count > SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1246) << "Waiting for archiver to"
                                   " finish archiving page and log";
       count = 0;
@@ -3092,8 +3100,6 @@ static lsn_t srv_shutdown_log() {
     dict_persist_to_dd_table_buffer();
   }
 
-  os_thread_sleep(100 * 1000);
-
   /* Wait until all background threads except master thread
   have been stopped. */
   for (uint32_t count = 0;; ++count) {
@@ -3107,11 +3113,11 @@ static lsn_t srv_shutdown_log() {
     for the monitor thread to exit. The master thread
     will be checked later. */
 
-    if (count >= 600) {
+    if (count >= SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1248) << "Waiting for " << thread_name << " to exit.";
       count = 0;
     }
-    os_thread_sleep(100 * 1000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
@@ -3129,13 +3135,13 @@ static lsn_t srv_shutdown_log() {
       break;
     }
 
-    if (count >= 600) {
+    if (count >= SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1249) << "Waiting for " << total_trx << " active"
                                << " transactions to finish.";
 
       count = 0;
     }
-    os_thread_sleep(100 * 1000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
@@ -3150,12 +3156,12 @@ static lsn_t srv_shutdown_log() {
     for the monitor thread to exit. The master thread
     will be checked later. */
 
-    if (count >= 600) {
+    if (count >= SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1250) << "Waiting for master thread"
                                << " to be suspended.";
       count = 0;
     }
-    os_thread_sleep(100 * 1000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
@@ -3167,12 +3173,12 @@ static lsn_t srv_shutdown_log() {
   srv_shutdown_state = SRV_SHUTDOWN_FLUSH_PHASE;
 
   for (uint32_t count = 0; buf_page_cleaner_is_active; ++count) {
-    if (count >= 600) {
+    if (count >= SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1251) << "Waiting for page_cleaner to"
                                << " finish flushing of buffer pool.";
       count = 0;
     }
-    os_thread_sleep(100000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
@@ -3184,12 +3190,12 @@ static lsn_t srv_shutdown_log() {
       break;
     }
 
-    if (count >= 600) {
+    if (count >= SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1252) << "Waiting for " << pending_io << " buffer"
                                << " page I/Os to complete.";
       count = 0;
     }
-    os_thread_sleep(100 * 1000);
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
