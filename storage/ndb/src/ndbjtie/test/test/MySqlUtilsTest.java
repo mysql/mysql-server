@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -38,7 +38,15 @@ public class MySqlUtilsTest extends JTieTestBase {
     public void testDbugUtils() {
         out.println("--> MySqlUtilsTest.testDbugUtils()");
 
-        // load native library
+
+        /*
+          "my_thread_end()" should only be called from threads which have
+          called "my_thread_init()". loadSystemLibrary() calls
+          "my_thread_init()" internally and "my_thread_end()" will be called
+          from the static object destructors. So, this function has to be
+          called only from the process main thread. This is only critical for
+          debug build.
+        */
         loadSystemLibrary("ndbclient");
 
 /*
@@ -170,7 +178,14 @@ public class MySqlUtilsTest extends JTieTestBase {
         int latin1_num, utf8_num, utf16_num;
         out.println("--> MySqlUtilsTest.testCharsetMap()");
 
-        // load native library
+        /*
+          "my_thread_end()" should only be called from threads which have
+          called "my_thread_init()". loadSystemLibrary() calls
+          "my_thread_init()" internally and "my_thread_end()" will be called
+          from the static object destructors. So, this function has to be
+          called only from the process main thread. This is only critical for
+          debug build.
+        */
         loadSystemLibrary("ndbclient");
         CharsetMap csmap = CharsetMap.create();
 
@@ -409,7 +424,15 @@ public class MySqlUtilsTest extends JTieTestBase {
     public void testDecimalConv() {
         out.println("--> MySqlUtilsTest.testDecimalConv()");
 
-        // load native library
+
+        /*
+          "my_thread_end()" should only be called from threads which have
+          called "my_thread_init()". loadSystemLibrary() calls
+          "my_thread_init()" internally and "my_thread_end()" will be called
+          from the static object destructors. So, this function has to be
+          called only from the process main thread. This is only critical for
+          debug build.
+        */
         loadSystemLibrary("ndbclient");
 
         test_s2b2s("3.3", 2, 1);
