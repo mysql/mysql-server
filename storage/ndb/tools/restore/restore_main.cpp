@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1540,6 +1540,12 @@ int do_restore(RestoreThreadData *thrdata)
   for (i = 0; i < g_consumers.size(); i++)
     g_consumers[i]->report_started(ga_backupId, ga_nodeId);
 
+  /* before syncing on m_barrier, check if any threads have already exited */
+  if (ga_error_thread > 0)
+  {
+    return NDBT_FAILED;
+  }
+
   if (!thrdata->m_restore_meta)
   {
     /**
@@ -1685,6 +1691,12 @@ int do_restore(RestoreThreadData *thrdata)
         return NDBT_FAILED;
       } 
     }
+  }
+
+  /* before syncing on m_barrier, check if any threads have already exited */
+  if (ga_error_thread > 0)
+  {
+    return NDBT_FAILED;
   }
 
   if (thrdata->m_restore_meta)
