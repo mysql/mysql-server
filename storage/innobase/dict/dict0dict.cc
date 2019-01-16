@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -784,8 +784,8 @@ void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
     dict_persist->mutex. Above update to AUTOINC would be either
     written back to DDTableBuffer or not. But the redo logs for
     current change won't be counted into current checkpoint.
-    See how log_sys->dict_suggest_checkpoint_lsn is set. So
-    even a crash after below redo log flushed, no change lost.
+    See how log_sys->dict_max_allowed_checkpoint_lsn is set.
+    So even a crash after below redo log flushed, no change lost.
 
     If that function sets the dirty_status after below checking,
     which means current change would be written back to
@@ -5457,17 +5457,11 @@ void dict_persist_to_dd_table_buffer() {
   bool persisted = false;
 
   if (dict_sys == nullptr) {
-    log_sys->dict_suggest_checkpoint_lsn = 0;
+    log_sys->dict_max_allowed_checkpoint_lsn = 0;
     return;
   }
 
   mutex_enter(&dict_persist->mutex);
-
-  if (UT_LIST_GET_LEN(dict_persist->dirty_dict_tables) == 0) {
-    mutex_exit(&dict_persist->mutex);
-    log_sys->dict_suggest_checkpoint_lsn = 0;
-    return;
-  }
 
   for (dict_table_t *table = UT_LIST_GET_FIRST(dict_persist->dirty_dict_tables);
        table != NULL;) {
@@ -5487,17 +5481,23 @@ void dict_persist_to_dd_table_buffer() {
 
   ut_ad(dict_persist->num_dirty_tables == 0);
 
-  if (persisted) {
-    /* Get this lsn with dict_persist->mutex held,
-    so no other concurrent dynamic metadata change logs
-    would be before this lsn. */
-    log_sys->dict_suggest_checkpoint_lsn = log_get_lsn(*log_sys);
-  }
+  /* Get this lsn with dict_persist->mutex held,
+  so no other concurrent dynamic metadata change logs
+  would be before this lsn. */
+  const lsn_t persisted_lsn = log_get_lsn(*log_sys);
+
+  /* As soon as we release the dict_persist->mutex, new dynamic
+  metadata changes could happen. They would be not persisted
+  until next call to dict_persist_to_dd_table_buffer.
+  We must not remove redo which could allow to deduce them.
+  Therefore the maximum allowed lsn for checkpoint is the
+  current lsn. */
+  log_sys->dict_max_allowed_checkpoint_lsn = persisted_lsn;
 
   mutex_exit(&dict_persist->mutex);
 
   if (persisted) {
-    log_buffer_flush_to_disk();
+    log_write_up_to(*log_sys, persisted_lsn, true);
   }
 }
 
