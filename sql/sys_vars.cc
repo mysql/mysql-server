@@ -4861,9 +4861,9 @@ static bool update_timestamp(THD *thd, set_var *var) {
     double micros = fractpart * 1000000.0;
     // Double multiplication, and conversion to integral may yield
     // 1000000 rather than 999999.
-    struct timeval tmp {
-      llrint(intpart), std::min(llrint(micros), 999999LL)
-    };
+    struct timeval tmp;
+    tmp.tv_sec = llrint(intpart);
+    tmp.tv_usec = std::min(llrint(micros), 999999LL);
     thd->set_time(&tmp);
   } else  // SET timestamp=DEFAULT
   {
