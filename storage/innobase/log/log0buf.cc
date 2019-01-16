@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -901,6 +901,7 @@ void log_buffer_write_completed(log_t &log, const Log_handle &handle,
   uint64_t wait_loops = 0;
 
   while (!log.recent_written.has_space(start_lsn)) {
+    os_event_set(log.writer_event);
     ++wait_loops;
     os_thread_sleep(20);
   }
@@ -938,6 +939,7 @@ void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
   uint64_t wait_loops = 0;
 
   while (!log.recent_closed.has_space(lsn)) {
+    os_event_set(log.closer_event);
     ++wait_loops;
     os_thread_sleep(20);
   }
