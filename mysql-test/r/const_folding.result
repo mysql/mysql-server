@@ -24608,7 +24608,7 @@ EXPLAIN SELECT d FROM t WHERE d > 10.30;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` > 10.30)
+Note	1003	/* select#1 */ select `test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` > 10.3)
 SELECT d FROM t WHERE d > 010.3;
 d
 10.4
@@ -25194,7 +25194,7 @@ EXPLAIN SELECT d FROM t WHERE d > 10.30;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` > 10.30)
+Note	1003	/* select#1 */ select `test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` > 10.3)
 SELECT d FROM t WHERE d > 010.3;
 d
 10.4
@@ -49505,3 +49505,12 @@ cte2 AS ( SELECT LAST_DAY(18446744073709551615+1) AS a2 FROM t1 )
 SELECT * FROM cte1, cte2 WHERE cte1.a1 <> cte2.a2;
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(18446744073709551615 + 1)'
 DROP TABLE t1, t2;
+CREATE TABLE t(c DECIMAL(9,3));
+SELECT * FROM t WHERE c <=> 8106.000000;
+c
+EXPLAIN SELECT * from t WHERE c <=> 8106.000000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`c` AS `c` from `test`.`t` where (`test`.`t`.`c` <=> 8106.000)
+DROP TABLE t;
