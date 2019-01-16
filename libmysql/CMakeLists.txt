@@ -181,11 +181,10 @@ SET(CLIENT_SOURCES
   ../sql/auth/sha2_password_common.cc
 )
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  ADD_COMPILE_FLAGS(
+  ADD_COMPILE_DEFINITIONS(
     ../sql-common/client_authentication.cc
-    COMPILE_FLAGS -DHAVE_OPENSSL_APPLINK_C
+    COMPILE_DEFINITIONS HAVE_OPENSSL_APPLINK_C
   )
 ENDIF()
 

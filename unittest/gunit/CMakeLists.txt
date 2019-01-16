@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -222,14 +222,6 @@ SET(DISABLE_PSI_DEFINITIONS
   "DISABLE_PSI_RWLOCK"
   "DISABLE_PSI_STAGE"
   )
-SET(DISABLE_PSI_OPTIONS
-  "-DDISABLE_PSI_COND"
-  "-DDISABLE_PSI_FILE"
-  "-DDISABLE_PSI_METADATA"
-  "-DDISABLE_PSI_MUTEX"
-  "-DDISABLE_PSI_RWLOCK"
-  "-DDISABLE_PSI_STAGE"
-  )
 
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
@@ -286,8 +278,6 @@ ENDIF()
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
 ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/share")
 ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
-
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Add tests (link them with gunit/gmock libraries) 
 SET(TESTS
@@ -517,7 +507,8 @@ ENDIF()
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
-  ADD_COMPILE_FLAGS(${test}-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
+  ADD_COMPILE_DEFINITIONS(${test}-t.cc
+    COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
   IF(NOT MERGE_UNITTESTS)

@@ -69,7 +69,8 @@ ADD_DEPENDENCIES(gen_keyword_list GenServerSource)
 TARGET_LINK_LIBRARIES(gen_keyword_list ${ICU_LIBRARIES} ${CMAKE_DL_LIBS})
 # ICU headers for WIN32 need extra info about their libs state
 IF(WIN32)
-  ADD_COMPILE_FLAGS(gen_keyword_list.cc COMPILE_FLAGS -DU_STATIC_IMPLEMENTATION)
+  ADD_COMPILE_DEFINITIONS(gen_keyword_list.cc COMPILE_DEFINITIONS
+    U_STATIC_IMPLEMENTATION)
 ENDIF()
 
 ADD_CUSTOM_COMMAND(
@@ -629,9 +630,9 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   ENDIF()
 ENDIF()
 
-ADD_COMPILE_FLAGS(
+ADD_COMPILE_DEFINITIONS(
   ../extra/lz4/xxhash.c
-  COMPILE_FLAGS -DXXH_NAMESPACE=MY_
+  COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
 )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
@@ -726,16 +727,16 @@ ADD_DEPENDENCIES(sql_dd GenError)
 ADD_DEPENDENCIES(sql_dd GenKeywordList)
 
 #
-# On Windows platform we compile in the clinet-side Windows Native Authentication
+# On Windows platform we compile in the client-side Windows Native Authentication
 # plugin which is used by the client connection code included in the server.
 #
 IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
   TARGET_LINK_LIBRARIES(sql_main auth_win_client)
   IF(OPENSSL_APPLINK_C)
-    ADD_COMPILE_FLAGS(
+    ADD_COMPILE_DEFINITIONS(
       ../sql-common/client_authentication.cc
-      COMPILE_FLAGS -DHAVE_OPENSSL_APPLINK_C)
+      COMPILE_DEFINITIONS HAVE_OPENSSL_APPLINK_C)
   ENDIF()
 ENDIF()
 

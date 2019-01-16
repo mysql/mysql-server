@@ -24,14 +24,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
 )
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-
 ## Subdirectory with common client code.
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.
 ADD_SUBDIRECTORY(dump)
-
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc)
 TARGET_LINK_LIBRARIES(mysql mysqlclient)
@@ -93,12 +89,11 @@ SET(MYSQLBINLOG_LIB_SOURCES
 )
 ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})
 ADD_DEPENDENCIES(mysqlbinlog_lib GenError)
-ADD_COMPILE_FLAGS(
-  mysqlbinlog.cc
-  ${MYSQLBINLOG_LIB_SOURCES}
-  COMPILE_FLAGS
-  "-I${CMAKE_SOURCE_DIR}/sql" "-DDISABLE_PSI_MUTEX"
-)
+
+TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)
+TARGET_COMPILE_DEFINITIONS(mysqlbinlog_lib PRIVATE DISABLE_PSI_MUTEX)
+TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
+TARGET_INCLUDE_DIRECTORIES(mysqlbinlog_lib PRIVATE ${CMAKE_SOURCE_DIR}/sql)
 
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)

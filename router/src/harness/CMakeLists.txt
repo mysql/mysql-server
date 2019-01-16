@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,6 @@ IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
   ADD_SUBDIRECTORY(shared)
 ENDIF()
 
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/compile_flags.cmake)
 INCLUDE(GenerateExportHeader)
 
 SET(MY_SSL_SOURCE_DIR ${MySQLRouter_SOURCE_DIR}/src/router/src/common)
