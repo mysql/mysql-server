@@ -168,13 +168,13 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
 
         FIND_PROGRAM(ALTERNATIVE_GCC gcc
           NO_DEFAULT_PATH
-          PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+          PATHS "/opt/rh/devtoolset-8/root/usr/bin")
         FIND_PROGRAM(ALTERNATIVE_GPP g++
           NO_DEFAULT_PATH
-          PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+          PATHS "/opt/rh/devtoolset-8/root/usr/bin")
         FIND_PROGRAM(ALTERNATIVE_ENABLE enable
           NO_DEFAULT_PATH
-          PATHS "/opt/rh/devtoolset-7/")
+          PATHS "/opt/rh/devtoolset-8/")
         IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
           SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
           SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
