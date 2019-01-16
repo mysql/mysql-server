@@ -12,6 +12,7 @@
 
 # Third-party code.
 /extra/** !filter
+/internal/extra/** !filter
 /include/boost_*/** !filter
 /plugin/innodb_memcached/daemon_memcached/** !filter
 /plugin/innodb_memcached/innodb_memcache/cache-src/** !filter
