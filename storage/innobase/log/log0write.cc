@@ -910,7 +910,7 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
   ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE <=
        OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
 
-  ut_a(end_lsn <= log_get_lsn(log));
+  ut_ad(end_lsn <= log_get_lsn(log));
 
   if (flush_to_disk) {
     if (log.flushed_to_disk_lsn.load() >= end_lsn) {
@@ -1462,6 +1462,10 @@ static inline size_t compute_write_event_slot(const log_t &log, lsn_t lsn) {
 static inline void notify_about_advanced_write_lsn(log_t &log,
                                                    lsn_t old_write_lsn,
                                                    lsn_t new_write_lsn) {
+  if (srv_flush_log_at_trx_commit == 1) {
+    os_event_set(log.flusher_event);
+  }
+
   const auto first_slot = compute_write_event_slot(log, old_write_lsn);
 
   const auto last_slot = compute_write_event_slot(log, new_write_lsn);
@@ -1472,6 +1476,10 @@ static inline void notify_about_advanced_write_lsn(log_t &log,
   } else {
     LOG_SYNC_POINT("log_write_before_notifier_notify");
     os_event_set(log.write_notifier_event);
+  }
+
+  if (arch_log_sys && arch_log_sys->is_active()) {
+    os_event_set(log_archiver_thread_event);
   }
 }
 
@@ -1904,14 +1912,6 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
   log_update_limits(log);
 
   LOG_SYNC_POINT("log_writer_write_end");
-
-  if (srv_flush_log_at_trx_commit == 1) {
-    os_event_set(log.flusher_event);
-  }
-
-  if (arch_log_sys && arch_log_sys->is_active()) {
-    os_event_set(log_archiver_thread_event);
-  }
 }
 
 void log_writer(log_t *log_ptr) {
