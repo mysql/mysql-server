@@ -13927,17 +13927,13 @@ ident_keywords_ambiguous_1_roles_and_labels:
   These non-reserved keywords cannot be used as unquoted SP label names:
 */
 ident_keywords_ambiguous_2_labels:
-          ACCOUNT_SYM
-        | ALWAYS_SYM
-        | ASCII_SYM
-        | BACKUP_SYM
+          ASCII_SYM
         | BEGIN_SYM
         | BYTE_SYM
         | CACHE_SYM
         | CHARSET
         | CHECKSUM_SYM
         | CLONE_SYM
-        | CLOSE_SYM
         | COMMENT_SYM
         | COMMIT_SYM
         | CONTAINS_SYM
@@ -13946,48 +13942,25 @@ ident_keywords_ambiguous_2_labels:
         | END
         | FLUSH_SYM
         | FOLLOWS_SYM
-        | FORMAT_SYM
-        | GROUP_REPLICATION
         | HANDLER_SYM
         | HELP_SYM
-        | HOST_SYM
         | IMPORT
         | INSTALL_SYM
-        | INVISIBLE_SYM
         | LANGUAGE_SYM
         | NO_SYM
-        | OPEN_SYM
-        | OPTIONS_SYM
-        | OWNER_SYM
-        | PARSER_SYM
-        | PORT_SYM
         | PRECEDES_SYM
         | PREPARE_SYM
-        | REMOVE_SYM
         | REPAIR
         | RESET_SYM
-        | RESTORE_SYM
-        | ROLE_SYM
         | ROLLBACK_SYM
         | SAVEPOINT_SYM
-        | SECONDARY_SYM
-        | SECONDARY_ENGINE_SYM
-        | SECONDARY_LOAD_SYM
-        | SECONDARY_UNLOAD_SYM
-        | SECURITY_SYM
-        | SERVER_SYM
         | SIGNED_SYM
         | SLAVE
-        | SOCKET_SYM
-        | SONAME_SYM
         | START_SYM
         | STOP_SYM
         | TRUNCATE_SYM
         | UNICODE_SYM
         | UNINSTALL_SYM
-        | UPGRADE_SYM
-        | VISIBLE_SYM
-        | WRAPPER_SYM
         | XA_SYM
         ;
 
@@ -14029,6 +14002,7 @@ ident_keywords_ambiguous_3_roles:
 */
 ident_keywords_unambiguous:
           ACTION
+        | ACCOUNT_SYM
         | ACTIVE_SYM
         | ADDDATE_SYM
         | ADMIN_SYM
@@ -14036,12 +14010,14 @@ ident_keywords_unambiguous:
         | AGAINST
         | AGGREGATE_SYM
         | ALGORITHM_SYM
+        | ALWAYS_SYM
         | ANY_SYM
         | AT_SYM
         | AUTOEXTEND_SIZE_SYM
         | AUTO_INC
         | AVG_ROW_LENGTH
         | AVG_SYM
+        | BACKUP_SYM
         | BINLOG_SYM
         | BIT_SYM
         | BLOCK_SYM
@@ -14057,12 +14033,13 @@ ident_keywords_unambiguous:
         | CIPHER_SYM
         | CLASS_ORIGIN_SYM
         | CLIENT_SYM
+        | CLOSE_SYM
         | COALESCE
         | CODE_SYM
         | COLLATION_SYM
+        | COLUMNS
         | COLUMN_FORMAT_SYM
         | COLUMN_NAME_SYM
-        | COLUMNS
         | COMMITTED_SYM
         | COMPACT_SYM
         | COMPLETION_SYM
@@ -14077,16 +14054,12 @@ ident_keywords_unambiguous:
         | CONSTRAINT_SCHEMA_SYM
         | CONTEXT_SYM
         | CPU_SYM
-        /*
-          Although a reserved keyword in SQL:2003 (and :2008),
-          not reserved in MySQL per WL#2111 specification.
-        */
-        | CURRENT_SYM
+        | CURRENT_SYM /* not reserved in MySQL per WL#2111 specification */
         | CURSOR_NAME_SYM
         | DATAFILE_SYM
         | DATA_SYM
-        | DATE_SYM
         | DATETIME_SYM
+        | DATE_SYM
         | DAY_SYM
         | DEFAULT_AUTH_SYM
         | DEFINER_SYM
@@ -14127,6 +14100,7 @@ ident_keywords_unambiguous:
         | FIRST_SYM
         | FIXED_SYM
         | FOLLOWING_SYM
+        | FORMAT_SYM
         | FOUND_SYM
         | FULL
         | GENERAL
@@ -14135,18 +14109,21 @@ ident_keywords_unambiguous:
         | GET_FORMAT
         | GET_MASTER_PUBLIC_KEY_SYM
         | GRANTS
+        | GROUP_REPLICATION
         | HASH_SYM
         | HISTOGRAM_SYM
         | HISTORY_SYM
         | HOSTS_SYM
+        | HOST_SYM
         | HOUR_SYM
         | IDENTIFIED_SYM
         | IGNORE_SERVER_IDS_SYM
+        | INACTIVE_SYM
         | INDEXES
         | INITIAL_SIZE_SYM
         | INSERT_METHOD
         | INSTANCE_SYM
-        | INACTIVE_SYM
+        | INVISIBLE_SYM
         | INVOKER_SYM
         | IO_SYM
         | IPC_SYM
@@ -14199,8 +14176,8 @@ ident_keywords_unambiguous:
         | MESSAGE_TEXT_SYM
         | MICROSECOND_SYM
         | MIGRATE_SYM
-        | MIN_ROWS
         | MINUTE_SYM
+        | MIN_ROWS
         | MODE_SYM
         | MODIFY_SYM
         | MONTH_SYM
@@ -14219,8 +14196,8 @@ ident_keywords_unambiguous:
         | NEW_SYM
         | NEXT_SYM
         | NODEGROUP_SYM
-        | NO_WAIT_SYM
         | NOWAIT_SYM
+        | NO_WAIT_SYM
         | NULLS_SYM
         | NUMBER_SYM
         | NVARCHAR_SYM
@@ -14228,23 +14205,28 @@ ident_keywords_unambiguous:
         | OLD_SYM
         | ONE_SYM
         | ONLY_SYM
+        | OPEN_SYM
         | OPTIONAL_SYM
+        | OPTIONS_SYM
         | ORDINALITY_SYM
         | ORGANIZATION_SYM
         | OTHERS_SYM
+        | OWNER_SYM
         | PACK_KEYS_SYM
         | PAGE_SYM
+        | PARSER_SYM
         | PARTIAL
         | PARTITIONING_SYM
         | PARTITIONS_SYM
         | PASSWORD
         | PATH_SYM
         | PHASE_SYM
-        | PLUGIN_DIR_SYM
         | PLUGINS_SYM
+        | PLUGIN_DIR_SYM
         | PLUGIN_SYM
         | POINT_SYM
         | POLYGON_SYM
+        | PORT_SYM
         | PRECEDING_SYM
         | PRESERVE_SYM
         | PREV_SYM
@@ -14262,10 +14244,11 @@ ident_keywords_unambiguous:
         | REDUNDANT_SYM
         | REFERENCE_SYM
         | RELAY
+        | RELAYLOG_SYM
         | RELAY_LOG_FILE_SYM
         | RELAY_LOG_POS_SYM
-        | RELAYLOG_SYM
         | RELAY_THREAD
+        | REMOVE_SYM
         | REORGANIZE_SYM
         | REPEATABLE_SYM
         | REPLICATE_DO_DB
@@ -14277,12 +14260,14 @@ ident_keywords_unambiguous:
         | REPLICATE_WILD_IGNORE_TABLE
         | RESOURCES
         | RESPECT_SYM
+        | RESTORE_SYM
         | RESUME_SYM
         | RETAIN_SYM
         | RETURNED_SQLSTATE_SYM
         | RETURNS_SYM
         | REUSE_SYM
         | REVERSE_SYM
+        | ROLE_SYM
         | ROLLUP_SYM
         | ROTATE_SYM
         | ROUTINE_SYM
@@ -14291,14 +14276,22 @@ ident_keywords_unambiguous:
         | RTREE_SYM
         | SCHEDULE_SYM
         | SCHEMA_NAME_SYM
+        | SECONDARY_ENGINE_SYM
+        | SECONDARY_LOAD_SYM
+        | SECONDARY_SYM
+        | SECONDARY_UNLOAD_SYM
         | SECOND_SYM
+        | SECURITY_SYM
         | SERIALIZABLE_SYM
         | SERIAL_SYM
+        | SERVER_SYM
         | SHARE_SYM
         | SIMPLE_SYM
         | SKIP_SYM
         | SLOW
         | SNAPSHOT_SYM
+        | SOCKET_SYM
+        | SONAME_SYM
         | SOUNDS_SYM
         | SOURCE_SYM
         | SQL_AFTER_GTIDS
@@ -14324,10 +14317,10 @@ ident_keywords_unambiguous:
         | SUSPEND_SYM
         | SWAPS_SYM
         | SWITCHES_SYM
-        | TABLE_CHECKSUM_SYM
-        | TABLE_NAME_SYM
         | TABLES
         | TABLESPACE_SYM
+        | TABLE_CHECKSUM_SYM
+        | TABLE_NAME_SYM
         | TEMPORARY
         | TEMPTABLE_SYM
         | TEXT_SYM
@@ -14346,23 +14339,26 @@ ident_keywords_unambiguous:
         | UNBOUNDED_SYM
         | UNCOMMITTED_SYM
         | UNDEFINED_SYM
-        | UNDO_BUFFER_SIZE_SYM
         | UNDOFILE_SYM
+        | UNDO_BUFFER_SIZE_SYM
         | UNKNOWN_SYM
         | UNTIL_SYM
-        | USE_FRM
+        | UPGRADE_SYM
         | USER
+        | USE_FRM
         | VALIDATION_SYM
         | VALUE_SYM
         | VARIABLES
         | VCPU_SYM
         | VIEW_SYM
+        | VISIBLE_SYM
         | WAIT_SYM
         | WARNINGS
         | WEEK_SYM
         | WEIGHT_STRING_SYM
         | WITHOUT_SYM
         | WORK_SYM
+        | WRAPPER_SYM
         | X509_SYM
         | XID_SYM
         | XML_SYM
