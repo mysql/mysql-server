@@ -480,11 +480,9 @@ class Gcs_xcom_control : public Gcs_control_interface {
   Gcs_xcom_node_address *get_node_address();
 
   /**
-    Return the information associated with the current node.
+    @returns the information about the local membership of this node.
    */
-  Gcs_xcom_node_information *get_node_information() {
-    return m_local_node_info;
-  }
+  Gcs_xcom_node_information const &get_node_information() const;
 
   /**
     Return a pointer to the proxy object used to access XCOM.

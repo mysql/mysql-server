@@ -977,6 +977,18 @@ class Gcs_xcom_app_cfg {
   void set_xcom_cache_size(uint64_t size);
 
   /**
+   Configures XCom with its unique instance identifier, i.e. its (address,
+   incarnation) pair.
+
+   Takes ownership of @c identity.
+
+   @param identity the unique identifier
+   @retval true if there was an error configuring XCom
+   @retval false if configuration was successful
+   */
+  bool set_identity(node_address *identity);
+
+  /**
     Must be called when XCom is not engaged anymore.
    */
   void deinit();

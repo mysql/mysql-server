@@ -25,6 +25,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_view_identifier.h"
@@ -81,10 +82,26 @@ static void *xcom_taskmain_startup(void *ptr) {
   Gcs_xcom_control *gcs_ctrl = (Gcs_xcom_control *)ptr;
   Gcs_xcom_proxy *proxy = gcs_ctrl->get_xcom_proxy();
   xcom_port port = gcs_ctrl->get_node_address()->get_member_port();
+  bool error = true;
+
+  auto *xcom_interface =
+      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+  if (xcom_interface == nullptr) {
+    MYSQL_GCS_LOG_ERROR("Error getting the local XCom interface.");
+    goto end;
+  }
+
+  error = xcom_interface->set_xcom_identity(gcs_ctrl->get_node_information(),
+                                            *proxy);
+  if (error) {
+    MYSQL_GCS_LOG_ERROR("Error setting the local XCom unique identifier.");
+    goto end;
+  }
 
   proxy->set_should_exit(false);
   proxy->xcom_init(port);
 
+end:
   My_xp_thread_util::exit(0);
   /* purecov: begin deadcode */
   return NULL;
@@ -163,6 +180,11 @@ Gcs_xcom_control::~Gcs_xcom_control() {
 
 Gcs_xcom_node_address *Gcs_xcom_control::get_node_address() {
   return m_local_node_address;
+}
+
+Gcs_xcom_node_information const &Gcs_xcom_control::get_node_information()
+    const {
+  return *m_local_node_info;
 }
 
 Gcs_xcom_proxy *Gcs_xcom_control::get_xcom_proxy() { return m_xcom_proxy; }
@@ -320,6 +342,8 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
   bool xcom_input_open = false;
   bool could_connect_to_local_xcom = false;
 
+  init_me();
+
   /*
     Clean up notification flags that are used to check whether XCOM
     is running or not.
@@ -343,8 +367,6 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
                         << " the network layer to become ready.")
     goto err;
   }
-
-  init_me();
 
   /*
     Connect to the local xcom instance.

@@ -30,6 +30,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_proxy.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 
 Gcs_xcom_node_address::Gcs_xcom_node_address(std::string member_address)
@@ -124,6 +125,34 @@ bool Gcs_xcom_node_information::is_member() const { return m_member; }
 
 void Gcs_xcom_node_information::set_member(bool m) { m_member = m; }
 
+std::pair<bool, node_address *> Gcs_xcom_node_information::make_xcom_identity(
+    Gcs_xcom_proxy &xcom_proxy) const {
+  bool constexpr kError = true;
+  bool constexpr kSuccess = false;
+
+  bool error_code = kError;
+  node_address *xcom_identity = nullptr;
+
+  /* Get our unique XCom identifier to pass it along to XCom. */
+  // Address.
+  const std::string &address_str = get_member_id().get_member_id();
+  char *address[] = {const_cast<char *>(address_str.c_str())};
+  // Incarnation.
+  bool error_creating_blob;
+  blob incarnation_blob;
+  std::tie(error_creating_blob, incarnation_blob) =
+      get_member_uuid().make_xcom_blob();
+
+  if (!error_creating_blob) {
+    blob incarnation[] = {incarnation_blob};
+    xcom_identity = xcom_proxy.new_node_address_uuid(1, address, incarnation);
+    std::free(incarnation_blob.data.data_val);
+    error_code = kSuccess;
+  }
+
+  return {error_code, xcom_identity};
+}
+
 bool Gcs_xcom_node_information::has_timed_out(uint64_t now_ts,
                                               uint64_t timeout) {
   return (m_suspicion_creation_timestamp + timeout) < now_ts;
@@ -204,6 +233,25 @@ bool Gcs_xcom_uuid::decode(const uchar *buffer, const unsigned int size) {
                              static_cast<size_t>(size));
 
   return true;
+}
+
+std::pair<bool, blob> Gcs_xcom_uuid::make_xcom_blob() const {
+  bool constexpr kError = true;
+  bool constexpr kSuccess = false;
+  bool error_code = kError;
+
+  blob incarnation;
+  incarnation.data.data_len = actual_value.size();
+  incarnation.data.data_val =
+      reinterpret_cast<char *>(std::malloc(incarnation.data.data_len));
+  if (incarnation.data.data_val == nullptr) goto end;
+
+  encode(reinterpret_cast<uchar **>(&incarnation.data.data_val),
+         &incarnation.data.data_len);
+  error_code = kSuccess;
+
+end:
+  return {error_code, incarnation};
 }
 
 Gcs_xcom_nodes::Gcs_xcom_nodes()

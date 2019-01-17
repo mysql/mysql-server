@@ -396,6 +396,15 @@ void handle_learn(site_def const *site, pax_machine *p, pax_msg *m);
  * @retval 0 otherwise
  */
 int pm_finished(pax_machine *p);
+/** @returns true if we should process the incomding need_boot_op message @p. */
+bool should_handle_boot(site_def const *site, pax_msg *p);
+/**
+ * Initializes the message @c p as a need_boot_op message.
+ *
+ * @param p The message to send
+ * @param identity The unique incarnation identifier of this XCom instance
+ */
+void init_need_boot_op(pax_msg *p, node_address *identity);
 
 static inline char *strerr_msg(char *buf, size_t len, int nr) {
 #if defined(_WIN32)

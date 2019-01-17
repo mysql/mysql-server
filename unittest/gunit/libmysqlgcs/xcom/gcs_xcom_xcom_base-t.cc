@@ -747,4 +747,163 @@ TEST_F(XcomBase, PaxosLearnSameValue) {
   free_pax_msg(s2_ack_prepare_noop);
   free_pax_msg(s2_ack_accept_noop);
 }
+
+TEST_F(XcomBase, HandleBootWithoutIdentity) {
+  // Synod (42, 0).
+  synode_no synod;
+  synod.group_id = 1;
+  synod.msgno = 42;
+  synod.node = 0;
+
+  // Fake node information.
+  char *name = const_cast<char *>("127.0.0.1:10001");
+  char *names[] = {name};
+  blob uuid;
+  uuid.data.data_len = 1;
+  uuid.data.data_val = const_cast<char *>("1");
+  blob uuids[] = {uuid};
+
+  // site_def for the "server."
+  auto *config = new_site_def();
+  config->nodeno = 0;
+  config->nodes.node_list_len = 1;
+  config->nodes.node_list_val = ::new_node_address_uuid(1, names, uuids);
+
+  pax_msg *need_boot = pax_msg_new(synod, nullptr);
+  // need_boot_op without an identity.
+  init_need_boot_op(need_boot, nullptr);
+  ASSERT_TRUE(should_handle_boot(config, need_boot));
+
+  // Cleanup.
+  need_boot->refcnt = 1;
+  replace_pax_msg(&need_boot, nullptr);
+
+  ::delete_node_address(1, config->nodes.node_list_val);
+
+  std::free(config);
+}
+
+TEST_F(XcomBase, HandleBootWithIdentityOfExistingMember) {
+  // Synod (42, 0).
+  synode_no synod;
+  synod.group_id = 1;
+  synod.msgno = 42;
+  synod.node = 0;
+
+  // Fake node information.
+  char *name = const_cast<char *>("127.0.0.1:10001");
+  char *names[] = {name};
+  blob uuid;
+  uuid.data.data_len = 1;
+  uuid.data.data_val = const_cast<char *>("1");
+  blob uuids[] = {uuid};
+
+  // site_def for the "server."
+  auto *config = new_site_def();
+  config->nodeno = 0;
+  config->nodes.node_list_len = 1;
+  config->nodes.node_list_val = ::new_node_address_uuid(1, names, uuids);
+
+  pax_msg *need_boot = pax_msg_new(synod, nullptr);
+  // need_boot_op with an identity.
+  node_address *identity = ::new_node_address_uuid(1, names, uuids);
+  init_need_boot_op(need_boot, identity);
+  ASSERT_TRUE(should_handle_boot(config, need_boot));
+
+  // Cleanup.
+  need_boot->refcnt = 1;
+  replace_pax_msg(&need_boot, nullptr);
+
+  ::delete_node_address(1, config->nodes.node_list_val);
+  ::delete_node_address(1, identity);
+
+  std::free(config);
+}
+
+TEST_F(XcomBase, HandleBootWithIdentityOfNonExistingMember) {
+  // Synod (42, 0).
+  synode_no synod;
+  synod.group_id = 1;
+  synod.msgno = 42;
+  synod.node = 0;
+
+  // Fake node information.
+  char *name = const_cast<char *>("127.0.0.1:10001");
+  char *names[] = {name};
+  blob uuid;
+  uuid.data.data_len = 1;
+  uuid.data.data_val = const_cast<char *>("1");
+  blob uuids[] = {uuid};
+
+  // site_def for the "server."
+  auto *config = new_site_def();
+  config->nodeno = 0;
+  config->nodes.node_list_len = 1;
+  config->nodes.node_list_val = ::new_node_address_uuid(1, names, uuids);
+
+  pax_msg *need_boot = pax_msg_new(synod, nullptr);
+  // need_boot_op with an identity.
+  blob unknown_uuid;
+  unknown_uuid.data.data_len = 1;
+  unknown_uuid.data.data_val = const_cast<char *>("2");
+  blob unknown_uuids[] = {unknown_uuid};
+  node_address *identity = ::new_node_address_uuid(1, names, unknown_uuids);
+  init_need_boot_op(need_boot, identity);
+  ASSERT_FALSE(should_handle_boot(config, need_boot));
+
+  // Cleanup.
+  need_boot->refcnt = 1;
+  replace_pax_msg(&need_boot, nullptr);
+
+  ::delete_node_address(1, config->nodes.node_list_val);
+  ::delete_node_address(1, identity);
+
+  std::free(config);
+}
+
+TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
+  // Synod (42, 0).
+  synode_no synod;
+  synod.group_id = 1;
+  synod.msgno = 42;
+  synod.node = 0;
+
+  // Fake node information.
+  char *name = const_cast<char *>("127.0.0.1:10001");
+  char *names[] = {name};
+  blob uuid;
+  uuid.data.data_len = 1;
+  uuid.data.data_val = const_cast<char *>("1");
+  blob uuids[] = {uuid};
+
+  // site_def for the "server."
+  auto *config = new_site_def();
+  config->nodeno = 0;
+  config->nodes.node_list_len = 1;
+  config->nodes.node_list_val = ::new_node_address_uuid(1, names, uuids);
+
+  pax_msg *need_boot = pax_msg_new(synod, nullptr);
+  // need_boot_op with two identities.
+  char *other_name = const_cast<char *>("127.0.0.1:10002");
+  char *two_names[] = {name, other_name};
+  blob two_uuids[] = {uuid, uuid};
+  node_address *identity = ::new_node_address_uuid(2, two_names, two_uuids);
+  need_boot->op = need_boot_op;
+  if (identity != NULL) {
+    need_boot->a = new_app_data();
+    need_boot->a->body.c_t = xcom_boot_type;
+    init_node_list(2, identity, &need_boot->a->body.app_u_u.nodes);
+  }
+  ASSERT_FALSE(should_handle_boot(config, need_boot));
+
+  // Cleanup.
+  need_boot->refcnt = 1;
+  replace_pax_msg(&need_boot, nullptr);
+
+  ::delete_node_address(1, config->nodes.node_list_val);
+  ::delete_node_address(2, identity);
+
+  std::free(config);
+}
+
 }  // namespace xcom_base_unittest

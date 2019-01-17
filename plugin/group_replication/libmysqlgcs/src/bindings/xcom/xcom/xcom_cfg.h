@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +42,11 @@ typedef struct cfg_app_xcom {
    cache size limit and interval
   */
   uint64_t m_cache_limit;
+
+  /*
+   The (address, incarnation) pair that uniquely identifies this XCom instance.
+  */
+  node_address *identity;
 } cfg_app_xcom_st;
 
 /*
@@ -51,6 +57,15 @@ extern cfg_app_xcom_st *the_app_xcom_cfg;
 
 void init_cfg_app_xcom();
 void deinit_cfg_app_xcom();
+
+node_address *cfg_app_xcom_get_identity();
+
+/*
+ Takes ownership of @c identity.
+
+ @param identity The unique identity of this XCom instance. Must not be null.
+*/
+void cfg_app_xcom_set_identity(node_address *identity);
 
 #ifdef __cplusplus
 }
