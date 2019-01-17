@@ -2447,3 +2447,20 @@ VISIBLE: LOOP RETURN 1; END LOOP;
 WRAPPER: LOOP RETURN 1; END LOOP;
 END|
 DROP FUNCTION f1;
+#
+# Bug#29205289: PARSER ACCEPTS UNDOCUMENTED SYNTAX: `... = TABLE_ALIAS`
+#
+CREATE TABLE t1 (i INT);
+LOCK TABLES t1=a READ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a READ' at line 1
+HANDLER t1 OPEN=a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a' at line 1
+SELECT * FROM t1=a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a' at line 1
+SELECT * FROM (SELECT 1)=a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a' at line 1
+SELECT * FROM t1 JOIN t1=a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a' at line 1
+UPDATE t1=a SET i=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a SET i=0' at line 1
+DROP TABLE t1;
