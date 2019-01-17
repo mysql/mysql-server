@@ -5943,7 +5943,8 @@ class handler {
   /**
    * Prepares secondary engine for loading a table.
    *
-   * @param table Table opened in primary storage engine.
+   * @param table Table opened in primary storage engine. Its read_set tells
+   * which columns to load.
    *
    * @return 0 if success, error code otherwise.
    */
@@ -5955,7 +5956,8 @@ class handler {
   /**
    * Loads a table into its defined secondary storage engine.
    *
-   * @param table Table opened in primary storage engine.
+   * @param table Table opened in primary storage engine. Its read_set tells
+   * which columns to load.
    *
    * @return 0 if success, error code otherwise.
    */
