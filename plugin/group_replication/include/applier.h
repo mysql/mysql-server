@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "plugin/group_replication/include/handlers/pipeline_handlers.h"
 #include "plugin/group_replication/include/pipeline_factory.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
+#include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 #include "plugin/group_replication/include/plugin_utils.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 #include "sql/sql_class.h"
@@ -821,10 +822,8 @@ class Applier_module : public Applier_module_interface {
     mysql_mutex_lock(&suspend_lock);
 
     suspended = true;
-
-#ifndef _WIN32
-    THD_STAGE_INFO(applier_thd, stage_suspending);
-#endif
+    stage_handler.set_stage(info_GR_STAGE_module_suspending.m_key, __FILE__,
+                            __LINE__, 0, 0);
 
     // Alert any interested party about the applier suspension
     mysql_cond_broadcast(&suspension_waiting_condition);
@@ -832,10 +831,8 @@ class Applier_module : public Applier_module_interface {
     while (suspended) {
       mysql_cond_wait(&suspend_cond, &suspend_lock);
     }
-
-#ifndef _WIN32
-    THD_STAGE_INFO(applier_thd, stage_executing);
-#endif
+    stage_handler.set_stage(info_GR_STAGE_module_executing.m_key, __FILE__,
+                            __LINE__, 0, 0);
 
     mysql_mutex_unlock(&suspend_lock);
   }
@@ -923,6 +920,7 @@ class Applier_module : public Applier_module_interface {
 
   Pipeline_stats_member_collector pipeline_stats_member_collector;
   Flow_control_module flow_control_module;
+  Plugin_stage_monitor_handler stage_handler;
 };
 
 #endif /* APPLIER_INCLUDE */

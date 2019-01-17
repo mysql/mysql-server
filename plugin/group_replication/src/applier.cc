@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,9 +202,7 @@ void Applier_module::set_applier_thread_context() {
 
   thd->init_query_mem_roots();
   set_slave_thread_options(thd);
-#ifndef _WIN32
-  THD_STAGE_INFO(thd, stage_executing);
-#endif
+  thd->set_query(C_STRING_WITH_LEN("Group replication applier module"));
 
   DBUG_EXECUTE_IF("group_replication_applier_thread_init_wait", {
     const char act[] = "now wait_for signal.gr_applier_init_signal";
@@ -425,6 +423,10 @@ int Applier_module::applier_thread_handle() {
   mysql_mutex_lock(&run_lock);
   applier_thread_is_exiting = false;
   applier_thd_state.set_running();
+  if (stage_handler.initialize_stage_monitor())
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NO_STAGE_SERVICE);
+  stage_handler.set_stage(info_GR_STAGE_module_executing.m_key, __FILE__,
+                          __LINE__, 0, 0);
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -515,6 +517,9 @@ end:
     const char act[] = "now wait_for signal.applier_continue";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
+
+  stage_handler.end_stage();
+  stage_handler.terminate_stage_monitor();
 
   clean_applier_thread_context();
 

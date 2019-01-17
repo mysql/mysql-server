@@ -139,7 +139,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_pre
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='waiting for handler commit'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE '%waiting for handler commit%' AND name LIKE 'thread/sql/slave_%'
 --source include/wait_condition.inc
 
 

@@ -103,7 +103,7 @@ CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='rpl' FOR CHANNEL 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Election: applying buffered transactions%"
 --source include/wait_condition.inc
 
---let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= The stage should be "Primary Election: applying buffered transactions"
 --let $assert_cond= "$stage_name" = "stage/group_rpl/Primary Election: applying buffered transactions"
 --source include/assert.inc
@@ -114,7 +114,7 @@ CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='rpl' FOR CHANNEL 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= There is no stage present
 --let $assert_cond= "$stages_present" = "0"
 --source include/assert.inc
@@ -140,7 +140,7 @@ UNLOCK TABLES;
 --echo # 9. Check the election results are the expected
 
 #Wait for the election
---let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
 --source include/gr_assert_primary_member.inc

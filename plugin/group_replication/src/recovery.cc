@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -276,6 +276,9 @@ int Recovery_module::recovery_thread_handle() {
   /* Step 0 */
 
   int error = 0;
+  Plugin_stage_monitor_handler stage_handler;
+  if (stage_handler.initialize_stage_monitor())
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NO_STAGE_SERVICE);
 
   set_recovery_thread_context();
   mysql_mutex_lock(&run_lock);
@@ -288,12 +291,10 @@ int Recovery_module::recovery_thread_handle() {
 
   mysql_mutex_lock(&run_lock);
   recovery_thd_state.set_running();
+  stage_handler.set_stage(info_GR_STAGE_module_executing.m_key, __FILE__,
+                          __LINE__, 0, 0);
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
-
-#ifndef _WIN32
-  THD_STAGE_INFO(recovery_thd, stage_executing);
-#endif
 
   /* Step 1 */
 
@@ -341,7 +342,9 @@ int Recovery_module::recovery_thread_handle() {
 
   /* Step 3 */
 
-  error = recovery_state_transfer.state_transfer(recovery_thd);
+  error = recovery_state_transfer.state_transfer(stage_handler);
+  stage_handler.set_stage(info_GR_STAGE_module_executing.m_key, __FILE__,
+                          __LINE__, 0, 0);
 
 #ifndef DBUG_OFF
   DBUG_EXECUTE_IF("recovery_thread_wait_before_finish", {
@@ -386,6 +389,8 @@ cleanup:
     leave_group_on_recovery_failure();
   }
 
+  stage_handler.end_stage();
+  stage_handler.terminate_stage_monitor();
 #ifndef DBUG_OFF
   DBUG_EXECUTE_IF("recovery_thread_wait_before_cleanup", {
     const char act[] = "now wait_for signal.recovery_end_end";

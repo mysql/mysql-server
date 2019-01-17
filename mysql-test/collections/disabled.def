@@ -23,10 +23,6 @@ auth_sec.openssl_without_fips : BUG#28812609 Test fails all over
 funcs_1.is_basics_mixed @darwin  : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
 funcs_1.is_basics_mixed @windows : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
 
-# group_replication suite tests
-group_replication.gr_consistent_reads_after_vs_before_primary_failover   @windows : BUG#28970047
-group_replication.gr_consistent_reads_after_vs_eventual_primary_failover @windows : BUG#28970047
-
 # innodb suite tests
 innodb.analyze_table @solaris                     : BUG#22607584 Failing too often on PB2 due to timeout.
 innodb.log_corruption @darwin                     : BUG#27760219 Test fails consistently on freebsd and Mac after WL#11009.

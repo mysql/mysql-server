@@ -1,0 +1,75 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+
+# 01. GR Stage events are present when GR is running.
+
+[connection server2]
+include/assert.inc [Group replication applier executing is present in events_stages_current table.]
+include/assert.inc [Group replication applier thread is present in threads table.]
+include/assert.inc [Group replication recovery is not present in events_stages_current table.]
+include/assert.inc [Group replication recovery thread is not present in threads table.]
+
+# 02. GR Stage events are cleaned on STOP GR.
+
+include/stop_group_replication.inc
+include/assert.inc [No group replication entries are present in events_stages_current table.]
+include/assert.inc [No group replication entries are present in threads table.]
+
+# 03. Create some data on server1.
+#     Recovery channel will have some data on server2.
+
+[connection server1]
+INSERT INTO test.t1 values (1);
+[connection server2]
+SET @debug_save_2= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,recovery_thread_start_wait';
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_cleanup';
+
+# 04. Start GR on server2 and block it in recovery.
+#     Applier is suspended while recovery is executing.
+#     Stage events are updated.
+
+include/start_group_replication.inc
+Suspending state of applier is visible in events_stages_current table.
+Suspending state of applier is visible in threads table.
+Executing state of recovery is visible in events_stages_current table.
+Executing state of recovery is visible in threads table.
+
+# 05. Lock table t1 to block recovery during state transfer.
+#     Applier is suspended while recovery is transferring state.
+#     Stage events are updated.
+
+LOCK TABLE test.t1 READ;
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+Transferring state from donor state of recovery is visible in events_stages_current table.
+Suspending state of applier is visible in events_stages_current table.
+UNLOCK TABLES;
+
+# 06. Block recovery before it terminates.
+#     Applier is executing while recovery is cleaning stage events.
+
+mysql_end_stage has removed recovery entry in events_stages_current table.
+mysql_end_stage has cleared recovery state in threads table.
+Executing state of applier is visible in events_stages_current table.
+Executing state of applier is visible in threads table.
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end_end";
+
+# 07. Wait for server2 to be ONLINE.
+#     Applier is executing while recovery data from tables is cleaned.
+
+include/gr_wait_for_member_state.inc
+Executing state of applier is visible in events_stages_current table.
+Executing state of applier is visible in threads table.
+Recovery thread is not visible in events_stages_current table.
+Recovery thread is not visible in threads table.
+
+# 08. Cleanup.
+
+SET @@GLOBAL.DEBUG= @debug_save_2;
+DROP TABLE test.t1;
+include/group_replication_end.inc

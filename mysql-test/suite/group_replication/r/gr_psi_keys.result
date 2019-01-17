@@ -116,6 +116,10 @@ stage/group_rpl/Primary Switch: waiting for operation to complete on all members
 stage/group_rpl/Single-primary Switch: checking group pre-conditions	YES	YES	progress	0	NULL
 stage/group_rpl/Single-primary Switch: executing Primary election	YES	YES	progress	0	NULL
 stage/group_rpl/Single-primary Switch: waiting for operation to complete on all members	YES	YES	progress	0	NULL
+stage/group_rpl/Group Replication Module: Executing	YES	YES		0	NULL
+stage/group_rpl/Group Replication Module: Suspending	YES	YES		0	NULL
+stage/group_rpl/Group Replication Recovery: Connecting to donor	YES	YES		0	NULL
+stage/group_rpl/Group Replication Recovery: Transferring state from donor	YES	YES		0	NULL
 
 ############################################################
 # 2. Start the GR
