@@ -1,0 +1,25 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+###############################################################################
+# 1. Bootstrap M1 using whatever its protocol version is.
+include/start_and_bootstrap_group_replication.inc
+###############################################################################
+# 2. Verify M2 joins group. Remove M2 from group.
+[connection server2]
+include/start_group_replication.inc
+include/stop_group_replication.inc
+###############################################################################
+# 3. Downgrade group protocol to 8.0.14, verify M2 joins group.
+[connection server1]
+SELECT group_replication_set_communication_protocol("8.0.14");
+group_replication_set_communication_protocol("8.0.14")
+The operation group_replication_set_communication_protocol completed successfully
+[connection server2]
+include/start_group_replication.inc
+###############################################################################
+# 4. Cleanup
+[connection server1]
+include/group_replication_end.inc

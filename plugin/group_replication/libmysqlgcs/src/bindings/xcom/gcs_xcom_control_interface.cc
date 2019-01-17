@@ -1632,6 +1632,17 @@ void Gcs_xcom_control::process_control_message(
     std::vector<Gcs_xcom_node_information> incompatible_members =
         m_state_exchange->compute_incompatible_members();
 
+    /*
+      It is possible for the group to support a more recent communication
+      protocol than the one in use. This can happen for example after we finish
+      a rolling upgrade of the group members to a new MySQL version that
+      introduces a new communication protocol.
+
+      At the moment GCS does not automatically upgrade the protocol of a group.
+      If the group is able to use a more recent communication protocol, it is
+      the responsibility of some upper layer to explicitly trigger a change of
+      the group's communication protocol.
+    */
     m_state_exchange->compute_maximum_supported_protocol_version();
 
     bool const recovered_successfully =

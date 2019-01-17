@@ -1,0 +1,47 @@
+###############################################################################
+# WL#11610 and Bug #29165756
+# Test the automatic communication protocol adaptation on join.
+#
+# This test uses 2 servers M1, M2.
+# M1 -> server1,  M2 -> server2
+#
+# Test:
+# 1. Bootstrap M1 using whatever its protocol version is.
+# 2. Verify M2 joins group. Remove M2 from group.
+# 3. Downgrade group protocol to 8.0.14, verify M2 joins group.
+# 4. Cleanup
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo ###############################################################################
+--echo # 1. Bootstrap M1 using whatever its protocol version is.
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo ###############################################################################
+--echo # 2. Verify M2 joins group. Remove M2 from group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+--source include/stop_group_replication.inc
+
+--echo ###############################################################################
+--echo # 3. Downgrade group protocol to 8.0.14, verify M2 joins group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_set_communication_protocol("8.0.14");
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo ###############################################################################
+--echo # 4. Cleanup
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -628,6 +628,15 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
    the synodes required.
    */
   bool snapshot_is_enough(Gcs_xcom_synode_set const &snapshot_to_recover) const;
+
+  /**
+   Checks whether all the existing group members, myself excluded, announce the
+   same protocol version.
+   @retval {false, _} if they do not all announce the same protocol version
+   @retval {true, Gcs_protocol_version} if they all announced the same protocol
+   version of the return value
+   */
+  std::pair<bool, Gcs_protocol_version> members_announce_same_version() const;
 
   /**
    Checks whether this server is incompatible with the group.

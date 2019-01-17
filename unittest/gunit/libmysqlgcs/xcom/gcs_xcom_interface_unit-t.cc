@@ -90,26 +90,6 @@ TEST_F(GcsInterfaceTest, ReceiveEmptyMessageTest) {
   static_cast<Gcs_xcom_interface *>(gcs)->cleanup();
 }
 
-TEST_F(GcsInterfaceTest, InvalidCommunicationProtocolJoinParameter) {
-  Gcs_interface *gcs = Gcs_xcom_interface::get_interface();
-
-  Gcs_interface_parameters if_params;
-  if_params.add_parameter("group_name", "ola");
-  if_params.add_parameter("peer_nodes", "127.0.0.1:24844");
-  if_params.add_parameter("local_node", "127.0.0.1:24844");
-  if_params.add_parameter("bootstrap_group", "true");
-  if_params.add_parameter("communication_protocol_join", "1000000000000000000");
-
-  // Fail to initialize the interface.
-  ASSERT_EQ(gcs->initialize(if_params), GCS_NOK);
-
-  // Finalize the interface.
-  gcs->finalize();
-
-  // Fake factory cleanup member function.
-  static_cast<Gcs_xcom_interface *>(gcs)->cleanup();
-}
-
 TEST_F(GcsInterfaceTest, InvalidCacheSize) {
   Gcs_interface *gcs = Gcs_xcom_interface::get_interface();
 
