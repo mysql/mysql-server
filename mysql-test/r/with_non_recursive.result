@@ -304,13 +304,13 @@ NULL
 with qn as (select "with" as a)
 with qn2 as (select "with" as a)
 select a from test.qn;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with qn2 as (select "with" as a)
 select a from test.qn' at line 2
 # with comma
 with qn as (select "with" as a),
 with qn2 as (select "with" as a)
 select a from test.qn;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with qn2 as (select "with" as a)
 select a from test.qn' at line 2
 # ORDER BY removed unless there is LIMIT or single table (check "Using filesort")
 explain
@@ -1316,13 +1316,13 @@ NULL
 with qn as (select "with" as a)
 with qn2 as (select "with" as a)
 select a from test.qn;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with qn2 as (select "with" as a)
 select a from test.qn' at line 2
 # with comma
 with qn as (select "with" as a),
 with qn2 as (select "with" as a)
 select a from test.qn;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with qn2 as (select "with" as a)
 select a from test.qn' at line 2
 # ORDER BY removed unless there is LIMIT or single table (check "Using filesort")
 explain
