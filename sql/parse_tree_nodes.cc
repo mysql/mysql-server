@@ -639,8 +639,8 @@ bool PT_delete::add_table(Parse_context *pc, Table_ident *table) {
   const enum_mdl_type mdl_type = (opt_delete_options & DELETE_LOW_PRIORITY)
                                      ? MDL_SHARED_WRITE_LOW_PRIO
                                      : MDL_SHARED_WRITE;
-  return !pc->select->add_table_to_list(pc->thd, table, NULL, table_opts,
-                                        lock_type, mdl_type, NULL,
+  return !pc->select->add_table_to_list(pc->thd, table, opt_table_alias,
+                                        table_opts, lock_type, mdl_type, NULL,
                                         opt_use_partition);
 }
 

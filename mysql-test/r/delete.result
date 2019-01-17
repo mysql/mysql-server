@@ -282,13 +282,13 @@ a INT
 );
 INSERT INTO db2.t1 (a) SELECT * FROM t2;
 DELETE FROM t1 alias USING t1, t2 alias WHERE t1.a = alias.a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING t1, t2 alias WHERE t1.a = alias.a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING t1, t2 alias WHERE t1.a = alias.a' at line 1
 DELETE FROM alias USING t1, t2 alias WHERE t1.a = alias.a;
 DELETE FROM t1, alias USING t1, t2 alias WHERE t1.a = alias.a;
 DELETE FROM t1, t2 USING t1, t2 alias WHERE t1.a = alias.a;
 ERROR 42S02: Unknown table 't2' in MULTI DELETE
 DELETE FROM db1.t1 alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a' at line 1
 DELETE FROM alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
 DELETE FROM db2.alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
 ERROR 42S02: Unknown table 'alias' in MULTI DELETE
@@ -296,7 +296,7 @@ DELETE FROM t1 USING t1 WHERE a = 1;
 SELECT * FROM t1;
 a
 DELETE FROM t1 alias USING t1 alias WHERE a = 2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING t1 alias WHERE a = 2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING t1 alias WHERE a = 2' at line 1
 SELECT * FROM t1;
 a
 DROP TABLE t1, t2;
@@ -800,4 +800,28 @@ SELECT c,d FROM t2;
 c	d
 foobar	10000
 foobar	10000
+DROP TABLE t1, t2;
+#
+# Bug#27455809; DELETE FROM ...WHERE NOT EXISTS WITH TABLE ALIAS CREATES AN ERROR 1064 (42000
+#
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT * FROM t1;
+c1
+1
+2
+DELETE FROM t1 AS a1 WHERE a1.c1 = 2;
+SELECT * FROM t1;
+c1
+1
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t2 VALUES (1), (2);
+SELECT * FROM t2;
+c2
+1
+2
+DELETE FROM t2 a2 WHERE NOT EXISTS (SELECT * FROM t1 WHERE t1.c1 = a2.c2);
+SELECT * FROM t2;
+c2
+1
 DROP TABLE t1, t2;
