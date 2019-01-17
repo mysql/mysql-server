@@ -4710,6 +4710,23 @@ void MDL_ticket_store::move_all_to_explicit_duration() {
   MDL_ticket *ticket;
 
   /*
+    It is assumed that at this point all the locks in the context are
+    materialized. So the next call to MDL_context::materialize_fast_path_locks()
+    will not be considering these locks. m_mat_front is valid for the current
+    list of tickets with explicit duration and if we had added all the tickets
+    which previously had transaction duration at the front, it would still be
+    valid. But since we are using the swap-trick below, all the previously
+    transactional tickets end up at the tail end of the list, and the order of
+    the already explicit tickets is reversed when they are moved (remove pops
+    from the front and push_front adds to the front). So unless all the tickets
+    were already materialized we're guaranteed that m_mat_front is wrong after
+    the swapping and moving. Hence we set m_mat_front of tickets with explicit
+    duration to null so that the next call to
+    MDL_context::materialize_fast_path_locks() will set it appropriately.
+  */
+  m_durations[MDL_EXPLICIT].m_mat_front = nullptr;
+
+  /*
     In the most common case when this function is called list
     of transactional locks is bigger than list of locks with
     explicit duration. So we start by swapping these two lists
@@ -4729,14 +4746,6 @@ void MDL_ticket_store::move_all_to_explicit_duration() {
       m_durations[i].m_ticket_list.remove(ticket);
       m_durations[MDL_EXPLICIT].m_ticket_list.push_front(ticket);
     }
-    /*
-      Note that we do not update m_durations[MDL_EXPLICIT].m_mat_front
-      here. That is ok, since it is only to be used as an optimization
-      for MDL_context::materialize_fast_path_locks(). So if the tickets
-      being added are already materialized it does not break an
-      invariant, and m_mat_front will be updated the next time
-      MDL_context::materialize_fast_path_locks() runs.
-    */
   }
 
 #ifndef DBUG_OFF
