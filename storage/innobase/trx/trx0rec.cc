@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2074,6 +2074,13 @@ dberr_t trx_undo_report_row_operation(
 
   mutex_enter(&trx->undo_mutex);
 
+#ifdef UNIV_DEBUG
+  if (srv_inject_too_many_concurrent_trxs) {
+    err = DB_TOO_MANY_CONCURRENT_TRXS;
+    goto err_exit;
+  }
+#endif /* UNIV_DEBUG */
+
   switch (op_type) {
     case TRX_UNDO_INSERT_OP:
       undo = undo_ptr->insert_undo;
@@ -2087,9 +2094,9 @@ dberr_t trx_undo_report_row_operation(
           ut_ad(err != DB_SUCCESS);
           goto err_exit;
         }
-
-        ut_ad(err == DB_SUCCESS);
       }
+
+      ut_ad(err == DB_SUCCESS);
       break;
     default:
       ut_ad(op_type == TRX_UNDO_MODIFY_OP);
@@ -2108,6 +2115,7 @@ dberr_t trx_undo_report_row_operation(
       }
 
       ut_ad(err == DB_SUCCESS);
+      break;
   }
 
   page_no = undo->last_page_no;

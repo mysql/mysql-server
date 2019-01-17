@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -4493,8 +4493,17 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
     mdl_it = shared_mdl_list.erase(mdl_it);
   }
 
+  DBUG_EXECUTE_IF("DDL_Log_remove_inject_startup_error_1",
+                  srv_inject_too_many_concurrent_trxs = true;);
+
   /* Delete DDL logs now */
   err = log_ddl->post_ts_encryption(ts_encrypt_ddl_records);
+
+  /* Abort post recovery startup if this is not successful since
+  it would leave the DDL Log in an indeterminate state. */
+  if (err != DB_SUCCESS) {
+    ib::fatal(ER_IB_MSG_POST_RECOVER_POST_TS_ENCRYPT);
+  }
 
   ts_encrypt_ddl_records.clear();
   /* All MDLs should have been released and removed from list by now */

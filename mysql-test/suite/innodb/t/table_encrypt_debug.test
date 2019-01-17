@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------
 ## InnoDB transparent tablespace data encryption
-## This test case will test basic recovery from know DBUG_SUICIDE point .
+## This test case will test basic recovery from known DBUG_SUICIDE point .
 ##  - ib_crash_during_rotation_for_encryption (assert during key rotation)
 ##  - ib_crash_during_create_for_encryption (assert during create)
 ##  - ib_crash_during_decrypt_page (assert during page decryption)

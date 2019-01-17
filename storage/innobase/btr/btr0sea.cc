@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -544,7 +544,7 @@ static ibool btr_search_update_block_hash_info(btr_search_t *info,
   if ((block->n_hash_helps > 0) && (info->n_hash_potential > 0) &&
       (block->n_fields == info->n_fields) &&
       (block->n_bytes == info->n_bytes) &&
-      (block->left_side == info->left_side)) {
+      (block->left_side == !!info->left_side)) {
     if ((block->index) && (block->curr_n_fields == info->n_fields) &&
         (block->curr_n_bytes == info->n_bytes) &&
         (block->curr_left_side == info->left_side)) {

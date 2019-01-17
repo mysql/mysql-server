@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2728,11 +2728,16 @@ error_handling:
     case DB_SUCCESS:
     case DB_IO_NO_PUNCH_HOLE_FS:
       break;
-    case DB_OUT_OF_FILE_SPACE:
-      trx->error_state = DB_SUCCESS;
 
-      ib::warn(ER_IB_MSG_986) << "Cannot create table " << table->name
-                              << " because tablespace full";
+    case DB_OUT_OF_FILE_SPACE:
+    case DB_TOO_MANY_CONCURRENT_TRXS:
+
+      if (err == DB_OUT_OF_FILE_SPACE) {
+        ib::warn(ER_IB_MSG_986) << "Cannot create table " << table->name
+                                << " because the tablespace is full";
+      }
+
+      trx->error_state = DB_SUCCESS;
 
       /* Still do it here so that the table can always be freed */
       if (dd_table_open_on_name_in_mem(table->name.m_name, false)) {
@@ -2750,7 +2755,6 @@ error_handling:
       break;
 
     case DB_UNSUPPORTED:
-    case DB_TOO_MANY_CONCURRENT_TRXS:
     case DB_DUPLICATE_KEY:
     case DB_TABLESPACE_EXISTS:
     default:

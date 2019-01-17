@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -476,20 +476,7 @@ class Log_DDL {
   NOTE: This is called by background thread doing resume (un)encryption.
   param[in]	records		list of records to be deleted
   @return InnoDB error code */
-  dberr_t post_ts_encryption(DDL_Records &records) {
-    for (auto record : records) {
-      record->set_deletable(true);
-    }
-
-    dberr_t err = delete_by_ids(records);
-    if (err == DB_SUCCESS) {
-      for (auto record : records) {
-        delete record;
-      }
-    }
-
-    return (err);
-  }
+  dberr_t post_ts_encryption(DDL_Records &records);
 
   /** Is it in ddl recovery in server startup.
   @return	true if it's in ddl recover */

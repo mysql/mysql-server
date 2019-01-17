@@ -344,6 +344,8 @@ bool srv_log_checksums;
 
 bool srv_checkpoint_disabled = false;
 
+bool srv_inject_too_many_concurrent_trxs = false;
+
 #endif /* UNIV_DEBUG */
 
 ulong srv_flush_log_at_trx_commit = 1;

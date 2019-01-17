@@ -1596,16 +1596,16 @@ dberr_t dict_table_rename_in_cache(
     std::string new_tablespace_name;
     dd_filename_to_spacename(new_name, &new_tablespace_name);
 
-    bool success = fil_rename_tablespace(table->space, old_path,
-                                         new_tablespace_name.c_str(), new_path);
+    dberr_t err = fil_rename_tablespace(table->space, old_path,
+                                        new_tablespace_name.c_str(), new_path);
 
     clone_mark_active();
 
     ut_free(old_path);
     ut_free(new_path);
 
-    if (!success) {
-      return (DB_ERROR);
+    if (err != DB_SUCCESS) {
+      return (err);
     }
   }
 

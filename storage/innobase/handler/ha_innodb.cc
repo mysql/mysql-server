@@ -3629,7 +3629,15 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
 /** DDL crash recovery: process the records recovered from "log_ddl" table */
 static void innobase_post_recover() {
   if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
-    log_ddl->recover();
+    DBUG_EXECUTE_IF("DDL_Log_remove_inject_startup_error_2",
+                    srv_inject_too_many_concurrent_trxs = true;);
+
+    dberr_t err = log_ddl->recover();
+
+    /* Abort post recovery startup if this is not successful. */
+    if (err != DB_SUCCESS) {
+      ib::fatal(ER_IB_MSG_POST_RECOVER_DDL_LOG_RECOVER);
+    }
   }
 
   fil_free_scanned_files();
@@ -4569,7 +4577,15 @@ static void innobase_post_ddl(THD *thd) {
   /* During upgrade, etc., the log_ddl may haven't been
   initialized and there is nothing to do now. */
   if (log_ddl != nullptr) {
-    log_ddl->post_ddl(thd);
+    DBUG_EXECUTE_IF("DDL_Log_remove_inject_startup_error_3",
+                    srv_inject_too_many_concurrent_trxs = true;);
+
+    dberr_t err = log_ddl->post_ddl(thd);
+
+    /* If this fails, do not continue startup. */
+    if (err != DB_SUCCESS) {
+      ib::fatal(ER_IB_MSG_DDL_LOG_FAIL_POST_DDL);
+    }
   }
 }
 
@@ -7695,7 +7711,7 @@ inline bool build_template_needs_field_in_icp(
     bool is_virtual)
 /*!< in: a virtual column or not */
 {
-  ut_ad(contains == dict_index_contains_col_or_prefix(index, i, is_virtual));
+  ut_ad(contains == !!dict_index_contains_col_or_prefix(index, i, is_virtual));
 
   return (index == prebuilt->index ? contains
                                    : dict_index_contains_col_or_prefix(
@@ -13305,14 +13321,12 @@ int innobase_truncate<Table>::rename_tablespace() {
   if (err == DB_SUCCESS) {
     mutex_enter(&dict_sys->mutex);
     clone_mark_abort(true);
-    bool success = fil_rename_tablespace(m_table->space, old_path, temp_name,
-                                         new_path.c_str());
+    err = fil_rename_tablespace(m_table->space, old_path, temp_name,
+                                new_path.c_str());
     clone_mark_active();
     mutex_exit(&dict_sys->mutex);
 
-    if (!success) {
-      err = DB_ERROR;
-    } else {
+    if (err == DB_SUCCESS) {
       m_table->trunc_name.m_name = temp_name;
     }
   }
