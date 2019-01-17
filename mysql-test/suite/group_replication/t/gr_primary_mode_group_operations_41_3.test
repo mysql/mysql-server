@@ -350,10 +350,10 @@ UNLOCK TABLES;
 --source include/gr_assert_primary_member.inc
 
 #Stages sometimes linger for a brief time after the action terminated
---let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
---let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= There is no stage present
 --let $assert_cond= "$stages_present" = "0"
 --source include/assert.inc
@@ -362,10 +362,10 @@ UNLOCK TABLES;
 --source include/rpl_connection.inc
 
 #Stages sometimes linger for a brief time after the action terminated
---let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
---let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $stages_present= `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%";`
 --let $assert_text= There is no stage present
 --let $assert_cond= "$stages_present" = "0"
 --source include/assert.inc

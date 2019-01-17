@@ -63,7 +63,7 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --source include/rpl_connection.inc
 
 # Wait for the action to be declared as not running on server2
---let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc
 
 SET @@GLOBAL.group_replication_member_weight= 50;

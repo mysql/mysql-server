@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -192,7 +192,11 @@ extern PSI_stage_info info_GR_STAGE_autorejoin,
     info_GR_STAGE_primary_switch_completion,
     info_GR_STAGE_single_primary_mode_switch_checks,
     info_GR_STAGE_single_primary_mode_switch_election,
-    info_GR_STAGE_single_primary_mode_switch_completion;
+    info_GR_STAGE_single_primary_mode_switch_completion,
+    info_GR_STAGE_module_executing,
+    info_GR_STAGE_module_suspending,
+    info_GR_STAGE_recovery_connecting_to_donor,
+    info_GR_STAGE_recovery_transferring_state;
 
 /* clang-format on */
 

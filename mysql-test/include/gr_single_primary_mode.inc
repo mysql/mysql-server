@@ -34,7 +34,10 @@ if (!$reset_single_primary_mode)
 
 while ($_i_set_single_primary_mode <= $rpl_server_count)
 {
-  --let $rpl_connection_name= server$_i_set_single_primary_mode
+  --let $rpl_connection_name= server_aux_$_i_set_single_primary_mode
+  --let $rpl_server_number= $_i_set_single_primary_mode
+  --source include/rpl_connect.inc
+  --let $rpl_connection_name= server_aux_$_i_set_single_primary_mode
   --source include/rpl_connection.inc
 
   # plugin cannot be running for us to setup these configs
@@ -61,6 +64,9 @@ while ($_i_set_single_primary_mode <= $rpl_server_count)
     SET GLOBAL group_replication_single_primary_mode= FALSE;
     SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
   }
+
+  --connection default
+  --disconnect server_aux_$_i_set_single_primary_mode
 
   --inc $_i_set_single_primary_mode
 }

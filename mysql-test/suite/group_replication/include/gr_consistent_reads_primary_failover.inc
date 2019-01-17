@@ -34,6 +34,7 @@
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_debug_sync.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 --source include/force_restart.inc
@@ -88,12 +89,12 @@ SET @@SESSION.group_replication_consistency='AFTER';
 # Check that T1 is blocked on server1, server2 for server3's ack.
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='waiting for handler commit'
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state LIKE 'waiting for handler commit' AND info LIKE 'INSERT INTO t1 VALUES%'
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='waiting for handler commit'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/slave_%'
 --source include/wait_condition.inc
 
 
@@ -113,7 +114,7 @@ if ($transaction_T2_consistency)
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='waiting for handler commit'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/slave_%'
 --source include/wait_condition.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='Executing hook on transaction begin.'
@@ -140,7 +141,7 @@ if ($transaction_T2_consistency)
 --source include/wait_condition.inc
 
 # Ensure that transaction from server2 is still blocked, also "select" on a parallel session is blocked.
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='waiting for handler commit'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/slave_%'
 --source include/wait_condition.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='Executing hook on transaction begin.'
@@ -153,7 +154,16 @@ if ($transaction_T2_consistency)
 --echo #     server1 succeeds now.
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+--let $transactions_applied= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID IN (SELECT @@server_uuid), COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
 UNLOCK TABLES;
+
+--inc $transactions_applied
+--let $wait_condition=SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = $transactions_applied FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID IN (SELECT @@server_uuid)
+--source include/wait_condition_or_abort.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+SET DEBUG_SYNC= "now SIGNAL signal.after_before_message_send_after_applier_prepare_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
 
 --let $assert_text= 'Table t1 must have 1 entry.'
 --let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 1
@@ -165,7 +175,7 @@ UNLOCK TABLES;
 --echo # 07. Check that server2 has not applied T1.
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='waiting for handler commit'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/slave_%'
 --source include/wait_condition.inc
 
 --echo

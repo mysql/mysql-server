@@ -615,7 +615,8 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
   DBUG_RETURN(error);
 }
 
-int Recovery_state_transfer::state_transfer(THD *recovery_thd) {
+int Recovery_state_transfer::state_transfer(
+    Plugin_stage_monitor_handler &stage_handler) {
   DBUG_ENTER("Recovery_state_transfer::state_transfer");
 
   int error = 0;
@@ -654,20 +655,16 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd) {
       }
     }
 
-#ifndef _WIN32
-    THD_STAGE_INFO(recovery_thd, stage_connecting_to_master);
-#endif
-
+    stage_handler.set_stage(info_GR_STAGE_recovery_connecting_to_donor.m_key,
+                            __FILE__, __LINE__, 0, 0);
     if (!recovery_aborted) {
       // if the connection to the donor failed, abort recovery
       if ((error = establish_donor_connection())) {
         break;
       }
     }
-
-#ifndef _WIN32
-    THD_STAGE_INFO(recovery_thd, stage_executing);
-#endif
+    stage_handler.set_stage(info_GR_STAGE_recovery_transferring_state.m_key,
+                            __FILE__, __LINE__, 0, 0);
 
     /*
       donor_transfer_finished    -> set by the set_retrieved_cert_info method.

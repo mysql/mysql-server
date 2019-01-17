@@ -1,0 +1,185 @@
+################################################################################
+# Validate the behaviour of Group Replication stage events.
+#
+# Test:
+# 01. GR Stage events are present when GR is running.
+# 02. GR Stage events are cleaned on STOP GR.
+# 03. Create some data on server1.
+#     Recovery channel will have some data on server2.
+# 04. Start GR on server2 and block it in recovery.
+#     Applier is suspended while recovery is executing.
+#     Stage events are updated.
+# 05. Lock table t1 to block recovery during state transfer.
+#     Applier is suspended while recovery is transferring state.
+#     Stage events are updated.
+# 06. Block recovery before it terminates.
+#     Applier is executing while recovery is cleaning stage events.
+# 07. Wait for server2 to be ONLINE.
+#     Applier is executing while recovery data from tables is cleaned.
+# 08. Cleanup.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+--echo
+--echo # 01. GR Stage events are present when GR is running.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $assert_text= Group replication applier executing is present in events_stages_current table.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Module: Executing" AND source LIKE "applier%"] = 1
+--source include/assert.inc
+
+--let $assert_text= Group replication applier thread is present in threads table.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.threads WHERE name LIKE "thread/group_rpl/THD_applier_module_receiver" AND processlist_state LIKE "Group Replication Module: Executing"] = 1
+--source include/assert.inc
+
+--let $assert_text= Group replication recovery is not present in events_stages_current table.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Module:%" AND source LIKE "recovery%"] = 0
+--source include/assert.inc
+
+--let $assert_text= Group replication recovery thread is not present in threads table.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.threads WHERE name LIKE "thread/group_rpl/THD_recovery"] = 0
+--source include/assert.inc
+
+--echo
+--echo # 02. GR Stage events are cleaned on STOP GR.
+--echo
+--source include/stop_group_replication.inc
+
+--let $assert_text= No group replication entries are present in events_stages_current table.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%/group_rpl/%"] = 0
+--source include/assert.inc
+
+--let $assert_text= No group replication entries are present in threads table.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.threads WHERE name LIKE "%/group_rpl/%"] = 0
+--source include/assert.inc
+
+--echo
+--echo # 03. Create some data on server1.
+--echo #     Recovery channel will have some data on server2.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO test.t1 values (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @debug_save_2= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,recovery_thread_start_wait';
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_cleanup';
+
+--echo
+--echo # 04. Start GR on server2 and block it in recovery.
+--echo #     Applier is suspended while recovery is executing.
+--echo #     Stage events are updated.
+--echo
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo Suspending state of applier is visible in events_stages_current table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Module: Suspending" AND source LIKE "applier%"
+--source include/wait_condition_or_abort.inc
+
+--echo Suspending state of applier is visible in threads table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name LIKE "thread/group_rpl/THD_applier_module_receiver" AND processlist_state LIKE "Group Replication Module: Suspending"
+--source include/wait_condition_or_abort.inc
+
+
+--echo Executing state of recovery is visible in events_stages_current table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Module: Executing" AND source LIKE "recovery%"
+--source include/wait_condition_or_abort.inc
+
+--echo Executing state of recovery is visible in threads table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name LIKE "thread/group_rpl/THD_recovery" AND processlist_state LIKE "Group Replication Module: Executing"
+--source include/wait_condition_or_abort.inc
+
+
+--echo
+--echo # 05. Lock table t1 to block recovery during state transfer.
+--echo #     Applier is suspended while recovery is transferring state.
+--echo #     Stage events are updated.
+--echo
+LOCK TABLE test.t1 READ;
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+
+--echo Transferring state from donor state of recovery is visible in events_stages_current table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Recovery: Transferring state from donor"
+--source include/wait_condition.inc
+
+
+--echo Suspending state of applier is visible in events_stages_current table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Module: Suspending" AND source LIKE "applier%"
+--source include/wait_condition.inc
+
+UNLOCK TABLES;
+
+
+--echo
+--echo # 06. Block recovery before it terminates.
+--echo #     Applier is executing while recovery is cleaning stage events.
+--echo
+
+--echo mysql_end_stage has removed recovery entry in events_stages_current table.
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Module: Executing" AND source LIKE "recovery%"
+--source include/wait_condition_or_abort.inc
+
+# Recovery is blocked in recovery_thread_wait_before_cleanup, so thd has not been cleaned up.
+# Its taking time to reflect changes in threads table so use wait_condition.
+--echo mysql_end_stage has cleared recovery state in threads table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name LIKE "thread/group_rpl/THD_recovery" AND processlist_state IS NULL
+--source include/wait_condition_or_abort.inc
+
+
+--echo Executing state of applier is visible in events_stages_current table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Module: Executing" AND source LIKE "applier%"
+--source include/wait_condition_or_abort.inc
+
+--echo Executing state of applier is visible in threads table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name LIKE "thread/group_rpl/THD_applier_module_receiver" AND processlist_state LIKE "Group Replication Module: Executing"
+--source include/wait_condition_or_abort.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end_end";
+
+
+--echo
+--echo # 07. Wait for server2 to be ONLINE.
+--echo #     Applier is executing while recovery data from tables is cleaned.
+--echo
+
+--let $group_replication_member_state= ONLINE
+--let $group_replication_member_id= $member2_uuid
+--source include/gr_wait_for_member_state.inc
+
+--echo Executing state of applier is visible in events_stages_current table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Module: Executing" AND source LIKE "applier%"
+--source include/wait_condition_or_abort.inc
+
+--echo Executing state of applier is visible in threads table.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name LIKE "thread/group_rpl/THD_applier_module_receiver" AND processlist_state LIKE "Group Replication Module: Executing"
+--source include/wait_condition_or_abort.inc
+
+
+--echo Recovery thread is not visible in events_stages_current table.
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Group Replication Module: Executing" AND source LIKE "recovery%"
+--source include/wait_condition_or_abort.inc
+
+--echo Recovery thread is not visible in threads table.
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE name LIKE "thread/group_rpl/THD_recovery"
+--source include/wait_condition_or_abort.inc
+
+
+--echo
+--echo # 08. Cleanup.
+--echo
+
+SET @@GLOBAL.DEBUG= @debug_save_2;
+DROP TABLE test.t1;
+
+--source include/group_replication_end.inc

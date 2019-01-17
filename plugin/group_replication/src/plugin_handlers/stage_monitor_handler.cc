@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,git
@@ -49,8 +49,7 @@ int Plugin_stage_monitor_handler::terminate_stage_monitor() {
   service_running = false;
 
   SERVICE_TYPE(registry) *registry = NULL;
-  if (!registry_module ||
-      !(registry = registry_module->get_registry_handle())) {
+  if (!(registry = get_plugin_registry())) {
     DBUG_ASSERT(0); /* purecov: inspected */
     return 1;       /* purecov: inspected */
   }
@@ -65,8 +64,7 @@ int Plugin_stage_monitor_handler::initialize_stage_monitor() {
   DBUG_ASSERT(!service_running);
 
   SERVICE_TYPE(registry) *registry = NULL;
-  if (!registry_module ||
-      !(registry = registry_module->get_registry_handle())) {
+  if (!(registry = get_plugin_registry())) {
     return 1; /* purecov: inspected */
   }
   if (registry->acquire("psi_stage_v1.performance_schema", &generic_service))

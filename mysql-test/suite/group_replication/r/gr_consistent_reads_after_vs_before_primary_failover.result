@@ -52,7 +52,11 @@ ERROR HY000: Lost connection to MySQL server during query
 # 06. Unlock tables on server3. Check the transaction from
 #     server1 succeeds now.
 [connection server3]
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
 UNLOCK TABLES;
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+SET DEBUG_SYNC= "now SIGNAL signal.after_before_message_send_after_applier_prepare_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
 include/assert.inc ['Table t1 must have 1 entry.']
 
 #############################################################

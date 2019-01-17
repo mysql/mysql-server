@@ -29,6 +29,7 @@
 
 #include "my_io.h"
 #include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 #include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
@@ -228,13 +229,13 @@ class Recovery_state_transfer {
 
   /**
     Execute state transfer
-    @param recovery_thd  The recovery thread handle to report the status
+    @param stage_handler  Stage handler to update the system tables
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Recovery state transfer failed
    */
-  int state_transfer(THD *recovery_thd);
+  int state_transfer(Plugin_stage_monitor_handler &stage_handler);
 
  private:
   /**
