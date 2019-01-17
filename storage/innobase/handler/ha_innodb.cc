@@ -20732,6 +20732,17 @@ static MYSQL_SYSVAR_BOOL(
     "Allow IO bursts at the checkpoints ignoring io_capacity setting.", NULL,
     NULL, TRUE);
 
+#ifdef ENABLE_EXPERIMENT_SYSVARS
+
+static MYSQL_SYSVAR_UINT(
+    flush_sync_steps_granularity, srv_flush_sync_steps_granularity,
+    PLUGIN_VAR_NOCMDARG,
+    "In each step sync flush flushes 1/N of the planned"
+    " set of pages to be flushed from given instance of buffer pool.",
+    NULL, NULL, 1, 1, 1024, 0);
+
+#endif /* ENABLE_EXPERIMENT_SYSVARS */
+
 static MYSQL_SYSVAR_ULONG(
     flushing_avg_loops, srv_flushing_avg_loops, PLUGIN_VAR_RQCMDARG,
     "Number of iterations over which the background flushing is averaged.",
@@ -21772,6 +21783,9 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(adaptive_flushing_lwm),
     MYSQL_SYSVAR(adaptive_flushing),
     MYSQL_SYSVAR(flush_sync),
+#ifdef ENABLE_EXPERIMENT_SYSVARS
+    MYSQL_SYSVAR(flush_sync_steps_granularity),
+#endif /* ENABLE_EXPERIMENT_SYSVARS */
     MYSQL_SYSVAR(flushing_avg_loops),
     MYSQL_SYSVAR(max_purge_lag),
     MYSQL_SYSVAR(max_purge_lag_delay),

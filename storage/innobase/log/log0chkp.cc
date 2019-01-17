@@ -234,7 +234,7 @@ static lsn_t log_get_available_for_checkpoint_lsn(const log_t &log) {
 }
 
 /** Calculates and updates lsn at which we might write a next checkpoint. */
-static void log_update_available_for_checkpoint_lsn(log_t &log) {
+static void log_update_available_for_checkpoint_lsn_low(log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
 
   /* Update lsn available for checkpoint. */
@@ -247,6 +247,14 @@ static void log_update_available_for_checkpoint_lsn(log_t &log) {
   if (oldest_lsn > log.available_for_checkpoint_lsn) {
     log.available_for_checkpoint_lsn = oldest_lsn;
   }
+}
+
+lsn_t log_update_available_for_checkpoint_lsn(log_t &log) {
+  log_checkpointer_mutex_enter(log);
+  log_update_available_for_checkpoint_lsn_low(log);
+  const lsn_t result = log.available_for_checkpoint_lsn;
+  log_checkpointer_mutex_exit(log);
+  return (result);
 }
 
 /* @} */
@@ -650,7 +658,7 @@ void log_request_checkpoint(log_t &log, bool sync, lsn_t lsn) {
 void log_request_checkpoint(log_t &log, bool sync) {
   log_checkpointer_mutex_enter(log);
 
-  log_update_available_for_checkpoint_lsn(log);
+  log_update_available_for_checkpoint_lsn_low(log);
 
   const lsn_t lsn = log.available_for_checkpoint_lsn;
 
@@ -761,7 +769,7 @@ static bool log_consider_sync_flush(log_t &log) {
     /* It's very probable that forced flush will result in maximum
     lsn available for creating a new checkpoint, just try to update
     it to not wait for next checkpointer loop. */
-    log_update_available_for_checkpoint_lsn(log);
+    log_update_available_for_checkpoint_lsn_low(log);
 
     return (true);
   }
@@ -899,7 +907,7 @@ void log_checkpointer(log_t *log_ptr) {
       be great to have it updated beforehand. Also, this
       is the only thread that relies on that value, so we
       don't need to update it in other threads. */
-      log_update_available_for_checkpoint_lsn(log);
+      log_update_available_for_checkpoint_lsn_low(log);
 
       /* Consider flushing some dirty pages. */
       const bool sync_flushed = log_consider_sync_flush(log);
