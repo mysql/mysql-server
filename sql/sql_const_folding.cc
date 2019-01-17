@@ -559,6 +559,14 @@ static bool analyze_decimal_field_constant(THD *thd, Item_field *f,
         } else {
           *place = RP_OUTSIDE_HIGH;  // =, <>, so outside: convention use high
         }
+      } else if (d->frac > f_frac) {
+        // truncate zeros
+        my_decimal cpy;
+        my_decimal2decimal(d, &cpy);
+        if (decimal_round(&cpy, &cpy, f_frac, TRUNCATE)) return true;
+        const auto new_dec = new (thd->mem_root) Item_decimal(&cpy);
+        if (new_dec == nullptr) return true;
+        thd->change_item_tree(const_val, new_dec);
       } else if (actual_frac < f_frac) {
         my_decimal cpy;
         my_decimal2decimal(d, &cpy);
