@@ -769,6 +769,11 @@ of changed concurrency limit).
 @param[in,out]	log	redo log */
 void log_update_limits(log_t &log);
 
+/** Updates lsn available for checkpoint.
+@param[in,out]  log redo log
+@return the updated lsn value */
+lsn_t log_update_available_for_checkpoint_lsn(log_t &log);
+
 /** Waits until the redo log is written up to a provided lsn.
 @param[in]  log             redo log
 @param[in]  lsn             lsn to wait for
