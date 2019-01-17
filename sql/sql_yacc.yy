@@ -11210,15 +11210,14 @@ date_time_type:
         | DATETIME_SYM  {$$= MYSQL_TIMESTAMP_DATETIME; }
         ;
 
-opt_as_or_eq:
+opt_as:
           /* empty */
         | AS
-        | EQ
         ;
 
 opt_table_alias:
-          /* empty */        { $$= NULL_CSTR; }
-        | opt_as_or_eq ident { $$= to_lex_cstring($2); }
+          /* empty */  { $$ = NULL_CSTR; }
+        | opt_as ident { $$ = to_lex_cstring($2); }
         ;
 
 opt_all:
