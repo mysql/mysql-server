@@ -1,4 +1,4 @@
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,15 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE(GenerateExportHeader)
+
+IF(WITH_LIBEVENT STREQUAL "system")
+  MYSQL_CHECK_LIBEVENT_VERSION()
+  IF(SYSTEM_LIBEVENT_FOUND)
+    IF(SYSTEM_LIBEVENT_VERSION VERSION_LESS "2.1")
+      MESSAGE(FATAL_ERROR "At least version 2.1 is needed for libevent.")
+    ENDIF()
+  ENDIF()
+ENDIF()
 
 ADD_LIBRARY(http_common
   SHARED
@@ -182,8 +191,7 @@ TARGET_LINK_LIBRARIES(mysqlrouter_passwd
   http_auth_backend_lib mysys)
 SET_PROPERTY(TARGET mysqlrouter_passwd PROPERTY INSTALL_RPATH "${ROUTER_INSTALL_RPATH}")
 
-
-INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}/;${LIBEVENT_INCLUDE_DIRS})
+MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/router/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/metadata_cache/include/)

@@ -407,6 +407,7 @@ ENDIF()
 INCLUDE(CMakePushCheckState)
 
 # Add macros
+INCLUDE(pkg-config)
 INCLUDE(character_sets)
 INCLUDE(cpu_info)
 INCLUDE(zlib)
