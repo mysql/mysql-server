@@ -216,6 +216,8 @@ have_transaction_write_set_extraction.inc
 
 # 16.0 Thread stack overrun on debug/sparc when built with Developer Studio
 not_sparc_debug.inc
+# 16.1 Some MEB tests can't run on MacOS debug
+not_mac_os_debug.inc
 # This also fails with non-debug
 statement_digest_long_query.test
 
