@@ -1232,6 +1232,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> RETAIN_SYM                    /* MYSQL */
 %token<keyword> OLD_SYM                       /* SQL-2003-R */
 %token<keyword> ENFORCED_SYM                  /* SQL-2015-N */
+%token<keyword> OJ_SYM                        /* ODBC */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -10675,16 +10676,18 @@ when_list:
 table_reference:
           table_factor { $$= $1; }
         | joined_table { $$= $1; }
-        | '{' ident esc_table_reference '}' { $$= $3; }
+        | '{' OJ_SYM esc_table_reference '}'
+          {
+            /*
+              The ODBC escape syntax for Outer Join.
+
+              All productions from table_factor and joined_table can be escaped,
+              not only the '{LEFT | RIGHT} [OUTER] JOIN' syntax.
+            */
+            $$ = $3;
+          }
         ;
 
-/*
-  The ODBC escape syntax for Outer Join is: '{' OJ joined_table '}'
-  The parser does not define OJ as a token, any ident is accepted
-  instead in $2 (ident). Also, all productions from table_ref can
-  be escaped, not only joined_table. Both syntax extensions are safe
-  and are ignored.
-*/
 esc_table_reference:
           table_factor { $$= $1; }
         | joined_table { $$= $1; }
@@ -14209,6 +14212,7 @@ ident_keywords_unambiguous:
         | NUMBER_SYM
         | NVARCHAR_SYM
         | OFFSET_SYM
+        | OJ_SYM
         | OLD_SYM
         | ONE_SYM
         | ONLY_SYM

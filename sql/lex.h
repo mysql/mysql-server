@@ -461,6 +461,7 @@ static const SYMBOL symbols[] = {
     {SYM("NVARCHAR", NVARCHAR_SYM)},
     {SYM("OF", OF_SYM)},
     {SYM("OFFSET", OFFSET_SYM)},
+    {SYM("OJ", OJ_SYM)},
     {SYM("OLD", OLD_SYM)},
     {SYM("ON", ON_SYM)},
     {SYM("ONE", ONE_SYM)},
