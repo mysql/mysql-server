@@ -2464,3 +2464,15 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 UPDATE t1=a SET i=0;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=a SET i=0' at line 1
 DROP TABLE t1;
+#
+# Bug #22320942: ODBC OUTER JOIN ESCAPE SEQUENCE SYNTAX IS BROKEN
+#
+CREATE TEMPORARY TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+SELECT * FROM { OJ t1 LEFT JOIN t2 ON TRUE };
+i	i
+SELECT * FROM { `OJ` t1 LEFT JOIN t2 ON TRUE };
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '`OJ` t1 LEFT JOIN t2 ON TRUE }' at line 1
+SELECT * FROM { random_identifier t1 LEFT JOIN t2 ON TRUE };
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'random_identifier t1 LEFT JOIN t2 ON TRUE }' at line 1
+DROP TABLE t1, t2;

@@ -232,13 +232,6 @@ static void compute_tokens() {
   set_token(IDENT_QUOTED, "(id_quoted)");
 
   /*
-    Unused tokens
-  */
-  set_token(LOCATOR_SYM, "LOCATOR");
-  set_token(SERVER_OPTIONS, "SERVER_OPTIONS");
-  set_token(UDF_RETURNS_SYM, "UDF_RETURNS");
-
-  /*
     See symbols[] in sql/lex.h
   */
   for (i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {

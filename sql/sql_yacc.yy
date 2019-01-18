@@ -782,7 +782,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> LIST_SYM
 %token  LOAD
 %token<keyword> LOCAL_SYM             /* SQL-2003-R */
-%token  LOCATOR_SYM                   /* SQL-2003-N */
+%token  OBSOLETE_TOKEN_538            /* was: LOCATOR_SYM */
 %token<keyword> LOCKS_SYM
 %token  LOCK_SYM
 %token<keyword> LOGFILE_SYM
@@ -999,7 +999,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> SERIAL_SYM
 %token<keyword> SESSION_SYM           /* SQL-2003-N */
 %token<keyword> SERVER_SYM
-%token  SERVER_OPTIONS
+%token  OBSOLETE_TOKEN_755            /* was: SERVER_OPTIONS */
 %token  SET_SYM                       /* SQL-2003-R */
 %token  SET_VAR
 %token<keyword> SHARE_SYM
@@ -1092,7 +1092,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> TRUNCATE_SYM
 %token<keyword> TYPES_SYM
 %token<keyword> TYPE_SYM              /* SQL-2003-N */
-%token<keyword> UDF_RETURNS_SYM
+%token  OBSOLETE_TOKEN_848            /* was:  UDF_RETURNS_SYM */
 %token  ULONGLONG_NUM
 %token<keyword> UNCOMMITTED_SYM       /* SQL-2003-N */
 %token<keyword> UNDEFINED_SYM
@@ -1232,6 +1232,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> RETAIN_SYM                    /* MYSQL */
 %token<keyword> OLD_SYM                       /* SQL-2003-R */
 %token<keyword> ENFORCED_SYM                  /* SQL-2015-N */
+%token<keyword> OJ_SYM                        /* ODBC */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -10675,16 +10676,18 @@ when_list:
 table_reference:
           table_factor { $$= $1; }
         | joined_table { $$= $1; }
-        | '{' ident esc_table_reference '}' { $$= $3; }
+        | '{' OJ_SYM esc_table_reference '}'
+          {
+            /*
+              The ODBC escape syntax for Outer Join.
+
+              All productions from table_factor and joined_table can be escaped,
+              not only the '{LEFT | RIGHT} [OUTER] JOIN' syntax.
+            */
+            $$ = $3;
+          }
         ;
 
-/*
-  The ODBC escape syntax for Outer Join is: '{' OJ joined_table '}'
-  The parser does not define OJ as a token, any ident is accepted
-  instead in $2 (ident). Also, all productions from table_ref can
-  be escaped, not only joined_table. Both syntax extensions are safe
-  and are ignored.
-*/
 esc_table_reference:
           table_factor { $$= $1; }
         | joined_table { $$= $1; }
@@ -14209,6 +14212,7 @@ ident_keywords_unambiguous:
         | NUMBER_SYM
         | NVARCHAR_SYM
         | OFFSET_SYM
+        | OJ_SYM
         | OLD_SYM
         | ONE_SYM
         | ONLY_SYM
@@ -14342,7 +14346,6 @@ ident_keywords_unambiguous:
         | TRIGGERS_SYM
         | TYPES_SYM
         | TYPE_SYM
-        | UDF_RETURNS_SYM
         | UNBOUNDED_SYM
         | UNCOMMITTED_SYM
         | UNDEFINED_SYM
