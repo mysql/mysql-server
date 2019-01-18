@@ -485,3 +485,30 @@ EXPLAIN FORMAT=tree SELECT 1 WHERE (
 );
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #29231551: WL#12470: SIG 6 QEP_TAB->LAST_INNER() == (-2) CONNECTJOINS()|SQL/SQL_EXECUTOR.CC
+--echo #
+
+#
+# Another case where the optimizer sets up a partially overlapping semijoin
+# and outer join. (If the plan changes to one without weedout as a result of
+# optimizer changes, most likely this test should just be deleted.)
+#
+
+CREATE TABLE t1 (
+  pk integer PRIMARY KEY,
+  f1 integer,
+  f2 varchar(1)
+);
+
+INSERT INTO t1 VALUES (1,100,'x'),(2,200,'y');
+
+CREATE TABLE t2 (
+  f2 varchar(1)
+);
+
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t1.pk = t3.pk AND t1.f2 IN ( SELECT f2 FROM t2 )
+WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.f1;
+
+DROP TABLE t1, t2;

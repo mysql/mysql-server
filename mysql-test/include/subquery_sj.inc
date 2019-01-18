@@ -1404,6 +1404,9 @@ FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND
 # In subquery_sj_dupsweed (ie., duplicate weedout active), demonstrates
 # how weedouts that intersect with outer joins are being dropped and then
 # reintroduced again at the very top of the join tree.
+#
+# In subquery_sj_{all,firstmatch}_*, demonstrates how partially overlapping
+# outer joins and first matches are rewritten into weedout at the top.
 EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
          LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);

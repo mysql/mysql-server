@@ -1588,6 +1588,23 @@ static Substructure FindSubstructure(
     }
   }
 
+  // Yet another special case like the above; this is when we have a semijoin
+  // and then a partially overlapping outer join that ends outside the semijoin.
+  // E.g., A JOIN B JOIN C LEFT JOIN D, where A..C denotes a semijoin
+  // (C has first match back to A).
+  if (is_semijoin) {
+    for (plan_idx i = this_idx; i < semijoin_end; ++i) {
+      if (qep_tabs[i].last_inner() >= semijoin_end) {
+        // Handle this semijoin as non-hierarchical weedout above.
+        for (plan_idx j = this_idx; j < semijoin_end; ++j) {
+          unhandled_duplicates->push_back(&qep_tabs[j]);
+        }
+        is_semijoin = false;
+        break;
+      }
+    }
+  }
+
   // We may have detected both a semijoin and an outer join starting at
   // this table. Decide which one is the outermost that is not already
   // processed, so that we recurse in the right order.

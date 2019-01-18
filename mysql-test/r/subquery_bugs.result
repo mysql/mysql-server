@@ -604,3 +604,32 @@ WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
 );
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
+#
+# Bug #29231551: WL#12470: SIG 6 QEP_TAB->LAST_INNER() == (-2) CONNECTJOINS()|SQL/SQL_EXECUTOR.CC
+#
+CREATE TABLE t1 (
+pk integer PRIMARY KEY,
+f1 integer,
+f2 varchar(1)
+);
+INSERT INTO t1 VALUES (1,100,'x'),(2,200,'y');
+CREATE TABLE t2 (
+f2 varchar(1)
+);
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t1.pk = t3.pk AND t1.f2 IN ( SELECT f2 FROM t2 )
+WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.f1;
+EXPLAIN
+-> Remove duplicate (t1, t3, t4) rows using temporary table (weedout)
+    -> Nested loop semijoin
+        -> Nested loop left join
+            -> Nested loop inner join
+                -> Filter: ((t1.f1 = 80) and (t1.pk > 80))
+                    -> Index range scan on t1 using PRIMARY
+                -> Table scan on t5
+            -> Nested loop inner join
+                -> Filter: (t2.f2 = t1.f2)
+                    -> Table scan on t2
+                -> Single-row index lookup on t3 using PRIMARY (pk=t1.pk)
+        -> Index scan on t4 using PRIMARY
+
+DROP TABLE t1, t2;
