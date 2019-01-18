@@ -13633,17 +13633,10 @@ static void ndbcluster_drop_database(handlerton*, char *path)
     DBUG_VOID_RETURN;
   }
 
-  const int res = ndbcluster_drop_database_impl(thd, schema_dist_client, path);
-  if (res != 0)
+  if (ndbcluster_drop_database_impl(thd, schema_dist_client, path) != 0)
   {
     DBUG_VOID_RETURN;
   }
-
-  // NOTE! While upgrading MySQL Server from version
-  // without DD there might be remaining .ndb and .frm files.
-  // Such files would prevent DROP DATABASE to drop the actual
-  // data directory and should be removed probably remove at this
-  // point or in the "schema distribution synch" code.
 
   if (!schema_dist_client.drop_db(db))
   {
